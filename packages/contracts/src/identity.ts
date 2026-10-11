@@ -11,6 +11,8 @@
  * import at J1 and never vendor a copy of these shapes.
  */
 
+import type { UserRef } from './values.js';
+
 /** Contract version. Bump only with a breaking shape change + owner handoff. */
 export const IDENTITY_CONTRACT_VERSION = 1;
 
@@ -85,6 +87,18 @@ export interface Membership {
   readonly status: MembershipStatus;
   readonly created_at: InstantString;
   readonly updated_at: InstantString;
+}
+
+/**
+ * Original teams.member_removed payload (DESIGN section 6). The subject is
+ * the removed account, retained independently of its current membership;
+ * neither a raw request user nor the remover supplies this attribution.
+ * This type alone does not authenticate, authorize or emit an event.
+ */
+export interface TeamsMemberRemovedEvent {
+  readonly team_id: string;
+  readonly membership_id: string;
+  readonly user: UserRef;
 }
 
 /** One team parameter plus at most 99 user parameters fits D1's 100-bind limit. */

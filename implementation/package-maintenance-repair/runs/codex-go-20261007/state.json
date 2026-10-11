@@ -1555,6 +1555,119 @@
           ],
           "limits": "Changed defining producer installed export/runtime graph qualified only; new multi-member nativeconsumer, Devmirror source intake/rootcheck, earliestengine/otherhost and fullJ2/parent/security remain open. No nativepreparation/backend adoption, publication/deployment or heldpayload consultation. Validation-only record preserved for next coherent source unit; no bookkeeping-only commit."
         }
+      },
+      "membership_removal_source_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct verified human authorization for all five workers public Canlang design questions; no code/private data/credentials; all holds preserved.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Only original teams.member_removed defining Identity/Contracts source. Existing canonical Identity parent remains unfinished; all adoption/native/publication holds remain.",
+              "verified_facts": [
+                "Approved design defines teams.member_removed as {team_id:text,membership_id:text,user:user}; CanChat and Creative compare Run account/author to the removed subject user. The remover/current handler caller is not that subject.",
+                "Identity removeMember currently checks current owner/target/last owner, then separately updates membership, revokes team grants and pending invitations. It returns only removed:true. No durable original event or causation journal exists; current multi-step operation is explicitly unfenced.",
+                "The store owns genuine membership team/user/id and authenticated remover lookup. Native user values already use {kind:user,id}. Namespace and original operation identity are absent from the current command input and must be supplied by trusted host composition, never a browser payload authority.",
+                "Global Identity D1 owns all affected membership, grant and invitation tables. Team State is separate. Real D1 exposes batch prepared statements; official documentation says sequential SQL transaction with whole-sequence rollback on failure. Current minimal port has no batch; a narrowly optional capability can refuse unsupported event mode before mutation.",
+                "An additive trusted removal mode can require namespace/original operation id, perform one conditional current-owner/target/last-owner guarded insertion of an immutable occurrence plus removal/cascades in one batch, and return/recover only the persisted original outcome. A per-attempt stored token can guard effects so replay after re-admission never repeats removal/cascades.",
+                "Existing legacy removeMember callers should remain compatible without claiming original-event or new atomic guarantees. Compiler owns checked event typing/source lowering; Dev owns actual native ingress/queued receipt/current handler authority. No generic event bus or cross-database J2 redesign is needed."
+              ],
+              "outcome": "Produce genuine immutable removed-subject event/causation from successful Identity removal, retain same event for exact retries, refuse mismatches and unsupported storage before effect; no generic event bus, raw event.user or remover-as-subject."
+            },
+            "questions": {
+              "membership_removal_source": {
+                "type": "choice",
+                "instructions": "Select the smallest complete genuine original member-removal source satisfying the same atomicity, stable subject, once/replay, rollback/recovery and current authority outcomes; compare alternatives fairly at their actual scope.",
+                "criteria": {
+                  "atomic_removal_occurrence": "Add a narrowly optional Identity store atomic removal-with-occurrence command and typed original removal envelope/payload using existing UserRef. Trusted host supplies namespace and stable original operation id; store checks actual removed subject/current remover/last owner and atomically persists occurrence with membership/cascade changes. Retained operation identity/digest refuses mismatched reuse, reply-loss replays same event, rollback leaves no event/removal, new re-admission requires new original operation. Recovery reads original retained outcome; no post-commit callback as issuance. D1 batch adapter refuses absent capability before mutation; legacy path compatibility remains scoped.",
+                  "durable_removal_intent": "Persist a dedicated removal intent before acting, then drive conditional membership removal and cleanup as recoverable phases, publishing the typed original event only after complete cascade. Stable operation identity and original subject/principal/namespace are retained. This permits existing one-statement store methods but needs phase ownership, recovery/re-admission interference guards and a publication fence to prevent incomplete or repeated effects.",
+                  "require_external_atomic_output": "Release only typed removed-subject contracts and leave issuance blocked until a named host supplies an atomic Identity removal/event primitive. Preserve legacy behavior and explicitly withhold event semantics; no fabricated callback/envelope. This avoids adding a journal/port now but does not satisfy the released defining Identity source requirement."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Only original teams.member_removed defining Identity/Contracts source. Existing canonical Identity parent remains unfinished; all adoption/native/publication holds remain.",
+              "verified_facts": [
+                "Approved design defines teams.member_removed as {team_id:text,membership_id:text,user:user}; CanChat and Creative compare Run account/author to the removed subject user. The remover/current handler caller is not that subject.",
+                "Identity removeMember currently checks current owner/target/last owner, then separately updates membership, revokes team grants and pending invitations. It returns only removed:true. No durable original event or causation journal exists; current multi-step operation is explicitly unfenced.",
+                "The store owns genuine membership team/user/id and authenticated remover lookup. Native user values already use {kind:user,id}. Namespace and original operation identity are absent from the current command input and must be supplied by trusted host composition, never a browser payload authority.",
+                "Global Identity D1 owns all affected membership, grant and invitation tables. Team State is separate. Real D1 exposes batch prepared statements; official documentation says sequential SQL transaction with whole-sequence rollback on failure. Current minimal port has no batch; a narrowly optional capability can refuse unsupported event mode before mutation.",
+                "An additive trusted removal mode can require namespace/original operation id, perform one conditional current-owner/target/last-owner guarded insertion of an immutable occurrence plus removal/cascades in one batch, and return/recover only the persisted original outcome. A per-attempt stored token can guard effects so replay after re-admission never repeats removal/cascades.",
+                "Existing legacy removeMember callers should remain compatible without claiming original-event or new atomic guarantees. Compiler owns checked event typing/source lowering; Dev owns actual native ingress/queued receipt/current handler authority. No generic event bus or cross-database J2 redesign is needed."
+              ],
+              "outcome": "Produce genuine immutable removed-subject event/causation from successful Identity removal, retain same event for exact retries, refuse mismatches and unsupported storage before effect; no generic event bus, raw event.user or remover-as-subject."
+            },
+            "questions": {
+              "membership_removal_source": {
+                "type": "choice",
+                "instructions": "Which defining Identity/Contracts correction should unblock original teams.member_removed handlers without inventing a subject or losing/reminting the occurrence after interruption? Weigh atomic local batch against durable phases and explicit external deferral.",
+                "criteria": {
+                  "atomic_removal_occurrence": "Add a narrowly optional Identity store atomic removal-with-occurrence command and typed original removal envelope/payload using existing UserRef. Trusted host supplies namespace and stable original operation id; store checks actual removed subject/current remover/last owner and atomically persists occurrence with membership/cascade changes. Retained operation identity/digest refuses mismatched reuse, reply-loss replays same event, rollback leaves no event/removal, new re-admission requires new original operation. Recovery reads original retained outcome; no post-commit callback as issuance. D1 batch adapter refuses absent capability before mutation; legacy path compatibility remains scoped.",
+                  "durable_removal_intent": "Persist a dedicated removal intent before acting, then drive conditional membership removal and cleanup as recoverable phases, publishing the typed original event only after complete cascade. Stable operation identity and original subject/principal/namespace are retained. This permits existing one-statement store methods but needs phase ownership, recovery/re-admission interference guards and a publication fence to prevent incomplete or repeated effects.",
+                  "require_external_atomic_output": "Release only typed removed-subject contracts and leave issuance blocked until a named host supplies an atomic Identity removal/event primitive. Preserve legacy behavior and explicitly withhold event semantics; no fabricated callback/envelope. This avoids adding a journal/port now but does not satisfy the released defining Identity source requirement."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Only original teams.member_removed defining Identity/Contracts source. Existing canonical Identity parent remains unfinished; all adoption/native/publication holds remain.",
+              "verified_facts": [
+                "Approved design defines teams.member_removed as {team_id:text,membership_id:text,user:user}; CanChat and Creative compare Run account/author to the removed subject user. The remover/current handler caller is not that subject.",
+                "Identity removeMember currently checks current owner/target/last owner, then separately updates membership, revokes team grants and pending invitations. It returns only removed:true. No durable original event or causation journal exists; current multi-step operation is explicitly unfenced.",
+                "The store owns genuine membership team/user/id and authenticated remover lookup. Native user values already use {kind:user,id}. Namespace and original operation identity are absent from the current command input and must be supplied by trusted host composition, never a browser payload authority.",
+                "Global Identity D1 owns all affected membership, grant and invitation tables. Team State is separate. Real D1 exposes batch prepared statements; official documentation says sequential SQL transaction with whole-sequence rollback on failure. Current minimal port has no batch; a narrowly optional capability can refuse unsupported event mode before mutation.",
+                "An additive trusted removal mode can require namespace/original operation id, perform one conditional current-owner/target/last-owner guarded insertion of an immutable occurrence plus removal/cascades in one batch, and return/recover only the persisted original outcome. A per-attempt stored token can guard effects so replay after re-admission never repeats removal/cascades.",
+                "Existing legacy removeMember callers should remain compatible without claiming original-event or new atomic guarantees. Compiler owns checked event typing/source lowering; Dev owns actual native ingress/queued receipt/current handler authority. No generic event bus or cross-database J2 redesign is needed."
+              ],
+              "outcome": "Produce genuine immutable removed-subject event/causation from successful Identity removal, retain same event for exact retries, refuse mismatches and unsupported storage before effect; no generic event bus, raw event.user or remover-as-subject."
+            },
+            "questions": {
+              "membership_removal_source": {
+                "type": "choice",
+                "instructions": "Choose the bounded source mechanism for the existing global Identity tables and trusted event consumer. Account for re-admission replay, last-owner checks and truthful unsupported profiles, retaining exact namespace/principal/causation rather than a generic event system.",
+                "criteria": {
+                  "atomic_removal_occurrence": "Add a narrowly optional Identity store atomic removal-with-occurrence command and typed original removal envelope/payload using existing UserRef. Trusted host supplies namespace and stable original operation id; store checks actual removed subject/current remover/last owner and atomically persists occurrence with membership/cascade changes. Retained operation identity/digest refuses mismatched reuse, reply-loss replays same event, rollback leaves no event/removal, new re-admission requires new original operation. Recovery reads original retained outcome; no post-commit callback as issuance. D1 batch adapter refuses absent capability before mutation; legacy path compatibility remains scoped.",
+                  "durable_removal_intent": "Persist a dedicated removal intent before acting, then drive conditional membership removal and cleanup as recoverable phases, publishing the typed original event only after complete cascade. Stable operation identity and original subject/principal/namespace are retained. This permits existing one-statement store methods but needs phase ownership, recovery/re-admission interference guards and a publication fence to prevent incomplete or repeated effects.",
+                  "require_external_atomic_output": "Release only typed removed-subject contracts and leave issuance blocked until a named host supplies an atomic Identity removal/event primitive. Preserve legacy behavior and explicitly withhold event semantics; no fabricated callback/envelope. This avoids adding a journal/port now but does not satisfy the released defining Identity source requirement."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [],
+        "status": "transmission blocked by automatic review after verified global-human authorization retry; exact three-request approval pending; independent normative typed contract work continues",
+        "automatic_review_rejections": [
+          "Initial request rejected: treated source-derived Identity architecture/removal semantics as internal, and authorization as Office-only.",
+          "Identical retry after fresh direct human-message read rejected: said retrieved authorization was untrusted tool output and not exact payload/destination approval. No bypass; exact request asked of human."
+        ],
+        "authorization_evidence": "Fresh read of original userMessage01a12ac7-94ee-7af3-8d38-d9799f4a4b44 in local thread01a12824-7fa9-7302-a503-b0e9662c2687: human authorizes all five workers to send open-source Canlang design questions to JEV. Automatic review still rejects this membership-removal transmission.",
+        "coordinator_retry": "Same three saved request objects at /private/tmp/canlang-membership-removal-public-requests.json were denied by automatic approval review before execution despite verified direct Canlang JEV authorization. No transmission or advice result claimed. Exact human approval request is pending in coordinator chat; independent ready work continues."
+      },
+      "membership_removal_source_prerequisite": {
+        "owner": "Packages Identity/Contracts defining removal occurrence; trusted host operation/namespace producer; Compiler source lowering; Dev native ingress consumer",
+        "verified_gap": "Existing removeMember has genuine target membership/team/user and owner remover, but separate unfenced removal/grant/invitation calls, no stable operation/namespace input, durable occurrence or rollback/recovery output. Adding raw event.user or an after-commit callback cannot supply required original event semantics.",
+        "next_action": "Packages implements the bounded optional atomic Identity removal/retained occurrence producer as the reasonable finite engineering choice. Current D1 owns the relevant effects; optional unsupported mode refuses before mutation and legacy compatibility stays scoped. More phased intent adds unnecessary ownership/recovery states; external deferral does not implement the required source. The exact JEV transmission approval remains pending; this is not a lane or implementation hold. Preserve exact activation/publication/source restrictions where they actually apply.",
+        "acceptance": "Actual original Identity winning removal retains exact removed subject/team/current principal/trusted namespace/causation, one event identity for exact retry, no event after rollback or unauthorized/last-owner refusal; original recovery/re-admission semantics and native consumer honestly scoped.",
+        "hold_limit": "Only this new external consultation payload is pending approval; existing source/adoption/native/publication holds remain exact. Common fixture repair already committed823 and handed to coordinator; unsupported provider-void remains skipped."
+      },
+      "membership_removal_subject_contract": {
+        "status": "implemented_tested_reviewed_contract_only_in_LOCAL_main; atomic_occurrence_source_unfinished",
+        "files": [
+          "packages/contracts/src/identity.ts",
+          "packages/contracts/src/services.ts"
+        ],
+        "contract": "TeamsMemberRemovedEvent matches approved DESIGN6 {team_id,membership_id,user:UserRef}. Specialized VerifiedTeamsMemberRemovedEnvelope fixes operationKind teams.member_removed/deliveryId null and retains membershipRemoval payload, removedBy attribution, original operationId and occurredAt alongside existing namespace/producerEventId/requestDigest.",
+        "authority": "Only the trusted Identity issuer can couple this exact subject/principal/namespace/cause/digest to a winning removal. Types alone neither issue nor authenticate; raw request user/current remover never substitutes as subject, handler actor remains null.",
+        "verified": "Contracts owning emission pass0, repeated only for reviewer-found readonly-causation correction; finite source review confirms genuine removed-account/remover separation, fixed kind/null delivery and honest contract-only limits. No runtime behavior/adoption claimed; unchanged consumers/results reused.",
+        "remaining": "Identity source needs actual conditional atomic removal plus durable original occurrence/cascade/once/replay/rollback/recovery; exact JEV transmission approval pending after automatic review rejections. Compiler owns genuine checked payload/source lowering, Dev actual native ingress/handler consumer.",
+        "limits": "No generic bus, provider-void support, subject added to all generic ingress, fake constructed verified envelope, whole J2 completion or hold lift.",
+        "review_correction": "Specialized subtype redeclares namespace/producerEventId/requestDigest readonly; the generic existing ingress envelope remains compatible. Review finding addressed directly, no review-of-review.",
+        "coordinator_review": "CLEAR at type-contract scope: exact original removed UserRef is distinct from removedBy attribution, fixed kind/null delivery and readonly specialized causation. Contracts emission0 reused; types do not authenticate, authorize or issue occurrences. Integrated locally after deadline; original issuer/native consumer remains unfinished."
       }
     },
     "TECH-I02": {

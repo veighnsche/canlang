@@ -10367,3 +10367,34 @@ required-field SEND projection, created-Run child lifetime and original applicat
 acceptance remain defining native-owner work. C14 observations remain held.
 
 Coordinator defining source review CLEAR and local integration after deadline; recorded139/strict0/fmt0 reused. Exact original native36→29 diagnostics emits no modules; it is not application acceptance. Complete filetree checkpoint remains unchanged and recipient-specific holds are preserved.
+
+## 2026-10-11 — Original member-removal subject (contract implemented; issuance unfinished)
+
+The approved DESIGN section6 source teams.member_removed retains
+{team_id,membership_id,user:user}; user is the removed account. Export that exact
+TeamsMemberRemovedEvent using existing UserRef, with a specialized
+VerifiedTeamsMemberRemovedEnvelope retaining the typed payload, removing
+principal, original operation identity and occurrence time beside the existing
+namespace/event-ID/request-digest causation fields. Its kind is fixed and it has
+no provider delivery. Types do not authenticate or issue an event. The trusted
+issuer must couple these original facts to a winning removal; the receiving
+handler retains actor=null. Contracts owning emission passes; existing consumers
+and checks are unchanged.
+
+The current Identity producer checks authority then separately removes membership
+and revokes team grants/invitations. It has no atomic original occurrence journal,
+namespace/cause input or retained replay/rollback/recovery output. Post-commit
+callbacks and raw event.user cannot supply that missing source. A bounded atomic
+removal plus retained occurrence, recoverable phased intent and exact external
+deferral are proposals under comparison in the existing TECH-I01 JEV3 requests.
+The actual D1 batch transaction/rollback primitive is documented by
+[Cloudflare](https://developers.cloudflare.com/d1/worker-api/d1-database/).
+
+Automatic review rejected initial transmission and an identical retry with a
+fresh read of the direct global human authorization; it still requires approval
+for this exact payload/destination. That consultation is pending the human's
+response. The source remains unfinished, with no fabricated envelope or generic
+event bus. Compiler owns checked source lowering and Dev owns actual native
+ingress/handler qualification. Whole J2 and all precise holds remain open.
+
+Coordinator type-contract review CLEAR and local integration after deadline; Contracts emission0 reused. Current engineering choice is the bounded optional atomic Identity removal with retained immutable occurrence, scoped legacy compatibility and unsupported-mode refusal before effects. It uses the existing owning D1 transaction primitive and avoids the extra phase ownership/recovery machinery; external deferral leaves the actual requirement unsatisfied. JEV advice remains unavailable because automatic review denied the identical request before transmission and exact approval is pending. Packages continues the producer with this uncertainty recorded; no type-only event authority or native acceptance is claimed. All exact holds and the complete filetree checkpoint remain unchanged.
