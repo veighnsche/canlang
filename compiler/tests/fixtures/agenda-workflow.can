@@ -1,0 +1,25 @@
+app AgendaWorkflow source="FR"
+Given
+ Visit {from:datetime,until:datetime,state:enum(pending,confirmed,cancelled,attended,no_show,unavailable)=pending,host_ok:bool,room_ok:bool,duration:duration,reason:text}
+ policy Visit read=public
+When
+ scenario attendance(appointment:Visit,attend:bool label="Attendance",reason:text label="Attendance reason") by=public
+  do set appointment {host_ok=attend,reason=reason}
+ scenario cancel(appointment:Visit) by=public label="Cancel"
+  do set appointment {state=cancelled}
+Then
+ preferences {appointment_state:Visit.state?}
+ page /agenda title="Agenda"
+  calendar Visit start=from end=until filter=state defaults={state=preferences.appointment_state}
+   pagination
+   badge row.state
+   status row.host_ok
+   status row.room_ok
+   text row.duration,row.reason
+   form attendance arguments={appointment=row}
+    checkbox attend
+    textarea reason
+   actions cancel
+  calendar Visit start=from end=until filter=state defaults={state=preferences.appointment_state}
+   pagination
+   text "Second occurrence"

@@ -1848,7 +1848,22 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             matches!(key, "field" | "tone" | "size" | "variant")
         }
         "checkbox" => key == "field",
-        "calendar" => matches!(key, "field" | "kind"),
+        "calendar" => matches!(
+            key,
+            "field"
+                | "kind"
+                | "model"
+                | "startField"
+                | "endField"
+                | "where"
+                | "order"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "page"
+                | "filter"
+                | "defaults"
+        ),
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
         "hero" => key == "caption",
         "join" => matches!(key, "id" | "orientation" | "variant"),
@@ -1992,6 +2007,181 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
     for child in &node.children {
         collect_form_usages(child, page, out);
     }
+}
+
+/// Validate the finite agenda carrier against current lowered declarations;
+/// raw or edited UI metadata cannot acquire an enum filter by shape alone.
+fn calendar_agenda_props_are_valid(ir: &IrProgram, node: &IrUi) -> bool {
+    if node
+        .props
+        .iter()
+        .map(|(key, _)| key)
+        .collect::<std::collections::HashSet<_>>()
+        .len()
+        != node.props.len()
+    {
+        return false;
+    }
+    let Some(model_name) = form_prop_text(node, "model") else {
+        return false;
+    };
+    let Some(model) = ir.items.iter().find(|item| item.canonical == model_name) else {
+        return false;
+    };
+    let IrItemKind::Model { fields, .. } = &model.kind else {
+        return false;
+    };
+    let field = |name: &str| {
+        fields
+            .iter()
+            .filter_map(|id| ir.items.get(id.0 as usize))
+            .find(|item| {
+                item.name == name
+                    && matches!(item.kind, IrItemKind::Field { owner, .. } if owner == model.id)
+            })
+    };
+    for endpoint in ["startField", "endField"] {
+        let Some(name) = form_prop_text(node, endpoint) else {
+            return false;
+        };
+        if !field(&name).is_some_and(|item| {
+            matches!(
+                &item.kind,
+                IrItemKind::Field {
+                    ty: IrType::Known(ResolvedType::Scalar(Scalar::Date | Scalar::Datetime)),
+                    ..
+                }
+            )
+        }) {
+            return false;
+        }
+    }
+    if node
+        .props
+        .iter()
+        .any(|(key, _)| key == "parent" || key == "field")
+        || node.row_scope.is_none()
+    {
+        return false;
+    }
+    let mut selected = std::collections::HashMap::new();
+    if let Some((_, filter)) = node.props.iter().find(|(key, _)| key == "filter") {
+        if node
+            .props
+            .iter()
+            .any(|(key, value)| key == "where" && matches!(value.expr, IrExpr::Lambda { .. }))
+        {
+            return false;
+        }
+        let IrExpr::Array(columns) = &filter.expr else {
+            return false;
+        };
+        if columns.is_empty() {
+            return false;
+        }
+        for column in columns {
+            let IrExpr::Object(parts) = &column.expr else {
+                return false;
+            };
+            if parts.len() != 4
+                || parts
+                    .iter()
+                    .map(|(key, _)| key)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+                    != 4
+            {
+                return false;
+            }
+            let text = |key: &str| {
+                parts
+                    .iter()
+                    .find(|(name, _)| name == key)
+                    .and_then(|(_, value)| {
+                        if let IrExpr::Text(text) = &value.expr {
+                            Some(text.as_str())
+                        } else {
+                            None
+                        }
+                    })
+            };
+            let Some(name) = text("field") else {
+                return false;
+            };
+            let Some(item) = field(name) else {
+                return false;
+            };
+            let IrItemKind::Field {
+                ty:
+                    IrType::Known(
+                        ty @ ResolvedType::Enum {
+                            owner: Some(owner),
+                            cases,
+                        },
+                    ),
+                ..
+            } = &item.kind
+            else {
+                return false;
+            };
+            if text("type")
+                != ir
+                    .items
+                    .get(owner.0 as usize)
+                    .map(|item| format!("enum:{}", item.canonical))
+                    .as_deref()
+                || selected.insert(name, ty).is_some()
+            {
+                return false;
+            }
+            let Some((_, labels)) = parts.iter().find(|(key, _)| key == "valueLabels") else {
+                return false;
+            };
+            let IrExpr::Object(labels) = &labels.expr else {
+                return false;
+            };
+            if labels.iter().map(|(key, _)| key).collect::<Vec<_>>()
+                != cases.iter().collect::<Vec<_>>()
+                || !parts.iter().any(|(key, _)| key == "label")
+            {
+                return false;
+            }
+        }
+    }
+    if let Some((_, defaults)) = node.props.iter().find(|(key, _)| key == "defaults") {
+        let IrExpr::Object(entries) = &defaults.expr else {
+            return false;
+        };
+        let mut seen = std::collections::HashSet::new();
+        for (name, value) in entries {
+            let Some(expected) = selected.get(name.as_str()) else {
+                return false;
+            };
+            if !seen.insert(name) {
+                return false;
+            }
+            let ResolvedType::Enum { cases, .. } = expected else {
+                return false;
+            };
+            let valid = match &value.expr {
+                IrExpr::Text(case) => {
+                    cases.contains(case)
+                        && (value.ty == **expected
+                            || matches!(value.ty, ResolvedType::Scalar(Scalar::Text)))
+                }
+                IrExpr::Null => true,
+                IrExpr::Member { base, .. } if matches!(&base.expr, IrExpr::Name(name) if name == "preferences") => {
+                    value.ty == **expected
+                        || matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == *expected)
+                }
+                _ => false,
+            };
+            if !valid {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 /// Writable selector controls currently admitted by the source lowering.
@@ -6253,10 +6443,15 @@ impl<'a> Emitter<'a> {
             return self.throw_expr("unsupported checkbox profile");
         }
         if node.factory == "calendar"
+            && form_prop_text(node, "kind").as_deref() != Some("agenda")
             && (prepared_form.is_none()
                 || !node.children.is_empty()
                 || form_prop_text(node, "kind").as_deref() != Some("field")
-                || form_prop_text(node, "field").is_none())
+                || form_prop_text(node, "field").is_none()
+                || node
+                    .props
+                    .iter()
+                    .any(|(key, _)| !matches!(key.as_str(), "kind" | "field")))
         {
             self.unsupported(
                 "calendar UI control",
@@ -6264,6 +6459,17 @@ impl<'a> Emitter<'a> {
                 node.span,
             );
             return self.throw_expr("unsupported calendar profile");
+        }
+        if node.factory == "calendar"
+            && form_prop_text(node, "kind").as_deref() == Some("agenda")
+            && !calendar_agenda_props_are_valid(self.ir, node)
+        {
+            self.unsupported(
+                "calendar agenda",
+                "endpoints, enum filters and defaults need matching owned declarations",
+                node.span,
+            );
+            return self.throw_expr("unsupported calendar agenda profile");
         }
         for (key, value) in &node.props {
             if !ui_prop_is_admitted(&node.factory, key) {
@@ -6275,7 +6481,7 @@ impl<'a> Emitter<'a> {
                 return self.throw_expr("unsupported UI option");
             }
             let typed = match key.as_str() {
-                "page" if matches!(node.factory.as_str(), "list" | "table") => {
+                "page" if matches!(node.factory.as_str(), "list" | "table" | "calendar") => {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
                 "field" if node.factory == "checkbox" => {
@@ -6468,12 +6674,12 @@ impl<'a> Emitter<'a> {
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
-        if matches!(node.factory.as_str(), "list" | "table")
-            && (form_prop_text(node, "display").as_deref() == Some("split")
-                || node
-                    .props
-                    .iter()
-                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true))))
+        if (node.factory == "calendar" && form_prop_text(node, "kind").as_deref() == Some("agenda"))
+            || (matches!(node.factory.as_str(), "list" | "table")
+                && (form_prop_text(node, "display").as_deref() == Some("split")
+                    || node.props.iter().any(|(key, value)| {
+                        key == "page" && matches!(value.expr, IrExpr::Bool(true))
+                    })))
         {
             // A URL locator names this source collection occurrence. The
             // owning factory selects only from its fresh authorized result.
@@ -6824,7 +7030,7 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .map(|field| {
                     format!(
-                        "{{name:{},options:[{}],defaultValue:{}}}",
+                        "{{name:{},options:[{}],defaultValue:{}{}}}",
                         js_string(&field.name),
                         field
                             .options
@@ -6832,7 +7038,12 @@ impl<'a> Emitter<'a> {
                             .map(|value| js_string(value))
                             .collect::<Vec<_>>()
                             .join(","),
-                        js_string(&field.default_value),
+                        field
+                            .default_value
+                            .as_ref()
+                            .map(|value| js_string(value))
+                            .unwrap_or_else(|| "null".to_string()),
+                        if field.nullable { ",nullable:true" } else { "" },
                     )
                 })
                 .collect::<Vec<_>>()

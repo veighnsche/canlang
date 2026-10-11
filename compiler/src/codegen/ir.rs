@@ -3076,7 +3076,8 @@ pub struct IrPage {
 pub struct IrPreferenceField {
     pub name: String,
     pub options: Vec<String>,
-    pub default_value: String,
+    pub default_value: Option<String>,
+    pub nullable: bool,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -10632,7 +10633,8 @@ impl<'a> Cx<'a> {
             self.page_preference_fields.push(IrPreferenceField {
                 name: symbol.name.clone(),
                 options: cases.clone(),
-                default_value,
+                default_value: Some(default_value),
+                nullable: false,
             });
         }
         let text = |value: String| {
@@ -12843,6 +12845,263 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// The agenda filter is an enum-field declaration, not a query parser
+    /// or an authorization grant. Its receiving preference remains page-owned.
+    fn decode_calendar_filters(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        model: SymbolId,
+    ) -> Option<Vec<(String, TypedExpr)>> {
+        let attrs = ui_attributes(self.db, node);
+        let filter = attrs
+            .iter()
+            .find(|(name, _)| name == "filter")
+            .and_then(|(_, value)| *value);
+        let defaults = attrs
+            .iter()
+            .find(|(name, _)| name == "defaults")
+            .and_then(|(_, value)| *value);
+        if filter.is_none() && defaults.is_none() {
+            return Some(Vec::new());
+        }
+        let fail = |this: &mut Self, span: Span| {
+            this.diags.push(Diagnostic::error(
+                "E6008",
+                "calendar filters need distinct checked owned enum fields and matching defaults"
+                    .to_string(),
+                span,
+            ));
+        };
+        let Some(filter) = filter.filter(|value| value.kind == SyntaxKind::Selectors) else {
+            fail(self, node.span);
+            return None;
+        };
+        let text = |value: String, span: Span| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                span,
+            )
+        };
+        let mut selected = HashMap::new();
+        let mut columns = Vec::new();
+        for path in kids(filter) {
+            let names = selector_strings(self.db, path);
+            let Some(name) = names
+                .first()
+                .filter(|_| names.len() == 1 && path.kind == SyntaxKind::Path)
+            else {
+                fail(self, path.span);
+                return None;
+            };
+            let Some(field_id) = self.fields.get(&(model, name.clone())).copied() else {
+                fail(self, path.span);
+                return None;
+            };
+            let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
+                fail(self, path.span);
+                return None;
+            };
+            let Some(ty) = self.program.types.symbol_types.get(&field_id).cloned() else {
+                fail(self, path.span);
+                return None;
+            };
+            let ResolvedType::Enum {
+                cases,
+                owner: Some(enum_owner),
+            } = &ty
+            else {
+                fail(self, path.span);
+                return None;
+            };
+            if symbol.id != field_id || symbol.name != *name
+                || !matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
+                || !self.program.symbols.get(model.0 as usize).is_some_and(|item| item.module == symbol.module && matches!(&item.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id)))
+                || cases.is_empty() || cases.iter().collect::<HashSet<_>>().len() != cases.len()
+                || self.program.types.symbol_types.get(enum_owner) != Some(&ty)
+                || selected.insert(name.clone(), ty.clone()).is_some()
+            { fail(self,path.span); return None; }
+            let label = self.decode_reused_field_label_parts(&symbol);
+            let caption = label
+                .as_ref()
+                .and_then(|label| label.text.as_ref())
+                .map(|caption| {
+                    TypedExpr::new(
+                        IrExpr::Message(caption.clone()),
+                        ResolvedType::Scalar(Scalar::Text),
+                        path.span,
+                    )
+                })
+                .unwrap_or_else(|| text(name.clone(), path.span));
+            let value_labels = cases
+                .iter()
+                .map(|case| {
+                    let caption = label
+                        .as_ref()
+                        .and_then(|label| label.values.iter().find(|(value, _)| value == case))
+                        .map(|(_, caption)| {
+                            TypedExpr::new(
+                                IrExpr::Message(caption.clone()),
+                                ResolvedType::Scalar(Scalar::Text),
+                                path.span,
+                            )
+                        })
+                        .unwrap_or_else(|| text(case.clone(), path.span));
+                    (case.clone(), caption)
+                })
+                .collect();
+            columns.push(TypedExpr::new(
+                IrExpr::Object(vec![
+                    ("field".to_string(), text(name.clone(), path.span)),
+                    ("label".to_string(), caption),
+                    (
+                        "type".to_string(),
+                        text(format!("enum:{}", self.type_id(&ty)), path.span),
+                    ),
+                    (
+                        "valueLabels".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Object(value_labels),
+                            ResolvedType::Unknown,
+                            path.span,
+                        ),
+                    ),
+                ]),
+                ResolvedType::Unknown,
+                path.span,
+            ));
+        }
+        if columns.is_empty() {
+            fail(self, filter.span);
+            return None;
+        }
+        let mut props = vec![(
+            "filter".to_string(),
+            TypedExpr::new(IrExpr::Array(columns), ResolvedType::Unknown, filter.span),
+        )];
+        if let Some(defaults) = defaults {
+            if defaults.kind != SyntaxKind::Object {
+                fail(self, defaults.span);
+                return None;
+            }
+            let mut seen = HashSet::new();
+            let mut entries = Vec::new();
+            for entry in kids(defaults)
+                .into_iter()
+                .filter(|entry| entry.kind == SyntaxKind::ObjectEntry)
+            {
+                let parts = kids(entry);
+                let name = parts.first().and_then(|part| name_text(self.db, part));
+                let value = parts
+                    .iter()
+                    .find(|part| is_expression(part.kind) && part.kind != SyntaxKind::Argument)
+                    .copied();
+                let Some((name, value)) = name.zip(value) else {
+                    fail(self, entry.span);
+                    return None;
+                };
+                let Some(expected) = selected.get(&name) else {
+                    fail(self, entry.span);
+                    return None;
+                };
+                if !seen.insert(name.clone()) {
+                    fail(self, entry.span);
+                    return None;
+                }
+                let decoded = self.decode_expr(scope, value);
+                let ResolvedType::Enum { cases, .. } = expected else {
+                    return None;
+                };
+                let literal = matches!(&decoded.expr, IrExpr::Text(case) if cases.contains(case) && (decoded.ty == *expected || matches!(decoded.ty, ResolvedType::Scalar(Scalar::Text))))
+                    || matches!(
+                        (&decoded.expr, &decoded.ty),
+                        (IrExpr::Null, ResolvedType::Null)
+                    );
+                if !literal {
+                    let mut identity = value;
+                    while identity.kind == SyntaxKind::Group {
+                        let Some(inner) = kids(identity)
+                            .into_iter()
+                            .find(|inner| is_expression(inner.kind))
+                        else {
+                            break;
+                        };
+                        identity = inner;
+                    }
+                    let Some(field_id) = self
+                        .program
+                        .types
+                        .preference_field_references
+                        .get(&NodeKey::of(identity))
+                        .copied()
+                    else {
+                        fail(self, value.span);
+                        return None;
+                    };
+                    let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned()
+                    else {
+                        fail(self, value.span);
+                        return None;
+                    };
+                    let SymbolKind::Field { owner, .. } = symbol.kind else {
+                        fail(self, value.span);
+                        return None;
+                    };
+                    let nullable = matches!(&decoded.ty, ResolvedType::Nullable(inner) if inner.as_ref() == expected);
+                    if symbol.id != field_id || symbol.module != scope.module
+                        || !matches!(&decoded.expr, IrExpr::Member { base,field } if field == &symbol.name && matches!(&base.expr,IrExpr::Name(name) if name == "preferences"))
+                        || !(decoded.ty == *expected || nullable)
+                        || self.program.types.symbol_types.get(&field_id) != Some(&decoded.ty)
+                        || !self.program.symbols.get(owner.0 as usize).is_some_and(|item| matches!(&item.kind,SymbolKind::Preferences { fields } if fields.contains(&field_id)))
+                    { fail(self,value.span); return None; }
+                    let (_, default, server, _, _, _) = self.decode_field(&symbol, owner);
+                    let default_value = match default {
+                        Some(IrDefault::Literal(value)) => match value.expr {
+                            IrExpr::Text(case) if cases.contains(&case) => Some(case),
+                            IrExpr::Null if nullable => None,
+                            _ => {
+                                fail(self, value.span);
+                                return None;
+                            }
+                        },
+                        None if nullable => None,
+                        _ => {
+                            fail(self, value.span);
+                            return None;
+                        }
+                    };
+                    if server.is_some() {
+                        fail(self, value.span);
+                        return None;
+                    }
+                    if !self
+                        .page_preference_fields
+                        .iter()
+                        .any(|field| field.name == symbol.name)
+                    {
+                        self.page_preference_fields.push(IrPreferenceField {
+                            name: symbol.name,
+                            options: cases.clone(),
+                            default_value,
+                            nullable,
+                        });
+                    }
+                }
+                entries.push((name, decoded));
+            }
+            props.push((
+                "defaults".to_string(),
+                TypedExpr::new(
+                    IrExpr::Object(entries),
+                    ResolvedType::Unknown,
+                    defaults.span,
+                ),
+            ));
+        }
+        Some(props)
+    }
+
     fn decode_calendar_endpoint(
         &mut self,
         scope: &Scope,
@@ -12900,7 +13159,7 @@ impl<'a> Cx<'a> {
         }
         let admitted: &[&str] = if word == "calendar" {
             &[
-                "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults",
+                "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults", "order",
             ]
         } else if word == "table" {
             &[
@@ -12979,6 +13238,7 @@ impl<'a> Cx<'a> {
             ));
             props.push(("startField".to_string(), start));
             props.push(("endField".to_string(), end));
+            props.extend(self.decode_calendar_filters(scope, node, id)?);
         }
         if let Some(head) = head {
             props.push((
@@ -13039,8 +13299,9 @@ impl<'a> Cx<'a> {
                 continue;
             }
             match name.as_str() {
+                "filter" | "defaults" if word == "calendar" => {}
                 "order" | "search" | "filter" | "columns" => {
-                    if name == "order" && word != "list" {
+                    if name == "order" && !matches!(word, "list" | "calendar") {
                         self.diags.push(Diagnostic::error(
                             "E6008",
                             "cannot lower table order: the table query profile does not forward authored ordering".to_string(),
@@ -13138,11 +13399,6 @@ impl<'a> Cx<'a> {
                             value.span,
                         ),
                     ));
-                }
-                // Authored filter defaults stay raw until the exact owning
-                // agenda preparer/carrier is released; JS still refuses it.
-                "defaults" if word == "calendar" => {
-                    props.push((name, self.decode_expr(scope, value)));
                 }
                 "start" | "end" if word == "calendar" => {}
                 "parent" | "limit" | "cursor" => {
