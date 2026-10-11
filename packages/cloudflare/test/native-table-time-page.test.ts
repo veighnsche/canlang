@@ -124,9 +124,9 @@ test('unchanged native TableTime page uses admitted time and protected partial b
           { inputChoicesVersion: INPUT_CHOICES_VERSION }), createPageHandler: deps => {
           pageDeps = deps as unknown as PageHttpDeps;
           const original = pageDeps.createReadScope; assert.ok(original);
-          const observed: PageHttpDeps = { ...pageDeps, createReadScope: async admitted => {
+          const observed: PageHttpDeps = { ...pageDeps, createReadScope: async (admitted, source) => {
             assert.equal(admitted.admitted_at, identity.admitted_at);
-            const scope = await original(admitted);
+            const scope = await original(admitted, source);
             return { ...scope, query: async (invocation, model, args) => {
               const sequence = querySequence++;
               const result = await scope.query(invocation, model, args);
@@ -184,7 +184,7 @@ test('unchanged native TableTime page uses admitted time and protected partial b
       const context = buildPresentationContext({ request: new Request('https://table-page.example.test/table-time?now=2099-01-01'),
         pathname: '/table-time', isPartial: true, appDefaultLocale: 'en', csrfToken: '', principal: identity,
         source: { ...source, now: decodeValue('datetime', '2099-01-01T00:00:00.000Z') } as PageSourceContext,
-        query: (await pageDeps.createReadScope!(identity)).query, clock: { nowMs: () => FIXED_NOW + 999999 } });
+        query: (await pageDeps.createReadScope!(identity, buildPageSourceContext(identity))).query, clock: { nowMs: () => FIXED_NOW + 999999 } });
       assert.equal(encodeValue('datetime', context.now!), identity.admitted_at);
       assert.equal(encodeValue('datetime', source.now), identity.admitted_at);
       const unauthenticated = await render(new URLSearchParams(), false); assert.equal(unauthenticated.response.status, 403);
@@ -428,9 +428,9 @@ test('genuine paginated TableTime first pages and native continuations retain or
               handleOperationRequest(deps as unknown as Parameters<typeof handleOperationRequest>[0], request, operation),
             { inputChoicesVersion: INPUT_CHOICES_VERSION }), createPageHandler: deps => {
               const pageDeps = deps as unknown as PageHttpDeps, original = pageDeps.createReadScope; assert.ok(original);
-              return request => handlePageRequest({ ...pageDeps, createReadScope: async admitted => {
+              return request => handlePageRequest({ ...pageDeps, createReadScope: async (admitted, source) => {
                 assert.equal(admitted.admitted_at, new Date(now).toISOString());
-                const scope = await original(admitted);
+                const scope = await original(admitted, source);
                 return { ...scope, query: async (invocation, model, args) => {
                   const sequence = querySequence++, result = await scope.query(invocation, model, args);
                   queries.push({ sequence, model, args, result, admittedAt: admitted.admitted_at }); return result;

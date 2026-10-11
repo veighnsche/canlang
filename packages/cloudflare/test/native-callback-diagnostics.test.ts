@@ -218,8 +218,8 @@ test('genuine native callback history retains failed Work evidence and uses curr
         },forTrustedScope:async()=>{throw new StateError('forbidden','This page witness has no trusted owner storage scope.');}},
         http:{createPageHandler:supplied=>{
           const deps=supplied as unknown as PageHttpDeps,createScope=deps.createReadScope;assert.ok(createScope);
-          return request=>handlePageRequest({...deps,createReadScope:async current=>{
-            const scope=await createScope(current),query=scope.query,observe=scope.observeGenerationCallbackDiagnostics;assert.ok(observe);
+          return request=>handlePageRequest({...deps,createReadScope:async (current, source)=>{
+            const scope=await createScope(current, source),query=scope.query,observe=scope.observeGenerationCallbackDiagnostics;assert.ok(observe);
             const capture={scope,rows:[] as readonly RowView[]};scopes.push(capture);
             return {...scope,query:async(...args:Parameters<typeof query>)=>{const result=await query(...args);capture.rows=result.rows;return result;},
               observeGenerationCallbackDiagnostics:async (locator:Parameters<Observer>[0])=>{assert.ok(capture.rows.some(row=>row===locator.record));
