@@ -409,9 +409,9 @@ test('native File retirement guards every owner writer and resumes original SQLi
       assert.deepEqual(originalSet.originalContracts,{
         [`${app}.Metadata`]:{fields:{note:{type:'text'}}},
         [`${app}.UnusedDefaults`]:{fields:{
-          optional:{type:'text',nullable:true,default:null},optional_file:{type:'file',nullable:true,default:null},
+          optional:{type:'text?',default:null},optional_file:{type:'file?',default:null},
           enabled:{type:'bool',default:false},label:{type:'text',default:''},
-          attachments:{type:'file',array:true,min:'0',max:'4',default:[]},
+          attachments:{type:'file[]',min:'0',max:'4',default:[]},
           trimmed:{type:'text',default:' padded ',trim:true,min:'0',max:'16'},required:{type:'text'},
         }},
       },'complete original own metadata preserves absent defaults and raw literals before normalization');

@@ -115,12 +115,12 @@ reopen compares source correspondence and retains the persisted original closure
 Missing result metadata supplies no explicit void proof. Empty contracts require
 the compiler's explicit `valueTypes: {contracts: []}` inventory.
 
-The complete raw unused-contract native qualification is currently unfinished.
-The preceding Compiler File inventory producer and State native `array`/`nullable`
-wrapper correspondence are released; the actual changed native consumer must
-qualify their joined original source and installed inventory. Opaque
-payload origin producers and current File disclosure/receiving authority remain
-separate requirements; declaration data supplies no grant.
+The complete native retirement/reopen consumer retains unused declarations,
+null/false/empty and padded literal defaults, absent defaults and exact integer
+constraints. Compiler's File contract collector and State's original wrapper
+admission are owning prerequisites. Opaque payload origin producers and current
+File disclosure/receiving authority remain separate requirements; declaration
+data supplies no grant.
 
 Trusted maintenance calls `retireAndDelete(ref, disposition)` explicitly. State
 fences permanent retirement against the complete installed census; Files checks

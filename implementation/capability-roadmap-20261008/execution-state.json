@@ -620,6 +620,12 @@
                 "implementation": "Retain original own array/nullable markers unchanged in the historical journal. Validate their boolean shape and derive the equivalent canonical type with owning Values parseTypeId/printTypeId for the local schema only; reject contradictory/redundant wrappers, type/constraint drift and changed raw defaults. Native int64 length wires keep the existing exact decode; no source reconstruction or shared ABI change.",
                 "validation": "Normal State build:emit PASS including actual bundled DO worker. Complete original contract/default controls5/5 PASS32.83125ms (154.250834ms total), zero failed/cancelled/skipped, including native-shaped optional text/File and bounded File[] success plus14 malformed/correspondence refusals. Six original Images and prior CLI-to-State source result are unchanged/reused, not rerun.",
                 "remaining": "Dev owns the actual source-verified native capture/installed current File authority consumer; this component check is not native or whole-app acceptance. All existing holds persist."
+              },
+              "native_raw_capture_consumer": {
+                "state": "implemented_tested_reviewed_original_native_scope",
+                "owner": "Dev verified native capture/installation and receiving; Capability State/Work defining producer",
+                "source": "71dbb7e5adec728232b8d2ccbcb228739d79ec8f",
+                "outcome": "Complete original native raw contract retirement/race/interruption/reopen1/1 in31491.74ms, zero failed/cancelled/skipped. Preserve unused contracts, raw literals/defaults/wrappers/int64 constraints, actual callable profiles, next installation revision/exact historical closure, current original authority/receiving, writer fence, physical rollback and terminal no-effect retry. Existing bb inventory/State1c/read-policy4a consumed; capture source review reused and only stale expected raw type spelling corrected. Empty-contract/Images/backend results reused. Generic opaque origin/current-grant and original app/profile requirements remain separate."
               }
             }
           }
