@@ -1116,12 +1116,15 @@ export interface ScenarioReceiptQueryProducer {
   readonly source: ScenarioResultDisclosurePlan['source'];
   readonly app: string;
   readonly policy: PolicyTable;
+  /** Original installed source grants, including row rules and ancestors.
+   * Functions receive State's actual current observation, never a root actor fallback. */
+  readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
 }
 const queryProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptQueryProducer>();
 export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, producer: ScenarioReceiptQueryProducer): void {
   const bound = boundPlans.get(def);
   if (bound === undefined || !bound.plan.queries?.length || invokedPlans.has(def) || queryProducers.has(def)) return invalid('query producer requires one checked source binding before execution.');
-  object(producer, ['source', 'app', 'policy']); origin(producer.source); text(producer.app);
+  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : [])]); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) return invalid('query producer differs from its checked source/policy.');
   const policies = [...producer.policy].map(([model, value]) => {
     const copied = dataCopy(value);
@@ -1131,8 +1134,32 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
   // A detached policy must be validated anew against the registry's real
   // canonical declarations so its private row field bindings survive copying.
   const policy = buildPolicyTable(policies, bound.canonicalModels);
-  if (bound.plan.queries.some(query => !policy.has(query.model))) return invalid('query model requires its actual viewer policy.');
-  queryProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy }));
+  let readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy> | undefined;
+  if (Object.hasOwn(producer, 'readPolicies')) {
+    if (!(producer.readPolicies instanceof Map) || Object.getPrototypeOf(producer.readPolicies) !== Map.prototype ||
+        Reflect.ownKeys(producer.readPolicies).length !== 0) return invalid('query requires its own original source policy map.');
+    readPolicies = captureSourceReadPolicies(new Map(Map.prototype.entries.call(producer.readPolicies)));
+    for (const query of bound.plan.queries) {
+      let model: ModelName | undefined = query.model;
+      const seen = new Set<ModelName>();
+      while (model !== undefined) {
+        const declaration = bound.artifactModels.get(model), read = readPolicies.get(model);
+        if (seen.has(model) || declaration === undefined || read === undefined || read.parent !== declaration.parent ||
+            !('grants' in read) && !policy.has(model)) return invalid('query source requires its exact owning model and complete ancestor policies.');
+        seen.add(model); model = declaration.parent as ModelName | undefined;
+      }
+    }
+  }
+  if (bound.plan.queries.some(query => !policy.has(query.model) &&
+      (readPolicies?.get(query.model) === undefined || !('grants' in readPolicies.get(query.model)!)))) return invalid('query model requires its actual viewer policy.');
+  queryProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy,
+    ...(readPolicies === undefined ? {} : { readPolicies }) }));
+}
+/** Query source authority comes from its exact installed consumer. Legacy
+ * reference producer behavior remains when no query-owned map supplies it. */
+function querySourceProducer(def: GeneratedOperationDef, model: ModelName): ScenarioReceiptReferenceProducer | undefined {
+  const query = queryProducers.get(def);
+  return query?.readPolicies?.has(model) ? query : referenceProducers.get(def);
 }
 /** Opaque identities are usable only in their original active call/query. */
 export type ScenarioReceiptQuerySlot = Readonly<object>;
@@ -2049,8 +2076,10 @@ function queryModelDescriptor(bound: BoundPlan, query: ScenarioReceiptQueryPlan)
  * complete Identity observation, both now and against actual final effects. */
 async function observeModelQuerySourceAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, model: ModelName, row: StoredRow, fields: readonly string[], pending = 0): Promise<(fields: readonly string[]) => Promise<void>> {
-  const producer = referenceProducers.get(call.def as GeneratedOperationDef), read = producer?.readPolicies?.get(model);
-  if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read) ||
+  const producer = querySourceProducer(call.def as GeneratedOperationDef, model), read = producer?.readPolicies?.get(model);
+  const queryOwned = queryProducers.get(call.def as GeneratedOperationDef)?.readPolicies?.has(model) === true;
+  if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined ||
+      !('grants' in read) && (!queryOwned || !producer.policy.has(model)) ||
       owner.session === null || owner.callGuards.length >= MAX_ITEMS) return invalid('model query requires its installed whole source field grants.');
   const stage = owner.stage;
   const healthy = () => {
@@ -2077,7 +2106,7 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
   const requiredFields = new Set(fields);
   const readable = (value: Awaited<ReturnType<typeof project>>) => value.record !== null && [...requiredFields].every(field => field === 'parent'
     ? value.record!.parent !== null && value.record!.parent.model === state.bound.artifactModels.get(model)?.parent
-    : value.grants.some(grant => grant.fields.includes(field)) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
+    : ('grants' in read ? value.grants.some(grant => grant.fields.includes(field)) : true) && (field === 'id' || Object.hasOwn(value.record!.data, field)));
   const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
     async (model, id) => { healthy(); const value = await owner.session!.views.final.get(model, id); healthy(); return value; }, healthy));
   healthy();
@@ -2187,16 +2216,29 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       for (const row of domain) ownerRows.set(row, { session: owner, stage: owner.stage, model: plan.model });
       const adapter = { ...store, readRevision: () => store.readRevision(), query: async () => domain };
       const base = { model: plan.model, modelDescriptor: queryModelDescriptor(state.bound, plan), authority: 'viewer' as const,
-        policy: producer.policy, context, memberships, store: adapter, archived: plan.archived,
+        policy: producer.policy, context, memberships, store: producer.readPolicies === undefined ? adapter : store,
+        ...(producer.readPolicies === undefined ? {} : { sourceReadPolicies: producer.readPolicies }), archived: plan.archived,
         ...(plan.order.length === 0 ? {} : { order: plan.order }), ...(plan.limit === null ? {} : { limit: plan.limit }) };
       const requiredFields = [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))];
+      const stageRows = new Map<string, StoredRow | null>();
+      const stageHealthy = () => {
+        capture(call, store); ownerHealthy(owner);
+        if (owner.stage !== execution.stage || owner.executingCall !== call || !owner.busy || state.pending !== 0 || execution.complete) {
+          return invalid('source query crossed its actual owner stage.');
+        }
+      };
+      const stageReader = { assertHealthy: stageHealthy, read: async (model: ModelName, id: RecordId) => {
+        stageHealthy(); const key = `${model}\0${id}`;
+        if (!stageRows.has(key)) { stageRows.set(key, await owner.session!.views.final.get(model, id)); stageHealthy(); }
+        return stageRows.get(key)!;
+      } };
       const sourceAuthorities: Array<((fields: readonly string[]) => Promise<void>) | undefined> = [];
       const observed = await queryRecordsObserved(base, async (record, row) => {
         ownerHealthy(owner);
         if (owner.executingCall !== call || owner.stage !== execution.stage) return invalid('query predicate crossed its original owner stage.');
-        const sourceAuthority = state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent')
+        const sourceAuthority = producer.readPolicies !== undefined || state.bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent')
           ? await observeModelQuerySourceAuthority(call, store, owner, state, plan.model, row,
-            plan.parent !== undefined && state.bound.resultModel === undefined ? [] : plan.dependencies.map(dependency => dependency.field)) : undefined;
+            (plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined ? [] : plan.dependencies.map(dependency => dependency.field)) : undefined;
         sourceAuthorities.push(sourceAuthority);
         const slot = Object.freeze({});
         const candidate = { row, record: deepFreeze(dataCopy(record)), slot, dependencies: new Set<string>(),
@@ -2212,7 +2254,8 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
           await sourceAuthority?.(plan.dependencies.filter(dependency => candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
           candidate.matched = accepted; return accepted;
         } finally { execution.activeSlot = null; }
-      }, requiredFields);
+      }, requiredFields, producer.readPolicies === undefined ? undefined : domain,
+      producer.readPolicies === undefined ? undefined : stageReader);
       if (observed.candidates.length !== execution.candidates.length || observed.candidates.some((candidate, index) =>
         candidate.row !== execution.candidates[index]!.row || candidate.matched !== execution.candidates[index]!.matched)) return invalid('actual query engine lost original candidate correspondence.');
       execution.selectedIndices = Object.freeze([...observed.selectedIndices]); execution.complete = true;
@@ -2223,7 +2266,7 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       }
       // Projection DATA belongs only to actually selected rows. False
       // candidates establish visibility/control, not selected field access.
-      if (plan.parent !== undefined && state.bound.resultModel === undefined) for (const index of execution.selectedIndices) {
+      if ((plan.parent !== undefined || producer.readPolicies !== undefined) && state.bound.resultModel === undefined) for (const index of execution.selectedIndices) {
         const candidate = execution.candidates[index]!;
         await sourceAuthorities[index]?.(plan.dependencies.filter(dependency => dependency.role === 'data' ||
           candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
@@ -2234,7 +2277,17 @@ export async function executeScenarioReceiptQuery(call: AdmittedCall, store: Sto
       owner.callGuards.push(Object.freeze({ name: `query:${call.def.name}:${plan.id}`, evaluate: async () => {
         if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Query checkpoint moved before outer commit.');
         const guardInput = { ...base }; delete guardInput.limit;
-        const current = await queryRecordsObserved(guardInput, () => true, requiredFields);
+        const final = owner.finalized;
+        const finalHealthy = () => {
+          if (final === null || owner.finalized !== final || owner.capture.poisoned) return invalid('source query final owning effects are unavailable.');
+        };
+        const originalReader = { assertHealthy: finalHealthy, read: async (model: ModelName, id: RecordId) => {
+          finalHealthy(); const key = `${model}\0${id}`;
+          if (!stageRows.has(key)) throw new StateError('forbidden', 'Source query guard requested an unobserved original ancestor.');
+          return stageRows.get(key)!;
+        } };
+        const current = await queryRecordsObserved(guardInput, () => true, requiredFields,
+          producer.readPolicies === undefined ? undefined : domain, producer.readPolicies === undefined ? undefined : originalReader);
         const original = observed.candidates.map(candidate => candidate.record).sort((a, b) =>
           current.records.findIndex(row => row.id === a.id) - current.records.findIndex(row => row.id === b.id));
         if (stableStringify(current.records) !== stableStringify(original)) throw new StateError('forbidden', 'Original query domain or field authority changed before commit.');
@@ -3473,7 +3526,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     };
     const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = [], fileFields: readonly string[] = [],
       nominal?: { readonly field: string; readonly profile: StoredNominalFieldProfile },
-      reference?: { readonly field: string; readonly profile: StoredReferenceFieldProfile }) => {
+      reference?: { readonly field: string; readonly profile: StoredReferenceFieldProfile },
+      source?: ScenarioReceiptReferenceProducer) => {
       const current = await currentSavedRow(model, saved); const inventory = currentBound.models.get(model);
       if (current === null || inventory === undefined) return null;
       if (nominal !== undefined) {
@@ -3497,13 +3551,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       }
       const secrets = [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld.filter(field =>
         !queryFields.includes(field) && !fileFields.includes(field) && field !== nominal?.field && field !== reference?.field)];
-      if (modelInfluence || scopedQueryInfluence) {
-        const producer = modelSourceProducers.find(producer => producer.readPolicies?.has(model));
+      if (source !== undefined || modelInfluence || scopedQueryInfluence) {
+        const producer = source ?? modelSourceProducers.find(producer => producer.readPolicies?.has(model));
         if (producer === undefined) return null;
         const projected = await sourceProjection(producer, model, current);
         if (projected === null) return null;
         const read = producer.readPolicies!.get(model)!;
         if ('grants' in read) return projectSourceRowFields(saved, projected.grants, [...secrets, ...read.secretFields]);
+        if (source !== undefined) return projectSavedRecordForViewer({ policy: producer.policy.get(model), context, current, saved, originalSecretFields: secrets });
       }
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved, originalSecretFields: secrets });
     };
@@ -3546,7 +3601,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       }
       const nominal = bound.nominalDependencies.get(dependency.id);
       if (nominal === undefined) {
-        const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
+        const source = queryProducers.get(consumer)?.readPolicies?.has(observation.model) ? querySourceProducer(consumer, observation.model) : undefined;
+        const projection = await savedProjection(observation.model, observation.row, observation.secretFields, [], [], [], undefined, undefined, source);
         return bound.models.get(observation.model)?.fields.get(dependency.field) === dependency.type ? projection : null;
       }
       if (stableStringify(nominal.dependency) !== stableStringify(dependency)) return null;
@@ -3579,7 +3635,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         if (plan === undefined || observed === undefined) return false;
         try {
           if (plan.parent !== undefined) {
-            const parent = observed.parent, producer = referenceProducers.get(consumer);
+            const parent = observed.parent, producer = querySourceProducer(consumer, plan.parent.model);
             if (parent === undefined || parent.model !== plan.parent.model || producer?.app !== input.app ||
                 producer.readPolicies?.has(parent.model) !== true) return false;
             const current = await currentSavedRow(parent.model, parent.row);
@@ -3589,24 +3645,26 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           for (const candidate of observed.candidates) {
             const current = await currentSavedRow(plan.model, candidate.row);
             if (current === null) return false;
-            if (bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent')) {
-              const producer = referenceProducers.get(consumer);
+            if (queryProducers.get(consumer)?.readPolicies !== undefined || bound.resultModel !== undefined || plan.parent !== undefined || plan.dependencies.some(dep => dep.field === 'parent')) {
+              const producer = querySourceProducer(consumer, plan.model);
               if (producer?.app !== input.app || producer.readPolicies?.has(plan.model) !== true) return false;
               const source = await sourceProjection(producer, plan.model, current);
-              const dependencies = plan.parent !== undefined && bound.resultModel === undefined
+              const dependencies = (plan.parent !== undefined || queryProducers.get(consumer)?.readPolicies !== undefined) && bound.resultModel === undefined
                 ? plan.dependencies.filter(dependency => candidate.dependencies.includes(dependency.id)) : plan.dependencies;
               if (source === null || dependencies.some(dependency => dependency.field === 'parent'
                 ? source.record!.parent === null || source.record!.parent.model !== dependency.type
-                : !source.grants.some(grant => grant.fields.includes(dependency.field)) ||
+                : ('grants' in producer.readPolicies!.get(plan.model)! && !source.grants.some(grant => grant.fields.includes(dependency.field))) ||
                   !Object.hasOwn(source.record!.data, dependency.field))) return false;
             }
             currentRows.push(current);
           }
+          const producer = queryProducers.get(consumer);
           await queryRecordsObserved({ model: plan.model, modelDescriptor: queryModelDescriptor(bound, plan), authority: 'viewer',
-            policy: input.policy, context: { actorUserId, teamId }, memberships,
-            store: { ...input.store, readRevision: () => input.store.readRevision(), query: async () => currentRows },
+            policy: producer?.readPolicies === undefined ? input.policy : producer.policy,
+            ...(producer?.readPolicies === undefined ? {} : { sourceReadPolicies: producer.readPolicies }), context: { actorUserId, teamId }, memberships,
+            store: producer?.readPolicies === undefined ? { ...input.store, readRevision: () => input.store.readRevision(), query: async () => currentRows } : input.store,
             archived: plan.archived, ...(plan.order.length === 0 ? {} : { order: plan.order }) }, () => true,
-          [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))]);
+          [...new Set(plan.dependencies.filter(dep => dep.role === 'control' && dep.field !== 'parent').map(dep => dep.field))], producer?.readPolicies === undefined ? undefined : currentRows);
         } catch (error) { if (error instanceof StateError) return false; throw error; }
       }
       return true;
@@ -3631,7 +3689,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       if (!await modelResultReadable(target, current, saved.result)) dependenciesReadable = false;
       const returned = child.plan.returns.find(entry => entry.id === child.returnId)!;
       if (!await queryAuthority(target, current, child) || !await savedQueriesReadable(current, child, saved.result, (model, row, secrets, blocked) =>
-        savedProjection(model, row, secrets, blocked, current.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
+        savedProjection(model, row, secrets, blocked, current.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? [], [], undefined, undefined,
+          queryProducers.get(target)?.readPolicies?.has(model) ? querySourceProducer(target, model) : undefined))) dependenciesReadable = false;
       for (const observed of child.observations) {
         const dependency = returned.dependencies.find(dep => dep.id === observed.dependencyId)!;
         const projection = await dependencyProjection(target, current, dependency, observed);
@@ -3652,7 +3711,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     }
     if (!await queryAuthority(def as GeneratedOperationDef, currentBound, association) ||
         !await savedQueriesReadable(currentBound, association, receipt.outcome.status === 'committed' ? receipt.outcome.result : null, (model, row, secrets, blocked) =>
-          savedProjection(model, row, secrets, blocked, currentBound.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? []))) dependenciesReadable = false;
+          savedProjection(model, row, secrets, blocked, currentBound.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? [], [], undefined, undefined,
+            queryProducers.get(def as GeneratedOperationDef)?.readPolicies?.has(model) ? querySourceProducer(def as GeneratedOperationDef, model) : undefined))) dependenciesReadable = false;
     for (const observation of association.observations) {
       const dependency = returned.dependencies.find(dep => dep.id === observation.dependencyId)!;
       const projection = await dependencyProjection(def as GeneratedOperationDef, currentBound, dependency, observation);

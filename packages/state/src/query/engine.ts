@@ -35,7 +35,7 @@ import { StateError } from '../errors.js';
 import type { FenceScope } from '../invocation/admission.js';
 import { byDependsOnRow, evaluateBy, type ByPredicate, type MembershipReader } from '../policy/roles.js';
 import { observeRowGrantAuthority } from '../policy/membership-facts.js';
-import { evaluateInstalledReadPredicate, executeUnboundReadPredicate, hasInstalledSourceQueryPredicate, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
+import { captureInstalledSourceOwnerRows, type InstalledSourceOwnerRows, evaluateInstalledReadPredicate, executeUnboundReadPredicate, hasInstalledSourceQueryPredicate, type InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors,
   type InstalledSourceRowDecision, type ViewerSourceReadPolicy } from './source-policy.js';
@@ -119,6 +119,8 @@ type ObservedQueryPredicate = (
 ) => boolean | Promise<boolean>;
 
 interface QueryObservation {
+  readonly domain?: readonly StoredRow[];
+  readonly ownerRows?: InstalledSourceOwnerRows;
   readonly predicate: ObservedQueryPredicate;
   readonly candidates: ObservedQueryCandidate[];
   readonly indices: Map<StoredRow, number>;
@@ -1061,7 +1063,8 @@ async function runAuthorizedQuery(
       }
       const projected = await projectInstalledSourceRowAndAncestors({ model: selected.model, row: sourceRows.get(key)!,
         readPolicies: sourceReads, policy: input.policy, context: current, revision, fence: input.fence,
-        store: input.store, rows: sourceRows });
+        store: input.store, rows: sourceRows,
+        ...(observation?.ownerRows === undefined ? {} : { ownerRows: observation.ownerRows }) });
       if (projected.record === null) throw new StateError('not_found', 'Parent record not found.');
       return projected.decisions.map(decision => ({ model: decision.model, allowed: decision.allowed,
         projection: JSON.stringify(decision.projection) }));
@@ -1181,14 +1184,15 @@ async function runAuthorizedQuery(
       }
       const parents = await evaluateParents(current);
       const cached = await prepareViewer(current);
-      const observedRows = originalRows ??= await input.store.query(spec);
+      const observedRows = originalRows ??= observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
       if (page !== undefined && observedRows.length > VIEWER_PAGE_MAX_CANDIDATES) throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
       const rows = [], matches: boolean[] = [];
       for (const row of observedRows) {
         if (sourceReads !== undefined) {
           sourceRows.set(`${input.model}\0${row.id}`, row);
           rows.push(await projectInstalledSourceRowAndAncestors({ model: input.model, row, readPolicies: sourceReads,
-            policy: input.policy, context: current, revision, fence: input.fence, store: input.store, rows: sourceRows }));
+            policy: input.policy, context: current, revision, fence: input.fence, store: input.store, rows: sourceRows,
+            ...(observation?.ownerRows === undefined ? {} : { ownerRows: observation.ownerRows }) }));
         } else rows.push(selectedPolicy === null ? { allowed: [], grants: [] } :
           await viewerRowAuthority(selectedPolicy, current, cached, row));
       }
@@ -1221,7 +1225,7 @@ async function runAuthorizedQuery(
         .map((_, index) => rowAuthority!.some(row => row.allowed[index] === true));
     if (page !== undefined) pageAuthority = { policy, byContext: rowContext, allowed: grantByOk,
       parents: authority.value.parents, revalidate: authority.revalidate };
-  } else scanned = await input.store.query(spec);
+  } else scanned = observation?.domain === undefined ? await input.store.query(spec) : [...observation.domain];
   if (page !== undefined && scanned.length > VIEWER_PAGE_MAX_CANDIDATES) {
     throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
   }
@@ -1495,12 +1499,16 @@ export async function queryRecordsObserved(
   input: Omit<ViewerRecordsInput, 'predicate'>,
   predicate: ObservedQueryPredicate,
   requiredFields: readonly string[] = [],
+  domain?: readonly StoredRow[],
+  ownerRows?: InstalledSourceOwnerRows,
 ): Promise<ObservedQueryResult> {
   if (input.authority !== 'viewer' || typeof predicate !== 'function' ||
       (input as ViewerRecordsInput).predicate !== undefined) {
     throw new StateError('validation', 'Observed queries require a current viewer query and a trusted host predicate.');
   }
-  const observation: QueryObservation = { predicate, candidates: [], indices: new Map() };
+  const observation: QueryObservation = { predicate, candidates: [], indices: new Map(),
+    ...(domain === undefined ? {} : { domain: Object.freeze([...domain]) }),
+    ...(ownerRows === undefined ? {} : { ownerRows: captureInstalledSourceOwnerRows(ownerRows) }) };
   const set = await runAuthorizedQuery(input, requiredFields, false, undefined, undefined, observation);
   return {
     records: set.rows.map(toProjectedRecord), revision: set.revision,
