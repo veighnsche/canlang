@@ -1107,6 +1107,24 @@ impl SemanticJoin<'_> {
                     span: t,
                 },
             ) if x == y && s == t => self.expression(a, b, d + 1)?,
+            (
+                IrStmt::Create {
+                    model: x,
+                    input: a,
+                    when: u,
+                    binding: v,
+                    span: s,
+                },
+                IrStmt::Create {
+                    model: y,
+                    input: b,
+                    when: w,
+                    binding: z,
+                    span: t,
+                },
+            ) if x == y && u == w && v == z && s == t => {
+                self.expression(a, b, d + 1)?;
+            }
             // A prepared child call remains an original statement in a
             // parent's decision sites. Match its complete static operand and
             // authored inputs to fresh IR; receipt preparation still owns all
