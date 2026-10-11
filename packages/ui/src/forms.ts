@@ -1054,14 +1054,69 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
  * Single bound operation: a mini scenario form when fields are present, else
  * a single-button form. Pre-bound record, sealed handle and scalar inputs
  * travel as hidden fields; confirm copy renders above the submit button.
+ * Checked input/source metadata opts into the existing generated-form browser
+ * submitter and its operation mode. Omission retains the native POST contract.
  */
 export async function action(props: ActionProps): Promise<string> {
   const postTo = operationPostPath(props.action);
+  const associated = props.derived !== undefined || props.sourceBinding !== undefined ||
+    props.sourceBindingIdentity !== undefined || props.sourceBindingDraftIdentity !== undefined;
+  if (associated && props.actionHandle !== undefined) {
+    throw new Error("action: sealed action_handle submission is MCP-only; prepared browser actions require ordinary inputs");
+  }
+  let mode: FormMode = "scenario";
+  let renderedInputs: string[] | undefined;
+  if (associated) {
+    const derived = props.derived;
+    if (derived === undefined || derived === null || typeof derived.operation !== "string" ||
+        !Array.isArray(derived.inputs)) {
+      throw new Error("action: checked operation inputs are required for a prepared association");
+    }
+    if (props.operation !== derived.operation) throw new Error("action: operation disagrees with checked inputs");
+    if (derived.kind !== "create" && derived.kind !== "update" && derived.kind !== "scenario") {
+      throw new Error("action: checked operation has no generated mutation form");
+    }
+    mode = derived.kind;
+    for (const binding of [props.sourceBinding, props.sourceBindingIdentity, props.sourceBindingDraftIdentity]) {
+      if (binding !== undefined && (typeof binding !== "string" || binding.length === 0)) {
+        throw new Error("action: source binding metadata must be nonempty strings");
+      }
+    }
+    if (props.sourceBinding === undefined &&
+        (props.sourceBindingIdentity !== undefined || props.sourceBindingDraftIdentity !== undefined)) {
+      throw new Error("action: source binding comparison identities require a source binding");
+    }
+    // Reuse the owning generated-field mapping for supported paths and companions.
+    const available = generatedFields(derived, mode);
+    assertUniqueFieldPaths(available);
+    const paths = new Set(available.filter(field => field.type !== "delivery").map(field => field.path));
+    renderedInputs = [...(props.fields ?? []).map(field => field.path), ...Object.keys(props.inputs ?? {})];
+    for (const path of renderedInputs) {
+      if (!paths.has(path)) throw new Error(`action: input ${JSON.stringify(path)} is outside its checked operation`);
+    }
+    // generatedFields emits each base followed by its actual companions. A
+    // declared input whose own name contains a suffix is still a base input.
+    const declared = new Set(derived.inputs.map(input => input.name));
+    const rendered = new Set(renderedInputs);
+    let base: string | undefined;
+    for (const field of available) {
+      if (declared.has(field.path)) base = field.path;
+      else if (base !== undefined && rendered.has(field.path) && !rendered.has(base)) {
+        throw new Error(`action: companion input ${JSON.stringify(field.path)} requires its base input ${JSON.stringify(base)}`);
+      }
+    }
+    if (mode === "update" && props.record === undefined && props.sourceBinding === undefined) {
+      throw new Error("action: update mode requires a bound record or source binding");
+    }
+    if (props.record !== undefined && mode !== "update" && props.sourceBinding === undefined) {
+      throw new Error("action: prepared record bindings require update mode or a source binding");
+    }
+  }
   // The rendering timezone is always declared so the server interprets
   // datetime inputs unambiguously; UTC when the caller supplies none.
   const timeZone = props.timeZone ?? "UTC";
   let extras = hidden("timezone", timeZone);
-  extras += recordHiddens(props.record);
+  extras += props.sourceBinding === undefined ? recordHiddens(props.record) : hidden(SOURCE_FORM_BINDING_FIELD, props.sourceBinding);
   if (props.actionHandle !== undefined) {
     const json = JSON.stringify(props.actionHandle);
     if (json === undefined) {
@@ -1072,7 +1127,7 @@ export async function action(props: ActionProps): Promise<string> {
   if (props.inputs !== undefined) {
     for (const key of Object.keys(props.inputs)) {
       assertFieldPath(key);
-      extras += hidden(`inputs[${key}]`, serializeActionScalar(key, props.inputs[key]));
+      extras += hidden(fieldName(mode, key), serializeActionScalar(key, props.inputs[key]));
     }
   }
   let fieldsHtml = "";
@@ -1081,12 +1136,12 @@ export async function action(props: ActionProps): Promise<string> {
     assertUniqueFieldPaths(props.fields);
     const names = new Set<string>();
     for (const field of props.fields) {
-      names.add(fieldName("scenario", field.path));
+      names.add(fieldName(mode, field.path));
     }
     const { matched, unmatched } = splitErrors(props.errors, names);
     const fieldCtx: FieldRenderContext = {
       context: props.context,
-      mode: "scenario",
+      mode,
       timeZone,
       idPrefix: props.idPrefix,
       errorsByName: matched,
@@ -1109,12 +1164,14 @@ export async function action(props: ActionProps): Promise<string> {
     props.variant === "danger" ? "btn-error" : props.variant === "ghost" ? "btn-ghost" : "btn-primary";
   const labelText = escapeHtml(resolveCaption(props.label, props.context));
   return (
-    formOpenTag(postTo, needsMultipart(props.fields)) +
+    formOpenTag(postTo, needsMultipart(props.fields), props.derived, renderedInputs,
+      props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
     extras +
     errorsHtml +
+    (props.derived === undefined ? "" : '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>') +
     fieldsHtml +
     confirm +
     `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${labelText}</button></div>` +
