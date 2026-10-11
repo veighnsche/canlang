@@ -56,6 +56,7 @@ export type ScenarioReceiptDependencyObserver = (input: {
 }, healthy: () => void) => Promise<readonly FinalizedFileObservation[] | undefined>;
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
+  activeQueryCandidate: object | null;
   readonly queryParents: WeakMap<object, { readonly candidate: object; readonly view: NativeQueryView;
     readonly model: string; readonly dependencyId: string }>;
   readonly observeDependency?: ScenarioReceiptDependencyObserver;
@@ -171,7 +172,7 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics,
     ...(observeDependency === undefined ? {} : { observeDependency }), ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
-    owner: Object.freeze({}), queryParents: new WeakMap(), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
+    owner: Object.freeze({}), activeQueryCandidate: null, queryParents: new WeakMap(), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
@@ -267,20 +268,45 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
     const sourceView = typeof nativeRow === 'object' && nativeRow !== null
       ? frame.sourceViews.get(nativeRow) ?? nativeRow : undefined;
     const parent = sourceView === undefined ? undefined : frame.queryParents.get(sourceView);
+    const dependency = resultPlan(frame)?.returns.flatMap(entry => entry.dependencies)
+      .find(entry => entry.id === dependencyId);
+    // A supplied admitted parent is a different original occurrence from the
+    // candidate-issued parent. Its checked query link alone selects the slot;
+    // only this call's exact admitted row can use the nested observation port.
+    const linkedCandidate = parent === undefined && dependency?.queryId !== undefined
+      ? frame.activeQueryCandidate : null;
+    const linkedView = linkedCandidate === null ? undefined : frame.queryViews.get(linkedCandidate);
+    let admittedRow: StoredRow | undefined;
     const healthy = () => {
       checked(c);
+      if (parent === undefined && dependency?.queryId !== undefined &&
+          (linkedCandidate === null || linkedView === undefined || frame.activeQueryCandidate !== linkedCandidate ||
+            linkedView.query.active !== linkedCandidate || linkedView.query.bound || linkedView.query.result !== undefined ||
+            linkedView.reads.length !== 0 || frame.pending !== 2 || dependency.queryId !== linkedView.query.plan.id ||
+            dependency.role !== 'control' || dependency.model !== model || dependency.field !== field || field !== 'parent' ||
+            stableStringify(dependency.source) !== stableStringify(linkedView.query.plan.source))) {
+        return refuse('Supplied parent observation requires its exact checked active query occurrence.');
+      }
+      if (admittedRow !== undefined && captureNativeScenarioReceiptRow(nativeRow, frame.owner, model) !== admittedRow) {
+        return refuse('Supplied parent observation changed its original admitted native binding.');
+      }
       if (parent !== undefined && (parent.view.query.active !== parent.candidate || parent.view.query.bound ||
           parent.view.reads.length !== 0 || frame.pending !== 2 || parent.model !== model || parent.dependencyId !== dependencyId || field !== 'parent')) {
         return refuse('Query parent observation crossed its original candidate and ordinary dependency.');
       }
     };
-    if (frame.pending !== (parent === undefined ? 0 : 1)) {
+    if (frame.pending !== (parent === undefined && linkedView === undefined ? 0 : 1)) {
       return fail(frame, new StateError('validation', 'Scenario dependency observations must run sequentially.'));
     }
     frame.pending += 1;
     try {
       healthy();
       const row = captureNativeScenarioReceiptRow(nativeRow, frame.owner, model);
+      if (parent === undefined && dependency?.queryId !== undefined &&
+          !frame.call.recordRefs.some(reference => reference.model === model && reference.row === row && reference.id === row.id)) {
+        return refuse('Supplied query parent requires this call’s exact admitted native row.');
+      }
+      if (parent === undefined && dependency?.queryId !== undefined) admittedRow = row;
       const files = frame.observeDependency === undefined ? undefined
         : await frame.observeDependency({ dependencyId, model, row, field }, healthy);
       healthy();
@@ -491,6 +517,7 @@ export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
         }
         frame.queryViews.set(view, { query, slot, dependencies: new Set(), reads });
         issued.set(slot, { view, select: record => { projected = record; } }); query.active = view;
+        if (frame.kind === 'receipt') frame.activeQueryCandidate = view;
         try {
           const accepted = await predicate(view);
           checkedQuery(c);
@@ -498,7 +525,10 @@ export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
           if (typeof accepted !== 'boolean') return refuse('Query predicate requires its actual boolean.');
           if (reads.length !== 0) return refuse('Query predicate omitted an actual field read marker.');
           return accepted;
-        } finally { query.active = null; }
+        } finally {
+          query.active = null;
+          if (frame.kind === 'receipt') frame.activeQueryCandidate = null;
+        }
       };
       let result: NonNullable<NativeQueryExecution['result']>;
       if (frame.kind === 'receipt') {

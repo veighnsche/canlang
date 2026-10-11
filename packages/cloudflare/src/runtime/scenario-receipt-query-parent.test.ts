@@ -58,7 +58,8 @@ function artifact(): ArtifactDescriptorSlice {
       } } })),
   };
 }
-async function world() {
+async function world(configure?: (slice: ArtifactDescriptorSlice) => void) {
+  const slice = artifact(); configure?.(slice);
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const reader = await memberships.createMembership({ team_id: TEAM, user_id: 'turn-reader', is_owner: false, roles: [] });
@@ -67,7 +68,7 @@ async function world() {
   const store = { ...physical, commit: async (batch: CommitBatch) => {
     batches.push(batch); return physical.commit(batch);
   } }, loaded = loadArtifactDescriptors(
-    artifact(), { by: 'members' });
+    slice, { by: 'members' });
   const root = loaded.registry.get(ROOT), child = loaded.registry.get(CHILD);
   assert.ok(root && isGeneratedOperationDef(root)); assert.ok(child && isGeneratedOperationDef(child));
   const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, serverInits: loaded.serverInits,
@@ -208,6 +209,156 @@ test('native parent facade rejects substituted carriers, incomplete markers, aut
     'copied-observation', 'missing-observation', 'prior-candidate', 'closed', 'pending', 'refused', 'fake-row'] as const) {
     const w = await world(); bindNativeChild(w, mode); const revision = await w.store.readRevision();
     const before = w.batches.length, request = await nativeInput(w);
+    await assert.rejects(invoke(request), refuses);
+    assert.equal(await w.store.load(RUN, CREATED), null, mode);
+    assert.equal(w.batches.length, before + 1, mode);
+    const rejected = w.batches.at(-1)!;
+    assert.equal(rejected.expectedRevision, revision, mode);
+    assert.deepEqual(rejected.writes, [], mode); assert.deepEqual(rejected.history, [], mode);
+    assert.deepEqual(rejected.outbox, [], mode); assert.deepEqual(rejected.schedules, [], mode);
+    assert.deepEqual(rejected.uniqueClaims, [], mode); assert.deepEqual(rejected.uniqueReleases, [], mode);
+    assert.equal(rejected.receipt?.outcome.status, 'rejected', mode);
+    assert.equal(Object.hasOwn(rejected.receipt!.outcome, 'scenario'), false, mode);
+    assert.equal(await w.store.readRevision(), revision + 1, mode);
+    await assert.rejects(invoke(request), refuses);
+    assert.equal(w.batches.length, before + 1, `${mode} refusal replay adds no commit`);
+    assert.equal(await w.store.load(RUN, CREATED), null, mode);
+  }
+});
+
+
+// These linked supplied-parent checks require reviewed Contracts queryId and
+// corrected State capture/save validation. They do not qualify native lowering.
+type SuppliedMode = 'normal' | 'both-linked' | 'skipped' | 'copy' | 'current' | 'unassociated' | 'wrong-query' |
+  'pending' | 'detached' | 'closed' | 'refused' | 'foreign-context' | 'post-query';
+async function suppliedWorld(mode: SuppliedMode) {
+  return world(slice => {
+    const child = slice.operations!.find(operation => operation.name === CHILD)!;
+    child.inputs.fields.push({ name: 'branch', field: { kind: 'ref', model: PARENT, requireVersion: true }, required: true });
+    const disclosure = child.result!.disclosure!, returned = disclosure.returns[0]!;
+    const other = { ...structuredClone(disclosure.queries![0]!), id: 'other-turns',
+      dependencies: disclosure.queries![0]!.dependencies.map(entry => ({ ...entry, id: `${entry.id}-other` })),
+    };
+    child.result = { ...child.result!, disclosure: { ...disclosure,
+      queries: mode === 'wrong-query' ? [...disclosure.queries!, other] : disclosure.queries!,
+      returns: [{ ...returned,
+        dependencies: [...returned.dependencies.map(dependency => mode === 'both-linked' ? { ...dependency, queryId: 'turns' } : dependency), { id: 'supplied-branch-parent', source, role: 'control', model: PARENT,
+          field: 'parent', type: CONVERSATION as CanTypeId,
+          ...(mode === 'unassociated' ? {} : { queryId: mode === 'wrong-query' ? 'other-turns' : 'turns' }),
+        }],
+        influences: mode !== 'wrong-query' ? returned.influences : [...returned.influences,
+          ...(['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
+            .map(kind => ({ id: `other-${kind}`, kind, queryId: 'other-turns' })),
+        ],
+      }],
+    } };
+  });
+}
+function bindSuppliedChild(w: Awaited<ReturnType<typeof world>>, mode: SuppliedMode) {
+  let executions = 0, observations = 0;
+  bindScenarioReceiptCallProducer(w.root, { source, app: APP, registry: w.registry,
+    sites: [{ id: 'reserve-site', source, kind: 'operation', targets: [{ operation: CHILD, interface: w.child.descriptor }],
+      resultType: RUN as CanTypeId }], prepare: (_def, inputs) => inputs as ClosedInputs,
+    execute: async owner => {
+      executions++;
+      const c = createContext({ caller: { userId: 'caller', roles: [] }, store: w.store, qualified: owner.call.context });
+      let frame!: ScenarioReceiptFrame;
+      const admitted = owner.call.recordRefs.find(reference => reference.model === PARENT)!;
+      assert.ok(admitted);
+      const current = mode === 'current' ? await owner.session.read(PARENT, admitted.row.id) : admitted.row;
+      assert.ok(current);
+      if (mode === 'current') assert.notEqual(current, admitted.row);
+      const supplied: Record<string, unknown> = {};
+      Object.defineProperty(supplied, 'parent', { enumerable: true, get: () => {
+        const parent = current.parent!; return makeRecordRef(parent.model, parent.id);
+      } });
+      bindNativeRecord(supplied, PARENT, current.id, current.version); Object.freeze(supplied);
+      frame = openScenarioReceiptFrame(c, owner.call, w.store, () => {}, undefined, {
+        record: (model, record, read, projected) => {
+          const view: Record<string, unknown> = {};
+          Object.defineProperty(view, 'account', { get: () => { read('account'); return projected().data.account; } });
+          Object.defineProperty(view, 'parent', { get: () => { read('parent');
+            const parent = projected().parent!; return makeRecordRef(parent.model, parent.id);
+          } });
+          bindNativeRecord(view, model, record.id, record.version); return Object.freeze(view);
+        }, encode: value => value,
+        mutableRecord: (model, row, privateMode) => {
+          assert.equal(privateMode, 'query-parent');
+          const view: Record<string, unknown> = { parent: makeRecordRef(row.parent!.model, row.parent!.id) };
+          bindNativeRecord(view, model, row.id, row.version); Object.freeze(view);
+          frame.bind(view, model, () => row); return view;
+        },
+      }, async (_input, healthy) => {
+        healthy();
+        if (_input.dependencyId === 'supplied-branch-parent') {
+          observations++;
+          if (mode === 'pending') await nativeObserve(c, PARENT, supplied, 'parent', 'supplied-branch-parent');
+          if (mode === 'detached') await new Promise<void>(resolve => setImmediate(resolve));
+          if (mode === 'closed') frame.close();
+        }
+        healthy(); return undefined;
+      });
+      frame.bind(supplied, PARENT, () => current);
+      try {
+        const rows = await nativeQuery(c, 'turns', async run => {
+          const account = run.account; queryObserve(c, TURN, run, 'account', 'account-control');
+          void run.parent; queryObserve(c, TURN, run, 'parent', 'parent-control');
+          const branch = await readScenarioReceiptQueryParent(c, run, 'branch-parent');
+          const ancestor = branch.parent;
+          await nativeObserve(c, PARENT, branch, 'parent', 'branch-parent');
+          // Both original parent occurrences stay here, after the candidate
+          // marker, rather than becoming query scope or a hoisted root read.
+          const suppliedAncestor = mode === 'skipped' ? undefined : supplied.parent;
+          if (mode === 'refused') w.access.parent = false;
+          if (mode === 'foreign-context') await assert.rejects(nativeObserve({ ...c }, PARENT, supplied,
+            'parent', 'supplied-branch-parent'), refuses);
+          if (mode !== 'skipped') {
+            const observed = nativeObserve(c, PARENT, mode === 'copy' ? { ...supplied } : supplied,
+              'parent', 'supplied-branch-parent');
+            if (mode !== 'detached') await observed;
+          }
+          return mode !== 'skipped' && account === 'caller' && (ancestor as { id: string }).id === (suppliedAncestor as { id: string }).id;
+        });
+        if (mode === 'post-query') await nativeObserve(c, PARENT, supplied, 'parent', 'supplied-branch-parent');
+        const count = await countQuery(c, rows); assert.equal(count, mode === 'skipped' ? 0n : 2n); frame.assertCompleted();
+        await owner.session.stage({ op: 'create', model: RUN, id: CREATED, data: { account: 'caller', title: String(count) } }, cause);
+        const row = await owner.session.read(RUN, CREATED); assert.ok(row);
+        const wire = await bindScenarioReceiptModelResult(owner.call, w.store, { returnId: 'child-return', row });
+        selectScenarioReceiptReturn(owner.call, w.store, 'child-return'); return wire;
+      } finally { frame.close(); }
+    } });
+  return { get executions() { return executions; }, get observations() { return observations; } };
+}
+async function suppliedInput(w: Awaited<ReturnType<typeof world>>, observed?: (receipt: Receipt) => void) {
+  const row = await w.store.load(PARENT, asId('branch-a')); assert.ok(row);
+  const request = await nativeInput(w, observed);
+  return { ...request, execute: async (call: AdmittedCall) => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    await invokeScenarioReceiptCall(call, w.store, { site: 'reserve-site', target: CHILD,
+      inputs: { branch: { id: row.id, version: String(row.version) } } });
+    const created = await session.read(RUN, CREATED); assert.ok(created);
+    const wire = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row: created });
+    selectScenarioReceiptReturn(call, w.store, 'root-return'); return { ...await session.finalize(), result: wire, outbox: [] };
+  } };
+}
+test('query-linked supplied admitted parent remains distinct and awaited at each original candidate', async () => {
+  for (const mode of ['normal', 'both-linked', 'foreign-context', 'skipped'] as const) {
+    const w = await suppliedWorld(mode), child = bindSuppliedChild(w, mode); let receipt: Receipt | undefined;
+    const request = await suppliedInput(w, value => { receipt = value; });
+    assert.equal((await invoke(request)).status, 'committed'); assert.ok(receipt);
+    const saved = readScenarioReceiptAssociation(receipt)!.calls![0]!.scenario!;
+    assert.equal(saved.observations.filter(item => item.dependencyId === 'branch-parent').length, 4);
+    assert.equal(saved.observations.filter(item => item.dependencyId === 'supplied-branch-parent').length, mode === 'skipped' ? 0 : 4);
+    assert.deepEqual(saved.queries![0]!.selectedIndices, mode === 'skipped' ? [] : [0, 1]); assert.equal(child.observations, mode === 'skipped' ? 0 : 4);
+    if (mode === 'both-linked') assert.ok(saved.queries![0]!.candidates.every(candidate =>
+      candidate.dependencies.includes('branch-parent') && candidate.dependencies.includes('supplied-branch-parent')));
+    assert.equal((await invoke(request)).status, 'replayed'); assert.equal(child.executions, 1);
+  }
+});
+test('supplied query parent refuses unassociated, substituted, unrelated, current-row and crossed-await observations', async () => {
+  for (const mode of ['copy', 'current', 'unassociated', 'wrong-query', 'pending', 'detached', 'closed', 'refused', 'post-query'] as const) {
+    const w = await suppliedWorld(mode); bindSuppliedChild(w, mode); const revision = await w.store.readRevision();
+    const before = w.batches.length, request = await suppliedInput(w);
     await assert.rejects(invoke(request), refuses);
     assert.equal(await w.store.load(RUN, CREATED), null, mode);
     assert.equal(w.batches.length, before + 1, mode);
