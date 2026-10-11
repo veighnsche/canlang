@@ -136,6 +136,8 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "context.js",
   "stdlib.js",
   "native-records.js",
+  "native-membership.js",
+  "generation-callback-origin.js",
   "scenario-receipt-frame.js",
   "assembly-verification.js",
   "invoke.js",

@@ -1,0 +1,24 @@
+## Original committed parent/root read source; no callback permission or query WHERE.
+app NativeConditionalNavigation
+Given
+ Root {label:text,enabled:bool=true}
+ Parent in Root {label:text,kind:text,enabled:bool=true,author:user,token:secret server=random_secret()}
+ Child in Parent {label:text}
+ policy Root read=members where=row.enabled fields=label
+ policy Parent read=members where=row.enabled and active_member(row.author,team) fields=label
+ policy Parent read=members where=row.enabled and active_member(row.author,team) fields=kind
+ policy Child read=members
+When
+ scenario parentLabel(child:Child) read=true -> text by=members
+  do return child.parent.label
+ scenario parentKind(child:Child) read=true -> text by=members
+  do return child.parent.kind
+ scenario rootLabel(child:Child) read=true -> text by=members
+  do return child.parent.parent.label
+ scenario withheldEnabled(child:Child) read=true -> bool by=members
+  do return child.parent.enabled
+ scenario suppressed(child:Child) read=true -> text by=members
+  do
+   require false
+   return child.parent.label
+Then
