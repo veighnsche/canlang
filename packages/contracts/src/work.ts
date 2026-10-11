@@ -654,3 +654,47 @@ export interface ProgressTerminalNotification {
   /** Retained terminal outcome. */
   status: TerminalReceiptStatus;
 }
+
+/** Checked original declaration facts; a locator or delivery ID grants nothing. */
+export interface GenerationCallbackOrigin {
+  readonly source: 'std.ImagesV1.submit' | 'std.TextGenerationV1.generate';
+  /** Canonical original generation request revision, not a compiler source digest. */
+  readonly sourceRevision: string;
+  readonly binding: string;
+  readonly from: string;
+  readonly scope: Readonly<WorkScope>;
+  /** Fully qualified original binding event, e.g. CanCreative.Images.submit.progressed. */
+  readonly event: string;
+  /** Complete ordinary callback identities from the owning checked event. */
+  readonly handlers: readonly string[];
+}
+
+/** An immutable historical handler refusal, never a current provider error. */
+export interface GenerationCallbackFailure {
+  readonly deliveryId: string;
+  readonly sourceOccurrence: string;
+  readonly occurrenceId: string;
+  readonly handler: string;
+  readonly event: GenerationCallbackOrigin['event'];
+  readonly recordedAtMs: number;
+  readonly code: 'require-false';
+  readonly message: 'handler requirement rejected the occurrence';
+}
+
+export interface GenerationCallbackDiagnosticRequest {
+  readonly origin: GenerationCallbackOrigin;
+  /** State derives this from the currently authorized stored association. */
+  readonly deliveryId: string;
+  readonly expectedRevision: import('./state.js').Revision;
+}
+
+/** Complete means all historical safe refusals in the bounded supported profile. */
+export type GenerationCallbackDiagnosticResult = {
+  readonly outcome: 'complete';
+  readonly failures: readonly GenerationCallbackFailure[];
+  /** Notifications retain delivery_id alone, without the provider snapshot identity. */
+  readonly snapshotAttribution: 'unsupported';
+} | {
+  readonly outcome: 'unsupported';
+  readonly reason: 'store-profile' | 'bound-exceeded' | 'origin-correspondence' | 'occurrence-correspondence';
+};

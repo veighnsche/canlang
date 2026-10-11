@@ -641,6 +641,8 @@ export interface StoragePort {
    * this owner-local storage boundary, as for outboxPending.
    */
   outboxGet(intentId: string): Promise<RetainedOutboxIntent | null>;
+  /** Exact original carrier at one fence; cohort representation limits apply before decode/copy. */
+  outboxGetBounded?(input: { readonly intentId: string; readonly expectedRevision: Revision }): Promise<RetainedOutboxIntent | null>;
   /** S6: one schedule row by key, or null when absent. */
   scheduleGet(key: string): Promise<ScheduleEntry | null>;
   /**

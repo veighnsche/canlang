@@ -52,6 +52,8 @@ import {
   checkCohortIdentityRows,
   toCohortStoredRow,
   toCohortStoredRows,
+  captureBoundedOutboxRequest, compileBoundedOutbox, toBoundedRetainedOutbox,
+  type BoundedRetainedOutboxRow,
 } from './sqlite-codecs.js';
 import type { CohortRecordRow } from './sqlite-codecs.js';
 import type { RecordRow, ReceiptRow, OutboxRow, RetainedOutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
@@ -1022,6 +1024,19 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
         .toArray();
       const row = rows[0] ?? null;
       return row === null ? null : toRetainedOutboxIntent(row);
+    },
+
+    async outboxGetBounded(request): Promise<RetainedOutboxIntent | null> {
+      assertBinding();
+      const input = captureBoundedOutboxRequest(request);
+      const { sql, bindings } = compileBoundedOutbox(input);
+      const before = readRevisionInner(storage);
+      if (before !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, before);
+      const rows = storage.sql.exec<BoundedRetainedOutboxRow>(sql, ...bindings).toArray();
+      const after = readRevisionInner(storage);
+      if (after !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, after);
+      const row = rows[0] ?? null;
+      return row === null ? null : toBoundedRetainedOutbox(row);
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {

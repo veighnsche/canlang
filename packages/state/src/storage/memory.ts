@@ -48,7 +48,8 @@ import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from '
 import type { StoragePort } from './port.js';
 import { INITIAL_REVISION } from './schema.js';
 import { captureCohortRequest, checkCohortIdentityRows, captureCohortRow, captureCohortRows,
-  captureHistoryRequest, checkHistoryCount, copyBoundedHistory } from './sqlite-codecs.js';
+  captureHistoryRequest, checkHistoryCount, copyBoundedHistory,
+  captureBoundedOutboxRequest, captureBoundedOutbox } from './sqlite-codecs.js';
 import { bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, emptyFileGuard, fileGuardCopy, guardFileCommit,
   guardFileFlip, guardFilePublish, planFileInstall, planFileRetirement,
   type FileGuardState, type FileGuardRow } from './file-retirement.js';
@@ -816,6 +817,16 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
         ? null
         : { intent: jsonCopy(found.intent as OutboxIntent), status: found.status,
           originalCommit: { revision: found.committedRevision as Revision, createdAt: found.createdAt } };
+    },
+
+    async outboxGetBounded(request): Promise<RetainedOutboxIntent | null> {
+      const input = captureBoundedOutboxRequest(request);
+      checkFencedExpected(input.expectedRevision, state.revision);
+      const found = state.outbox.get(input.intentId);
+      const result = found === undefined ? null : captureBoundedOutbox({ intent: found.intent as OutboxIntent,
+        status: found.status, originalCommit: { revision: found.committedRevision as Revision, createdAt: found.createdAt } });
+      checkFencedExpected(input.expectedRevision, state.revision);
+      return result;
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {
