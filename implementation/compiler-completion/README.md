@@ -3947,3 +3947,17 @@ conditional current-membership/parent facts and Dev mounted D1/browser/current
 dispatch/persistence/full application remain named dependencies. Table literal
 order is the next ready compiler unit; reviewed filter/default carrier6ceff111
 is released for subsequent exact intake.58/67,nine and every precise hold persist.
+
+
+**Unfinished original table workflow — literal order join, 2026-10-11.**
+
+Checked authored Table order uses the released existing carrier; multiple signed
+selectors now skip separator punctuation while still requiring checked field
+facts. All three original CanBook409/425/429 literal orders/pagination survive
+raw IR.143 affected assertions pass, including real CLI/public verified modules
+and installed table query/protected selected-row forms; strict Clippy0 4.36s,
+fmt/diff0. Enum order and preference-dispatched order retain their owning refusals.
+Finite coordinator review remains. Exact6ceff111 filter/default intake is next.
+Original425/429 paginated where/now needs data-only lowering and the defining
+admitted request-time source; coordinator has exact evidence and owner request.
+No source rewrite, fake clock or whole application/hold acceptance is claimed.

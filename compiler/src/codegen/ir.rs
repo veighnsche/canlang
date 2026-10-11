@@ -13604,14 +13604,6 @@ impl<'a> Cx<'a> {
             match name.as_str() {
                 "filter" | "defaults" if word == "calendar" => {}
                 "order" | "search" | "filter" | "columns" => {
-                    if name == "order" && !matches!(word, "list" | "calendar") {
-                        self.diags.push(Diagnostic::error(
-                            "E6008",
-                            "cannot lower table order: the table query profile does not forward authored ordering".to_string(),
-                            value.span,
-                        ));
-                        continue;
-                    }
                     if name == "order" && value.kind != SyntaxKind::Selectors {
                         self.diags.push(Diagnostic::error(
                             "E6008",
@@ -13623,6 +13615,7 @@ impl<'a> Cx<'a> {
                     let strings = if value.kind == SyntaxKind::Selectors {
                         kids(value)
                             .iter()
+                            .filter(|path| name != "order" || matches!(path.kind, SyntaxKind::Path | SyntaxKind::Descending))
                             .flat_map(|path| {
                                 if name == "order" {
                                     let key = if path.kind == SyntaxKind::Descending {
