@@ -88,8 +88,8 @@ export interface MailPort {
 /**
  * Constrained system-command surface for identity facts. No raw SQL, no
  * second role store, no account enumeration beyond the exact lookups below.
- * Feature code is check-then-act across mutation calls; last-owner guards,
- * recovery cascades and re-admission do not have a shared transaction fence.
+ * Recovery and occurrence-backed removal use their bounded atomic commands.
+ * Other check-then-act mutations and re-admission have no shared transaction fence.
  * The bounded membership snapshot supplies one read observation only. The
  * memory double is single-threaded and proves no native concurrency semantics.
  */
@@ -213,6 +213,16 @@ export interface IdentityStore {
   findEmailTokenByHash(token_sha256: string): Promise<EmailToken | null>;
   consumeEmailToken(token_id: string): Promise<void>;
   revokeUserEmailTokens(user_id: UserId, purpose: EmailToken['purpose']): Promise<void>;
+  /** Atomically recheck one live recovery proof, rotate its account password,
+   * revoke all account sessions/grants/recovery tokens, and consume that proof.
+   * Store-owned time is read at command admission, after password hashing.
+   * Null means no effects. A rejected/lost acknowledgement may be uncertain;
+   * callers must not fall back to separate mutations. Unsupported stores omit it. */
+  recoverAccountWithToken?(input: {
+    readonly token_id: string;
+    readonly user_id: UserId;
+    readonly password_hash: string;
+  }): Promise<{ readonly user_id: UserId } | null>;
 
   // -- MCP grants --
   createMcpGrant(input: {
