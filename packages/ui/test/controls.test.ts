@@ -5,6 +5,7 @@ import type {
   FormFieldDef,
   FormMode,
   PresentationContext,
+  RowView,
 } from "@canlang/contracts";
 import { loadHtml } from "./harness.js";
 import { message } from "../src/messages.js";
@@ -522,6 +523,81 @@ describe("calendar field", () => {
 });
 
 describe("calendar agenda", () => {
+  it("forwards authorized query options and awaits original row bodies sequentially before chronological zone grouping", async () => {
+    const rows: RowView[] = [
+      { id: 'later', version: '9', fields: { starts: '2026-01-02T05:30:00Z', ends: '<unsafe-end>' } },
+      { id: 'earlier-a', version: '3', fields: { starts: '2026-01-01T00:30:00Z', ends: '2026-01-01T01:30:00Z' } },
+      { id: 'earlier-b', version: '5', fields: { starts: '2026-01-01T02:30:00Z', ends: '2026-01-01T03:30:00Z' } },
+    ];
+    const where = { op: 'eq', field: 'state', value: 'confirmed' };
+    const order = ['starts', 'id'];
+    const seen: unknown[][] = [];
+    const calls: RowView[] = [];
+    const events: string[] = [];
+    const prepareForm: NonNullable<PresentationContext['prepareForm']> = async () => {
+      throw new Error('this control does not issue protected forms');
+    };
+    const ctx = makeContext({ prepareForm, query: async (...args) => {
+      seen.push(args); return { rows, columns: [] };
+    } });
+    const html = await calendar({ kind: 'agenda', context: ctx, model: 'Calendar.Booking',
+      startField: 'starts', endField: 'ends', timeZone: 'America/New_York', empty: 'None',
+      where, order, limit: 3, cursor: 'original-cursor', page: true, occurrence: 'page:/bookings/agenda',
+      renderRow: async (current, view) => {
+        assert.equal(view, ctx); assert.equal(view.prepareForm, prepareForm);
+        assert.equal(current, rows[calls.length]);
+        calls.push(current); events.push(`start:${current.id}`);
+        await Promise.resolve(); events.push(`end:${current.id}`);
+        return async () => { events.push(`body:${current.id}`); return [`<p>body-${current.id}-${current.version}</p>`]; };
+      } });
+    assert.deepEqual(seen, [[ctx.invocation, 'Calendar.Booking',
+      { where, order, limit: 3, cursor: 'original-cursor', page: true, occurrence: 'page:/bookings/agenda' }]]);
+    assert.equal((seen[0]![2] as { where: unknown }).where, where);
+    assert.equal((seen[0]![2] as { order: unknown }).order, order);
+    assert.deepEqual(calls, rows);
+    assert.deepEqual(events.filter(event => !event.startsWith('body:')), [
+      'start:later', 'end:later', 'start:earlier-a', 'end:earlier-a', 'start:earlier-b', 'end:earlier-b',
+    ]);
+    assert.equal(events.filter(event => event.startsWith('body:')).length, 3);
+    const page = await loadHtml(html);
+    try {
+      const sections = [...page.document.querySelectorAll('section')];
+      assert.equal(sections.length, 2);
+      assert.ok(sections[0]!.querySelector('h2')!.textContent!.includes('2025'));
+      assert.deepEqual([...sections[0]!.querySelectorAll('p')].map(body => body.textContent),
+        ['body-earlier-a-3', 'body-earlier-b-5']);
+      assert.deepEqual([...sections[1]!.querySelectorAll('p')].map(body => body.textContent), ['body-later-9']);
+      for (const item of page.document.querySelectorAll('li')) {
+        assert.equal(item.firstElementChild?.tagName.toLowerCase(), 'span');
+        assert.equal(item.lastElementChild?.tagName.toLowerCase(), 'p');
+      }
+      assert.ok(sections[1]!.textContent!.includes('<unsafe-end>'));
+      assert.equal(page.document.querySelector('unsafe-end'), null);
+    } finally { await page.close(); }
+  });
+
+  it("rejects unknown or missing agenda start values and query failures before authored row callbacks", async () => {
+    let calls = 0;
+    const valid = { id: 'valid', version: '1', fields: { starts: '2026-01-01', ends: '2026-01-02' } };
+    for (const [startField, fields, error] of [
+      ['starts', {}, /missing projected field "starts"/],
+      ['unknown', valid.fields, /missing projected field "unknown"/],
+      ['starts', { starts: '2026-01-01' }, /missing projected field "ends"/],
+      ['starts', { starts: 'not-a-date', ends: '2026-01-02' }, /start field.*needs a date or datetime/],
+    ] as const) {
+      const ctx = makeContext({ query: async () => ({ rows: [valid, { id: 'missing', version: '2', fields }], columns: [] }) });
+      await assert.rejects(calendar({ kind: 'agenda', context: ctx, model: 'Calendar.Booking',
+        startField, endField: 'ends', empty: 'None', renderRow: () => { calls++; return []; } }), error);
+      assert.equal(calls, 0);
+    }
+    const denial = new Error('current query authority refused');
+    const ctx = makeContext({ query: async () => { throw denial; } });
+    await assert.rejects(calendar({ kind: 'agenda', context: ctx, model: 'Calendar.Booking',
+      startField: 'starts', endField: 'ends', empty: 'None', renderRow: () => { calls++; return []; } }),
+      error => error === denial);
+    assert.equal(calls, 0);
+  });
+
   it("groups rows by start day with item rows and no mutation affordances", async () => {
     const ctx = makeContext({
       query: async () => ({
