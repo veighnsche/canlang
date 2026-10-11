@@ -10853,11 +10853,11 @@ source, preferences and one captured clock supply native context. Each State
 observation supplies its own revision for retry/replay; the exact receiptStore
 serves adapters, admission, nested stages and disclosure. Ordinary cached paths
 retain their scope. No mutable active-call routing, definition rebinding or copied
-row can supply policy authority. Normal CF/root checks pass; genuine C04 binding
-and staged-parent presence seams remain required before native acceptance.
+row can supply policy authority. Normal CF/root checks pass; original C04 binding is qualified below and live
+staged-parent presence is joined. Retained model SEND remains separate.
 
 2026-10-11 — expose created-model binding through the original native frame
-(implemented/export checked; native workflow unfinished).
+(implemented/finite original native workflow tested; parent unfinished).
 
 Generated source calls await bindScenarioReceiptModelResult(c,returnId,value)
 before original return selection and returns its same canonical State wire. Only
@@ -10933,3 +10933,7 @@ Coordinator independent defining cold-verifier review CLEAR and exact LOCAL inte
 Consume the focused Dev seven-file main-compatible page source/query/physical File and assembly closure, not a whole worker invoke replacement. The original verified predicate getter and checked source correspondence receive fresh State observations; captured page preferences also reach ancestor navigation. Original native objects, declared occurrence paths/versions, current source/field/ancestor/Identity and physical authority govern presentation. Every open resolves the originating credentials; terminal close suppresses pending disclosure and later owner acquisition. The query bridge and portable facade retain the same genuine selected scope and defining exports.
 
 Independent defining reviews are clear after correcting the missing ancestor preference forwarding. The unchanged original File fixture and corrected compiled CRUD record input retain all assertions. On the actual integrated PRIMARY source closure, the full native control passes1/1 in18104ms (19.35s process), zero skips: real CLI/verified assembly/D1 Identity/two owners/SQLite Files/native Worker, duplicate ordered File links, private/copy/raw/cross-scope/partial-policy/model refusals, image signature selection, actual session revocation, physical/lazy close, source withholding/restoration, resource/capture/cleanup. Locked CLI build, clean CF emission and root noEmit pass0. Installed Values catalog and package freshness failures occurred before application execution and remain recorded; only their actual stale producer outputs were refreshed before affected retry. Earlier worker/physical/replay results are reused without duplicate qualification. This finite page scope is accepted locally after deadline; gallery, generated receiving Files, retirement, C04, full plans and precise holds remain unfinished. Complete filetree checkpoint is unadvanced.
+
+## 2026-10-11 — Current created-model native control (finite consumer accepted; application unfinished)
+
+Integrate only Dev fc4641927's same-load singular model/explicit scalar input admission and original CREATED test/fixture; skip the already accepted Compiler468 duplicate and preserve main's newer File/query/source/SEND closure. Independent defining source/test reviews CLEAR. Actual MAIN native control passes1/1 in17273ms (18.08s process), zero skips, using locked CLI/verified assembly/Identity/two-owner D1; CF clean emission/root noEmit0. Root default Create and direct child CALL retain one original insert/history/receipt/revision, exact hash/source/disclosure/child association, no-effect ordinary/dedicated replay, foreign principal/owner refusals, current membership withholding/restoration and resource/capture/cleanup. This int/text/default-root fixture supplies no richer literal-default/nominal-input/contained-create or later-failure native rollback acceptance; retain those original requirements and separately accepted State controls. Original application/File/ref/query/guarded-SEND acceptance remains unfinished. Compiler bf2 is separately withheld for a real prefix expression type-seal defect, not a whole-plan gate. This is a post-deadline finite outcome; precise holds and complete filetree checkpoint remain unchanged.

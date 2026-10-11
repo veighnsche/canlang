@@ -2901,7 +2901,7 @@ async function collectNativeHookOccurrences(asm: AssembledModules, artifact: Com
   return targets;
 }
 
-/** Only assembler-verified static scalar and checked query calls are admitted.
+/** Only assembler-verified static scalar/model and checked query calls are admitted.
  * Public contexts and operation ids cannot select a frame. */
 const nativeScenarioCalls = new WeakMap<LoadedCanonicalDescriptors,
   ReadonlyMap<string, ReadonlyMap<string, GeneratedOperationDef>>>();
@@ -2916,6 +2916,18 @@ interface NativeScenarioExecution {
 }
 const nativeScenarioExecutions = new WeakMap<AdmittedCall, NativeScenarioExecution>();
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
+/** Only the same-load owning scalar or bounded-text alias inventory selects a codec.
+ * Contracts, enums, models, nullable values and containers remain separate profiles. */
+function nativeScenarioScalarInput(loaded: LoadedCanonicalDescriptors,
+  field: CanonicalOperationDescriptor['inputs'][number]): boolean {
+  if (field.kind === 'ref' || field.kind === 'delivery' || field.kind === 'enum' || field.valueType === undefined) return false;
+  if (field.kind !== 'nominal') return NATIVE_CALL_SCALARS.has(field.valueType);
+  const parsed = parseTypeId(field.valueType);
+  if (parsed.base.kind !== 'nominal' || parsed.array || parsed.nullable || parsed.requiredArray) return false;
+  const name = parsed.base.path;
+  return loaded.valueSchema?.aliases !== undefined && Object.hasOwn(loaded.valueSchema.aliases, name) &&
+    loaded.valueTypes?.aliases?.some(alias => alias.name === name && alias.type === 'text') === true;
+}
 function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef): void {
   const result = def.descriptor.result, plan = result?.disclosure;
   const query = def.kind === 'read' && result !== undefined && result.type.endsWith('[]') &&
@@ -2923,19 +2935,28 @@ function assertNativeScenarioTarget(loaded: LoadedCanonicalDescriptors, def: Gen
     plan !== undefined && (plan.queries?.length ?? 0) > 0 && plan.returns.length > 0 &&
     plan.returns.every(returned => returned.projection?.kind === 'query-contract-array' &&
       plan.queries!.some(occurrence => occurrence.id === returned.projection!.queryId));
-  const scalar = def.kind === 'scenario' && result !== undefined &&
-    ['void', ...NATIVE_CALL_SCALARS].includes(result.type) &&
+  // Exact equality to the loader-owned model name admits only its singular,
+  // nonnullable result. State still owns the source plan and original row binder.
+  const model = def.kind === 'scenario' && result !== undefined &&
+    loaded.models.some(model => model.name === result.type);
+  const scenario = def.kind === 'scenario' && result !== undefined &&
+    (['void', ...NATIVE_CALL_SCALARS].includes(result.type) || model) &&
     Object.keys(def.inputArrays).length === 0 && Object.keys(def.inputNullableRefs ?? {}).length === 0;
-  if (plan === undefined || (!scalar && !query) || loaded.unsupportedHookOperations.has(def.name) ||
+  if (plan === undefined || (!scenario && !query) || loaded.unsupportedHookOperations.has(def.name) ||
       Object.keys(def.inputArrays).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
       Object.keys(def.inputNullableRefs ?? {}).some(name => !query || !def.descriptor.inputs.some(field => field.name === name && field.kind === 'ref')) ||
-      def.descriptor.inputs.some(field => (field.required !== true &&
-        !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) || field.default !== undefined ||
-        ('computedDefault' in field && field.computedDefault === true) ||
-        (field.kind === 'ref' ? !query || !loaded.models.some(model => model.name === field.model)
-          : field.kind === 'delivery' || field.kind === 'enum' || field.kind === 'nominal' || field.valueType === undefined ||
-            !NATIVE_CALL_SCALARS.has(field.valueType)))) {
-    throw new loaded.producers.errors('validation', 'Native child calls require a checked scalar scenario or complete read query contract-array with owning scalar/protected inputs.');
+      def.descriptor.inputs.some(field => {
+        const scalar = nativeScenarioScalarInput(loaded, field);
+        // Metadata may describe a literal default, but both native preparation
+        // paths below still require the explicit authored member before State.
+        const literal = scalar && field.default?.kind === 'literal';
+        return (field.required !== true && !literal &&
+          !(query && field.kind === 'ref' && Object.hasOwn(def.inputArrays, field.name))) ||
+          (field.default !== undefined && !literal) ||
+          ('computedDefault' in field && field.computedDefault === true) ||
+          (field.kind === 'ref' ? !query || !loaded.models.some(model => model.name === field.model) : !scalar);
+      })) {
+    throw new loaded.producers.errors('validation', 'Native child calls require a checked scalar or singular model scenario, or complete read query contract-array, with explicitly supplied owning scalar/protected inputs.');
   }
 }
 function prepareNativeScenarioInputs(loaded: LoadedCanonicalDescriptors, def: GeneratedOperationDef,
