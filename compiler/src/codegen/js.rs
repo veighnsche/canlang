@@ -1670,6 +1670,15 @@ fn emit_program_with_sources(
                     "send dispatch guard needs exact original native receipt and sealed Rule correspondence".into(),
                     item.span,
                 ));
+            } else if super::scenario_receipts::has_original_images_source(
+                ir,
+                SymbolId(index as u32),
+            ) {
+                emitter.diags.push(Diagnostic::error(
+                    "E6008",
+                    "images request needs exact original native source correspondence".into(),
+                    item.span,
+                ));
             } else if super::scenario_receipts::has_original_created_model_result(
                 ir,
                 SymbolId(index as u32),

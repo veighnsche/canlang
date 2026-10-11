@@ -4566,3 +4566,34 @@ observation; no version reinterpretation or source rewrite.58/67/nine and precis
 C14/C23 holds remain unchanged.
 
 Coordinator defining disclosure/type-source and private whole-IR seal/emission reviews CLEAR. Reuse owning integration3, private2/loop1, native5/disclosure32 and strict/fmt outcomes at their recorded scopes. Guarded source producer is reviewed in LOCAL main; real original conditional SEND dispatch/false-skip/late rollback/recovery remains Dev-owned native work. No source witness grants native/full-plan acceptance or releases held criteria.
+
+**Local continuation — original Images request and row-ID source,
+2026-10-11 (implemented/tested producer; native workflow unfinished).**
+Byte-exact b0c8ccc9f native-generation-receiving now retains owning
+WorkflowInput/WorkflowDefinition/ImageRequest identities and original graph:file.
+Required original Job parameter.id emits the existing source-bound text/data
+dependency with the model ID as its reserved field identity. Match the original
+parameter, owning stored schema and actual emitted model descriptor; no ordinary
+id field, version reinterpretation or new intrinsic/carrier. The corrected State
+row-ID ABI8fca+aa299 is released in coordinator LOCAL main3d5fcf1e.
+
+Seal the unguarded request's full straight-line Let/Send/Set/lateRequire source,
+including original subtree types, ordered constructor entries, literals and
+bindings. Same-span substitutions withdraw disclosure and retain E6008 from
+original source inventory. Native request/receipt observation is emitted once;
+original late rejection and implicit void fallthrough remain ordered.
+
+Owning3 PASS (source/refusal2/.49s, failed-only actual CLI/schema/verified factory
+1/.66s Node24.19); stale test assertions for schema type, encoded locals and
+implicit fallthrough were corrected. Related native5/1.82s, nominal identity3,
+construct1, field reuse1 and disclosure32/.09s PASS:45 distinct affected cases.
+Final strictalltargets0 12.41s/fmt0/diff0. No fabricated row/File/context or
+native authority/provider/replay qualification. Actual locked a850 remains
+exit10/complete=true/omitted0/no artifact with the same ten SEND/richCALL/heldC14
+diagnostics. Dev owns genuine original File receiving/header/final fence,
+current-stage row observation and late rollback/replay. Continue rich supplied
+Ref/two-parent nullable/File[] CALL and intermediate Create→CALL source/consumer
+joins; State File[] ABI0b is released, native child SEND remains owner-dependent.
+58/67/nine and precise C14/C23 holds remain unchanged.
+
+Coordinator independent original request/type/source whole-IR seal and original row-ID dependency/once-emission reviews CLEAR. Reuse owning45 affected/strict/fmt results at their recorded scopes. Exact checked source producer is accepted in LOCAL main after locked CLI integration build; genuine native Images receiving/header/current-stage row/authority/fence/rollback/replay remains Dev-owned unfinished. Required State3d5 row-ID and main42 stored File[] components remain closed; no duplicate carrier, version reinterpretation, source rewrite or native/full-plan/hold release.

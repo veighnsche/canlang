@@ -320,6 +320,8 @@ pub struct CheckedScenarioSource {
     pub parameters: Vec<CheckedScenarioParameter>,
     pub result: Option<ResolvedType>,
     pub calls: Vec<CheckedScenarioSourceCall>,
+    /// Bounded original owning expression types; source facts confer no admission.
+    pub(crate) expression_types: Option<Vec<(NodeKey, ResolvedType)>>,
     /// Exact authored scenario creates, even when another closure leaf declines.
     /// Absence is missing evidence, never an empty create proof.
     pub creates: Option<Vec<CheckedScenarioCreate>>,
@@ -1740,6 +1742,7 @@ impl<'a> Closure<'a> {
             parameters,
             result,
             calls,
+            expression_types: self.checked_create_expression_types(scenario.node, scenario.module),
             creates: self.checked_create_sources(scenario),
             decision_sites: self.checked_decision_sites(scenario),
             queries: self.checked_query_sources(scenario),
@@ -4229,7 +4232,16 @@ impl<'a> Closure<'a> {
                 else {
                     return Err(self.fail(key, "missing checked schema import"));
                 };
-                if provider != "std" || !matches!(name.as_str(), "TextRequest" | "TextMessage") {
+                if provider != "std"
+                    || !matches!(
+                        name.as_str(),
+                        "TextRequest"
+                            | "TextMessage"
+                            | "WorkflowInput"
+                            | "WorkflowDefinition"
+                            | "ImageRequest"
+                    )
+                {
                     return Err(self.fail(key, "unsupported closed std schema"));
                 }
                 let schema = nominal_schema(name)
@@ -4421,6 +4433,74 @@ impl<'a> Closure<'a> {
             let model = value
                 .record
                 .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
+            if field_name == "id" {
+                let Some(ReferenceOrigin::Parameter(parameter)) = value.reference_origin else {
+                    return Err(self.fail(key, "id needs required original scenario parameter"));
+                };
+                let owner = self
+                    .resolve
+                    .symbols
+                    .get(model.0 as usize)
+                    .ok_or_else(|| self.fail(key, "missing intrinsic id model"))?;
+                let SymbolKind::Model { fields, .. } = &owner.kind else {
+                    return Err(self.fail(key, "id needs checked stored model"));
+                };
+                let Some(SymbolKind::Param {
+                    owner: scenario, ..
+                }) = self
+                    .resolve
+                    .symbols
+                    .get(parameter.0 as usize)
+                    .map(|parameter| &parameter.kind)
+                else {
+                    return Err(self.fail(key, "missing intrinsic id input owner"));
+                };
+                let scenario = self
+                    .effects
+                    .scenarios
+                    .get(scenario)
+                    .ok_or_else(|| self.fail(key, "missing intrinsic id source scenario"))?;
+                if !calls.is_empty()
+                    || self.loop_node.is_some()
+                    || self.checked_call_parent_path(base_key, parameter, 0) != Some((model, 0))
+                    || owner.module != module
+                    || scenario.module != module
+                    || scenario.read
+                    || scenario.on.is_some()
+                    || key.file != scenario.node.file
+                    || key.start < scenario.node.start
+                    || key.end > scenario.node.end
+                    || fields.iter().any(|field| {
+                        self.resolve
+                            .symbols
+                            .get(field.0 as usize)
+                            .is_none_or(|field| field.name == "id")
+                    })
+                    || *ty != ResolvedType::Scalar(Scalar::Text)
+                {
+                    return Err(self.fail(key, "intrinsic id source correspondence"));
+                }
+                // Reserved row identity is an owning stored observation. It is
+                // neither an authored field nor a version/context intrinsic.
+                value.reads.push(DisclosureDependency {
+                    id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                    source: self.source(module, key)?,
+                    node: key,
+                    calls: calls.to_vec(),
+                    role: DependencyRole::Data,
+                    model,
+                    field: model,
+                    model_name: owner.canonical.clone(),
+                    field_name: "id".into(),
+                    ty: ty.clone(),
+                    type_id: "text".into(),
+                });
+                value.observed.push((key, calls.to_vec()));
+                value.record = None;
+                value.reference = None;
+                value.reference_origin = None;
+                continue;
+            }
             if field_name == "parent" {
                 let (parameter, depth) = match value.reference_origin {
                     Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0),
@@ -7591,8 +7671,14 @@ fn checked_text_schema_fields<'a>(
         ResolvedType::Object(fields) => Some(fields),
         ResolvedType::StdNominal { fields, .. }
             if schema.is_some_and(|name| {
-                matches!(name, "TextRequest" | "TextMessage")
-                    && checked_standard_nominal_name(ty) == Some(name)
+                matches!(
+                    name,
+                    "TextRequest"
+                        | "TextMessage"
+                        | "WorkflowInput"
+                        | "WorkflowDefinition"
+                        | "ImageRequest"
+                ) && checked_standard_nominal_name(ty) == Some(name)
             }) =>
         {
             Some(fields)

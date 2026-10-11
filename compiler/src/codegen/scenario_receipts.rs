@@ -245,6 +245,29 @@ pub(super) fn has_original_guarded_send(
         })
 }
 
+/// Retain this original source requirement independently of editable effects
+/// or owner IDs. The private census carries checked catalog identities.
+pub(super) fn has_original_images_source(
+    ir: &IrProgram,
+    scenario: crate::analysis::SymbolId,
+) -> bool {
+    let Some(facts) = ir
+        .scenario_disclosures
+        .get(&scenario)
+        .and_then(|value| value.source_facts())
+    else {
+        return false;
+    };
+    let Some(types) = facts.expression_types.as_deref() else {
+        return false;
+    };
+    ["ImageRequest", "WorkflowDefinition"].iter().all(|name| {
+        types
+            .iter()
+            .any(|(_, ty)| crate::analysis::types::checked_standard_nominal_name(ty) == Some(*name))
+    })
+}
+
 pub(super) fn checked_created_model_result(
     ir: &IrProgram,
     item: &IrItem,
@@ -435,7 +458,10 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     }
     let source = transport_source(&checked.source, entry_module)?;
-    if created_model.is_some() || has_original_guarded_send(ir, item.id) {
+    if created_model.is_some()
+        || has_original_guarded_send(ir, item.id)
+        || has_original_images_source(ir, item.id)
+    {
         let db = db?;
         super::scenario_calls::checked_source(ir, item, db)?;
         if item.canonical != format!("{}.{}", module.name, item.name)
@@ -447,6 +473,9 @@ pub(super) fn collect_native_scenario_receipt(
         {
             return None;
         }
+    }
+    if has_original_images_source(ir, item.id) {
+        checked_images_source(ir, item, db?)?;
     }
     let sites = Sites::collect(ir, item, params, by, guards, effects, send_guards)?;
     match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
@@ -684,8 +713,23 @@ pub(super) fn collect_native_scenario_receipt(
             let IrItemKind::Model { fields, .. } = &owner.kind else {
                 return None;
             };
+            let id_read = field == "id" && dependency.field == dependency.model;
             let parent_read = field == "parent" && dependency.field == dependency.model;
-            let transport_type = if parent_read {
+            let transport_type = if id_read {
+                if transition.is_some()
+                    || !dependency.calls.is_empty()
+                    || dependency.ty != ResolvedType::Scalar(Scalar::Text)
+                    || dependency.type_id != "text"
+                {
+                    return None;
+                }
+                let expression = sites.members.get(&site)?.first()?;
+                let original = checked_parameter_row_id(ir, item, expression, models, db?)?;
+                if original.id != dependency.model || original.canonical != dependency.model_name {
+                    return None;
+                }
+                "text".to_string()
+            } else if parent_read {
                 if transition.is_some() || !dependency.calls.is_empty() {
                     return None;
                 }
@@ -1193,6 +1237,633 @@ fn inventory_type(field: &JsModelField) -> Option<String> {
         if field.nullable { "?" } else { "" }
     );
     supported_type_id(&type_id).then_some(type_id)
+}
+
+fn checked_images_source(ir: &IrProgram, owner: &IrItem, db: &SourceDb) -> Option<()> {
+    use crate::analysis::NodeKey;
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario {
+        params,
+        by,
+        guards,
+        effects,
+        result: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let file = db.get(source.node.file)?;
+    let (tree, diagnostics) = crate::syntax::parse_source(source.node.file, &file.text);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut nodes = HashMap::new();
+    let mut pending = vec![&tree];
+    while let Some(node) = pending.pop() {
+        if nodes.len() >= 200000 || nodes.insert(NodeKey::of(node), node).is_some() {
+            return None;
+        }
+        pending.extend(node.children.iter());
+    }
+    let authored = nodes.get(&source.node)?;
+    if authored.kind != SyntaxKind::Scenario
+        || !guards.is_empty()
+        || authored
+            .children
+            .iter()
+            .any(|part| part.kind == SyntaxKind::Require)
+    {
+        return None;
+    }
+    match (
+        crate::analysis::attribute_value(authored, "by", &file.text),
+        by.as_slice(),
+    ) {
+        (Some(node), [IrGuard::Role(role)])
+            if node.kind == SyntaxKind::NameRef
+                && matches!(
+                    role.as_str(),
+                    "members" | "owner" | "authenticated" | "public"
+                )
+                && images_source_name(node, &file.text)? == role => {}
+        (None, []) => {}
+        _ => return None,
+    }
+    let census = source.expression_types.as_deref()?;
+    if census.len() > 16384 {
+        return None;
+    }
+    let mut types = HashMap::new();
+    for (node, ty) in census {
+        if !nodes.contains_key(node) || types.insert(*node, ty).is_some() {
+            return None;
+        }
+    }
+    let mut names = HashMap::new();
+    for (position, (id, fact)) in params.iter().zip(&source.parameters).enumerate() {
+        let parameter = ir.items.get(id.0 as usize)?;
+        let IrItemKind::Param {
+            owner: parent,
+            index,
+            ty: IrType::Known(ty),
+            array_bounds: None,
+            default: None,
+            default_node: None,
+            default_copy_source: None,
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        let declaration = nodes.get(&fact.node)?;
+        let name = declaration
+            .children
+            .iter()
+            .find(|part| part.kind == SyntaxKind::Name)?;
+        if declaration.kind != SyntaxKind::Parameter
+            || parameter.id != fact.parameter
+            || *parent != owner.id
+            || *index != position
+            || parameter.module != owner.module
+            || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+            || parameter.span != name.span
+            || name.token()?.text(&file.text) != parameter.name
+            || ty != &fact.ty
+            || fact.default.is_some()
+            || names.insert(parameter.name.clone(), ty.clone()).is_some()
+        {
+            return None;
+        }
+    }
+    let mut blocks = authored
+        .children
+        .iter()
+        .filter(|part| part.kind == SyntaxKind::DoBlock);
+    let block = blocks.next()?;
+    let statements: Vec<_> = block
+        .children
+        .iter()
+        .filter(|part| {
+            !matches!(
+                part.kind,
+                SyntaxKind::Trivia | SyntaxKind::Comment | SyntaxKind::Name | SyntaxKind::Punct
+            )
+        })
+        .collect();
+    if blocks.next().is_some()
+        || statements.is_empty()
+        || statements.len() > 200
+        || statements.len() != effects.len()
+    {
+        return None;
+    }
+    for (actual, original) in effects.iter().zip(statements) {
+        let matcher = ImagesSourceExpressions {
+            text: &file.text,
+            types: &types,
+            names: &names,
+        };
+        match (actual, original.kind) {
+            (IrStmt::Let { name, value, span }, SyntaxKind::Let) if *span == original.span => {
+                let mut bindings = original
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Name);
+                if bindings.next()?.token()?.text(&file.text) != "let"
+                    || bindings.next()?.token()?.text(&file.text) != name
+                    || bindings.next().is_some()
+                {
+                    return None;
+                }
+                let values = images_source_values(original);
+                let [authored_value] = values.as_slice() else {
+                    return None;
+                };
+                matcher.expression(value, authored_value, 0)?;
+                if names.insert(name.clone(), value.ty.clone()).is_some() {
+                    return None;
+                }
+            }
+            (
+                IrStmt::Send {
+                    args,
+                    operation,
+                    binding: Some(binding),
+                    when: None,
+                    span,
+                    ..
+                },
+                SyntaxKind::Send,
+            ) if *span == original.span => {
+                let parts: Vec<_> = original
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Name)
+                    .collect();
+                let [send, as_word, authored_binding] = parts.as_slice() else {
+                    return None;
+                };
+                if send.token()?.text(&file.text) != "send"
+                    || as_word.token()?.text(&file.text) != "as"
+                    || authored_binding.token()?.text(&file.text) != binding
+                    || args.span != *span
+                    || args.ty != ResolvedType::Unknown
+                {
+                    return None;
+                }
+                let mut objects = original
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Object);
+                matcher.entries(args, objects.next()?, 0)?;
+                if objects.next().is_some() {
+                    return None;
+                }
+                let mut bindings = census.iter().filter(|(key, _)| {
+                    nodes.get(key).is_some_and(|node| {
+                        node.kind == SyntaxKind::NameRef
+                            && images_source_name(node, &file.text) == Some(binding.as_str())
+                    })
+                });
+                let (_, delivery) = bindings.next()?;
+                let ResolvedType::StdDelivery { capability, op } = delivery else {
+                    return None;
+                };
+                if *capability != "std.ImagesV1"
+                    || op.name != "submit"
+                    || *operation != format!("{capability}.{}", op.name)
+                    || bindings.any(|(_, ty)| ty != delivery)
+                    || names.insert(binding.clone(), delivery.clone()).is_some()
+                {
+                    return None;
+                }
+            }
+            (
+                IrStmt::Set {
+                    record,
+                    changes,
+                    when: None,
+                    span,
+                },
+                SyntaxKind::Set,
+            ) if *span == original.span => {
+                let mut paths = original
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Path);
+                matcher.expression(record, paths.next()?, 0)?;
+                let mut objects = original
+                    .children
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::Object);
+                matcher.entries(changes, objects.next()?, 0)?;
+                if paths.next().is_some()
+                    || objects.next().is_some()
+                    || changes.span != *span
+                    || changes.ty != ResolvedType::Unknown
+                {
+                    return None;
+                }
+            }
+            (IrStmt::Require { cond, span }, SyntaxKind::Require) if *span == original.span => {
+                let values = images_source_values(original);
+                let [value] = values.as_slice() else {
+                    return None;
+                };
+                if cond.ty != ResolvedType::Scalar(Scalar::Bool) {
+                    return None;
+                }
+                matcher.expression(cond, value, 0)?;
+            }
+            _ => return None,
+        }
+    }
+    Some(())
+}
+
+struct ImagesSourceExpressions<'a> {
+    text: &'a str,
+    types: &'a HashMap<crate::analysis::NodeKey, &'a ResolvedType>,
+    names: &'a HashMap<String, ResolvedType>,
+}
+
+impl ImagesSourceExpressions<'_> {
+    fn expression(
+        &self,
+        actual: &TypedExpr,
+        original: &crate::syntax::SyntaxNode,
+        depth: usize,
+    ) -> Option<()> {
+        use crate::analysis::NodeKey;
+        if depth > 64
+            || actual.span != original.span
+            || self.types.get(&NodeKey::of(original)).copied()? != &actual.ty
+            || matches!(actual.ty, ResolvedType::Unknown | ResolvedType::Error)
+        {
+            return None;
+        }
+        let mut original = original;
+        for _ in depth..=64 {
+            if original.kind != SyntaxKind::Group {
+                break;
+            }
+            let values = images_source_values(original);
+            let [value] = values.as_slice() else {
+                return None;
+            };
+            if self.types.get(&NodeKey::of(value)).copied()? != &actual.ty {
+                return None;
+            }
+            original = value;
+        }
+        let leaf = |kind| original.children.iter().find(|part| part.kind == kind);
+        let matched = match (&actual.expr, original.kind) {
+            (IrExpr::Name(name), SyntaxKind::Name | SyntaxKind::NameRef | SyntaxKind::Path) => {
+                images_source_name(original, self.text)? == name
+                    && self.names.get(name) == Some(&actual.ty)
+            }
+            (IrExpr::Text(value), SyntaxKind::Literal) => {
+                actual.ty == ResolvedType::Scalar(Scalar::Text)
+                    && leaf(SyntaxKind::String)?.token()?.string_value.as_ref()? == value
+            }
+            (IrExpr::Int(value), SyntaxKind::Literal) => {
+                actual.ty == ResolvedType::Scalar(Scalar::Int)
+                    && leaf(SyntaxKind::Integer)?
+                        .token()?
+                        .text(self.text)
+                        .parse::<i128>()
+                        .ok()?
+                        == *value
+            }
+            (IrExpr::Decimal(value), SyntaxKind::Literal) => {
+                actual.ty == ResolvedType::Scalar(Scalar::Decimal)
+                    && leaf(SyntaxKind::Decimal)?.token()?.text(self.text) == value
+            }
+            (IrExpr::Bool(value), SyntaxKind::Literal) => {
+                actual.ty == ResolvedType::Scalar(Scalar::Bool)
+                    && leaf(SyntaxKind::Name)?.token()?.text(self.text)
+                        == if *value { "true" } else { "false" }
+            }
+            (IrExpr::Null, SyntaxKind::Literal) => {
+                actual.ty == ResolvedType::Null
+                    && leaf(SyntaxKind::Name)?.token()?.text(self.text) == "null"
+            }
+            (IrExpr::DurationMs(value), SyntaxKind::Literal) => {
+                let spelling = leaf(SyntaxKind::Duration)?.token()?.text(self.text);
+                let mut duration = None;
+                for (unit, factor) in [
+                    ("ms", 1i128),
+                    ("s", 1000),
+                    ("m", 60000),
+                    ("h", 3600000),
+                    ("d", 86400000),
+                ] {
+                    if let Some(digits) = spelling.strip_suffix(unit).filter(|digits| {
+                        !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+                    }) {
+                        duration = digits.parse::<i128>().ok()?.checked_mul(factor);
+                        break;
+                    }
+                }
+                actual.ty == ResolvedType::Scalar(Scalar::Duration) && duration == Some(*value)
+            }
+            (IrExpr::Member { base, field }, SyntaxKind::Member) => {
+                let parts: Vec<_> = original
+                    .children
+                    .iter()
+                    .filter(|part| part.kind != SyntaxKind::Trivia)
+                    .collect();
+                let [receiver, dot, member] = parts.as_slice() else {
+                    return None;
+                };
+                if dot.token()?.text(self.text) != "."
+                    || member.kind != SyntaxKind::Name
+                    || member.token()?.text(self.text) != field
+                {
+                    return None;
+                }
+                self.expression(base, receiver, depth + 1)?;
+                true
+            }
+            (IrExpr::Object(entries), SyntaxKind::Construct) => {
+                let name = crate::analysis::types::checked_standard_nominal_name(&actual.ty)?;
+                if !matches!(
+                    name,
+                    "WorkflowInput" | "WorkflowDefinition" | "ImageRequest"
+                ) {
+                    return None;
+                }
+                let values = images_source_values(original);
+                let [target, object] = values.as_slice() else {
+                    return None;
+                };
+                let ResolvedType::StdNominal { fields, .. } = &actual.ty else {
+                    return None;
+                };
+                if target.kind != SyntaxKind::NameRef
+                    || images_source_name(target, self.text)? != name
+                    || object.kind != SyntaxKind::Object
+                    || fields.len() != entries.len()
+                    || entries.iter().any(|(name, value)| {
+                        fields
+                            .iter()
+                            .find(|(field, _)| field == name)
+                            .is_none_or(|(_, ty)| ty != &value.ty)
+                    })
+                {
+                    return None;
+                }
+                self.entries(actual, object, depth + 1)?;
+                true
+            }
+            (IrExpr::Object(_), SyntaxKind::Object) => {
+                if !matches!(actual.ty, ResolvedType::Object(_)) {
+                    return None;
+                }
+                self.entries(actual, original, depth + 1)?;
+                true
+            }
+            _ => false,
+        };
+        matched.then_some(())
+    }
+
+    fn entries(
+        &self,
+        actual: &TypedExpr,
+        original: &crate::syntax::SyntaxNode,
+        depth: usize,
+    ) -> Option<()> {
+        let IrExpr::Object(entries) = &actual.expr else {
+            return None;
+        };
+        let authored: Vec<_> = original
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::ObjectEntry)
+            .collect();
+        if depth > 64
+            || original.kind != SyntaxKind::Object
+            || entries.len() > 200
+            || entries.len() != authored.len()
+        {
+            return None;
+        }
+        let mut seen = HashSet::new();
+        for ((name, value), entry) in entries.iter().zip(authored) {
+            let key = entry
+                .children
+                .iter()
+                .find(|part| part.kind == SyntaxKind::Name)?;
+            if key.token()?.text(self.text) != name || !seen.insert(name) {
+                return None;
+            }
+            let values = images_source_values(entry);
+            match values.as_slice() {
+                [] => self.expression(value, key, depth + 1)?,
+                [original] => self.expression(value, original, depth + 1)?,
+                _ => return None,
+            }
+        }
+        Some(())
+    }
+}
+
+fn images_source_name<'a>(node: &crate::syntax::SyntaxNode, text: &'a str) -> Option<&'a str> {
+    if node.kind == SyntaxKind::Name {
+        return Some(node.token()?.text(text));
+    }
+    if !matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Path) {
+        return None;
+    }
+    let mut parts = node
+        .children
+        .iter()
+        .filter(|part| part.kind != SyntaxKind::Trivia);
+    let name = parts.next()?;
+    (name.kind == SyntaxKind::Name && parts.next().is_none())
+        .then(|| name.token().map(|token| token.text(text)))
+        .flatten()
+}
+
+fn images_source_values(node: &crate::syntax::SyntaxNode) -> Vec<&crate::syntax::SyntaxNode> {
+    node.children
+        .iter()
+        .filter(|part| {
+            matches!(
+                part.kind,
+                SyntaxKind::Literal
+                    | SyntaxKind::NameRef
+                    | SyntaxKind::Group
+                    | SyntaxKind::Array
+                    | SyntaxKind::Object
+                    | SyntaxKind::Construct
+                    | SyntaxKind::Member
+                    | SyntaxKind::Call
+                    | SyntaxKind::Unary
+                    | SyntaxKind::Binary
+                    | SyntaxKind::Query
+                    | SyntaxKind::Path
+                    | SyntaxKind::MessageValue
+            )
+        })
+        .collect()
+}
+
+/// Reserved row IDs belong to the original required model parameter. They
+/// are receipt dependencies, not authored fields or reconstructed references.
+fn checked_parameter_row_id<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    models: &[JsModel],
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario { params, .. } = &owner.kind else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let IrExpr::Name(name) = &base.expr else {
+        return None;
+    };
+    if field != "id" || value.ty != ResolvedType::Scalar(Scalar::Text) {
+        return None;
+    }
+    let mut parameters = params
+        .iter()
+        .enumerate()
+        .filter_map(|(position, id)| Some((position, ir.items.get(id.0 as usize)?)))
+        .filter(|(_, parameter)| parameter.name == *name);
+    let (position, parameter) = parameters.next()?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol,
+                stored: true,
+            }),
+        array_bounds: None,
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let fact = source.parameters.get(position)?;
+    let module = ir.modules.get(owner.module.0 as usize)?;
+    let text = &db.get(source.node.file)?.text;
+    if parameters.next().is_some()
+        || *parameter_owner != owner.id
+        || *index != position
+        || parameter.id != fact.parameter
+        || parameter.module != owner.module
+        || parameter.canonical != format!("{}.{}", owner.canonical, parameter.name)
+        || owner.canonical != format!("{}.{}", module.name, owner.name)
+        || text.get(owner.span.start as usize..owner.span.end as usize) != Some(owner.name.as_str())
+        || base.ty != fact.ty
+        || fact.default.is_some()
+        || fact.constraints.is_some()
+        || !reference_read_matches(ir, owner, value, *symbol, *symbol, "text")
+    {
+        return None;
+    }
+    let authored = checked_effect_node(
+        ir,
+        owner,
+        crate::analysis::NodeKey {
+            file: value.span.file,
+            start: value.span.start,
+            end: value.span.end,
+            kind: SyntaxKind::Member as u8,
+        },
+        db,
+    )?;
+    let parts: Vec<_> = authored
+        .children
+        .iter()
+        .filter(|part| part.kind != SyntaxKind::Trivia)
+        .collect();
+    let [receiver, dot, member] = parts.as_slice() else {
+        return None;
+    };
+    let declaration = checked_effect_node(ir, owner, fact.node, db)?;
+    let parameter_name = declaration
+        .children
+        .iter()
+        .find(|part| part.kind == SyntaxKind::Name)?;
+    let declared_type = declaration
+        .children
+        .iter()
+        .find(|part| part.kind == SyntaxKind::NamedType)?;
+    let mut paths = declared_type
+        .children
+        .iter()
+        .filter(|part| part.kind == SyntaxKind::Path);
+    let type_path = paths.next()?;
+    if receiver.kind != SyntaxKind::NameRef
+        || receiver.span != base.span
+        || text.get(base.span.start as usize..base.span.end as usize) != Some(name.as_str())
+        || dot.token()?.text(text) != "."
+        || member.kind != SyntaxKind::Name
+        || member.token()?.text(text) != "id"
+        || declaration.kind != SyntaxKind::Parameter
+        || parameter_name.span != parameter.span
+        || parameter_name.token()?.text(text) != name
+        || crate::analysis::NodeKey::of(declared_type) != fact.type_node
+        || paths.next().is_some()
+    {
+        return None;
+    }
+    let mut schemas = source
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == *symbol);
+    let original = schemas.next()?;
+    let model = ir.items.get(symbol.0 as usize)?;
+    if schemas.next().is_some()
+        || model.module != owner.module
+        || direct_source_path_name(type_path, text)? != model.name
+        || original.field_order.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|field| field.name == "id")
+        })
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, original, db)?;
+    for field in &original.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    let generated = super::js::Emitter::new(ir).collect_models();
+    let mut expected = generated
+        .iter()
+        .filter(|model| model.name == original.canonical);
+    let mut supplied = models
+        .iter()
+        .filter(|model| model.name == original.canonical);
+    let expected_descriptor = expected.next()?;
+    let descriptor = supplied.next()?;
+    if expected.next().is_some()
+        || supplied.next().is_some()
+        || descriptor.fields.iter().any(|field| field.name == "id")
+        || serde_json::to_value(expected_descriptor).ok()?
+            != serde_json::to_value(descriptor).ok()?
+    {
+        return None;
+    }
+    Some(original)
 }
 
 /// The selected source operand follows at most two genuine containment edges

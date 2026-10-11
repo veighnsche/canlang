@@ -1118,7 +1118,12 @@ fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
         .collect();
     if matches!(
         schema.name,
-        "IncomingEmail" | "TextMessage" | "TextRequest" | "WorkflowInput" | "WorkflowDefinition"
+        "IncomingEmail"
+            | "TextMessage"
+            | "TextRequest"
+            | "WorkflowInput"
+            | "WorkflowDefinition"
+            | "ImageRequest"
     ) {
         ResolvedType::StdNominal {
             name: schema.name,
