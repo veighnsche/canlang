@@ -3799,9 +3799,9 @@
       "current_execution": {
         "disposition": "partial-selected-packet",
         "next_work": "ready-owner-contract",
-        "owner": "UI and owning emitted markup/initializer producer; Dev browser consumer",
-        "accepted_scope": "Retain accepted synchronous cleanup, Document visibility and staged readonly Chrome consumer. Marker teardown component implemented/tested; coordinator b359 review identified connected inflight state leak, now corrected with exhaustive attribute/listener cleanup, detached-swap preservation and affected2/2 PASS. Correction independently reviewed and integrated LOCAL main; original completion/submission/physical-cancel/installed gates remain open.",
-        "next_action": "Settle the existing initializer/selector association and logical versus physical cancellation/resource contract, then qualify the affected emitted browser lifecycle. Reuse accepted synchronous cleanup and real visibility/polling cases.",
+        "owner": "Packages/UI prepared-form producer and cleanup; Dev original browser/installed cancellation consumer; UI original native action completion producer gap",
+        "accepted_scope": "Retain accepted polling/visibility/marker cleanup and generated-form submitter restoration. New exact generated-form request/body abort and exhaustive replacement teardown is independently reviewed CLEAR and integrated in LOCAL main; owning two meaningful groups reused and changed normal UI/browser/root checks pass. Original Chrome/installed cancellation and plain action async producer remain separate unfinished criteria.",
+        "next_action": "Consume the existing generated-form producer/transport contract: one pending occurrence, native successful controls before disable, direct success/denial/failure settlement, owning request abort on disposal and no stale replacement report. Dev qualifies the changed original browser/installed cancellation scope. Ordinary action() native POST and structural data-can-once have no asynchronous completion producer; retain that exact UI-owned original gap rather than inventing a transport or event bridge.",
         "done_when": "Actual markup hooks acquire/dispose once and pause/resume/stop/detach/rescan/settle correctly; body-await logout/context changes cannot apply stale views and hook throw cannot strand prior resources.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B01"
       }

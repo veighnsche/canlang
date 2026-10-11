@@ -4466,8 +4466,8 @@
         "commit": "a3c0a9bd8ff62735c8f5d99ba7c033fcdcd0ca49"
       },
       "remaining_prerequisite": {
-        "prerequisite": "Settled emitted selector/initializer association and full physical-cancel/resource qualification.",
-        "owner": "UI and actual emitted markup/initializer producer owner"
+        "prerequisite": "Dev original Chrome/installed generated-form request/body cancellation consumer at changed source; separately UI original action() asynchronous submission/completion association, absent in existing native POST producer. Reuse accepted poll/visibility/marker/submitter behavior.",
+        "owner": "Dev original browser consumer; Packages/UI original action producer"
       },
       "optional_chromium_producer": "See current_goal_turn_actions.optional_node_chromium_producer: finite Node installed producer ready for exact manual integration and Dev original browser consumer; full lifecycle/physical cancellation/host parent gates unchanged.",
       "marker_removal_cleanup": {
@@ -4476,6 +4476,20 @@
         "stage": "Implemented, affected2/2 component-tested and independently reviewed in LOCAL main after deadline. Connected inflight disposal corrected; detached swap/exhaustive cleanup preserved. Original physical cancellation/emitted completion/installed/full parent remain unfinished; holds unchanged.",
         "review_correction": "Coordinator found b359655f settled its test control before marker removal, hiding an inflight disabled-state leak. It remains unaccepted without this related source/test correction.",
         "source_review": "Independent relevant b359+215 correction review CLEAR. Both binder-owned attributes/listeners cleaned before first supported throw; inflight removal/stop, sibling/idempotence and detached state retained. Owning emission/browser build and affected2/2 reused; no unchanged reruns."
+      },
+      "generated_form_submission_contract": {
+        "choice": "Use the genuine form[data-can-generated-form] markup and existing prepared submit binder as the supported single pending submission workflow. Native FormData collects the activated successful control before its owning temporary disable; direct awaited success, denial or failure settles it. Disposal restores once, exhausts teardown preserving the first error, and aborts the original fetch/body via existing SubmitFetchInit.signal. No second guard, once marker or synthetic completion bridge.",
+        "source_prerequisite": "Exact already-reviewed ae55ad6c19aa292f6c15bb2bb546931a84827199 UI submitter restoration source consumed within this coherent cancellation correction; unchanged original restoration checks reused.",
+        "physical_scope": "Native Fetch consumes the existing abort signal through pending body read. Injected ports own physical cancellation/settlement; even an ignored abort cannot report or clear a replacement binding. No server-effect rollback or total-host resource/deadline guarantee.",
+        "files": [
+          "packages/ui/src/browser/bootstrap.ts",
+          "packages/ui/test/browser-lifecycle-cleanup.test.ts",
+          "packages/ui/README.md"
+        ],
+        "verification": "Pinned Node24 owning UI emission, genuine browser build and changed root types PASS. New replacement-owner/ignored-abort/throwing-cleanup group1/1 PASS22.572ms. Initial physical-body group failed before traffic because sandbox loopback listen returned EPERM; repeat only that affected group with authorized local loopback access:1/1 PASS31.489ms, native body AbortError and actual HTTP response close before completion. No skip/cancel; source-only finite review CLEAR. Accepted polling/marker/restoration results reused.",
+        "stage": "Implemented, owning-tested and independently reviewed CLEAR in LOCAL main at finite generated-form Node Fetch cancellation scope; original Chrome/installed cancellation and whole DEL-B01 remain unfinished.",
+        "remaining_original_gap": "Ordinary action() emits native POST, no derived submit metadata/once marker/asynchronous completion producer. The structural data-can-once/can:settled helper cannot certify native-navigation success/failure/cancellation/refusal. UI owns this original source association gap; no foreign or human hold is inferred.",
+        "coordinator_review": "CLEAR actual main delta: per-occurrence AbortController through response.text; disposal exhausts original restore/abort/listeners/busy ownership while preserving first throw; obsolete ignored-abort response cannot touch replacement. Reuse owning22.572ms and genuine HTTP suspended-body31.489ms control groups with no skips; first pre-traffic EPERM remains failed. Changed normal UI/browser/root checks recorded at intake. Accepted ae55 restoration/poll/visibility/marker components remain closed. No server rollback, plain action async producer or full lifecycle/application claim."
       }
     },
     "DEL-B02": {
