@@ -875,7 +875,9 @@ test('native deferred File payload survives its original schedule fence and reop
       assert.equal(queued.filePayloadOrigin.files.length,1);assert.deepEqual(queued.filePayloadOrigin.files[0]!.path,['attachment']);
       assert.equal(queued.filePayloadOrigin.files[0]!.file.ref,ref);
       const committed=await resources();const replay=await host.invoker.invokeMutation(envelope,identity);
-      assert.ok('result' in replay);assert.equal(replay.result.status,'replayed');assert.deepEqual(await resources(),committed);
+      assert.ok('error' in replay,JSON.stringify(replay));assert.equal(replay.error.code,'validation');
+      assert.match(replay.error.message,/no supported execution association/);
+      assert.deepEqual(await resources(),committed,'ordinary void source withholds legacy saved content without repeating schedule effects');
       now=FIXED_NOW+retention.unattachedHorizonMs+1;
       const queuedResources=await resources();await assert.rejects(()=>binding.retireAndDelete(ref,'orphaned'));assert.deepEqual(await resources(),queuedResources);
       const fileStoreId=physical.fileStoreId;physical.close();physical=createSqliteFileStore(filePath);
@@ -931,8 +933,9 @@ test('native deferred File payload survives its original schedule fence and reop
       const handlerOptions={artifact,asm,app,selector,store:binding.store,identities,now:clock.nowMs,files:host.files};
       const beforeHandlerRevision=await binding.store.readRevision();
       const tick=await createBoundCohortTick({artifact,asm,identities,ownerStorage:binding.ownerStorage,scope,now:clock.nowMs,files:host.files});
-      const tickResults=await tick.tick();assert.ok(Array.isArray(tickResults));assert.equal(tickResults.length,1);
+      const tickResults=await tick.tick();assert.ok(Array.isArray(tickResults));assert.equal(tickResults.length,2);
       assert.equal(object(tickResults[0]).status,'completed','actual installed tick forwards the original handler header and genuine File binding');
+      assert.deepEqual(tickResults[1],{wrapped:false},'the original tick also reports its empty navigation check without a write');
       assert.equal(await binding.store.readRevision(),beforeHandlerRevision+1);
       const terminal=await resources();assert.equal(readHandlerOccurrenceRow((await query(WORK_HANDLER_OCCURRENCE_MODEL))[0]!).state,'completed');
       assert.deepEqual(await binding.store.load(model,entryId),originalRow);
