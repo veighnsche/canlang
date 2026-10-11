@@ -10733,3 +10733,17 @@ Coordinator defining source review CLEAR; current File resolver and protected pr
 2026-10-11 — exact checked source-read invocation prerequisite (implemented/reviewed; native unfinished).
 
 The defining Devf41d83062 six-hunk source subset admits source-ruled reads only through their verified target/ancestor source policies and forwards the original live State observation to containment. Unsupported source closures still refuse. Coordinator independent source review CLEAR and changed normal Cloudflare/root emission0; integrated LOCAL main after deadline. This resolves the concrete3d9 source invocation gap without adopting the unrelated worker-parent query/UI/SEND/model-factory code. Retain the owning frozen source2/2 at its actual scope; no unchanged native rerun or new main-native claim. Capability supplies transform-only same-load field-presence facts for staged parents, while Dev owns genuine native page and physical File consumption. Precise holds and complete filetree checkpoint unchanged.
+
+2026-10-11 — retain exact newly-created singular model CALL provenance
+(implemented/tested direct-result leaf; original/native joins unfinished).
+
+Use existing checked source/receipt/CALL interfaces for direct owning stored model
+results. Publish only the exact Create or complete child provenance and matching
+model descriptor; evaluate the bound result once. General child-wire member reads,
+aliases and comparisons retain refusal until their actual consumer exists. The
+current root/default create leaf and six source/CLI/installed descriptor checks
+qualify no original populated/contained create, rich input or native row lifetime.
+Dev must bind its actual current owner row before existing return selection;
+released State binding/source-policy results are reused without new carriers.
+
+Coordinator independent defining source review CLEAR and LOCAL integration after deadline for the bounded default-root/direct complete-child model CALL leaf. Preserve exact owner/model/source/binding/signature and authored argument order/once result; reuse6 owning actualCLI/assembly/public-registry/refusal controls, related32/4 and strict0/fmt0. Current main already contains the owning State result/source-policy prerequisite and newer receipt/guard/File APIs, so older copied prerequisite files are not reimported or counted again. Original populated/contained/rich source and genuine Dev native row binding remain unfinished; no full-plan completion or hold release. Complete filetree checkpoint unchanged.
