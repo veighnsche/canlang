@@ -577,6 +577,24 @@ describe("calendar agenda authored enum filters", () => {
 });
 
 describe("calendar agenda", () => {
+  it("localizes the default empty agenda without invoking authored row callbacks", async () => {
+    for (const [preferredLocales, expected] of [[[], 'No records.'], [['nl'], 'Geen gegevens.']] as const) {
+      let queries = 0, callbacks = 0;
+      const context = makeContext({ preferredLocales, query: async (invocation, model, args) => {
+        queries++;
+        assert.equal(invocation, context.invocation);
+        assert.equal(model, 'Calendar.Booking');
+        assert.deepEqual(args, {});
+        return { rows: [], columns: [] };
+      } });
+      const html = await calendar({ kind: 'agenda', context, model: 'Calendar.Booking',
+        startField: 'starts', endField: 'ends', renderRow: () => { callbacks++; return []; } });
+      assert.equal(html, `<p>${expected}</p>`);
+      assert.equal(queries, 1);
+      assert.equal(callbacks, 0);
+    }
+  });
+
   it("forwards authorized query options and awaits original row bodies sequentially before chronological zone grouping", async () => {
     const rows: RowView[] = [
       { id: 'later', version: '9', fields: { starts: '2026-01-02T05:30:00Z', ends: '<unsafe-end>' } },
