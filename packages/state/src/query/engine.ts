@@ -538,9 +538,13 @@ export async function projectSavedRecordForViewer(input: {
   readonly current: StoredRow;
   readonly saved: StoredRow;
   readonly originalSecretFields: ReadonlyArray<string>;
+  /** Internal caller already observes all row-selected subjects coherently. */
+  readonly coherentContext?: true;
 }): Promise<ProjectedRecord | null> {
   if (input.policy === undefined) return null;
-  const authority = await currentViewerAuthority(input.policy, input.context, input.current);
+  const authority = input.coherentContext === true
+    ? { value: await viewerRowAuthority(input.policy, input.context, await viewerGrantAuthority(input.policy, input.context), input.current), revalidate: undefined }
+    : await currentViewerAuthority(input.policy, input.context, input.current);
   const projected = authority.value.grants.length === 0 ? null : projectRow(input.saved, authority.value.grants,
     [...input.originalSecretFields, ...input.policy.secretFields]);
   await authority.revalidate?.();

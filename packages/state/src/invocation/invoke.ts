@@ -64,13 +64,13 @@ import {
 } from './admission.js';
 import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
 import {
-  projectSavedRecordForViewer, projectCurrentRecordForViewerPolicy, queryRecordsPageWithParentPolicies,
+  projectSavedRecordForViewer, projectSourceRowFields, projectCurrentRecordForViewerPolicy, queryRecordsPageWithParentPolicies,
   viewerPageOrder, viewerPagePredicateTuple, viewerPageSearchTuple,
   VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
   type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple, type ViewerPageParentPolicy,
 } from '../query/engine.js';
 import type { InterimContainment } from '../mutation/models.js';
-import { captureSourceReadPolicies, type ViewerSourceReadPolicy } from '../query/source-policy.js';
+import { captureSourceReadPolicies, projectInstalledSourceRowAndAncestors, type ViewerSourceReadPolicy } from '../query/source-policy.js';
 import type { InstalledSourceQueryPredicate } from '../receipt/read-policy-membership.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
@@ -134,6 +134,9 @@ export interface ProjectGeneratedCrudReceiptInput {
   readonly receipt: Receipt;
   readonly registry: OperationRegistry;
   readonly policy: PolicyTable;
+  /** Fresh verified model/ancestor source policies from the owning host.
+   * Absence preserves the existing static-policy projection. */
+  readonly sourceReadPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly app: string;
   readonly identity: ResolvedIdentity;
   /** The host's already selected owning store, also used by the mutation. */
@@ -169,13 +172,17 @@ function savedCrudRow(value: unknown): value is StoredRow {
 
 /**
  * Finite CRUD-only boundary. Current authority chooses masks; all disclosed
- * values and metadata come from the receipt. Lifetime and physical owner-store
- * correspondence require their separate defining joins.
+ * values and metadata come from the receipt. The source path keeps one actual
+ * owning-store checkpoint for the current target, ancestors and Identity.
  */
 export async function projectGeneratedCrudReceipt(
   input: ProjectGeneratedCrudReceiptInput,
 ): Promise<{ readonly result: null; readonly records: ReadonlyArray<ProjectedRecord> }> {
   const invalid = (message: string): never => { throw new StateError('validation', message); };
+  // Capture the original selectors before any asynchronous read can change
+  // them. Callback decisions remain live; the map supplies no row authority.
+  const sourceReadPolicies = input.sourceReadPolicies === undefined ? undefined : captureSourceReadPolicies(input.sourceReadPolicies);
+  const sourcePolicy = sourceReadPolicies === undefined ? undefined : new Map(input.policy);
   const { receipt } = input;
   const actorUserId = input.identity.actor?.user_id ?? null;
   const teamId = input.identity.team?.team_id ?? null;
@@ -221,6 +228,37 @@ export async function projectGeneratedCrudReceipt(
   const membershipSnapshot = JSON.stringify(membership);
   const project = async (live: Membership | null): Promise<ReadonlyArray<ProjectedRecord>> => {
     const context = { actorUserId, teamId, membership: live, memberships: input.memberships };
+    if (sourceReadPolicies !== undefined) {
+      try {
+        const authority = await observeRowGrantAuthority(context, async coherent => {
+          if (!await evaluateBy(def.by, coherent) || association.record === null) return [];
+          const current = await input.store.cohortLoad({ model: association.model, id: association.record.id, expectedRevision: revision });
+          if (current === null || current.id !== association.record.id || current.archivedAt !== null ||
+              current.version < association.record.version || !savedCrudRow(saved) ||
+              current.created !== saved.created || current.createdBy !== saved.createdBy ||
+              (current.parent?.model ?? null) !== (saved.parent?.model ?? null) ||
+              (current.parent?.id ?? null) !== (saved.parent?.id ?? null)) return [];
+          const read = sourceReadPolicies.get(association.model);
+          if (read === undefined) return [];
+          const source = await projectInstalledSourceRowAndAncestors({ model: association.model, row: current,
+            readPolicies: sourceReadPolicies, policy: sourcePolicy!, context: coherent, revision, fence: undefined,
+            store: input.store, rows: new Map([[`${association.model}\0${current.id}`, current]]) });
+          if (source.record === null) return [];
+          // Current rules choose the mask; the response retains only the
+          // original receipt image and both original/current secret census.
+          const projected = 'grants' in read ? projectSourceRowFields(saved, source.grants,
+            [...association.secretFields!, ...read.secretFields, ...(sourcePolicy!.get(association.model)?.secretFields ?? [])])
+            : await projectSavedRecordForViewer({ policy: sourcePolicy!.get(association.model), context: coherent,
+              current, saved, originalSecretFields: association.secretFields!, coherentContext: true });
+          return projected === null ? [] : [projected];
+        });
+        await authority.revalidate();
+        return authority.value;
+      } catch (error) {
+        if (error instanceof FenceConflictError || error instanceof StateError && error.code === 'forbidden') return [];
+        throw error;
+      }
+    }
     if (!await evaluateBy(def.by, context) || association.record === null) return [];
     const current = await input.store.load(association.model, association.record.id);
     // Versions may advance; a different parent or an older generation cannot
