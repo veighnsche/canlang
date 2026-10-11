@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, issueMcpGrant, sha256HexText } from '@canlang/identity';
+import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, issueMcpGrant, sha256HexText, requestRecovery, recoverAccount, hashPassword, verifyPassword } from '@canlang/identity';
 import { asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { handleOperationRequest, handlePageRequest, createMcpHandler, INPUT_CHOICES_VERSION } from '@canlang/interfaces';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
@@ -43,8 +43,7 @@ async function snapshot(db:D1Database) {
   return result;
 }
 
-test('native public CRUD refuses dead HTTP/MCP credentials before entry and preserves actually entered canonical work',
-  {timeout:120000},async()=>{
+async function runAdmissionTiming(cause:'direct'|'recovery'):Promise<void> {
     const root=resolve(fileURLToPath(new URL('../../../',import.meta.url)));
     const fixture=join(root,'tests/integration/can-dev-server/AppOwnedPreview.can');
     const {distribution}=await import('@canlang/values/distribution');
@@ -71,6 +70,14 @@ test('native public CRUD refuses dead HTTP/MCP credentials before entry and pres
       const user=await identities.createUser({email:'native-auth@example.test',password_hash:'unused',email_verified:true});
       const team=await identities.createTeam({timezone:'UTC'});
       await identities.createMembership({user_id:user.user_id,team_id:team.team_id,is_owner:true,roles:[]});
+      const other=cause==='recovery'?await identities.createUser({email:'native-auth-other@example.test',
+        password_hash:await hashPassword('Other account password'),email_verified:true}):undefined;
+      if(other!==undefined) {
+        await identities.createMembership({user_id:other.user_id,team_id:team.team_id,is_owner:false,roles:[]});
+        await identities.createSession({user_id:other.user_id,token_sha256:await sha256HexText(randomBytes(32).toString('hex')),
+          expires_at:new Date(Date.now()+3600000).toISOString(),last_team_id:team.team_id});
+        await issueMcpGrant(identities,{user_id:other.user_id,team_id:team.team_id,client_id:'other-account'});
+      }
       const verdict=await localPreviewActivationVerdict(artifact,capture,db,'native-auth-admission');
       assert.equal(verdict.active,true,'actual installed activation gates must admit the unchanged native source');
       const derivedModule=object(await import(`data:text/javascript,${encodeURIComponent(buildDerivedInputsModule(artifact))}`));
@@ -94,6 +101,52 @@ test('native public CRUD refuses dead HTTP/MCP credentials before entry and pres
             revoke:()=>identities.revokeMcpGrant(grant.grant.grant_id)};
         };
         const presented=await credential();
+        const revokePresented=async()=>{
+          if(cause==='direct')return presented.revoke();
+          // Keep both original credential kinds live at the recovery boundary.
+          // The actual recovery command, not individual revocation, kills both.
+          const companionToken=randomBytes(32).toString('hex'),companionHash=await sha256HexText(companionToken);
+          await identities.createSession({user_id:user.user_id,token_sha256:companionHash,
+            expires_at:new Date(Date.now()+3600000).toISOString(),last_team_id:team.team_id});
+          const companionGrant=await issueMcpGrant(identities,{user_id:user.user_id,team_id:team.team_id,client_id:`recovery-${transport}-${phase}`});
+          const companionGrantHash=await sha256HexText(companionGrant.token);
+          assert.equal((await identities.findSessionByTokenHash(companionHash))!.revoked_at,null);
+          assert.equal((await identities.findMcpGrantByTokenHash(companionGrantHash))!.revoked_at,null);
+          const mail:Array<{to:string;subject:string;body:string}>=[];
+          await requestRecovery(identities,{async sendMail(to,subject,body){mail.push({to,subject,body});}},
+            {email:user.email},{recoveryBaseUrl:'https://native-auth.example/recover'});
+          assert.equal(mail.length,1);assert.equal(mail[0]!.to,user.email);assert.equal(mail[0]!.subject,'Recover your account');
+          const link=mail[0]!.body.split('\n').find(line=>line.startsWith('https://native-auth.example/recover?'));assert.ok(link);
+          const proof=new URL(link).searchParams.get('token');assert.ok(proof);
+          const proofHash=await sha256HexText(proof),token=await identities.findEmailTokenByHash(proofHash);
+          assert.ok(token);assert.equal(token.user_id,user.user_id);assert.equal(token.purpose,'recover_account');assert.equal(token.consumed_at,null);
+          const beforeRecovery=await snapshot(db),originalUser=await identities.findUserById(user.user_id);assert.ok(originalUser);
+          const password=`Recovered ${transport} ${phase} password`;
+          assert.equal(typeof identities.recoverAccountWithToken,'function','the installed D1 producer must own atomic recovery');
+          assert.deepEqual(await recoverAccount(identities,{token:proof,new_password:password}),{user_id:user.user_id});
+          const recoveredUser=await identities.findUserById(user.user_id);assert.ok(recoveredUser);
+          assert.notEqual(recoveredUser.password_hash,originalUser.password_hash);
+          assert.equal(await verifyPassword(password,recoveredUser.password_hash),true);
+          assert.notEqual((await identities.findEmailTokenByHash(proofHash))!.consumed_at,null);
+          const original=transport==='http'?await identities.findSessionByTokenHash(presented.hash):await identities.findMcpGrantByTokenHash(presented.hash);
+          assert.ok(original);assert.notEqual(original.revoked_at,null);
+          assert.notEqual((await identities.findSessionByTokenHash(companionHash))!.revoked_at,null);
+          assert.notEqual((await identities.findMcpGrantByTokenHash(companionGrantHash))!.revoked_at,null);
+          const recovered=await snapshot(db);
+          for(const table of ['identity_sessions','identity_mcp_grants']) {
+            const rows=recovered[table]!.filter(row=>row.user_id===user.user_id);assert.ok(rows.length>0);
+            assert.ok(rows.every(row=>row.revoked_at!==null),`recovery kills every original ${table}`);
+          }
+          assert.ok(recovered.identity_email_tokens!.filter(row=>row.user_id===user.user_id&&row.purpose==='recover_account')
+            .every(row=>row.consumed_at!==null),'recovery consumes the live proof and outstanding account recovery proofs');
+          const recoveryTables=new Set(['identity_users','identity_sessions','identity_mcp_grants','identity_email_tokens']);
+          for(const table of Object.keys(beforeRecovery)) {
+            if(recoveryTables.has(table)) {
+              assert.deepEqual(recovered[table]!.filter(row=>row.user_id!==user.user_id),beforeRecovery[table]!.filter(row=>row.user_id!==user.user_id),`recovery preserves other account ${table}`);
+            } else assert.deepEqual(recovered[table],beforeRecovery[table],`recovery preserves ${table}`);
+          }
+          assert.ok(other);
+        };
         const observedIdentity=new Proxy(identities,{get(target,key,receiver){
           if(key==='findSessionByTokenHash')return async(hash:string)=>{
             const row=await target.findSessionByTokenHash(hash);
@@ -147,7 +200,7 @@ test('native public CRUD refuses dead HTTP/MCP credentials before entry and pres
         await admitted.promise;await bodyRead.promise;
         assert.equal(invokerCalls,0,'genuine credential admission precedes invoker entry');
         if(phase==='before-entry') {
-          await presented.revoke();const afterRevocation=await snapshot(db);bodyRelease.resolve();
+          await revokePresented();const afterRevocation=await snapshot(db);bodyRelease.resolve();
           const response=await pending;const json=object(await response.json());
           if(transport==='http'){assert.equal(response.status,403);assert.equal(json.code,'forbidden');assert.equal(json.message,'Session expired or revoked.');}
           else {assert.equal(response.status,200);const result=object(json.result);assert.equal(result.isError,true);const error=object(result.structuredContent);assert.equal(error.code,'forbidden');assert.equal(error.message,'Session expired or revoked.');}
@@ -155,7 +208,7 @@ test('native public CRUD refuses dead HTTP/MCP credentials before entry and pres
           assert.equal(invokerCalls,0);assert.deepEqual(await snapshot(db),afterRevocation,'transport refusal changes no State/Identity resources');
         } else {
           bodyRelease.resolve();await entered.promise;assert.equal(invokerCalls,1);
-          await presented.revoke();const beforeDelegate=await snapshot(db),revision=await production.store.readRevision();delegate.resolve();
+          await revokePresented();const beforeDelegate=await snapshot(db),revision=await production.store.readRevision();delegate.resolve();
           const response=await pending;assert.equal(response.status,200,await response.clone().text());
           const json=object(await response.json());
           const result=transport==='http'?json:object(object(json.result).structuredContent);
@@ -174,5 +227,11 @@ test('native public CRUD refuses dead HTTP/MCP credentials before entry and pres
         }
       }
       assert.equal(JSON.stringify(artifact),originalArtifact);assert.equal(await captureIsCurrent(capture),true);
-    } finally {for(const release of releases)release();await mf?.dispose();await rm(dir,{recursive:true,force:true});}
-  });
+    } finally {for(const release of releases)release();try {await mf?.dispose();} finally {await rm(dir,{recursive:true,force:true});}}
+}
+
+test('native public CRUD refuses dead HTTP/MCP credentials before entry and preserves actually entered canonical work',
+  {timeout:120000},()=>runAdmissionTiming('direct'));
+
+test('native recovery cause refuses dead HTTP/MCP credentials before entry and preserves actually entered canonical work',
+  {timeout:120000},()=>runAdmissionTiming('recovery'));

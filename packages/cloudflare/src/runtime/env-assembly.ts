@@ -214,6 +214,12 @@ export interface IdentityStore {
   findEmailTokenByHash(token_sha256: string): Promise<EmailToken | null>;
   consumeEmailToken(token_id: string): Promise<void>;
   revokeUserEmailTokens(user_id: UserId, purpose: EmailToken["purpose"]): Promise<void>;
+  /** Exact owning optional atomic command; no sequential recovery fallback. */
+  recoverAccountWithToken?(input: {
+    readonly token_id: string;
+    readonly user_id: UserId;
+    readonly password_hash: string;
+  }): Promise<{ readonly user_id: UserId } | null>;
 
   // -- MCP grants --
   createMcpGrant(input: {
