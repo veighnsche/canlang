@@ -13,7 +13,7 @@ import { localPreviewActivationVerdict, preflightLocalPreviewActivation, produce
   seedLocalPreviewActors, localPreviewWorkerVars } from './preview-host.js';
 import { loadInstalledChromium, prepareLocalPreviewCapture } from './preview-inputs.js';
 import { qualifyFirstProfileBrowser, type FirstProfileBrowserInput } from './first-profile-browser.js';
-import { FIRST_PROFILE } from './construct-help.js';
+import { FIRST_PROFILE, parseCompilerConstructCandidates } from './construct-help.js';
 import type { SessionConstructQualification, SessionConstructQualificationRequest } from './session-service.js';
 import { captureIsCurrent, capturedProducerInputsAreCurrent, captureSingleFileSource, verifyCompilerSources, type SingleFileCapture } from './source-capture.js';
 
@@ -29,6 +29,31 @@ const object = (value: unknown): Record<string, unknown> => {
 };
 const string = (value: unknown): string => { assert.equal(typeof value, 'string'); return value as string; };
 const sha = (value: string) => createHash('sha256').update(value).digest('hex');
+
+/** Qualify the current diagnostic branch from the captured native producer.
+ * Compiler owns semantic checking and the complete collection inventory. */
+async function qualifyCurrentCollectionBranch(capture: SingleFileCapture, signal?: AbortSignal): Promise<readonly string[]> {
+  signal?.throwIfAborted();
+  const compiled = await compileCapturedSingleFile(capture,signal);
+  signal?.throwIfAborted();
+  assert.equal(await captureIsCurrent(capture),true); signal?.throwIfAborted();
+  if (compiled.kind !== 'diagnostics' || compiled.envelope.complete !== true ||
+      object(compiled.envelope).omitted !== 0 || compiled.envelope.diagnostics.length !== 1) return Object.freeze([]);
+  const diagnostic = object(compiled.envelope.diagnostics[0]);
+  const routing = parseCompilerConstructCandidates(diagnostic.construct_candidates), context = routing.context;
+  if (diagnostic.code !== 'E2001' || diagnostic.severity !== 'error' || routing.disposition !== 'exact' ||
+      !routing.complete || routing.slot !== 'then.collection-presentation' ||
+      [...routing.ids].sort().join(',') !== 'can.v1.ui.list,can.v1.ui.table' ||
+      context?.messageKind !== 'unknown_collection_presentation' || context.section !== 'Then' ||
+      !context.exactSourceSpan || !context.recoveryComplete || !context.nameFilterComplete ||
+      context.structuralRecovery || !context.materialIntentChoice || context.evidenceSufficient ||
+      context.unsupportedBehaviorProven) return Object.freeze([]);
+  const span = object(diagnostic.primary), bytes = Buffer.from(capture.sourceText,'utf8');
+  if (span.file !== 0 || !Number.isSafeInteger(span.start) || !Number.isSafeInteger(span.end) ||
+      Number(span.start) < 0 || Number(span.end) <= Number(span.start) || Number(span.end) > bytes.length ||
+      !bytes.subarray(Number(span.start),Number(span.end)).equals(Buffer.from(context.guess))) return Object.freeze([]);
+  return Object.freeze(['unknown_collection_presentation']);
+}
 // Native Invoke accepts UUIDv7 operation identities, rather than UUIDv4.
 const callId = () => {
   const time = Date.now().toString(16).padStart(12, '0'), random = randomUUID().replaceAll('-', '');
@@ -539,7 +564,10 @@ export function createInstalledFirstProfileQualification() {
       request.indexRevision,request.compilerSha256,request.producerInputsDigest,capture.semanticOptions,
       capture.inputs.filter(item=>item.name.startsWith('extra:construct-profile:'))]));
     if(completed.has(key)) {
-      assert.equal(await capturedProducerInputsAreCurrent(capture),true); signal?.throwIfAborted(); return completed.get(key)!;
+      assert.equal(await capturedProducerInputsAreCurrent(capture),true); signal?.throwIfAborted();
+      const cached = completed.get(key)!;
+      if (cached === null) return null;
+      return Object.freeze({...cached,messageKinds:await qualifyCurrentCollectionBranch(capture,signal)});
     }
     let actual: readonly Qualification[];
     try { actual=await qualifyInstalledFirstProfile(capture,signal); }
@@ -560,6 +588,6 @@ export function createInstalledFirstProfileQualification() {
         compilerCheck:`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[${record.id}]; executed captured native compile ${fixturePath} sha256:${fixtureIdentity.sha256}; complete source identity verified; ${record.exampleCheck ? 'emitted compiled example suite consumed by owning Testkit' : record.runtimeCheck.startsWith('HelpOffice Chromium:') ? 'emitted HelpOffice page/preferences/derive declarations consumed by protected Chromium' : record.id==='can.v1.when.scenario.read' || record.id==='can.v1.builtin.count' ? 'emitted HelpOffice.total read descriptor consumed by public MCP' : record.id==='can.v1.when.scenario.user' ? 'emitted HelpOffice.rename checked Set/disclosure and parameter callable consumed by public runtime' : 'emitted Supply CRUD/model descriptors consumed by public runtime'}` }))) });
     signal?.throwIfAborted(); completed.set(key,result);
     while(completed.size>4) completed.delete(completed.keys().next().value!);
-    return result;
+    return Object.freeze({...result,messageKinds:await qualifyCurrentCollectionBranch(capture,signal)});
   };
 }

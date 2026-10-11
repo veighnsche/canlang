@@ -1,6 +1,7 @@
 /** Bounded Jev advice over Can-owned, profile-qualified construct cards. */
 import { createHash } from "node:crypto";
 import type { CandidateInventory, ConstructHelpIndex, QualifiedConstructProof } from "./construct-help.js";
+import { hasOfficeColumnEvidence, validAuthorIntent, type ConstructSourceEvidence } from './construct-evidence.js';
 
 const QUESTION = "construct_for_occurrence";
 const MAX_CARDS = 8;
@@ -39,6 +40,7 @@ export interface RankOccurrence {
   readonly materialIntentChoice: boolean;
   /** Compiler/source projection attests that redaction left enough context to distinguish cards. */
   readonly evidenceSufficient: boolean;
+  readonly evidence?: ConstructSourceEvidence;
   readonly cards: readonly RankedConstructCard[];
 }
 
@@ -115,7 +117,21 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
       !/^[a-z][a-z0-9_.-]{0,95}$/.test(occurrence.slot)) {
     return { state: "structural", reason: "authoring slot is not reliable" };
   }
-  if (occurrence.materialIntentChoice) {
+  const evidence = occurrence.evidence;
+  if (evidence !== undefined && (evidence.sourceSha256 !== occurrence.sourceHash ||
+      evidence.span.start !== occurrence.span.start || evidence.span.end !== occurrence.span.end ||
+      !Number.isSafeInteger(evidence.sourceWindow.logicalLines) || evidence.sourceWindow.logicalLines < 1 ||
+      evidence.sourceWindow.logicalLines > 5 || !Number.isSafeInteger(evidence.sourceWindow.bytesBeforeRedaction) ||
+      evidence.sourceWindow.bytesBeforeRedaction < 1 || evidence.sourceWindow.bytesBeforeRedaction > 1024 ||
+      evidence.sourceWindow.redacted !== true || typeof evidence.sourceWindow.text !== 'string' ||
+      Buffer.byteLength(evidence.sourceWindow.text,'utf8') > 16384 ||
+      (evidence.authorIntent !== undefined && (evidence.authorIntent.label !== 'author_intent_data' ||
+        !validAuthorIntent(evidence.authorIntent.text))))) {
+    return { state: 'ineligible', reason: 'bounded captured source evidence is invalid' };
+  }
+  const officeIntent = hasOfficeColumnEvidence(occurrence.messageKind,occurrence.section,occurrence.slot,
+    occurrence.cards.map(card=>card.id),evidence);
+  if (occurrence.materialIntentChoice && !officeIntent) {
     return { state: "intent_required", reason: "author must choose the permission, identity or effect contract" };
   }
   if (occurrence.candidateCoverage !== "complete" || occurrence.cards.some(card => card.availability !== "working")) {
@@ -137,7 +153,8 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
   if (occurrence.cards.length < MIN_CARDS || !validWord(occurrence.guess)) {
     return { state: "intent_unclear", reason: "safe offending keyword is unavailable" };
   }
-  if (!occurrence.evidenceSufficient) {
+  if ((!occurrence.evidenceSufficient && !officeIntent) ||
+      (occurrence.messageKind === 'unknown_collection_presentation' && !officeIntent)) {
     return { state: "intent_unclear", reason: "bounded source evidence cannot distinguish the candidates" };
   }
   if (!/^E\d{4}$/.test(occurrence.diagnosticCode) || !occurrence.messageKind || !occurrence.ref) {
@@ -167,7 +184,8 @@ function packet(occurrence: RankOccurrence, model: string): JevChoiceRequest {
       guess: occurrence.guess,
       candidate_ids: occurrence.cards.map(card => card.id),
       context_quality: "verified",
-      source_window: "omitted_in_first_profile",
+      source_window: occurrence.evidence?.sourceWindow ?? "omitted_in_first_profile",
+      ...(occurrence.evidence?.authorIntent === undefined ? {} : { author_intent: occurrence.evidence.authorIntent }),
     },
     questions: {
       [QUESTION]: {

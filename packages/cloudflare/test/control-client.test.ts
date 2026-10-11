@@ -90,7 +90,7 @@ it("forwards only the initial negative list cursor and keeps other numeric bound
   expect(discoveries).toBe(4);
 });
 
-it("pins construct ranking and pending lookups and accepts no caller evidence", async () => {
+it("pins construct ranking and pending lookups and accepts no caller compiler evidence", async () => {
   let calls = 0;
   const deps = { cwd: "/repo", discover: async () => { calls++; return owner; } };
   const ref = "a".repeat(64);
@@ -103,4 +103,19 @@ it("pins construct ranking and pending lookups and accepts no caller evidence", 
   expect(await runDevControlArgv(["rank.lookup", "--revision", "r3", "--ref", "arbitrary"], deps)).toMatchObject({ ok: false, code: "RANK_REF_REQUIRED" });
   expect(await runDevControlArgv(["construct.rank", "--revision", "r3", "--index", "0", "--context", "{}"], deps)).toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
   expect(calls).toBe(2);
+});
+
+it('forwards only bounded optional author intent on construct.rank', async () => {
+  let calls=0;
+  const deps={cwd:'/repo',discover:async()=>{calls++;return owner;}};
+  const intent='Show the supplies in separate name, quantity and available columns.';
+  expect(await runDevControlArgv(['construct.rank','--revision','r3','--index','0','--author-intent',intent],deps))
+    .toMatchObject({ok:true,result:{command:'construct.rank',payload:{revision:'r3',index:0,authorIntent:intent}}});
+  for(const value of ['', 'x'.repeat(241),'private\ntext']) {
+    expect(await runDevControlArgv(['construct.rank','--revision','r3','--index','0','--author-intent',value],deps))
+      .toMatchObject({ok:false,code:'INVALID_ARGUMENTS'});
+  }
+  expect(await runDevControlArgv(['rank.lookup','--revision','r3','--ref','a'.repeat(64),'--author-intent',intent],deps))
+    .toMatchObject({ok:false,code:'INVALID_ARGUMENTS'});
+  expect(calls).toBe(1);
 });
