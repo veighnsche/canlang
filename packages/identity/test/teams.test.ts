@@ -469,3 +469,55 @@ test('removal occurrence captures the real subject and replays frozen original f
   assert.notEqual(next.occurrence.producerEventId, first.occurrence.producerEventId);
   assert.equal((await store.findMcpGrantByTokenHash(grant.token_sha256))!.revoked_at, next.occurrence.occurredAt);
 });
+
+test('removal occurrence cold reader returns only original facts without minting or changing re-admitted resources', async () => {
+  let permitEffects = true;
+  const clock = createFrozenClock(NOW);
+  const store = createMemoryIdentityStore({
+    clock: { nowMs() { assert.equal(permitEffects, true, 'read must not sample time'); return clock.nowMs(); } },
+    random: {
+      randomUUID() { assert.equal(permitEffects, true, 'read must not mint an event'); return crypto.randomUUID(); },
+      randomBytes(length) { assert.equal(permitEffects, true, 'read must not use randomness'); return crypto.getRandomValues(new Uint8Array(length)); },
+    },
+  });
+  const owner = await store.createUser({ email: 'cold-remover@example.test', password_hash: 'opaque', email_verified: true });
+  const subject = await store.createUser({ email: 'cold-subject@example.test', password_hash: 'opaque', email_verified: true });
+  const team = await store.createTeam({});
+  const ownerMembership = await store.createMembership({ team_id: team.team_id, user_id: owner.user_id, is_owner: true, roles: [] });
+  const membership = await store.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] });
+  const input = { team_id: team.team_id, member_user_id: subject.user_id, removed_by: owner.user_id,
+    namespace: 'app:Office', operationId: 'cold-original' };
+  assert.equal(await store.readMemberRemovalOccurrence!(input), null);
+  const original = await store.removeMemberWithOccurrence!(input);
+  await store.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+  const grant = await store.createMcpGrant({ user_id: subject.user_id, team_id: team.team_id, client_id: 'client',
+    token_sha256: 'cold-fresh-grant', expires_at: new Date(NOW + 100_000).toISOString() });
+  const invitation = await store.createInvitation({ team_id: team.team_id, email: subject.email, grants_owner: false,
+    grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 100_000).toISOString() });
+  await store.removeMembership(ownerMembership.membership_id);
+  const revision = store.revision();
+  permitEffects = false;
+  const copiedInput = { ...input };
+  const pending = store.readMemberRemovalOccurrence!(copiedInput);
+  copiedInput.member_user_id = owner.user_id; // Capture precedes the digest's await.
+  const recovered = await pending;
+  assert.deepEqual(recovered, original);
+  for (const value of [recovered, recovered!.membershipRemoval, recovered!.membershipRemoval.user, recovered!.removedBy]) {
+    assert.equal(Object.isFrozen(value), true);
+  }
+  for (const missing of [{ ...input, namespace: 'foreign' }, { ...input, operationId: 'absent' }]) {
+    assert.equal(await store.readMemberRemovalOccurrence!(missing), null);
+  }
+  for (const changed of [{ ...input, member_user_id: owner.user_id }, { ...input, removed_by: subject.user_id },
+    { ...input, team_id: 'foreign' }]) {
+    await assert.rejects(store.readMemberRemovalOccurrence!(changed), (error: unknown) => error instanceof IdentityError && error.code === 'conflict');
+  }
+  let reads = 0;
+  const malformed = Object.defineProperty({ ...input }, 'namespace', { enumerable: true, get() { reads++; return input.namespace; } });
+  await assert.rejects(store.readMemberRemovalOccurrence!(malformed), (error: unknown) => error instanceof IdentityError && error.code === 'validation');
+  assert.equal(reads, 0);
+  assert.equal(store.revision(), revision);
+  assert.equal((await store.findMembershipById(membership.membership_id))!.status, 'active');
+  assert.equal((await store.findMcpGrantByTokenHash(grant.token_sha256))!.revoked_at, null);
+  assert.equal((await store.findInvitationById(invitation.invitation_id))!.revoked_at, null);
+});

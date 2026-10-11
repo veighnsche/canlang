@@ -147,6 +147,12 @@ export interface IdentityStore {
     readonly team_id: string; readonly member_user_id: string; readonly removed_by: string;
     readonly namespace: string; readonly operationId: string;
   }): Promise<VerifiedTeamsMemberRemovedEnvelope>;
+  /** Read only the retained original outcome for these exact five arguments.
+   * Absence returns null; same-key argument skew refuses. Never retries a command,
+   * removes membership, cascades or mints source/event facts. Retained facts grant
+   * no current authority; trusted source/ingress binding remains independent. */
+  readMemberRemovalOccurrence?(input: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]):
+    Promise<VerifiedTeamsMemberRemovedEnvelope | null>;
   /**
    * Re-admit a removed membership with a fresh grant ceiling (re-invitation
    * acceptance). Exactly one row per (team, user) ever exists; production

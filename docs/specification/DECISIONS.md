@@ -10906,3 +10906,24 @@ or native application acceptance inferred. Original source/marker/frame/current
 Team/awaited lifetime restrictions and all precise human holds remain required.
 
 Coordinator independent defining artifact review CLEAR and exact reviewed-main positive installed qualification after deadline: scoped native artifact emitted, owning2 and genuine real tarball/isolated/permission consumer new catalog/export assertions PASS. Reuse missing-producer/stale refusal owning1; changed normalCF/root0. Complete ordered authored Values envelope differs only active_member availability after exact own-data export identity, generic external/signatures/effects/defaults unchanged. Explicit installed distribution.nativeCatalog path is available to existing Compiler --catalog selection. Genuine original source/runtime/current authority/application consumers and all exact preparation/activation/publication holds remain; complete checkpoint unchanged.
+
+## 2026-10-11 — Original removal cold recovery (read-only verifier implemented; native consumer unfinished)
+
+Separate retained receipt verification from the authorized removal command.
+`IdentityStore.readMemberRemovalOccurrence` takes the same five original own-data
+arguments, reads only the existing namespace/operation journal, and returns its
+immutable original envelope or null for absence. Exact argument/digest skew and
+stored corruption refuse. It performs no removal, cascade, journal write, clock
+read, random/event minting or source issuance and works without D1 batch support.
+The accepted command and its authorized original retry remain unchanged.
+
+Identity emission and three new focused checks pass, including real SQL original
+issuance, re-admission and remover loss followed by physical reopen through a
+SELECT-only adapter. Missing/deleted journal preserves fresh resources; malformed
+inputs refuse before SQL/getters. Finite source review is clear. Reuse unchanged
+command/security results. Dev consumes this verifier for cold original source
+recovery and preserves live-issued binding/authenticated ingress/current admission;
+no structural envelope creates issuer authority or broad J2/native acceptance.
+All precise holds persist and no publication occurs.
+
+Coordinator independent defining cold-verifier review CLEAR and exact LOCAL integration after deadline. Same five own-data arguments and journal SELECT yield only retained immutable original facts or absence, with skew/corruption refusal and no command fallback or new effects. Reuse three new owning controls and unchanged command31; changed normal Identity/Cloudflare/root0. Dev actual cold source/ingress/current receiving admission remains unfinished. Complete checkpoint and exact holds unchanged.
