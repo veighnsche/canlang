@@ -128,6 +128,28 @@ function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
   const terminal: barrel.FrameworkOpaqueStandardCompletionOrigin['terminal'] = { ...completion.terminal, status: 'succeeded' };
   // @ts-expect-error Standard completion cannot retain a pending terminal status.
   const pendingTerminal: barrel.FrameworkOpaqueStandardCompletionOrigin['terminal'] = { ...completion.terminal, status: 'pending' };
+  const emptyOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, originalContracts: {} };
+  const rawOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, originalContracts: {
+    Original: { fields: {
+      nullable: { type: 'file?', default: null },
+      collection: { type: 'file[]', default: [] },
+      enabled: { type: 'bool', default: false },
+      label: { type: 'text', trim: true, min: '0', max: '40', default: '' },
+      untouched: { type: 'text' },
+    } },
+    Unused: { fields: { note: { type: 'text' } } },
+  } };
+  const { originalContracts: _originalContracts, ...withoutOriginalContracts } = declarationSet;
+  // @ts-expect-error Normalized types and supplied defaults cannot replace complete original input.
+  const omittedOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = withoutOriginalContracts;
+  // @ts-expect-error A missing original map cannot establish an empty native declaration inventory.
+  const nullOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, originalContracts: null };
+  // @ts-expect-error Original native contracts are a named map, not normalized declaration arrays.
+  const arrayOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, originalContracts: [] };
+  // @ts-expect-error Original raw declarations retain wire literals, not decoded bigint defaults.
+  const decodedOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, originalContracts: { Original: { fields: { count: { type: 'int', default: 1n } } } } };
+  // @ts-expect-error Executable declarations cannot enter detached persisted original metadata.
+  const executableOriginalContracts: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, originalContracts: { Original: { fields: { label: { type: 'text', default: () => '' } } } } };
   const noValueDefaults: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, valueDefaults: [] };
   const literalValueDefaults: barrel.FrameworkOpaqueDeclarationSet = { ...declarationSet, valueDefaults: [
     { contract: 'Original', field: 'nullable', value: null },
@@ -152,6 +174,8 @@ function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
     missingScope, missingFiles, missingLifetime, refOnly, genericOrigin, nullOrigin, taggedEvent,
     implicitResult, implicitVoid, implicitAbsence, wireJudgment, orderedJudgment, bigintJudgment,
     decodedContext, unorderedJudgment, rawCommitted, wrongProjectionName, terminal, pendingTerminal,
+    emptyOriginalContracts, rawOriginalContracts, omittedOriginalContracts, nullOriginalContracts,
+    arrayOriginalContracts, decodedOriginalContracts, executableOriginalContracts,
     noValueDefaults, literalValueDefaults, omittedDefaults, noDefaultContract, noDefaultField,
     noDefaultValue, decodedDefault, executableDefault };
 }

@@ -793,11 +793,22 @@ export interface FrameworkOpaqueDeclarationSet {
   readonly canonicalModels: ReadonlyArray<CanonicalModelDescriptor>;
   readonly artifactModels: ReadonlyArray<ArtifactModel>;
   readonly valueTypes: CanonicalValueTypes;
+  /** Complete detached original appDefinition.contracts map, descriptor-checked
+   * before reading from the same verified native load as sources/snapshot.
+   * Retain every contract and own field descriptor before normalization,
+   * including unused/File-free fields and all raw literal defaults. State
+   * compares the complete contract/field/type/constraint inventory against
+   * valueTypes through the owning schema path, independently derives every
+   * own default here and requires one-to-one raw equality with valueDefaults.
+   * A copied map proves no source correspondence. {} proves absence only after
+   * complete genuine capture; omission is incomplete. Persist this original
+   * input through reopen/migration, never rebuild it from a current schema. */
+  readonly originalContracts: Readonly<Record<string, WireValue>>;
   /** Complete original own contract-field defaults from the genuine retained
    * schema. CanonicalNominalLeaf deliberately drops defaults on field reuse.
    * Exact unique contract/field pairs must resolve within valueTypes; capture
    * every default, not only File-shaped values, and compare raw wires against
-   * the actual original schema before binding. [] means none only after that
+   * originalContracts before binding. [] means none only after that
    * complete comparison. Omission is incomplete, never an empty default set.
    * Preserve this table with the original closure through reopen/migration. */
   readonly valueDefaults: ReadonlyArray<FrameworkOpaqueValueDefault>;

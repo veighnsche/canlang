@@ -52,8 +52,15 @@ covers original source inputs, terminal result, duplicate event result and typed
 schema defaults. Raw committed change payloads differ from handler projections.
 Historical sets require complete `valueDefaults` entries (`contract`, `field`,
 `value`) for every original own contract-field literal before schema normalization.
-The genuine original schema binds these exact wires; null/empty/File-free defaults
-remain entries, and `[]` establishes absence only after complete comparison.
+The required `originalContracts` input uses the existing JSON wire carrier for
+the entire original `appDefinition.contracts` map, including unused contracts and
+every field descriptor, detached before normalization from the same verified
+native load/source/snapshot. State compares complete contract/field/type/constraint
+correspondence and independently derives every own literal default, requiring
+one-to-one raw equality with `valueDefaults`. Missing, extra, duplicate or changed
+defaults refuse. Null/empty/File-free defaults remain entries; `{}` and `[]`
+establish absence only after complete genuine capture/comparison. Preserve both
+inputs through reopen/migration; a copied map proves no source correspondence.
 `value-field` projections select that set's exact entry and compare the physically
 retained literal before independent typed File traversal. Canonical nominal field
 reuse still drops defaults; missing evidence refuses, with no current-schema lookup.
