@@ -501,11 +501,12 @@ it('joins receipt-aware stage/read/finalize into one net State row and saved int
   assert.equal(write.expectedVersion,entry.version); assert.equal(write.row.version,entry.version+1);
   assert.deepEqual(write.row.data,{...entry.data,visible:'final visible'});
   const middleData={...entry.data,visible:'middle visible'};
+  const auditProjection={created:entry.created,createdBy:entry.createdBy,secretFields:['token']};
   assert.deepEqual(batch.history,[
     {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
-      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:entry.data,after:middleData},
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:entry.data,after:middleData,auditProjection},
     {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
-      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:middleData,after:write.row.data},
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:middleData,after:write.row.data,auditProjection},
   ],'both authored updates retain order and attribution at one reserved version');
   assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
   const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
@@ -860,11 +861,12 @@ it('retains actual operation, original same-view parameter versions and required
   assert.equal(write.expectedVersion,entry.version); assert.equal(write.row.version,entry.version+1);
   assert.deepEqual(write.row.data,{...entry.data,visible:'intrinsic final'});
   const middleData={...entry.data,visible:'intrinsic middle'};
+  const auditProjection={created:entry.created,createdBy:entry.createdBy,secretFields:['token']};
   assert.deepEqual(batch.history,[
     {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
-      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:entry.data,after:middleData},
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:entry.data,after:middleData,auditProjection},
     {model,recordId:entry.id,version:entry.version+1,operation,operationId:envelope.operation_id,
-      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:middleData,after:write.row.data},
+      actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',before:middleData,after:write.row.data,auditProjection},
   ]);
   assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
   assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
@@ -1113,7 +1115,8 @@ it('joins installed Text sends and assigned deliveries in one saved-scenario fen
       assert.equal(final.data['private'],w.row.data['private']); assert.equal(final.data['token'],w.row.data['token']);
       const intermediate={...w.row.data,visible:'committed Text send'};
       const historyBase={model,recordId:w.row.id,version:w.row.version+1,operation,
-        operationId:w.envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update'};
+        operationId:w.envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',
+        auditProjection:{created:w.row.created,createdBy:w.row.createdBy,secretFields:['token']}};
       assert.deepEqual(batch.history,[
         {...historyBase,before:w.row.data,after:intermediate},
         ...(mode==='assigned-delivery'?[{...historyBase,before:intermediate,after:final.data}]:[]),
@@ -1246,10 +1249,12 @@ it('joins checked static nested scalar/void calls into one owner commit and reta
   assert.equal(batch.history.length,3); assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
   const middleData={...w.row.data,visible:'parent middle'};
   const historyBase={model,operationId:w.envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW};
+  const auditProjection={created:w.row.created,createdBy:w.row.createdBy,secretFields:['token']};
   assert.deepEqual(batch.history,[
-    {...historyBase,recordId:w.row.id,version:w.row.version+1,operation,change:'update',before:w.row.data,after:middleData},
-    {...historyBase,recordId:childRows[0]!.id,version:1,operation:'Shop.leaf',change:'create',before:null,after:childRows[0]!.data},
-    {...historyBase,recordId:w.row.id,version:w.row.version+1,operation,change:'update',before:middleData,after:parent.data},
+    {...historyBase,recordId:w.row.id,version:w.row.version+1,operation,change:'update',before:w.row.data,after:middleData,auditProjection},
+    {...historyBase,recordId:childRows[0]!.id,version:1,operation:'Shop.leaf',change:'create',before:null,after:childRows[0]!.data,
+      auditProjection:{created:childRows[0]!.created,createdBy:childRows[0]!.createdBy,secretFields:['token']}},
+    {...historyBase,recordId:w.row.id,version:w.row.version+1,operation,change:'update',before:middleData,after:parent.data,auditProjection},
   ],'child net creation remains between the two original parent effects with root invocation identity');
   const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
   assert.equal(physical.outcome.status,'committed');
@@ -1543,7 +1548,8 @@ it('checked read child admits ordered repeated protected references at the paren
   assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1);
   assert.deepEqual(batch.history[0],{model,recordId:w.row.id,version:current.version,operation,
     operationId:envelope.operation_id,actor:w.identity.actor!.user_id,at:FIXED_NOW,change:'update',
-    before:w.row.data,after:current.data});
+    before:w.row.data,after:current.data,
+    auditProjection:{created:w.row.created,createdBy:w.row.createdBy,secretFields:['token']}});
   for(const effects of [batch.outbox,batch.schedules,batch.uniqueClaims,batch.uniqueReleases]) assert.deepEqual(effects,[]);
   const physical = await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
   assert.equal(physical.outcome.status,'committed');
