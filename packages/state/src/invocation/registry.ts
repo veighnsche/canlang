@@ -40,6 +40,8 @@ import {
   STATE_CONTRACT_VERSION,
   T04A_PINNED_VERSIONS,
   type CanonicalFieldDefault,
+  type CanonicalDeliveryDescriptor,
+  type CanonicalJudgmentDeliveryDescriptor,
   type CanonicalInputDef,
   type CanonicalModelDescriptor,
   type CanonicalOwnerModelPolicies,
@@ -544,7 +546,7 @@ function artifactValueType(field: Record<string, unknown>, what: string, operati
       return checkStoredModelValueType(field, what, modelNames, valueSchema, tag['model'].value);
     }
   }
-  const nominalTag = field['field'];
+  const nominalTag = storedTag !== undefined && 'value' in storedTag ? storedTag.value : undefined;
   if (Object.hasOwn(field, 'field') && isRecord(nominalTag) && Object.hasOwn(nominalTag, 'kind') && nominalTag['kind'] === 'nominal') {
     if (!Object.hasOwn(nominalTag, 'name') || !checkedNominal(nominalTag['name'], valueSchema)) {
       fail('dangling_reference', `Invalid ${what}: own nominal tag name must resolve in checked valueTypes.`);
@@ -559,9 +561,9 @@ function artifactValueType(field: Record<string, unknown>, what: string, operati
     checkNominalArray(type, marker as { required: boolean } | undefined, what, valueSchema);
     return type;
   }
-  if (Object.hasOwn(field, 'field') && isRecord(field['field']) &&
-      Object.hasOwn(field['field'], 'kind') && field['field']['kind'] === 'enum') {
-    const values = field['field']['values'];
+  if (Object.hasOwn(field, 'field') && isRecord(nominalTag) &&
+      Object.hasOwn(nominalTag, 'kind') && nominalTag['kind'] === 'enum') {
+    const values = nominalTag['values'];
     let association = field;
     if (!operationInput && !Object.hasOwn(field, 'valueType')) {
       if (!Array.isArray(values) || values.length === 0 ||
@@ -583,7 +585,7 @@ function artifactValueType(field: Record<string, unknown>, what: string, operati
   if (Object.hasOwn(field, 'valueType')) {
     checkTypeArray(checkValueType(field, what, valueSchema), field['array'] !== undefined, what);
   }
-  const tag = field['field'];
+  const tag = nominalTag;
   if (!Object.hasOwn(field, 'field') || !isRecord(tag) || !Object.hasOwn(tag, 'kind') ||
       scalarTypeForKind(tag['kind']) === undefined) {
     if (Object.hasOwn(field, 'valueType')) {
@@ -941,7 +943,86 @@ function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId |
   } catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
 }
 
-function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, valueSchema?: NormalizedSchema): CanonicalModelDescriptor {
+/** Delivery claims are detached own JSON data, never executable metadata. */
+function copyDeliveryData(value: unknown, what: string, active = new Set<object>()): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
+      typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'object' || value === null || active.has(value) ||
+      (Array.isArray(value) ? Object.getPrototypeOf(value) !== Array.prototype :
+        ![Object.prototype, null].includes(Object.getPrototypeOf(value)))) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery metadata requires acyclic own JSON data.`);
+  }
+  const array = Array.isArray(value), entries = Object.getOwnPropertyDescriptors(value);
+  const keys = Reflect.ownKeys(entries);
+  if (keys.some(key => typeof key !== 'string' || !(array && key === 'length') &&
+      (!Object.hasOwn(entries[key]!, 'value') || !entries[key]!.enumerable))) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery metadata requires enumerable own data.`);
+  }
+  active.add(value);
+  try {
+    if (array) {
+      if (keys.length !== value.length + 1) fail('malformed_descriptor', `Invalid ${what}: delivery arrays must be dense own data.`);
+      return Array.from({ length: value.length }, (_, index) => {
+        const entry = entries[String(index)];
+        if (entry === undefined || !Object.hasOwn(entry, 'value')) fail('malformed_descriptor', `Invalid ${what}: delivery arrays must be dense own data.`);
+        return copyDeliveryData(entry.value, what, active);
+      });
+    }
+    // Stable key order permits full-leaf comparison without changing producer array order.
+    return Object.fromEntries(Object.keys(entries).sort().map(key => [key, copyDeliveryData(entries[key]!.value, what, active)]));
+  } finally { active.delete(value); }
+}
+
+function checkModelNullable(field: Record<string, unknown>, what: string): boolean | undefined {
+  const member = Object.getOwnPropertyDescriptor(field, 'nullable');
+  if (member === undefined) {
+    if ('nullable' in field) fail('malformed_descriptor', `Invalid ${what}: nullable must be an own boolean.`);
+    return undefined;
+  }
+  if (!Object.hasOwn(member, 'value') || typeof member.value !== 'boolean') {
+    fail('malformed_descriptor', `Invalid ${what}: nullable must be an own boolean.`);
+  }
+  return member.value as boolean;
+}
+
+/** Preserve the B3 envelope rules and every original result-leaf declaration. */
+function checkModelDelivery(value: unknown, what: string, valueTypes?: CanonicalValueTypes):
+  CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor {
+  const tag = copyDeliveryData(value, what);
+  if (!isRecord(tag) || !Object.hasOwn(tag, 'kind') || tag['kind'] !== 'delivery') fail('malformed_descriptor', `Invalid ${what}: expected a delivery descriptor.`);
+  if (!['capability', 'operation', 'version', 'result'].every(key => Object.hasOwn(tag, key))) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery identity/version must match its standard or source Judgment profile.`);
+  }
+  const capability = tag['capability'], operation = tag['operation'], version = tag['version'];
+  const judgment = Object.hasOwn(tag, 'judgment');
+  if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '' ||
+      (judgment ? tag['judgment'] !== true || !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(capability) ||
+        operation !== 'evaluate' || typeof version !== 'string' || version.length > 19 || !/^(0|[1-9][0-9]*)$/.test(version) || BigInt(version) > 9223372036854775807n
+        : typeof version !== 'number' || !Number.isFinite(version))) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery identity/version must match its standard or source Judgment profile.`);
+  }
+  const result = tag['result'];
+  if (!isRecord(result) || !Object.hasOwn(result, 'name') || !Object.hasOwn(result, 'fields') ||
+      typeof result['name'] !== 'string' || !Array.isArray(result['fields'])) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery descriptors carry a result with a name and leaf fields.`);
+  }
+  if (result['fields'].some((leaf: unknown) => !isRecord(leaf) || !Object.hasOwn(leaf, 'name') || !Object.hasOwn(leaf, 'type') ||
+      typeof leaf['name'] !== 'string' || typeof leaf['type'] !== 'string')) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery result leaves require own name/type data.`);
+  }
+  if (judgment) {
+    if (result['name'] !== capability) fail('malformed_descriptor', `Invalid ${what}: Judgment result name must match its owning capability.`);
+    const declared = valueTypes?.contracts.find(entry => entry.name === result['name']);
+    if (declared === undefined) fail('dangling_reference', `Invalid ${what}: Judgment result has no checked nominal contract.`);
+    if (JSON.stringify(result['fields']) !== JSON.stringify(copyDeliveryData(declared.fields, what))) {
+      fail('malformed_descriptor', `Invalid ${what}: Judgment result leaves disagree with checked valueTypes.`);
+    }
+  }
+  return tag as unknown as CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor;
+}
+
+function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, valueSchema?: NormalizedSchema,
+  valueTypes?: CanonicalValueTypes): CanonicalModelDescriptor {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail('malformed_descriptor', 'Invalid model descriptor: models need non-empty names.');
   }
@@ -964,6 +1045,13 @@ function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, va
     if (!isRecord(fieldValue)) {
       fail('malformed_descriptor', `Invalid ${what}: field defs must be objects.`);
     }
+    const nullable = checkModelNullable(fieldValue, what);
+    const deliveryMember = Object.getOwnPropertyDescriptor(fieldValue, 'delivery');
+    if (deliveryMember === undefined && 'delivery' in fieldValue ||
+        deliveryMember !== undefined && !Object.hasOwn(deliveryMember, 'value')) {
+      fail('malformed_descriptor', `Invalid ${what}: delivery must be own data.`);
+    }
+    const delivery = deliveryMember === undefined ? undefined : checkModelDelivery(deliveryMember.value, what, valueTypes);
     if (typeof fieldValue['required'] !== 'boolean' || typeof fieldValue['serverOnly'] !== 'boolean') {
       fail('malformed_descriptor', `Invalid ${what}: required and serverOnly must be booleans.`);
     }
@@ -1002,7 +1090,8 @@ function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, va
       ...(Object.hasOwn(fieldValue, 'trim') ? { trim: fieldValue['trim'] as boolean } : {}),
       ...(Object.hasOwn(fieldValue, 'min') ? { min: fieldValue['min'] as NonNullable<CanonicalModelDescriptor['fields'][string]['min']> } : {}),
       ...(Object.hasOwn(fieldValue, 'max') ? { max: fieldValue['max'] as NonNullable<CanonicalModelDescriptor['fields'][string]['max']> } : {}),
-      ...(valueType !== undefined && Object.hasOwn(fieldValue, 'nullable') ? { nullable: fieldValue['nullable'] as boolean } : {}),
+      ...(nullable !== undefined ? { nullable } : {}),
+      ...(delivery !== undefined ? { delivery } : {}),
       required: fieldValue['required'] as boolean,
       serverOnly: fieldValue['serverOnly'] as boolean,
       ...(array !== undefined ? { array } : {}),
@@ -1160,7 +1249,7 @@ function loadCheckedDescriptorSet(
     modelNames.add(name);
   }
   for (const model of set['models'] as unknown[]) {
-    models.push(checkCanonicalModel(model, modelNames, valueSchema));
+    models.push(checkCanonicalModel(model, modelNames, valueSchema, valueTypes));
   }
   const registry = new Map<string, InterimOperationDef | GeneratedOperationDef>();
   const seenOps = new Set<string>();
@@ -1458,20 +1547,25 @@ export function artifactToDescriptorSet(
         array = { required: field.array.required };
       }
       const what = `field ${JSON.stringify(field.name)} on model ${JSON.stringify(model.name)}`;
+      const nullable = checkModelNullable(field as unknown as Record<string, unknown>, what);
+      const tagMember = Object.getOwnPropertyDescriptor(field, 'field');
+      if (tagMember !== undefined && !Object.hasOwn(tagMember, 'value')) fail('malformed_descriptor', `Invalid ${what}: field tag must be own data.`);
+      const tag: unknown = tagMember?.value;
+      const kindMember = isRecord(tag) ? Object.getOwnPropertyDescriptor(tag, 'kind') : undefined;
+      if (kindMember !== undefined && !Object.hasOwn(kindMember, 'value')) fail('malformed_descriptor', `Invalid ${what}: field kind must be own data.`);
+      const delivery = kindMember?.value === 'delivery' ? checkModelDelivery(tag, what, valueTypes) : undefined;
       const fallback = checkDefault(field.default, what);
       let machine: ReturnType<typeof checkFieldMachine> | undefined;
       if (field.machine !== undefined) {
         try { machine = checkFieldMachine(field.machine); }
         catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
-        const tag = field.field;
         if (field.required !== false || field.serverOnly !== false || field.nullable === true ||
-            array !== undefined || tag?.kind !== 'enum' || !Array.isArray(tag.values) ||
+            array !== undefined || !isRecord(tag) || kindMember?.value !== 'enum' || !Array.isArray(tag.values) ||
             tag.values.length !== machine.states.length || tag.values.some((state, index) => state !== machine!.states[index]) ||
             fallback?.kind !== 'literal' || fallback.value !== machine.initial) {
           fail('malformed_descriptor', `Invalid ${what}: machine requires a nonnullable enum with matching states and literal initial default.`);
         }
       }
-      const tag: unknown = field.field;
       const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema, modelNames);
       checkFieldConstraints(field as unknown as Record<string, unknown>, valueType, what, valueSchema);
       fields[field.name] = {
@@ -1479,7 +1573,8 @@ export function artifactToDescriptorSet(
         ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
         ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
         ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
-        ...(valueType !== undefined && Object.hasOwn(field, 'nullable') ? { nullable: field.nullable! } : {}),
+        ...(nullable !== undefined ? { nullable } : {}),
+        ...(delivery !== undefined ? { delivery } : {}),
         required: field.required,
         serverOnly: field.serverOnly,
         ...(array !== undefined ? { array } : {}),
@@ -1535,7 +1630,7 @@ export function artifactToDescriptorSet(
       if (Object.hasOwn(field, 'field') && isRecord(tag) && Object.hasOwn(tag, 'kind') && tag.kind === 'secret') {
         modelSecrets.add(field.name);
       }
-      if (isRecord(tag) && tag['kind'] === 'ref' && array === undefined) {
+      if (isRecord(tag) && kindMember?.value === 'ref' && array === undefined) {
         if (typeof tag['model'] !== 'string' || tag['model'] === '') {
           fail('malformed_descriptor', `Invalid ${what}: ref fields name a non-empty model.`);
         }
@@ -1548,42 +1643,9 @@ export function artifactToDescriptorSet(
         }
         modelRefs.push({ field: field.name, model: target as ModelName });
       }
-      // B3 declared delivery fields (T15b provider tags): the receipt
-      // join's schema channel. Envelope-validated (capability /
-      // operation / version / result shape); result leaves have no
-      // state-side consumer — generated callers resolve selected leaves
-      // statically — so leaves stay presence-only. Array markers don't
-      // affect membership: the field IS a delivery field either way.
-      if (isRecord(tag) && tag['kind'] === 'delivery') {
-        const capability: unknown = tag['capability'];
-        const operation: unknown = tag['operation'];
-        const version: unknown = tag['version'];
-        const judgment = Object.hasOwn(tag, 'judgment');
-        if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '' ||
-            (judgment ? !['capability', 'operation', 'version', 'result'].every((key) => Object.hasOwn(tag, key)) || tag['judgment'] !== true || !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(capability) ||
-              operation !== 'evaluate' || typeof version !== 'string' || version.length > 19 || !/^(0|[1-9][0-9]*)$/.test(version) || BigInt(version) > 9223372036854775807n
-              : typeof version !== 'number' || !Number.isFinite(version))) {
-          fail('malformed_descriptor', `Invalid ${what}: delivery identity/version must match its standard or source Judgment profile.`);
-        }
-        const result: unknown = tag['result'];
-        if (!isRecord(result) || typeof result['name'] !== 'string' || !Array.isArray(result['fields'])) {
-          fail('malformed_descriptor', `Invalid ${what}: delivery descriptors carry a result with a name and leaf fields.`);
-        }
-        if (judgment) {
-          if (result['name'] !== capability) fail('malformed_descriptor', `Invalid ${what}: Judgment result name must match its owning capability.`);
-          if (!Object.hasOwn(result, 'name') || !Object.hasOwn(result, 'fields') || valueTypes === undefined) {
-            fail('dangling_reference', `Invalid ${what}: Judgment result must resolve in checked valueTypes.`);
-          }
-          const declared = valueTypes.contracts.find((entry) => entry.name === result['name']);
-          if (declared === undefined) fail('dangling_reference', `Invalid ${what}: Judgment result has no checked nominal contract.`);
-          if (result['fields'].length !== declared.fields.length || result['fields'].some((leaf: unknown, index: number) =>
-              !isRecord(leaf) || !Object.hasOwn(leaf, 'name') || !Object.hasOwn(leaf, 'type') ||
-              leaf['name'] !== declared.fields[index]!.name || leaf['type'] !== declared.fields[index]!.type)) {
-            fail('malformed_descriptor', `Invalid ${what}: Judgment result leaves disagree with checked valueTypes.`);
-          }
-        }
-        modelDelivery.push(field.name);
-      }
+      // Membership and the complete canonical descriptor share the checked tag.
+      // Arrays retain membership independently of container nullability.
+      if (delivery !== undefined) modelDelivery.push(field.name);
     }
     if (typeof model.deleteMode !== 'string' || !KNOWN_DELETE_MODES.has(model.deleteMode)) {
       fail(

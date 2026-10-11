@@ -970,11 +970,20 @@ test('direct nominal input needs inventory and an exact required-array marker', 
 
 test('source Judgment deliveries preserve exact int64 versions and checked result leaves', () => {
   const raw = nominalArtifact();
+  raw.valueTypes = { ...raw.valueTypes!, contracts: raw.valueTypes!.contracts.map((contract, index) => index === 1
+    ? { ...contract, fields: [...contract.fields, { name: 'detail', type: 'text', trim: true, min: 1, max: 8 }] } : contract) };
   raw.models![0]!.fields.push({ name: 'decision', required: false, serverOnly: false, field: {
     kind: 'delivery', judgment: true, capability: 'Example.Decision', operation: 'evaluate', version: '9223372036854775807',
-    result: { name: 'Example.Decision', fields: [{ name: 'status', type: 'Example.Status' }] },
-  } });
-  assert.ok(loadArtifactDescriptors(raw, opts).deliveryFields.get(model)!.has('decision'));
+    result: { name: 'Example.Decision', fields: [{ name: 'status', type: 'Example.Status' },
+      { name: 'detail', type: 'text', trim: true, min: 1, max: 8 }] },
+  }, nullable: true });
+  const converted = artifactToDescriptorSet(raw);
+  const loaded = loadArtifactDescriptors(raw, opts);
+  const direct = loadExecutionDescriptorSet(converted.set, opts);
+  assert.ok(loaded.deliveryFields.get(model)!.has('decision'));
+  assert.deepEqual(direct.models, loaded.models);
+  assert.deepEqual(loaded.models[0]!.fields.decision!.delivery, raw.models![0]!.fields[2]!.field);
+  assert.equal(loaded.models[0]!.fields.decision!.nullable, true);
   for (const version of ['01', '-1', '9223372036854775808', '9'.repeat(20), 1]) {
     const changed = structuredClone(raw);
     (changed.models![0]!.fields[2]!.field as unknown as Record<string, unknown>).version = version;
@@ -986,6 +995,16 @@ test('source Judgment deliveries preserve exact int64 versions and checked resul
   const changed = structuredClone(raw);
   (changed.models![0]!.fields[2]!.field as unknown as { result: { fields: unknown[] } }).result.fields = [{ name: 'status', type: 'text' }];
   assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
+  for (const max of [undefined, 9]) {
+    const mismatch = structuredClone(raw);
+    const leaf = (mismatch.models![0]!.fields[2]!.field as unknown as { result: { fields: Array<{ max?: number }> } }).result.fields[1]!;
+    if (max === undefined) delete leaf.max; else leaf.max = max;
+    incompatible(() => loadArtifactDescriptors(mismatch, opts));
+    const set = structuredClone(converted.set);
+    const canonical = set.models[0]!.fields.decision!.delivery!.result.fields[1] as { max?: number };
+    if (max === undefined) delete canonical.max; else canonical.max = max;
+    incompatible(() => loadExecutionDescriptorSet(set, opts));
+  }
 });
 
 
