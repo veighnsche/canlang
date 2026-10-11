@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { StoredRow, CanValue, CompileArtifact, ListQueryArgs, ListQueryResult, OperationName, PageSourceContext } from '@canlang/contracts';
-import { collectionFilterName } from '@canlang/contracts';
+import { collectionCursorName, collectionFilterName } from '@canlang/contracts';
 import { distribution } from '@canlang/values/distribution';
 import { decodeValue, encodeValue } from '@canlang/values';
 import { buildSessionCookie, deriveCsrfToken, createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
@@ -330,8 +330,8 @@ test('unchanged native TableTime page uses admitted time and protected partial b
 
 test('genuine paginated TableTime first pages and native continuations retain original query time',
   { timeout: 180000 }, async () => {
-    // The production HTTP cursor transport is a separate owning prerequisite.
-    // Continuations below use the exact args emitted by the genuine first page.
+    // Both production GET links and direct continuations consume genuine
+    // source-produced collection occurrences, args and authenticated cursors.
     const fixture = join(root, 'compiler/tests/fixtures/table-time.can');
     const compiler = join(root, 'compiler/target/debug/can'), catalog = fileURLToPath(distribution.catalog);
     const paths = [fixture, compiler, catalog];
@@ -440,12 +440,15 @@ test('genuine paginated TableTime first pages and native continuations retain or
       };
       const served = await serve(compiled), guardServed = await serve(guarded);
       const cookie = buildSessionCookie(token, { secure: false, maxAgeSeconds: 7200 }).split(';')[0]!;
-      const render = async (params = new URLSearchParams(), server = served) => {
+      const follow = async (url: URL, server = served, partial = true) => {
+        assert.equal(url.origin, 'https://paged-table-time.example.test'); assert.equal(url.pathname, '/table-time');
         queries = []; querySequence = 0;
-        const response = await server.fetch(new Request(`https://paged-table-time.example.test/table-time?${params}`,
-          { headers: { 'hx-request': 'true', cookie } }));
-        return { response, html: await response.text(), queries: [...queries].sort((left, right) => left.sequence - right.sequence) };
+        const response = await server.fetch(new Request(url,
+          { headers: { ...(partial ? { 'hx-request': 'true' } : {}), cookie } }));
+        return { url, response, html: await response.text(), queries: [...queries].sort((left, right) => left.sequence - right.sequence) };
       };
+      const render = (params = new URLSearchParams(), server = served, partial = true) =>
+        follow(new URL(`https://paged-table-time.example.test/table-time?${params}`), server, partial);
       const timeQuery = (value: Awaited<ReturnType<typeof render>>, operator: 'gte' | 'lt') => {
         const selected = value.queries.filter(query => query.model === windowModel);
         assert.equal(selected.length, 2);
@@ -457,6 +460,19 @@ test('genuine paginated TableTime first pages and native continuations retain or
         assert.equal(query.args.page, true); assert.equal(query.args.parent, undefined);
         assert.deepEqual(query.args.order, operator === 'gte' ? ['from'] : ['-from']);
         assert.ok(query.args.occurrence); return query;
+      };
+      const nextHref = (value: Awaited<ReturnType<typeof render>>, query: Query) => {
+        assert.ok(query.result.nextCursor);
+        const name = collectionCursorName(query.args.occurrence!);
+        const links = [...value.html.matchAll(/<a\b[^>]*\brel="next"[^>]*\bhref="([^"]*)"[^>]*>/g)]
+          .map(match => new URL(match[1]!.replaceAll('&amp;', '&'), value.url));
+        const matching = links.filter(url => url.searchParams.get(name) === query.result.nextCursor);
+        assert.equal(matching.length, 1, 'one actual next link belongs to this source occurrence');
+        const next = matching[0]!;
+        assert.equal(next.origin, value.url.origin); assert.equal(next.pathname, value.url.pathname);
+        const expected = new URLSearchParams(value.url.searchParams); expected.set(name, query.result.nextCursor);
+        assert.deepEqual([...next.searchParams], [...expected], 'next replaces only its own cursor and retains complete current GET state');
+        return next;
       };
       const continuation = async (query: Query, cursor: string, overrides: Partial<ListQueryArgs> = {}) =>
         queryPageRowsCanonical({ artifact, asm, store: physical, memberships: identities,
@@ -484,6 +500,16 @@ test('genuine paginated TableTime first pages and native continuations retain or
       assert.ok(up.result.nextCursor); assert.ok(old.result.nextCursor);
       await proof(up.result.nextCursor, FIXED_NOW); await proof(old.result.nextCursor, FIXED_NOW);
       assert.deepEqual(await resources(), baseline);
+      const httpParams = new URLSearchParams([['team', team.team_id], ['unrelated', 'retained'],
+        [`can-row:${up.args.occurrence}`, upcoming[0]!], [collectionFilterName(up.args.occurrence!, 'state'), ''],
+        [collectionFilterName(old.args.occurrence!, 'state'), '']]);
+      const httpFirst = await render(httpParams, served, false); assert.equal(httpFirst.response.status, 200, httpFirst.html);
+      const httpUp = timeQuery(httpFirst, 'gte'), httpPast = timeQuery(httpFirst, 'lt');
+      assert.deepEqual(httpUp.result.rows.map(row => row.id), upcoming.slice(0, 25));
+      assert.deepEqual(httpPast.result.rows.map(row => row.id), past.slice(0, 25));
+      assert.equal(httpUp.args.cursor, undefined); assert.equal(httpPast.args.cursor, undefined);
+      const httpUpNext = nextHref(httpFirst, httpUp); nextHref(httpFirst, httpPast);
+      assert.deepEqual(await resources(), baseline);
       now = FIXED_NOW + 14 * 60000;
       assert.equal((await admit()).admitted_at, new Date(now).toISOString());
       const second = await continuation(up, up.result.nextCursor), lastPast = await continuation(old, old.result.nextCursor);
@@ -493,9 +519,47 @@ test('genuine paginated TableTime first pages and native continuations retain or
       const issued = JSON.parse(Buffer.from(second.nextCursor.split('.')[0]!, 'base64url').toString('utf8')) as unknown[];
       assert.deepEqual(issued.slice(5), [FIXED_NOW, now, now + 15 * 60000]);
       assert.deepEqual(await resources(), baseline);
+      const httpSecond = await follow(httpUpNext); assert.equal(httpSecond.response.status, 200, httpSecond.html);
+      const httpSecondUp = timeQuery(httpSecond, 'gte'), httpFreshPast = timeQuery(httpSecond, 'lt');
+      assert.equal(httpSecondUp.args.cursor, httpUp.result.nextCursor);
+      assert.deepEqual(httpSecondUp.result.rows.map(row => row.id), upcoming.slice(25, 50));
+      assert.equal(httpFreshPast.args.cursor, undefined);
+      assert.deepEqual(httpFreshPast.result.rows.map(row => row.id), [...upcoming.slice(0, 14).reverse(), ...past].slice(0, 25));
+      assert.ok(httpSecondUp.result.nextCursor); assert.ok(httpFreshPast.result.nextCursor);
+      await proof(httpSecondUp.result.nextCursor, FIXED_NOW); await proof(httpFreshPast.result.nextCursor, now);
+      const httpBoth = await follow(nextHref(httpSecond, httpFreshPast)); assert.equal(httpBoth.response.status, 200, httpBoth.html);
+      const httpBothUp = timeQuery(httpBoth, 'gte'), httpBothPast = timeQuery(httpBoth, 'lt');
+      assert.equal(httpBothUp.args.cursor, httpUp.result.nextCursor);
+      assert.equal(httpBothPast.args.cursor, httpFreshPast.result.nextCursor);
+      assert.deepEqual(httpBothUp.result.rows.map(row => row.id), upcoming.slice(25, 50));
+      assert.deepEqual(httpBothPast.result.rows.map(row => row.id), [...upcoming.slice(0, 14).reverse(), ...past].slice(25));
+      const httpThirdHref = nextHref(httpBoth, httpBothUp);
+      assert.equal(httpThirdHref.searchParams.get(collectionCursorName(httpPast.args.occurrence!)), httpFreshPast.result.nextCursor);
+      assert.deepEqual(await resources(), baseline);
       now = FIXED_NOW + 16 * 60000;
       const third = await continuation(up, second.nextCursor);
       assert.deepEqual(third.rows.map(row => row.id), upcoming.slice(50)); assert.equal(third.nextCursor, undefined);
+      const httpThird = await follow(httpThirdHref, served, false); assert.equal(httpThird.response.status, 200, httpThird.html);
+      const httpThirdUp = timeQuery(httpThird, 'gte'), httpThirdPast = timeQuery(httpThird, 'lt');
+      assert.equal(httpThirdUp.args.cursor, httpBothUp.result.nextCursor);
+      assert.equal(httpThirdPast.args.cursor, httpFreshPast.result.nextCursor);
+      assert.deepEqual(httpThirdUp.result.rows.map(row => row.id), upcoming.slice(50));
+      assert.deepEqual(httpThirdPast.result.rows.map(row => row.id), [...upcoming.slice(0, 14).reverse(), ...past].slice(25));
+      assert.equal(httpThirdUp.result.nextCursor, undefined); assert.equal(httpThirdPast.result.nextCursor, undefined);
+      await proof(httpThirdUp.args.cursor!, FIXED_NOW); await proof(httpThirdPast.args.cursor!, FIXED_NOW + 14 * 60000);
+      assert.deepEqual(await resources(), baseline);
+      for (const duplicate of [false, true]) {
+        const malformed = new URLSearchParams(httpParams);
+        for (const [query, cursor] of [[httpUp, httpBothUp.result.nextCursor!], [httpPast, httpFreshPast.result.nextCursor!]] as const) {
+          const name = collectionCursorName(query.args.occurrence!);
+          malformed.append(name, duplicate ? cursor : '');
+          if (duplicate) malformed.append(name, cursor);
+        }
+        const rejected = await render(malformed); assert.equal(rejected.response.status, 422, rejected.html);
+        assert.equal(object(JSON.parse(rejected.html)).code, 'rule_failed');
+        assert.deepEqual(rejected.queries, [], 'each malformed occurrence refuses before its query');
+        assert.deepEqual(await resources(), baseline);
+      }
       await refusal(() => continuation(up, up.result.nextCursor!), 'conflict');
       const fresh = await render(); assert.equal(fresh.response.status, 200, fresh.html);
       const freshUp = timeQuery(fresh, 'gte'), freshPast = timeQuery(fresh, 'lt');
@@ -529,12 +593,13 @@ test('genuine paginated TableTime first pages and native continuations retain or
       assert.ok(guardPage.html.includes(`<p><span lang="en" dir="auto">\u2068Admitted now: ${currentText}\u2069</span></p>`),
         'ordinary typed message now uses current admission time');
       const guardUp = timeQuery(guardPage, 'gte'); assert.ok(guardUp.result.nextCursor);
+      const guardNextHref = nextHref(guardPage, guardUp);
       await refusal(async () => queryPageRowsCanonical({ artifact: guarded.artifact, asm: guarded.asm, store: physical,
         memberships: identities, identity: await admit(), now: clock.nowMs, pageReads: { ...pageReads, sourceIdentity: guarded.sha },
         model: up.model, args: { ...up.args, cursor: second.nextCursor! } }), 'conflict');
       now = FIXED_NOW + 18 * 60000;
       await proof(guardUp.result.nextCursor, FIXED_NOW + 16 * 60000);
-      const guardBaseline = await resources(), denied = await render(new URLSearchParams(), guardServed);
+      const guardBaseline = await resources(), denied = await follow(guardNextHref, guardServed);
       assert.equal(denied.response.status, 403, denied.html); assert.deepEqual(denied.queries, []);
       assert.deepEqual(await resources(), guardBaseline, 'current-time page guard refuses without collection reads or effects');
       now = FIXED_NOW + 31 * 60000;
