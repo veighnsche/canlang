@@ -1512,6 +1512,24 @@ fn emit_program_with_sources(
     >,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    if let Some(db) = db {
+        if ir.committed_sources.has_standard_value_inventory_fact() {
+            emitter.value_types = emitter.collect_standard_value_inventory(db);
+        } else if ir.committed_sources.requires_standard_value_inventory(ir) {
+            emitter.value_types = None;
+            let span = ir
+                .modules
+                .first()
+                .map_or(Span::new(crate::source::SourceId(0), 0, 0), |module| {
+                    module.span
+                });
+            emitter.unsupported(
+                "standard value inventory",
+                "selected owning declarations have no original checked source census",
+                span,
+            );
+        }
+    }
     if ir.committed_sources.has_empty_value_inventory_fact() {
         // An edited nonempty collector cannot override the sealed absence
         // evidence. Raw emission has no source-backed inventory claim.
@@ -2233,6 +2251,58 @@ impl<'a> Emitter<'a> {
             }
         }
         emitter
+    }
+
+    /// Selected sends and stored receipts publish their complete owning value
+    /// closure only against the original checked source/import/declaration census.
+    /// The inventory describes values; it grants no provider or File authority.
+    fn collect_standard_value_inventory(
+        &mut self,
+        db: &crate::source::SourceDb,
+    ) -> Option<JsValueTypes> {
+        let span = self
+            .ir
+            .modules
+            .first()
+            .map_or(Span::new(crate::source::SourceId(0), 0, 0), |module| {
+                module.span
+            });
+        let Some(roots) = self
+            .ir
+            .committed_sources
+            .standard_value_inventory_roots(self.ir, db)
+        else {
+            self.unsupported(
+                "standard value inventory",
+                "original checked source, catalog, import or selected declaration census disagrees",
+                span,
+            );
+            return None;
+        };
+        let mut seen = BTreeSet::new();
+        let mut contracts = Vec::new();
+        for (declared, span) in roots {
+            if collect_std_value_contracts(declared, &mut seen, &mut contracts).is_none() {
+                self.unsupported(
+                    "standard value inventory",
+                    "selected owning input/result/error has an unresolved nominal closure",
+                    *span,
+                );
+                return None;
+            }
+        }
+        let mut inventory = self.value_types.clone().unwrap_or_default();
+        let mut published: BTreeSet<_> = inventory
+            .contracts
+            .iter()
+            .map(|contract| contract.name.clone())
+            .collect();
+        for contract in contracts {
+            if published.insert(contract.name.clone()) {
+                inventory.contracts.push(contract);
+            }
+        }
+        Some(inventory)
     }
 
     fn collect_judgment_value_types(&mut self) -> Option<JsValueTypes> {
@@ -7275,11 +7345,17 @@ impl<'a> Emitter<'a> {
                     ));
                 }
             }
-            // A checked completion publishes the same selected closure as its
-            // installed value inventory. Legacy imports retain their catalog
-            // records when no completion source owns this correspondence.
+            // Source-backed inventories and private completions publish the
+            // same complete selected closure as their installed value schema.
+            // Legacy raw imports retain their prior catalog-only descriptors.
             let mut schemas = Vec::new();
-            if self.ir.standard_completion_sources.handlers.is_empty() {
+            let has_standard_inventory = self.value_types.as_ref().is_some_and(|inventory| {
+                inventory
+                    .contracts
+                    .iter()
+                    .any(|contract| nominal_schema(&contract.name).is_some())
+            });
+            if self.ir.standard_completion_sources.handlers.is_empty() && !has_standard_inventory {
                 for module in &self.ir.modules {
                     for import in &module.imports {
                         if import.provider != "std" {
