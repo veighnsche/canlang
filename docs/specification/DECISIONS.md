@@ -10941,3 +10941,21 @@ Integrate only Dev fc4641927's same-load singular model/explicit scalar input ad
 2026-10-11 — current approval source consumer (unfinished workflow). Reviewed declaration/membership changes retire old direct active_member/empty-array/operation-identity source blockers. One complete eight-scope check preserves inputs and separates actual transitive dependencies from unrelated shared inventory; existing SEQ037/038 records retain exact remaining derived-membership CRUD/table-selector outputs and their Compiler owner. Port the original reviewed validated-digest lexical capture into CreativeRevisionReview.generate, preserving its require/create/reservation/send order and full review protocol. Complete composition+CanChat semantic check0/complete=true/omitted0 qualifies only this authored source; original emission/native/profile/full workflow and all precise holds remain. No narrowed source or repeated runtime qualification.
 
 Coordinator defining authored-source review CLEAR: reuse the already reviewed d1/a850 lexical capture in this complete composition; require/create/reserve/send and review protocol remain exact. Reuse owning complete semantic0/complete/omitted0 and eight scoped source captures at their recorded scope; no unchanged runtime rerun or original native preparation. Source-stage incomplete integration after deadline, exact current derived-membership/parent-selector producers and native/provider acceptance remain; complete filetree checkpoint unchanged.
+
+## 2026-10-11 — Retained stored File observations (Contracts implemented; runtime consumer unfinished)
+
+Add only optional readonly `files` to each existing
+`ScenarioReceiptAssociation.observations` entry, using `RetainedFinalizedFile`.
+Unchanged stored File[] inputs cannot be represented by final-write assignments;
+the existing dependency and observed row retain their original source identity.
+Each item corresponds to the retained original ordered field occurrence and
+whole source census. Omitted or empty evidence establishes no File absence or
+authority, and the type adds no capture, admission or replay behavior.
+
+Contracts emission and the changed root type check pass; finite source review
+is clear. Capability/State owns actual matching, admission, durable replay,
+current authority and refusals; Dev supplies the genuine originating active row
+and Files observations; Compiler supplies exact original CALL-site dependency
+correspondence. Runtime/native acceptance and all precise holds remain separate.
+
+Coordinator defining source review CLEAR and integrated in LOCAL main after deadline; exact owning Contracts emission/root0 reused. This finite type prerequisite is closed and available to State; no runtime/native authority, absence proof, duplicate inventory or hold release follows. Existing coverage reconciled; complete checkpoint unchanged.

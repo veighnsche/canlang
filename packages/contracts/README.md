@@ -34,6 +34,17 @@ including State's actual nullable `ReceiptError` with only `code` and `message`.
 This adds no arbitrary JSON or opaque-payload exemption; the owning producer
 checks its actual declaration and closed nested data.
 
+`ScenarioReceiptAssociation.observations` can retain optional `files` facts for
+original stored File field inputs, including ordered File[] occurrences. These
+facts belong to the existing checked dependency and observed row, independently
+of final-write `fileAssignments`. The owning runtime must match every retained
+item to the original ordered field occurrence and the whole source census;
+omission or an empty list does not certify File absence or grant authority.
+Capability/State owns admission, current revalidation and durable replay; Dev
+supplies genuine originating rows and Files observations, and Compiler supplies
+the exact original CALL-site dependency correspondence. This type implements
+none of those behaviors.
+
 The additive opaque File ABI is declared in `state.ts` and exported by the root.
 `opaqueDeclarationSets` retains each original installed/source/model/value-type
 closure with complete canonical/artifact inputs, results and explicit void.
