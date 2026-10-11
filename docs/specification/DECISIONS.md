@@ -9034,3 +9034,17 @@ Coordinator independent finite row/page consumer source review CLEAR; owning age
 Release only the existing validateOpaqueFileOrigin through @canlang/state/storage after the genuine receiving consumer identified this missing public prerequisite. Reuse owning validation of authentic bound declarations, historical inventory and original origin correspondence; add no algorithm/carrier/type/subpath/profile. State emission and one strict public TypeScript/runtime resolution check pass. Root header/slot/scope/physical facts, genuine current File observations and State fences remain independent requirements, and this data validator grants no receiving authority. Dev owns the actual receiving join and coordinator source review remains; unchanged owning algorithm checks are reused and all holds persist.
 
 Coordinator exact existing-validator export source review CLEAR; strict public TypeScript/runtime resolution and State emission reused. Release the genuine existing helper to Dev; no complete native File/current-authority, receiving/attachment/disclosure or held-scope acceptance follows.
+
+
+### 2026-10-11 — original agenda endpoint and row correspondence (unfinished)
+
+Implement source-owned calendar endpoint facts without adding source language
+restrictions. Rejoin exact collection/path/module/stored-model/field/type before
+finite Date/Datetime lowering; reuse existing collection authority, parent/query,
+row scope, pagination and authored child order. Keep typed original filters/defaults
+and the full body in raw IR. Unsupported endpoints and bare history refuse E6008;
+no hidden-field storage reader or synthetic history is introduced.171 affected
+assertions and strict Clippy0 pass; finite source review CLEAR. The released existing
+agenda rows/page API is consumed for the next producer/native join. Exact shared
+filter/preference implementation and authorized State/Interfaces/UI history reader
+remain their named prerequisites; complete original agenda/application is unfinished.

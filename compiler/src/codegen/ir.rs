@@ -10901,6 +10901,13 @@ impl<'a> Cx<'a> {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
             "checkbox" => self.decode_bool_checkbox(scope, node, row_ctx),
+            "calendar"
+                if ui_attributes(self.db, node)
+                    .iter()
+                    .any(|(name, _)| matches!(name.as_str(), "start" | "end")) =>
+            {
+                self.decode_collection(scope, node, word)
+            }
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "hero" => self.decode_compact_hero(scope, node, row_ctx),
@@ -12836,11 +12843,52 @@ impl<'a> Cx<'a> {
         }
     }
 
+    fn decode_calendar_endpoint(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        model: SymbolId,
+        name: &str,
+    ) -> Option<TypedExpr> {
+        let value = ui_attributes(self.db, node)
+            .into_iter()
+            .find(|(key, _)| key == name)
+            .and_then(|(_, value)| value);
+        let fact =
+            value.and_then(|value| self.program.types.calendar_endpoint(&NodeKey::of(value)));
+        let valid = fact.zip(value).is_some_and(|(fact, value)| {
+            let paths: Vec<_> = kids(value).into_iter().filter(|path| path.kind == SyntaxKind::Path).collect();
+            fact.collection == NodeKey::of(node) && fact.value == NodeKey::of(value)
+                && paths.len() == 1 && fact.path == NodeKey::of(paths[0])
+                && fact.module == scope.module && fact.model == model
+                && selector_strings(self.db, value) == vec![fact.relative_path.clone()]
+                && matches!(fact.ty, ResolvedType::Scalar(Scalar::Date | Scalar::Datetime))
+                && self.program.types.symbol_types.get(&fact.field) == Some(&fact.ty)
+                && self.program.symbols.get(model.0 as usize).is_some_and(|owner| {
+                    owner.id == model && matches!(&owner.kind, SymbolKind::Model { fields, .. } if fields.contains(&fact.field))
+                        && self.program.symbols.get(fact.field.0 as usize).is_some_and(|field| {
+                            field.id == fact.field && field.module == owner.module && field.name == fact.relative_path
+                                && matches!(field.kind, SymbolKind::Field { owner, .. } if owner == model)
+                        })
+                })
+        });
+        if !valid {
+            self.diags.push(Diagnostic::error("E6008", format!("cannot lower calendar {name}: no matching checked nonnullable date/datetime model field"), value.map_or(node.span, |value| value.span)));
+            return None;
+        }
+        let fact = fact?;
+        Some(TypedExpr::new(
+            IrExpr::Text(fact.relative_path.clone()),
+            ResolvedType::Scalar(Scalar::Text),
+            value?.span,
+        ))
+    }
+
     /// Decode a collection (`list`/`table`/`gallery`): model, query
     /// props, presentation props, and row children under `renderRow`.
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
         let mut props = Vec::new();
-        if !matches!(word, "list" | "table") {
+        if !matches!(word, "list" | "table" | "calendar") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -12850,7 +12898,11 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        let admitted: &[&str] = if word == "table" {
+        let admitted: &[&str] = if word == "calendar" {
+            &[
+                "parent", "empty", "limit", "cursor", "start", "end", "filter", "defaults",
+            ]
+        } else if word == "table" {
             &[
                 "parent", "empty", "limit", "cursor", "columns", "order", "display",
             ]
@@ -12914,6 +12966,20 @@ impl<'a> Cx<'a> {
             ));
             return None;
         };
+        if word == "calendar" {
+            let start = self.decode_calendar_endpoint(scope, node, id, "start")?;
+            let end = self.decode_calendar_endpoint(scope, node, id, "end")?;
+            props.push((
+                "kind".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text("agenda".to_string()),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
+            props.push(("startField".to_string(), start));
+            props.push(("endField".to_string(), end));
+        }
         if let Some(head) = head {
             props.push((
                 "model".to_string(),
@@ -13073,6 +13139,12 @@ impl<'a> Cx<'a> {
                         ),
                     ));
                 }
+                // Authored filter defaults stay raw until the exact owning
+                // agenda preparer/carrier is released; JS still refuses it.
+                "defaults" if word == "calendar" => {
+                    props.push((name, self.decode_expr(scope, value)));
+                }
+                "start" | "end" if word == "calendar" => {}
                 "parent" | "limit" | "cursor" => {
                     props.push((name, self.decode_expr(scope, value)));
                 }
@@ -13257,7 +13329,7 @@ impl<'a> Cx<'a> {
             .filter_map(|n| self.decode_ui(&unowned, n, row_ctx.clone()))
             .collect();
         let gate = self.decode_gate(scope, node);
-        let row_scope = (word == "list" || (split && !children.is_empty()))
+        let row_scope = (matches!(word, "list" | "calendar") || (split && !children.is_empty()))
             .then_some((row_name, "rowView".to_string()));
         Some(IrUi {
             view: None,
