@@ -13,10 +13,11 @@ fn when(head: &str) -> String {
     format!("app T\nGiven\nWhen\n {head}\nThen\n")
 }
 fn routing(output: &Value) -> Vec<&Value> {
-    output["diagnostics"]
-        .as_array()
-        .unwrap()
-        .iter()
+    output
+        .get("diagnostics")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
         .filter_map(|diagnostic| diagnostic.get("construct_candidates"))
         .collect()
 }
@@ -362,6 +363,184 @@ fn profile_cli(command: &str, source: &str) -> (std::process::Output, Value) {
         .unwrap();
     let value = serde_json::from_slice(&output.stdout).expect("CLI JSON output");
     (output, value)
+}
+
+// Original Office ambiguity: preserve these bytes and its readonly row suite.
+const OFFICE_UNKNOWN_COLLECTION: &str = "app OfficeChoice\nGiven\n Supply {name:text,quantity:int?,available:bool=true}\n policy Supply read=members\nWhen\n crud Supply by=members fields=name,quantity,available\nThen\n page / title=\"Supplies\"\n  stock_rows Supply empty=\"No supplies\"\n   text row.name,row.quantity,row.available\n";
+
+#[test]
+fn unknown_office_collection_origin_checks_rows_and_refuses_artifacts() {
+    use canlang_compiler::{
+        analysis::{
+            self, NodeKey,
+            types::{ResolvedType, Scalar},
+        },
+        source::SourceDb,
+    };
+    let mut db = SourceDb::new();
+    let file = db.add(
+        "office.can".to_owned(),
+        OFFICE_UNKNOWN_COLLECTION.to_owned(),
+    );
+    let (checked, diagnostics) = analysis::check_program(&db, &[file], None);
+    let (tree, _) = syntax::parse(&db, file);
+    for (member, expected) in [
+        ("row.name", ResolvedType::Scalar(Scalar::Text)),
+        (
+            "row.quantity",
+            ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Int))),
+        ),
+        ("row.available", ResolvedType::Scalar(Scalar::Bool)),
+    ] {
+        let node = tree
+            .descendants()
+            .find(|node| {
+                node.kind == syntax::SyntaxKind::Member
+                    && OFFICE_UNKNOWN_COLLECTION[node.span.start as usize..node.span.end as usize]
+                        .trim()
+                        == member
+            })
+            .unwrap_or_else(|| panic!("missing authored member {member}"));
+        assert_eq!(
+            checked.types.node_types.get(&NodeKey::of(node)),
+            Some(&expected),
+            "{member}"
+        );
+    }
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E2013"
+                || diagnostic.code == "E2001" && diagnostic.message.contains("'row'"))
+    );
+    for command in ["check", "compile"] {
+        let (result, output) = profile_cli(command, OFFICE_UNKNOWN_COLLECTION);
+        assert_eq!(result.status.code(), Some(10), "{output}");
+        assert!(output.get("modules").is_none(), "{output}");
+        let diagnostics = output["diagnostics"].as_array().unwrap();
+        let origin = diagnostics
+            .iter()
+            .find(|diagnostic| {
+                diagnostic["construct_candidates"]["slot"] == "then.collection-presentation"
+            })
+            .expect("actual semantic origin");
+        assert_eq!(origin["code"], "E2001");
+        assert_eq!(origin["primary"]["start"], 197);
+        assert_eq!(origin["primary"]["end"], 207);
+        assert!(
+            origin["message"]
+                .as_str()
+                .unwrap()
+                .contains("distinct selectors")
+        );
+        let candidates = &origin["construct_candidates"];
+        assert_eq!(candidates["disposition"], "unknown");
+        assert_eq!(candidates["complete"], false);
+        assert_eq!(candidates["ids"], json!([]));
+        assert!(candidates.get("context").is_none());
+        assert_eq!(routing(&output).len(), 1, "{output}");
+    }
+    let query = OFFICE_UNKNOWN_COLLECTION.replace(
+        "stock_rows Supply",
+        "stock_rows Supply as supply where supply.available",
+    );
+    let (result, output) = profile_cli("check", &query);
+    assert_eq!(result.status.code(), Some(10), "{output}");
+    assert_eq!(routing(&output).len(), 1, "{output}");
+    assert!(
+        output["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|diagnostic| diagnostic["code"] != "E2013"
+                && diagnostic["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("distinct selectors")),
+        "{output}"
+    );
+}
+
+#[test]
+fn office_collection_abstention_preserves_errors_and_recognized_words() {
+    let invalid_member = OFFICE_UNKNOWN_COLLECTION.replace("row.quantity", "row.missing");
+    let (result, output) = profile_cli("compile", &invalid_member);
+    assert_eq!(result.status.code(), Some(10), "{output}");
+    assert!(output.get("modules").is_none());
+    assert!(
+        output["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "E2013"),
+        "{output}"
+    );
+    assert!(
+        output["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|diagnostic| diagnostic["message"]
+                .as_str()
+                .unwrap()
+                .contains("did not finish checking")),
+        "{output}"
+    );
+    for source in [
+        OFFICE_UNKNOWN_COLLECTION.replace("stock_rows", "timeline"),
+        OFFICE_UNKNOWN_COLLECTION.replace("stock_rows", "calendar"),
+        OFFICE_UNKNOWN_COLLECTION.replace("stock_rows", "alert"),
+        OFFICE_UNKNOWN_COLLECTION.replace("stock_rows Supply", "stock_rows Missing"),
+        OFFICE_UNKNOWN_COLLECTION.replace("row.name", "row?.name"),
+        OFFICE_UNKNOWN_COLLECTION.replace(
+            "text row.name,row.quantity,row.available",
+            "text unknown(row.name)",
+        ),
+        OFFICE_UNKNOWN_COLLECTION.replace(
+            "text row.name,row.quantity,row.available",
+            "button row.name",
+        ),
+    ] {
+        let (result, output) = profile_cli("compile", &source);
+        assert!(!result.status.success(), "{source}: {output}");
+        assert!(output.get("modules").is_none());
+        assert!(
+            routing(&output)
+                .iter()
+                .all(|candidate| candidate["slot"] != "then.collection-presentation"),
+            "{source}: {output}"
+        );
+    }
+}
+
+#[test]
+fn complete_office_list_and_table_sources_compile_with_original_row_suite() {
+    for (head, retained) in [
+        ("list Supply", "No supplies"),
+        (
+            "table Supply columns=name,quantity,available",
+            "columns:[\"name\",\"quantity\",\"available\"]",
+        ),
+    ] {
+        let mut source = OFFICE_UNKNOWN_COLLECTION.replace("stock_rows Supply", head);
+        if head.starts_with("table") {
+            source = source.replace(
+                "empty=\"No supplies\"",
+                "empty=\"No supplies\" display=split",
+            );
+        }
+        let (result, output) = profile_cli("compile", &source);
+        assert!(result.status.success(), "{source}: {output}");
+        assert!(routing(&output).is_empty(), "{output}");
+        let js = output["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|module| module["js"].as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(js.contains(retained), "{source}: {js}");
+    }
 }
 
 #[test]
