@@ -1325,7 +1325,7 @@ fn golden_expenseflow_structure() {
         "submit inputs"
     );
     assert!(
-        submit.contains("async(c,s)=>hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
+        submit.contains("async(c,s)=>await hasRole(c,\"expenses.reviewer\",s.reviewer_one)"),
         "checked role observation:\n{submit}"
     );
     assert!(
@@ -2518,7 +2518,7 @@ fn construct_guards() {
             ResolvedType::Scalar(Scalar::User),
         )),
     });
-    assert_eq!(subject, "hasRole(c,\"expense.reviewer\",candidate)");
+    assert_eq!(subject, "await hasRole(c,\"expense.reviewer\",candidate)");
     let members = emitter.lower_guard_bool(&IrGuard::Role("members".to_string()));
     assert_eq!(members, "hasRole(c,\"members\")");
     assert!(

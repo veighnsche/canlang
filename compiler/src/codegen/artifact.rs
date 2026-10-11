@@ -482,6 +482,7 @@ fn compute_requires(
         }
     }
     if [
+        "active_member",
         "create",
         "set",
         "transition",

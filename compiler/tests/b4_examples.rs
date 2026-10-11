@@ -1047,21 +1047,23 @@ fn t02_preferences_invariant_guarded_actor_accepted() {
     );
 }
 
-/// T02 pilot B3 (intended-rejection witness): a derive calling
-/// the catalog `state-read` builtin `active_member` still fails
-/// `E3010` derive purity (DESIGN:137; catalog notes "Needs
-/// membership state"). Skips without the real catalog.
+/// The selected membership builtin stays StateRead, but its exact checked
+/// derived-function closure can be bound at a genuine native observation site.
 #[test]
-fn t02_derive_state_read_builtin_rejected() {
+fn t02_selected_membership_derive_is_checked_without_purity_reclassification() {
     let Some(catalog) = real_catalog() else {
         eprintln!(
-            "SKIP t02_derive_state_read_builtin_rejected: no packages/values/dist/catalog.json"
+            "SKIP t02_selected_membership_derive_is_checked_without_purity_reclassification: no packages/values/dist/catalog.json"
         );
         return;
     };
     const SRC: &str = "app Probe\nGiven\n derive staff(person:user):bool = active_member(person,team)\nWhen\nThen\n";
     let (_program, diags) = check_src(SRC, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_eq!(
+        catalog.lookup("active_member").unwrap().effects,
+        Some(canlang_compiler::analysis::catalog::Effects::StateRead)
+    );
 }
 
 /// T02 pilot B3 opposing case: a pure derive with no effectful

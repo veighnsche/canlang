@@ -331,19 +331,20 @@ fn imported_pure_helpers_preserve_decision_sites_slots_defaults_and_chains() {
         .source_facts()
         .unwrap();
     let sites = source_facts.decision_sites.as_ref().unwrap();
-    assert_eq!(sites.len(), 4);
+    assert_eq!(sites.len(), 5);
     assert_eq!(
         sites.iter().map(|site| site.stage).collect::<Vec<_>>(),
         vec![
             CheckedDecisionStage::LeadingRequire,
             CheckedDecisionStage::BodyRequire,
+            CheckedDecisionStage::BodyCondition,
             CheckedDecisionStage::BodyRequire,
             CheckedDecisionStage::SendDispatch
         ]
     );
     assert_eq!(sites[0].position, vec![CheckedDecisionPosition::Guard(0)]);
     assert_eq!(
-        sites[2].position,
+        sites[3].position,
         vec![
             CheckedDecisionPosition::Body(1),
             CheckedDecisionPosition::Then(0)
@@ -388,17 +389,17 @@ fn imported_pure_helpers_preserve_decision_sites_slots_defaults_and_chains() {
             .collect::<Vec<_>>(),
         vec!["person", "team"]
     );
-    let omitted = &sites[2].calls[0];
+    let omitted = &sites[3].calls[0];
     assert_eq!(omitted.slots, vec![Some(0), None]);
     assert_eq!(omitted.defaults.len(), 1);
     assert_eq!(text(omitted.defaults[0].1), "abs(-2)");
-    let default_call = &sites[2].calls[1];
+    let default_call = &sites[3].calls[1];
     assert!(matches!(&default_call.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="abs"));
     assert_eq!(default_call.source.path, "helpers.can");
     assert_eq!(default_call.chain.len(), 1);
     assert_eq!(default_call.chain[0].node, omitted.node);
     assert_eq!(default_call.chain[0].source.path, "decisions.can");
-    assert!(sites[3].calls.iter().all(|call| call.defaults.is_empty()));
+    assert!(sites[4].calls.iter().all(|call| call.defaults.is_empty()));
 }
 
 #[test]
@@ -422,21 +423,225 @@ fn unsupported_selected_role_declines_only_optional_decision_inventory() {
 }
 
 #[test]
-fn state_read_derive_and_dispatch_guards_retain_purity_refusal() {
+fn bounded_membership_sources_preserve_strict_default_and_other_state_read_refusals() {
     for source in [
         "app PureGate\nGiven\n derive member(person:user):bool = active_member(person,team)\nWhen\nThen\n",
         "app PureGate\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\nWhen\n scenario run(person:user) by=members\n  do send LLM.cancel {revision=1,source=\"fixed\"} when=active_member(person,team) as stop\nThen\n",
     ] {
         let (_, program, diagnostics) = check(&[("pure-gate.can", source)]);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(program.effects.derives.len() + program.effects.scenarios.len() > 0);
+    }
+    let source = "app PureGate\nGiven\nWhen\n scenario run(person:user,allowed:bool=active_member(person,team)) by=members\n  do let accepted=allowed\nThen\n";
+    let (_, program, diagnostics) = check(&[("strict-default.can", source)]);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3011"),
+        "{diagnostics:?}"
+    );
+    assert!(program.scenario_disclosures().is_empty());
+
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let catalog_path = scratch.path().join("other-state-read.json");
+    let original_catalog =
+        std::fs::read_to_string(root.join("packages/values/dist/catalog.json")).unwrap();
+    std::fs::write(
+        &catalog_path,
+        original_catalog.replace("active_member", "other_member"),
+    )
+    .unwrap();
+    let mut db = SourceDb::new();
+    let source = "app OtherRead\nGiven\n derive member(person:user):bool=other_member(person,team)\nWhen\nThen\n";
+    let file = db.add("other-state-read.can".into(), source.into());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: root,
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E3010"),
+        "{diagnostics:?}"
+    );
+    assert!(
+        program.scenario_disclosures().is_empty(),
+        "unclean source has no checked scenario facts"
+    );
+}
+
+#[test]
+fn trusted_body_condition_and_read_policies_preserve_original_sites_and_refuse_ir_edits() {
+    use canlang_compiler::{
+        analysis::scenario_disclosure::ScenarioDisclosure,
+        codegen::{
+            ir::{self, IrCallTarget, IrExpr, IrItemKind, IrStmt},
+            scenario_decisions::{
+                collect_decision_sources, serialize_decision_sources,
+                serialize_read_decision_sources,
+            },
+        },
+    };
+    let source = "app HandlerDecision\nGiven\n Entry {person:user,enabled:bool=false}\n event Received {person:user}\n derive member(person:user):bool=active_member(person,team)\n derive other(person:user):bool=true\n policy Entry read=member(row.person) where=member(row.person)\n policy Entry read=members where=row.enabled\nWhen\n scenario changed on=Received\n  do\n   if member(event.person)\n    let accepted=true\nThen\n";
+    let (db, initial, diagnostics) = check(&[("handler-decision.can", source)]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(initial.checked_files()[0], 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, initial.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "HandlerDecision.changed")
+        .unwrap()
+        .id;
+    assert!(matches!(
+        program.scenario_disclosures()[&owner],
+        ScenarioDisclosure::Declined(_)
+    ));
+    let sites = collect_decision_sources(
+        &program,
+        &lowered,
+        &lowered.items[owner.0 as usize],
+        &db,
+        catalog.as_ref(),
+    )
+    .unwrap();
+    assert_eq!(sites.len(), 1);
+    assert_eq!(sites[0].stage, CheckedDecisionStage::BodyCondition);
+    assert_eq!(sites[0].position, vec![CheckedDecisionPosition::Body(0)]);
+    assert_eq!(
+        source[sites[0].node.start as usize..sites[0].node.end as usize].trim(),
+        "member(event.person)"
+    );
+    assert_eq!(sites[0].calls.len(), 2);
+    assert!(
+        matches!(&sites[0].calls[1].target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "active_member")
+    );
+    assert_eq!(sites[0].calls[1].chain.len(), 1);
+    assert_eq!(sites[0].calls[1].chain[0].node, sites[0].calls[0].node);
+    let json = serde_json::to_value(
+        serialize_decision_sources(
+            &program,
+            &lowered,
+            &lowered.items[owner.0 as usize],
+            &db,
+            catalog.as_ref(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(json[0]["stage"], "body-condition");
+    assert_eq!(json[0]["calls"][1]["arguments"][0]["type"], "user");
+    assert_eq!(json[0]["calls"][1]["arguments"][1]["type"], "Team");
+    for mutation in 0..4 {
+        let mut changed = lowered.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+            panic!()
+        };
+        let IrStmt::If { cond, span, .. } = &mut effects[0] else {
+            panic!()
+        };
+        match mutation {
+            0 => cond.expr = IrExpr::Bool(false),
+            1 => cond.span.start += 1,
+            2 => span.start += 1,
+            _ => {
+                let IrExpr::Call { target, .. } = &mut cond.expr else {
+                    panic!()
+                };
+                *target = IrCallTarget::DeriveFn("HandlerDecision.other".into());
+            }
+        }
         assert!(
-            diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == "E3010"),
-            "{diagnostics:?}"
+            collect_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "condition mutation {mutation}"
         );
+    }
+    let rule = lowered
+        .read_rules
+        .iter()
+        .find(|rule| rule.id == "Entry.read.1")
+        .unwrap();
+    let policy_sites =
+        serialize_read_decision_sources(&program, &lowered, rule, &db, catalog.as_ref()).unwrap();
+    let policy = serde_json::to_value(&policy_sites).unwrap();
+    assert_eq!(policy_sites.len(), 2);
+    for site in policy.as_array().unwrap() {
+        assert_eq!(site["stage"], "read-policy");
+        assert_eq!(site["owner"], "HandlerDecision.Entry.read.1");
+        assert_eq!(site["position"], serde_json::json!([]));
+        assert_eq!(site["calls"].as_array().unwrap().len(), 2);
+        assert_eq!(site["calls"][1]["arguments"][1]["type"], "Team");
+    }
+    assert!(policy_sites[0].node.start < policy_sites[1].node.start);
+    let shorthand = lowered
+        .read_rules
+        .iter()
+        .find(|rule| rule.id == "Entry.read.2")
+        .unwrap();
+    let shorthand =
+        serialize_read_decision_sources(&program, &lowered, shorthand, &db, catalog.as_ref())
+            .unwrap();
+    assert_eq!(shorthand.len(), 2);
+    assert!(shorthand.iter().all(|site| site.calls.is_empty()));
+    for mutation in 0..4 {
+        let mut changed = lowered.clone();
+        let index = changed
+            .read_rules
+            .iter()
+            .position(|candidate| candidate.id == rule.id)
+            .unwrap();
+        let altered = &mut changed.read_rules[index];
+        match mutation {
+            0 => altered.pred.expr = IrExpr::Bool(false),
+            1 => altered.pred.span.start += 1,
+            2 => altered.span.start += 1,
+            _ => {
+                let IrExpr::Binary { right, .. } = &mut altered.pred.expr else {
+                    panic!()
+                };
+                let IrExpr::Call { target, .. } = &mut right.expr else {
+                    panic!()
+                };
+                *target = IrCallTarget::DeriveFn("HandlerDecision.other".into());
+            }
+        }
         assert!(
-            program.scenario_disclosures().is_empty(),
-            "unclean source has no checked scenario facts"
+            serialize_read_decision_sources(
+                &program,
+                &changed,
+                &changed.read_rules[index],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "policy mutation {mutation}"
         );
     }
 }
@@ -475,7 +680,7 @@ fn actual_ir_decisions_join_defaults_and_refuse_corrupt_proofs() {
         collect_decision_sources(&program, &lowered, owner, &db, cat.as_ref())
             .unwrap()
             .len(),
-        2
+        3
     );
     for corruption in 0..11 {
         let mut changed = lowered.clone();
@@ -495,8 +700,8 @@ fn actual_ir_decisions_join_defaults_and_refuse_corrupt_proofs() {
             5 => sites[0].calls[0].source.module = "foreign".into(),
             6 => sites[0].calls[0].slots = vec![Some(0), Some(0)],
             7 => sites[0].calls[0].arguments[0].0.start += 1,
-            8 => sites[1].calls[0].defaults.clear(),
-            9 => sites[1].calls[1].chain.clear(),
+            8 => sites[2].calls[0].defaults.clear(),
+            9 => sites[2].calls[1].chain.clear(),
             _ => {
                 sites[0].calls[0].target = CheckedDecisionCallTarget::DeriveFn(
                     canlang_compiler::analysis::resolve::SymbolId(u32::MAX),
@@ -535,6 +740,131 @@ fn actual_ir_decisions_join_defaults_and_refuse_corrupt_proofs() {
         )
         .is_none()
     );
+}
+
+#[test]
+fn named_page_query_predicates_keep_original_transitive_sites_and_refuse_render_edits() {
+    use canlang_compiler::codegen::{
+        ir::{self, IrCallTarget, IrExpr, IrItemKind},
+        scenario_decisions::serialize_read_predicate_sources,
+    };
+    let source = "app PredicateFacts\nGiven\n Conversation {account:user,active:bool=false}\n Run {author:user,conversation:Conversation?}\n derive can_use(person:user?,conversation:Conversation):bool=person!=null and active_member(person,team) and conversation.account==person and conversation.active\n derive can_view(person:user?,run:Run):bool=person!=null and active_member(person,team) and run.author==person and (run.conversation==null or can_use(person,run.conversation))\n derive other(person:user?,run:Run):bool=true\n policy Conversation read=members where=can_use(actor,row)\n policy Run read=members where=can_view(actor,row)\nWhen\nThen\n page /runs title=\"Runs\"\n  list Run as run where can_view(actor,run)\n   text run.author\n page /other title=\"Other\"\n  list Run as run where can_view(actor,run)\n   text run.author\n";
+    let (db, initial, diagnostics) = check(&[("page-predicates.can", source)]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(initial.checked_files()[0], 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, initial.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let sites =
+        serialize_read_predicate_sources(&program, &lowered, &db, catalog.as_ref()).unwrap();
+    assert_eq!(sites.len(), 2);
+    for (site, page) in sites.iter().zip(&lowered.modules[0].pages) {
+        assert_eq!(site.stage, "read-predicate");
+        assert_eq!(site.owner, format!("{}.{}", page.owner, page.fn_name));
+        assert!(site.position.is_empty());
+        assert_eq!(site.source.path, "page-predicates.can");
+        assert_eq!(
+            site.source.sha256,
+            canlang_compiler::source::sha256_hex(source.as_bytes())
+        );
+        assert_eq!(
+            source[site.node.start as usize..site.node.end as usize].trim(),
+            "can_view(actor,run)"
+        );
+        assert_eq!(
+            source[site.statement.start as usize..site.statement.end as usize].trim(),
+            "Run as run where can_view(actor,run)"
+        );
+        assert_eq!(site.calls.len(), 4);
+    }
+    assert!(sites[0].node.start < sites[1].node.start);
+    assert_ne!(sites[0].owner, sites[1].owner);
+    let json = serde_json::to_value(&sites).unwrap();
+    assert_eq!(
+        json[0]["calls"][0]["target"]["name"],
+        "PredicateFacts.can_view"
+    );
+    assert_eq!(json[0]["calls"][0]["slots"], serde_json::json!([0, 1]));
+    assert_eq!(json[0]["calls"][1]["target"]["id"], "active_member");
+    assert_eq!(json[0]["calls"][1]["arguments"][0]["type"], "user");
+    assert_eq!(json[0]["calls"][1]["arguments"][1]["type"], "Team");
+    assert_eq!(
+        json[0]["calls"][1]["chain"][0]["derive"],
+        "PredicateFacts.can_view"
+    );
+    assert_eq!(json[0]["calls"][3]["chain"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        json[0]["calls"][3]["chain"][1]["derive"],
+        "PredicateFacts.can_use"
+    );
+    for mutation in 0..9 {
+        let mut changed = lowered.clone();
+        if mutation == 8 {
+            let helper = changed
+                .items
+                .iter_mut()
+                .find(|item| item.canonical == "PredicateFacts.can_use")
+                .unwrap();
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &mut helper.kind
+            else {
+                panic!()
+            };
+            body.expr = IrExpr::Bool(false);
+        } else {
+            let page = &mut changed.modules[0].pages[0];
+            if mutation == 5 {
+                page.fn_name.push_str("Edited");
+            } else if mutation == 6 {
+                page.render[0].span.start += 1;
+            } else if mutation == 7 {
+                page.render[0].children[0].props[0].1.expr = IrExpr::Bool(false);
+            } else if mutation == 3 {
+                let (_, model) = page.render[0]
+                    .props
+                    .iter_mut()
+                    .find(|(name, _)| name == "model")
+                    .unwrap();
+                model.expr = IrExpr::Text("PredicateFacts.Conversation".into());
+            } else {
+                let (_, predicate) = page.render[0]
+                    .props
+                    .iter_mut()
+                    .find(|(name, _)| name == "where")
+                    .unwrap();
+                let IrExpr::Lambda { param, body } = &mut predicate.expr else {
+                    panic!()
+                };
+                match mutation {
+                    0 => body.expr = IrExpr::Bool(false),
+                    1 => body.span.start += 1,
+                    2 => *param = "other".into(),
+                    _ => {
+                        let IrExpr::Call { target, .. } = &mut body.expr else {
+                            panic!()
+                        };
+                        *target = IrCallTarget::DeriveFn("PredicateFacts.other".into());
+                    }
+                }
+            }
+        }
+        assert!(
+            serialize_read_predicate_sources(&program, &changed, &db, catalog.as_ref()).is_none(),
+            "page/query mutation {mutation}"
+        );
+    }
 }
 
 #[test]
@@ -716,8 +1046,9 @@ assert.deepEqual(checked,produced,'installed State preserves genuine compiler so
 assert.ok(Object.isFrozen(checked));
 assert.equal(checked[1].calls[0].arguments[0].type,'user');
 assert.equal(checked[1].calls[0].arguments[1].type,'Team');
-assert.equal(checked[2].calls[0].defaults[0].parameter,'helpers.good.last');
-assert.equal(checked[2].calls[1].chain[0].derive,'helpers.good');
+assert.equal(checked[2].stage,'body-condition');
+assert.equal(checked[3].calls[0].defaults[0].parameter,'helpers.good.last');
+assert.equal(checked[3].calls[1].chain[0].derive,'helpers.good');
 const lower=structuredClone(produced);
 lower[1].calls[0].arguments[1].type='team';
 assert.throws(()=>checkScenarioReceiptMembershipSites(lower),error=>error.code==='validation');
@@ -735,7 +1066,7 @@ console.log('actual compiler v1 decision sites accepted by installed State; lowe
         String::from_utf8_lossy(&consumed.stdout),
         String::from_utf8_lossy(&consumed.stderr)
     );
-    assert_eq!(json.as_array().unwrap().len(), 3);
+    assert_eq!(json.as_array().unwrap().len(), 4);
     assert_eq!(json[0]["version"], 1);
     assert_eq!(json[0]["owner"], "DecisionSerial.run");
     assert_eq!(
@@ -762,20 +1093,21 @@ console.log('actual compiler v1 decision sites accepted by installed State; lowe
     assert_eq!(json[1]["calls"][0]["arguments"][0]["type"], "user");
     assert_eq!(json[1]["calls"][0]["arguments"][1]["type"], "Team");
     assert_eq!(
-        json[2]["position"],
+        json[3]["position"],
         serde_json::json!([{ "kind":"body","index":1 },{"kind":"then","index":0}])
     );
-    assert_eq!(json[2]["calls"][0]["slots"], serde_json::json!([0, null]));
+    assert_eq!(json[2]["stage"], "body-condition");
+    assert_eq!(json[3]["calls"][0]["slots"], serde_json::json!([0, null]));
     assert_eq!(
-        json[2]["calls"][0]["defaults"][0]["parameter"],
+        json[3]["calls"][0]["defaults"][0]["parameter"],
         "helpers.good.last"
     );
     assert_eq!(
-        json[2]["calls"][0]["defaults"][0]["source"],
+        json[3]["calls"][0]["defaults"][0]["source"],
         serde_json::json!({"path":"helpers.can","sha256":canlang_compiler::source::sha256_hex(helper.as_bytes()),"module":"helpers"})
     );
-    assert_eq!(json[2]["calls"][0]["defaults"][0]["type"], "int");
-    assert_eq!(json[2]["calls"][1]["chain"][0]["derive"], "helpers.good");
+    assert_eq!(json[3]["calls"][0]["defaults"][0]["type"], "int");
+    assert_eq!(json[3]["calls"][1]["chain"][0]["derive"], "helpers.good");
     for corruption in 0..4 {
         let mut changed = lowered.clone();
         let facts = match changed.scenario_disclosures.get_mut(&id).unwrap() {
@@ -790,7 +1122,7 @@ console.log('actual compiler v1 decision sites accepted by installed State; lowe
         match corruption {
             0 => sites[0].owner = canlang_compiler::analysis::resolve::SymbolId(u32::MAX),
             1 => sites[0].source.sha256 = "0".repeat(64),
-            2 => sites[2].calls[0].defaults.clear(),
+            2 => sites[3].calls[0].defaults.clear(),
             _ => {
                 sites[0].calls[0].arguments[0].1 = canlang_compiler::analysis::ResolvedType::Unknown
             }

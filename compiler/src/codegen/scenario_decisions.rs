@@ -213,10 +213,12 @@ impl Consumer<'_> {
                 ..
             } => out.push((cond, *span, Stage::SendDispatch, p)),
             IrStmt::If {
+                cond,
                 then_branch,
                 else_branch,
-                ..
+                span,
             } => {
+                out.push((cond, *span, Stage::BodyCondition, p.clone()));
                 for (i, c) in then_branch.iter().enumerate() {
                     let mut q = p.clone();
                     q.push(Position::Then(i));
@@ -626,33 +628,11 @@ pub(super) fn same_scenario_semantics(
             _ => return None,
         }
     }
-    fn guard(join: &mut SemanticJoin<'_>, a: &IrGuard, b: &IrGuard, depth: usize) -> Option<()> {
-        join.budget(depth)?;
-        match (a, b) {
-            (IrGuard::Role(a), IrGuard::Role(b)) if a == b => {}
-            (IrGuard::Subject { role: a, person: x }, IrGuard::Subject { role: b, person: y })
-                if a == b =>
-            {
-                join.expression(x, y, depth + 1)?
-            }
-            (IrGuard::Expr(a), IrGuard::Expr(b)) => join.expression(a, b, depth + 1)?,
-            (IrGuard::And(a), IrGuard::And(b)) | (IrGuard::Or(a), IrGuard::Or(b))
-                if a.len() == b.len() =>
-            {
-                for (a, b) in a.iter().zip(b) {
-                    guard(join, a, b, depth + 1)?;
-                }
-            }
-            (IrGuard::Not(a), IrGuard::Not(b)) => guard(join, a, b, depth + 1)?,
-            _ => return None,
-        }
-        Some(())
-    }
     if ab.len() != bb.len() {
         return None;
     }
     for (a, b) in ab.iter().zip(bb) {
-        guard(&mut join, a, b, 0)?;
+        join.guard(a, b, 0)?;
     }
     join.statements(ag, bg, 0)?;
     join.statements(ae, be, 0)
@@ -754,7 +734,164 @@ impl SemanticJoin<'_> {
                 self.call_arguments(a, b, depth + 1)?;
             }
             (IrExpr::Query(a), IrExpr::Query(b)) => self.query(a, b, depth + 1)?,
+            (IrExpr::Lambda { param: x, body: a }, IrExpr::Lambda { param: y, body: b })
+                if x == y =>
+            {
+                self.expression(a, b, depth + 1)?;
+            }
+            (IrExpr::HasRole { role: x, person: a }, IrExpr::HasRole { role: y, person: b })
+                if x == y =>
+            {
+                match (a, b) {
+                    (None, None) => {}
+                    (Some(a), Some(b)) => self.expression(a, b, depth + 1)?,
+                    _ => return None,
+                }
+            }
+            (IrExpr::Message(a), IrExpr::Message(b)) => self.message(a, b, depth + 1)?,
+            (
+                IrExpr::MessageCall {
+                    descriptor: a,
+                    args: x,
+                    params: p,
+                },
+                IrExpr::MessageCall {
+                    descriptor: b,
+                    args: y,
+                    params: q,
+                },
+            ) if p.len() == q.len() => {
+                self.message(a, b, depth + 1)?;
+                self.expressions(x, y, depth + 1)?;
+                for (p, q) in p.iter().zip(q) {
+                    if p.name != q.name || p.type_id != q.type_id || p.source != q.source {
+                        return None;
+                    }
+                    self.optional(&p.default, &q.default, depth + 1)?;
+                }
+            }
+            (
+                IrExpr::Format {
+                    args: a,
+                    descriptor_index: x,
+                    locale_index: u,
+                    source_lang: p,
+                    param_types: i,
+                },
+                IrExpr::Format {
+                    args: b,
+                    descriptor_index: y,
+                    locale_index: v,
+                    source_lang: q,
+                    param_types: j,
+                },
+            ) if x == y && u == v && p == q && i == j => self.expressions(a, b, depth + 1)?,
+            (
+                IrExpr::DeliveryRead {
+                    record: x,
+                    field: p,
+                    props: i,
+                    callback: a_callback,
+                },
+                IrExpr::DeliveryRead {
+                    record: y,
+                    field: q,
+                    props: j,
+                    callback: b_callback,
+                },
+            ) if p == q && i == j => {
+                self.expression(x, y, depth + 1)?;
+                match (a_callback, b_callback) {
+                    (None, None) => {}
+                    (Some(ap), Some(bp))
+                        if ap.matches(self.actual, a, x, p, i)
+                            && bp.matches(self.expected, b, y, q, j) => {}
+                    _ => return None,
+                }
+            }
             _ => return None,
+        }
+        Some(())
+    }
+    fn guard(&mut self, a: &IrGuard, b: &IrGuard, depth: usize) -> Option<()> {
+        self.budget(depth)?;
+        match (a, b) {
+            (IrGuard::Role(a), IrGuard::Role(b)) if a == b => {}
+            (IrGuard::Subject { role: a, person: x }, IrGuard::Subject { role: b, person: y })
+                if a == b =>
+            {
+                self.expression(x, y, depth + 1)?
+            }
+            (IrGuard::Expr(a), IrGuard::Expr(b)) => self.expression(a, b, depth + 1)?,
+            (IrGuard::And(a), IrGuard::And(b)) | (IrGuard::Or(a), IrGuard::Or(b))
+                if a.len() == b.len() =>
+            {
+                for (a, b) in a.iter().zip(b) {
+                    self.guard(a, b, depth + 1)?;
+                }
+            }
+            (IrGuard::Not(a), IrGuard::Not(b)) => self.guard(a, b, depth + 1)?,
+            _ => return None,
+        }
+        Some(())
+    }
+    fn message(&mut self, a: &IrMessage, b: &IrMessage, depth: usize) -> Option<()> {
+        self.budget(depth)?;
+        if a.source != b.source
+            || a.source_lang != b.source_lang
+            || a.variants != b.variants
+            || a.params.len() != b.params.len()
+        {
+            return None;
+        }
+        for (a, b) in a.params.iter().zip(&b.params) {
+            if a.name != b.name || a.type_id != b.type_id {
+                return None;
+            }
+            self.expression(&a.value, &b.value, depth + 1)?;
+        }
+        Some(())
+    }
+    fn ui(&mut self, a: &IrUi, b: &IrUi, depth: usize) -> Option<()> {
+        self.budget(depth)?;
+        if a.factory != b.factory
+            || a.span != b.span
+            || a.row_scope != b.row_scope
+            || a.props.len() != b.props.len()
+            || a.children.len() != b.children.len()
+        {
+            return None;
+        }
+        match (&a.view, &b.view) {
+            (None, None) => {}
+            (Some(a), Some(b)) if a.identity == b.identity => {
+                self.expression(&a.argument, &b.argument, depth + 1)?
+            }
+            _ => return None,
+        }
+        if matches!(
+            a.factory.as_str(),
+            "callbackValueList" | "callbackValueCard"
+        ) && (!self
+            .actual
+            .callback_grants
+            .matches_value_list(self.actual, a)
+            || !self
+                .expected
+                .callback_grants
+                .matches_value_list(self.expected, b))
+        {
+            return None;
+        }
+        self.optional(&a.gate, &b.gate, depth + 1)?;
+        for ((x, a), (y, b)) in a.props.iter().zip(&b.props) {
+            if x != y {
+                return None;
+            }
+            self.expression(a, b, depth + 1)?;
+        }
+        for (a, b) in a.children.iter().zip(&b.children) {
+            self.ui(a, b, depth + 1)?;
         }
         Some(())
     }
@@ -1195,6 +1332,382 @@ pub fn serialize_decision_sources(
     catalog: Option<&Catalog>,
 ) -> Option<Vec<SerialDecisionSite>> {
     let sites = collect_decision_sources(program, ir, owner, db, catalog)?;
+    serialize_sites(program, ir, db, sites, None)
+}
+
+/// Original policy source correspondence for a registered ordinary or protected
+/// read rule. Source metadata supplies no policy or execution authority.
+pub fn serialize_read_decision_sources(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    rule: &IrRuleFn,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Option<Vec<SerialDecisionSite>> {
+    program.validate_cohort(db, catalog).ok()?;
+    let (original, diagnostics) =
+        crate::analysis::check_program(db, program.checked_files(), catalog);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut matches = Vec::new();
+    for (model, data) in &original.effects.models {
+        let symbol = original.symbols.get(model.0 as usize)?;
+        for (ordinal, policy) in data.policies.iter().enumerate() {
+            let span = Span::new(policy.node.file, policy.node.start, policy.node.end);
+            for (kind, callback) in [("read", false), ("callbackRead", true)] {
+                if rule.span == span
+                    && rule.id
+                        == format!(
+                            "{}.{kind}.{}",
+                            super::ir::model_rule_prefix(&original, symbol),
+                            ordinal + 1
+                        )
+                {
+                    matches.push((*model, ordinal, callback));
+                }
+            }
+        }
+    }
+    let [(model, ordinal, callback)] = matches.as_slice() else {
+        return None;
+    };
+    let symbol = original.symbols.get(model.0 as usize)?;
+    let actual_symbol = program.symbols.get(model.0 as usize)?;
+    if actual_symbol.id != *model
+        || actual_symbol.canonical != symbol.canonical
+        || actual_symbol.module != symbol.module
+        || rule.origin.is_some()
+    {
+        return None;
+    }
+    let actual_model = program.effects.models.get(model)?;
+    let original_model = original.effects.models.get(model)?;
+    if actual_model.model != *model || actual_model.module != original_model.module {
+        return None;
+    }
+    let actual_policy = actual_model.policies.get(*ordinal)?;
+    let policy = original_model.policies.get(*ordinal)?;
+    if actual_policy.id != policy.id
+        || actual_policy.node != policy.node
+        || actual_policy.module != policy.module
+        || actual_policy.read != policy.read
+        || actual_policy.where_predicate != policy.where_predicate
+        || actual_policy.fields != policy.fields
+        || actual_policy.callback_fields != policy.callback_fields
+        || actual_policy.fields_node != policy.fields_node
+    {
+        return None;
+    }
+    let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let expected_rules = if *callback {
+        &fresh.callback_read_rules
+    } else {
+        &fresh.read_rules
+    };
+    let actual_rules = if *callback {
+        &ir.callback_read_rules
+    } else {
+        &ir.read_rules
+    };
+    let matching_rule =
+        |candidate: &&IrRuleFn| candidate.id == rule.id && candidate.span == rule.span;
+    let mut expected_matches = expected_rules.iter().filter(matching_rule);
+    let expected = expected_matches.next()?;
+    if expected_matches.next().is_some() {
+        return None;
+    }
+    let mut actual_matches = actual_rules.iter().filter(matching_rule);
+    let actual = actual_matches.next()?;
+    if actual_matches.next().is_some() || actual.origin.is_some() {
+        return None;
+    }
+    let mut semantics = SemanticJoin {
+        program: &original,
+        actual: ir,
+        expected: &fresh,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    semantics.expression(&rule.pred, &expected.pred, 0)?;
+    semantics.expression(&actual.pred, &expected.pred, 0)?;
+    let mut trees = Vec::new();
+    for &file in original.checked_files() {
+        let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        {
+            return None;
+        }
+        trees.push((file, tree));
+    }
+    let mut diagnostics = Vec::new();
+    let resolved =
+        crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
+            .ok()?;
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let sites = crate::analysis::scenario_disclosure::checked_read_decision_sites(
+        db,
+        &trees,
+        &resolved,
+        &original.types,
+        &original.effects,
+        *model,
+        *ordinal,
+    )?;
+    let mut consumer = Consumer {
+        program: &original,
+        ir,
+        db,
+        catalog,
+        nodes: HashMap::new(),
+        steps: 0,
+        count: 0,
+    };
+    for (_, tree) in &trees {
+        consumer.index(tree)?;
+    }
+    consumer.steps = 0;
+    let predicates = if policy.where_predicate.is_some() {
+        let IrExpr::Binary {
+            op: IrBinOp::And,
+            left,
+            right,
+        } = &rule.pred.expr
+        else {
+            return None;
+        };
+        vec![left.as_ref(), right.as_ref()]
+    } else {
+        vec![&rule.pred]
+    };
+    if sites.len() != predicates.len() {
+        return None;
+    }
+    for (site, predicate) in sites.iter().zip(predicates) {
+        if predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+            || !consumer.origin(&site.source, site.node, symbol.module)
+        {
+            return None;
+        }
+        // Shorthand grants may lower to synthetic context calls. They have no
+        // selected authored call; the whole predicate was joined above.
+        if !site.calls.is_empty() {
+            let mut matched = HashSet::new();
+            consumer.expression(predicate, &[], &mut HashSet::new(), site, &mut matched, 0)?;
+            if matched.len() != site.calls.len() {
+                return None;
+            }
+        }
+    }
+    let module = original.modules.get(symbol.module.0 as usize)?;
+    let owner = if super::ir::model_rule_prefix(&original, symbol) == symbol.canonical {
+        rule.id.clone()
+    } else {
+        format!("{}.{}", module.name, rule.id)
+    };
+    serialize_sites(&original, ir, db, sites, Some(&owner))
+}
+
+/// Named-page stored-model collection predicates at their original query sites.
+/// The collection factory erases its Query carrier into `model`/`where` props;
+/// original CST/query facts and fresh render correspondence retain that owner.
+pub fn serialize_read_predicate_sources(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Option<Vec<SerialDecisionSite>> {
+    program.validate_cohort(db, catalog).ok()?;
+    let (original, diagnostics) =
+        crate::analysis::check_program(db, program.checked_files(), catalog);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        || ir.modules.len() != fresh.modules.len()
+    {
+        return None;
+    }
+    let mut trees = Vec::new();
+    for &file in original.checked_files() {
+        let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        {
+            return None;
+        }
+        trees.push((file, tree));
+    }
+    let mut diagnostics = Vec::new();
+    let resolved =
+        crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
+            .ok()?;
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut nodes = HashMap::new();
+    let mut consumer = Consumer {
+        program: &original,
+        ir,
+        db,
+        catalog,
+        nodes: HashMap::new(),
+        steps: 0,
+        count: 0,
+    };
+    for (_, tree) in &trees {
+        consumer.index(tree)?;
+        for node in tree.descendants() {
+            if nodes.len() >= 200000 {
+                return None;
+            }
+            nodes.insert(NodeKey::of(node), node);
+        }
+    }
+    consumer.steps = 0;
+    let mut join = SemanticJoin {
+        program: &original,
+        actual: ir,
+        expected: &fresh,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    let mut output = Vec::new();
+    let mut call_count = 0usize;
+    for (module, expected_module) in ir.modules.iter().zip(&fresh.modules) {
+        if module.id != expected_module.id
+            || module.name != expected_module.name
+            || module.file != expected_module.file
+            || module.span != expected_module.span
+            || module.pages.len() != expected_module.pages.len()
+        {
+            return None;
+        }
+        for (page, expected_page) in module.pages.iter().zip(&expected_module.pages) {
+            if page.owner != expected_page.owner
+                || page.fn_name != expected_page.fn_name
+                || page.descriptor_name != expected_page.descriptor_name
+                || page.path != expected_page.path
+                || page.span != expected_page.span
+                || page.render.len() != expected_page.render.len()
+                || page.admit.len() != expected_page.admit.len()
+            {
+                return None;
+            }
+            join.message(&page.title, &expected_page.title, 0)?;
+            for (actual, expected) in page.admit.iter().zip(&expected_page.admit) {
+                join.guard(actual, expected, 0)?;
+            }
+            for (actual, expected) in page.render.iter().zip(&expected_page.render) {
+                join.ui(actual, expected, 0)?;
+            }
+            let page_key = NodeKey {
+                file: page.span.file,
+                start: page.span.start,
+                end: page.span.end,
+                kind: SyntaxKind::Page as u8,
+            };
+            if nodes.get(&page_key)?.kind != SyntaxKind::Page {
+                return None;
+            }
+            let owner = format!("{}.{}", page.owner, page.fn_name);
+            let mut pending = page.render.iter().rev().collect::<Vec<_>>();
+            while let Some(ui) = pending.pop() {
+                pending.extend(ui.children.iter().rev());
+                if !matches!(ui.factory.as_str(), "list" | "table" | "calendar") {
+                    continue;
+                }
+                let mut predicates = ui.props.iter().filter(|(name, _)| name == "where");
+                let Some((_, predicate)) = predicates.next() else {
+                    continue;
+                };
+                if predicates.next().is_some() {
+                    return None;
+                }
+                let IrExpr::Lambda { body, .. } = &predicate.expr else {
+                    return None;
+                };
+                let ui_key = NodeKey {
+                    file: ui.span.file,
+                    start: ui.span.start,
+                    end: ui.span.end,
+                    kind: SyntaxKind::Collection as u8,
+                };
+                let source_ui = nodes.get(&ui_key)?;
+                let query = crate::analysis::kids(source_ui)
+                    .into_iter()
+                    .find(|child| child.kind == SyntaxKind::Query)?;
+                let site = crate::analysis::scenario_disclosure::checked_read_predicate_site(
+                    db,
+                    &trees,
+                    &resolved,
+                    &original.types,
+                    &original.effects,
+                    module.id,
+                    page_key,
+                    NodeKey::of(query),
+                )?;
+                if !consumer.same(site.node, body.span)
+                    || body.ty != ResolvedType::Scalar(Scalar::Bool)
+                    || !consumer.origin(&site.source, site.node, module.id)
+                {
+                    return None;
+                }
+                let mut matched = HashSet::new();
+                consumer.expression(body, &[], &mut HashSet::new(), &site, &mut matched, 0)?;
+                if matched.len() != site.calls.len() {
+                    return None;
+                }
+                call_count = call_count.checked_add(site.calls.len())?;
+                if output.len() >= 200 || call_count > 200 {
+                    return None;
+                }
+                output.extend(serialize_sites(
+                    &original,
+                    ir,
+                    db,
+                    vec![site],
+                    Some(&owner),
+                )?);
+            }
+        }
+    }
+    Some(output)
+}
+
+fn serialize_sites(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    sites: Vec<CheckedDecisionSite>,
+    owner_override: Option<&str>,
+) -> Option<Vec<SerialDecisionSite>> {
     let canonical = |id: crate::analysis::resolve::SymbolId| -> Option<String> {
         let item = ir.items.get(id.0 as usize)?;
         let symbol = program.symbols.get(id.0 as usize)?;
@@ -1316,12 +1829,18 @@ pub fn serialize_decision_sources(
         output.push(SerialDecisionSite {
             version: 1,
             source: serial_source(site.source),
-            owner: canonical(site.owner)?,
+            owner: match owner_override {
+                Some(owner) => owner.to_owned(),
+                None => canonical(site.owner)?,
+            },
             node: serial_node(site.node),
             statement: serial_node(site.statement),
             stage: match site.stage {
                 Stage::LeadingRequire => "leading-require",
                 Stage::BodyRequire => "body-require",
+                Stage::BodyCondition => "body-condition",
+                Stage::ReadPolicy => "read-policy",
+                Stage::ReadPredicate => "read-predicate",
                 Stage::SendDispatch => "send-dispatch",
             }
             .into(),

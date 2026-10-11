@@ -294,6 +294,9 @@ pub(crate) struct CheckedStoredContractField {
 pub enum CheckedDecisionStage {
     LeadingRequire,
     BodyRequire,
+    BodyCondition,
+    ReadPolicy,
+    ReadPredicate,
     SendDispatch,
 }
 
@@ -671,6 +674,215 @@ pub fn analyze_scenario_disclosure(
         }
     }
     out
+}
+
+/// Collect original read/where expressions from a clean checked source cohort.
+/// The ordinal belongs to the owning model's authored policy order. These
+/// bounded facts identify selected calls and grant no runtime authority.
+pub fn checked_read_decision_sites(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    resolve: &ResolveTables,
+    types: &TypeTable,
+    effects: &EffectTables,
+    model: SymbolId,
+    ordinal: usize,
+) -> Option<Vec<CheckedDecisionSite>> {
+    let declaration = resolve.symbols.get(model.0 as usize)?;
+    let data = effects.models.get(&model)?;
+    let policy = data.policies.get(ordinal)?;
+    if declaration.id != model
+        || data.model != model
+        || !matches!(declaration.kind, SymbolKind::Model { .. })
+        || declaration.module != data.module
+        || policy.module != data.module
+    {
+        return None;
+    }
+    let mut nodes = HashMap::new();
+    let mut pending = trees
+        .iter()
+        .map(|(_, tree)| (tree, 0usize))
+        .collect::<Vec<_>>();
+    while let Some((node, depth)) = pending.pop() {
+        if nodes.len() >= 200000 || depth > 256 {
+            return None;
+        }
+        nodes.insert(NodeKey::of(node), node);
+        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
+    }
+    let node = nodes.get(&policy.node)?;
+    let text = &db.get(policy.node.file)?.text;
+    if node.kind != SyntaxKind::Policy
+        || super::attribute_value(node, "read", text).map(NodeKey::of) != policy.read
+        || super::attribute_value(node, "where", text).map(NodeKey::of) != policy.where_predicate
+    {
+        return None;
+    }
+    let cx = Closure {
+        db,
+        resolve,
+        types,
+        effects,
+        nodes,
+        stack: HashSet::new(),
+        steps: 0,
+        depth: 0,
+        statement_depth: 0,
+        authorization: false,
+        effect_proofs: Vec::new(),
+        effect_visits: 0,
+        loop_node: None,
+        complete_children: HashSet::new(),
+    };
+    let mut sites = Vec::new();
+    let mut steps = 0;
+    let mut call_count = 0;
+    for key in std::iter::once(policy.read?).chain(policy.where_predicate) {
+        if key.file != policy.node.file
+            || key.start < policy.node.start
+            || key.end > policy.node.end
+            || key.start >= key.end
+            || types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        let mut calls = Vec::new();
+        cx.checked_decision_expression(
+            key,
+            policy.module,
+            &[],
+            &mut HashSet::new(),
+            &mut calls,
+            &mut steps,
+            &mut call_count,
+            0,
+        )?;
+        sites.push(CheckedDecisionSite {
+            owner: model,
+            source: cx.source(policy.module, key).ok()?,
+            node: key,
+            statement: policy.node,
+            stage: CheckedDecisionStage::ReadPolicy,
+            position: Vec::new(),
+            calls,
+        });
+    }
+    Some(sites)
+}
+
+/// Original named-page model-query predicate, separate from policy grants.
+/// Transitive call facts retain their actual selected expression provenance.
+#[allow(clippy::too_many_arguments)]
+pub fn checked_read_predicate_site(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    resolve: &ResolveTables,
+    types: &TypeTable,
+    effects: &EffectTables,
+    module: ModuleId,
+    page: NodeKey,
+    query: NodeKey,
+) -> Option<CheckedDecisionSite> {
+    let checked = types.checked_queries.get(&query)?;
+    let ResolvedType::Array { element, .. } = &checked.domain_type else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: owner,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    let owner = *owner;
+    if !matches!(
+        resolve.symbols.get(owner.0 as usize)?.kind,
+        SymbolKind::Model { .. }
+    ) || !effects
+        .modules
+        .get(&module)?
+        .pages
+        .iter()
+        .any(|candidate| candidate.node == page)
+        || query.file != page.file
+        || query.start < page.start
+        || query.end > page.end
+    {
+        return None;
+    }
+    let mut clauses = checked
+        .clauses
+        .iter()
+        .filter(|clause| matches!(clause.kind, CheckedQueryClauseKind::Where));
+    let clause = clauses.next()?;
+    let [predicate] = clause.expressions.as_slice() else {
+        return None;
+    };
+    if clauses.next().is_some()
+        || types.node_types.get(predicate) != Some(&ResolvedType::Scalar(Scalar::Bool))
+    {
+        return None;
+    }
+    let mut nodes = HashMap::new();
+    let mut pending = trees
+        .iter()
+        .map(|(_, tree)| (tree, 0usize))
+        .collect::<Vec<_>>();
+    while let Some((node, depth)) = pending.pop() {
+        if nodes.len() >= 200000 || depth > 256 {
+            return None;
+        }
+        nodes.insert(NodeKey::of(node), node);
+        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
+    }
+    if nodes.get(&page)?.kind != SyntaxKind::Page
+        || nodes.get(&query)?.kind != SyntaxKind::Query
+        || nodes.get(&clause.node)?.kind != SyntaxKind::QueryClause
+        || predicate.file != query.file
+        || predicate.start < query.start
+        || predicate.end > query.end
+    {
+        return None;
+    }
+    let cx = Closure {
+        db,
+        resolve,
+        types,
+        effects,
+        nodes,
+        stack: HashSet::new(),
+        steps: 0,
+        depth: 0,
+        statement_depth: 0,
+        authorization: false,
+        effect_proofs: Vec::new(),
+        effect_visits: 0,
+        loop_node: None,
+        complete_children: HashSet::new(),
+    };
+    let mut calls = Vec::new();
+    let mut steps = 0;
+    let mut count = 0;
+    cx.checked_decision_expression(
+        *predicate,
+        module,
+        &[],
+        &mut HashSet::new(),
+        &mut calls,
+        &mut steps,
+        &mut count,
+        0,
+    )?;
+    Some(CheckedDecisionSite {
+        owner,
+        source: cx.source(module, *predicate).ok()?,
+        node: *predicate,
+        statement: query,
+        stage: CheckedDecisionStage::ReadPredicate,
+        position: Vec::new(),
+        calls,
+    })
 }
 
 fn checked_source_type(ty: &ResolvedType) -> bool {
@@ -2586,6 +2798,7 @@ impl<'a> Closure<'a> {
                 EffectVerb::Send => effect
                     .when
                     .map(|node| (node, CheckedDecisionStage::SendDispatch)),
+                EffectVerb::If => Some((effect.cond?, CheckedDecisionStage::BodyCondition)),
                 _ => None,
             };
             if let Some((node, stage)) = decision {

@@ -58,6 +58,35 @@ use crate::source::{SourceDb, SourceId, Span, sha256_hex};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 use std::collections::{HashMap, HashSet};
 
+/// Composed models with the same local name need distinct rule registry keys.
+/// Preserve existing keys for models whose local name has one checked owner.
+pub(crate) fn model_rule_prefix<'a>(
+    program: &CheckedProgram,
+    symbol: &'a crate::analysis::resolve::Symbol,
+) -> &'a str {
+    if program.symbols.iter().any(|other| {
+        other.id != symbol.id
+            && other.name == symbol.name
+            && matches!(other.kind, SymbolKind::Model { .. })
+    }) {
+        &symbol.canonical
+    } else {
+        &symbol.name
+    }
+}
+
+pub(crate) fn ir_model_rule_prefix<'a>(ir: &IrProgram, item: &'a IrItem) -> &'a str {
+    if ir.items.iter().any(|other| {
+        other.id != item.id
+            && other.name == item.name
+            && matches!(other.kind, IrItemKind::Model { .. })
+    }) {
+        &item.canonical
+    } else {
+        &item.name
+    }
+}
+
 /// One `use provider {members} [from=binding]` group, verbatim.
 #[derive(Debug, Clone)]
 pub struct IrImport {
@@ -7830,7 +7859,10 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
                 work.extend(params.iter().filter_map(|param| param.default.as_ref()));
             }
             IrExpr::Format { args, .. } => work.extend(args),
-            IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
+            IrExpr::HasRole {
+                person: Some(_), ..
+            } => return true,
+            IrExpr::HasRole { person: None, .. } => {}
             IrExpr::Lambda { body, .. } => work.push(body),
             IrExpr::JudgmentSpecification { options, .. } => work.extend(options.as_deref()),
             IrExpr::Int(_)
@@ -8766,7 +8798,11 @@ impl<'a> Cx<'a> {
             .map(|(index, policy)| {
                 let public = self.is_explicit_public_read(policy);
                 IrGrant {
-                    rule: format!("{}.read.{}", symbol.name, index + 1),
+                    rule: format!(
+                        "{}.read.{}",
+                        model_rule_prefix(self.program, symbol),
+                        index + 1
+                    ),
                     fields: policy.fields.clone(),
                     public,
                 }
@@ -8776,13 +8812,25 @@ impl<'a> Cx<'a> {
             .invariants
             .iter()
             .enumerate()
-            .map(|(index, _)| format!("{}.require.{}", symbol.name, index + 1))
+            .map(|(index, _)| {
+                format!(
+                    "{}.require.{}",
+                    model_rule_prefix(self.program, symbol),
+                    index + 1
+                )
+            })
             .collect();
         let locks = data
             .locks
             .iter()
             .enumerate()
-            .map(|(index, _)| format!("{}.lock.{}", symbol.name, index + 1))
+            .map(|(index, _)| {
+                format!(
+                    "{}.lock.{}",
+                    model_rule_prefix(self.program, symbol),
+                    index + 1
+                )
+            })
             .collect();
         let scope = Scope::module(symbol.module);
         let uniques = data
@@ -10173,14 +10221,22 @@ impl<'a> Cx<'a> {
                     };
                     if ordinary_read_policy(policy) {
                         read_rules.push(IrRuleFn {
-                            id: format!("{}.read.{}", symbol.name, index + 1),
+                            id: format!(
+                                "{}.read.{}",
+                                model_rule_prefix(self.program, &symbol),
+                                index + 1
+                            ),
                             pred: pred.clone(),
                             span,
                             origin: None,
                         });
                     }
                     if !policy.callback_fields.is_empty() {
-                        let id = format!("{}.callbackRead.{}", symbol.name, index + 1);
+                        let id = format!(
+                            "{}.callbackRead.{}",
+                            model_rule_prefix(self.program, &symbol),
+                            index + 1
+                        );
                         if let Some(entries) = self.checked_callback_policy(&symbol, policy, &id) {
                             for entry in &entries {
                                 self.callback_sources.push(entry.source.clone());
@@ -10221,7 +10277,11 @@ impl<'a> Cx<'a> {
                         continue;
                     };
                     invariants.push(IrRuleFn {
-                        id: format!("{}.require.{}", symbol.name, index + 1),
+                        id: format!(
+                            "{}.require.{}",
+                            model_rule_prefix(self.program, &symbol),
+                            index + 1
+                        ),
                         pred,
                         span,
                         origin: Some(IrModelRuleOrigin {
@@ -10231,7 +10291,11 @@ impl<'a> Cx<'a> {
                             node: invariant.node,
                             span,
                             kind: IrModelRuleKind::Invariant,
-                            registry_id: format!("{}.require.{}", symbol.name, index + 1),
+                            registry_id: format!(
+                                "{}.require.{}",
+                                model_rule_prefix(self.program, &symbol),
+                                index + 1
+                            ),
                         }),
                     });
                 }
@@ -10246,7 +10310,11 @@ impl<'a> Cx<'a> {
                     };
                     let span = Span::new(unique.node.file, unique.node.start, unique.node.end);
                     invariants.push(IrRuleFn {
-                        id: format!("{}.unique.{}", symbol.name, index + 1),
+                        id: format!(
+                            "{}.unique.{}",
+                            model_rule_prefix(self.program, &symbol),
+                            index + 1
+                        ),
                         pred: self.decode_anchored(
                             &scope,
                             key,
@@ -10259,7 +10327,11 @@ impl<'a> Cx<'a> {
                 for (index, lock) in data.locks.iter().enumerate() {
                     let span = Span::new(lock.node.file, lock.node.start, lock.node.end);
                     locks.push(IrLockFn {
-                        id: format!("{}.lock.{}", symbol.name, index + 1),
+                        id: format!(
+                            "{}.lock.{}",
+                            model_rule_prefix(self.program, &symbol),
+                            index + 1
+                        ),
                         fields: lock.fields.clone(),
                         when: lock.when.as_ref().map(|key| {
                             self.decode_anchored(
@@ -10276,7 +10348,11 @@ impl<'a> Cx<'a> {
                             node: lock.node,
                             span,
                             kind: IrModelRuleKind::Lock,
-                            registry_id: format!("{}.lock.{}", symbol.name, index + 1),
+                            registry_id: format!(
+                                "{}.lock.{}",
+                                model_rule_prefix(self.program, &symbol),
+                                index + 1
+                            ),
                         },
                     });
                 }
@@ -10291,7 +10367,7 @@ impl<'a> Cx<'a> {
                     });
                     if let Some(body) = body {
                         retention.push(IrNamedFn {
-                            name: symbol.name.clone(),
+                            name: model_rule_prefix(self.program, &symbol).to_string(),
                             body,
                             span,
                         });
