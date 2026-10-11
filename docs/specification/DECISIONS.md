@@ -8866,3 +8866,20 @@ original browser/persistence/dispatch qualification remain with their owners;
 this finite result does not accept the whole application.
 
 Coordinator finite independent source review CLEAR for checked update default fields/schema order, server/nonallowed exclusions, protected own-row/version/occurrence scope and refusal controls. Owning124 affected/strict0 reused. Stop the satisfied bare-editor producer/rendering scope; authored checkbox remainder, genuine browser/mutation/application and precise holds remain open.
+
+
+## 2026-10-11 — connect collapse through the existing Details contract
+
+Implemented/tested: the catalog spelling `collapse` and compatibility spelling
+`details` share their existing disclosure decoder and installed UI factory, as
+UI-COMPONENTS147 already specifies. Preserve the checked required caption,
+open/id options, original scoped children/order and gate. Resolve/type the
+catalog open expression through the same lexical path as Details, including
+owning preference fields; do not infer or coerce types during emission. Direct
+slots remain unsupported rather than flattening into the disclosure body.
+
+Actual generated native rendering covers captions/localization, dynamic and
+preference/row options, original scope and false-gate nonevaluation. Unchanged
+CanBook IR preserves both uses of its original Appointment disclosure. Its
+query/calendar/body and real application qualification remain with their exact
+owning prerequisites; nullable `content` retains its separate refusal.
