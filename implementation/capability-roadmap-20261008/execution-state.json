@@ -716,9 +716,83 @@
         "status": "Genuine page artifact through matching CLI compile0; Contracts/Interfaces/CF emits0 reused; affected existing native Generation case1/1 in23.18s. Package owns scoped9-path commit. Original full lifecycle/profile gates retained; no full task credit."
       },
       "worker_update": {
-        "state": "existing_native_page_component_whole_original_journey_blocked",
-        "prerequisite": "Checked task11/conditional-read policy producers, followed by complete original CanCreative/CanChat action/gallery/obsolete-attempt browser journey with actual provider profile. Exact draft5a12eb9e is available; existing generated native page/receipt and typed lifecycle components are reused.",
-        "owner": "Compiler/Contracts/State defining policy owners and provider profile owner; original UI/application preparation and consumer remain this worker."
+        "state": "original_source_action_comparison_prepared_runtime_owned_prerequisites_pending",
+        "prerequisite": "Finite original CC-14/CH-11 source/action mapping below is complete. Missing exact checked original conditional policy/derive/containment/action outputs belong to Compiler, genuine same-source installed page/authority/receipt binding and browser outcomes to Dev, authentic Images/Text progress/usage/assets to Services/Files. Only named presentation gaps below need a defining source/shared-outlet decision; no owner-wide wait or new State/UI framework.",
+        "owner": "Compiler/Contracts/State defining policy owners and provider profile owner; original UI/application preparation and consumer remain this worker.",
+        "source_action_comparison": {
+          "state": "complete_at_original_source_action_preparation_scope_runtime_blocked",
+          "scope": "Finite original CC-14/CH-11 source/action comparison, including CC-12/13 and CH-09/10 where their lifecycle/output/authority criteria feed the pages. Source preparation only; no original browser/provider execution or whole-task acceptance.",
+          "source": "Read original CanCreative.can/.md and CanChat.can/.md from registered draft Git object5a12eb9ebb136ffa4e5ce352663f92affba25bc2; held private draft checkout remains untouched. Existing creative-chat-matrix/focused/common cases retain all runtime dimensions.",
+          "creative": [
+            {
+              "sites": "draft/CanCreative.can:15,18-31,187-212; .md:21,27,39",
+              "binding": "/creative members form/list: authored generate inputs, can_view Run filter, separate submission/stop/recovery receipts, progress-derived state/detail, business used/stop_requested/unfinished loading, paginated ordered finalized Output and Budget. Null progress/usage remains null/unavailable, never inferred queued/terminal/zero. Current conditional Run/Output grants gate prompt/image leaves."
+            },
+            {
+              "sites": "draft/CanCreative.can:119-123,213-235; .md:19,40",
+              "binding": "/creative/from-chat paginated readable active Conversation→Branch→Turn bubbles; from_turn binds exact current Turn, rechecks can_use and explicitly calls generate with frozen content/conversation. Polling never generates."
+            },
+            {
+              "sites": "draft/CanCreative.can:125-141,236-242; .md:25,27,41",
+              "binding": "Studio/recovery bind exact current Run. stop requires author,unfinished,no pending cancellation; reconcile author,(unfinished or usednull),no pending reconciliation; release_skipped author,skipped request,no progress,usednull,unfinished. Safe recovery contains status/accounting, no revoked prompt/graph/output; stop intent never forces terminal state/zero charge."
+            },
+            {
+              "sites": "draft/CanCreative.can:24-28,60-85,243-287; .md:7-13,42",
+              "binding": "Manager workflows route: grouped Template upload/mapping/limits/create/edit/inspect, candidate list, validate, immutable Revision/publish and Budget admin. Current template/revision owner/active/published/validation-digest guards remain; manager role grants no private Run/chat content."
+            },
+            {
+              "sites": "draft/CanCreative.can:101-104,157-172,208; .md:23,35; draft/CanGallery.can:40-45,105",
+              "binding": "Distinct operation.id-derived Run/source and locked request/revision; callback joins original request.id==event.delivery_id, never another visible Run. Authorized finalized failed/unknown outputs can remain private recovery images. Downstream gallery review additionally requires readable succeeded parent; original studio is not missing that downstream guard and CanGallery is outside this witness."
+            }
+          ],
+          "reused_inputs": [
+            "Accepted generated canonical forms/current-reference/draft polling and page receipt-observer components are reused. Existing typed-generation-progress.can50-76 and native runtime/typed-generation-progress.test.ts146-162,356-367,635-676,1058-1062 cover installed null/queued/running/succeeded/failed/unknown/cancelled page states, current association/obsolete-attempt withholding and membership refusal. Recorded controlled-provider actual Text1/1 and Images1/1 nativeD1/receivingSQLite scopes are retained; no rerun or original-page acceptance.",
+            "selected-page-refresh/report.md remains historical Memory/synthetic-identity/fixed-context evidence. CC-14/CH-11 plus G-BROW-01/02 still require actual original browser focus/drafts/conflict/denial/accessibility/reconnect and no automatic resubmission."
+          ],
+          "missing_outputs": [
+            {
+              "owner": "Compiler",
+              "sites": "Creative18-31,60-85,93-104,119-141,187-287; Chat15-29,56-83,104-149,186-278",
+              "output": "Checked original conditional can_view/can_use/imported derive/row+leaf policy/containment and page query/action-call/argument/guard closure. Preserve actor/current Team/parent facts and safe-recovery leaves, ordered rules/locks and canonical final admission. Need used original closure, not entire compiler plan or actor-only substitutes."
+            },
+            {
+              "owner": "Dev",
+              "sites": "Original generated lifecycle descriptors and request/stop/reconcile associations",
+              "output": "Same-source installed bindings to current State/Identity/receipt/File authority and exact row+version canonical forms, including obsolete versus replacement association and revoke/reconnect. Original browser draft/focus/error criteria remain distinct from returned HTML/native component checks."
+            },
+            {
+              "owner": "Services/provider profile and Files",
+              "sites": "Creative103,157-172,208; Chat76-83,153-167,224-234; existing SEQ021/022/024",
+              "output": "Authentic account/model/tokenizer/version/enforceable-limit profile and associated progress/usage/targeted control/reconcile; finalized immutable receiving bytes and current thumbnail/download authority. Required real outcomes, no provider activation or held preparation authorization."
+            },
+            {
+              "owner": "App/source decision via coordinator; Compiler/Dev shared presentation owners",
+              "sites": "Creative29-30,202-206,239-242; Chat18,28-29,225-234,246-249; UI leaves.ts128-139",
+              "output": "Exact existing failure outlet/necessary original source placement for granted request/cancellation/reconciliation errors and business callback failure. Cards explicitly render receipt-status enums and provider detail; current status component receives value/caption and cannot by itself add omitted receipt error leaves. Resolve this finite existing CC-14/CH-11 failure requirement before a source correction; do not infer callback success from visible verified progress."
+            }
+          ],
+          "validation": "One final read-only source-anchor and record preservation check: original pinned page/receipt/progress/action/policy/gallery joins mapped; only SEQ025.worker_update changed. All63 coordinator task top fields, accepted33/63, accepted component results and holds retained. No product check/build, consultation or runtime acceptance; unchanged results reused.",
+          "chat": [
+            {
+              "sites": "draft/CanChat.can:14-29,186-240; .md:11,21,35",
+              "binding": "/chat members: open form; paginated active conversations/branch drawers; frozen prefix and ordered Turn bubbles/files; change_title,regenerate on exact Turn, inline ask with generated attachments; ordered Run cards. state/partial/detail derive original request.progress; submission/stop/recovery receipt statuses render separately, with reserved/used/stop_requested/unfinished loading. Current can_use/parent/leaf grants govern transcript/partial/files, not manager status or a cached reference."
+            },
+            {
+              "sites": "draft/CanChat.can:66-83,104-110,117-133,153-167,219-238",
+              "binding": "ask freezes source/revision/profile/transcript/budget then associates request to new Run. regenerate requires currently readable terminal user Turn, creates new Branch/prefix/origin and calls ask. Original callback selects exact delivery and appends successful assistant Turn only to original run.parent, unique per run. Cards bind own unfinished/no-pending-stop, own(unfinished or usednull)/no-pending-reconcile, exact skipped/no-progress/usednull/unfinished release. Old completion never becomes replacement Branch content."
+            },
+            {
+              "sites": "draft/CanChat.can:25-29,135-149,241-278; .md:21,25,35,37",
+              "binding": "/chat/recovery members selects unfinished or usednull with safe own status/accounting, current controls and no revoked transcript/partial/files. /chat/admin ai_manager has grouped ModelProfile/Allowance create/bounded edits and pagination, no private chat grant. CanChat has no gallery/export/publication page; readable Turn is the composition input, only succeeded progress creates final assistant content. Shared focus/draft/conflict/error/reconnect behavior is required intent, not authored executable draft storage."
+            }
+          ],
+          "source_gaps": [
+            "Receipt error leaves are granted in both originals but not explicitly placed in the lifecycle cards/recovery. Their status enum/provider detail alone does not provide the required failed-receipt/business-callback diagnostic; exact existing shared outlet versus necessary original source placement remains the named defining decision, with held draft untouched.",
+            "Chat18 partial uses progress.content??emptytext, rendered233. No authored presence/incomplete caption distinguishes absent from legitimate empty content. State/current policy must withhold the whole denied derived leaf before fallback, not turn revocation into an authorized empty response. Existing state badge distinguishes null/nonterminal/unknown/terminal, but exact shared unavailable/incomplete presentation needs original browser proof; no new output-presence field/framework is selected.",
+            "No missing current action guard or successful-gallery guard is inferred solely from action/component presence: canonical guards and downstream review eligibility already exist. Actual generated guard/current-ref/draft behavior and private recovery-output grants remain required consumer outcomes."
+          ],
+          "source_review": "Coordinator finite source preparation review: original frozen Creative/Chat page sites, granted request/cancellation/reconciliation error leaves, independent provider progress and existing canonical actionguards agree with their declared CC14/CH11 failure/recovery intent. Original source/card status components do not place those granted errors automatically. This accepts only the named source/action preparation; the exact failure outlet/business-callback diagnostic decision, checked original policy/parent bindings, same-source installed browser and authentic provider/File outputs remain open under named owners. Held draft and all63 task top-level/33 accepted-stage fields remain unchanged; no runtime acceptance or new source mechanism."
+        }
       }
     },
     {
