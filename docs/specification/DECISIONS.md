@@ -11350,3 +11350,20 @@ the existing TV02/TEW01 criterion at its stated scope; broader E02, selected
 consumer provenance and native adoption remain separate.
 
 Coordinator defining review CLEAR and finite LOCAL main intake after deadline. Independent defining review CLEAR: restore original optional error fields in donor declaration order and enumerable undefined values; complete actual own-key/order comparator rejects real observation mutations. Reuse74 scopes (45 unchanged plus29 affected rerun) and owning Node24 checks. Actual changed MAIN Work-kernel/root emission0. This closes original TV02/TEW01 only; no VERIFY-TV01, native or broader E02 acceptance. Full-plan/parent counts and complete filetree checkpoint remain unchanged.
+
+## 2026-10-11 — Shared independent rounding oracle (EC04 criterion implemented)
+
+Share the existing identical half-even digit-string rounding algorithm between
+Decimal and Money tests through one test-only helper. Preserve its algorithm,
+seeded vectors and literal coefficient/scale/error assertions; do not derive
+expected results from production rounding. Existing BigInt/string/Decimal.js
+oracle roles remain unchanged. This removes duplicated test code and establishes
+no production savings or native adoption.
+
+Node24 Values emission and final root types pass. Run only the four affected
+original seeded property consumers: all pass; independent finite source review
+is clear. Stop this existing EC04 criterion and reuse unrelated checks. Other
+named E02 source/loader/type/installed gates retain their defining owners and
+precise holds; the broader parent remains unfinished.
+
+Coordinator defining review CLEAR and finite LOCAL main intake after deadline. Independent defining review CLEAR: identical half-even digit-string oracle extracted test-only, exact seeds/vectors/assertions and independent roles retained. Reuse owning4 affected seeded consumers and normal Values/root checks; no production byte change or savings, no unchanged rerun. This closes original EC04 only; broader E02/installed/native criteria and exact holds remain. Full-plan/parent counts and complete filetree checkpoint remain unchanged.
