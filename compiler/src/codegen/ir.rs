@@ -47,8 +47,9 @@ use crate::analysis::resolve::{
     ModuleKind, SymbolId, SymbolKind,
 };
 use crate::analysis::types::{
-    CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionMapping, ResolvedType, Scalar,
-    SelectedCall, SelectedCallTarget,
+    CheckedGenerationCallbackObservation, CheckedGenerationCallbackSource, CheckedQuery,
+    CheckedQueryClauseKind, CheckedQueryProjectionMapping, ResolvedType, Scalar, SelectedCall,
+    SelectedCallTarget,
 };
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
@@ -338,6 +339,147 @@ pub struct IrGrant {
     pub public: bool,
 }
 
+/// A source-owned protected grant; only the checked builder constructs entries.
+#[derive(Debug, Clone)]
+pub struct CheckedCallbackGrant {
+    source: CheckedGenerationCallbackSource,
+    selector: NodeKey,
+    policy: NodeKey,
+    rule: String,
+    field: String,
+}
+
+impl CheckedCallbackGrant {
+    pub fn model(&self) -> SymbolId {
+        self.source.model
+    }
+    pub fn field(&self) -> &str {
+        &self.field
+    }
+    pub fn rule(&self) -> &str {
+        &self.rule
+    }
+    pub fn fields(&self) -> &[String] {
+        &[]
+    }
+}
+
+/// Immutable checked correspondence for protected policies and reads.
+/// Default contains no authority and cannot validate a protected observation.
+#[derive(Debug, Clone, Default)]
+pub struct CheckedCallbackGrants {
+    entries: Vec<CheckedCallbackGrant>,
+    reads: Vec<String>,
+    value_lists: Vec<String>,
+    modules: Vec<(ModuleId, String)>,
+    rules: Option<String>,
+}
+
+impl CheckedCallbackGrants {
+    fn matches(&self, ir: &IrProgram) -> bool {
+        self.modules.len() == ir.modules.len()
+            && ir
+                .items
+                .iter()
+                .all(|item| ir.modules.iter().any(|module| module.id == item.module))
+            && self
+                .rules
+                .as_ref()
+                .is_some_and(|rules| *rules == callback_rule_snapshot(ir))
+            && self.entries.iter().all(|entry| {
+                entry.selector.file == entry.policy.file
+                    && entry.selector.start >= entry.policy.start
+                    && entry.selector.end <= entry.policy.end
+            })
+            && self.modules.iter().all(|(module, snapshot)| {
+                ir.modules.get(module.0 as usize).is_some()
+                    && *snapshot == callback_module_snapshot(ir, *module)
+            })
+    }
+
+    /// Admit only original checked copied-value lists and diagnostic display cards.
+    pub fn matches_value_list(&self, ir: &IrProgram, node: &IrUi) -> bool {
+        let shape = match node.factory.as_str() {
+            "callbackValueList" => node
+                .props
+                .iter()
+                .all(|(name, _)| matches!(name.as_str(), "values" | "empty")),
+            "callbackValueCard" => node.props.is_empty() && node.row_scope.is_none(),
+            _ => false,
+        };
+        shape && self.matches(ir) && self.value_lists.contains(&format!("{node:?}"))
+    }
+
+    /// Emit only original source grants whose lowered owner closure is intact.
+    pub fn iter_checked<'a>(
+        &'a self,
+        ir: &IrProgram,
+    ) -> Option<impl Iterator<Item = &'a CheckedCallbackGrant>> {
+        if self.entries.is_empty() && self.reads.is_empty() && self.value_lists.is_empty() {
+            return Some(self.entries.iter());
+        }
+        self.matches(ir).then(|| self.entries.iter())
+    }
+}
+
+fn callback_rule_snapshot(ir: &IrProgram) -> String {
+    format!("{:?}\n{:?}", ir.read_rules, ir.callback_read_rules)
+}
+
+fn callback_module_snapshot(ir: &IrProgram, module: ModuleId) -> String {
+    format!(
+        "{:?}\n{:?}",
+        ir.modules.get(module.0 as usize),
+        ir.items
+            .iter()
+            .filter(|item| item.module == module)
+            .collect::<Vec<_>>()
+    )
+}
+
+/// Exact checked observation. The result is read whole; arm projection stays local.
+#[derive(Debug, Clone)]
+pub struct CheckedGenerationCallbackRead {
+    observation: CheckedGenerationCallbackObservation,
+    record: String,
+    ty: ResolvedType,
+    span: Span,
+}
+
+impl CheckedGenerationCallbackRead {
+    pub fn matches(
+        &self,
+        ir: &IrProgram,
+        expr: &TypedExpr,
+        record: &TypedExpr,
+        field: &str,
+        props: &[String],
+    ) -> bool {
+        ir.callback_grants.matches(ir)
+            && ir.callback_grants.reads.contains(&format!("{self:?}"))
+            && self.record == format!("{record:?}")
+            && self.ty == expr.ty
+            && self.span == expr.span
+            && props == ["callback_diagnostics"]
+            && ir
+                .items
+                .get(self.observation.source.field.0 as usize)
+                .is_some_and(|item| item.name == field)
+            && matches!(&expr.expr, IrExpr::DeliveryRead { callback: Some(current), .. }
+                if format!("{current:?}") == format!("{self:?}"))
+    }
+}
+
+fn callback_value_array(ty: &ResolvedType) -> bool {
+    matches!(ty, ResolvedType::Array { element, .. }
+        if matches!(element.nullable_inner().unwrap_or(element), ResolvedType::StdNominal {
+            name: "GenerationCallbackDiagnosticResult" | "GenerationCallbackDiagnosticComplete" | "GenerationCallbackDiagnosticUnsupported" | "GenerationCallbackFailure", .. }))
+}
+
+fn ordinary_read_policy(policy: &PolicyRule) -> bool {
+    policy.fields_node.is_none() || !policy.fields.is_empty() || policy.callback_fields.is_empty()
+}
+
 /// One composite uniqueness constraint: sparse `uniques` member on
 /// the model entry, with a conditional predicate registered as
 /// `Model.unique.N` beside the invariants (A2b).
@@ -594,6 +736,10 @@ pub struct IrProgram {
     pub referenced_builtins: Vec<ReferencedBuiltin>,
     /// `read` registry rules in source order (G3).
     pub read_rules: Vec<IrRuleFn>,
+    /// Protected generation callback predicates, retaining original policy ordinals.
+    pub callback_read_rules: Vec<IrRuleFn>,
+    /// Private source-to-IR correspondence for protected grants and observations.
+    pub callback_grants: CheckedCallbackGrants,
     /// `invariants` registry rules in source order (G3).
     pub invariants: Vec<IrRuleFn>,
     /// `locks` registry entries in source order (G3).
@@ -711,6 +857,8 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
+        callback_read_rules: Vec::new(),
+        callback_grants: CheckedCallbackGrants::default(),
         invariants: Vec::new(),
         locks: Vec::new(),
         retention: Vec::new(),
@@ -884,6 +1032,10 @@ struct Cx<'a> {
     /// complete existing owner-policy plan qualifies native callback binding.
     native_hook_context: bool,
     native_standard_completion: bool,
+    callback_entries: Vec<CheckedCallbackGrant>,
+    callback_reads: Vec<String>,
+    callback_value_lists: Vec<String>,
+    callback_sources: Vec<CheckedGenerationCallbackSource>,
     diags: Vec<Diagnostic>,
 }
 
@@ -925,6 +1077,10 @@ impl<'a> Cx<'a> {
             page_preference_fields: Vec::new(),
             native_hook_context: false,
             native_standard_completion: false,
+            callback_entries: Vec::new(),
+            callback_reads: Vec::new(),
+            callback_value_lists: Vec::new(),
+            callback_sources: Vec::new(),
             diags: Vec::new(),
         }
     }
@@ -1173,6 +1329,8 @@ pub enum IrExpr {
         /// Checked access chain; error members project from the authorized
         /// `error` leaf locally rather than naming additional receipt leaves.
         props: Vec<String>,
+        /// Present only for an original checked protected observation.
+        callback: Option<Box<CheckedGenerationCallbackRead>>,
     },
     /// Inline message descriptor → `message(...)`.
     Message(IrMessage),
@@ -3804,6 +3962,7 @@ impl<'a> Cx<'a> {
         let modules = self.build_modules();
         // Rule maps first: preferences items read their validator names.
         let mut read_rules = Vec::new();
+        let mut callback_read_rules = Vec::new();
         let mut invariants = Vec::new();
         let mut locks = Vec::new();
         let mut retention = Vec::new();
@@ -3811,6 +3970,7 @@ impl<'a> Cx<'a> {
         let mut preferences_valid = Vec::new();
         self.build_rule_maps(
             &mut read_rules,
+            &mut callback_read_rules,
             &mut invariants,
             &mut locks,
             &mut retention,
@@ -3892,6 +4052,8 @@ impl<'a> Cx<'a> {
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,
+            callback_read_rules,
+            callback_grants: CheckedCallbackGrants::default(),
             invariants,
             locks,
             retention,
@@ -3900,6 +4062,7 @@ impl<'a> Cx<'a> {
             suites,
             migrations,
         };
+        program.callback_grants = self.seal_callback_grants(&program);
         // Establish absence from the owning original CST, never from a raw or
         // partial IR. Imported/catalog and declared structural closures remain
         // owned by the existing nonempty collector.
@@ -4749,6 +4912,8 @@ struct Scope {
     /// (query aliases, sequence bindings, test accounts). Consulted only
     /// when no published node type exists.
     name_types: HashMap<String, ResolvedType>,
+    /// Aliases introduced by an original checked diagnostic copied-value list.
+    callback_values: HashSet<String>,
     /// Whether UI decoding sits inside a field owner (`form`/`edit`):
     /// field-placement controls need one. Collections reset it (their
     /// scope ends field placement unless nested under another owner).
@@ -4774,6 +4939,7 @@ impl Scope {
             result_ty: None,
             sequence_lets: HashSet::new(),
             name_types: HashMap::new(),
+            callback_values: HashSet::new(),
             in_field_owner: false,
             field_operation: None,
             form_fields: None,
@@ -5710,6 +5876,47 @@ impl<'a> Cx<'a> {
     /// Decode member access, wrapping delivery-typed bases in the sole
     /// observation helper shape (`DeliveryRead`).
     fn decode_member(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> TypedExpr {
+        if let Some(observation) = self
+            .program
+            .types
+            .callback_diagnostic_reads()
+            .get(&NodeKey::of(node))
+            .cloned()
+        {
+            return self.decode_callback_read(scope, node, ty, observation);
+        }
+        let parts = kids(node);
+        if let Some(base) = parts.iter().find(|part| is_expression(part.kind)).copied() {
+            let mut current = base;
+            while current.kind == SyntaxKind::Member {
+                if self
+                    .program
+                    .types
+                    .callback_diagnostic_reads()
+                    .contains_key(&NodeKey::of(current))
+                {
+                    let field = parts
+                        .iter()
+                        .rev()
+                        .find_map(|part| name_text(self.db, part))
+                        .unwrap_or_default();
+                    return TypedExpr::new(
+                        IrExpr::Member {
+                            base: Box::new(self.decode_expr(scope, base)),
+                            field,
+                        },
+                        ty.clone(),
+                        node.span,
+                    );
+                }
+                let nested = kids(current);
+                let Some(next) = nested.iter().find(|part| is_expression(part.kind)).copied()
+                else {
+                    break;
+                };
+                current = next;
+            }
+        }
         if let Some((child, parent)) = self.contained_collection_head(node) {
             let parent = self.decode_expr(scope, parent);
             return TypedExpr::new(
@@ -6400,6 +6607,15 @@ impl<'a> Cx<'a> {
                 TypedExpr::new(IrExpr::Name("row".to_string()), ResolvedType::Unknown, span)
             });
         outer_fields.reverse();
+        if outer_fields
+            .iter()
+            .any(|field| field == "callback_diagnostics")
+        {
+            return IrExpr::Unsupported {
+                what: "generation callback diagnostics".to_string(),
+                why: "protected observation lacks its exact checked source fact".to_string(),
+            };
+        }
         if super::super::analysis::types::delivery_progress_alias(&self.node_type(base))
             && outer_fields
                 .first()
@@ -6411,6 +6627,7 @@ impl<'a> Cx<'a> {
             record: Box::new(record),
             field,
             props: outer_fields,
+            callback: None,
         }
     }
 
@@ -8545,6 +8762,7 @@ impl<'a> Cx<'a> {
             .policies
             .iter()
             .enumerate()
+            .filter(|(_, policy)| ordinary_read_policy(policy))
             .map(|(index, policy)| {
                 let public = self.is_explicit_public_read(policy);
                 IrGrant {
@@ -9489,6 +9707,407 @@ fn is_literal_default(expr: &TypedExpr) -> bool {
 }
 
 impl<'a> Cx<'a> {
+    /// Rejoin immutable type facts to their original declaration and every handler.
+    fn callback_source_matches(&self, source: &CheckedGenerationCallbackSource) -> bool {
+        if !source.matches(self.program) {
+            return false;
+        }
+        let Some(field) = self.program.symbols.get(source.field.0 as usize) else {
+            return false;
+        };
+        let Some(model) = self.program.symbols.get(source.model.0 as usize) else {
+            return false;
+        };
+        let Some(module) = self.program.modules.get(source.module.0 as usize) else {
+            return false;
+        };
+        if field.module != source.module
+            || model.module != source.module
+            || !matches!(field.kind, SymbolKind::Field { owner, type_node }
+                if owner == source.model && type_node == source.type_node)
+            || !matches!(model.kind, SymbolKind::Model { .. })
+        {
+            return false;
+        }
+        let Some(ty) = self.program.types.symbol_types.get(&source.field) else {
+            return false;
+        };
+        let ResolvedType::StdDelivery { capability, op } = ty.nullable_inner().unwrap_or(ty) else {
+            return false;
+        };
+        if format!("{capability}.{}", op.name) != source.canonical_operation
+            || !matches!(
+                (*capability, op.name),
+                ("std.ImagesV1", "submit") | ("std.TextGenerationV1", "generate")
+            )
+        {
+            return false;
+        }
+        let Some(mut syntax) = self.node(&source.type_node) else {
+            return false;
+        };
+        if syntax.kind == SyntaxKind::NullableType {
+            let Some(inner) = kids(syntax)
+                .into_iter()
+                .find(|node| node.kind == SyntaxKind::DeliveryType)
+            else {
+                return false;
+            };
+            syntax = inner;
+        }
+        if syntax.kind != SyntaxKind::DeliveryType {
+            return false;
+        }
+        let paths = kids(syntax)
+            .into_iter()
+            .filter(|node| node.kind == SyntaxKind::Path)
+            .collect::<Vec<_>>();
+        let [path] = paths.as_slice() else {
+            return false;
+        };
+        let Some(text) = self.db.get(path.span.file).map(|file| file.text.as_str()) else {
+            return false;
+        };
+        let segments = crate::analysis::path_segments(path, text);
+        let [alias, operation] = segments.as_slice() else {
+            return false;
+        };
+        if *operation != op.name
+            || source.binding != format!("{}.{}", module.name, alias)
+            || source.event != format!("{}.{}.{}.progressed", module.name, alias, operation)
+        {
+            return false;
+        }
+        let routes = module
+            .imports
+            .iter()
+            .flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter(|member| member.alias == *alias)
+                    .map(move |member| (import, member))
+            })
+            .collect::<Vec<_>>();
+        let [(import, member)] = routes.as_slice() else {
+            return false;
+        };
+        if import.span != source.import_span
+            || import.provider != "std"
+            || import.from.as_deref() != Some(source.from.as_str())
+            || std_capability(&member.name).is_none_or(|cap| cap.name != *capability)
+        {
+            return false;
+        }
+        let mut census = Vec::new();
+        for (file, tree) in &self.trees {
+            if *file != module.file {
+                continue;
+            }
+            let mut pending = vec![tree];
+            while let Some(node) = pending.pop() {
+                let children = kids(node);
+                pending.extend(children.into_iter().rev());
+                if node.kind != SyntaxKind::Scenario
+                    || node.span.start < module.span.start
+                    || node.span.end > module.span.end
+                {
+                    continue;
+                }
+                let Some(on) = crate::analysis::attribute_value(node, "on", text) else {
+                    continue;
+                };
+                if crate::analysis::path_segments(on, text) != [*alias, *operation, "progressed"] {
+                    continue;
+                }
+                let Some(handler) = self.program.symbols.iter().find(|symbol| {
+                    symbol.module == source.module
+                        && matches!(symbol.kind, SymbolKind::Scenario { trusted: true, .. })
+                        && symbol.span.file == node.span.file
+                        && symbol.span.start >= node.span.start
+                        && symbol.span.end <= node.span.end
+                }) else {
+                    return false;
+                };
+                let Some(data) = self.program.effects.scenarios.get(&handler.id) else {
+                    return false;
+                };
+                if data.node != NodeKey::of(node)
+                    || data.on_node != Some(NodeKey::of(on))
+                    || data.cohort.is_some()
+                    || !matches!(&data.on, Some(crate::analysis::effects::HandlerSource::DeliveryProgressed { source: event }) if event == &source.event)
+                    || self
+                        .program
+                        .types
+                        .delivery_progress_handlers
+                        .get(&NodeKey::of(on))
+                        != Some(&source.event)
+                {
+                    return false;
+                }
+                census.push((handler.id, NodeKey::of(on), handler.canonical.clone()));
+            }
+        }
+        census == source.handlers
+            && self.program.effects.scenarios.iter().filter(|(_, data)| data.module == source.module
+                && matches!(&data.on, Some(crate::analysis::effects::HandlerSource::DeliveryProgressed { source: event }) if event == &source.event))
+                .count() == census.len()
+    }
+
+    fn checked_callback_policy(
+        &self,
+        model: &crate::analysis::resolve::Symbol,
+        policy: &PolicyRule,
+        rule: &str,
+    ) -> Option<Vec<CheckedCallbackGrant>> {
+        if policy.module != model.module {
+            return None;
+        }
+        let module = self.program.modules.get(model.module.0 as usize)?;
+        let mut authored = Vec::new();
+        for (file, tree) in &self.trees {
+            if *file != module.file {
+                continue;
+            }
+            let mut pending = vec![tree];
+            while let Some(node) = pending.pop() {
+                pending.extend(kids(node).into_iter().rev());
+                if node.kind != SyntaxKind::Policy
+                    || node.span.start < module.span.start
+                    || node.span.end > module.span.end
+                {
+                    continue;
+                }
+                let Some(target) = kids(node)
+                    .into_iter()
+                    .find(|child| child.kind == SyntaxKind::Path)
+                else {
+                    continue;
+                };
+                if self
+                    .resolve_member(model.module, &path_text(self.db, target))
+                    .is_some_and(|(id, _)| id == model.id)
+                {
+                    authored.push(NodeKey::of(node));
+                }
+            }
+        }
+        if authored
+            != self
+                .program
+                .effects
+                .models
+                .get(&model.id)?
+                .policies
+                .iter()
+                .map(|policy| policy.node)
+                .collect::<Vec<_>>()
+        {
+            return None;
+        }
+        let node = self.node(&policy.node)?;
+        let text = self.db.get(node.span.file)?.text.as_str();
+        let selectors = crate::analysis::attribute_value(node, "fields", text)?;
+        if node.kind != SyntaxKind::Policy
+            || policy.fields_node != Some(NodeKey::of(selectors))
+            || policy.read != crate::analysis::attribute_value(node, "read", text).map(NodeKey::of)
+            || policy.where_predicate
+                != crate::analysis::attribute_value(node, "where", text).map(NodeKey::of)
+        {
+            return None;
+        }
+        let target = kids(node)
+            .into_iter()
+            .find(|child| child.kind == SyntaxKind::Path)?;
+        if self
+            .resolve_member(model.module, &path_text(self.db, target))?
+            .0
+            != model.id
+        {
+            return None;
+        }
+        let mut entries = Vec::new();
+        let mut ordinary = Vec::new();
+        for path in kids(selectors)
+            .into_iter()
+            .filter(|path| path.kind == SyntaxKind::Path)
+        {
+            let key = NodeKey::of(path);
+            if let Some(observation) = self.program.types.callback_diagnostic_selectors().get(&key)
+            {
+                let field = self
+                    .program
+                    .symbols
+                    .get(observation.source.field.0 as usize)?;
+                if observation.node != key
+                    || observation.source.model != model.id
+                    || !observation.matches(self.program)
+                    || !self.callback_source_matches(&observation.source)
+                    || path_text(self.db, path) != observation.path
+                    || observation.path != format!("{}.callback_diagnostics", field.name)
+                {
+                    return None;
+                }
+                entries.push(CheckedCallbackGrant {
+                    source: observation.source.clone(),
+                    selector: key,
+                    policy: policy.node,
+                    rule: rule.to_string(),
+                    field: field.name.clone(),
+                });
+            } else {
+                ordinary.push(
+                    self.program
+                        .types
+                        .delivery_selectors
+                        .get(&key)
+                        .cloned()
+                        .unwrap_or_else(|| path_text(self.db, path)),
+                );
+            }
+        }
+        let paths = entries
+            .iter()
+            .map(|entry| format!("{}.callback_diagnostics", entry.field))
+            .collect::<Vec<_>>();
+        if paths != policy.callback_fields || ordinary != policy.fields {
+            return None;
+        }
+        Some(entries)
+    }
+
+    fn decode_callback_read(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        ty: &ResolvedType,
+        observation: CheckedGenerationCallbackObservation,
+    ) -> TypedExpr {
+        let parts = kids(node);
+        let receipt = parts.iter().find(|part| is_expression(part.kind)).copied();
+        let Some(receipt) = receipt.filter(|part| part.kind == SyntaxKind::Member) else {
+            return self.unsupported_expr(
+                "generation callback diagnostics",
+                "checked receipt source is unavailable",
+                ty.clone(),
+                node.span,
+            );
+        };
+        let receipt_parts = kids(receipt);
+        let record_node = receipt_parts
+            .iter()
+            .find(|part| is_expression(part.kind))
+            .copied();
+        let field = receipt_parts
+            .iter()
+            .rev()
+            .find_map(|part| name_text(self.db, part))
+            .unwrap_or_default();
+        let Some(record_node) = record_node else {
+            return self.unsupported_expr(
+                "generation callback diagnostics",
+                "checked record source is unavailable",
+                ty.clone(),
+                node.span,
+            );
+        };
+        let record_type = self.node_type(record_node);
+        if observation.node != NodeKey::of(node)
+            || !observation.matches(self.program)
+            || !self.callback_source_matches(&observation.source)
+            || !matches!(record_type.nullable_inner().unwrap_or(&record_type), ResolvedType::Record { symbol, stored: true } if *symbol == observation.source.model)
+            || parts
+                .iter()
+                .rev()
+                .find_map(|part| name_text(self.db, part))
+                .as_deref()
+                != Some("callback_diagnostics")
+            || observation.path != format!("{field}.callback_diagnostics")
+            || self
+                .program
+                .symbols
+                .get(observation.source.field.0 as usize)
+                .is_none_or(|symbol| symbol.name != field)
+        {
+            return self.unsupported_expr(
+                "generation callback diagnostics",
+                "observation differs from its checked owning source",
+                ty.clone(),
+                node.span,
+            );
+        }
+        let record = self.decode_expr(scope, record_node);
+        let callback = CheckedGenerationCallbackRead {
+            observation,
+            record: format!("{record:?}"),
+            ty: ty.clone(),
+            span: node.span,
+        };
+        self.callback_sources
+            .push(callback.observation.source.clone());
+        self.callback_reads.push(format!("{callback:?}"));
+        TypedExpr::new(
+            IrExpr::DeliveryRead {
+                record: Box::new(record),
+                field,
+                props: vec!["callback_diagnostics".to_string()],
+                callback: Some(Box::new(callback)),
+            },
+            ty.clone(),
+            node.span,
+        )
+    }
+
+    fn seal_callback_grants(&mut self, ir: &IrProgram) -> CheckedCallbackGrants {
+        if self.callback_entries.is_empty()
+            && self.callback_reads.is_empty()
+            && self.callback_value_lists.is_empty()
+        {
+            return CheckedCallbackGrants::default();
+        }
+        for source in &self.callback_sources {
+            let field = ir.items.get(source.field.0 as usize);
+            let model = ir.items.get(source.model.0 as usize);
+            let source_module = ir.modules.get(source.module.0 as usize);
+            let field_matches = field.is_some_and(|field| field.module == source.module
+                && matches!(&field.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. }
+                    if *owner == source.model && self.program.types.symbol_types.get(&source.field) == Some(ty)));
+            let handler_matches = source.handlers.iter().all(|(id, _, canonical)| {
+                ir.items.get(id.0 as usize).is_some_and(|item| item.module == source.module && item.canonical == *canonical
+                    && matches!(&item.kind, IrItemKind::Scenario { trusted: true, event_source: Some(IrEventSource::DeliveryProgressed(event)), hook: None, cohort: None, .. }
+                        if event == &source.event))
+            }) && ir.items.iter().filter(|item| item.module == source.module
+                && matches!(&item.kind, IrItemKind::Scenario { event_source: Some(IrEventSource::DeliveryProgressed(event)), .. } if event == &source.event)).count() == source.handlers.len();
+            if !field_matches
+                || !handler_matches
+                || source_module.is_none()
+                || model.is_none_or(|model| {
+                    model.module != source.module || !matches!(model.kind, IrItemKind::Model { .. })
+                })
+            {
+                self.gap(
+                    "protected callback owner differs from its original checked IR closure"
+                        .to_string(),
+                    field.map(|field| field.span).unwrap_or(source.import_span),
+                );
+                return CheckedCallbackGrants::default();
+            }
+        }
+        CheckedCallbackGrants {
+            entries: self.callback_entries.clone(),
+            reads: self.callback_reads.clone(),
+            value_lists: self.callback_value_lists.clone(),
+            modules: ir
+                .modules
+                .iter()
+                .map(|module| (module.id, callback_module_snapshot(ir, module.id)))
+                .collect(),
+            rules: Some(callback_rule_snapshot(ir)),
+        }
+    }
+}
+
+impl<'a> Cx<'a> {
     /// Decode rule bodies once (G2/G3/G4): read rules, invariants, locks,
     /// retention, `crudWhen` and preferences validators. Ids must match
     /// the references decoded in [`Cx::decode_model`].
@@ -9496,6 +10115,7 @@ impl<'a> Cx<'a> {
     fn build_rule_maps(
         &mut self,
         read_rules: &mut Vec<IrRuleFn>,
+        callback_read_rules: &mut Vec<IrRuleFn>,
         invariants: &mut Vec<IrRuleFn>,
         locks: &mut Vec<IrLockFn>,
         retention: &mut Vec<IrNamedFn>,
@@ -9551,12 +10171,31 @@ impl<'a> Cx<'a> {
                         }
                         None => read,
                     };
-                    read_rules.push(IrRuleFn {
-                        id: format!("{}.read.{}", symbol.name, index + 1),
-                        pred,
-                        span,
-                        origin: None,
-                    });
+                    if ordinary_read_policy(policy) {
+                        read_rules.push(IrRuleFn {
+                            id: format!("{}.read.{}", symbol.name, index + 1),
+                            pred: pred.clone(),
+                            span,
+                            origin: None,
+                        });
+                    }
+                    if !policy.callback_fields.is_empty() {
+                        let id = format!("{}.callbackRead.{}", symbol.name, index + 1);
+                        if let Some(entries) = self.checked_callback_policy(&symbol, policy, &id) {
+                            for entry in &entries {
+                                self.callback_sources.push(entry.source.clone());
+                            }
+                            self.callback_entries.extend(entries);
+                            callback_read_rules.push(IrRuleFn {
+                                id,
+                                pred,
+                                span,
+                                origin: None,
+                            });
+                        } else {
+                            self.gap(format!("callback policy on {} does not match its original checked source", symbol.canonical), span);
+                        }
+                    }
                 }
                 for (index, invariant) in data.invariants.iter().enumerate() {
                     let span = Span::new(
@@ -10420,6 +11059,55 @@ impl<'a> Cx<'a> {
         match node.kind {
             SyntaxKind::Show => self.decode_view_use(scope, node),
             SyntaxKind::Card => {
+                let callback_scope = scope.callback_values.iter().any(|alias| {
+                    scope.name_types.get(alias).is_some_and(|ty| {
+                        matches!(
+                            ty.nullable_inner().unwrap_or(ty),
+                            ResolvedType::StdNominal {
+                                name: "GenerationCallbackDiagnosticResult"
+                                    | "GenerationCallbackDiagnosticComplete"
+                                    | "GenerationCallbackDiagnosticUnsupported",
+                                ..
+                            }
+                        )
+                    })
+                });
+                let bare = !kids(node).into_iter().any(|child| {
+                    is_expression(child.kind) || child.kind == SyntaxKind::MessageValue
+                });
+                if callback_scope
+                    && bare
+                    && ui_attributes(self.db, node).is_empty()
+                    && kids(node)
+                        .into_iter()
+                        .any(|child| is_gate_leaf(self.db, child))
+                {
+                    let children = self.decode_ui_children(scope, node, row_ctx);
+                    let gate = self.decode_gate(scope, node);
+                    if gate
+                        .as_ref()
+                        .is_some_and(|predicate| predicate.ty == ResolvedType::Scalar(Scalar::Bool))
+                    {
+                        let ui = IrUi {
+                            view: None,
+                            factory: "callbackValueCard".to_string(),
+                            props: Vec::new(),
+                            children,
+                            row_scope: None,
+                            gate,
+                            span: node.span,
+                        };
+                        self.callback_value_lists.push(format!("{ui:?}"));
+                        return Some(ui);
+                    }
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "diagnostic display card requires its original checked boolean gate"
+                            .to_string(),
+                        node.span,
+                    ));
+                    return None;
+                }
                 self.check_ui_attributes(node, "card", &["layout"]);
                 let mut props = Vec::new();
                 if let Some(caption) = self.decode_single_ui_caption(scope, node, "card") {
@@ -13607,10 +14295,228 @@ impl<'a> Cx<'a> {
         })
     }
 
+    /// The bounded copied diagnostic list keeps authored alias, gates and children.
+    fn decode_callback_value_list(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        head: &SyntaxNode,
+        query: Option<&SyntaxNode>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "diagnostic list", &["empty"]);
+        if ui_attributes(self.db, node)
+            .iter()
+            .any(|(name, value)| name != "empty" || value.is_none())
+            || kids(node)
+                .into_iter()
+                .filter(|child| is_expression(child.kind))
+                .count()
+                != 1
+        {
+            self.diags.push(Diagnostic::error("E6008", "diagnostic value list requires one copied array and only its supported empty caption".to_string(), node.span));
+            return None;
+        }
+        let ty = self.node_type(head);
+        let ResolvedType::Array { element, .. } = &ty else {
+            return None;
+        };
+        let source_owned = if head.kind == SyntaxKind::Array {
+            let values = kids(head)
+                .into_iter()
+                .filter(|child| is_expression(child.kind))
+                .collect::<Vec<_>>();
+            !values.is_empty()
+                && values.iter().all(|value| {
+                    self.program
+                        .types
+                        .callback_diagnostic_reads()
+                        .get(&NodeKey::of(value))
+                        .is_some_and(|read| {
+                            read.matches(self.program) && self.callback_source_matches(&read.source)
+                        })
+                })
+        } else if head.kind == SyntaxKind::Member {
+            let parts = kids(head);
+            let base = parts
+                .iter()
+                .find(|child| is_expression(child.kind))
+                .copied();
+            parts
+                .iter()
+                .rev()
+                .find_map(|part| name_text(self.db, part))
+                .as_deref()
+                == Some("failures")
+                && base
+                    .filter(|base| base.kind == SyntaxKind::NameRef)
+                    .and_then(|base| {
+                        kids(base)
+                            .into_iter()
+                            .find_map(|part| name_text(self.db, part))
+                    })
+                    .is_some_and(|name| scope.callback_values.contains(&name))
+                && matches!(
+                    element.nullable_inner().unwrap_or(element),
+                    ResolvedType::StdNominal {
+                        name: "GenerationCallbackFailure",
+                        ..
+                    }
+                )
+        } else {
+            false
+        };
+        if !source_owned {
+            self.diags.push(Diagnostic::error("E6008", "diagnostic value list lacks its original checked observation or copied failure alias".to_string(), head.span));
+            return None;
+        }
+        let mut alias = "row".to_string();
+        if let Some(query) = query {
+            for clause in kids(query)
+                .into_iter()
+                .filter(|child| child.kind == SyntaxKind::QueryClause)
+            {
+                let parts = kids(clause);
+                let word = parts
+                    .iter()
+                    .find_map(|part| name_text(self.db, part))
+                    .unwrap_or_default();
+                if word != "as" {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "diagnostic value lists support only their authored as alias".to_string(),
+                        clause.span,
+                    ));
+                    return None;
+                }
+                alias = parts
+                    .iter()
+                    .rev()
+                    .find_map(|part| name_text(self.db, part))?;
+            }
+        }
+        let mut pending = kids(node);
+        while let Some(child) = pending.pop() {
+            if is_ui_node(child.kind)
+                && matches!(
+                    ui_word(self.db, child).as_str(),
+                    "form"
+                        | "edit"
+                        | "actions"
+                        | "delete"
+                        | "table"
+                        | "calendar"
+                        | "gallery"
+                        | "pagination"
+                        | "count"
+                )
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "diagnostic value list children have no model or mutation profile".to_string(),
+                    child.span,
+                ));
+                return None;
+            }
+            pending.extend(kids(child));
+        }
+        let mut inner = scope.clone();
+        inner.in_field_owner = false;
+        inner.field_operation = None;
+        inner.form_fields = None;
+        inner.form_bound_fields = None;
+        inner.name_types.insert(alias.clone(), (**element).clone());
+        inner.row_rewrite.insert(alias.clone(), alias.clone());
+        if matches!(
+            element.nullable_inner().unwrap_or(element),
+            ResolvedType::StdNominal {
+                name: "GenerationCallbackDiagnosticResult"
+                    | "GenerationCallbackDiagnosticComplete"
+                    | "GenerationCallbackDiagnosticUnsupported",
+                ..
+            }
+        ) {
+            inner.callback_values.insert(alias.clone());
+        }
+        let values = self.decode_expr(scope, head);
+        let mut props = vec![("values".to_string(), values)];
+        if let Some((_, empty)) = ui_attributes(self.db, node)
+            .into_iter()
+            .find(|(name, _)| name == "empty")
+        {
+            if !matches!(
+                element.nullable_inner().unwrap_or(element),
+                ResolvedType::StdNominal {
+                    name: "GenerationCallbackFailure",
+                    ..
+                }
+            ) {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "only the copied failure list owns an empty caption".to_string(),
+                    node.span,
+                ));
+                return None;
+            }
+            let empty = empty?;
+            let Some(message) = self.decode_message_node(scope.module, empty) else {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "diagnostic list empty caption needs its original message descriptor"
+                        .to_string(),
+                    empty.span,
+                ));
+                return None;
+            };
+            props.push((
+                "empty".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(message),
+                    ResolvedType::Scalar(Scalar::Text),
+                    empty.span,
+                ),
+            ));
+        }
+        let children = self.decode_ui_children(&inner, node, None);
+        let gate = self.decode_gate(scope, node);
+        let ui = IrUi {
+            view: None,
+            factory: "callbackValueList".to_string(),
+            props,
+            children,
+            row_scope: Some((alias, "view".to_string())),
+            gate,
+            span: node.span,
+        };
+        self.callback_value_lists.push(format!("{ui:?}"));
+        Some(ui)
+    }
+
     /// Decode a collection (`list`/`table`/`gallery`): model, query
     /// props, presentation props, and row children under `renderRow`.
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
         let mut props = Vec::new();
+        if word == "list" {
+            let query = kids(node)
+                .into_iter()
+                .find(|child| child.kind == SyntaxKind::Query);
+            let head = query
+                .and_then(|query| {
+                    kids(query)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))
+                })
+                .or_else(|| {
+                    kids(node)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))
+                });
+            if let Some(head) = head {
+                let ty = self.node_type(head);
+                if callback_value_array(&ty) {
+                    return self.decode_callback_value_list(scope, node, head, query);
+                }
+            }
+        }
         if !matches!(word, "list" | "table" | "calendar") {
             self.diags.push(Diagnostic::error(
                 "E6008",

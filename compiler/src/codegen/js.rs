@@ -4097,7 +4097,44 @@ impl<'a> Emitter<'a> {
                 record,
                 field,
                 props,
+                callback,
             } => {
+                if let Some(callback) = callback {
+                    if self.in_hook() || !callback.matches(self.ir, expr, record, field, props) {
+                        self.unsupported(
+                            "callback diagnostics",
+                            "original checked generation association is required",
+                            span,
+                        );
+                        return self.throw_expr("unsupported callback diagnostic source");
+                    }
+                    self.stdlib
+                        .insert("generationCallbackDiagnostics".to_string());
+                    let original = match record.ty.nullable_inner().unwrap_or(&record.ty) {
+                        ResolvedType::Record {
+                            symbol,
+                            stored: true,
+                        } => self
+                            .ir
+                            .items
+                            .get(symbol.0 as usize)
+                            .and_then(|item| self.original_ui_row(record, &item.canonical)),
+                        _ => None,
+                    };
+                    let record = original.unwrap_or_else(|| self.lower_expr(record));
+                    return format!(
+                        "(await generationCallbackDiagnostics(c,{{record:{record},field:{}}}))",
+                        js_string(field)
+                    );
+                }
+                if props.iter().any(|prop| prop == "callback_diagnostics") {
+                    self.unsupported(
+                        "callback diagnostics",
+                        "protected observation has no checked source",
+                        span,
+                    );
+                    return self.throw_expr("unproven callback diagnostics");
+                }
                 if self.in_hook() {
                     return self.hook_gap(
                         "hook delivery read",
@@ -6408,6 +6445,84 @@ impl<'a> Emitter<'a> {
     ) -> String {
         // Settle earlier children before later siblings cross a source await.
         let sequence_children = node.children.iter().any(ui_immediate_uses_async);
+        if node.factory == "callbackValueCard" {
+            if !self.ir.callback_grants.matches_value_list(self.ir, node) {
+                self.unsupported(
+                    "callback value card",
+                    "original checked readonly diagnostic card is required",
+                    node.span,
+                );
+                return self.throw_expr("unsupported callback value card");
+            }
+            let guard = node
+                .gate
+                .as_ref()
+                .map(|gate| {
+                    let value = self.lower_business_expr(gate, "callback value card gate");
+                    format!("if(!({value}))return '';")
+                })
+                .unwrap_or_default();
+            let children = node
+                .children
+                .iter()
+                .map(|child| {
+                    let value = self.lower_ui_occurrence(child, ctx, occurrences, None, true);
+                    format!("children.push(await ({value}));")
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            return format!(
+                "await (async()=>{{{guard}const children=[];{children}return '<section class=\"card bg-base-100 shadow\"><div class=\"card-body\">'+children.filter(value=>value!=null).join('')+'</div></section>';}})()"
+            );
+        }
+        if node.factory == "callbackValueList" {
+            if !self.ir.callback_grants.matches_value_list(self.ir, node) {
+                self.unsupported(
+                    "callback value list",
+                    "original checked readonly diagnostic array is required",
+                    node.span,
+                );
+                return self.throw_expr("unsupported callback value list");
+            }
+            let values = &node.props[0].1;
+            let source = self.lower_expr(values);
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|gate| self.lower_business_expr(gate, "callback value list gate"));
+            let empty = node.props.iter().find(|(name, _)| name == "empty").map(|(_, value)| {
+                self.ui.insert("renderState".to_string());
+                let message = self.lower_expr(value);
+                format!("if(values.length===0)return await {}({{context:{ctx},kind:\"empty\",message:{message}}});", binding_ident("u", "renderState"))
+            }).unwrap_or_default();
+            self.enter_scope();
+            let (alias, _) = node
+                .row_scope
+                .as_ref()
+                .expect("checked callback list alias");
+            let row = self.bind(alias);
+            let index = binding_ident("r", &format!("callback_index_{}", node.span.start));
+            let mut nested = occurrences.to_vec();
+            nested.push(index.clone());
+            let children = node
+                .children
+                .iter()
+                .map(|child| {
+                    let child = self.lower_ui_occurrence(child, ctx, &nested, None, true);
+                    format!("children.push(await ({child}));")
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            self.exit_scope();
+            let guard = gate
+                .map(|gate| format!("if(!({gate}))return '';"))
+                .unwrap_or_default();
+            // Only constant wrappers are authored here; all business values
+            // remain escaped by their existing presentation factories.
+            return format!(
+                "await (async()=>{{{guard}const values={source};{empty}let output='<ul class=\"list\">';let {index}=0;for(const {row} of values){{const children=[];{children}output+='<li class=\"list-row\">'+children.filter(value=>value!=null).join('')+'</li>';{index}++;}}return output+'</ul>';}})()"
+            );
+        }
         if let Some(view) = &node.view {
             // Evaluate the supplied authorized row once in the caller scope,
             // then shadow it only for this declaration-owned expansion.
@@ -6886,13 +7001,13 @@ impl<'a> Emitter<'a> {
                 let source_row = row.clone();
                 let row = self.bind(row);
                 let child_ctx = self.bind(view);
-                let history = node.children.iter().any(ui_uses_history);
+                let original_row = node.children.iter().any(ui_uses_original_row);
                 let original =
                     binding_ident("rv", &format!("{}:{}", node.span.file.0, node.span.start));
                 self.original_ui_rows.push(OriginalUiRow {
                     name: source_row,
                     model: form_prop_text(node, "model").unwrap_or_default(),
-                    binding: history.then(|| original.clone()),
+                    binding: original_row.then(|| original.clone()),
                 });
                 let mut child_occurrences = occurrences.to_vec();
                 child_occurrences.push(format!("{row}.id"));
@@ -6920,7 +7035,7 @@ impl<'a> Emitter<'a> {
                     ""
                 };
                 self.original_ui_rows.pop();
-                let preserve_row = if history {
+                let preserve_row = if original_row {
                     format!("const {original}={row};")
                 } else {
                     String::new()
@@ -7292,6 +7407,10 @@ fn sequence_ui_child(value: String, sequence: bool) -> String {
 /// Form and collection descendants execute under their own deferred callbacks.
 fn ui_immediate_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
+        || matches!(
+            node.factory.as_str(),
+            "callbackValueList" | "callbackValueCard"
+        )
         || node.factory == "form"
         || node.factory == "history"
         || node.props.iter().any(|(_, value)| expr_uses_async(value))
@@ -7304,6 +7423,10 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
 /// Whether a UI subtree awaits (form preparation or state-read calls).
 fn ui_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
+        || matches!(
+            node.factory.as_str(),
+            "callbackValueList" | "callbackValueCard"
+        )
         || node.factory == "form"
         || node.factory == "history"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
@@ -7311,8 +7434,66 @@ fn ui_uses_async(node: &IrUi) -> bool {
         || node.children.iter().any(ui_uses_async)
 }
 
-fn ui_uses_history(node: &IrUi) -> bool {
-    node.factory == "history" || node.children.iter().any(ui_uses_history)
+fn ui_uses_original_row(node: &IrUi) -> bool {
+    fn protected(expr: &TypedExpr) -> bool {
+        let mut pending = vec![expr];
+        while let Some(current) = pending.pop() {
+            match &current.expr {
+                IrExpr::DeliveryRead {
+                    callback, record, ..
+                } => {
+                    if callback.is_some() {
+                        return true;
+                    }
+                    pending.push(record);
+                }
+                IrExpr::Member { base, .. } => pending.push(base),
+                IrExpr::Call { args, .. }
+                | IrExpr::BoundCall { args, .. }
+                | IrExpr::Format { args, .. } => pending.extend(args),
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(left);
+                    pending.push(right);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                IrExpr::Array(values) => pending.extend(values),
+                IrExpr::Object(values) => pending.extend(values.iter().map(|(_, value)| value)),
+                IrExpr::Query(query) => {
+                    if let crate::codegen::ir::IrQueryDomain::Value { base, .. } = &query.domain {
+                        pending.push(base);
+                    }
+                    pending.extend(query.parent.as_deref());
+                    pending.extend(query.where_pred.as_deref());
+                    pending.extend(query.limit.as_deref());
+                    pending.extend(query.archived.as_deref());
+                    pending.extend(query.select.as_deref());
+                }
+                IrExpr::Message(message) => pending.extend(message.params.iter().map(|p| &p.value)),
+                IrExpr::MessageCall {
+                    descriptor,
+                    args,
+                    params,
+                } => {
+                    pending.extend(descriptor.params.iter().map(|p| &p.value));
+                    pending.extend(args);
+                    pending.extend(params.iter().filter_map(|p| p.default.as_ref()));
+                }
+                IrExpr::HasRole { person, .. } => pending.extend(person.as_deref()),
+                IrExpr::Lambda { body, .. } => pending.push(body),
+                IrExpr::JudgmentSpecification { options, .. } => pending.extend(options.as_deref()),
+                _ => {}
+            }
+        }
+        false
+    }
+    node.factory == "history"
+        || node.props.iter().any(|(_, value)| protected(value))
+        || node.gate.as_ref().is_some_and(protected)
+        || node
+            .view
+            .as_ref()
+            .is_some_and(|view| protected(&view.argument))
+        || node.children.iter().any(ui_uses_original_row)
 }
 
 /// Whether a page body references the `preferences` record.
@@ -8389,6 +8570,30 @@ impl<'a> Emitter<'a> {
                 })
                 .collect();
             members.push(format!("readGrants:[{}]", entries.join(",")));
+            if let Some(checked) = ir.callback_grants.iter_checked(ir) {
+                let callback_entries = checked
+                    .filter(|grant| grant.model() == item.id)
+                    .map(|grant| {
+                        format!(
+                            "{{rule:{},field:{},fields:[]}}",
+                            js_string(grant.rule()),
+                            js_string(grant.field())
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                if !callback_entries.is_empty() {
+                    members.push(format!(
+                        "callbackReadGrants:[{}]",
+                        callback_entries.join(",")
+                    ));
+                }
+            } else {
+                self.unsupported(
+                    "callback grants",
+                    "original checked protected policy and owning generation field are required",
+                    item.span,
+                );
+            }
             if retain.is_some() {
                 members.push(format!("retainUntil:{}", js_string(&item.name)));
             }
@@ -10884,6 +11089,7 @@ impl<'a> Emitter<'a> {
             );
         }
         self.emit_rule_map(out, "read", entry_span);
+        self.emit_rule_map(out, "callbackRead", entry_span);
         self.emit_rule_map(out, "invariants", entry_span);
         self.emit_locks_map(out, entry_span);
         self.emit_retention_map(out, entry_span);
@@ -10968,6 +11174,7 @@ impl<'a> Emitter<'a> {
     fn emit_rule_map(&mut self, out: &mut JsWriter, member: &str, span: Span) {
         let rules = match member {
             "read" => self.ir.read_rules.clone(),
+            "callbackRead" => self.ir.callback_read_rules.clone(),
             _ => self.ir.invariants.clone(),
         };
         if rules.is_empty() {

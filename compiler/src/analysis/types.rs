@@ -593,6 +593,63 @@ pub struct CheckedStdDeliveryCompletion {
     pub payload: ResolvedType,
 }
 
+/// Immutable declaration provenance for one supported generation association.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedGenerationCallbackSource {
+    pub model: SymbolId,
+    pub field: SymbolId,
+    pub type_node: NodeKey,
+    pub module: ModuleId,
+    pub canonical_operation: String,
+    pub import_span: Span,
+    pub binding: String,
+    pub from: String,
+    pub event: String,
+    /// Ordinary handler declaration, on-expression, and canonical identity.
+    pub handlers: Vec<(SymbolId, NodeKey, String)>,
+    module_snapshot: String,
+    symbol_snapshots: Vec<(SymbolId, String)>,
+    field_type: ResolvedType,
+}
+
+impl CheckedGenerationCallbackSource {
+    pub(crate) fn matches(&self, program: &super::CheckedProgram) -> bool {
+        program
+            .modules
+            .get(self.module.0 as usize)
+            .is_some_and(|module| format!("{module:?}") == self.module_snapshot)
+            && self.symbol_snapshots.iter().all(|(id, snapshot)| {
+                program
+                    .symbols
+                    .get(id.0 as usize)
+                    .is_some_and(|symbol| format!("{symbol:?}") == *snapshot)
+            })
+            && program.types.symbol_types.get(&self.field) == Some(&self.field_type)
+            && self.handlers.iter().all(|(_, on, _)| {
+                program.types.delivery_progress_handlers.get(on) == Some(&self.event)
+            })
+    }
+}
+
+/// A checked protected observation; the path is never an ordinary receipt leaf.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedGenerationCallbackObservation {
+    pub node: NodeKey,
+    pub path: String,
+    pub source: CheckedGenerationCallbackSource,
+    ty: Option<ResolvedType>,
+}
+
+impl CheckedGenerationCallbackObservation {
+    pub(crate) fn matches(&self, program: &super::CheckedProgram) -> bool {
+        self.source.matches(program)
+            && self
+                .ty
+                .as_ref()
+                .is_none_or(|ty| program.types.node_types.get(&self.node) == Some(ty))
+    }
+}
+
 /// Exact standard verified-event declaration accepted by source analysis.
 /// Its payload does not grant inbound verification or runtime handler enrollment.
 #[derive(Debug, Clone)]
@@ -714,6 +771,9 @@ impl CheckedBoundTabs {
 pub struct TypeTable {
     bound_tabs: HashMap<NodeKey, CheckedBoundTabs>,
     calendar_endpoints: HashMap<NodeKey, CheckedCalendarEndpoint>,
+    callback_diagnostic_sources: HashMap<SymbolId, CheckedGenerationCallbackSource>,
+    callback_diagnostic_reads: HashMap<NodeKey, CheckedGenerationCallbackObservation>,
+    callback_diagnostic_selectors: HashMap<NodeKey, CheckedGenerationCallbackObservation>,
     /// Selected query-domain collection calls; separate from authored Where clauses.
     pub checked_collection_calls: HashMap<NodeKey, CheckedCollectionCall>,
     /// Checked contract-array any/all; distinct from stored-model proofs.
@@ -809,6 +869,101 @@ impl TypeTable {
     }
 }
 
+impl TypeTable {
+    pub(crate) fn callback_diagnostic_reads(
+        &self,
+    ) -> &HashMap<NodeKey, CheckedGenerationCallbackObservation> {
+        &self.callback_diagnostic_reads
+    }
+
+    pub(crate) fn callback_diagnostic_selectors(
+        &self,
+    ) -> &HashMap<NodeKey, CheckedGenerationCallbackObservation> {
+        &self.callback_diagnostic_selectors
+    }
+}
+
+fn callback_enum(cases: &[&str]) -> ResolvedType {
+    ResolvedType::Enum {
+        cases: cases.iter().map(|case| (*case).to_string()).collect(),
+        owner: None,
+    }
+}
+
+/// The common union surface contains only the discriminant. Arm fields appear
+/// solely after a checked comparison; absent arm fields never become nullable.
+fn callback_diagnostic_result(arm: Option<&str>) -> ResolvedType {
+    let (name, fields) = match arm {
+        Some("complete") => (
+            "GenerationCallbackDiagnosticComplete",
+            vec![
+                ("outcome".to_string(), callback_enum(&["complete"])),
+                (
+                    "failures".to_string(),
+                    ResolvedType::Array {
+                        element: Box::new(ResolvedType::StdNominal {
+                            name: "GenerationCallbackFailure",
+                            fields: vec![
+                                ("deliveryId".to_string(), ResolvedType::Scalar(Scalar::Text)),
+                                (
+                                    "sourceOccurrence".to_string(),
+                                    ResolvedType::Scalar(Scalar::Text),
+                                ),
+                                (
+                                    "occurrenceId".to_string(),
+                                    ResolvedType::Scalar(Scalar::Text),
+                                ),
+                                ("handler".to_string(), ResolvedType::Scalar(Scalar::Text)),
+                                ("event".to_string(), ResolvedType::Scalar(Scalar::Text)),
+                                // Read-only ABI output: the owner admits safe nonnegative
+                                // integer timestamps before publishing this closed value.
+                                (
+                                    "recordedAtMs".to_string(),
+                                    ResolvedType::Scalar(Scalar::Int),
+                                ),
+                                ("code".to_string(), callback_enum(&["require-false"])),
+                                (
+                                    "message".to_string(),
+                                    callback_enum(&["handler requirement rejected the occurrence"]),
+                                ),
+                            ],
+                        }),
+                        ordered: true,
+                        nonempty: false,
+                    },
+                ),
+                (
+                    "snapshotAttribution".to_string(),
+                    callback_enum(&["unsupported"]),
+                ),
+            ],
+        ),
+        Some("unsupported") => (
+            "GenerationCallbackDiagnosticUnsupported",
+            vec![
+                ("outcome".to_string(), callback_enum(&["unsupported"])),
+                (
+                    "reason".to_string(),
+                    callback_enum(&[
+                        "store-profile",
+                        "bound-exceeded",
+                        "origin-correspondence",
+                        "occurrence-correspondence",
+                    ]),
+                ),
+            ],
+        ),
+        _ => (
+            "GenerationCallbackDiagnosticResult",
+            vec![(
+                "outcome".to_string(),
+                callback_enum(&["complete", "unsupported"]),
+            )],
+        ),
+    };
+    ResolvedType::StdNominal { name, fields }
+}
+
 /// Check types over `trees` with `tables`.
 pub fn check_types(
     db: &SourceDb,
@@ -826,6 +981,7 @@ pub fn check_types(
     typer.collect_module_sources(trees);
     typer.collect_judgment_messages(trees);
     typer.phase1(trees);
+    typer.collect_callback_diagnostic_sources(trees);
     typer.phase2(trees);
     typer.check_input_choice_cycles();
     typer.check_cycles();
@@ -1052,6 +1208,144 @@ fn std_nominal_leaf_type(declared: &str) -> ResolvedType {
 }
 
 impl<'a> Typer<'a> {
+    /// Capture original owning type/import/handler declarations before bodies
+    /// are checked. The existing declaration typer remains the source authority.
+    fn collect_callback_diagnostic_sources(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        let mut nodes = HashMap::new();
+        for (_, tree) in trees {
+            let mut pending = vec![tree];
+            while let Some(node) = pending.pop() {
+                nodes.insert(NodeKey::of(node), node);
+                pending.extend(kids(node));
+            }
+        }
+        for symbol in &self.tables.symbols {
+            let SymbolKind::Field {
+                owner: model,
+                type_node,
+            } = symbol.kind
+            else {
+                continue;
+            };
+            if !matches!(
+                self.tables.symbols[model.0 as usize].kind,
+                SymbolKind::Model { .. }
+            ) {
+                continue;
+            }
+            let field_type = self.decl_type(symbol.id);
+            let ResolvedType::StdDelivery { capability, op } =
+                field_type.nullable_inner().unwrap_or(&field_type)
+            else {
+                continue;
+            };
+            if !matches!(
+                (*capability, op.name),
+                ("std.ImagesV1", "submit") | ("std.TextGenerationV1", "generate")
+            ) {
+                continue;
+            }
+            let Some(mut type_syntax) = nodes.get(&type_node).copied() else {
+                continue;
+            };
+            while type_syntax.kind == SyntaxKind::NullableType {
+                let Some(inner) = kids(type_syntax)
+                    .into_iter()
+                    .find(|node| is_type_node(node.kind))
+                else {
+                    break;
+                };
+                type_syntax = inner;
+            }
+            if type_syntax.kind != SyntaxKind::DeliveryType {
+                continue;
+            }
+            let text = self.text(type_node.file);
+            let paths: Vec<_> = kids(type_syntax)
+                .into_iter()
+                .filter(|node| node.kind == SyntaxKind::Path)
+                .collect();
+            if paths.len() != 1 {
+                continue;
+            }
+            let segments = path_segments(paths[0], text);
+            if segments.len() != 2 || segments[1] != op.name {
+                continue;
+            }
+            let module = &self.tables.modules[symbol.module.0 as usize];
+            let mut imports = module.imports.iter().flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter(|member| member.alias == segments[0])
+                    .map(move |member| (import, member))
+            });
+            let Some((import, member)) = imports.next() else {
+                continue;
+            };
+            if imports.next().is_some()
+                || import.provider != "std"
+                || std_capability(&member.name).is_none_or(|cap| cap.name != *capability)
+                || !matches!(self.tables.module_scopes[symbol.module.0 as usize].prod.get(segments[0]), Some(ScopedName::External { provider, name }) if provider == "std" && name == &member.name)
+            {
+                continue;
+            }
+            let Some(from) = import.from.clone() else {
+                continue;
+            };
+            let event = format!("{}.{}.{}.progressed", module.name, member.alias, op.name);
+            let mut handlers = Vec::new();
+            let mut snapshots = vec![
+                (symbol.id, format!("{symbol:?}")),
+                (
+                    model,
+                    format!("{:?}", self.tables.symbols[model.0 as usize]),
+                ),
+            ];
+            for handler in &self.tables.symbols {
+                if handler.module != symbol.module
+                    || !matches!(handler.kind, SymbolKind::Scenario { .. })
+                {
+                    continue;
+                }
+                // Resolve the exact scenario declaration instead of matching names.
+                let Some(scenario) = nodes.values().copied().find(|node| {
+                    node.kind == SyntaxKind::Scenario
+                        && node.span.file == handler.span.file
+                        && node.span.start <= handler.span.start
+                        && node.span.end >= handler.span.end
+                }) else {
+                    continue;
+                };
+                let Some(on) = attribute_value(scenario, "on", text) else {
+                    continue;
+                };
+                if path_segments(on, text) == [member.alias.as_str(), op.name, "progressed"] {
+                    handlers.push((handler.id, NodeKey::of(on), handler.canonical.clone()));
+                    snapshots.push((handler.id, format!("{handler:?}")));
+                }
+            }
+            self.types.callback_diagnostic_sources.insert(
+                symbol.id,
+                CheckedGenerationCallbackSource {
+                    model,
+                    field: symbol.id,
+                    type_node,
+                    module: symbol.module,
+                    canonical_operation: format!("{capability}.{}", op.name),
+                    import_span: import.span,
+                    binding: format!("{}.{}", module.name, member.alias),
+                    from,
+                    event,
+                    handlers,
+                    module_snapshot: format!("{module:?}"),
+                    symbol_snapshots: snapshots,
+                    field_type,
+                },
+            );
+        }
+    }
+
     /// Phase 2: walk declaration bodies and statements, filling the
     /// local-type maps and checking every typed position. Nodes
     /// containing a syntax error are skipped (already diagnosed).
@@ -3732,9 +4026,34 @@ impl<'a> Typer<'a> {
                 .into_iter()
                 .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
                 .collect();
-            // Each arm inherits the incoming facts; arm-local requirements
-            // and invalidations stay within its own sequential walk.
-            self.walk_seq(cx, &statements);
+            // Each arm inherits the incoming facts; the closed callback
+            // discriminant additionally selects its exact contract arm.
+            let mut arm_env = cx.narrow.clone();
+            if let (Some(subject), Some(case @ ("complete" | "unsupported"))) = (subject, case)
+                && cases
+                    .as_ref()
+                    .is_some_and(|cases| cases.iter().any(|known| known == case))
+            {
+                let subject = unwrap_groups(subject);
+                let member = kids(subject);
+                if subject.kind == SyntaxKind::Member
+                    && member.len() == 3
+                    && name_text(member[2], cx.text) == Some("outcome")
+                    && self
+                        .narrowed_chain(cx, member[0])
+                        .or_else(|| self.types.node_types.get(&NodeKey::of(member[0])).cloned())
+                        == Some(callback_diagnostic_result(None))
+                    && let Some(key) = self.narrow_key_for(cx, member[0])
+                    && !matches!(key.decl, DeclKey::Unresolved(_))
+                {
+                    arm_env.insert(key, callback_diagnostic_result(Some(case)));
+                }
+            }
+            let arm_cx = Ctx {
+                narrow: &arm_env,
+                ..*cx
+            };
+            self.walk_seq(&arm_cx, &statements);
         }
         if let Some(cases) = cases {
             let missing: Vec<_> = cases
@@ -6627,6 +6946,25 @@ impl<'a> Typer<'a> {
                 source_segments
             };
             if segments.is_empty() {
+                continue;
+            }
+            if segments.len() == 2
+                && segments[1] == "callback_diagnostics"
+                && (node.kind == SyntaxKind::Policy || what == "columns")
+                && let Some(field) = self.model_field_named(model, segments[0])
+                && let Some(source) = self.types.callback_diagnostic_sources.get(&field).cloned()
+            {
+                let canonical = segments.join(".");
+                self.types.callback_diagnostic_selectors.insert(
+                    NodeKey::of(path),
+                    CheckedGenerationCallbackObservation {
+                        node: NodeKey::of(path),
+                        path: canonical.clone(),
+                        source,
+                        ty: None,
+                    },
+                );
+                selected.push(canonical);
                 continue;
             }
             // Policy `fields=` and UI `columns=` additionally accept
@@ -12720,6 +13058,57 @@ impl<'a> Typer<'a> {
         let Some(name) = name_text(name_node, cx.text) else {
             return ResolvedType::Error;
         };
+        if name == "callback_diagnostics" {
+            let base = self.expr(cx, receiver, None);
+            if matches!(base, ResolvedType::Error | ResolvedType::Null) {
+                return self.member_on(cx, node, name_node, name, &base, safe);
+            }
+            let source = if receiver.kind == SyntaxKind::Member {
+                let receipt_parts = kids(receiver);
+                receipt_parts
+                    .first()
+                    .and_then(|record| self.types.node_types.get(&NodeKey::of(record)))
+                    .and_then(|ty| match ty.nullable_inner().unwrap_or(ty) {
+                        ResolvedType::Record {
+                            symbol,
+                            stored: true,
+                        } => Some(*symbol),
+                        _ => None,
+                    })
+                    .and_then(|model| {
+                        receipt_parts
+                            .get(2)
+                            .and_then(|field_name| name_text(field_name, cx.text))
+                            .and_then(|field_name| self.model_field_named(model, field_name))
+                    })
+                    .and_then(|field| self.types.callback_diagnostic_sources.get(&field).cloned())
+            } else {
+                None
+            };
+            if let Some(source) = source {
+                if matches!(base, ResolvedType::Nullable(_)) && !safe {
+                    return self.member_on(cx, node, name_node, name, &base, safe);
+                }
+                let ty = if matches!(base, ResolvedType::Nullable(_)) {
+                    ResolvedType::Nullable(Box::new(callback_diagnostic_result(None)))
+                } else {
+                    callback_diagnostic_result(None)
+                };
+                let field_name = &self.tables.symbols[source.field.0 as usize].name;
+                self.types.callback_diagnostic_reads.insert(
+                    NodeKey::of(node),
+                    CheckedGenerationCallbackObservation {
+                        node: NodeKey::of(node),
+                        path: format!("{field_name}.callback_diagnostics"),
+                        source,
+                        ty: Some(ty.clone()),
+                    },
+                );
+                return ty;
+            }
+            self.unknown_member(cx, node, name_node, name, "checked generation association");
+            return ResolvedType::Error;
+        }
         // Narrowed chain (safe-access/`is` continuation): the whole
         // chain proven a type is that type; otherwise a narrowed
         // receiver steps normally (plain `.` is sound on it).
@@ -13765,6 +14154,12 @@ impl<'a> Typer<'a> {
         right_node: &SyntaxNode,
         right: ResolvedType,
     ) -> (ResolvedType, ResolvedType) {
+        if let Some(claimed) = self.claim_callback_literal(cx, left_node, &right) {
+            return (claimed, right);
+        }
+        if let Some(claimed) = self.claim_callback_literal(cx, right_node, &left) {
+            return (left, claimed);
+        }
         let left_unclaimed = self.is_claimable_name(left_node) && left.is_error();
         let right_unclaimed = self.is_claimable_name(right_node) && right.is_error();
         if left_unclaimed && !right_unclaimed {
@@ -13789,6 +14184,43 @@ impl<'a> Typer<'a> {
             return (left.clone(), left);
         }
         (left, right)
+    }
+
+    /// Contract callback literals include hyphens/spaces and therefore use
+    /// quoted text in source. Claim only exact literals in the closed domain.
+    fn claim_callback_literal(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        expected: &ResolvedType,
+    ) -> Option<ResolvedType> {
+        let ResolvedType::Enum { cases, owner: None } = expected else {
+            return None;
+        };
+        let callback_domain = cases == &["complete", "unsupported"]
+            || cases == &["complete"]
+            || cases == &["unsupported"]
+            || cases == &["require-false"]
+            || cases == &["handler requirement rejected the occurrence"]
+            || cases
+                == &[
+                    "store-profile",
+                    "bound-exceeded",
+                    "origin-correspondence",
+                    "occurrence-correspondence",
+                ];
+        if !callback_domain || node.kind != SyntaxKind::Literal {
+            return None;
+        }
+        let literal = cx.text[node.span.start as usize..node.span.end as usize].trim();
+        let quoted = literal
+            .strip_prefix('"')
+            .and_then(|value| value.strip_suffix('"'))?;
+        if !cases.iter().any(|case| case == quoted) {
+            return None;
+        }
+        self.record(node, expected.clone());
+        Some(expected.clone())
     }
 
     /// Whether `node` is an unbound `NameRef` (claimable, else `E2001`).
@@ -14598,6 +15030,14 @@ impl<'a> Typer<'a> {
                     } else if op == "is" {
                         self.narrow_is(&local, current, parts[0], parts[2], polarity, &mut value);
                     } else if matches!(op, "==" | "!=") {
+                        self.narrow_callback_outcome(
+                            &local,
+                            parts[0],
+                            parts[2],
+                            op == "==",
+                            polarity,
+                            &mut value,
+                        );
                         self.narrow_null_eq(
                             &local,
                             parts[0],
@@ -14614,6 +15054,74 @@ impl<'a> Typer<'a> {
             }
         }
         env.extend(value);
+    }
+
+    fn narrow_callback_outcome(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        left: &SyntaxNode,
+        right: &SyntaxNode,
+        is_eq: bool,
+        else_branch: bool,
+        env: &mut NarrowEnv,
+    ) {
+        for (member, literal) in [(left, right), (right, left)] {
+            let member = unwrap_groups(member);
+            let parts = kids(member);
+            if member.kind != SyntaxKind::Member
+                || parts.len() != 3
+                || name_text(parts[2], cx.text) != Some("outcome")
+            {
+                continue;
+            }
+            let receiver = parts[0];
+            let ty = self
+                .narrowed_chain(cx, receiver)
+                .or_else(|| self.types.node_types.get(&NodeKey::of(receiver)).cloned());
+            let Some(ty) = ty else {
+                continue;
+            };
+            let nullable = matches!(ty, ResolvedType::Nullable(_));
+            if ty.nullable_inner().unwrap_or(&ty) != &callback_diagnostic_result(None) {
+                continue;
+            }
+            let literal = unwrap_groups(literal);
+            let spelling = if literal.kind == SyntaxKind::Literal {
+                cx.text[literal.span.start as usize..literal.span.end as usize]
+                    .trim()
+                    .strip_prefix('"')
+                    .and_then(|value| value.strip_suffix('"'))
+            } else if self.types.resolved_cases.contains(&NodeKey::of(literal))
+                && self.is_case_candidate(literal)
+            {
+                kids(literal)
+                    .into_iter()
+                    .find_map(|node| name_text(node, cx.text))
+            } else {
+                None
+            };
+            let Some(case @ ("complete" | "unsupported")) = spelling else {
+                continue;
+            };
+            let equal = is_eq != else_branch;
+            if nullable && !equal {
+                continue;
+            }
+            let arm = if equal {
+                case
+            } else if case == "complete" {
+                "unsupported"
+            } else {
+                "complete"
+            };
+            let Some(key) = self.narrow_key_for(cx, receiver) else {
+                continue;
+            };
+            if matches!(key.decl, DeclKey::Unresolved(_)) {
+                continue;
+            }
+            env.insert(key, callback_diagnostic_result(Some(arm)));
+        }
     }
 
     /// Narrow from a direct null test (T03 §2): `==`/`!=` with exactly

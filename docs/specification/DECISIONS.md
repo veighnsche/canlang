@@ -9609,3 +9609,32 @@ Coordinator finite shared contract/Interfaces source/test review CLEAR and exact
 2026-10-11 — original Chat response-presence captions (authored; native/browser qualification unfinished). Resolve the recorded CH09/CH11 null-to-emptytext presentation gap with existing localized alert/text in the original run card: granted content unavailable, partial non-success response and legitimate empty completed response remain distinct. Preserve `content row.partial`, current exact leaf grants, snapshot fence and recovery content exclusion; no field, helper or outcome is invented. Actual draft81d3678 preserves the caption unit and corrects its two guards: partial requires available content plus nonempty partial; legitimate empty completion requires available content plus succeeded and empty partial. Only CanChat.can/.md changed. The released998 diagnostic tuple remains immutable; final page qualification must name its actually consumed source and cannot credit these later captions to998. One changed-source check has no syntax/new semantic diagnostic; the21 existing exact Compiler dependencies remain. Existing SEQ025.response_presence holds the finite result; unchanged State/Work/native component checks are reused.
 
 Coordinator authored-stage review CLEAR; exact two source/note files integrated onto primary draft as d4071c06d04a8ed078e5d5da5848925a180a65dd, retaining every other original edit. This is an explicitly unfinished checkpoint; checked/native/browser qualification and complete file-tree checkpoint remain open.
+
+2026-10-11 — protected generation callback source producer (implemented; native join unfinished).
+
+Use the released Capability7e37a7ea closed nullable complete/unsupported contract
+and the exact Work/State27e2b95a prerequisite. Reuse the coordinator's retained
+three-call callback advice and selected bounded design; advice is not native
+acceptance. Keep explicit callback selectors independent of ordinary receipt
+and whole-record authority, retaining complete authored read/where predicates
+and original policy ordinals. The helper receives only the actual bound record
+and `field`; original generation/handler correspondence comes from checked
+source and the coherent current-authority consumer. No source-authored origin,
+raw Work reader, ReceiptProperty extension or historical snapshot authority.
+
+The compiler checks closed result arms, seals exact source/IR correspondence,
+emits one whole observation, and renders the original readonly copied lists
+under existing card require guards. Local typed projections add no new read.
+Preserve the authorized RowView before UI business-field flattening and localize
+the original failure-list empty descriptor. Bare diagnostic cards require a
+private sealed renderer while the public Card still requires a title. This
+addresses the demonstrated original source gap without expanding when syntax
+or rewriting the shared UI contract. Complete module snapshots prevent source
+read/list transplantation into a foreign emitted page.
+
+Native State authorization/association, observer forwarding, bigint timestamp
+normalization and genuine original Chat/Creative consumers remain with their
+defining owners. The existing original conditional-policy C03 join remains an
+engineering dependency, not a source-design or generic human approval hold.
+
+Coordinator independent checked producer/IR/emission review CLEAR and coherent local integration complete. Only Compiler source/tests and its exact owning record imported; existing reviewed Work/Contracts/State prerequisites are preserved without duplicate intake. State976 hooks and Interfaces900 forwarding qualify their existing component scopes; original conditional/ancestor C03, Dev native consumer and actual consumed-snapshot attribution remain unfinished. Full-plan counts and complete checkpoint unchanged.
