@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-11T01:28:00Z",
+  "updated_utc": "2026-10-11T01:33:00Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -839,6 +839,15 @@
       "original_source_outcome": "Unchanged CanLoyalty hero221 now retains original enclosing scope/gate and reaches own rewards/history panels235/247 with exact cases/labels and binding metadata. Original list/table body IR/source spans remain; unsupported Timeline/history/filter/default body profiles retain exact diagnostics and prevent full application shipment.",
       "remaining_prerequisite": "UI defines accessible options and unavailable saved-current behavior before any direct gated bound panel. Dev/Interfaces qualify actual preference save/browser lifecycle and selected full original app only after its independent source producers are ready.",
       "compact_hero": "Existing compact children and optional checked header caption use installed UI.hero, preserving ordinary scope/row_ctx/gate. Authored slots/attributes/empty suites remain E6008; no catalog-wide rewrite."
+    },
+    "edit_group_prerequisite": {
+      "state": "blocked_exact_existing_consumer_requirement",
+      "source": "Unchanged draft/CanBook.can450 edit with checkbox active inside Calendar row; accepted UI-COMPONENTS118 requires authored controls first and unmentioned eligible inputs afterward.",
+      "owner": "Interfaces/UI or coordinator-released sole shared-repair owner, then Compiler producer.",
+      "required_output": "Existing protected form preparer and renderer preserve authored order plus generated eligible remainder, unique controls, required input availability, canonical derived allowlist, protected record/version/current authority. No new form API or inferred fields override.",
+      "evidence": "packages/interfaces/src/http/forms.ts95 uses renderedNames=new Set(authored),103 uses renderedFields=authored.map(...),97 refuses selected required unplaced inputs; packages/ui/src/forms.ts906 says authored children replace automatic body. This excludes the required default remainder, so Compiler alone cannot complete original Calendar edit/checkbox behavior.",
+      "compiler_next": "After exact owning repair, extend existing protected_action_form bound edit and existing prepared.field boolean control bridge; preserve original complete CRUD writable duration/hours/instructions/cutoff/active allowlist, server omissions, row/version and all source bytes.",
+      "scope_limit": "Read-only prerequisite investigation only. No runtime/common rewrite, source guard/default/fields changes, new native acceptance or hold release."
     }
   },
   "typed_file_association_prerequisite": {
