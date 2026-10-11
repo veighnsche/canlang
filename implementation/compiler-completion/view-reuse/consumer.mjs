@@ -49,12 +49,12 @@ const columns = Object.entries(generated.appDefinition.models['ViewReuse.Card'].
 const attributes = tag => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
 const decodeAttribute = value => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'")
   .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
-async function render(preferredLocale, {url='https://example.test/views', hasDetails=true, available=true, selected=false}={}) {
+async function render(preferredLocale, {url='https://example.test/views', hasDetails=true, available=true, selected=false, protection=true, validVersion=true}={}) {
   const queries = [];
   const context = buildPresentationContext({
     request:new Request(url, {headers:{'Accept-Language':preferredLocale}}),
     pathname:'/views', isPartial:true, appDefaultLocale:'es', csrfToken:'', principal:identity,
-    catalog, formBindings, appId:'ViewReuse', sessionToken:'view-reuse-session', clock:{nowMs:()=>FIXED_NOW},
+    catalog, ...(protection ? {formBindings} : {}), appId:'ViewReuse', sessionToken:'view-reuse-session', clock:{nowMs:()=>FIXED_NOW},
     query:async (invocation, model, args) => {
       assert.equal(invocation, identity, 'collection query preserves admitted invocation identity');
       assert.equal(args.page, true, 'bare marker requests the installed collection page contract');
@@ -63,7 +63,8 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
       queries.push({model, args});
       if (model === 'ViewReuse.Card') {
         assert.equal(args.parent, undefined);
-        return {rows:available?[card]:[], columns};
+        const projected = validVersion ? card : {id:card.id, fields:card.fields};
+        return {rows:available?[projected]:[], columns};
       }
       assert.equal(model, 'ViewReuse.Detail', 'no extra model or hidden-field refetch');
       assert.equal(args.parent.id, card.id, 'nested query uses the supplied outer row identity');
@@ -79,6 +80,15 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     return {context, queries, html};
   }
   assert.deepEqual(queries.map(item => item.model), ['ViewReuse.Card', 'ViewReuse.Detail', 'ViewReuse.Detail']);
+  if (!protection || !validVersion) {
+    assert.ok(!html.includes('action="/api/operations/ViewReuse.Card.update"'));
+    assert.ok(!html.includes('action="/api/operations/ViewReuse.Detail.update"'));
+    assert.ok(!html.includes('action="/api/operations/ViewReuse.bind_card"'));
+    assert.ok(!html.includes('name="form_binding"'), 'unavailable protected forms cannot publish a seal');
+    assert.equal(html.split('action="/api/operations/ViewReuse.save"').length - 1, 2,
+      'unbound forms remain available when protected forms refuse');
+    return {context, queries, html};
+  }
   assert.equal(new Set(queries.map(item => item.args.occurrence)).size, 3,
     'table and the two paged list expansions retain distinct occurrences');
   const oneUse=['Outer &lt;Card&gt;', 'Outer &lt;Card&gt;',
@@ -140,7 +150,15 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
       const attrs = attributes(form.split('>')[0]);
       const metadata = JSON.parse(decodeAttribute(attrs['data-can-generated-form']));
       assert.equal(metadata.derived.operation, operation);
+      assert.deepEqual(metadata.renderedInputs, fields.map(([field]) => field),
+        'automatic edit contains exactly the owning writable inputs in schema order');
       const inputs = [...form.matchAll(/<input\b[^>]*>/g)].map(match => ({tag:match[0], ...attributes(match[0])}));
+      assert.deepEqual(inputs.filter(input => fields.some(([field]) => input.name === ui.fieldInputName('update', field)))
+        .map(input => input.name), fields.map(([field]) => ui.fieldInputName('update', field)));
+      for (const excluded of ['internal', 'at']) {
+        assert.ok(!inputs.some(input => input.name === ui.fieldInputName('update', excluded)),
+          'nonallowed and server fields remain absent from the automatic edit');
+      }
       const tokens = inputs.filter(input => input.name === 'form_binding');
       assert.equal(tokens.length, 1);
       const claims = JSON.parse(Buffer.from(decodeAttribute(tokens[0].value).split('.')[0], 'base64url').toString('utf8'));
@@ -236,6 +254,8 @@ const selectionKey = [...unknownUrl.searchParams.keys()].find(key => key.startsW
 unknownUrl.searchParams.set(selectionKey, uuidv7(FIXED_NOW, 99));
 await render('es', {url:unknownUrl.href});
 await render('es', {url:selectedUrl.href, available:false});
+await render('es', {url:selectedUrl.href, selected:true, hasDetails:false, protection:false});
+await render('es', {url:selectedUrl.href, selected:true, hasDetails:false, validVersion:false});
 console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assembler → installed UI page admission/render',
   uses:2, sourceLocale:'fr', rerenderLocale:'nl', nestedRowRestored:true, distinctTabControls:true, nativeBooleanStatus:true, sharedEmptyDefault:true,
   nativeUnboundForms:true, distinctStableFormControls:true, declarationInputLabel:true,

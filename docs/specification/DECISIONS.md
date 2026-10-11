@@ -8846,3 +8846,23 @@ Coordinator downstream source review CLEAR for the same-session CSRF client and 
 Use30s/SIGKILL and1MiB captured output on each of the existing MCP, HTTP and browser-asset Bun subprocesses. Align the finite stage duration with the existing compiler check; keep the original synchronous process API and bundling bytes. This selects a local termination trigger/output cap, not a global supervisor, whole-command deadline, descendant cleanup or absolute exit guarantee. Existing scratch removal remains conditional on successful cleanup. Real deterministic installed three-stage assets consumer passes1/1 in5663ms. Ten mocked-child/real-writer host controls pass10070ms, including first/second-stage timeout refusal and scratch removal before any publication/apply. Six genuine deploy subprocess cases stay unselected. Current CF emission/frozen noEmit0 and boundary13/950/1474/zero pass; unchanged URL/cancellation/disposal checks are reused. Normal CLI-wide resource policy, concurrent replacement/broader physical interruption and held native preparation remain separately unfinished.
 
 Integrate only the exact stage-options/timeout-control delta after independent finite CLEAR review; preserve current root operative-error cleanup and other writers. Reuse installed1/host10/owning type/boundary results. No whole-command, process-tree, absolute exit, native-preparation or whole-plan acceptance follows.
+
+
+## 2026-10-11 — derive bare row edit fields from the checked update
+
+Implemented/tested: a bare bound `edit` with no authored header/body uses the
+existing enabled update operation's writable defaults in model declaration
+order and the existing protected operation form. The owning CRUD allowlist
+and server omission determine its controls; the original row supplies identity
+and version. This connects original CanBook's four bare edits without a new
+consumer API or duplicated field declaration. Explicit field selectors keep
+their existing checks and unsupported edit bodies remain E6008.
+
+The actual CLI/installed Interfaces/UI consumer proves complete allowed
+controls, stable nested occurrences and absent version/protection suppression.
+Original source IR retains its four own update selections. The shared authored
+control plus eligible remainder requirement for Calendar's checkbox body and
+original browser/persistence/dispatch qualification remain with their owners;
+this finite result does not accept the whole application.
+
+Coordinator finite independent source review CLEAR for checked update default fields/schema order, server/nonallowed exclusions, protected own-row/version/occurrence scope and refusal controls. Owning124 affected/strict0 reused. Stop the satisfied bare-editor producer/rendering scope; authored checkbox remainder, genuine browser/mutation/application and precise holds remain open.
