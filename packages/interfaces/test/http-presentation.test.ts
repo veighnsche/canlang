@@ -995,3 +995,125 @@ test('full and partial repeated details drawers select only current queried rows
     assert.equal(denied.status, 403); assert.equal(queryCalls, 5); assert.equal(scopes, 5); assert.equal(bodies.length, 1);
   }
 });
+
+
+test('page read scopes close once with their receiver after awaited full partial and HEAD presentation', async () => {
+  const principal = fakeIdentity();
+  let forgedCloses = 0;
+  const forgedContext = buildPresentationContext({ request: testRequest('/scope-close'), pathname: '/scope-close',
+    isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal, query: fakeQuery(),
+    source: { ...buildPageSourceContext(principal), close: () => { forgedCloses++; } } as PageSourceContext });
+  assert.equal(Object.hasOwn(forgedContext, 'close'), false); assert.equal(forgedCloses, 0);
+  for (const kind of ['full', 'partial', 'HEAD'] as const) {
+    const events: string[] = [];
+    const file = makeFileValue('scope-lifecycle-file');
+    let closes = 0, scopes = 0;
+    const scope: PageReadScope = { query: fakeQuery(),
+      presentFile: async function (this: unknown, original) {
+        assert.equal(this, scope); assert.equal(original, file);
+        events.push('present-start'); await Promise.resolve(); events.push('present-done');
+        return { href: '/authorized-file-open', name: 'Authorized file' };
+      },
+      close: async function (this: unknown) {
+        assert.equal(this, scope); closes++;
+        assert.deepEqual(events, ['render-start', 'present-start', 'present-done', 'render-done']);
+        events.push('close-start'); await Promise.resolve(); events.push('close-done');
+      },
+    };
+    const page: PageDescriptor = { owner: 'TestApp', path: '/scope-close', title: 'Scoped presentation',
+      admit: async () => ({}), render: async context => {
+        assert.equal(Object.hasOwn(context, 'close'), false);
+        assert.equal(Object.hasOwn(context.canonical ?? {}, 'close'), false);
+        events.push('render-start');
+        const html = await text({ context, values: [file] });
+        events.push('render-done'); return html;
+      } };
+    const { deps } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest({ ...deps, createReadScope: () => { scopes++; return scope; } },
+      testRequest('/scope-close', { ...(kind === 'HEAD' ? { method: 'HEAD' } : {}),
+        ...(kind === 'partial' ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(response.status, 200); assert.equal(scopes, 1); assert.equal(closes, 1);
+    assert.equal(events.at(-1), 'close-done');
+    const body = await response.text();
+    if (kind === 'HEAD') assert.equal(body, ''); else assert.ok(body.includes('Authorized file'));
+  }
+});
+
+test('page scope failures close only acquired scopes and sanitize asynchronous cleanup failures', async () => {
+  for (const partial of [false, true]) {
+    for (const failure of ['bind', 'render', 'factory', 'close'] as const) {
+      const events: string[] = [];
+      let closes = 0, renders = 0;
+      const scope: PageReadScope = { query: fakeQuery(),
+        onQueryBound: async function (this: unknown) {
+          assert.equal(this, scope); events.push('bind'); await Promise.resolve();
+          if (failure === 'bind') throw new IdentityError('forbidden', 'Scope binding denied.');
+        },
+        close: async function (this: unknown) {
+          assert.equal(this, scope); closes++; events.push('close'); await Promise.resolve();
+          if (failure === 'close') throw new Error('PRIVATE-cleanup-sentinel');
+        },
+      };
+      const page: PageDescriptor = { owner: 'TestApp', path: '/scope-failure', title: 'Scope failure',
+        admit: async () => ({}), render: async () => {
+          renders++; events.push('render'); await Promise.resolve();
+          if (failure === 'render') throw new IdentityError('forbidden', 'Scope rendering denied.');
+          return '<p>successful scoped body</p>';
+        } };
+      const { deps } = await createTestDeps({ descriptors: [page] });
+      const response = await handlePageRequest({ ...deps, createReadScope: async () => {
+        events.push('factory'); await Promise.resolve();
+        if (failure === 'factory') throw new Error('PRIVATE-factory-sentinel');
+        return scope;
+      } }, testRequest('/scope-failure', partial ? { headers: { 'HX-Request': 'true' } } : {}));
+      assert.equal(closes, failure === 'factory' ? 0 : 1);
+      assert.equal(renders, failure === 'bind' || failure === 'factory' ? 0 : 1);
+      if (failure === 'bind' || failure === 'render') {
+        assert.equal(response.status, 403);
+        assert.deepEqual(await response.json(), { code: 'forbidden',
+          message: failure === 'bind' ? 'Scope binding denied.' : 'Scope rendering denied.', retryable: false });
+      } else {
+        assert.equal(response.status, 422);
+        const body = await response.text();
+        assert.ok(!body.includes('PRIVATE-')); assert.ok(!body.includes('successful scoped body'));
+      }
+      assert.deepEqual(events, failure === 'factory' ? ['factory'] :
+        failure === 'bind' ? ['factory', 'bind', 'close'] : ['factory', 'bind', 'render', 'close']);
+    }
+  }
+});
+
+test('closing the actual page scope withholds an unawaited pending File presentation', async () => {
+  for (const partial of [false, true]) {
+    const file = makeFileValue('pending-private-file');
+    let closed = false, closes = 0, calls = 0;
+    let associations = new WeakMap<FileValue, boolean>(); associations.set(file, true);
+    let release!: (value: Awaited<ReturnType<PageFilePresenter>>) => void;
+    let pending: ReturnType<PageFilePresenter> | undefined, captured: PresentationContext | undefined;
+    const scope: PageReadScope = { query: fakeQuery(),
+      presentFile: async function (this: unknown, original) {
+        assert.equal(this, scope);
+        if (closed || associations.get(original) !== true) return null;
+        calls++;
+        const view = await new Promise<Awaited<ReturnType<PageFilePresenter>>>(resolve => { release = resolve; });
+        return closed || associations.get(original) !== true ? null : view;
+      },
+      close: async function (this: unknown) {
+        assert.equal(this, scope); closes++; closed = true; associations = new WeakMap(); await Promise.resolve();
+      },
+    };
+    const page: PageDescriptor = { owner: 'TestApp', path: '/pending-file', title: 'Pending file',
+      admit: async () => ({}), render: async context => {
+        captured = context; pending = context.presentFile!(file);
+        assert.equal(calls, 1); return '<p>bounded page body</p>';
+      } };
+    const { deps } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest({ ...deps, createReadScope: () => scope },
+      testRequest('/pending-file', partial ? { headers: { 'HX-Request': 'true' } } : {}));
+    assert.equal(response.status, 200); assert.equal(closes, 1); assert.equal(closed, true);
+    release({ href: '/late-file-link', name: 'late private presentation' });
+    assert.equal(await pending, null);
+    assert.equal(await captured!.presentFile!(file), null); assert.equal(calls, 1);
+    const body = await response.text(); assert.ok(!body.includes('late-file-link')); assert.ok(!body.includes(file.id));
+  }
+});
