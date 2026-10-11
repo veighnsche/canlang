@@ -3603,15 +3603,17 @@ fn t14d_text_run_leaves() {
     assert!(diags.is_empty(), "TextRun leaves: {diags:?}");
 }
 
-/// (T14d) `WorkflowInspection.fields` is a named-ref array over the
-/// NON-transcribed nested `WorkflowField`: the array shape resolves
-/// but its elements stay silently opaque (no `E2013` on any member).
+/// `WorkflowInspection.fields` retains the nested four-text field schema;
+/// undeclared members are refused without making WorkflowField importable.
 #[test]
-fn t14d_workflow_inspection_fields_opaque() {
+fn t14d_workflow_inspection_nested_fields() {
     let catalog = t14d_fixture();
-    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { graph:file, n:int }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.inspect {graph=m.graph} as attempt\n    require attempt.result != null\n    set m {n=count(attempt.result.fields)}\n    let x = first(attempt.result.fields)?.anything\n Then\n";
+    let src = "app T uses=[p]\npackage p\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  M { graph:file, n:int }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send Images.inspect {graph=m.graph} as attempt\n    require attempt.result != null\n    set m {n=count(attempt.result.fields)}\n    let x = first(attempt.result.fields)?.label\n Then\n";
     let diags = check(src, Some(&catalog));
     assert!(diags.is_empty(), "WorkflowInspection fields: {diags:?}");
+    let invalid = src.replace("?.label", "?.anything");
+    let diags = check(&invalid, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
 }
 
 /// (T14d) `WorkflowValidation` scalar leaves resolve (`valid`,

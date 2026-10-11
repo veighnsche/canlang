@@ -365,6 +365,6 @@ fn generic_objects_lookalikes_other_nominals_and_unknown_leaves_stay_refused() {
     );
     assert!(
         response.get("modules").is_none(),
-        "unknown WorkflowField remains unqualified"
+        "closed nested source schema does not qualify this public/native profile"
     );
 }

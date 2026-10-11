@@ -139,7 +139,9 @@ fn std_nominal_field_reuse_preserves_delivery_status_enum_and_native_inputs() {
     let parameter = opaque_checked.effects.scenarios[&accept.id].params[0].param;
     assert!(matches!(&opaque_checked.types.symbol_types[&parameter],
         ResolvedType::Array { element, .. }
-        if matches!(element.as_ref(), ResolvedType::Opaque(_))));
+        if matches!(element.as_ref(), ResolvedType::Object(fields)
+            if fields == &["node", "key", "kind", "label"].into_iter()
+                .map(|name| (name.to_string(), ResolvedType::Scalar(Scalar::Text))).collect::<Vec<_>>())));
     let compile = |path: &Path| {
         Command::new(env!("CARGO_BIN_EXE_can"))
             .args(["compile", "--format=json", "--catalog"])
@@ -150,6 +152,7 @@ fn std_nominal_field_reuse_preserves_delivery_status_enum_and_native_inputs() {
             .unwrap()
     };
     let opaque_input = scratch.path().join("opaque-leaf.can");
+    // Closed source typing does not claim this separate public/native profile.
     std::fs::write(&opaque_input, opaque).unwrap();
     let refused = compile(&opaque_input);
     assert_eq!(refused.status.code(), Some(10));
