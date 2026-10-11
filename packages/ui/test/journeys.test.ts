@@ -693,14 +693,14 @@ describe("error journeys", () => {
 });
 
 describe("discovery journeys", () => {
-  it("enumerates and filters the full 91-entry surface programmatically", () => {
+  it("enumerates and filters the full 92-entry surface programmatically", () => {
     const entries = UI_CATALOG.entries;
-    assert.equal(entries.length, 91);
+    assert.equal(entries.length, 92);
 
     const byKind = entries.filter((entry) => entry.kind === "component");
-    assert.equal(byKind.length, 91, "kind filter keeps the whole surface");
+    assert.equal(byKind.length, 92, "kind filter keeps the whole surface");
     const byOwner = entries.filter((entry) => entry.owner === "lane-05");
-    assert.equal(byOwner.length, 91, "owner filter keeps the whole surface");
+    assert.equal(byOwner.length, 92, "owner filter keeps the whole surface");
 
     const profiles = new Set(entries.map((entry) => entry.profile));
     assert.deepStrictEqual(
@@ -723,7 +723,7 @@ describe("discovery journeys", () => {
       assert.ok(slice.length > 0, `${profile} has entries`);
       partitioned += slice.length;
     }
-    assert.equal(partitioned, 91, "profile partitions cover the surface");
+    assert.equal(partitioned, 92, "profile partitions cover the surface");
 
     const fields = entries.filter((entry) => entry.profile === "field-control");
     assert.ok(
@@ -742,13 +742,17 @@ describe("discovery journeys", () => {
     const implemented = UI_CATALOG.entries.filter(
       (entry) => entry.availability === "implemented",
     );
-    assert.equal(implemented.length, 91, "the whole surface resolves, none planned");
+    assert.equal(implemented.length, 92, "the whole surface resolves, none planned");
     for (const entry of implemented) {
       const target = record[entry.js];
       assert.equal(typeof target, "function", `${entry.js} resolves to a callable export`);
     }
 
     const byId = new Map(UI_CATALOG.entries.map((entry) => [entry.id, entry]));
+    const gallery = byId.get("gallery");
+    assert.equal(gallery?.profile, "collection");
+    assert.equal(gallery?.header, "query");
+    assert.ok(gallery?.attributes?.includes("image"), "gallery exposes its checked image selector");
     const badge = byId.get("badge");
     assert.ok(badge?.appearance?.tone?.includes("error"), "badge tone metadata readable");
     assert.ok(badge?.appearance?.size?.includes("xl"), "badge size metadata readable");

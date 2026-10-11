@@ -26,6 +26,7 @@ import type {
   PageRecordsReader,
   PageHistoryReader,
   PageFilePresenter,
+  PageFileImageResolver,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -127,6 +128,7 @@ export interface BuildPresentationContextInput {
   readonly readRecords?: PageRecordsReader;
   readonly readHistory?: PageHistoryReader;
   readonly presentFile?: PageFilePresenter;
+  readonly resolveFileImage?: PageFileImageResolver;
   readonly observeDelivery?: PageDeliveryObserver;
   readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
@@ -176,9 +178,9 @@ export function buildPresentationContext(
   // Source extras cannot override host configuration, native readers or the
   // trusted identity admission instant shared with page guards and discovery.
   const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory,
-    breadcrumbs: _sourceBreadcrumbs, presentFile: _sourcePresentFile, close: _sourceClose, now: _sourceNow, ...source } =
+    breadcrumbs: _sourceBreadcrumbs, presentFile: _sourcePresentFile, resolveFileImage: _sourceResolveFileImage, close: _sourceClose, resolveCaller: _sourceResolveCaller, now: _sourceNow, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
-      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs' | 'presentFile'> & { readonly close?: unknown };
+      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs' | 'presentFile' | 'resolveFileImage'> & { readonly close?: unknown; readonly resolveCaller?: unknown };
   const { observeGenerationCallbackDiagnostics: _sourceCallbackDiagnostics, ...canonical } = source.canonical;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
@@ -226,6 +228,7 @@ export function buildPresentationContext(
     query: input.query,
     ...(input.readHistory === undefined ? {} : { readHistory: input.readHistory }),
     ...(input.presentFile === undefined ? {} : { presentFile: input.presentFile }),
+    ...(input.resolveFileImage === undefined ? {} : { resolveFileImage: input.resolveFileImage }),
     prepareCollectionFilters: collectionFilterPreparer(url.searchParams),
   };
   return input.catalog === undefined ? context : {

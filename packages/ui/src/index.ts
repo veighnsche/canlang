@@ -79,6 +79,7 @@ export {
   controlHref,
   csvImport,
   list,
+  gallery,
   table,
 } from "./collections.js";
 export {
@@ -271,6 +272,7 @@ export type {
   FilterOperator,
   FilterProps,
   FooterProps,
+  GalleryProps,
   FooterSlots,
   FormFieldDef,
   FormFieldOption,
@@ -293,6 +295,8 @@ export type {
   LabelProps,
   LinkProps,
   ListProps,
+  PageFileImageView,
+  PageFileImageResolver,
   ListQueryArgs,
   ListQueryResult,
   LoginProps,

@@ -134,7 +134,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     assert.ok(pageDeps?.createReadScope);
     const declarations = [{ field: 'label', type: 'text' }, { field: 'count', type: 'int' },
       { field: 'owner', type: 'user' }];
-    const emptyScope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA));
+    const emptyScope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!));
     const empty = await emptyScope.query(identityA, MODEL, { includeCount: true });
     assert.deepEqual(empty.rows, []); assert.deepEqual(empty.columns, []);
     assert.deepEqual(empty.emptyDeclarations, declarations);
@@ -145,7 +145,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.ok('result' in created, JSON.stringify(created));
       assert.equal(created.result.status, 'committed');
     }
-    const filteredScope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA));
+    const filteredScope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!));
     const filteredEmpty = await filteredScope.query(identityA, MODEL, { includeCount: true,
       where: { op: 'eq', field: 'label', value: 'No matching entry' } });
     assert.deepEqual(filteredEmpty.rows, []); assert.deepEqual(filteredEmpty.columns, []);
@@ -166,7 +166,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       }
       assert.ok(pageDeps?.createReadScope);
       const before = routeCalls;
-      const scope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA));
+      const scope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!));
       const first = await scope.query(identityA, MODEL, { includeCount: true });
       // Renderer arguments cannot switch a scope's verified identity or store.
       const second = await scope.query(identityB, MODEL, { includeCount: true });
@@ -206,7 +206,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     // History authority belongs only to original rows actually returned by
     // this scope; source predicate candidates never acquire that authority.
     {
-      const scopeA = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA)), scopeB = await pageDeps.createReadScope(identityB, buildPageSourceContext(identityB));
+      const scopeA = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!)), scopeB = await pageDeps.createReadScope(identityB, buildPageSourceContext(identityB), () => identityFor(tokens[1]!));
       assert.ok(scopeA.readRecords); assert.ok(scopeB.readRecords);
       assert.ok(scopeA.readHistory); assert.ok(scopeB.readHistory);
       const nativeA = (await scopeA.readRecords(MODEL, {}))[0]!;
@@ -254,7 +254,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.deepEqual(afterUpdate.state[1], beforeReads.state[1]); assert.deepEqual(afterUpdate.identity, beforeReads.identity);
       await assert.rejects(() => nativeHistory(scopeA, nativeA), hasCode('conflict'));
       await assert.rejects(() => scopeA.readHistory!({ model: MODEL, record: queryA }), hasCode('conflict'));
-      const currentScope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA)); assert.ok(currentScope.readHistory); assert.ok(currentScope.readRecords);
+      const currentScope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!)); assert.ok(currentScope.readHistory); assert.ok(currentScope.readRecords);
       const currentNative = (await currentScope.readRecords(MODEL, {}))[0]!;
       const currentQuery = (await currentScope.query(identityA, MODEL, {})).rows[0]!;
       const current = await currentScope.readHistory({ model: MODEL, record: currentQuery });
@@ -331,7 +331,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
         kind: 'insert', model: seed.model, row: seed.row,
       })) }));
       try {
-        const scope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA));
+        const scope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!));
         const readRecords = scope.readRecords;
         assert.ok(readRecords);
         const beforeReads = await stateSnapshot();
@@ -369,7 +369,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     // Revocation at the actual bounded D1 await refuses the completed history
     // and subsequent use of the same original row, without any State effects.
     {
-      const scope = await pageDeps.createReadScope(identityB, buildPageSourceContext(identityB));
+      const scope = await pageDeps.createReadScope(identityB, buildPageSourceContext(identityB), () => identityFor(tokens[1]!));
       assert.ok(scope.readHistory);
       const original = (await scope.query(identityB, MODEL, {})).rows[0]!;
       const beforeRead = await resources();
@@ -395,7 +395,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     // earlier native projection; this revokes the actual other owner's member.
     {
       assert.ok(pageDeps?.createReadScope);
-      const scope = await pageDeps.createReadScope(identityB, buildPageSourceContext(identityB));
+      const scope = await pageDeps.createReadScope(identityB, buildPageSourceContext(identityB), () => identityFor(tokens[1]!));
       const readRecords = scope.readRecords;
       assert.ok(readRecords);
       const beforeState = await stateSnapshot();
@@ -416,7 +416,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     {
       assert.ok(pageDeps?.createReadScope);
       const beforeState = await stateSnapshot();
-      const scope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA));
+      const scope = await pageDeps.createReadScope(identityA, buildPageSourceContext(identityA), () => identityFor(tokens[0]!));
       let evaluated = false;
       await assert.rejects(() => scope.query(identityA, MODEL, {
         where: async () => { evaluated = true; await identities.removeMembership(memberA.membership_id); return true; },

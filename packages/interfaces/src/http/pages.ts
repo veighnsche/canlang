@@ -36,7 +36,7 @@ import type {
   ShellData,
   TeamOption,
 } from '@canlang/contracts';
-import { deriveCsrfToken, parseSessionCookie } from '@canlang/identity';
+import { deriveCsrfToken, parseSessionCookie, IdentityError } from '@canlang/identity';
 import { buildNavigation, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
 import type { PageHttpDeps, PagePreferenceKey } from '../ports.js';
 import {
@@ -342,6 +342,12 @@ function cappedHtmlResponse(
  */
 export async function handlePageRequest(deps: PageHttpDeps, request: Request): Promise<Response> {
   const url = new URL(request.url);
+  const identityStore = deps.identity.store, identityClock = deps.clock;
+  const capturedCookie = request.headers.get('cookie');
+  const credentialRequest = new Request(url.href, {
+    headers: capturedCookie === null ? {} : { cookie: capturedCookie },
+  });
+  const selectedTeam = parseSessionCookie(capturedCookie ?? undefined) === null ? null : url.searchParams.get('team');
   const method = request.method.toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
   const searchValues = url.searchParams.getAll('q');
@@ -367,14 +373,12 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     // ?team= is honored only with a session cookie: anonymous callers must
     // not probe team existence via 404-vs-render, and public record routes
     // resolve their team from the record (L3), never from the query.
-    const hasSessionCookie =
-      parseSessionCookie(request.headers.get('cookie') ?? undefined) !== null;
-    const teamParam = hasSessionCookie ? url.searchParams.get('team') : null;
+    const teamParam = selectedTeam;
     const resolved = await resolveRequestIdentity(
-      deps.identity.store,
-      request,
+      identityStore,
+      credentialRequest,
       {
-        clock: deps.clock,
+        clock: identityClock,
         ...(teamParam === null ? {} : { teamId: teamParam }),
       },
     );
@@ -411,10 +415,22 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   const partial = isPartialRequest(request);
   let scope: PageReadScope | undefined;
   let closeScope: (() => void | Promise<void>) | undefined;
+  let scopeActive = true;
+  const requireActiveScope = (): void => {
+    if (!scopeActive) throw new IdentityError('forbidden', 'Page read scope is closed.');
+  };
+  const resolveCaller = async (): Promise<ResolvedIdentity> => {
+    requireActiveScope();
+    const resolved = await resolveRequestIdentity(identityStore, credentialRequest, {
+      clock: identityClock, ...(selectedTeam === null ? {} : { teamId: selectedTeam }),
+    });
+    requireActiveScope();
+    return resolved.identity;
+  };
   try {
     let query: RowQueryRunner;
     try {
-      scope = await deps.createReadScope?.(identity, source);
+      scope = await deps.createReadScope?.(identity, source, resolveCaller);
       closeScope = scope?.close?.bind(scope);
       const scopedQuery = scope?.query;
       query = bindRowQueryRunner(deps, identity, scopedQuery, scopedQuery === undefined ? deps : scope);
@@ -447,6 +463,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
         ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
         ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
         ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
+        ...(scope?.resolveFileImage === undefined ? {} : { resolveFileImage: scope.resolveFileImage.bind(scope) }),
         ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
         ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
           observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
@@ -515,6 +532,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
       ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
       ...(scope?.presentFile === undefined ? {} : { presentFile: scope.presentFile.bind(scope) }),
+      ...(scope?.resolveFileImage === undefined ? {} : { resolveFileImage: scope.resolveFileImage.bind(scope) }),
       ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
       ...(scope?.observeGenerationCallbackDiagnostics === undefined ? {} : {
         observeGenerationCallbackDiagnostics: scope.observeGenerationCallbackDiagnostics,
@@ -538,6 +556,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     }
     return cappedHtmlResponse(deps, html, { method, path: pathname });
   } finally {
+    scopeActive = false;
     try { await closeScope?.(); }
     catch (err) { return internalResponse(deps, err, pathname); }
   }
