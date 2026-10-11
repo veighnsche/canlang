@@ -1,0 +1,14 @@
+app FileCollectionDownload
+Given
+ Entry { label:text="Uploaded", attachments:file[]!, ordinary:file[], nullable:file[]?, cover:file? }
+ policy Entry read=owner where=row.label!="" fields=label,attachments,ordinary,nullable,cover
+ policy Entry read=members fields=label
+When
+ crud Entry by=owner fields=label,attachments,ordinary,nullable,cover
+Then
+ page /files title="Current Files"
+  list Entry order=created empty="No files"
+   text row.attachments
+   text row.ordinary
+   text row.nullable
+   text row.cover

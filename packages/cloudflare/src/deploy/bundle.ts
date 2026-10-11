@@ -91,6 +91,7 @@ import { resolveProducerFile } from "./producer-files.js";
 import { gatherDeploymentAssets, type PackageAssetSelection, type PackageResource } from "./package-assets.js";
 import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
 import { distribution as uiDistribution } from "@canlang/ui/distribution";
+import * as nativeUiProducer from "@canlang/ui";
 import { distribution as identityDistribution } from "@canlang/identity/distribution";
 import { distribution as stdlibDistribution } from "@canlang/stdlib/distribution";
 import { distribution as stateDistribution } from "@canlang/state/distribution";
@@ -112,6 +113,7 @@ import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
 import { isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
 import { composeModuleMap } from "./module-maps.js";
+import { nativeUiQueryFacadeSource } from "../runtime/native-ui-query.js";
 
 /** Main module key: the deployed worker entry within the module map. */
 export const DEPLOY_MAIN_MODULE = "worker/main.js";
@@ -137,6 +139,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "stdlib.js",
   "native-records.js",
   "native-membership.js",
+  "native-ui-query.js",
   "generation-callback-origin.js",
   "scenario-receipt-frame.js",
   "assembly-verification.js",
@@ -294,6 +297,7 @@ function stageBrowserDependencies(): Record<string, string> {
 
 /** Vendor entry keys (mirroring each package's `main`). */
 const UI_VENDOR_ENTRY = "vendor/ui/index.js";
+const NATIVE_UI_RUNTIME_ENTRY = "runtime/native-ui.js";
 const STDLIB_VENDOR_ENTRY = "vendor/stdlib/index.js";
 /** Generated handlers use the same canonical data-plane owner as the CLI. */
 const GENERATED_STDLIB_RUNTIME_ENTRY = "runtime/stdlib.js";
@@ -576,7 +580,7 @@ function relativeSpecifier(fromModule: string, toKey: string): string {
 function rewriteArtifactImports(js: string, modulePath: string) {
   return rewriteModuleImports(js, modulePath, (specifier) => {
     if (specifier === STDLIB_SPECIFIER) return relativeSpecifier(modulePath, GENERATED_STDLIB_RUNTIME_ENTRY);
-    if (specifier === UI_SPECIFIER) return relativeSpecifier(modulePath, UI_VENDOR_ENTRY);
+    if (specifier === UI_SPECIFIER) return relativeSpecifier(modulePath, NATIVE_UI_RUNTIME_ENTRY);
     return specifier;
   });
 }
@@ -905,6 +909,9 @@ function stageArtifactModules(artifact: CompileArtifact): { modules: Record<stri
     const inline = view.map === undefined ? "" : `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${Buffer.from(JSON.stringify(view.map), "utf8").toString("base64")}\n`;
     staged[mod.path] = rewritten.js + inline;
   }
+  staged[NATIVE_UI_RUNTIME_ENTRY] = nativeUiQueryFacadeSource(nativeUiProducer,
+    relativeSpecifier(NATIVE_UI_RUNTIME_ENTRY, UI_VENDOR_ENTRY),
+    relativeSpecifier(NATIVE_UI_RUNTIME_ENTRY, 'runtime/native-ui-query.js'));
   return { modules: staged, sourceMaps };
 }
 

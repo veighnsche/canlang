@@ -26,6 +26,7 @@ import type { CompileArtifact, SourceMap } from "@canlang/contracts";
 import { rewriteModuleImports, validateArtifactModuleImports } from "../deploy/module-imports.js";
 import { composeModuleMap } from "../deploy/module-maps.js";
 import { registerAssemblerModuleCapability } from "./assembly-verification.js";
+import { nativeUiQueryFacadeSource } from "./native-ui-query.js";
 export { importVerifiedAssemblyModule } from "./assembly-verification.js";
 
 /**
@@ -183,7 +184,11 @@ export async function assembleModules(
   }
   const entry = modules[0]!;
   // Fail loud before writing anything: no partial workDir on bad input.
-  const uiUrl = await uiModuleUrl(opts.uiUrl);
+  const originalUiUrl = await uiModuleUrl(opts.uiUrl);
+  const uiUrl = opts.uiUrl !== undefined ? originalUiUrl :
+    `data:text/javascript;charset=utf-8,${encodeURIComponent(nativeUiQueryFacadeSource(
+      await import(originalUiUrl) as typeof import('@canlang/ui'), originalUiUrl,
+      new URL('./native-ui-query.js', import.meta.url).href))}`;
   validateArtifactModuleImports(modules, "assembleModules");
   const paths = new Set<string>();
   for (const mod of modules) {
