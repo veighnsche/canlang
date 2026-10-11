@@ -1,0 +1,22 @@
+app TableTime
+Given
+ Calendar {title:text}
+ Window in Calendar {from:datetime,until:datetime,state:enum(open,closed),available:bool,rank:int}
+ policy Calendar read=members
+ policy Window read=members
+When
+ crud Calendar by=members fields=title
+ crud Window by=members fields=available,rank create_fields=from,until,state,available,rank
+Then
+ preferences {window_state:Window.state?}
+ page /table-time title="Request-time windows"
+  ## Like original Upcoming/Past, these select the model domain directly.
+  table Window as visit where visit.from>=now columns=from,until,state order=from filter=state defaults={state=preferences.window_state} display=split
+   text row.from
+   edit fields=available
+    checkbox available
+   edit fields=rank
+  table Window as visit where visit.from<now columns=from,until,state order=-from filter=state defaults={state=preferences.window_state} display=split
+   text row.from
+   edit fields=available
+    checkbox available

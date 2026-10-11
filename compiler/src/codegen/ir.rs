@@ -1210,6 +1210,10 @@ pub enum IrExpr {
         /// Predicate body.
         body: Box<TypedExpr>,
     },
+    /// Checked ordinary Table comparison against its admitted page time.
+    /// Private construction retains the owning source/field; this is consumed
+    /// only as the Table's data-only `where`, never as a business expression.
+    PageTimePredicate(CheckedPageTimePredicate),
     /// Checked expression with no §13 lowering. The lowering stages
     /// report `E6008` naming the position and emit a throwing
     /// placeholder; the build never invents a meaning instead.
@@ -1219,6 +1223,67 @@ pub enum IrExpr {
         /// Why there is no lowering.
         why: String,
     },
+}
+
+/// A finite source-to-existing-query join for `row.datetime >= now` / `< now`.
+/// Editable objects or lambdas cannot acquire the native time codec by shape.
+#[derive(Debug, Clone)]
+pub struct CheckedPageTimePredicate {
+    model: SymbolId,
+    model_name: String,
+    field: SymbolId,
+    field_name: String,
+    field_span: Span,
+    operation: IrBinOp,
+    collection_span: Span,
+    predicate_span: Span,
+}
+
+impl CheckedPageTimePredicate {
+    pub(crate) fn checked_parts<'a>(
+        &'a self,
+        ir: &IrProgram,
+        node: &IrUi,
+        value: &TypedExpr,
+    ) -> Option<(&'a str, &'a str)> {
+        if node.factory != "table"
+            || node.span != self.collection_span
+            || value.span != self.predicate_span
+            || value.ty != ResolvedType::Unknown
+            || !node.props.iter().any(|(key, value)| {
+                key == "model"
+                    && matches!(&value.expr, IrExpr::Text(name) if name == &self.model_name)
+            })
+        {
+            return None;
+        }
+        let model = ir.items.get(self.model.0 as usize)?;
+        let IrItemKind::Model { fields, .. } = &model.kind else {
+            return None;
+        };
+        let field = ir.items.get(self.field.0 as usize)?;
+        if model.id != self.model
+            || model.canonical != self.model_name
+            || !fields.contains(&self.field)
+            || field.id != self.field
+            || field.name != self.field_name
+            || field.canonical != format!("{}.{}", self.model_name, self.field_name)
+            || field.span != self.field_span
+            || !matches!(field.kind, IrItemKind::Field {
+                owner,
+                ty: IrType::Known(ResolvedType::Scalar(Scalar::Datetime)),
+                ..
+            } if owner == self.model)
+        {
+            return None;
+        }
+        let operation = match self.operation {
+            IrBinOp::Ge => "gte",
+            IrBinOp::Lt => "lt",
+            _ => return None,
+        };
+        Some((operation, &self.field_name))
+    }
 }
 
 /// Source-callable call targets.
@@ -7521,6 +7586,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
             | IrExpr::Date(_)
             | IrExpr::Datetime(_)
             | IrExpr::Name(_)
+            | IrExpr::PageTimePredicate(_)
             | IrExpr::Unsupported { .. } => {}
         }
     }
@@ -13451,6 +13517,52 @@ impl<'a> Cx<'a> {
         ))
     }
 
+    fn checked_page_time_predicate(
+        &self,
+        model: SymbolId,
+        collection_span: Span,
+        alias: &str,
+        body: &TypedExpr,
+    ) -> Option<CheckedPageTimePredicate> {
+        let IrExpr::Binary { op, left, right } = &body.expr else {
+            return None;
+        };
+        if !matches!(op, IrBinOp::Ge | IrBinOp::Lt)
+            || body.ty != ResolvedType::Scalar(Scalar::Bool)
+            || left.ty != ResolvedType::Scalar(Scalar::Datetime)
+            || right.ty != ResolvedType::Scalar(Scalar::Datetime)
+        {
+            return None;
+        }
+        let IrExpr::Member { base, field } = &left.expr else {
+            return None;
+        };
+        if !matches!(&base.expr, IrExpr::Name(name) if name == alias)
+            || !matches!(&right.expr, IrExpr::Member { base, field }
+                if field == "now" && matches!(&base.expr, IrExpr::Name(name) if name == "c"))
+        {
+            return None;
+        }
+        let field_id = *self.fields.get(&(model, field.clone()))?;
+        let symbol = self.program.symbols.get(field_id.0 as usize)?;
+        if !matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == model)
+            || self.program.types.symbol_types.get(&field_id)
+                != Some(&ResolvedType::Scalar(Scalar::Datetime))
+        {
+            return None;
+        }
+        Some(CheckedPageTimePredicate {
+            model,
+            model_name: self.canonical(model),
+            field: field_id,
+            field_name: field.clone(),
+            field_span: symbol.span,
+            operation: *op,
+            collection_span,
+            predicate_span: body.span,
+        })
+    }
+
     /// Decode a collection (`list`/`table`/`gallery`): model, query
     /// props, presentation props, and row children under `renderRow`.
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
@@ -13605,13 +13717,18 @@ impl<'a> Cx<'a> {
                             let mut inner = scope.clone();
                             inner.row_rewrite.insert(param.clone(), param.clone());
                             let body = self.decode_expr(&inner, pred);
+                            let predicate = if word == "table" {
+                                self.checked_page_time_predicate(id, node.span, &param, &body)
+                            } else {
+                                None
+                            };
                             props.push((
                                 "where".to_string(),
                                 TypedExpr::new(
-                                    IrExpr::Lambda {
+                                    predicate.map(IrExpr::PageTimePredicate).unwrap_or_else(|| IrExpr::Lambda {
                                         param,
                                         body: Box::new(body),
-                                    },
+                                    }),
                                     ResolvedType::Unknown,
                                     pred.span,
                                 ),
@@ -15696,6 +15813,7 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
         | IrExpr::Date(_)
         | IrExpr::Datetime(_)
         | IrExpr::Name(_)
+        | IrExpr::PageTimePredicate(_)
         | IrExpr::Unsupported { .. } => {}
     }
 }

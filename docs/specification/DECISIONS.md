@@ -9245,3 +9245,21 @@ Coordinator finite source review CLEAR: the existing Cloudflare pure Values faca
 Notifications retain delivery_id alone; historical failures cannot be labelled current snapshot failures or inferred repaired from later success/time/UUID. Actual consumed provider snapshot identity plus receipt/source/handler correspondence remains a defining Dev/Work producer prerequisite. Compiler selection and explicit ordinary/safe-recovery source authority, Dev genuine original callback execution, held source corrections and final presentation remain unfinished. Proportionate direct producer/authority/storage checks and real D1 adapter-reopen join are recorded once in SEQ025; no whole-app or current-snapshot acceptance.
 
 Coordinator independent finite Work correspondence and State authority/bounded-carrier reviews CLEAR. Retain the owning22 affected controls (State9, outbox5, Work7, genuine D1 projection/reopen/revocation1) and three emissions without reruns. The historical closed require-false diagnostic producer/projection is accepted at this scope: original dispatch/outbox/schedule/source-route/ordinary-handler/immutable-receipt correspondence, no raw body or provider-result disclosure, complete bounded reads, distinct callback authority and live readable containment/current Identity/State revalidation. Actual Compiler selection/current callback and safe recovery policy, Dev installed source consumer and actually consumed snapshot identity, Interfaces/UI presentation and original applications remain separately unfinished. A new reconcile occurrence cannot reconstruct or erase an older failure. No whole SEQ025/roadmap acceptance or held-source release; complete file-tree checkpoint remains unchanged.
+
+### 2026-10-11 — checked ordinary table request-time predicates; pagination unfinished
+
+Use the existing QueryPredicate and owning Values wire codec for original checked
+Table nonnullable Datetime field >=now/<now. A privately constructed IR carrier
+retains source collection/model/field identity and rejoins that field at emission;
+it is consumed only by its original Table where. Trusted Identity admission time
+supplies the native Datetime, source overrides and form-preparer clocks cannot
+replace it.146 affected assertions and strict Clippy0 8.10s pass through actual
+Identity/generated CRUD/Memory State/UI consumers; finite coordinator review is
+pending. Preserve explicit paginated refusal until original query-time/current
+cursor semantics are released; pending human consultation approval grants no
+alternate implementation. Original full application/conditional policy and Dev's
+separately discovered ordinary contained-create parent issuance remain external.
+Existing callback diagnostic reader does not invent an authored independent
+diagnostic selection/grant or release its held source outlet.
+
+Coordinator independent finite checked IR/JS and installed native-control reviews CLEAR. Retain owning146 affected assertions, strict all-target Clippy0/fmt and frozen graph22 results without reruns. Checked nonnullable owning Datetime >=now/<now uses the existing QueryPredicate and exact Values codec of trusted Identity admission time, preserving original source/field correspondence, order/once/current canonical query/UI bindings and unsupported-source refusal. Genuine generated child CRUD seeds real State rows and qualifies the ordinary direct-model-domain query; it does not qualify the separately failing ordinary contained-source create. This finite ordinary predicate producer/consumer is accepted; original paginated cursor-time correspondence, Dev parent issuance, original conditional policies/full application, diagnostic selection/source authority and all precise holds remain separate. Complete file-tree checkpoint is unchanged.

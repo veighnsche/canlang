@@ -6883,8 +6883,15 @@
             "owner": "Packages shared facade; Compiler original checked Datetime comparison-to-wire consumer",
             "output": "Add only encodeValue to the existing direct @canlang/values pure export block in packages/cloudflare/src/runtime/stdlib.ts. Existing owning Values/ordinary stdlib codec identity/signature/range behavior and vendor closure remain unchanged; no wrapper, coercion, clock, AST/profile or new module.",
             "validation": "Pinned Node24.19 Cloudflare emission exit0. Actual public @canlang/cloudflare/runtime/stdlib named import executes and is strictly identical to owning Values encodeValue; native offset Datetime encodes to original canonical UTC millisecond wire. No failure/retry, new verification framework or unchanged Values/vendor checks.",
-            "remaining": "Coordinator finite source review and Compiler actual original checked predicate/installed consumer; existing Dev cursor correspondence and all precise holds remain.",
+            "remaining": "Owning ordinary checked Datetime consumer is reviewed/qualified as linked compiler_join; original paginated continuation and full application remain separate.",
             "integration_review": "Coordinator finite source review CLEAR: the existing Cloudflare pure Values facade now re-exports the exact owning encodeValue with no wrapper, coercion, clock or new dependency. Owning emission/public named-import identity and native offset Datetime canonical wire check are retained without reruns. This shared codec prerequisite is accepted and released; Compiler checked predicate consumer and Dev authenticated original query-time continuation remain separate. Pending payload-specific consultation and all precise holds remain; complete file-tree checkpoint is unchanged."
+          },
+          "compiler_join": {
+            "state": "finite_ordinary_checked_query_consumer_reviewed_qualified",
+            "owner": "Compiler",
+            "source": "a0e62a87c33af80502e98d5d65976f8a1162d12f",
+            "evidence": "implementation/compiler-completion/status.json#committed_model_event_source/calendar_agenda_prerequisite/request_time/compiler_join",
+            "remaining": "Original paginated query-time/cursor decision and producer; Dev ordinary contained-create parent issuance and full original application remain separate."
           }
         }
       },
