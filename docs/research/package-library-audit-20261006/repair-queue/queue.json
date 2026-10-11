@@ -4111,7 +4111,8 @@
         "accepted_scope": "Independently accepted planned ancestry preflight committed 788e5352; wider lifecycle/sidecar/installed gates open",
         "next_action": "Reuse accepted ancestry, scratch cleanup and primary-error preservation. Release the existing child/whole-command bound and returned-run-URL lifetime, then qualify the selected sidecar/race/partial-write cases.",
         "done_when": "Contained real output and promised URL remain useful; symlink/phase-failure controls preserve cleanup and original failures, and uncertain Wrangler outcomes never become automatic retry/no-effect.",
-        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D03"
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D03",
+        "bun_stage_outcome": "Implemented/tested/reviewed in local main: each original Bun build stage30s/SIGKILL/1MiB capture, actual installed deterministic three-stage1/1 and mocked-child real-writer10/10, no publication/apply on first/second-stage timeout. Stop this finite criterion; command-wide policy, concurrent replacement/broader interruption and precise preparation hold remain."
       }
     },
     {
