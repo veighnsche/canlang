@@ -302,6 +302,22 @@ describe("generated fields", () => {
     assert.equal(fieldByPath(fields, "owner__version").label, "owner__version");
   });
 
+  it('preserves checked scalar date semantics without changing plain strings or array widgets', () => {
+    const derived: DerivedOperationInputs = { operation: 'Store.dateFields', kind: 'scenario', artifactVersion: 1,
+      inputs: [
+        { name: 'from', kind: 'string', valueType: 'date', required: false, default: { kind: 'literal', value: '2026-10-12' } },
+        { name: 'until', kind: 'string', valueType: 'date?', nullable: true, required: false },
+        { name: 'note', kind: 'string', required: false },
+        { name: 'dates', kind: 'string', valueType: 'date[]', array: { required: false }, required: false },
+      ] };
+    const fields = generatedFields(derived, 'scenario');
+    assert.deepEqual(fields.map(field => [field.path, field.type]),
+      [['from', 'date'], ['until', 'date'], ['until__null', 'bool'], ['note', 'text'], ['dates', 'text']]);
+    assert.equal(fields[0]!.value, '2026-10-12');
+    assert.deepEqual(projectGeneratedInputs(derived, 'scenario', { 'inputs[from]': '2026-10-13' }),
+      { from: '2026-10-13' });
+  });
+
   it("prefills literal defaults verbatim and defers parent defaults", async () => {
     const create = generatedFields(GADGET_CREATE, "create");
     assert.equal(fieldByPath(create, "stock").value, "0");

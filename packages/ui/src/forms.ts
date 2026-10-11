@@ -1334,7 +1334,8 @@ export function generatedFields(
     // String-indexed on purpose: kinds outside the pinned pilot table
     // (or JS-only inventions) read undefined and throw below.
     const table = GENERATED_FORM_TYPE_FOR_KIND as Record<string, string | undefined>;
-    const type: unknown = table[input.kind];
+    const type: unknown = input.kind === "string" && input.array === undefined &&
+      (input.valueType === "date" || input.valueType === "date?") ? "date" : table[input.kind];
     if (typeof type !== "string") {
       throw new Error(
         `generated form for ${JSON.stringify(derived.operation)}: ` +
