@@ -117,6 +117,23 @@ describe("dist manifest (B5-J3)", () => {
     expect(() => verifyDistManifest(root, manifestPath)).toThrow(/index\.js/);
   });
 
+  it("verify rejects a false byte count with unchanged content and digest", () => {
+    const { root } = fixtureDist();
+    try {
+      const manifest = buildDistManifest(root, ["packages/demo/dist"]);
+      const original = manifest.files[0]!;
+      const changed = { ...manifest, files: [{ ...original, bytes: original.bytes + 1 }, ...manifest.files.slice(1)] };
+      const manifestPath = writeDistManifest(root, changed);
+      expect(() => verifyDistManifest(root, manifestPath)).toThrow(
+        `changed: ${original.path} (bytes ${original.bytes + 1} -> ${original.bytes})`,
+      );
+      writeDistManifest(root, manifest);
+      expect(() => verifyDistManifest(root, manifestPath)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("verify fails loud on a missing file", () => {
     const { root } = fixtureDist();
     const manifest = buildDistManifest(root, ["packages/demo/dist"]);

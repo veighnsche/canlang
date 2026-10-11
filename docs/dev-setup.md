@@ -84,7 +84,7 @@ bun run verify:installed-types
 `catalog` builds the values dependency closure, then emits
 `packages/values/dist/catalog.json` uncached. `release` schedules the producer
 builds, then checks version lockstep, writes the release manifest, and verifies
-its recorded files uncached. It validates the package tree without packing or
+both the recorded digest and byte count for each file uncached. It validates the package tree without packing or
 publishing. `release:stamp`, `release:manifest`, and `release:verify` are direct
 checks of an already built tree; use `release` to prepare it.
 

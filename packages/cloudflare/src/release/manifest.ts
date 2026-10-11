@@ -5,7 +5,8 @@
  * hashes every emitted file with sha256, and returns the sorted manifest.
  * `writeDistManifest` persists it as `dist-manifest.json` at the repo
  * root; `verifyDistManifest` re-hashes and fails loud naming every
- * changed/missing/added file. Rebuild twice -> byte-identical manifest.
+ * changed/missing/added file, including false recorded byte counts.
+ * Rebuild twice -> byte-identical manifest.
  *
  * Composite `*.tsbuildinfo` files are EXCLUDED (they carry timestamps by
  * design); everything else under the scanned roots is covered, so an
@@ -124,7 +125,7 @@ export function verifyDistManifest(repoRoot: string, manifestPath?: string): voi
     const actualFile = got.get(filePath);
     if (actualFile === undefined) {
       problems.push(`missing: ${filePath}`);
-    } else if (actualFile.sha256 !== expectedFile.sha256) {
+    } else if (actualFile.sha256 !== expectedFile.sha256 || actualFile.bytes !== expectedFile.bytes) {
       problems.push(`changed: ${filePath} (bytes ${expectedFile.bytes} -> ${actualFile.bytes})`);
     }
   }
