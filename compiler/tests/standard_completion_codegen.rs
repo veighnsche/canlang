@@ -45,6 +45,366 @@ When
 Then
 "#;
 
+// The original Email bodies, models, routes and order are unchanged. Only the
+// three provider imports/handlers outside the released Email carrier are absent.
+const PUBLIC_EMAIL_SOURCE: &str = r#"app CompletionProjection
+use std {EmailV1 as Secondary} from=deployment.secondary
+use std {EmailV1 as Primary} from=deployment.primary
+Given
+ Entry {seen:text}
+ CompletionAudit {delivery:text,reference:text}
+When
+ scenario primary_first on=Primary.send.completed
+  do
+   let status=event.status
+   require event.result!=null
+   let reference=event.result.reference
+   create CompletionAudit {delivery=event.delivery_id,reference=event.result.reference} as audit
+   require reference!="late-reject"
+ scenario secondary on=Secondary.send.completed
+  do let status=event.status
+ scenario primary_cohort on=Primary.send.completed each=Entry as entry
+  do
+   let status=event.status
+   require event.result!=null
+   let reference=event.result.reference
+   set entry {seen=event.result.reference}
+   require reference!="late-reject"
+ scenario primary_last on=Primary.send.completed
+  do let status=event.status
+Then
+"#;
+
+fn public_email_ir() -> (SourceDb, IrProgram) {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let mut db = SourceDb::new();
+    let id = db.add(
+        "completion-projection.can".into(),
+        PUBLIC_EMAIL_SOURCE.into(),
+    );
+    let catalog_path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    (db, ir)
+}
+
+#[cfg(unix)]
+#[test]
+fn public_email_cli_artifact_preserves_original_routes_bodies_and_native_schemas() {
+    use canlang_compiler::source::sha256_hex;
+    use serde_json::{Value, json};
+    use std::process::Command;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let qualification = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("target/standard-completion-public-qualification");
+    std::fs::create_dir_all(&qualification).unwrap();
+    std::fs::write(
+        qualification.join("completion-projection.can"),
+        PUBLIC_EMAIL_SOURCE,
+    )
+    .unwrap();
+    let catalog_path = root.join("packages/values/dist/catalog.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(&catalog_path)
+        .arg("completion-projection.can")
+        .current_dir(&qualification)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let compiled: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        compiled["sources"],
+        json!([{
+            "path":"completion-projection.can", "sha256":sha256_hex(PUBLIC_EMAIL_SOURCE.as_bytes())
+        }])
+    );
+    assert_eq!(
+        compiled["operations"],
+        json!([]),
+        "trusted handlers acquire no public invocation authority"
+    );
+    assert_eq!(compiled["tests"], json!([]));
+    assert_eq!(
+        compiled["callables"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|callable| callable["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "CompletionProjection.primary_first",
+            "CompletionProjection.secondary",
+            "CompletionProjection.primary_cohort",
+            "CompletionProjection.primary_last"
+        ]
+    );
+    let (db, ir) = public_email_ir();
+    for (name, create) in [("primary_first", true), ("primary_cohort", false)] {
+        let handler = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == format!("CompletionProjection.{name}"))
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &handler.kind else {
+            unreachable!()
+        };
+        assert_eq!(effects.len(), 5, "original ordered body");
+        assert!(
+            matches!(&effects[3], IrStmt::Create { .. }) && create
+                || matches!(&effects[3], IrStmt::Set { .. }) && !create
+        );
+        assert!(matches!(&effects[4], IrStmt::Require { cond, .. }
+            if matches!(&cond.expr, IrExpr::Binary { op: IrBinOp::Ne, left, right }
+                if matches!(&left.expr, IrExpr::Name(value) if value == "reference")
+                    && matches!(&right.expr, IrExpr::Text(value) if value == "late-reject"))));
+    }
+    let emitted = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+    assert_eq!(
+        serde_json::to_value(emitted.value_types.unwrap()).unwrap(),
+        compiled["valueTypes"]
+    );
+    // This is the actual public CLI output consumed by Dev, never a private
+    // artifact assembly, rewritten module or replacement metadata envelope.
+    std::fs::write(qualification.join("artifact.json"), &output.stdout).unwrap();
+    std::fs::write(
+        qualification.join("catalog.json"),
+        std::fs::read(&catalog_path).unwrap(),
+    )
+    .unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let runner = scratch.path().join("public-email.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createRequire} from 'node:module';
+const require=createRequire(resolve(process.argv[2],'package.json'));
+const dir=process.argv[3];
+const original=readFileSync(resolve(dir,'artifact.json'));
+const artifact=JSON.parse(original);
+const {assembleModules,importVerifiedAssemblyModule}=await import(pathToFileURL(require.resolve('@canlang/cloudflare/runtime/modules')));
+const asm=await assembleModules({artifact,sourcePath:resolve(dir,'completion-projection.can')},{
+ workDir:process.argv[4],stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+ uiUrl:pathToFileURL(require.resolve('@canlang/ui')).href,
+});
+const {appDefinition:definition,canApp}=await importVerifiedAssemblyModule(asm,artifact.modules[0].path,artifact);
+const registry=canApp();
+assert.equal(registry.standardCompletions,definition.standardCompletions);
+assert.deepEqual(definition.standardCompletions,[
+ {source:'std.EmailV1.send',event:'CompletionProjection.Primary.send.completed',binding:'CompletionProjection.Primary',from:'deployment.primary',resultType:'EmailAccepted',handlers:['CompletionProjection.primary_first','CompletionProjection.primary_cohort','CompletionProjection.primary_last']},
+ {source:'std.EmailV1.send',event:'CompletionProjection.Secondary.send.completed',binding:'CompletionProjection.Secondary',from:'deployment.secondary',resultType:'EmailAccepted',handlers:['CompletionProjection.secondary']},
+]);
+assert.deepEqual(Object.keys(definition.contracts).sort(),['DeliveryError','EmailAccepted']);
+const {normalizeValueTypes,normalizeSchema}=await import('@canlang/values');
+const {valueSchema}=normalizeValueTypes(artifact.valueTypes,artifact.models.map(model=>model.name));
+const declarations={contracts:definition.contracts,enums:definition.enums,
+ ...(definition.aliases===undefined?{}:{aliases:definition.aliases})};
+assert.deepEqual(normalizeSchema(declarations),valueSchema);
+const operations={};
+for(const route of definition.standardCompletions) {
+ assert.deepEqual(Object.keys(route),['source','event','binding','from','resultType','handlers']);
+ const binding=definition.bindings[route.binding];assert.equal(binding.from,route.from);
+ assert.equal(binding.capability,'std.EmailV1');
+ const source=definition.capabilities[binding.capability].operations.send;
+ assert.deepEqual(source.result,{type:'EmailAccepted'});
+ operations[route.source]={inputs:source.inputs};
+ const event=definition.events[route.event];
+ assert.deepEqual(Object.keys(event.inputs),['delivery_id','status','result','error']);
+ assert.equal(event.inputs.result.type,'EmailAccepted?');assert.equal(event.inputs.error.type,'DeliveryError?');
+ operations[route.event]={inputs:event.inputs};
+ for(const id of route.handlers) {
+  const handler=definition.operations[id];assert.equal(handler.event,route.event);
+  const fields=handler.invocation.inputs.fields;
+  assert.deepEqual(fields.slice(0,4).map(field=>field.name),['delivery_id','status','result','error']);
+  assert(fields.slice(0,4).every(field=>field.required===true));
+  assert.deepEqual(fields[1].field,{kind:'enum',values:['succeeded','failed','unknown','skipped']});
+  assert.equal(fields[2].valueType,'EmailAccepted?');assert.equal(fields[2].nullable,true);
+  assert.equal(fields[3].valueType,'DeliveryError?');assert.equal(fields[3].nullable,true);
+  const callable=artifact.callables.find(callable=>callable.id===id);assert.equal(callable.kind,'handler');
+  let fn=registry;for(const part of callable.member)fn=fn[part];assert.equal(typeof fn,'function');
+ }
+}
+normalizeSchema({...declarations,operations});
+assert.deepEqual(definition.cohorts['CompletionProjection.primary_cohort'],{kind:'model',model:'CompletionProjection.Entry',bind:'entry'});
+assert.deepEqual(readFileSync(resolve(dir,'artifact.json')),original);
+console.log('Public Email CLI artifact binds exact source routes, original registry references and installed Values schemas');
+"#).unwrap();
+    let run = Command::new("node")
+        .arg(&runner)
+        .arg(root)
+        .arg(&qualification)
+        .arg(scratch.path().join("native-modules"))
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&run.stdout));
+}
+
+#[test]
+fn public_email_publication_refuses_raw_stale_and_edited_handler_censuses() {
+    let (db, original) = public_email_ir();
+    let raw = js::emit_program(&original);
+    assert!(
+        raw.diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    assert!(!raw.entry.js.contains("standardCompletions:"));
+    let mut stale = SourceDb::new();
+    stale.add(
+        "completion-projection.can".into(),
+        PUBLIC_EMAIL_SOURCE.replace("late-reject", "changed-rejection"),
+    );
+    let output = js::emit_program_with_native_source_receipts(&original, false, &stale);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    assert!(!output.entry.js.contains("standardCompletions:"));
+    for change in 0..7 {
+        let mut ir = original.clone();
+        let entry = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "CompletionProjection.Entry")
+            .unwrap()
+            .id;
+        let handler = ir
+            .items
+            .iter_mut()
+            .find(|item| {
+                item.canonical
+                    == if change == 3 {
+                        "CompletionProjection.primary_cohort"
+                    } else {
+                        "CompletionProjection.primary_first"
+                    }
+            })
+            .unwrap();
+        let IrItemKind::Scenario {
+            event_source,
+            effects,
+            params,
+            cohort,
+            read,
+            ..
+        } = &mut handler.kind
+        else {
+            unreachable!()
+        };
+        match change {
+            0 => {
+                assert!(matches!(effects.pop(), Some(IrStmt::Require { .. })));
+            }
+            1 => ir.modules[0].imports[1].from = Some("deployment.copied".into()),
+            2 => params.push(entry),
+            3 => *cohort = None,
+            4 => {
+                let Some(IrEventSource::StandardCompleted {
+                    canonical_operation,
+                    ..
+                }) = event_source
+                else {
+                    unreachable!()
+                };
+                *canonical_operation = "std.PaymentsV1.cancel".into();
+            }
+            5 => {
+                effects.remove(3);
+            }
+            6 => *read = true,
+            _ => unreachable!(),
+        }
+        let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "change{change}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            !output.entry.js.contains("standardCompletions:"),
+            "change{change}: no partial publication"
+        );
+    }
+}
+
+#[test]
+fn public_email_cli_does_not_release_unbound_or_unsupported_terminal_sources() {
+    use serde_json::Value;
+    use std::process::Command;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let unsupported = "app UnsupportedTerminal\nuse std {PaymentsV1 as Cash} from=deployment.cash\nGiven\nWhen\n scenario observed on=Cash.cancel.completed\n  do let result=event.result\nThen\n";
+    let read_handler = "app ReadTerminal\nuse std {EmailV1 as Mail} from=deployment.mail\nGiven\nWhen\n scenario observed on=Mail.send.completed read=true\n  do let status=event.status\nThen\n";
+    for (source, code) in [
+        (SOURCE.to_string(), "E6008"),
+        (
+            PUBLIC_EMAIL_SOURCE.replace(" from=deployment.primary", ""),
+            "E6008",
+        ),
+        (unsupported.to_string(), "E6008"),
+        (read_handler.to_string(), "E1200"),
+    ] {
+        let scratch = tempfile::tempdir().unwrap();
+        std::fs::write(scratch.path().join("refused.can"), source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg("refused.can")
+            .current_dir(scratch.path())
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            result["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == code),
+            "{result}"
+        );
+        assert!(
+            result.get("modules").is_none(),
+            "no refused executable artifact: {result}"
+        );
+    }
+}
+
 fn build(source: &str) -> (SourceDb, IrProgram, Catalog) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let mut db = SourceDb::new();

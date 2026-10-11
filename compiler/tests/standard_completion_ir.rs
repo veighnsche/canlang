@@ -1,4 +1,4 @@
-//! Checked standard terminal provenance remains internal until native publication.
+//! Checked standard terminal provenance gates bounded native publication.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::ir::{self, IrEventSource, IrItemKind};
@@ -35,13 +35,7 @@ fn bound_standard_terminal_retains_original_operation_result_and_authored_route(
     let catalog = catalog();
     let (db, program) = checked(SOURCE, &catalog);
     let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
-    assert!(
-        diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic.message.contains("handler triggers")),
-        "{diagnostics:?}"
-    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(
         ir.items.len(),
         program.symbols.len(),
