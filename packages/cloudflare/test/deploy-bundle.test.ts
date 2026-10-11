@@ -319,7 +319,7 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.mcpBundleBytes).toBe(handler.length);
   });
 
-  it("HTTP bundle carries the op-chain markers incl. its own IdentityError copy", () => {
+  it("HTTP bundle carries the op-chain markers incl. its own IdentityError copy", async () => {
     const bundle = buildDeployBundle(testArtifact(), {
       repoRoot,
       workerDistDir: fakeWorkerDist(),
@@ -332,6 +332,8 @@ describe("deploy bundle (P-B)", () => {
       "handlePageRequest",
       "handlePagePreferencePost",
       "receiverFromIdentity",
+      "parseJsonBody",
+      "JSON_BODY_MAX_BYTES",
       "IdentityError",
     ]) {
       expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);
@@ -344,6 +346,35 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.httpOperationsBytes).toBe(ops.length);
     expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
     expect(() => assertWorkerdLoadable({ [HTTP_OPERATIONS_MODULE]: ops })).not.toThrow();
+    // Consume the actual installed named exports and grant-route import edge.
+    // Import success alone would miss a stale parser or cap implementation.
+    const outDir = mkdtempSync(join(tmpdir(), "can-grant-http-bundle-"));
+    try {
+      writeDeployBundle(bundle, outDir);
+      const http = await import(pathToFileURL(join(outDir, HTTP_OPERATIONS_MODULE)).href);
+      const grant = await import(pathToFileURL(join(outDir, "runtime/grant-route.js")).href);
+      expect(http.JSON_BODY_MAX_BYTES).toBe(1_048_576);
+      expect(await http.parseJsonBody(new Request("https://test.invalid", {
+        method: "POST", body: '{"client_id":"installed"}',
+      }))).toEqual({ client_id: "installed" });
+      await expect(http.parseJsonBody(new Request("https://test.invalid", {
+        method: "POST", body: "{invalid",
+      }))).rejects.toMatchObject({ name: "IdentityError", code: "validation" });
+      let cancelled = false;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) { controller.enqueue(new Uint8Array(http.JSON_BODY_MAX_BYTES + 1)); },
+        cancel() { cancelled = true; },
+      });
+      await expect(http.parseJsonBody(new Request("https://test.invalid", {
+        method: "POST", body, duplex: "half",
+      } as RequestInit))).rejects.toMatchObject({ name: "IdentityError", code: "limit" });
+      expect(cancelled).toBe(true);
+      expect((await grant.handleMcpGrant(new Request("https://test.invalid/mcp/grants", {
+        method: "POST", body: '{"client_id":"installed"}',
+      }), { identityStore: {} })).status).toBe(401);
+    } finally {
+      rmSync(outDir, { recursive: true, force: true });
+    }
   });
 
   it("stages artifact.js with the artifact, portable module URLs, and the verdict", () => {

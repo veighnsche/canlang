@@ -10,11 +10,13 @@
  * `issueMcpGrant`; the token resolves through real `resolveIdentity`
  * with the `mcp_grant` binding. Failures are safe + loud: 405 on
  * non-POST, 401 on missing/invalid session, 403 without an active
- * team membership, 400 on malformed body/client_id. The response
+ * team membership or valid session CSRF, 400 on unsupported media or
+ * malformed body/client_id, 429 on oversized streaming body. The response
  * carries ONLY the four documented keys (no hashes, no internals).
  */
 import { describe, expect, it } from "vitest";
-import { buildSessionCookie, resolveIdentity, sha256HexText } from "@canlang/identity";
+import { buildSessionCookie, deriveCsrfToken, resolveIdentity, sha256HexText } from "@canlang/identity";
+import { JSON_BODY_MAX_BYTES } from '@canlang/interfaces';
 import { createMemoryIdentityStore } from "@canlang/identity/testing";
 import { handleMcpGrant } from "../src/runtime/grant-route.js";
 
@@ -39,7 +41,7 @@ async function seedSession(
   store: Awaited<ReturnType<typeof seedTeam>>["store"],
   userId: string,
   teamId: string | null,
-): Promise<{ token: string; cookie: string }> {
+): Promise<{ token: string; cookie: string; csrf: string }> {
   const token = `grant-route-session-${Math.random().toString(36).slice(2)}`;
   await store.createSession({
     user_id: userId,
@@ -48,15 +50,16 @@ async function seedSession(
     last_team_id: teamId,
   });
   const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false });
-  return { token, cookie };
+  return { token, cookie, csrf: await deriveCsrfToken(token) };
 }
 
-function grantRequest(cookie: string | null, body: unknown): Request {
+function grantRequest(cookie: string | null, body: unknown, csrf?: string): Request {
   return new Request("https://test.invalid/mcp/grant", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...(cookie === null ? {} : { cookie }),
+      ...(csrf === undefined ? {} : { 'x-csrf-token': csrf }),
     },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
@@ -108,25 +111,25 @@ describe("handleMcpGrant", () => {
 
   it("400s malformed bodies and bad client_id values", async () => {
     const { store, user, team } = await seedTeam();
-    const { cookie } = await seedSession(store, user.user_id, team.team_id);
+    const { cookie, csrf } = await seedSession(store, user.user_id, team.team_id);
     const ctx = { identityStore: store };
 
-    const notJson = await handleMcpGrant(grantRequest(cookie, "{oops"), ctx);
+    const notJson = await handleMcpGrant(grantRequest(cookie, "{oops", csrf), ctx);
     expect(notJson.status).toBe(400);
 
     for (const body of [{}, { client_id: "" }, { client_id: "   " }, { client_id: 42 }]) {
-      const res = await handleMcpGrant(grantRequest(cookie, body), ctx);
+      const res = await handleMcpGrant(grantRequest(cookie, body, csrf), ctx);
       expect(res.status, JSON.stringify(body)).toBe(400);
     }
 
-    const tooLong = await handleMcpGrant(grantRequest(cookie, { client_id: "x".repeat(300) }), ctx);
+    const tooLong = await handleMcpGrant(grantRequest(cookie, { client_id: "x".repeat(300) }, csrf), ctx);
     expect(tooLong.status).toBe(400);
   });
 
   it("mints a grant bound to the session team; token resolves as mcp_grant", async () => {
     const { store, user, team } = await seedTeam();
-    const { cookie } = await seedSession(store, user.user_id, team.team_id);
-    const res = await handleMcpGrant(grantRequest(cookie, { client_id: "prod-mcp-host" }), {
+    const { cookie, csrf } = await seedSession(store, user.user_id, team.team_id);
+    const res = await handleMcpGrant(grantRequest(cookie, { client_id: "prod-mcp-host" }, csrf), {
       identityStore: store,
     });
     expect(res.status).toBe(200);
@@ -143,5 +146,55 @@ describe("handleMcpGrant", () => {
     expect(resolved.actor?.user_id).toBe(user.user_id);
     expect(resolved.team?.team_id).toBe(team.team_id);
     expect(resolved.membership?.status).toBe("active");
+  });
+
+  it('caps streaming JSON and requires current session CSRF before any grant issuance', async () => {
+    const { store, user, team } = await seedTeam();
+    const { cookie, csrf } = await seedSession(store, user.user_id, team.team_id);
+    const foreign = await seedSession(store, user.user_id, team.team_id);
+    let issued = 0;
+    const original = store.createMcpGrant.bind(store);
+    store.createMcpGrant = async input => { issued++; return original(input); };
+    const ctx = { identityStore: store };
+    for (const [body, header] of [
+      [{ client_id: 'c' }, undefined], [{ client_id: 'c' }, 'wrong'],
+      [{ client_id: 'c' }, foreign.csrf], [{ client_id: 'c', _csrf: csrf }, 'wrong'],
+      [{ client_id: 'c', _csrf: csrf }, ''], [{ client_id: 'c', _csrf: 1 }, undefined],
+      [{ client_id: '' }, undefined],
+    ] as const) {
+      const response = await handleMcpGrant(grantRequest(cookie, body, header), ctx);
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: 'Invalid or missing CSRF token.' });
+      expect(issued).toBe(0);
+    }
+    for (const mediaType of ['', 'text/plain', 'application/x-www-form-urlencoded']) {
+      const request = grantRequest(cookie, { client_id: 'c' }, csrf);
+      if (mediaType === '') request.headers.delete('content-type');
+      else request.headers.set('content-type', mediaType);
+      expect((await handleMcpGrant(request, ctx)).status).toBe(400);
+      expect(issued).toBe(0);
+    }
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new Uint8Array(JSON_BODY_MAX_BYTES + 1)); },
+      cancel() { cancelled = true; },
+    });
+    const oversized = new Request('https://test.invalid/mcp/grants', {
+      method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-csrf-token': csrf },
+      body, duplex: 'half',
+    } as RequestInit);
+    expect((await handleMcpGrant(oversized, ctx)).status).toBe(429);
+    expect(cancelled).toBe(true); expect(issued).toBe(0);
+    const malformed = await handleMcpGrant(grantRequest(cookie, '{oops', csrf), ctx);
+    expect(malformed.status).toBe(400); expect(issued).toBe(0);
+    // Exact cap remains admitted; field CSRF and normalized JSON media type
+    // are real supported transport inputs, not alternate authentication.
+    const base = JSON.stringify({ client_id: 'c', _csrf: csrf, padding: '' });
+    const exact = grantRequest(cookie, { client_id: 'c', _csrf: csrf,
+      padding: 'x'.repeat(JSON_BODY_MAX_BYTES - new TextEncoder().encode(base).byteLength) });
+    exact.headers.set('content-type', 'Application/JSON; charset=utf-8');
+    expect((await handleMcpGrant(exact, ctx)).status).toBe(200); expect(issued).toBe(1);
+    const preferred = await handleMcpGrant(grantRequest(cookie, { client_id: 'c', _csrf: 'wrong' }, csrf), ctx);
+    expect(preferred.status).toBe(200); expect(issued).toBe(2);
   });
 });
