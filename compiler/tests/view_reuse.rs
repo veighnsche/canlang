@@ -65,6 +65,44 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                         && diagnostic.primary.start >= node.span.start
                         && diagnostic.primary.end <= node.span.end)
             );
+            if authored.contains("filter=state defaults={state=preferences.appointment_state}") {
+                let IrExpr::Array(filter) = &node
+                    .props
+                    .iter()
+                    .find(|(key, _)| key == "filter")
+                    .unwrap()
+                    .1
+                    .expr
+                else {
+                    panic!("original table filter");
+                };
+                assert_eq!(filter.len(), 1);
+                let IrExpr::Object(column) = &filter[0].expr else {
+                    panic!("original table enum metadata");
+                };
+                assert!(column.iter().any(|(key, value)| key == "field"
+                    && matches!(&value.expr, IrExpr::Text(name) if name == "state")));
+                let IrExpr::Object(defaults) = &node
+                    .props
+                    .iter()
+                    .find(|(key, _)| key == "defaults")
+                    .unwrap()
+                    .1
+                    .expr
+                else {
+                    panic!("original table default");
+                };
+                assert_eq!(defaults.len(), 1);
+                assert_eq!(defaults[0].0, "state");
+                assert!(
+                    matches!(&defaults[0].1.expr, IrExpr::Member { base, field } if field == "appointment_state" && matches!(&base.expr, IrExpr::Name(name) if name == "preferences"))
+                );
+                assert!(
+                    node.props.iter().any(|(key, value)| key == "where"
+                        && matches!(value.expr, IrExpr::Lambda { .. })),
+                    "original Upcoming/Past where stays preserved while its native time/data contract is unavailable"
+                );
+            }
         }
         if node.factory == "calendar" && authored.contains("calendar Appointment start=") {
             original_agendas += 1;

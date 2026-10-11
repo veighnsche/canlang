@@ -3963,3 +3963,22 @@ admitted request-time source; coordinator has exact evidence and owner request.
 No source rewrite, fake clock or whole application/hold acceptance is claimed.
 
 Coordinator finite bare-history and literal-table-order source reviews CLEAR. Bare history retains the original authorized queried RowView before business conversion, checked owning model, direct reusable-view locator, gates, once/source order and first-failure suppression; derived or unproven rows refuse. Literal table order forwards the existing checked signed selectors without changing parent, pagination or protected selected-row behavior, and six unsupported profiles refuse. Owning143 affected results for each coherent unit, strict0/fmt and genuine State/Identity/query consumers are retained; no unchanged checks rerun. These two finite criteria are accepted. Original CanBook conditional membership/parent policy, table filter/default plus paginated data-only predicates and admitted request-time, and Dev complete native/application qualification remain separately owned; every precise hold and complete checkpoint remain.
+
+
+**Unfinished original filtered table workflow — checked enum/default join, 2026-10-11.**
+
+Consume exact reviewed6ceff111 via safe FF2fb47a10, preserving eddb/913 ancestry,
+then freeze graph22/22 uncached12.535s. Tables reuse the existing checked owned
+enum/cases/labels/default and receiving nullable preference producer; own source
+occurrence retains current dispatcher scope. Original425/429 filters/defaults and
+where survive raw IR. Unsupported original Loyalty tables retain explicit refusing
+filter nodes and complete bodies; the genuine regression check caught/fixed their
+initial omission.145 affected assertions/strict Clippy0 5.98s,fmt/diff0 pass with actual CLI/public modules/
+installed Interfaces/UI controls, protected selected rows, first failure and nine
+source refusals. Only failed/changed/unrun scopes were retried. Finite independent
+source review CLEAR; coordinator acceptance pending. No shared repair is duplicated.
+
+Original paginated Upcoming/Past where/now needs the defining request-time/current
+cursor output and checked data-only comparison lowering; coordinator routed it.
+Original CanBook conditional membership/parent policy, native full application and
+every other named external/human hold remain. No fake time or original source rewrite.
