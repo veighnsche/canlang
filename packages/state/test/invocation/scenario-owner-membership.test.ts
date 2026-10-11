@@ -102,19 +102,29 @@ async function finish(call: AdmittedCall, w: World, session: Awaited<ReturnType<
 async function business(w: World) { return { row: await w.store.load(MODEL, w.row.id),
   history: await w.store.historyFor(MODEL, w.row.id), outbox: await w.store.outboxPending() }; }
 
-for (const active of [true, false]) test(`actual ${active ? 'positive' : 'negative'} membership returns to its expression, commits once and exact replay skips native capture`, async () => {
-  const w = await world({ active }), producer = native(w); let executions = 0, commits = 0, saved: AdmittedCall | undefined, receipt: Receipt | undefined;
+for (const stage of ['body-require', 'body-condition'] as const) for (const active of [true, false]) test(`actual ${stage} ${active ? 'positive' : 'negative'} membership returns to its expression, commits once and exact replay skips native capture`, async () => {
+  const w = await world({ active }), producer = native(w, w.parent, [recipe(ROOT, stage)]); let executions = 0, commits = 0, saved: AdmittedCall | undefined, receipt: Receipt | undefined;
   const commit = w.store.commit; w.store.commit = async batch => { commits++; return commit(batch); };
   const input = { ...w, execute: async (call: AdmittedCall) => {
     executions++; saved = call;
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
     let tail = 0;
-    const decision = active ? await producer.evaluate(call) && (++tail, true) : !await producer.evaluate(call) && (++tail, true);
-    assert.equal(decision, true); assert.equal(tail, 1);
-    await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: true } }, cause);
+    let approved = true;
+    if (stage === 'body-condition') {
+      // The original IF condition chooses its actual branch; no Require is synthesized.
+      if (await producer.evaluate(call)) { approved = true; tail++; }
+      else { approved = false; tail++; }
+      assert.equal(approved, active);
+    } else {
+      const decision = active ? await producer.evaluate(call) && (++tail, true) : !await producer.evaluate(call) && (++tail, true);
+      assert.equal(decision, true);
+    }
+    assert.equal(tail, 1);
+    await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved } }, cause);
     return finish(call, w, session);
   }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
   assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt); assert.equal(commits, 1);
+  assert.equal((await w.store.load(MODEL, w.row.id))!.data['approved'], stage === 'body-condition' ? active : true);
   assert.equal(producer.captures, 1); const before = await business(w);
   assert.equal((await invoke(input)).status, 'replayed'); assert.equal(executions, 1); assert.equal(commits, 1); assert.equal(producer.captures, 1);
   assert.deepEqual(await business(w), before);
@@ -133,8 +143,9 @@ test('actual evaluated subject membership is independent of actor roles and othe
   } })).status, 'committed');
 });
 
-for (const trusted of [false, true]) for (const initiallyActive of [true, false]) test(`${trusted ? 'trusted' : 'public'} outer commit refuses ${initiallyActive ? 'removed positive' : 'activated negative'} membership without source re-evaluation`, async () => {
-  const w = await world({ active: initiallyActive }), producer = native(w), before = await business(w);
+for (const trusted of [false, true]) for (const initiallyActive of [true, false]) test(`${trusted ? 'trusted body-condition' : 'public body-require'} outer commit refuses ${initiallyActive ? 'removed positive' : 'activated negative'} membership without source re-evaluation`, async () => {
+  const w = await world({ active: initiallyActive }), producer = native(w, w.parent,
+    [recipe(ROOT, trusted ? 'body-condition' : 'body-require')]), before = await business(w);
   await assert.rejects(invoke({ ...w, ...(trusted ? { kind: 'trusted' as const, trustedSource: 'Membership.handler' } : {}), execute: async call => {
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
     assert.equal(await producer.evaluate(call), initiallyActive);
@@ -173,7 +184,7 @@ test('guard compares the actual bool rather than role metadata or historical mem
 });
 
 test('source order retains distinct observations before and after actual owner writes', async () => {
-  const w = await world(), producer = native(w, w.parent, [recipe(ROOT, 'leading-require', 10), recipe(ROOT, 'body-require', 50)]);
+  const w = await world(), producer = native(w, w.parent, [recipe(ROOT, 'leading-require', 10), recipe(ROOT, 'body-condition', 50)]);
   const order: string[] = [];
   assert.equal((await invoke({ ...w, execute: async call => {
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
@@ -182,19 +193,21 @@ test('source order retains distinct observations before and after actual owner w
     assert.equal((await session.read(MODEL, w.row.id))!.data['approved'], true);
     assert.equal(await producer.evaluate(call, w.subject.user_id, producer.handles[1]!), true); order.push('body');
     // Lazy source branches issue no native frame or observation.
-    const skipped = false && await producer.evaluate(call); assert.equal(skipped, false);
+    const skipped = false && await producer.evaluate(call, w.subject.user_id, producer.handles[1]!); assert.equal(skipped, false);
+    const alreadyTrue = true || await producer.evaluate(call, w.subject.user_id, producer.handles[1]!); assert.equal(alreadyTrue, true);
     return finish(call, w, session);
   } })).status, 'committed');
   assert.deepEqual(order, ['leading', 'write', 'body']); assert.equal(producer.captures, 2);
 });
 
-for (const mode of ['copy-call', 'copy-handle', 'fabricated', 'foreign-handle', 'store', 'team-copy', 'team-other', 'missing-native', 'leading-stage', 'dispatch'] as const) test(`${mode} refuses and caught observer failure poisons its owner`, async () => {
-  const w = await world(), producer = native(w, w.parent, [recipe(ROOT, mode === 'dispatch' ? 'send-dispatch' : mode === 'leading-stage' ? 'leading-require' : 'body-require')]);
+for (const mode of ['copy-call', 'copy-handle', 'fabricated', 'foreign-handle', 'store', 'team-copy', 'team-other', 'missing-native', 'leading-stage', 'completed'] as const) test(`${mode} refuses and caught observer failure poisons its owner`, async () => {
+  const w = await world(), producer = native(w, w.parent, [recipe(ROOT, mode === 'leading-stage' ? 'leading-require' : 'body-condition')]);
   const foreign = mode === 'foreign-handle' ? native(w, w.child) : null;
   const before = await business(w);
   await assert.rejects(invoke({ ...w, execute: async call => {
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
     await session.stage({ op: 'update', model: MODEL, id: w.row.id, data: { approved: true } }, cause);
+    if (mode === 'completed') selectScenarioReceiptReturn(call, w.store, 'root-return');
     if (mode !== 'missing-native') producer.stage(call, w.subject.user_id,
       mode === 'team-copy' ? { ...call.context.team! } : mode === 'team-other' ? { ...call.context.team!, teamId: 'other-team' } : call.context.team);
     const site = mode === 'copy-handle' ? { ...producer.handles[0] } : mode === 'fabricated' ? Object.freeze({}) : foreign?.handles[0] ?? producer.handles[0]!;
@@ -247,7 +260,7 @@ test('a source handle can repeat only through fresh private native evaluated pai
 });
 
 test('concurrent observer reads and owner stages cannot finalize after caught failure', async () => {
-  const w = await world(), producer = native(w), original = w.memberships.findMembership;
+  const w = await world(), producer = native(w, w.parent, [recipe(ROOT, 'body-condition')]), original = w.memberships.findMembership;
   let release!: () => void, entered!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; }), ready = new Promise<void>(resolve => { entered = resolve; });
   w.memberships.findMembership = async (team, user) => {
@@ -340,13 +353,29 @@ test('recipe checker preserves exact transitive source/default/type vocabulary, 
     chain: [{ source: source(), node: { start: 10, end: 12 }, derive: 'Membership.helper' }] }] };
   const checked = checkScenarioReceiptMembershipSites([transitive]);
   assert.deepEqual(checked, [transitive]); assert.ok(Object.isFrozen(checked[0]!.calls[0]!.defaults));
+  const condition = recipe(ROOT, 'body-condition');
+  const readPolicy: ScenarioReceiptMembershipSite = { ...recipe('Membership.Task.read:0', 'read-policy'), position: [] };
+  assert.deepEqual(checkScenarioReceiptMembershipSites([condition, readPolicy]), [condition, readPolicy]);
   for (const malformed of [ { ...site, extra: true }, { ...site, version: 2 }, { ...site, owner: '' },
+    { ...site, stage: 'if-condition' }, { ...site, stage: ['body-condition'] },
+    { ...readPolicy, position: [{ kind: 'body', index: 0 }] },
     { ...site, calls: [{ ...site.calls[0], slots: [0, 0] }] },
     { ...site, calls: [{ ...site.calls[0], arguments: [{ node: { start: 11, end: 12 }, type: 'user?' }, site.calls[0]!.arguments[1]] }] },
     { ...site, calls: [{ ...site.calls[0], arguments: [site.calls[0]!.arguments[0], { ...site.calls[0]!.arguments[1], type: 'team' }] }] },
     { ...site, calls: [{ ...site.calls[0], defaults: [{ parameter: 'x', source: source(), node: { start: 1, end: 2 }, type: 'Team' }] }] },
     { ...site, calls: [{ ...site.calls[0], chain: Array.from({ length: 17 }, (_, index) => ({ source: source(), node: { start: index, end: index + 1 }, derive: `Helper.${index}` })) }] },
   ]) assert.throws(() => checkScenarioReceiptMembershipSites([malformed]), isStateError);
+});
+
+for (const stage of ['read-policy', 'send-dispatch'] as const) test(`${stage} cannot bind an owner-execution membership lifetime`, async () => {
+  const w = await world();
+  const site = { ...recipe(ROOT, stage), ...(stage === 'read-policy' ? { position: [] } : {}) };
+  assert.throws(() => bindScenarioReceiptMembershipProducer(w.parent, { source: source(), app: APP,
+    sites: [site], capture: () => { assert.fail('a foreign lifetime must not capture an owner pair'); },
+  }), isStateError);
+  // Refusal leaves the definition available for its actual body-condition producer.
+  const producer = native(w, w.parent, [recipe(ROOT, 'body-condition')]);
+  assert.equal(producer.handles.length, 1);
 });
 
 test('metadata cannot activate and loader producer binds only once before observed execution', async () => {

@@ -1,5 +1,8 @@
 /** State authority around a finite evidence port; Work owns evidence qualification. */
 import assert from 'node:assert/strict';
+import { makeUserRef } from '@canlang/values';
+import { bindReadPolicyMembershipProducer, evaluateReadPolicyMembership } from '../../src/receipt/read-policy-membership.js';
+import type { ScenarioReceiptMembershipSite } from '../../src/invocation/scenario-membership-plan.js';
 import { test } from 'node:test';
 import type { GenerationCallbackDiagnosticRequest, GenerationCallbackDiagnosticResult,
   GenerationCallbackFailure, GenerationCallbackOrigin, ModelName, QueryPredicate, StoragePort } from '@canlang/contracts';
@@ -613,5 +616,135 @@ test('source read and Work awaits refuse Identity revocation and State parent mo
         ? (error: unknown) => error instanceof FenceConflictError : stateCode('forbidden'));
       assert.equal(s.reads, stage === 'Work' ? 1 : 0);
     }
+  }
+});
+
+
+/** Test-only literal capture analogue; only State opens the actual read lifetime. */
+function membershipRead(body: (observation: Parameters<SourceRead>[0], evaluate: (person: string,
+  observation?: Parameters<SourceRead>[0]) => Promise<boolean>) => Promise<boolean>, rule = 'Callback.Book.read.0', stage: ScenarioReceiptMembershipSite['stage'] = 'read-policy') {
+  type Observation = Parameters<SourceRead>[0];
+  const team = Object.freeze({ teamId: TEAM, timezone: 'UTC' });
+  const frames = new WeakMap<object, { person: ReturnType<typeof makeUserRef>; team: typeof team }>();
+  let captures = 0, evaluations = 0;
+  const source = { path: 'callback.can', sha256: 'a'.repeat(64), module: 'callback.mjs' };
+  const site: ScenarioReceiptMembershipSite = { version: 1, source, owner: rule,
+    node: { start: 10, end: 30 }, statement: { start: 9, end: 31 }, stage, position: [], calls: [{
+      source, node: { start: 11, end: 29 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
+      arguments: [{ node: { start: 12, end: 13 }, type: 'user' }, { node: { start: 14, end: 15 }, type: 'Team' }],
+      slots: [0, 1], defaults: [], chain: [],
+    }] };
+  let handles: ReturnType<typeof bindReadPolicyMembershipProducer>;
+  const read: SourceRead = async observation => {
+    evaluations++;
+    return body(observation, async (person, actual = observation) => {
+      assert.equal(frames.has(actual), false);
+      frames.set(actual, { person: makeUserRef(person), team });
+      return evaluateReadPolicyMembership(actual, { site: handles[0]! });
+    });
+  };
+  handles = bindReadPolicyMembershipProducer(read, { source, rule, sites: [site], team: () => team,
+    capture: observation => {
+      captures++;
+      const frame = frames.get(observation); frames.delete(observation);
+      if (frame === undefined) throw new StateError('validation', 'No fresh native read pair.');
+      return frame;
+    } });
+  return { read, handles, frames, team, get captures() { return captures; }, get evaluations() { return evaluations; } };
+}
+
+test('issued ordinary and callback membership reads preserve positive, negative and skipped decisions', async () => {
+  for (const mode of ['ordinary', 'callback', 'negative', 'lazy'] as const) {
+    const s = await setup(), { input, current } = sourceInput(s);
+    const producer = membershipRead(async (_observation, evaluate) => mode === 'lazy' || await evaluate(mode === 'negative' ? 'absent' : 'caller'));
+    if (mode === 'ordinary') current.grants[0]!.read = producer.read;
+    else input.callbackRead = producer.read;
+    assert.equal((await queryGenerationCallbackDiagnosticsForViewer(input)).outcome,
+      mode === 'negative' ? 'withheld' : 'observed', mode);
+    assert.equal(producer.captures, mode === 'lazy' ? 0 : mode === 'negative' ? 2 : 1,
+      'an absent second subject still participates in complete coherent replay');
+    assert.equal(s.reads, mode === 'negative' ? 0 : 1);
+  }
+});
+
+test('issued read membership replays complete multi-subject authority with fresh native captures', async () => {
+  const s = await setup(), { input, current } = sourceInput(s);
+  await s.memberships.createMembership({ team_id: TEAM, user_id: 'subject', is_owner: false, roles: [] });
+  const ordinary = membershipRead(async (_observation, evaluate) => await evaluate('caller') && await evaluate('subject'));
+  const callback = membershipRead(async (_observation, evaluate) => await evaluate('subject'), 'Callback.Book.callback.0');
+  current.grants[0]!.read = ordinary.read; input.callbackRead = callback.read;
+  assert.equal((await queryGenerationCallbackDiagnosticsForViewer(input)).outcome, 'observed');
+  assert.equal(ordinary.evaluations, 2); assert.equal(ordinary.captures, 4);
+  assert.equal(callback.evaluations, 2); assert.equal(callback.captures, 2);
+});
+
+test('copied, forged, foreign-rule and consumed read membership captures poison caught source predicates', async () => {
+  for (const mode of ['copy', 'forged', 'foreign-rule', 'reused', 'wrong-team'] as const) {
+    const s = await setup(), { input } = sourceInput(s);
+    const foreign = membershipRead(async () => true, 'Callback.Book.other.0');
+    const producer = membershipRead(async (observation, evaluate) => {
+      try {
+        if (mode === 'copy') await evaluate('caller', { ...observation });
+        if (mode === 'forged') await evaluateReadPolicyMembership(observation, { site: Object.freeze({}) });
+        if (mode === 'foreign-rule') await evaluateReadPolicyMembership(observation, { site: foreign.handles[0]! });
+        if (mode === 'reused') { await evaluate('caller'); await evaluateReadPolicyMembership(observation, { site: producer.handles[0]! }); }
+        if (mode === 'wrong-team') {
+          producer.frames.set(observation, { person: makeUserRef('caller'), team: Object.freeze({ ...producer.team }) });
+          await evaluateReadPolicyMembership(observation, { site: producer.handles[0]! });
+        }
+      } catch (error) { assert.ok(error instanceof StateError); }
+      return true;
+    });
+    input.callbackRead = producer.read;
+    await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), error => error instanceof StateError, mode);
+    assert.equal(s.reads, 0);
+  }
+});
+
+test('read membership lifetime closes after predicates and refuses concurrent caught observations', async () => {
+  for (const mode of ['closed', 'concurrent'] as const) {
+    const s = await setup(), { input } = sourceInput(s);
+    let saved: Parameters<SourceRead>[0] | undefined;
+    const producer = membershipRead(async (observation, evaluate) => {
+      saved = observation;
+      if (mode === 'closed') return evaluate('caller');
+      const first = evaluate('caller');
+      try { await evaluateReadPolicyMembership(observation, { site: producer.handles[0]! }); } catch (error) { assert.ok(error instanceof StateError); }
+      await first.catch(error => assert.ok(error instanceof StateError));
+      return true;
+    });
+    input.callbackRead = producer.read;
+    if (mode === 'concurrent') {
+      await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), error => error instanceof StateError);
+      assert.equal(s.reads, 0);
+    } else {
+      assert.equal((await queryGenerationCallbackDiagnosticsForViewer(input)).outcome, 'observed');
+      assert.ok(saved);
+      await assert.rejects(evaluateReadPolicyMembership(saved, { site: producer.handles[0]! }), error => error instanceof StateError);
+    }
+  }
+});
+
+test('issued read membership cannot disclose across Identity revocation or State movement', async () => {
+  for (const mode of ['identity', 'state'] as const) {
+    const s = await setup(), { input } = sourceInput(s);
+    const producer = membershipRead(async (_observation, evaluate) => {
+      const allowed = await evaluate('caller');
+      if (mode === 'identity') await s.memberships.removeMembership(s.member.membership_id);
+      else await s.write({ op: 'update', model: MODEL, id: ID, data: { title: 'Moved' } });
+      return allowed;
+    });
+    input.callbackRead = producer.read;
+    await assert.rejects(queryGenerationCallbackDiagnosticsForViewer(input), mode === 'identity'
+      ? stateCode('forbidden') : error => error instanceof FenceConflictError || error instanceof StateError);
+    assert.equal(s.reads, 0);
+  }
+});
+
+
+test('read membership binding rejects owner and dispatch recipe stages', () => {
+  for (const stage of ['leading-require', 'body-require', 'body-condition', 'send-dispatch'] as const) {
+    assert.throws(() => membershipRead(async () => true, 'Callback.Book.read.0', stage),
+      error => error instanceof StateError, stage);
   }
 });

@@ -156,6 +156,9 @@ export {
   type TransactionPort,
 } from './ports/index.js';
 export type { MembershipReader } from './policy/roles.js';
+export { bindReadPolicyMembershipProducer, evaluateReadPolicyMembership,
+  type ReadPolicyMembershipProducer, type ReadPolicyMembershipHandle, type InstalledSourceReadPredicate,
+} from './receipt/read-policy-membership.js';
 export { bindScenarioDispatchMembershipProducer,
   type ScenarioDispatchMembershipPorts, type ScenarioDispatchMembershipProducer,
   type ScenarioDispatchMembershipExecution, type ScenarioDispatchMembershipHandle,
