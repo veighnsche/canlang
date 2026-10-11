@@ -207,6 +207,26 @@ export async function list(props: ListProps): Promise<string> {
     props.model,
     queryArgs(props, "list"),
   );
+  const metas: ColumnMeta[] = [];
+  if (props.columns !== undefined) {
+    const byField = new Map(result.columns.map(column => [column.field, column]));
+    const validationFields = result.rows.length === 0 && result.emptyDeclarations !== undefined
+      ? new Set(result.emptyDeclarations.map(column => column.field)) : new Set(byField.keys());
+    const missing = props.columns.filter(field => !validationFields.has(field));
+    if (missing.length !== 0) throw new Error(`list "${props.model}": missing columns: ${missing.join(", ")}`);
+    if (result.rows.length !== 0) {
+      for (const field of props.columns) {
+        const meta = byField.get(field);
+        if (meta === undefined) throw new Error(`list "${props.model}": missing columns: ${field}`);
+        metas.push(meta);
+      }
+      // Validate the entire selected projection before any authored row body runs.
+      for (const row of result.rows) {
+        const absent = props.columns.filter(field => !Object.hasOwn(row.fields, field));
+        if (absent.length !== 0) throw new Error(`list "${props.model}": missing projected fields: ${absent.join(", ")}`);
+      }
+    }
+  }
   const heading = `${props.search === undefined ? "" : sourceSearchForm(props.context)}` +
     sourceCount(props, result.totalCount);
   if (result.rows.length === 0) {
@@ -217,10 +237,13 @@ export async function list(props: ListProps): Promise<string> {
   }
   const items: string[] = [];
   for (const row of result.rows) {
+    const selected = metas.length === 0 ? "" : `<dl>${metas.map(meta =>
+      `<dt>${escapeHtml(resolveCaption(meta.label, props.context))}</dt>` +
+      `<dd>${renderCell(meta, row.fields[meta.field], props.context)}</dd>`).join("")}</dl>`;
     const body = occurrence === undefined
       ? await resolveChildren(await props.renderRow(row, props.context))
       : `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
-    items.push(`<li class="list-row">${body}</li>`);
+    items.push(`<li class="list-row">${selected}${body}</li>`);
   }
   const summaries = `<ul class="list">${items.join("")}</ul>`;
   const rowsHtml = occurrence === undefined ? summaries
