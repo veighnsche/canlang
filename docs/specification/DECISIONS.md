@@ -9062,3 +9062,19 @@ Coordinator finite filter/default/preference integration review accepts the shar
 The original agenda permits omission of empty, as List does. Make CalendarAgendaProps.empty optional and reuse the existing localized EMPTY_COLLECTION descriptor instead of passing undefined to renderState; preserve explicit captions and avoid inventing authored source. Contracts/UI emissions pass, and one new zero-row control passes in English/Dutch with the original query once and no row body. Accepted prior agenda/filter/form/browser outcomes are reused. Coordinator finite review and Compiler's failed genuine native zero-row retry remain; later history and all precise holds stay separate.
 
 Coordinator mechanical omitted-empty correction review CLEAR; original shared localized label and explicit-caption behavior remain, with owning emission/empty-result controls reused. Release the exact correction for Compiler's failed original zero-row native scope; no parent or held acceptance.
+
+### 2026-10-11 — connect original agenda filter and row consumers (unfinished)
+
+Use the released existing Calendar row/page and occurrence filter/preference APIs.
+Compiler supplies checked enum:canonical ColumnMeta with exact declaration case
+order, matching literal/null/own preference defaults, nullable receiving descriptor
+and original row/source occurrence; Interfaces alone parses request state and UI
+consumes current authorized queries. Keep unsupported filter+lambda where refused
+until a data-only authored predicate producer is selected. Preserve existing Date,
+tabs, source order, protected row/version and bare history E6008.141 affected
+assertions/strict0 pass; the new native owning case remains failed on original
+omitted-empty UI rendering. Packages owns its exact shared default repair. Preserve
+this as unfinished and continue the ready File event-aware empty inventory producer;
+no complete agenda/application or hold release is claimed.
+
+Coordinator accepts this finite checked agenda source component after CLEAR source review;141 affected and strict/fmt results are retained. Main46075436 releases the exact omitted-empty UI correction. The affected original native retry and current-policy/history/full-application outcomes remain unfinished; all holds and the complete checkpoint remain.
