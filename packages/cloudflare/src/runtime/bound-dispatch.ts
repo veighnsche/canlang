@@ -1,10 +1,10 @@
 /** Installed provider dispatch over the existing Work lifecycle and State join. */
 import type { ClaimId, OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent } from '@canlang/contracts';
-import type { DispatchClaimGuard } from '@canlang/work/kernel/commands';
+import type { DispatchClaimGuard, DispatchClaimGuardInput } from '@canlang/work/kernel/commands';
 import { createReceiptJoinPort, RECEIPT_ASSOCIATION_MODEL, readAssociationRow, withAssociationRowData } from '@canlang/state/receipt/tables';
 import { decodeValue, equalValue, isDeliveryRef } from '@canlang/values';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
-import { enrollSystemCommandCommitCheck } from '@canlang/state';
+import { enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, dispatchGenerationTargetProfile,
@@ -710,11 +710,47 @@ async function createInstalledDispatcher(
           } };
         const outcome = input.fence.asyncGuard !== undefined && intent.dispatchGuard != null
           ? await driveDispatchIntentWithPreclaim(driveOptions, (guard, allocator) => {
+            let eligible: DispatchClaimGuardInput | undefined;
             const guardedClaim = createClaimCommand((id, target) => id === intent.intentId &&
               target === intent.target && available(intent) && (!isGenerationControl(intent) || controlAdapter !== null),
-            guard, allocator);
+            async frame => { eligible = frame; return guard(frame); }, allocator);
             if (guardedClaim.name !== claim.name) throw new Error('Preclaim needs the defining Work claim command.');
-            return registryForClaim(guardedClaim);
+            const originalStage = (guardedClaim as SystemCommandDef).stage;
+            if (typeof originalStage !== 'function') throw new Error('Preclaim needs the defining Work claim stage.');
+            const joinedClaim: SystemCommandDef = { ...guardedClaim, async stage(args, ctx) {
+              const staged = await originalStage.call(guardedClaim, args, ctx);
+              const result = staged.result;
+              if (typeof result !== 'object' || result === null || Array.isArray(result) ||
+                  (result as Record<string, unknown>)['claimed'] !== false ||
+                  (result as Record<string, unknown>)['reason'] !== 'guard-false' ||
+                  !staged.outboxAck?.includes(intent.intentId)) return staged;
+              // This is the unchanged row/context supplied by the actual Work
+              // guard. An old held claim or attempted provider work cannot be
+              // converted to a new empty skipped receipt.
+              if (eligible === undefined || eligible.context !== ctx || eligible.row.id !== intent.intentId ||
+                  (result as Record<string, unknown>)['intentId'] !== intent.intentId ||
+                  eligible.data.state !== 'pending' || eligible.data.attempts !== 0 ||
+                  eligible.data.claimId !== null || eligible.data.claimedAtMs !== null) {
+                throw new Error('Skipped receipt requires the actual untouched eligible preclaim.');
+              }
+              const actual = staged.writes?.filter(write => write.kind === 'update' &&
+                write.model === WORK_DISPATCH_MODEL && write.id === intent.intentId);
+              if (actual?.length !== 1 || actual[0]!.kind !== 'update') {
+                throw new Error('Skipped receipt lost its genuine guard-false dispatch write.');
+              }
+              const dispatch = readDispatchRow(actual[0]!.row);
+              if (dispatch.intentId !== intent.intentId || dispatch.guardVerdict !== false || dispatch.attempts !== 0 ||
+                  dispatch.state !== 'pending' || dispatch.claimId !== null || dispatch.claimedAtMs !== null) {
+                throw new Error('Skipped receipt disagrees with its actual guard-false dispatch.');
+              }
+              const receipt = await stageReceiptProgress({ intent, outcome: { kind: 'skipped' },
+                revision: systemCommandStageRevision(ctx) + 1,
+                ...(options.profile === 'mail' ? {} : { context: requireResultContext(intent.intentId) }) }, ctx);
+              // Original State phase checks, dispatch writes and ACK stay in
+              // this same command/fence; no provider or second commit runs.
+              return mergeStaging(staged, receipt);
+            } };
+            return registryForClaim(joinedClaim);
           })
           : await driveDispatchIntent({ ...driveOptions, registry });
         await refreshPending();
