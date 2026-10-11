@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,10 +21,11 @@ import { FIXED_NOW, asId, asModel, asOperationId, uuidv7 } from '@canlang/state/
 import { handlePageRequest, handleOperationRequest, INPUT_CHOICES_VERSION, buildPageSourceContext, buildPresentationContext, createSourceFormBindings } from '@canlang/interfaces';
 import type { PageHttpDeps } from '@canlang/interfaces';
 import { assembleModules, importVerifiedAssemblyModule } from '@canlang/cloudflare/runtime/modules';
-import { invokeMutationCanonical, loadCanonicalDescriptors } from '@canlang/cloudflare/runtime/invoke';
+import { invokeMutationCanonical, loadCanonicalDescriptors, queryPageRowsCanonical } from '@canlang/cloudflare/runtime/invoke';
 import { assembleWorker, type HttpDeps as AssemblyHttpDeps } from '@canlang/cloudflare/worker/assembly';
 import { buildDerivedInputsModule } from '../dist/deploy/bundle.js';
 import { createD1PagePreferenceStore, ensurePagePreferencesSchema } from '../dist/runtime/page-preferences.js';
+import { createPageCursorCodec } from '../dist/runtime/page-cursor.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const ORIGINAL_SOURCE_SHA = 'ca5d0432bda064324b0e8af133a2a4ab04ea8d9d6b39bbe3adebb96ff2d3fee4';
@@ -324,5 +325,238 @@ test('unchanged native TableTime page uses admitted time and protected partial b
       assert.deepEqual(await resources(), revoked, 'current preference admission refuses revoked membership without effects');
       assert.equal(JSON.stringify(artifact), originalArtifact); assert.deepEqual(await hashes(), captured);
       await importVerifiedAssemblyModule(asm, entry, artifact);
+    } finally { await worker?.dispose(); await rm(dir, { recursive: true, force: true }); }
+  });
+
+test('genuine paginated TableTime first pages and native continuations retain original query time',
+  { timeout: 180000 }, async () => {
+    // The production HTTP cursor transport is a separate owning prerequisite.
+    // Continuations below use the exact args emitted by the genuine first page.
+    const fixture = join(root, 'compiler/tests/fixtures/table-time.can');
+    const compiler = join(root, 'compiler/target/debug/can'), catalog = fileURLToPath(distribution.catalog);
+    const paths = [fixture, compiler, catalog];
+    const hashes = () => Promise.all(paths.map(async path => createHash('sha256').update(await readFile(path)).digest('hex')));
+    const captured = await hashes(); assert.equal(captured[0], ORIGINAL_SOURCE_SHA);
+    const originalSource = await readFile(fixture, 'utf8');
+    const paginatedSource = originalSource.replaceAll('display=split\n', 'display=split\n   pagination\n');
+    assert.equal(paginatedSource.split('   pagination\n').length - 1, 2);
+    const guardBoundary = FIXED_NOW + 17 * 60000;
+    const guardedSource = paginatedSource.replace('Given\n',
+      'Given\n message request_now(at:datetime)="Admitted now: {at}"@{}\n').replace('  ## Like original Upcoming/Past',
+      `  require now<datetime("${new Date(guardBoundary).toISOString()}")\n  text request_now(at=now)\n  ## Like original Upcoming/Past`);
+    assert.notEqual(guardedSource, paginatedSource);
+    const dir = await realpath(await mkdtemp(join(tmpdir(), 'can-native-paged-table-time-')));
+    let worker: Miniflare | undefined;
+    try {
+      const env = { ...process.env }; delete env.CAN_CATALOG;
+      const compile = async (source: string, name: string) => {
+        const path = join(dir, `${name}.can`); await writeFile(path, source);
+        const sha = createHash('sha256').update(source).digest('hex');
+        const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--catalog', catalog, path],
+          { cwd: root, env, timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
+        const artifact = JSON.parse(stdout) as CompileArtifact;
+        assert.equal(artifact.artifact_version, 1);
+        assert.ok(artifact.sources.some(entry => resolve(entry.path) === path && entry.sha256 === sha));
+        const asm = await assembleModules({ artifact, sourcePath: path }, { workDir: join(dir, name),
+          stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'), uiUrl: import.meta.resolve('@canlang/ui') });
+        const entry = Object.entries(asm.moduleUrls).find(([, url]) => url === asm.entryUrl)?.[0]; assert.ok(entry);
+        const definition = object(object(await importVerifiedAssemblyModule(asm, entry, artifact)).appDefinition);
+        assert.equal(definition.id, app);
+        assert.ok(Array.isArray(definition.pages)); assert.equal(definition.pages.length, 1);
+        assert.equal(object(definition.pages[0]).path, '/table-time');
+        return { path, sha, source, artifact, originalArtifact: JSON.stringify(artifact), asm, entry };
+      };
+      const compiled = await compile(paginatedSource, 'paged-table-time');
+      const guarded = await compile(guardedSource, 'guarded-table-time');
+      const { artifact, asm } = compiled;
+      const loaded = await loadCanonicalDescriptors(asm, artifact);
+      assert.deepEqual(loaded.models.map(model => model.name).sort(), [`${app}.Calendar`, `${app}.Window`]);
+      worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default {fetch(){return new Response("ok")}}',
+        d1Databases: { IDENTITY: 'paged-table-time-identity', STATE: 'paged-table-time-state' }, d1Persist: join(dir, 'd1') });
+      const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
+      const db = await worker.getD1Database('STATE') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb); await ensureSchema(db); await ensurePagePreferencesSchema(identityDb);
+      let now = FIXED_NOW;
+      const clock = { nowMs: () => now };
+      const identities = createD1IdentityStore(identityDb, { clock });
+      const team = await identities.createTeam({ timezone: 'UTC' });
+      const user = await identities.createUser({ email: 'paged-table-time@example.test', password_hash: 'unused', email_verified: true });
+      const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+      const token = 'native-paged-table-time-session';
+      await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token), last_team_id: team.team_id,
+        expires_at: new Date(FIXED_NOW + 2 * 3600000).toISOString() });
+      const admit = () => resolveIdentity(identities, { session_token: token }, { clock });
+      const identity = await admit();
+      assert.equal(identity.actor?.user_id, user.user_id); assert.equal(identity.team?.team_id, team.team_id);
+      const physical = createD1Storage(db), preferences = createD1PagePreferenceStore(identityDb);
+      let sequence = 1400;
+      const nextId = () => asOperationId(uuidv7(now, ++sequence));
+      const mutationOptions = { artifact, asm, app, identity, source: 'worker', store: physical,
+        memberships: identities, now: clock.nowMs };
+      const calendarCreated = await invokeMutationCanonical({ ...mutationOptions, operation: `${app}.Calendar.create`,
+        operationId: nextId(), inputs: { title: 'Actual paginated time calendar' } });
+      assert.equal(calendarCreated.status, 'committed');
+      const calendars = await physical.query({ model: calendarModel, authority: 'owner' });
+      assert.equal(calendars.length, 1); const calendar = calendars[0]!;
+      const upcoming: string[] = [], past: string[] = [];
+      for (const [count, direction, state, ids] of [[52, 1, 'open', upcoming], [26, -1, 'closed', past]] as const) {
+        for (let index = 0; index < count; index++) {
+          const from = FIXED_NOW + direction * (direction === 1 ? index : index + 1) * 60000;
+          const created = await invokeMutationCanonical({ ...mutationOptions, operation: `${app}.Window.create`, operationId: nextId(),
+            inputs: { parent: { id: calendar.id, version: String(calendar.version) }, from: new Date(from).toISOString(),
+              until: new Date(from + 3600000).toISOString(), state, available: true, rank: '7' } });
+          assert.equal(created.status, 'committed');
+          const rows = await physical.query({ model: windowModel, authority: 'owner' });
+          const added = rows.filter(row => row.data.from === new Date(from).toISOString());
+          assert.equal(added.length, 1); ids.push(added[0]!.id);
+        }
+      }
+      const resources = async () => ({ state: await snapshot(db), identity: await snapshot(identityDb) });
+      const cursors = await createPageCursorCodec(new Uint8Array(32).fill(64));
+      const pageReads = { scope: { app, owner: team.team_id, ownerPackage: app }, sourceIdentity: compiled.sha, cursors };
+      const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(65), 'native-paged-table-time');
+      type Query = { sequence: number; model: string; args: ListQueryArgs; result: ListQueryResult; admittedAt: string };
+      let queries: Query[] = [], querySequence = 0;
+      const serve = async (input: typeof compiled) => {
+        const derived = object(await import(`data:text/javascript,${encodeURIComponent(buildDerivedInputsModule(input.artifact))}`));
+        const derivedInputs = derived.derivedInputs as NonNullable<Parameters<typeof assembleWorker>[2]['http']>['derivedInputs'];
+        assert.ok(derivedInputs);
+        return assembleWorker(input.artifact, input.asm, { store: physical, identityStore: identities, now: clock.nowMs,
+          pageReads: { ...pageReads, sourceIdentity: input.sha }, http: { formBindings, preferences, derivedInputs,
+            createOperationHandler: Object.assign((deps: AssemblyHttpDeps) => (request: Request, operation: string) =>
+              handleOperationRequest(deps as unknown as Parameters<typeof handleOperationRequest>[0], request, operation),
+            { inputChoicesVersion: INPUT_CHOICES_VERSION }), createPageHandler: deps => {
+              const pageDeps = deps as unknown as PageHttpDeps, original = pageDeps.createReadScope; assert.ok(original);
+              return request => handlePageRequest({ ...pageDeps, createReadScope: async admitted => {
+                assert.equal(admitted.admitted_at, new Date(now).toISOString());
+                const scope = await original(admitted);
+                return { ...scope, query: async (invocation, model, args) => {
+                  const sequence = querySequence++, result = await scope.query(invocation, model, args);
+                  queries.push({ sequence, model, args, result, admittedAt: admitted.admitted_at }); return result;
+                } };
+              } }, request);
+            } } }, { active: true });
+      };
+      const served = await serve(compiled), guardServed = await serve(guarded);
+      const cookie = buildSessionCookie(token, { secure: false, maxAgeSeconds: 7200 }).split(';')[0]!;
+      const render = async (params = new URLSearchParams(), server = served) => {
+        queries = []; querySequence = 0;
+        const response = await server.fetch(new Request(`https://paged-table-time.example.test/table-time?${params}`,
+          { headers: { 'hx-request': 'true', cookie } }));
+        return { response, html: await response.text(), queries: [...queries].sort((left, right) => left.sequence - right.sequence) };
+      };
+      const timeQuery = (value: Awaited<ReturnType<typeof render>>, operator: 'gte' | 'lt') => {
+        const selected = value.queries.filter(query => query.model === windowModel);
+        assert.equal(selected.length, 2);
+        const query = selected.find(query => {
+          const where = object(query.args.where); return (where.op === 'and' ? object((where.args as unknown[])[0]) : where).op === operator;
+        }); assert.ok(query);
+        const where = object(query.args.where), time = where.op === 'and' ? object((where.args as unknown[])[0]) : where;
+        assert.deepEqual(time, { op: operator, field: 'from', value: { kind: 'page-query-now' } });
+        assert.equal(query.args.page, true); assert.equal(query.args.parent, undefined);
+        assert.deepEqual(query.args.order, operator === 'gte' ? ['from'] : ['-from']);
+        assert.ok(query.args.occurrence); return query;
+      };
+      const continuation = async (query: Query, cursor: string, overrides: Partial<ListQueryArgs> = {}) =>
+        queryPageRowsCanonical({ artifact, asm, store: physical, memberships: identities,
+          identity: await admit(), now: clock.nowMs, pageReads, model: query.model,
+          args: { ...query.args, ...overrides, cursor } });
+      const proof = async (cursor: string, queryTimeMs: number) => {
+        const decoded = await cursors.decode(cursor, now); assert.equal(decoded.status, 'valid');
+        if (decoded.status !== 'valid') assert.fail('expected current authenticated cursor');
+        assert.equal(decoded.position.queryTimeMs, queryTimeMs); return decoded;
+      };
+      const refusal = async (read: () => Promise<unknown>, code: 'validation' | 'conflict' | 'forbidden', message?: string) => {
+        const before = await resources();
+        await assert.rejects(read(), (error: unknown) => typeof error === 'object' && error !== null && 'code' in error && error.code === code &&
+          (message === undefined || ('message' in error && error.message === message)));
+        assert.deepEqual(await resources(), before, `${code} cursor refusal has no State or Identity effects`);
+      };
+      const baseline = await resources();
+      const first = await render(new URLSearchParams([['now', '2099-01-01T00:00:00.000Z']]));
+      assert.equal(first.response.status, 200, first.html);
+      const up = timeQuery(first, 'gte'), old = timeQuery(first, 'lt');
+      assert.notEqual(up.args.occurrence, old.args.occurrence);
+      assert.deepEqual(up.result.rows.map(row => row.id), upcoming.slice(0, 25));
+      assert.deepEqual(old.result.rows.map(row => row.id), past.slice(0, 25));
+      assert.equal(up.result.rows[0]!.fields.from, new Date(FIXED_NOW).toISOString(), 'equal boundary is upcoming');
+      assert.ok(up.result.nextCursor); assert.ok(old.result.nextCursor);
+      await proof(up.result.nextCursor, FIXED_NOW); await proof(old.result.nextCursor, FIXED_NOW);
+      assert.deepEqual(await resources(), baseline);
+      now = FIXED_NOW + 14 * 60000;
+      assert.equal((await admit()).admitted_at, new Date(now).toISOString());
+      const second = await continuation(up, up.result.nextCursor), lastPast = await continuation(old, old.result.nextCursor);
+      assert.deepEqual(second.rows.map(row => row.id), upcoming.slice(25, 50)); assert.ok(second.nextCursor);
+      assert.deepEqual(lastPast.rows.map(row => row.id), past.slice(25)); assert.equal(lastPast.nextCursor, undefined);
+      await proof(second.nextCursor, FIXED_NOW);
+      const issued = JSON.parse(Buffer.from(second.nextCursor.split('.')[0]!, 'base64url').toString('utf8')) as unknown[];
+      assert.deepEqual(issued.slice(5), [FIXED_NOW, now, now + 15 * 60000]);
+      assert.deepEqual(await resources(), baseline);
+      now = FIXED_NOW + 16 * 60000;
+      const third = await continuation(up, second.nextCursor);
+      assert.deepEqual(third.rows.map(row => row.id), upcoming.slice(50)); assert.equal(third.nextCursor, undefined);
+      await refusal(() => continuation(up, up.result.nextCursor!), 'conflict');
+      const fresh = await render(); assert.equal(fresh.response.status, 200, fresh.html);
+      const freshUp = timeQuery(fresh, 'gte'), freshPast = timeQuery(fresh, 'lt');
+      assert.deepEqual(freshUp.result.rows.map(row => row.id), upcoming.slice(16, 41)); assert.ok(freshUp.result.nextCursor);
+      assert.deepEqual(freshPast.result.rows.map(row => row.id), [...upcoming.slice(0, 16).reverse(), ...past].slice(0, 25));
+      assert.ok(freshPast.result.nextCursor); await proof(freshUp.result.nextCursor, now); await proof(freshPast.result.nextCursor, now);
+      await proof(second.nextCursor, FIXED_NOW);
+      const independentPast = await continuation(freshPast, freshPast.result.nextCursor);
+      assert.deepEqual(independentPast.rows.map(row => row.id), [...upcoming.slice(0, 16).reverse(), ...past].slice(25),
+        'the fresh past occurrence has a T16 boundary while the live upcoming continuation retains T0');
+      assert.deepEqual(await resources(), baseline);
+      await refusal(() => continuation(up, second.nextCursor!, { occurrence: old.args.occurrence! }), 'conflict');
+      await refusal(() => continuation(up, freshPast.result.nextCursor!), 'conflict');
+      const tampered = freshUp.result.nextCursor.slice(0, -1) + (freshUp.result.nextCursor.endsWith('A') ? 'B' : 'A');
+      await refusal(() => continuation(freshUp, tampered), 'validation');
+      const filterName = collectionFilterName(up.args.occurrence!, 'state');
+      const changedFilter = await render(new URLSearchParams([[filterName, 'closed']]));
+      assert.equal(changedFilter.response.status, 200, changedFilter.html);
+      const closedUp = timeQuery(changedFilter, 'gte'); assert.deepEqual(closedUp.result.rows, []);
+      await refusal(() => continuation(closedUp, second.nextCursor!), 'conflict');
+      assert.equal(await preferences.save({ appId: app, actorUserId: user.user_id, teamId: team.team_id,
+        owner: app, field: 'window_state', value: 'open', expectedVersion: '0' }), true);
+      const preferredBaseline = await resources(), preferred = await render(); assert.equal(preferred.response.status, 200, preferred.html);
+      const preferredUp = timeQuery(preferred, 'gte'); assert.ok(preferredUp.result.nextCursor);
+      await refusal(() => continuation(preferredUp, second.nextCursor!), 'conflict');
+      const cleared = await render(new URLSearchParams([[filterName, '']])); assert.equal(cleared.response.status, 200, cleared.html);
+      await refusal(() => continuation(timeQuery(cleared, 'gte'), preferredUp.result.nextCursor!), 'conflict');
+      const guardPage = await render(new URLSearchParams(), guardServed); assert.equal(guardPage.response.status, 200, guardPage.html);
+      assert.deepEqual(await resources(), preferredBaseline);
+      const currentText = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC' }).format(new Date(now));
+      assert.ok(guardPage.html.includes(`<p><span lang="en" dir="auto">\u2068Admitted now: ${currentText}\u2069</span></p>`),
+        'ordinary typed message now uses current admission time');
+      const guardUp = timeQuery(guardPage, 'gte'); assert.ok(guardUp.result.nextCursor);
+      await refusal(async () => queryPageRowsCanonical({ artifact: guarded.artifact, asm: guarded.asm, store: physical,
+        memberships: identities, identity: await admit(), now: clock.nowMs, pageReads: { ...pageReads, sourceIdentity: guarded.sha },
+        model: up.model, args: { ...up.args, cursor: second.nextCursor! } }), 'conflict');
+      now = FIXED_NOW + 18 * 60000;
+      await proof(guardUp.result.nextCursor, FIXED_NOW + 16 * 60000);
+      const guardBaseline = await resources(), denied = await render(new URLSearchParams(), guardServed);
+      assert.equal(denied.response.status, 403, denied.html); assert.deepEqual(denied.queries, []);
+      assert.deepEqual(await resources(), guardBaseline, 'current-time page guard refuses without collection reads or effects');
+      now = FIXED_NOW + 31 * 60000;
+      await refusal(() => continuation(freshUp, freshUp.result.nextCursor!), 'conflict');
+      now = FIXED_NOW + 18 * 60000;
+      const beforeUpdate = await physical.load(windowModel, asId(upcoming[51]!)); assert.ok(beforeUpdate);
+      const changed = await invokeMutationCanonical({ ...mutationOptions, identity: await admit(), operation: `${app}.Window.update`,
+        operationId: nextId(), inputs: { record: { id: beforeUpdate.id, version: String(beforeUpdate.version) }, rank: '8' } });
+      assert.equal(changed.status, 'committed');
+      await refusal(() => continuation(freshUp, freshUp.result.nextCursor!), 'conflict');
+      const updatedBaseline = await resources(), current = await render(); assert.equal(current.response.status, 200, current.html);
+      const currentUp = timeQuery(current, 'gte'); assert.ok(currentUp.result.nextCursor);
+      assert.deepEqual(await resources(), updatedBaseline);
+      await identities.removeMembership(membership.membership_id);
+      await refusal(() => continuation(currentUp, currentUp.result.nextCursor!), 'validation', 'Query path "from" is not granted to this caller.');
+      const revokedBaseline = await resources(), revoked = await render(); assert.equal(revoked.response.status, 403, revoked.html);
+      assert.deepEqual(await resources(), revokedBaseline);
+      for (const value of [compiled, guarded]) {
+        assert.equal(await readFile(value.path, 'utf8'), value.source);
+        assert.equal(JSON.stringify(value.artifact), value.originalArtifact);
+        await importVerifiedAssemblyModule(value.asm, value.entry, value.artifact);
+      }
+      assert.deepEqual(await hashes(), captured);
     } finally { await worker?.dispose(); await rm(dir, { recursive: true, force: true }); }
   });
