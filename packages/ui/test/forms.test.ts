@@ -10,19 +10,23 @@ import type {
   FormProps,
   PresentationContext,
 } from "@canlang/contracts";
-import type { FieldError, SealedActionHandle } from "@canlang/contracts";
+import type { DerivedOperationInputs, FieldError, SealedActionHandle } from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import { input, label, validator } from "../src/controls.js";
 import { loadHtml } from "./harness.js";
+import { startBrowserClient, type BrowserClientOptions } from "../src/browser/bootstrap.js";
+import type { SubmitFetchInit } from "../src/client.js";
 import {
   action,
   actions,
   deleteRecord,
   edit,
   form,
+  generatedFields,
   formatDatetimeLocal,
   NATIVE_BOOLEAN_PRESENCE_PREFIX,
   pointerToFieldName,
+  projectGeneratedInputs,
 } from "../src/forms.js";
 
 function makeContext(overrides: Partial<PresentationContext> = {}): PresentationContext {
@@ -1008,6 +1012,149 @@ describe("action", () => {
     target: "TeamTasks.run",
     revision: "r1",
   };
+
+  const preparedInputs: DerivedOperationInputs = {
+    operation: "TeamTasks.Todo.complete", kind: "scenario", artifactVersion: 1,
+    inputs: [
+      { name: "newLabel", kind: "string", required: true },
+      { name: "delta", kind: "integer", required: false, default: { kind: "literal", value: "1" } },
+      { name: "entry", kind: "ref", model: "TeamTasks.Todo", versioned: true, required: true },
+    ],
+  };
+
+  it("joins action metadata to native FormData and the existing browser submit client at the direct contract boundary", async () => {
+    const derived = preparedInputs;
+    const html = await action(makeActionProps({ derived, sourceBinding: "opaque-contract-token",
+      sourceBindingIdentity: "contract-occurrence", sourceBindingDraftIdentity: "contract-draft",
+      inputs: { newLabel: "Fixed label" }, fields: generatedFields(derived, "scenario", {
+        values: { entry: "entry-one", entry__version: "7" },
+      }).filter(candidate => candidate.path !== "newLabel") }));
+    const page = await loadHtml(html);
+    const target = page.document.querySelector("form")!;
+    const metadata = JSON.parse(target.getAttribute("data-can-generated-form")!);
+    assert.deepEqual(metadata.derived, derived);
+    assert.deepEqual(metadata.renderedInputs, ["delta", "entry", "entry__version", "newLabel"]);
+    assert.equal(metadata.bindingIdentity, "contract-occurrence");
+    assert.equal(metadata.draftIdentity, "contract-draft");
+    assert.equal(target.querySelector('input[name="inputs[record][id]"]'), null);
+    const calls: SubmitFetchInit[] = [], errors: unknown[] = [];
+    let settled!: () => void;
+    const settlement = new Promise<void>(resolve => { settled = resolve; });
+    const client = startBrowserClient({ window: page.window as unknown as BrowserClientOptions["window"],
+      fetchImpl: async (url, init) => {
+        calls.push(init);
+        assert.equal(url, "/act");
+        assert.equal(init.headers["x-csrf-token"], "csrf-123");
+        const envelope = JSON.parse(init.body as string);
+        assert.deepEqual(envelope, { operation: derived.operation, operation_id: "op-act-1",
+          inputs: { newLabel: "Fixed label", delta: "1", entry: { id: "entry-one", version: "7" } },
+          form_binding: "opaque-contract-token" });
+        return { status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify({
+          status: "committed", operation_id: "op-act-1", records: [], deliveries: [], result: null,
+        }) };
+      }, onGeneratedFormResult: () => settled(), onGeneratedFormError: (_form, error) => { errors.push(error); settled(); } });
+    try {
+      const button = target.querySelector<typeof page.window.HTMLButtonElement.prototype>('button[type="submit"]')!;
+      const event = new page.window.SubmitEvent("submit", { bubbles: true, cancelable: true, submitter: button });
+      target.dispatchEvent(event);
+      assert.equal(event.defaultPrevented, true);
+      await settlement;
+      assert.deepEqual(errors, []);
+      assert.equal(calls.length, 1);
+      assert.equal(target.getAttribute("data-can-submit-state"), "committed");
+    } finally { client.stop(); await page.close(); }
+  });
+
+  it("projects prepared update action bound scalars and native record hiddens through the existing mode", async () => {
+    const derived: DerivedOperationInputs = { operation: "TeamTasks.Todo.update", kind: "update", artifactVersion: 1,
+      inputs: [{ name: "record", kind: "ref", model: "TeamTasks.Todo", versioned: true, required: true },
+        { name: "label", kind: "string", required: false }, { name: "count", kind: "integer", required: false }] };
+    const html = await action(makeActionProps({ derived, operation: derived.operation, record: { id: "entry-one", version: "7" },
+      inputs: { count: 9 }, fields: generatedFields(derived, "update", { values: { label: "Edited" } }).filter(candidate => candidate.path === "label") }));
+    const page = await loadHtml(html);
+    let settled!: () => void;
+    const settlement = new Promise<void>(resolve => { settled = resolve; });
+    const calls: SubmitFetchInit[] = [], errors: unknown[] = [];
+    const client = startBrowserClient({ window: page.window as unknown as BrowserClientOptions["window"],
+      fetchImpl: async (_url, init) => {
+        calls.push(init);
+        assert.deepEqual(JSON.parse(init.body as string), { operation: derived.operation, operation_id: "op-act-1",
+          inputs: { record: { id: "entry-one", version: "7" }, label: "Edited", count: "9" } });
+        return { status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify({
+          status: "committed", operation_id: "op-act-1", records: [], deliveries: [], result: null,
+        }) };
+      }, onGeneratedFormResult: () => settled(), onGeneratedFormError: (_form, error) => { errors.push(error); settled(); } });
+    try {
+      const target = page.document.querySelector("form")!;
+      assert.ok(target.querySelector('input[name="inputs[changes][count]"]'));
+      const event = new page.window.SubmitEvent("submit", { bubbles: true, cancelable: true });
+      target.dispatchEvent(event); assert.equal(event.defaultPrevented, true);
+      await settlement;
+      assert.deepEqual(errors, []); assert.equal(calls.length, 1);
+    } finally { client.stop(); await page.close(); }
+  });
+
+  it("refuses malformed or mismatched prepared action associations and sealed handles before field effects", async () => {
+    const derived = preparedInputs;
+    let effects = 0;
+    const effectField = field("newLabel");
+    Object.defineProperty(effectField, "value", { get() { effects++; return "private"; } });
+    for (const overrides of [
+      { derived, operation: "other.operation" },
+      { derived: null as unknown as DerivedOperationInputs },
+      { derived: { ...derived, inputs: null } as unknown as DerivedOperationInputs },
+      { derived, sourceBinding: "" },
+      { derived, sourceBindingIdentity: "orphan-identity" },
+      { sourceBinding: "token-without-derived" },
+      { derived, actionHandle: handle },
+    ]) {
+      await assert.rejects(action(makeActionProps({ operation: derived.operation, ...overrides, fields: [effectField] })));
+    }
+    assert.equal(effects, 0);
+    const native = await action(makeActionProps({ actionHandle: handle }));
+    assert.ok(native.includes('<form action="/act" method="post">'));
+    assert.ok(native.includes('name="action_handle"'));
+    assert.equal(native.includes("data-can-generated-form"), false);
+  });
+
+  it("refuses companion-only prepared action subsets before field effects and preserves real paired inputs", async () => {
+    const derived: DerivedOperationInputs = { ...preparedInputs, inputs: [
+      ...preparedInputs.inputs,
+      { name: "nick", kind: "string", required: false, nullable: true },
+      { name: "amount", kind: "money", required: false },
+      { name: "when", kind: "datetime", required: false },
+      { name: "literal__version", kind: "string", required: false },
+    ] };
+    let effects = 0;
+    const effectField = field("newLabel");
+    Object.defineProperty(effectField, "value", { get() { effects++; return "private"; } });
+    const companionInputs: NonNullable<ActionProps["inputs"]>[] = [{ entry__version: "7" }, { nick__null: true },
+      { amount__currency: "EUR" }, { when__fold: "earlier" }];
+    for (const inputs of companionInputs) {
+      await assert.rejects(action(makeActionProps({ derived, inputs, fields: [effectField] })),
+        /companion input .* requires its base input/);
+    }
+    assert.equal(effects, 0);
+    const html = await action(makeActionProps({ derived, inputs: {
+      newLabel: "Label", entry: "entry-one", entry__version: "7", nick: "draft", nick__null: true,
+      amount: "100", amount__currency: "EUR", when: "2026-10-11T12:00", when__fold: "earlier",
+      literal__version: "ordinary suffix-named input",
+    } }));
+    const page = await loadHtml(html);
+    try {
+      const target = page.document.querySelector("form")!;
+      const metadata = JSON.parse(target.getAttribute("data-can-generated-form")!);
+      const flat: Record<string, string> = {};
+      for (const [name, value] of new page.window.FormData(target)) {
+        if (typeof value === "string") flat[name] = value;
+      }
+      assert.deepEqual(projectGeneratedInputs(derived, "scenario", flat, metadata.renderedInputs), {
+        newLabel: "Label", entry: { id: "entry-one", version: "7" }, nick: null,
+        amount: { minor: "100", currency: "EUR" }, when: "2026-10-11T12:00:00.000Z",
+        literal__version: "ordinary suffix-named input",
+      });
+    } finally { await page.close(); }
+  });
 
   it("renders a single-button form with hidden bindings and scalars", async () => {
     const html = await action(

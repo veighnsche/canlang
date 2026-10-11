@@ -11301,3 +11301,31 @@ observation and evidence lifetime qualification remain separate; holds and
 unsupported provider-void remain unchanged.
 
 Coordinator direct defining source/test review CLEAR and finite LOCAL main intake after deadline. Reuse12 affected loopback/helper groups and advisory outcomes; actual changed main Services/CF/root emission passes. Original Work/Dev bounded observation/evidence lifetime remains distinct. Complete filetree checkpoint and full-plan counts remain unchanged.
+
+## 2026-10-11 — Prepared metadata for plain actions (library implemented; original caller unfinished)
+
+Extend `ActionProps` with the existing FormProps derivation/source-binding
+properties. When genuinely supplied, `action()` emits existing generated-form
+metadata and uses the same mode-specific controls, scalar/default/ref projection,
+signed binding restoration, pending guard and awaited transport settlement.
+Interfaces authenticates the opaque binding. Preserve CSRF, operation identity,
+record suppression and evaluation order; add no transport, marker or event bridge.
+Malformed/mismatched metadata and MCP-only sealed handles refuse before field
+effects. Companions require their supplied base input, avoiding silent projection
+loss; a genuine declared input with a companion-like name remains valid.
+
+Pinned Node24 owning emissions, browser assets and final root types pass.
+Twelve UI action scopes and one genuine Interfaces derivation/preparation/
+signing/projection/restoration join pass or are reused. Source review found the
+companion-only omission; the bounded guard and affected controls now pass.
+The initial joined test read a visible default through a hidden-only helper;
+correct its observation and rerun only that group, retaining the expected value.
+Independent follow-up source review is clear.
+
+Compiler/Dev must supply genuine metadata on the original plain action caller
+and qualify its original browser/installed lifecycle. Metadata-free native POST
+remains unqualified for asynchronous completion; sealed browser actions retain
+their separate issuer/source prerequisite and MCP-only refusal. The wider B01
+parent and all precise holds remain unfinished.
+
+Coordinator defining review CLEAR and finite LOCAL main intake after deadline. Independent defining review CLEAR: original checked operation/mode/paths use the existing browser submitter, signing/restoration, source identities, defaults/scalar/ref/CSRF/nonce and successful controls; orphan/mismatch/companion/sealed-handle inputs refuse before effects. Reuse owning12 UI scopes plus1 genuine Interfaces producer/restorer join. Actual changed MAIN Contracts/UI/browser/Interfaces/CF/root emission0; original caller/native browser qualification remains separate. Full-plan/parent counts and complete filetree checkpoint remain unchanged.

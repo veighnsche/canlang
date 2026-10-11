@@ -47,6 +47,7 @@ import {
 } from '../src/http/formErrors.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
 import {
+  action,
   formFragmentWrap,
   generatedFields,
   generatedForm,
@@ -351,6 +352,65 @@ async function testPrincipal(store: IdentityStore, cookie: string): Promise<Reso
   const { identity } = await resolveRequestIdentity(store, testRequest('/x', { cookie }));
   return identity;
 }
+
+test('prepared action markup joins genuine owning derivation and source binding to the existing input projection', async () => {
+  // Producer/consumer scope: original pilot descriptors, real preparation and
+  // signing, and the existing projection. UI owns the native FormData/binder check.
+  const t = await createTestDeps();
+  const principal = await testPrincipal(t.identity.store, t.identity.cookie);
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const derived = deriveOperationInputs(GADGET_UPDATE_OP);
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION,
+    operations: [GADGET_UPDATE_OP, REVIEW_OP] });
+  const bindings = await createSourceFormBindings(new Uint8Array(32).fill(17), 'action-source-revision');
+  const context = buildPresentationContext({ request: testRequest('/forms', { cookie: t.identity.cookie }),
+    pathname: '/forms', isPartial: false, appDefaultLocale: 'en', csrfToken: csrf, principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: t.deps.clock,
+    formBindings: bindings, appId: t.deps.app.appId, sessionToken: t.identity.sessionToken });
+  const prepared = await context.prepareForm!({ operation: derived.operation, occurrence: 'gadget-action-one',
+    arguments: { record: { id: 'gadget-one', version: '7', title: 'Original' } },
+    fields: ['title', 'stock'], display: 'inline' });
+  assert.equal(prepared.status, 'ready');
+  if (prepared.status !== 'ready') throw new Error('expected protected action inputs');
+  assert.deepEqual(prepared.derived, derived);
+  const html = await action({ ...prepared.props, label: 'Save', inputs: { stock: 9 },
+    fields: prepared.props.fields.filter(field => field.path === 'title') });
+  const encoded = /data-can-generated-form="([^"]*)"/.exec(html)?.[1];
+  assert.ok(encoded);
+  const metadata = JSON.parse(encoded.replaceAll('&quot;', '"').replaceAll('&amp;', '&')) as {
+    derived: typeof derived; mode: 'update'; renderedInputs: string[]; bindingIdentity: string; draftIdentity: string;
+  };
+  assert.deepEqual(metadata.derived, derived);
+  assert.equal(metadata.mode, 'update');
+  assert.deepEqual(metadata.renderedInputs, ['title', 'stock']);
+  assert.equal(metadata.bindingIdentity, prepared.props.sourceBindingIdentity);
+  assert.equal(metadata.draftIdentity, prepared.props.sourceBindingDraftIdentity);
+  assert.equal(hiddenValue(html, 'inputs[record][id]'), null);
+  assert.ok(html.includes('name="inputs[changes][stock]" value="9"'));
+  const flat = Object.fromEntries([...html.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)]
+    .map(match => [match[1]!, match[2]!]));
+  assert.equal(flat['operation_id'], prepared.props.operationId);
+  assert.equal(flat['_csrf'], csrf);
+  const inputs = projectGeneratedInputs(metadata.derived, metadata.mode, flat, metadata.renderedInputs);
+  assert.deepEqual(inputs, { title: 'Original', stock: '9' });
+  const proof = flat[SOURCE_FORM_BINDING_FIELD]!;
+  const bindingContext = { appId: t.deps.app.appId, sessionToken: t.identity.sessionToken, identity: principal,
+    derived, operationId: prepared.props.operationId, nowMs: t.deps.clock.nowMs() };
+  assert.deepEqual({ ...await bindings.restore(bindingContext, proof, inputs) },
+    { title: 'Original', stock: '9', record: { id: 'gadget-one', version: '7' } });
+  assert.equal(await bindings.restore({ ...bindingContext, operationId: mintOperationId() }, proof, inputs), null);
+  assert.equal(await bindings.restore({ ...bindingContext, derived: { ...derived, operation: 'other.operation' } }, proof, inputs), null);
+
+  const review = deriveOperationInputs(REVIEW_OP);
+  const defaultHtml = await action({ context, derived: review, operation: review.operation,
+    action: '/api/operations/Shop.review', operationId: mintOperationId(), label: 'Review', idPrefix: 'review-action',
+    inputs: { nick: 'Fixed nickname' }, fields: generatedFields(review, 'scenario').filter(field => field.path === 'limit') });
+  const defaults = Object.fromEntries([...defaultHtml.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)]
+    .map(match => [match[1]!, match[2]!]));
+  assert.equal(defaults['inputs[limit]'], '10');
+  assert.deepEqual(projectGeneratedInputs(review, 'scenario', defaults, ['limit', 'nick']),
+    { limit: '10', nick: 'Fixed nickname' });
+});
 
 test('generated ui fields map the REAL derivation for every formable pilot op', () => {
   assert.deepEqual(

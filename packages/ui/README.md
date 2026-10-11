@@ -31,10 +31,16 @@ injected transports own their physical cancellation and eventual settlement.
 An aborted reply can leave an already committed server operation uncertain, so
 the original operation ID and canonical replay remain authoritative.
 
-Ordinary `action()` native POST markup has no asynchronous completion producer.
-The structural `data-can-once`/`can:settled` helper therefore remains unqualified
-for that workflow. Generated forms retain their own pending guard and direct
-transport settlement; no additional once marker or event bridge is needed.
+`action()` can receive the same owning `derived` inputs and optional source
+binding metadata as `form()`. It then uses the existing prepared submitter,
+operation mode, pending guard and direct transport settlement. Interfaces
+authenticates an opaque source binding; UI does not grant it authority.
+Companion controls require their base input, and prepared browser actions
+refuse MCP-only sealed handles before rendering effects. Original callers
+must supply genuine checked/prepared metadata for this behavior.
+
+Actions without metadata retain native POST; their asynchronous completion
+and structural `data-can-once`/`can:settled` behavior remain unqualified.
 
 ## Layout
 

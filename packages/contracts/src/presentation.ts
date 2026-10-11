@@ -1088,7 +1088,9 @@ export interface DeleteProps {
   readonly timeZone?: string;
 }
 
-export interface ActionProps {
+/** Checked metadata opts into the existing browser submitter; omission retains native POST. */
+export interface ActionProps extends Pick<FormProps,
+  "derived" | "sourceBinding" | "sourceBindingIdentity" | "sourceBindingDraftIdentity"> {
   readonly context: PresentationContext;
   readonly action: string;
   readonly operation: string;
@@ -1096,7 +1098,7 @@ export interface ActionProps {
   readonly label: MessageValue;
   /** Bound record for record actions (hidden id/version). */
   readonly record?: MutationRef;
-  /** Sealed handle for handle-mode actions (opaque hidden JSON). */
+  /** Legacy native POST only; prepared browser actions refuse MCP-only sealed handles. */
   readonly actionHandle?: SealedActionHandle;
   /** Pre-bound non-record scalar inputs (hidden fields). */
   readonly inputs?: Record<string, string | number | bigint | boolean>;
