@@ -1,0 +1,35 @@
+app CallbackDiagnostics
+use std {TextMessage,TextRequest}
+use std {TextGenerationV1 as LLM} from=deployment.llm
+Given
+ Job { label:text, request:delivery(LLM.generate)? }
+ policy Job read=members
+ policy Job read=members fields=request
+ policy Job read=members fields=request.error
+ policy Job read=members fields=request.progress
+ policy Job read=owner where=row.label!="" fields=request.callback_diagnostics
+ policy Job read=members where=row.label=="visible" fields=label,request.callback_diagnostics,request.error,request.progress.content
+When
+ crud Job by=members fields=label
+ scenario generate(job:Job,prompt:text) by=members
+  do
+   let value=TextRequest {source=operation.id,revision=job.version,profile="local-chat",policy_revision="policy-1",messages=[TextMessage {role=user,content=prompt,attachments=[]}],max_input_tokens=1024,max_output_tokens=128,max_duration=30s}
+   send LLM.generate {value} as attempt
+   set job {request=attempt}
+ scenario progressed on=LLM.generate.progressed
+  do require false
+Then
+ page / title="Callback history"
+  list Job
+   list [row.request?.callback_diagnostics] as diagnostic
+    card
+     require diagnostic!=null
+     card
+      require diagnostic.outcome=="unsupported"
+      alert
+       text diagnostic.reason
+     card
+      require diagnostic.outcome=="complete"
+      list diagnostic.failures as failure empty="No retained historical callback refusals."@{nl="Geen historische callbackweigeringen."}
+       alert tone=error
+        text failure.code,failure.message

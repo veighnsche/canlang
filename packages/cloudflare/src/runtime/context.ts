@@ -16,7 +16,7 @@
  * removed every serving path outside canonical execution, so a missing scope
  * fails loud instead of committing directly.
  */
-import type { DatetimeValue, DeliveryRef, InvocationContext, JudgmentSpec, ProjectedRecord, ReceiptProperty, RecordParent, SelectedReceiptProjection, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
+import type { DatetimeValue, DeliveryRef, InvocationContext, JudgmentSpec, PageGenerationCallbackDiagnosticsObserver, ProjectedRecord, ReceiptProperty, RecordParent, SelectedReceiptProjection, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
 import { makeDatetime, makeUserRef } from '@canlang/values';
 
 /** Authenticated caller identity: stable user id plus granted role names. */
@@ -97,6 +97,7 @@ export interface CanonicalEffectsScope {
     locator: { readonly record: unknown; readonly field: string },
     selected: readonly ReceiptProperty[],
   ): Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null>;
+  observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;
 }
 
 /** Formatting facts installed from the checked selected app. */
