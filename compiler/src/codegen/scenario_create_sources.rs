@@ -556,6 +556,7 @@ pub(super) fn checked_create_operand(
     {
         return None;
     }
+    super::scenario_receipts::checked_created_reference_operand(ir, original, actual, node, db)?;
     checked_create_expression(ir, original, actual, node, db)
 }
 

@@ -1,0 +1,18 @@
+## Test-authored bounded original business sequence: create Run, append counted Turn, return Run.
+app CreatedPair
+Given
+ Conversation {title:text}
+ Branch in Conversation {title:text}
+ Run in Branch {marker:int}
+ Turn in Branch {position:int min=1,run:Run}
+ policy Conversation read=members
+ policy Branch read=members
+ policy Run read=members
+ policy Turn read=members
+When
+ scenario append(branch:Branch) by=members -> Run
+  do
+   create Run {parent=branch,marker=0} as run
+   create Turn {parent=branch,position=count(branch.Turn)+1,run} as turn
+   return run
+Then

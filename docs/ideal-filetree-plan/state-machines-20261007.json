@@ -1,18 +1,18 @@
 {
   "date": "2026-10-11",
-  "integrated_source_pin": "aeba5aaf10a4424a4908e314dd3c9fe907e5d697",
+  "integrated_source_pin": "8f8815fdd99402b1fa6be8b0320b7615813d2673",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2349,
-    "net_path_deltas": 11091,
-    "history_touched_paths": 11128,
+    "commit_count_since_checkpoint": 2350,
+    "net_path_deltas": 11093,
+    "history_touched_paths": 11130,
     "history_only_paths": 6,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9588,
-    "scope": "Incremental local intake of aeba5aaf10a4424a4908e314dd3c9fe907e5d697 onto main 46301f857802152c83ec10e4e19daca50ee29d1a. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9590,
+    "scope": "Incremental local intake of 8f8815fdd99402b1fa6be8b0320b7615813d2673 onto main 57f7d9115e97dfdc0bd2e73b34520a324fcf5175. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
   },
   "methods": [
     "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -1190,6 +1190,12 @@
     ],
     [
       "A",
+      "compiler/tests/fixtures/native-count-run-turn.can",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "compiler/tests/fixtures/native-count-turn.can",
       "compiler",
       "inherited-unallocated"
@@ -1533,6 +1539,12 @@
     [
       "A",
       "compiler/tests/native_created_guarded_send.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/tests/native_created_pair.rs",
       "compiler",
       "inherited-unallocated"
     ],
@@ -66647,7 +66659,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9588,
+    "count": 9590,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -66661,5 +66673,5 @@
   "lanes": "Four existing local workers retain their assigned plans and precise holds. Coordinator alone integrates committed or human-authorized prepared changes into local main. No remote publication or PR gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Incremental local intake of aeba5aaf10a4424a4908e314dd3c9fe907e5d697 onto main 46301f857802152c83ec10e4e19daca50ee29d1a. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+  "current_maintenance_summary": "Incremental local intake of 8f8815fdd99402b1fa6be8b0320b7615813d2673 onto main 57f7d9115e97dfdc0bd2e73b34520a324fcf5175. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
 }

@@ -217,10 +217,10 @@ pub(super) fn has_original_created_model_result(
     ir: &IrProgram,
     scenario: crate::analysis::SymbolId,
 ) -> bool {
-    let Some(ScenarioDisclosure::Complete(checked)) = ir.scenario_disclosures.get(&scenario) else {
+    let Some(disclosure) = ir.scenario_disclosures.get(&scenario) else {
         return false;
     };
-    let Some(facts) = checked.source_facts.as_deref() else {
+    let Some(facts) = disclosure.source_facts() else {
         return false;
     };
     let Some(ResolvedType::Record {
@@ -230,17 +230,41 @@ pub(super) fn has_original_created_model_result(
     else {
         return false;
     };
-    checked.scenario == scenario
-        && facts.scenario == scenario
-        && facts.node == checked.node
-        && facts.source == checked.source
-        && !facts.read
-        && !checked.returns.is_empty()
-        && checked.returns.iter().all(|returned| {
-            returned.source == checked.source
-                && returned
-                    .model_result
-                    .is_some_and(|origin| origin.model() == *model)
+    if facts.scenario != scenario || facts.read {
+        return false;
+    }
+    if let ScenarioDisclosure::Complete(checked) = disclosure {
+        return checked.scenario == scenario
+            && facts.node == checked.node
+            && facts.source == checked.source
+            && !checked.returns.is_empty()
+            && checked.returns.iter().all(|returned| {
+                returned.source == checked.source
+                    && returned
+                        .model_result
+                        .is_some_and(|origin| origin.model() == *model)
+            });
+    }
+    // Keep this pair's native source requirement when a copied binding or
+    // unsupported continuation prevents its complete provenance proof. The
+    // immutable constructor/count census supplies no executable recipe.
+    let Some([first, second]) = facts.creates.as_deref() else {
+        return false;
+    };
+    first.model == *model
+        && second.model != first.model
+        && first.source == facts.source
+        && second.source == facts.source
+        && first.node.file == second.node.file
+        && first.node.end <= second.node.start
+        && facts.queries.as_deref().is_some_and(|queries| {
+            queries.iter().any(|query| {
+                query.source == facts.source
+                    && query.model == second.model
+                    && query.count.as_ref().is_some_and(|count| {
+                        count.statement == second.node && count.contained_parent.is_some()
+                    })
+            })
         })
 }
 
@@ -1559,7 +1583,8 @@ pub(super) fn checked_count_query_ir<'a>(
         || slots.is_some_and(|slots| slots != count.slots.as_slice())
         || count.statement != original.node
         || original.model != query.model
-        || checked_created_model_result(ir, owner) != Some(original.model)
+        || (checked_created_model_result(ir, owner) != Some(original.model)
+            && checked_created_pair(ir, owner, db)?.1.node != original.node)
         || actual.span != node_span(node)
         || actual.ty != ResolvedType::Scalar(Scalar::Int)
         || domain.ty != array
@@ -1690,7 +1715,9 @@ pub(super) fn checked_native_count_query_plan(
         return None;
     };
     let mut creates = effects.iter().filter_map(|statement| match statement {
-        IrStmt::Create { input, span, .. } => Some((input, span)),
+        IrStmt::Create { input, span, .. } if *span == node_span(count.statement) => {
+            Some((input, span))
+        }
         _ => None,
     });
     let (input, span) = creates.next()?;
@@ -1700,9 +1727,27 @@ pub(super) fn checked_native_count_query_plan(
     let IrStmt::Return { span: returned, .. } = effects.last()? else {
         return None;
     };
-    let [original] = facts.creates.as_deref()? else {
+    let originals = facts.creates.as_deref()?;
+    let mut owning = originals
+        .iter()
+        .filter(|created| created.node == count.statement);
+    let original = owning.next()?;
+    if owning.next().is_some() || originals.is_empty() || originals.len() > 2 {
         return None;
-    };
+    }
+    if originals.len() == 2 {
+        checked_created_pair(ir, owner, db)?;
+        let models = super::js::Emitter::new(ir).collect_models();
+        for created in originals {
+            let proof = checked
+                .effects
+                .iter()
+                .find(|proof| proof.node == created.node)?;
+            let statement = effects.iter().find(|statement|
+                matches!(statement, IrStmt::Create {span, ..} if *span == node_span(created.node)))?;
+            checked_scenario_create(ir, owner, &models, checked, proof, statement, db)?;
+        }
+    }
     let IrExpr::Object(entries) = &input.expr else {
         return None;
     };
@@ -4264,7 +4309,13 @@ fn checked_scenario_create(
         return None;
     }
     super::scenario_create_sources::checked_created_schema(ir, owner, models, original, db)?;
-    if checked_created_model_result(ir, owner) == Some(*model) {
+    if facts.creates.as_deref()?.len() == 2 {
+        let (first, second) = checked_created_pair(ir, owner, db)?;
+        if proof.node != first.node && proof.node != second.node {
+            return None;
+        }
+        ordered_created_model_effects(ir, owner, first.node, first.model, &first.binding, db)?;
+    } else if checked_created_model_result(ir, owner) == Some(*model) {
         ordered_created_model_effects(ir, owner, proof.node, *model, binding, db)?;
     } else {
         ordered_intermediate_call_create(ir, owner, checked, proof.node, *model, binding, db)?;
@@ -4432,10 +4483,15 @@ fn checked_created_statements(
     if authored_guards.len() != guards.len() || authored_effects.len() != effects.len() {
         return None;
     }
+    let result_original = if facts.creates.as_deref()?.len() == 2 {
+        checked_created_pair(ir, owner, db)?.0
+    } else {
+        original
+    };
     let guarded_created = effects
         .iter()
         .any(|statement| matches!(statement, IrStmt::Send { when: Some(_), .. }))
-        && checked_created_model_result(ir, owner) == Some(original.model);
+        && checked_created_model_result(ir, owner) == Some(result_original.model);
     for (statement, authored) in guards
         .iter()
         .zip(authored_guards)
@@ -4480,14 +4536,14 @@ fn checked_created_statements(
                     return None;
                 }
                 let binding = direct_source_path_name(receiver, text)?;
-                if binding == original.binding {
+                if binding == result_original.binding {
                     created_record_name_matches(
                         record,
                         &ResolvedType::Record {
-                            symbol: original.model,
+                            symbol: result_original.model,
                             stored: true,
                         },
-                        &original.binding,
+                        &result_original.binding,
                         *span,
                         db,
                     )?;
@@ -4802,6 +4858,282 @@ fn ordered_intermediate_call_create(
     )
 }
 
+/// The original pair stores the first created row in the second row and
+/// returns that same first binding. Every constructor remains individually
+/// source/schema checked by the owning effect matcher.
+fn checked_created_pair<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    &'a crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+)> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [first, second] = facts.creates.as_deref()? else {
+        return None;
+    };
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        params, effects, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let crate::analysis::resolve::ModelOwner::ChildOf(parent_id) =
+        first.definition.declaration.owner
+    else {
+        return None;
+    };
+    if first.source != checked.source
+        || second.source != checked.source
+        || first.model == second.model
+        || first.binding == second.binding
+        || !direct_field_name(&first.binding)
+        || !direct_field_name(&second.binding)
+        || first.node.file != second.node.file
+        || first.node.end > second.node.start
+        || second.definition.declaration.owner
+            != crate::analysis::resolve::ModelOwner::ChildOf(parent_id)
+        || checked_created_model_result(ir, owner) != Some(first.model)
+        || checked.returns.iter().any(|returned| {
+            returned.model_result
+                != Some(DisclosureModelResult::Create {
+                    model: first.model,
+                    node: first.node,
+                })
+        })
+    {
+        return None;
+    }
+    let mut creates = effects
+        .iter()
+        .enumerate()
+        .filter(|(_, statement)| matches!(statement, IrStmt::Create { .. }));
+    let (position, first_statement) = creates.next()?;
+    let (second_position, second_statement) = creates.next()?;
+    if creates.next().is_some()
+        || second_position != position + 1
+        || effects[..position]
+            .iter()
+            .any(|statement| !matches!(statement, IrStmt::Let { .. } | IrStmt::Require { .. }))
+        || params.iter().any(|id| {
+            ir.items
+                .get(id.0 as usize)
+                .is_none_or(|item| item.name == first.binding || item.name == second.binding)
+        })
+        || effects[..position].iter().any(|statement| {
+            matches!(statement, IrStmt::Let { name, .. }
+                if name == &first.binding || name == &second.binding)
+        })
+    {
+        return None;
+    }
+    let [query] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let count = query.count.as_ref()?;
+    let parameter = checked_count_query_parent(ir, owner, query, db)?;
+    let parent_type = ResolvedType::Record {
+        symbol: parent_id,
+        stored: true,
+    };
+    if query.model != second.model
+        || count.statement != second.node
+        || !matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty), ..}
+            if ty == &parent_type)
+    {
+        return None;
+    }
+    let result_type = ResolvedType::Record {
+        symbol: first.model,
+        stored: true,
+    };
+    let mut reference_inputs = second.inputs.iter().filter(|input| input.ty == result_type);
+    let reference = reference_inputs.next()?;
+    if reference_inputs.next().is_some() || reference.field.is_none() {
+        return None;
+    }
+    for (original, statement) in [(first, first_statement), (second, second_statement)] {
+        let IrStmt::Create {
+            model,
+            input,
+            binding: Some(binding),
+            when: None,
+            span,
+        } = statement
+        else {
+            return None;
+        };
+        let IrExpr::Object(entries) = &input.expr else {
+            return None;
+        };
+        let mut proofs = checked
+            .effects
+            .iter()
+            .filter(|proof| proof.node == original.node);
+        let proof = proofs.next()?;
+        if proofs.next().is_some()
+            || proof.source != checked.source
+            || !matches!(&proof.kind, DisclosureEffectKind::Create {
+                model, crud:None, binding, defaults, inputs
+            } if *model == original.model && binding == &original.binding
+                && defaults.is_empty() && inputs == &original.inputs)
+            || model != &original.definition.canonical
+            || binding != &original.binding
+            || *span != node_span(original.node)
+            || input.span != *span
+            || entries.len() != original.inputs.len()
+            || entries.is_empty()
+        {
+            return None;
+        }
+        let mut names = HashSet::new();
+        let mut parent_found = false;
+        for ((name, value), input) in entries.iter().zip(&original.inputs) {
+            if !names.insert(name)
+                || name != &input.name
+                || value.ty != input.ty
+                || value.span != node_span(input.value_node)
+                || original
+                    .expression_types
+                    .iter()
+                    .find(|(at, _)| *at == input.value_node)
+                    .is_none_or(|(_, ty)| ty != &value.ty)
+            {
+                return None;
+            }
+            if input.field.is_none() {
+                if parent_found || name != "parent" || input.ty != parent_type {
+                    return None;
+                }
+                parent_found = true;
+                created_record_name_matches(value, &parent_type, &parameter.name, *span, db)?;
+                super::scenario_create_sources::checked_create_expression(
+                    ir,
+                    original,
+                    value,
+                    input.value_node,
+                    db,
+                )?;
+            } else {
+                let field = original
+                    .definition
+                    .fields
+                    .iter()
+                    .find(|field| Some(field.field) == input.field)?;
+                let actual = ir.items.get(field.field.0 as usize)?;
+                if field.name != *name
+                    || field.ty != input.ty
+                    || actual.id != field.field
+                    || actual.canonical != field.canonical
+                    || actual.name != field.name
+                    || !matches!(&actual.kind, IrItemKind::Field {owner, ty:IrType::Known(ty), ..}
+                        if *owner == original.model && ty == &field.ty)
+                {
+                    return None;
+                }
+                if original.node == second.node && input.value_node == reference.value_node {
+                    created_record_name_matches(value, &result_type, &first.binding, *span, db)?;
+                    super::scenario_create_sources::checked_create_expression(
+                        ir,
+                        original,
+                        value,
+                        input.value_node,
+                        db,
+                    )?;
+                }
+            }
+        }
+        if !parent_found {
+            return None;
+        }
+    }
+    let IrStmt::Create { input, .. } = second_statement else {
+        return None;
+    };
+    let IrExpr::Object(entries) = &input.expr else {
+        return None;
+    };
+    let mut counted = entries.iter().filter(|(_, value)| {
+        matches!(&value.expr, IrExpr::Binary {op:IrBinOp::Add,left,right}
+            if left.span == node_span(count.call)
+                && left.ty == ResolvedType::Scalar(Scalar::Int)
+                && right.ty == ResolvedType::Scalar(Scalar::Int)
+                && matches!(right.expr, IrExpr::Int(1)))
+    });
+    let (_, increment) = counted.next()?;
+    if counted.next().is_some()
+        || increment.ty != ResolvedType::Scalar(Scalar::Int)
+        || !second.inputs.iter().any(|input| {
+            input.field.is_some()
+                && node_span(input.value_node) == increment.span
+                && input.ty == ResolvedType::Scalar(Scalar::Int)
+        })
+    {
+        return None;
+    }
+    Some((first, second))
+}
+
+/// A second constructor's first-model operand must still name the original
+/// earlier CreateAs, never a same-type parameter or alias substituted in IR.
+pub(super) fn checked_created_reference_operand(
+    ir: &IrProgram,
+    original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
+    actual: &TypedExpr,
+    node: crate::analysis::NodeKey,
+    db: &SourceDb,
+) -> Option<()> {
+    if !matches!(actual.ty, ResolvedType::Record { stored: true, .. }) {
+        return Some(());
+    }
+    let mut owners = ir.items.iter().filter(|owner| {
+        ir.scenario_disclosures
+            .get(&owner.id)
+            .and_then(|disclosure| disclosure.source_facts())
+            .and_then(|facts| facts.creates.as_deref())
+            .is_some_and(|creates| {
+                creates.len() == 2
+                    && creates.iter().any(|created| {
+                        created.node == original.node && created.source == original.source
+                    })
+            })
+    });
+    let Some(owner) = owners.next() else {
+        return Some(());
+    };
+    if owners.next().is_some() {
+        return None;
+    }
+    let (first, second) = checked_created_pair(ir, owner, db)?;
+    if original.node == second.node
+        && actual.ty
+            == (ResolvedType::Record {
+                symbol: first.model,
+                stored: true,
+            })
+    {
+        if !second
+            .inputs
+            .iter()
+            .any(|input| input.field.is_some() && input.value_node == node && input.ty == actual.ty)
+        {
+            return None;
+        }
+        created_record_name_matches(
+            actual,
+            &actual.ty,
+            &first.binding,
+            node_span(second.node),
+            db,
+        )?;
+    }
+    Some(())
+}
+
 fn ordered_created_model_effects(
     ir: &IrProgram,
     owner: &IrItem,
@@ -4816,17 +5148,49 @@ fn ordered_created_model_effects(
     if effects.len() < 2 {
         return None;
     }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let paired = if facts
+        .creates
+        .as_deref()
+        .is_some_and(|creates| creates.len() == 2)
+    {
+        let (first, second) = checked_created_pair(ir, owner, db)?;
+        if first.node != create || first.model != model || first.binding != binding {
+            return None;
+        }
+        Some(second.node)
+    } else {
+        None
+    };
+    let last_create = paired.unwrap_or(create);
     let direct = matches!(effects.get(effects.len() - 2),
         Some(IrStmt::Create {span, ..}) if *span == node_span(create))
         && effects[..effects.len() - 2]
             .iter()
             .all(|effect| matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }));
+    let direct = direct
+        || paired.is_some()
+            && matches!(
+        effects.get(effects.len() - 2), Some(IrStmt::Create {span, ..})
+            if *span == node_span(last_create));
     if !direct {
         let mut creates = effects
             .iter()
             .enumerate()
             .filter(|(_, effect)| matches!(effect, IrStmt::Create { .. }));
         let (position, statement) = creates.next()?;
+        let last_position = if let Some(second) = paired {
+            let (second_position, second_statement) = creates.next()?;
+            if second_position != position + 1
+                || !matches!(second_statement, IrStmt::Create {span, ..}
+                    if *span == node_span(second))
+            {
+                return None;
+            }
+            second_position
+        } else {
+            position
+        };
         if creates.next().is_some()
             || effects[..position]
                 .iter()
@@ -4859,7 +5223,7 @@ fn ordered_created_model_effects(
                 span: after_at,
             },
             tail @ ..,
-        ] = &effects[position..]
+        ] = &effects[last_position..]
         else {
             return None;
         };
@@ -4893,14 +5257,14 @@ fn ordered_created_model_effects(
         };
         if !matches!(&delivery.expr, IrExpr::Name(name) if name == sent)
             || operation != &format!("{capability}.{}", op.name)
-            || create.end > before_at.start
+            || last_create.end > before_at.start
             || before_at.end > send_at.start
             || send_at.end > after_at.start
         {
             return None;
         }
-        let mut previous = create.end;
-        for effect in &effects[position + 1..] {
+        let mut previous = last_create.end;
+        for effect in &effects[last_position + 1..] {
             let at = match effect {
                 IrStmt::Set { span, .. }
                 | IrStmt::Send { span, .. }
@@ -5645,7 +6009,10 @@ impl<'a> Sites<'a> {
                             })
                         {
                             let original = facts.creates.as_deref()?.iter().find(|created| {
-                                checked_created_model_result(ir, owner) == Some(created.model)
+                                query
+                                    .count
+                                    .as_ref()
+                                    .is_some_and(|count| count.statement == created.node)
                             })?;
                             let call = query.count.as_ref()?.call;
                             checked_count_query_ir(ir, original, expression, call, db?)?;
