@@ -168,7 +168,7 @@
     "TECH-S02/REPLAY-IP07 finite CRUD public result contract (JEV advice complete; defining implementation contract pending)",
     "H3 compiler consumer of released trusted formatting scope",
     "H1 full scalar/array/default/hook/native consumer residuals",
-    "TECH-V05 exact external timezone payload approval pending"
+    "TECH-V05 bounded raw LRU integrated and reviewed; exact Dev/L7 release-host/data qualification remains"
   ],
   "packet_state": {
     "TECH-V01-values": {
@@ -402,7 +402,7 @@
     },
     "TECH-V05": {
       "planning_status": "blocked",
-      "state": "Local source-current host/currency/cache comparisons complete and released; timezone key-equivalence/retention-budget policy remains unselected under its exact consultation payload hold, supported release-host/data gates open.",
+      "state": "Bounded raw-key LRU64-per-cache design resolved and smallest implementation qualified21Node/21Bun; finite integration and exact release-host/data qualification remain.",
       "files": [
         "packages/values/src/timezone.ts",
         "packages/values/src/locale.ts",
@@ -437,8 +437,219 @@
         "no_workaround": true
       },
       "remaining_prerequisite": {
-        "prerequisite": "Timezone key equivalence and retention/budget policy: raw-key Maps amplify retained formatters; Node/Bun resolved identities differ, so canonical-key substitution is not qualified. Existing exact consultation payload remains held after approval rejection; do not reuse TECH-I01 or State payload approval. Supported ICU/tzdb/currency release-host correspondence remains separate.",
-        "owner": "Values contract/release-host owners; human for the specifically held consultation payload"
+        "prerequisite": "No missing cache key/retention policy or human selection. Coordinator finite source integration; Dev/L7 exact declared Intl runtime build+loaded ICU/tzdb/CLDR identity and original semantic corpus at that identity, preserving the independent pinned SIX2026-09-17 currency table. Current local tests do not claim release-host acceptance. Old rejected42816-byte payload stays unsent as historical disclosure constraint, not a design blocker.",
+        "owner": "Coordinator finite integration; Dev/L7 actual release-host/runtime/data integrator; Values fixed data/source owner"
+      },
+      "bounded_key_retention_decision": {
+        "status": "owning bounded design selected; smallest source implementation and affected Node/Bun tests qualified; finite integration pending",
+        "authorization": "Current human AGENTS.md preauthorizes difficult-design JEV calls; coordinator verified human consultation instruction and explicitly assigned this bounded V05 choice. No implementation/activation/publication hold is lifted.",
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "payload_scope": "Only the minimally sufficient abstract facts and alternatives below. No source code, source paths, application/user/provider data, deployment identifiers or credentials. Old rejected42816-byte payload remains unsent and is not reused or relayed.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "decision": "Choose only a private formatter-cache key and retention mechanism; public timezone values, errors and calculations must remain unchanged.",
+              "verified_facts": [
+                "Two private formatter Maps currently retain entries under the exact accepted timezone string. Public validation uses the running host Intl database and returns the original string; case variants and aliases can multiply retained entries.",
+                "Retained Node and Bun observations report different resolved timezone identities. Canonical name equality across runtimes is not an established contract. The original private measurement files are unavailable in this local continuation; no timing or heap figures are claimed.",
+                "Earlier recorded locale/money/timezone controls and seven cache variants passed their bounded comparisons. No accepted cross-host canonical-key contract or process-wide memory ceiling was established.",
+                "The formatter options are fixed separately for civil-date and wall-time calculations. Eviction only reconstructs an Intl formatter from the original validated string; it must not reject an accepted zone, change DST folds/gaps, roundtrip calculations or evaluation order.",
+                "The owning language semantics require pinned host ICU/timezone data. Cache keys are private and never persisted or exposed. A retained-entry cap cannot guarantee total host/ICU memory or prevent high-cardinality construction CPU."
+              ],
+              "required_outcomes": [
+                "Finite privately retained formatter references without narrowing accepted inputs.",
+                "Preserve exact outputs/refusals and raw public string semantics under the selected supported host/data identity.",
+                "Small complete implementation with no new public API, deployment profile or host-data substitution.",
+                "Choose an internal retention constant as engineering policy, independent of semantic zone acceptance; capacity affects performance only."
+              ]
+            },
+            "questions": {
+              "timezone_cache_policy": {
+                "type": "choice",
+                "instructions": "Choose the smallest sufficient private timezone cache policy for required_outcomes using verified_facts. Compare raw-key bounded LRU, current-host canonical-key bounded LRU and uncached construction fairly, including retained-reference limits, exact behavior and actual unproved host equivalence. Advice does not certify host data or implementation.",
+                "criteria": {
+                  "raw_lru": "Keep exact validated input strings as private keys. Cap each of the two Maps at64 formatters, promote hits, evict the least recently used entry before retaining a new formatter. At most128 retained entries; aliases may occupy multiple slots. Reconstruction preserves the existing host calculation; no canonical-equivalence assumption. CPU/cache churn and host memory beyond retained references remain outside this bound.",
+                  "canonical_lru": "Use the current host Intl resolved timezone name as each private key and cap each Map at64 with LRU. Alias sharing can retain more useful zones and is private to one runtime; no global persisted identity is needed. Establish that the resolved identity denotes interchangeable formatter results for every accepted input on each supported pinned host, keeping original public strings and errors unchanged. Adds the host equivalence/resolution join.",
+                  "uncached": "Remove both private Maps and construct a formatter per use. Eliminates retained formatter references and key-equivalence questions with minimal code, preserving original zone construction. Repeated wall-time probes construct more formatters and may increase CPU; this gives no whole-host memory or CPU ceiling.",
+                  "defer": "None of these mechanisms meets the stated complete outcomes from the available facts; name the missing fact rather than request a human to select an ordinary internal policy."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "decision": "Choose only a private formatter-cache key and retention mechanism; public timezone values, errors and calculations must remain unchanged.",
+              "verified_facts": [
+                "Two private formatter Maps currently retain entries under the exact accepted timezone string. Public validation uses the running host Intl database and returns the original string; case variants and aliases can multiply retained entries.",
+                "Retained Node and Bun observations report different resolved timezone identities. Canonical name equality across runtimes is not an established contract. The original private measurement files are unavailable in this local continuation; no timing or heap figures are claimed.",
+                "Earlier recorded locale/money/timezone controls and seven cache variants passed their bounded comparisons. No accepted cross-host canonical-key contract or process-wide memory ceiling was established.",
+                "The formatter options are fixed separately for civil-date and wall-time calculations. Eviction only reconstructs an Intl formatter from the original validated string; it must not reject an accepted zone, change DST folds/gaps, roundtrip calculations or evaluation order.",
+                "The owning language semantics require pinned host ICU/timezone data. Cache keys are private and never persisted or exposed. A retained-entry cap cannot guarantee total host/ICU memory or prevent high-cardinality construction CPU."
+              ],
+              "required_outcomes": [
+                "Finite privately retained formatter references without narrowing accepted inputs.",
+                "Preserve exact outputs/refusals and raw public string semantics under the selected supported host/data identity.",
+                "Small complete implementation with no new public API, deployment profile or host-data substitution.",
+                "Choose an internal retention constant as engineering policy, independent of semantic zone acceptance; capacity affects performance only."
+              ]
+            },
+            "questions": {
+              "timezone_cache_policy": {
+                "type": "choice",
+                "instructions": "Which offered key/retention mechanism should the owner implement now while retaining every accepted timezone spelling, exact fold/gap behavior and pinned-data semantics? Weigh finite retention, construction work and the necessity of a new equivalence join against the same required_outcomes; select defer only for a concrete missing fact.",
+                "criteria": {
+                  "raw_lru": "Keep exact validated input strings as private keys. Cap each of the two Maps at64 formatters, promote hits, evict the least recently used entry before retaining a new formatter. At most128 retained entries; aliases may occupy multiple slots. Reconstruction preserves the existing host calculation; no canonical-equivalence assumption. CPU/cache churn and host memory beyond retained references remain outside this bound.",
+                  "canonical_lru": "Use the current host Intl resolved timezone name as each private key and cap each Map at64 with LRU. Alias sharing can retain more useful zones and is private to one runtime; no global persisted identity is needed. Establish that the resolved identity denotes interchangeable formatter results for every accepted input on each supported pinned host, keeping original public strings and errors unchanged. Adds the host equivalence/resolution join.",
+                  "uncached": "Remove both private Maps and construct a formatter per use. Eliminates retained formatter references and key-equivalence questions with minimal code, preserving original zone construction. Repeated wall-time probes construct more formatters and may increase CPU; this gives no whole-host memory or CPU ceiling.",
+                  "defer": "None of these mechanisms meets the stated complete outcomes from the available facts; name the missing fact rather than request a human to select an ordinary internal policy."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "decision": "Choose only a private formatter-cache key and retention mechanism; public timezone values, errors and calculations must remain unchanged.",
+              "verified_facts": [
+                "Two private formatter Maps currently retain entries under the exact accepted timezone string. Public validation uses the running host Intl database and returns the original string; case variants and aliases can multiply retained entries.",
+                "Retained Node and Bun observations report different resolved timezone identities. Canonical name equality across runtimes is not an established contract. The original private measurement files are unavailable in this local continuation; no timing or heap figures are claimed.",
+                "Earlier recorded locale/money/timezone controls and seven cache variants passed their bounded comparisons. No accepted cross-host canonical-key contract or process-wide memory ceiling was established.",
+                "The formatter options are fixed separately for civil-date and wall-time calculations. Eviction only reconstructs an Intl formatter from the original validated string; it must not reject an accepted zone, change DST folds/gaps, roundtrip calculations or evaluation order.",
+                "The owning language semantics require pinned host ICU/timezone data. Cache keys are private and never persisted or exposed. A retained-entry cap cannot guarantee total host/ICU memory or prevent high-cardinality construction CPU."
+              ],
+              "required_outcomes": [
+                "Finite privately retained formatter references without narrowing accepted inputs.",
+                "Preserve exact outputs/refusals and raw public string semantics under the selected supported host/data identity.",
+                "Small complete implementation with no new public API, deployment profile or host-data substitution.",
+                "Choose an internal retention constant as engineering policy, independent of semantic zone acceptance; capacity affects performance only."
+              ]
+            },
+            "questions": {
+              "timezone_cache_policy": {
+                "type": "choice",
+                "instructions": "Select the most proportionate complete design for these two private timezone formatter caches. Evaluate all candidates against unchanged public values/errors/results, bounded retained references and minimal necessary implementation. Treat64 entries per cache as an internal performance policy, not an input limit or a guarantee of total runtime memory.",
+                "criteria": {
+                  "raw_lru": "Keep exact validated input strings as private keys. Cap each of the two Maps at64 formatters, promote hits, evict the least recently used entry before retaining a new formatter. At most128 retained entries; aliases may occupy multiple slots. Reconstruction preserves the existing host calculation; no canonical-equivalence assumption. CPU/cache churn and host memory beyond retained references remain outside this bound.",
+                  "canonical_lru": "Use the current host Intl resolved timezone name as each private key and cap each Map at64 with LRU. Alias sharing can retain more useful zones and is private to one runtime; no global persisted identity is needed. Establish that the resolved identity denotes interchangeable formatter results for every accepted input on each supported pinned host, keeping original public strings and errors unchanged. Adds the host equivalence/resolution join.",
+                  "uncached": "Remove both private Maps and construct a formatter per use. Eliminates retained formatter references and key-equivalence questions with minimal code, preserving original zone construction. Repeated wall-time probes construct more formatters and may increase CPU; this gives no whole-host memory or CPU ceiling.",
+                  "defer": "None of these mechanisms meets the stated complete outcomes from the available facts; name the missing fact rather than request a human to select an ordinary internal policy."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "variant": 1,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "timezone_cache_policy": {
+                  "type": "choice",
+                  "choice": "raw_lru",
+                  "confidence": 0.92,
+                  "probabilities": {
+                    "raw_lru": 0.94,
+                    "canonical_lru": 0.04,
+                    "uncached": 0.01,
+                    "defer": 0.01
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 993,
+                "output_tokens": 55
+              }
+            }
+          },
+          {
+            "variant": 2,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "timezone_cache_policy": {
+                  "type": "choice",
+                  "choice": "raw_lru",
+                  "confidence": 0.84,
+                  "probabilities": {
+                    "raw_lru": 0.88,
+                    "canonical_lru": 0.09,
+                    "uncached": 0.0,
+                    "defer": 0.03
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 994,
+                "output_tokens": 55
+              }
+            }
+          },
+          {
+            "variant": 3,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "timezone_cache_policy": {
+                  "type": "choice",
+                  "choice": "raw_lru",
+                  "confidence": 0.92,
+                  "probabilities": {
+                    "raw_lru": 0.94,
+                    "canonical_lru": 0.06,
+                    "uncached": 0.0,
+                    "defer": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 989,
+                "output_tokens": 55
+              }
+            }
+          }
+        ],
+        "legacy_evidence_limit": "Reuse retained timezone-host-prerequisite.json cacheWitness:512 genuine US/Eastern spellings retain512 date+512 instant formatters per measured host; Node resolves America/New_York, Bun US/Eastern. Prior237 host-profile and179 owning/seven-variant controls remain qualified only at their original tuples. Old private temp variant/request files are absent; no timing/heap figures reconstructed and old42816-byte payload remains unsent.",
+        "automatic_review": {
+          "status": "initial new-payload attempt rejected before execution; zero requests sent",
+          "reason": "Specific authorization for this payload/destination not established; earlier approvals covered other requests. No workaround or indirect send."
+        },
+        "approval": {
+          "status": "approved",
+          "exact_reply": "Approve these three requests",
+          "scope": "Exact three V05 bounded_key_retention_decision.requests to https://api.typesafe.ai/v1/systemone; consultation only; old42816-byte payload remains unsent and all execution/publication holds preserved."
+        },
+        "adjudication": {
+          "choice": "raw_lru",
+          "advice": "Three equivalent approved requests choose raw_lru with probabilities0.94/0.88/0.94 and confidence0.92/0.84/0.92; canonical alternative0.04/0.09/0.06. No disagreement. JEV returned no rationale; source adjudication and actual checks establish behavior, not model advice.",
+          "rationale": "Keep exact host-accepted raw keys. Their retention amplification is demonstrated by retained512-spelling evidence, while cross-host canonical key identity is not promised. A bounded raw-key cache requires no new equivalence join and retains useful repeat formatting; uncached construction is valid but loses repeated wall-time probe reuse. LRU keeps recently used spellings under churn.",
+          "capacity": "Private fixed64 entries per calculation cache,128 retained formatters total. This is an engineering performance/retention choice rather than input admission, a public quota or total-host heap/CPU ceiling. All valid case/alias/offset behavior remains governed by existing Intl validation; validation allocation is unchanged.",
+          "uncertainty": "No recovered timing/heap comparison warrants a throughput or total memory claim. High-cardinality requests can still cause construction churn. A different private capacity may be chosen later for a demonstrated workload without changing semantic inputs; no further human design selection is required."
+        },
+        "supported_host_data_requirement": {
+          "authority": "Existing DESIGN calendar/zone, localization and language-version rules; timezone.ts assigns pinned workerd/ICU runtime to L7.",
+          "required_output": "For the declared language/runtime release, the actual release-host owner identifies its exact Intl runtime artifact/build and loaded ICU, timezone and CLDR data, plus correspondence to the existing checked-in SIX2026-09-17 currency table. Report data versions when exposed; otherwise identify the pinned artifact/vendor data that supplies them. Runtime engine range, alias spelling or another host dataset cannot substitute for this identity.",
+          "qualification": "Existing original timezone/calendar and exact locale/decimal/currency corpus must be qualified on that actual declared release identity. Reuse unchanged recorded results only for their demonstrated source/data tuple. Raw cache identity is private to its runtime instance and supplies no cross-host semantic guarantee.",
+          "owner": "Dev/L7 actual release-host/runtime integrator; Values owns this source and fixed currency data. No human policy selection, new profile/carrier, backend activation or data substitution is required.",
+          "current_local_tuple": {
+            "Node": "24.19.0; ICU78.3; tz2026b; CLDR48.0; Unicode17.0",
+            "Bun": "1.4.2 build744846f84; ICU78.1; Unicode17.0; tz/CLDR versions not exposed"
+          },
+          "limit": "These current local tuples qualify the affected timezone/cache cases only; they are not declared workerd release-host/data acceptance."
+        },
+        "implementation": {
+          "files": [
+            "packages/values/src/timezone.ts",
+            "packages/values/test/timezone.test.ts",
+            "packages/values/README.md"
+          ],
+          "behavior": "Both existing raw-key Maps promote hits and evict the oldest retained key before inserting a successfully constructed formatter at64 capacity. Construction failure leaves retained entries untouched. Fixed original date/instant options, public validation/string return, calculations, DST/fold/gap semantics and error order remain. No Node imports/public exports/dependencies or locale/currency changes.",
+          "validation": "Pinned Node24 owning Values emission0. Frozen affected existing timezone file21/21 PASS on Node24.19.0 (122.518292ms) and21/21 PASS on Bun1.4.2 (249ms),zero failures/skips/cancellations. New one actual Intl/Map instrumentation control verifies both actual Maps never retain more than64, hot reuse and cold reconstruction under72 admitted raw-case spellings, exact original results and invalid-zone refusals; finally restores instrumentation. Original20 timezone semantic controls included once because their producer changed. Unchanged locale/money and broader179/237/seven-variant results reused at recorded scopes.",
+          "review": "Finite read-only source/test review CLEAR: raw values/options/errors unchanged; real Maps/Intl outputs checked; synchronous instrumentation restored; capacity is not a host-memory/data qualification.",
+          "remaining": "Coordinator finite local source integration review; exact declared release-host/data output and existing corpus qualification remain Dev/L7-owned external input. Every precise activation/publication/preparation hold remains. No native preparation or live credentials used."
+        }
       }
     },
     "TECH-S01": {

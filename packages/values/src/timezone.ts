@@ -38,9 +38,10 @@ interface WallTime {
 
 const TIME_RE = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
-/** Cached Intl formatters per validated zone id. Pure given pinned ICU. */
+/** Raw validated keys preserve host semantics; eviction only rebuilds formatters. */
 const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 const instantFormatters = new Map<string, Intl.DateTimeFormat>();
+const FORMATTER_CACHE_CAPACITY = 64;
 
 /**
  * IANA zone guard. Validation is membership in the host ICU zone database
@@ -67,28 +68,33 @@ export function assertTimezone(zone: string): string {
   return zone;
 }
 
-function dateFormatter(zone: string): Intl.DateTimeFormat {
-  const cached = dateFormatters.get(zone);
+function formatter(
+  cache: Map<string, Intl.DateTimeFormat>, zone: string, options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const cached = cache.get(zone);
   if (cached !== undefined) {
+    cache.delete(zone);
+    cache.set(zone, cached);
     return cached;
   }
-  const created = new Intl.DateTimeFormat("en-US", {
-    timeZone: zone,
+  const created = new Intl.DateTimeFormat("en-US", { timeZone: zone, ...options });
+  if (cache.size >= FORMATTER_CACHE_CAPACITY) {
+    cache.delete(cache.keys().next().value!);
+  }
+  cache.set(zone, created);
+  return created;
+}
+
+function dateFormatter(zone: string): Intl.DateTimeFormat {
+  return formatter(dateFormatters, zone, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
-  dateFormatters.set(zone, created);
-  return created;
 }
 
 function instantFormatter(zone: string): Intl.DateTimeFormat {
-  const cached = instantFormatters.get(zone);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const created = new Intl.DateTimeFormat("en-US", {
-    timeZone: zone,
+  return formatter(instantFormatters, zone, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -97,8 +103,6 @@ function instantFormatter(zone: string): Intl.DateTimeFormat {
     second: "2-digit",
     hourCycle: "h23",
   });
-  instantFormatters.set(zone, created);
-  return created;
 }
 
 function readPart(parts: ReadonlyArray<Intl.DateTimeFormatPart>, type: string): number {

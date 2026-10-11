@@ -199,3 +199,65 @@ describe("local round-trips", () => {
     }
   });
 });
+
+describe("timezone formatter retention", () => {
+  it("bounds both raw-key caches while preserving hot and evicted calculations", () => {
+    const NativeFormatter = Intl.DateTimeFormat;
+    const nativeSet = Map.prototype.set;
+    const caches = new Set<Map<unknown, unknown>>();
+    let dateConstructions = 0;
+    let instantConstructions = 0;
+    Intl.DateTimeFormat = new Proxy(NativeFormatter, {
+      construct(target, args) {
+        const options = args[1] as Intl.DateTimeFormatOptions | undefined;
+        if (options?.year !== undefined) {
+          if (options.hour === undefined) dateConstructions++;
+          else instantConstructions++;
+        }
+        return Reflect.construct(target, args);
+      },
+    });
+    Map.prototype.set = function(key: unknown, value: unknown) {
+      const result = Reflect.apply(nativeSet, this, [key, value]);
+      if (value instanceof NativeFormatter) {
+        caches.add(this);
+        assert.ok(this.size <= 64, "each cache retains at most64 calculation formatters");
+      }
+      return result;
+    };
+    try {
+      const zones = Array.from({ length: 72 }, (_, mask) => {
+        let bit = 0;
+        return "US/Eastern".replace(/[a-z]/gi, letter =>
+          ((mask >> bit++) & 1) === 0 ? letter.toLowerCase() : letter.toUpperCase());
+      });
+      const day = date("2026-01-15");
+      const stored = datetime("2026-01-15T17:00:00Z");
+      const calculate = (zone: string) => {
+        assert.equal(assertTimezone(zone), zone);
+        assert.deepEqual(local_date(stored, zone), day);
+        assert.equal(local_instant(day, "12:00", zone, "earlier").ms, stored.ms);
+      };
+      for (const zone of zones.slice(0, 64)) calculate(zone);
+      dateConstructions = 0; instantConstructions = 0;
+      calculate(zones[0]!);
+      for (const zone of zones.slice(64)) {
+        calculate(zone);
+        calculate(zones[0]!);
+      }
+      assert.equal(dateConstructions, 8);
+      assert.equal(instantConstructions, 8);
+      calculate(zones[1]!);
+      assert.equal(dateConstructions, 9, "evicted date formatter is rebuilt from its original key");
+      assert.equal(instantConstructions, 9, "evicted instant formatter is rebuilt from its original key");
+      assert.equal(caches.size, 2);
+      for (const cache of caches) assert.equal(cache.size, 64);
+      assert.equal(codeOf(() => local_date(stored, "Mars/Olympus_Mons")), "invalid-construction");
+      assert.equal(codeOf(() => local_instant(day, "12:00", "Mars/Olympus_Mons", "earlier")), "invalid-construction");
+      for (const cache of caches) assert.equal(cache.size, 64);
+    } finally {
+      Intl.DateTimeFormat = NativeFormatter;
+      Map.prototype.set = nativeSet;
+    }
+  });
+});

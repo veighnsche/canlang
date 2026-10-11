@@ -815,7 +815,7 @@
         "library-sequence:E01"
       ],
       "prerequisites": [
-        "Cache comparison is complete; key-equivalence/retention-budget policy is unselected. Existing exact timezone consultation payload remains held after approval rejection, requiring its human release before sending; do not reuse unrelated TECH-I01/State approvals. Values contract/release-host owners still need exact supported ICU/tzdb/currency correspondence; Node/Bun resolved zone identities differ."
+        "Cache key/retention engineering choice resolved: private raw-key LRU64 per date/instant cache,128 retained calculation formatters, with unchanged accepted values. New exact human-approved abstract JEV3 completed; old rejected42816-byte payload remains unsent. Source and affected21Node/21Bun cases qualified, finite integration and source/test review complete in LOCAL main. Dev/L7 still supplies exact declared runtime build+loaded ICU/tzdb/CLDR identity and original corpus correspondence; pinned SIX2026-09-17 currency table remains independent. No human cache policy selection or umbrella profile obligation."
       ],
       "intended_deleted_mechanisms": [
         "None. Retain current civil/calendar, zone logic, exact display assembler and bounded arithmetic memo; no Temporal/Jiff/Intl replacement selected."
@@ -924,11 +924,11 @@
       },
       "current_execution": {
         "disposition": "open-selected-packet",
-        "next_work": "held-payload-and-external-host",
-        "owner": "Values contract/release-host owners; human for exact held payload",
-        "accepted_scope": "Local source-current host/currency/cache comparisons complete and released; timezone key-equivalence/retention-budget policy remains unselected under its exact consultation payload hold, supported release-host/data gates open.",
-        "next_action": "Do not resend the held timezone consultation. On its explicit release select raw-key equivalence/retention policy; obtain supported ICU/tzdb/currency identities from the actual release-host owner. Reuse completed Node/Bun/cache comparisons.",
-        "done_when": "Existing timezone/calendar/decimal corpus passes on the declared supported data identities, and alias-heavy keys meet the released memory bound without changing public values.",
+        "next_work": "exact-release-host-data",
+        "owner": "Coordinator finite integration; Dev/L7 actual release-host/runtime/data; Values fixed currency/source",
+        "accepted_scope": "Reuse original recorded host/currency measurements at their exact tuple. New bounded raw-key LRU design selected with JEV3 advice; source/real-retention and original timezone controls21Node/21Bun qualified, finite source integrated and reviewed in LOCAL main. No full V05 release-host acceptance.",
+        "next_action": "Finite source/test review CLEAR and coherent local integration complete; obtain the actual declared release runtime build and loaded ICU/tzdb/CLDR identity plus original corpus outcome from Dev/L7. Keep old specific rejected payload unsent, reuse unchanged evidence and preserve activation/publication/preparation holds.",
+        "done_when": "Existing timezone/calendar/exact-display corpus qualifies at the declared actual release-host/data identity and alias-heavy raw keys satisfy the selected128 retained-reference bound without changing public values. No total-host heap/CPU guarantee is implied.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05"
       }
     },
