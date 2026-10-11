@@ -37,7 +37,7 @@ import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { byRequiresCallerMembership, evaluateBy } from '../policy/roles.js';
 import { isSecretValue } from '../policy/grants.js';
 import { assertOperationIdAge } from './context.js';
-import { hashAdmittedInputs } from './replay.js';
+import { hashAdmittedInputs, stableStringify } from './replay.js';
 import { StateError } from '../errors.js';
 import { appendInputArrayLengthErrors } from './prepared-inputs.js';
 import type { OwnerMutationReadView } from '../mutation/pipeline.js';
@@ -419,6 +419,18 @@ async function authorizeCall(def: InterimOperationDef | GeneratedOperationDef,
  * the owning session supplies its checked target, current caller and read view.
  * It neither looks up a receipt nor commits a separate transaction.
  */
+// Internal owner-CALL join. The receipt owner issues this identity only after
+// authenticating its stored source field and physical Files observations. It
+// is deliberately absent from the public State exports and request inputs.
+const ownerStoredFileInputs = new WeakMap<object, { readonly def: GeneratedOperationDef;
+  readonly inputs: ClosedInputs; readonly wires: ReadonlyMap<string, string> }>();
+export function bindOwnerStageStoredFileInputs(def: GeneratedOperationDef, inputs: ClosedInputs,
+  names: readonly string[]): object {
+  const proof = Object.freeze({});
+  ownerStoredFileInputs.set(proof, { def, inputs, wires: new Map(names.map(name => [name, stableStringify(inputs[name])])) });
+  return proof;
+}
+
 export async function admitOwnerStageCall(input: {
   readonly def: GeneratedOperationDef;
   readonly inputs: ClosedInputs;
@@ -431,19 +443,35 @@ export async function admitOwnerStageCall(input: {
   readonly valueSchema?: NormalizedSchema;
   /** Canonical model inventory from the same checked owning artifact. */
   readonly modelNames?: ReadonlySet<string>;
+  readonly storedFiles?: object;
 }): Promise<{ inputs: ClosedInputs; recordRefs: AdmittedCall['recordRefs']; checkpoint: AdmittedCall['checkpoint'] }> {
   const scope = openFenceScope(input.revision, input.owner);
   // A call value grants no authority: target user operations retain their by
   // policy even when the enclosing source is an authenticated trusted trigger.
   await authorizeCall(input.def, input.context, input.memberships, scope, false);
   const validated = validateCallInputs(input.def, input.inputs);
+  const files = input.storedFiles === undefined ? undefined : ownerStoredFileInputs.get(input.storedFiles);
+  if (input.storedFiles !== undefined) ownerStoredFileInputs.delete(input.storedFiles);
+  if (input.storedFiles !== undefined && (files?.def !== input.def || files.inputs !== input.inputs)) {
+    throw new StateError('validation', 'Owner File inputs require their exact unused stored source binding.');
+  }
   const pending: PendingRef[] = [...validated.refs];
   let inspected = 0;
   // Nominal values need their checked owner schema before recursive refs can
   // be discovered. The schema's unknown nominals alone do not prove models.
   for (const field of input.def.descriptor.inputs) {
     if (field.kind === 'ref') continue;
-    if (field.kind === 'file' || field.kind === 'delivery') {
+    if (field.kind === 'file') {
+      if (field.valueType !== 'file[]' || input.def.inputArrays[field.name]?.required !== false ||
+          !Object.hasOwn(input.inputs, field.name) || !files?.wires.has(field.name) ||
+          files.wires.get(field.name) !== stableStringify(validated.normalized[field.name])) {
+        throw new StateError('validation', 'Owner File array inputs require their exact authenticated stored field.');
+      }
+      try { decodeValue('file[]', validated.normalized[field.name]); }
+      catch { throw new StateError('validation', 'Invalid stored owner File array input.'); }
+      continue;
+    }
+    if (field.kind === 'delivery') {
       throw new StateError('validation', 'Owner calls do not support file or delivery input provenance.');
     }
     let value = validated.normalized[field.name];

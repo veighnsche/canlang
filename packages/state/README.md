@@ -84,6 +84,26 @@ The native decoded row/relation binding and original-app rendering need their ow
 
 ## Build and test
 
+Stored `File[]` child CALL arguments use the existing receipt dependency path.
+The checked static `ScenarioReceiptCallSite.fileInputs` names each exact parameter
+and original stored dependency ID. Before entering the child, the native adapter
+reports the genuine current-stage owner row through
+`observeScenarioReceiptDependency`, with `files` containing one genuine receiving
+Files observation for each distinct reference. The stored wire retains order and
+duplicate occurrences; an empty array still needs its declared source capture.
+Bind the original ordered source/ancestor `readPolicies` and the installed Files
+producer before execution. Copied rows/observations, stale stages, incomplete
+censuses, absent/null nonnullable fields and unbound slots refuse and poison caught
+owner failures. The child consumes the capture once and must receive the exact
+captured wire. Other File/Delivery argument profiles remain unsupported.
+
+The original row/type/version and File facts survive in the existing receipt
+observation. Commit and recovery recheck whole-field/ancestor grants, full Identity
+facts, source lifetime, current physical bytes/receiver/retention and the State
+fence. Recovery uses the saved values without executing the child. The defining
+State tests use real Files SQLite observations and hand-built descriptors;
+Compiler occurrence emission and genuine native capture need their own adoption.
+
 ```sh
 bun install --frozen-lockfile   # from the repo root
 bun run --filter @canlang/state typecheck
