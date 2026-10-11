@@ -28,10 +28,13 @@
  * - Generated forms: `form[data-can-generated-form]` binds the exact
  *   prepared operation metadata to the existing submit client. Result
  *   denials render safe text in that form's feedback outlet; its edited
- *   controls stay in place. Hooks let the host handle committed results.
- * - Obsolete actions: `[data-can-once]` controls disable while their
- *   request is in flight (re-enabled on completion/failure), so a
- *   repeated activation can never double-submit a mutation.
+ *   controls stay in place. One pending submission owns its activated
+ *   control and abort signal through body reading; disposal aborts the
+ *   request and releases that control. Hooks observe current outcomes.
+ * - Explicit once controls: `[data-can-once]` requires an owning transport
+ *   that emits `can:settled` on the same control. The binder alone is not
+ *   a qualified submission workflow; current generated forms use their
+ *   own pending guard and transport settlement.
  * - Focus: after an htmx swap into `#can-main`, focus moves to the
  *   swapped heading (or `#can-main` itself); opening a `:target`
  *   dialog focuses its box. Focus never moves on ordinary loads.
@@ -660,6 +663,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     else form.setAttribute('aria-busy', previousBusy);
   };
   let restoreSubmitter: (() => void) | undefined;
+  let inflight: AbortController | null = null;
   const onSubmit = (event: EventLike): void => {
     event.preventDefault();
     event.stopPropagation?.();
@@ -695,6 +699,8 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
         for (const [name, value] of new FormData(form, event.submitter)) {
           if (typeof value === 'string') flat[name] = value;
         }
+        const controller = new AbortController();
+        inflight = controller;
         // FormData must collect the activated successful control before it is
         // disabled. The owning transport settles this exact submit occurrence.
         const submitter = event.submitter;
@@ -703,10 +709,10 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
           const ariaDisabled = submitter.getAttribute('aria-disabled');
           restoreSubmitter = () => {
             restoreSubmitter = undefined;
-            for (const [name, value] of [['disabled', disabled], ['aria-disabled', ariaDisabled]] as const) {
+            releaseClientResources(([['disabled', disabled], ['aria-disabled', ariaDisabled]] as const).map(([name, value]) => () => {
               if (value === null) submitter.removeAttribute(name);
               else submitter.setAttribute(name, value);
-            }
+            }));
           };
           submitter.setAttribute('disabled', '');
           submitter.setAttribute('aria-disabled', 'true');
@@ -717,7 +723,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
           action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json',
           fetchImpl: (url, init) => {
             if (!alive()) throw new GeneratedSubmitError('transport', 'Form submit owner is no longer active.', false);
-            return internals.fetchImpl(url, init);
+            return internals.fetchImpl(url, { ...init, signal: controller.signal });
           },
         });
         if (alive()) {
@@ -739,9 +745,12 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
           internals.onGeneratedFormError?.(form, error);
         }
       } finally {
-        if (alive()) restoreSubmitter?.();
-        if (!stopped) releaseBusy();
+        inflight = null;
         pending = false;
+        releaseClientResources([
+          ...(alive() ? [() => restoreSubmitter?.()] : []),
+          ...(!stopped ? [releaseBusy] : []),
+        ]);
       }
     })();
   };
@@ -749,15 +758,17 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   form.addEventListener('submit', onSubmit);
   return () => {
     stopped = true;
+    const request = inflight;
+    inflight = null;
     // Release this owner's temporary state before a replacement binds the
     // same connected form. Its later settlement cannot restore twice.
-    restoreSubmitter?.();
-    stopChoices();
-    form.removeEventListener('submit', onSubmit);
-    if (pending) {
-      releaseBusy();
-      form.removeAttribute('data-can-submit-state');
-    }
+    releaseClientResources([
+      () => restoreSubmitter?.(),
+      () => request?.abort(),
+      stopChoices,
+      () => form.removeEventListener('submit', onSubmit),
+      ...(pending ? [releaseBusy, () => form.removeAttribute('data-can-submit-state')] : []),
+    ]);
   };
 }
 

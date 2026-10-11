@@ -1,13 +1,34 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getEventListeners } from 'node:events';
+import { createServer } from 'node:http';
 import { Window } from 'happy-dom';
+import type { DerivedOperationInputs, PresentationContext } from '@canlang/contracts';
+import { form, generatedFields } from '../src/forms.js';
 import {
   registerBinder, startBrowserClient, startNativeBrowserClient,
   type BrowserClient, type BrowserClientOptions, type ComponentBinder,
 } from '../src/browser/bootstrap.js';
 import { submitFetchPollFetch } from '../src/browser/polling.js';
 import type { SubmitFetch, SubmitFetchInit } from '../src/client.js';
+
+const cancellationInputs: DerivedOperationInputs = {
+  operation: 'Store.Job.schedule', kind: 'scenario', artifactVersion: 1,
+  inputs: [{ name: 'title', kind: 'string', required: true }],
+};
+async function cancellationForm() {
+  const context: PresentationContext = {
+    preferredLocales: [], appDefaultLocale: 'en',
+    theme: { mode: 'light', accent: 'blue', density: 'comfortable' },
+    path: '/jobs', isPartial: false, csrfToken: 'csrf', principal: null, invocation: null,
+    query: async () => ({ rows: [], columns: [] }),
+  };
+  return form({ context, derived: cancellationInputs, operation: cancellationInputs.operation, mode: 'scenario',
+    action: '/operations/schedule', operationId: 'rendered-operation-id', timeZone: 'UTC',
+    fields: generatedFields(cancellationInputs, 'scenario'), submit: 'Schedule', idPrefix: 'cancel-schedule',
+    children: ['<input name="inputs[title]" value="draft"><button id="activated" type="submit" name="inputs[title]" value="activated" aria-disabled="false">Schedule</button>'],
+  });
+}
 
 const failures = [undefined, Symbol('failure'), new Error('failure')];
 const main = (text = 'OLD') => `<main id="can-main" data-can-context="owner" data-can-poll data-can-poll-url="/jobs" data-can-poll-interval="1" data-can-poll-context="owner"><p id="state">${text}</p></main>`;
@@ -110,6 +131,151 @@ function observerPort(window: Window, faults: ObserverFaults) {
 }
 
 describe('owned browser lifecycle cleanup', { concurrency: false }, () => {
+  it('generated form stop physically cancels a pending Node fetch response body and restores controls', { timeout: 10000 }, async t => {
+    let requestBody!: (value: string) => void, responseClosed!: () => void;
+    const received = new Promise<string>(resolve => { requestBody = resolve; });
+    const closed = new Promise<void>(resolve => { responseClosed = resolve; });
+    let responseEnded = false;
+    const server = createServer((request, response) => {
+      let body = '';
+      request.setEncoding('utf8');
+      request.on('data', chunk => { body += chunk; });
+      request.on('end', () => {
+        requestBody(body);
+        response.on('close', () => { responseEnded = response.writableEnded; responseClosed(); });
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.flushHeaders();
+        response.write('{"status":"committed",');
+        // Suspend a successful response mid-body; only client cancellation closes it.
+      });
+    });
+    let window: Window | undefined, client: BrowserClient | undefined;
+    t.after(async () => {
+      try { client?.stop(); } finally {
+        server.closeAllConnections();
+        await Promise.all([
+          window?.happyDOM.close(),
+          new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())),
+        ]);
+      }
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject); server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address(); assert.ok(address && typeof address !== 'string');
+    window = new Window({ url: `http://127.0.0.1:${address.port}/jobs` });
+    window.document.body.innerHTML = await cancellationForm();
+    const target = window.document.querySelector('form')!, button = window.document.querySelector('#activated')!;
+    target.setAttribute('aria-busy', 'false');
+    let readStarted!: (outcome: Promise<unknown>) => void;
+    const reading = new Promise<Promise<unknown>[]>(resolve => { readStarted = outcome => resolve([outcome]); });
+    let signal: AbortSignal | undefined;
+    Object.defineProperty(window, 'fetch', { configurable: true, value: async (url: string, init: SubmitFetchInit) => {
+      signal = init.signal;
+      assert.equal(init.method, 'POST'); assert.equal(init.headers['content-type'], 'application/json');
+      assert.equal(init.headers['x-csrf-token'], 'csrf'); assert.equal(typeof init.body, 'string');
+      const response = await globalThis.fetch(new URL(url, window!.location.href), { ...init, body: init.body as string });
+      return { status: response.status, headers: response.headers, text: () => {
+        const pending = response.text();
+        const outcome = pending.then(() => undefined, error => error as unknown);
+        readStarted(outcome);
+        return pending;
+      } };
+    } });
+    client = startNativeBrowserClient(window as unknown as Parameters<typeof startNativeBrowserClient>[0]);
+    target.dispatchEvent(new window.SubmitEvent('submit', { bubbles: true, cancelable: true,
+      submitter: button as typeof window.HTMLButtonElement.prototype }));
+    const [bodyOutcome] = await reading;
+    assert.deepEqual(JSON.parse(await received), {
+      operation: cancellationInputs.operation, operation_id: 'rendered-operation-id', inputs: { title: 'activated' },
+    });
+    assert.ok(signal); assert.equal(signal.aborted, false);
+    assert.equal(button.hasAttribute('disabled'), true);
+    client.stop();
+    assert.equal(signal.aborted, true);
+    assert.equal((await bodyOutcome as { name: string }).name, 'AbortError');
+    await closed;
+    assert.equal(responseEnded, false, 'Node fetch closed the real HTTP response before completion');
+    await settle();
+    assert.equal(target.getAttribute('aria-busy'), 'false');
+    assert.equal(target.hasAttribute('data-can-submit-state'), false);
+    assert.equal(button.hasAttribute('disabled'), false);
+    assert.equal(button.getAttribute('aria-disabled'), 'false');
+    assert.equal(target.querySelector('[data-can-form-feedback]')?.hasAttribute('hidden'), true);
+    // This proves Node fetch body cancellation, not Chrome behavior or server-effect rollback.
+  });
+
+  it('generated form stop and rescan isolate ignored-abort body settlements and exhaust throwing teardown', { timeout: 10000 }, async () => {
+    for (const transition of ['stop', 'rescan']) {
+      const page = await world(await cancellationForm());
+      const target = page.window.document.querySelector('form')!, button = page.window.document.querySelector('#activated')!;
+      target.setAttribute('aria-busy', 'false');
+      const formEvents = trackEvents(target), first = Symbol('swap teardown'), secondary = Symbol('submit teardown');
+      const restoration = Symbol('submitter restoration'), removeAttribute = button.removeAttribute.bind(button);
+      let failRestoration = false;
+      Object.defineProperty(button, 'removeAttribute', { configurable: true, value: (name: string) => {
+        removeAttribute(name);
+        if (failRestoration && name === 'disabled') { failRestoration = false; throw restoration; }
+      } });
+      const signals: AbortSignal[] = [], results: unknown[] = [], errors: unknown[] = [];
+      const bodies: Array<{ resolve(value: string): void; reject(value: unknown): void }> = [];
+      const fetchImpl: SubmitFetch = async (_url, init) => {
+        assert.ok(init.signal); signals.push(init.signal);
+        const body = new Promise<string>((resolve, reject) => { bodies.push({ resolve, reject }); });
+        return { status: 200, headers: { get: () => 'application/json' }, text: () => body };
+      };
+      const options = { ...page.coreOptions(), fetchImpl,
+        onGeneratedFormResult: (_form: unknown, result: unknown) => results.push(result),
+        onGeneratedFormError: (_form: unknown, error: unknown) => errors.push(error),
+      };
+      const submit = () => target.dispatchEvent(new page.window.SubmitEvent('submit', { bubbles: true, cancelable: true,
+        submitter: button as typeof page.window.HTMLButtonElement.prototype }));
+      try {
+        let client = startBrowserClient({ ...options, onHtmxSwap: () => () => { throw first; } }); page.setClient(client);
+        submit(); await settle();
+        assert.equal(bodies.length, 1); assert.equal(signals[0]!.aborted, false);
+        formEvents.failRemove('submit', secondary);
+        if (transition === 'stop') {
+          throwsValue(() => client.stop(), first);
+          page.assertReleased();
+        } else {
+          page.window.document.body.setAttribute('data-can-context', 'replacement');
+          failRestoration = true;
+          throwsValue(() => client.rescan(), restoration);
+        }
+        formEvents.assertEmpty();
+        assert.equal(signals[0]!.aborted, true);
+        assert.equal(target.getAttribute('aria-busy'), 'false');
+        assert.equal(target.hasAttribute('data-can-submit-state'), false);
+        assert.equal(button.hasAttribute('disabled'), false);
+        assert.equal(button.getAttribute('aria-disabled'), 'false');
+        formEvents.clearFailures();
+        if (transition === 'stop') { client = startBrowserClient(options); page.setClient(client); }
+        else client.rescan();
+        submit(); await settle();
+        assert.equal(bodies.length, 2); assert.notEqual(signals[0], signals[1]); assert.equal(signals[1]!.aborted, false);
+        if (transition === 'stop') bodies[0]!.reject(new Error('obsolete transport'));
+        else bodies[0]!.resolve(JSON.stringify({ status: 'committed', operation_id: 'rendered-operation-id', records: [], deliveries: [], result: null }));
+        await settle();
+        assert.deepEqual(results, []); assert.deepEqual(errors, []);
+        assert.equal(signals[1]!.aborted, false);
+        assert.equal(target.getAttribute('data-can-submit-state'), 'pending');
+        assert.equal(target.getAttribute('aria-busy'), 'true'); assert.equal(button.hasAttribute('disabled'), true);
+        bodies[1]!.resolve(JSON.stringify({ status: 'committed', operation_id: 'rendered-operation-id', records: [], deliveries: [], result: null }));
+        await settle();
+        assert.equal(results.length, 1); assert.deepEqual(errors, []);
+        assert.equal(target.getAttribute('data-can-submit-state'), 'committed');
+        assert.equal(button.hasAttribute('disabled'), false);
+        if (transition === 'rescan') throwsValue(() => client.stop(), first); else client.stop();
+        formEvents.assertEmpty(); page.assertReleased();
+      } finally {
+        formEvents.clearFailures();
+        for (const body of bodies) body.resolve('{}');
+        await page.close();
+      }
+    }
+  });
+
   for (const [index, original] of failures.entries()) {
     it(`rolls back hook acquisition and preserves original value ${index} over cleanup errors`, async () => {
       const page = await world(main() + forms), secondary = new Error('cleanup');

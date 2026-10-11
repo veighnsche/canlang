@@ -21,6 +21,21 @@ asset directory URLs used by Worker staging. Browser assets remain in
 pinned daisyUI version. Browser export and print consumers have explicit
 `@canlang/ui/browser/export` and `@canlang/ui/browser/print` APIs.
 
+Generated operation forms emit `data-can-generated-form` and use the existing
+prepared submit transport. One pending occurrence captures native successful
+controls before disabling its activated submitter. Success, denial or failure
+settles that occurrence; binder disposal restores its temporary state and aborts
+its fetch through response-body reading. An obsolete transport reply cannot
+report into a replacement binding. Native fetch consumes the abort signal;
+injected transports own their physical cancellation and eventual settlement.
+An aborted reply can leave an already committed server operation uncertain, so
+the original operation ID and canonical replay remain authoritative.
+
+Ordinary `action()` native POST markup has no asynchronous completion producer.
+The structural `data-can-once`/`can:settled` helper therefore remains unqualified
+for that workflow. Generated forms retain their own pending guard and direct
+transport settlement; no additional once marker or event bridge is needed.
+
 ## Layout
 
 - `src/escape.ts` — HTML/attribute/URL escaping, CSV formula protection, bidi isolation.

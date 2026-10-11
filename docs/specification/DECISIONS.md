@@ -11163,3 +11163,35 @@ Coordinator independent defining source reviews CLEAR; exact eight Compiler path
 Reserved id:text disclosure consumes the declared original model's current read-policy and ancestors. Cache the actual owning row.id only after successful State observation/lifetime recheck. Explicit-void static result declarations retain their complete original canonical/artifact disclosure, preserving existing equality/type admission. These three focused CF corrections and the original b0c8/4ed206 producer hooks consume accepted Compileracc3/State row-ID/installed Generation producers. Genuine adapter File observations remain privately tied to the exact held progress execution, original header and request source/revision; State enrollment and physical revalidation occur before commit. No foreign runtime closure or State/Contracts waiver is used.
 
 Original CF fixture remains byte-identical b0c8. The queued readback uses its actual adapter.resultContext. Independent native review found that non-success/empty census alone could pass before dispatch; strengthen that existing physical-refusal negative with the second provider request, increased File revalidation and actual uncertain dispatch outcome. Defining final source/control reviews CLEAR. Actual PRIMARY87ba source closure passes native1/1 16143ms (17.11s Vitest,17.43s process), zero skips, real CLI/verified assembly/Identity/D1/SQLiteFiles/controlled local provider, original rollback/replay/request/header/correlation/queued progress/receiving File provenance/association/current authority/final physical refusal/resources/currency/awaited cleanup. Changed normal CF/root0; worker15747ms remains separate and its weaker physical assertion is superseded. Earlier missing-consumer/void metadata/queued-context and initial main missing observer-hook type failures stay failed. Accept only this finite original Images receiving workflow after deadline; richer CALL, full Chat/Creative, signed ingress, other provider profiles/G3/full plans and exact holds remain unfinished. Retained filetree coverage reconciled incrementally; complete checkpoint unadvanced.
+
+## 2026-10-11 — Prepared form submission owns cancellation (library implemented; browser consumer unfinished)
+
+Use existing `form[data-can-generated-form]` markup and its prepared submit
+binder for one pending submission. Consume reviewed Dev ae55 submitter
+restoration: native FormData captures successful controls before disabling the
+activated submitter. Direct awaited success, denial or failure settles that
+occurrence. Its controller remains owned through response-body reading;
+disposal restores temporary state once, aborts the original request and
+exhausts supported teardown while preserving the first exception. A late reply
+from a transport that ignores abort cannot report or clear a replacement
+binding. Existing native Fetch consumes the signal; injected ports own their
+physical cancellation and eventual settlement. Aborting a reply does not
+rollback a server operation; original identity and canonical replay persist.
+
+This supplies an honest existing generated-form producer/consumer contract,
+without a second guard or synthetic completion bridge. Ordinary `action()`
+native POST has no asynchronous completion producer; its original once-action
+association stays a named UI-owned gap. The structural `data-can-once` helper
+and native navigation alone cannot qualify its completion behavior. No new
+transport programme or publication/preparation/activation release is inferred.
+
+Pinned Node24 UI emission/browser build/root types pass. Two new control groups
+pass: genuine native Fetch rejects the suspended body with AbortError and
+closes the HTTP response; ignored-abort old/new owners and throwing teardown
+preserve ownership and cleanup. The first physical case stopped at sandbox
+EPERM before traffic; only that case was retried with local loopback access.
+Finite source review is clear; unchanged accepted checks are reused. Dev owns
+the actual original Chrome/installed cancellation consumer, and the broader
+DEL-B01 parent remains unfinished.
+
+Coordinator finite defining source review CLEAR against actual main and integrated after deadline. Original two owning controls and unchanged accepted results reused; normal UI/browser/root emission at this closure passes. The generated-form Node Fetch cancellation component is closed. Dev retains original Chromium/installed request/body cancellation consumer; UI retains plain action native-POST asynchronous association gap. No full-parent completion or operational hold release; complete filetree checkpoint unchanged.
