@@ -44,6 +44,61 @@ const sealedHandleIsPresentation: Equal<barrel.SealedActionHandle, presentation.
 const historyEntryIsState: Equal<barrel.HistoryEntry, state.HistoryEntry> = true;
 const historyEntryIsPresentation: Equal<barrel.HistoryEntry, presentation.HistoryEntry> = true;
 
+const containedQueryIdentities: [
+  Equal<barrel.ScenarioReceiptQueryPlan, state.ScenarioReceiptQueryPlan>,
+  Equal<barrel.ScenarioReceiptQueryObservation, state.ScenarioReceiptQueryObservation>,
+  Equal<NonNullable<barrel.ScenarioReceiptQueryPlan['parent']>['source'], state.ScenarioReceiptSourceOrigin>,
+  Equal<NonNullable<barrel.ScenarioReceiptQueryObservation['parent']>['row'], state.StoredRow>,
+] = [true, true, true, true];
+
+// Compile-only ABI controls. Supplied row/source types do not authenticate an
+// original producer or owner, and empty candidates do not establish authority.
+function containedQueryShapeControls(source: barrel.ScenarioReceiptSourceOrigin,
+  childModel: barrel.ModelName, parentModel: barrel.ModelName, row: barrel.StoredRow,
+  revision: barrel.Revision) {
+  const unscoped: barrel.ScenarioReceiptQueryPlan = {
+    id: 'original-query', source, model: childModel, order: [], limit: null,
+    archived: 'exclude', dependencies: [],
+  };
+  const unscopedEmpty: barrel.ScenarioReceiptQueryObservation = {
+    queryId: unscoped.id, revision, candidates: [], selectedIndices: [],
+  };
+  type Parent = NonNullable<barrel.ScenarioReceiptQueryPlan['parent']>;
+  const admitted: Parent = { source, model: parentModel,
+    origin: { kind: 'admitted-reference', parameter: 'branch' } };
+  const stored: Parent = { source, model: parentModel,
+    origin: { kind: 'stored-reference', dependencyId: 'original-reference-read' } };
+  const admittedPlan: barrel.ScenarioReceiptQueryPlan = { ...unscoped, parent: admitted };
+  const storedPlan: barrel.ScenarioReceiptQueryPlan = { ...unscoped, parent: stored };
+  const scopedEmpty: barrel.ScenarioReceiptQueryObservation = {
+    ...unscopedEmpty, parent: { model: parentModel, row, secretFields: [] },
+  };
+  // @ts-expect-error A contained selector needs its checked source.
+  const missingSource: Parent = { model: parentModel, origin: admitted.origin };
+  // @ts-expect-error The canonical parent model cannot be inferred from the row ID.
+  const missingModel: Parent = { source, origin: admitted.origin };
+  // @ts-expect-error A selector must name one checked origin.
+  const missingOrigin: Parent = { source, model: parentModel };
+  // @ts-expect-error Literal row IDs are not admitted or stored-reference origins.
+  const literalOrigin: Parent = { source, model: parentModel, origin: { kind: 'literal', id: row.id } };
+  // @ts-expect-error An admitted origin must identify its original parameter.
+  const missingParameter: Parent = { source, model: parentModel, origin: { kind: 'admitted-reference' } };
+  // @ts-expect-error A stored origin must identify its prior checked dependency.
+  const missingDependency: Parent = { source, model: parentModel, origin: { kind: 'stored-reference' } };
+  // @ts-expect-error An admitted origin cannot substitute a stored dependency ID.
+  const mismatchedOrigin: Parent = { source, model: parentModel, origin: { kind: 'admitted-reference', dependencyId: 'other' } };
+  type Witness = NonNullable<barrel.ScenarioReceiptQueryObservation['parent']>;
+  // @ts-expect-error A reference-only object cannot replace the retained StoredRow.
+  const bareReference: Witness = { model: parentModel, row: { id: row.id, version: row.version }, secretFields: [] };
+  // @ts-expect-error The witness must retain its selected secret-field evidence.
+  const missingSecrets: Witness = { model: parentModel, row };
+  // @ts-expect-error Optional omission does not admit an explicit null selector.
+  const nullParent: barrel.ScenarioReceiptQueryPlan = { ...unscoped, parent: null };
+  return { unscoped, unscopedEmpty, admittedPlan, storedPlan, scopedEmpty,
+    missingSource, missingModel, missingOrigin, literalOrigin, missingParameter,
+    missingDependency, mismatchedOrigin, bareReference, missingSecrets, nullParent };
+}
+
 const opaquePublicIdentities: [
   Equal<barrel.FrameworkFileReferenceProducer, state.FrameworkFileReferenceProducer>,
   Equal<barrel.FrameworkOpaqueFieldResolution, state.FrameworkOpaqueFieldResolution>,
@@ -181,6 +236,9 @@ function opaquePublicShapeControls(binding: barrel.FrameworkFilePayloadOrigin,
 }
 
 describe("assembly conflict picks", () => {
+  it("pins existing contained-query selector and parent-witness declarations", () => {
+    expect(containedQueryIdentities).toEqual([true, true, true, true]);
+  });
   it("pins the synchronous opaque framework public declarations", () => {
     expect(opaquePublicIdentities).toEqual(Array(12).fill(true));
   });

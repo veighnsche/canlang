@@ -1316,11 +1316,12 @@
       "current_execution": {
         "disposition": "partial-selected-packet",
         "next_work": "ready-consumer-join",
-        "owner": "Capability/State owning projection; Dev public/native consumer; Packages shared gate only",
-        "accepted_scope": "independently accepted finite metadata/selector correction; committed89d885a9 Additive whole native callback-diagnostic PageReadScope forwarding is implemented, locally tested and finitely reviewed/integrated; original authority/compiled/native join remains separate.",
-        "next_action": "Consume released State/Work framework, authored delivery and Identity snapshot inputs. Finish current-authority first-success/read/replay disclosure on the original generated caller; keep legacy/result/lifetime profiles separate.",
+        "owner": "Packages defining contained-query parent ABI; Capability/State owning projection and capture; Compiler origin correspondence; Dev public/native consumer and private binding",
+        "accepted_scope": "independently accepted finite metadata/selector correction; committed89d885a9 Additive whole native callback-diagnostic PageReadScope forwarding is implemented and locally tested; original authority/compiled/native join remains separate. Defining U17 contained-query parent ABI implemented and focused-checked locally: optional checked source/model/admitted-or-stored origin on the existing query plan; genuine StoredRow/secretFields witness on the existing observation, including empty domains. Runtime consumer acceptance remains separate. Coordinator defining shape review CLEAR and finite optional existing-record ABI in LOCAL main; native/runtime authority remains unfinished. Count shared output once under TECH-S02.",
+        "next_action": "Consume the Contracts contained-query parent ABI below for original count(branch.Turn)/count(template.Revision). Capability/State must enforce plan/observation pairing, ArtifactModel.parent, actual child-domain filter and original/saved/current parent/ancestor/full Identity authority at the original owner/stage/store; Compiler supplies exact checked selector and admitted-parameter/prior stored-reference origin; Dev privately binds the genuine observation. Continue current-authority first-success/read/replay disclosure on the original generated caller; reuse accepted scopes and preserve legacy/result/lifetime profiles and holds.",
         "done_when": "Original generated HTTP/query/replay caller retains useful authorized fields, hides random_secret and hidden ordinary fields, and replays without repeating effects under existing negative controls.",
-        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02"
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02",
+        "contained_query_parent_contract": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02/contained_query_parent_contract"
       }
     },
     {
@@ -5042,7 +5043,8 @@
         "accepted_scope": "Checked CRUD and bounded plain checked-scenario HTTP/CSV retained delegation implemented and affected local checks passed; full packet remains partial pending broader current authority/disclosure/installed/native gates. Reviewed380eacf2 adds original generated signed singular-versioned-ref scenario native/JSON16min recovery1/1 with genuine current authority, original receipt/result/records, changed/unseen/tampered/revoked refusals and zero extra commits.",
         "next_action": "Signed scenario restoration is satisfied at the reviewed direct generated D1/native+JSON scope. Continue named broader source/legacy/query/secrecy/row-lifetime consumer correspondence; reuse all accepted replay outcomes and preserve separate C02 review authority/recipient holds.",
         "done_when": "Actual retained matching receipt replays under current authority with no repeated effect; unseen expired IDs, changed input and revoked secret access refuse. Frozen review integrity stays with C02.",
-        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/REPLAY-IP07"
+        "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/REPLAY-IP07",
+        "contained_query_parent_contract": "Shared defining ABI is counted once under TECH-S02: implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02/contained_query_parent_contract. Original count/first replay consumers remain unfinished with their named owners."
       }
     },
     {

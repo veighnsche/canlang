@@ -951,6 +951,46 @@
           "reuse": "Unchanged pagination/collection118+Interfaces2 results retained from prior coherent unit; Work/State callback authority controls remain their defining owners results, no reruns."
         },
         "remaining_dependency": "Capability publishes existing reader extension resolving original dispatch after current authority and running verified callback predicate within coherent checkpoint; Compiler provides actual checked callback registry/local member typing; Dev binds authentic locator/origin and validates safe nonnegative Work timestamp then converts to native bigint before whole result publication. Original generated/native consumer acceptance remains with Dev. All publication/native preparation holds preserved."
+      },
+      "contained_query_parent_contract": {
+        "status": "implemented_tested_reviewed_CLEAR_optional_existing_record_ABI_in_LOCAL_main; genuine_runtime_consumers_unfinished",
+        "required_outcome": "Existing query records represent the actual contained parent selector and genuine saved parent witness even when the original count/first child domain is empty, while preserving old unscoped plans.",
+        "owner": "Packages Contracts defines the ABI; Capability/State implements capture/filter/revalidation; Compiler associates exact source origin; Dev privately binds genuine original owner/stage/store observations.",
+        "files": [
+          "packages/contracts/src/state.ts",
+          "packages/contracts/test/assembly.test.ts",
+          "packages/contracts/README.md"
+        ],
+        "plan_parent": "Optional {source:ScenarioReceiptSourceOrigin,model:ModelName,origin:{kind:admitted-reference,parameter:string}|{kind:stored-reference,dependencyId:string}}. The model matches the queried ArtifactModel.parent; the stored dependency identifies a prior checked stored-reference observation, not a literal ID.",
+        "observation_parent": "Optional {model:ModelName,row:StoredRow,secretFields:readonly string[]}. Required exactly when the matching plan has parent, including candidates=[]; genuine retained row, not a reference-only object. Omission on both records preserves unscoped queries.",
+        "acceptance": "Existing records/types reused; no new carrier, business field/table/registry or receipt version. Type/shape acceptance does not authenticate a producer, establish row authority or qualify native behavior.",
+        "checks": {
+          "runtime": "Node24.19.0",
+          "contracts_emit": "PASS",
+          "final_root_type_check": "PASS; initial compile-only fixture used numeric Revision, corrected to supplied typed Revision and only root check rerun",
+          "focused_assembly": "1/1 PASS, 2 unrelated groups skipped; barrel/source identities and compile-only legacy/both origins/empty domain/malformed source/model/origin/reference-only witness controls",
+          "source_review": "Finite independent source/shape review CLEAR; no checks repeated by reviewer",
+          "reuse": "All unchanged prior source/consumer results retained; no unrelated gate runs."
+        },
+        "remaining_dependencies": [
+          {
+            "owner": "Capability/State",
+            "output": "Resolve the genuine admitted reference or prior checked stored-reference observation at the exact original owner/stage/physical store; match canonical parent model/source, filter actual children, retain the parent witness, enforce scoped plan/observation pairing and revalidate saved/current parent/ancestor/full Identity authority including empty candidates."
+          },
+          {
+            "owner": "Compiler",
+            "output": "Produce exact original checked contained selector/source and admitted-parameter or prior stored-reference dependency correspondence for the original count/first caller."
+          },
+          {
+            "owner": "Dev",
+            "output": "Privately bind the genuine parent observation to actual original owner/stage/store and qualify original installed/native count/first consumers with owning State refusals."
+          }
+        ],
+        "holds": "Native preparation/default/activation/publication and V04 holds preserved; V05 host qualification remains Dev/L7; unsupported provider-void skipped.",
+        "consumers": [
+          "REPLAY-IP07; shared ABI counted once here, original count/first source/replay/native acceptance separate"
+        ],
+        "coordinator_review": "Independent defining source/shape review CLEAR; exact original admitted or stored-reference selector, retained full parent row/secret evidence including empty domain, omitted legacy unchanged. Reuse owning Contracts/root/newassembly1 controls, no runtime authority from shape. Surgical source insertion preserves newer main Contracts call/File facts. Actual changed main Contracts/StateDO/CF/root emission0; Capability current/saved contained-domain enforcement, Compiler original source correspondence and Dev native binding remain separate."
       }
     },
     "TECH-S03": {
