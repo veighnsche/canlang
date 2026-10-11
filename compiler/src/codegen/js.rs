@@ -6871,6 +6871,116 @@ impl<'a> Emitter<'a> {
                 None => call,
             };
         }
+        if node.factory == "detailsDrawer" {
+            let model = form_prop_text(node, "model");
+            let record = node
+                .props
+                .iter()
+                .find(|(key, _)| key == "record")
+                .map(|(_, value)| value);
+            let original = model
+                .as_ref()
+                .zip(record)
+                .and_then(|(model, record)| self.original_ui_row(record, model));
+            let caption = node
+                .props
+                .iter()
+                .find(|(key, _)| key == "caption")
+                .map(|(_, value)| value);
+            if node.props.len() != 3
+                || node.children.is_empty()
+                || node.row_scope.is_some()
+                || original.is_none()
+                || caption.is_none()
+                || node
+                    .props
+                    .iter()
+                    .any(|(key, _)| !matches!(key.as_str(), "model" | "record" | "caption"))
+                || !caption.is_some_and(|value| {
+                    matches!(
+                        value.ty,
+                        ResolvedType::Scalar(Scalar::Text)
+                            | ResolvedType::InlineMessage
+                            | ResolvedType::Message(_)
+                    )
+                })
+            {
+                self.unsupported("details drawer", "the original owning queried RowView, checked caption and lazy body are required", node.span);
+                return self.throw_expr("unsupported details drawer profile");
+            }
+            let record = record.unwrap();
+            let IrExpr::Name(row_name) = &record.expr else {
+                unreachable!()
+            };
+            let original = original.unwrap();
+            let model = model.unwrap();
+            let caption = self.lower_business_expr(caption.unwrap(), "details drawer caption");
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|value| self.lower_business_expr(value, "details drawer gate"));
+            // Selection names the repeated source site under its enclosing
+            // parent occurrences. This row is the selector value, never part
+            // of the selector key (one activated row per repeated site).
+            let current = format!("{}.id", self.lower_expr(record));
+            let enclosing = occurrences
+                .iter()
+                .filter(|entry| **entry != current)
+                .cloned()
+                .collect::<Vec<_>>();
+            let occurrence = format!(
+                "{}+encodeURIComponent(JSON.stringify([{}.path,{},{}]))",
+                js_string(&format!(
+                    "can-details-f{}-s{}-",
+                    node.span.file.0, node.span.start
+                )),
+                ctx,
+                js_string(&model),
+                enclosing.join(",")
+            );
+            self.enter_scope();
+            let actual_row = binding_ident(
+                "details",
+                &format!("{}:{}:row", node.span.file.0, node.span.start),
+            );
+            let actual_ctx = binding_ident(
+                "details",
+                &format!("{}:{}:context", node.span.file.0, node.span.start),
+            );
+            self.original_ui_rows.push(OriginalUiRow {
+                name: row_name.clone(),
+                model,
+                binding: Some(actual_row.clone()),
+            });
+            let children = node
+                .children
+                .iter()
+                .map(|child| {
+                    sequence_ui_child(
+                        self.lower_ui_occurrence(
+                            child,
+                            &actual_ctx,
+                            occurrences,
+                            prepared_form,
+                            view_scope,
+                        ),
+                        true,
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            self.original_ui_rows.pop();
+            self.exit_scope();
+            self.ui.insert("detailsDrawer".to_string());
+            let call = format!(
+                "{}({{context:{ctx},caption:{caption},occurrence:{occurrence},record:{original},renderBody:async({actual_row},{actual_ctx})=>[{children}]}})",
+                binding_ident("u", "detailsDrawer")
+            );
+            return match gate {
+                Some(gate) => format!("{gate} ? {call} : null"),
+                None => call,
+            };
+        }
         if node.factory == "breadcrumbs" {
             if !node.props.is_empty() || !node.children.is_empty() || node.row_scope.is_some() {
                 self.unsupported(
@@ -7427,7 +7537,11 @@ impl<'a> Emitter<'a> {
                 } else {
                     String::new()
                 };
-                let fields = if node.children.iter().any(ui_uses_message_values) {
+                let fields = if node
+                    .children
+                    .iter()
+                    .any(|child| ui_uses_message_values(child) || ui_uses_details_drawer(child))
+                {
                     format!(
                         "Object.defineProperties({{id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}},Object.getOwnPropertyDescriptors({row}.fields))"
                     )
@@ -7816,6 +7930,7 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
                 | "textMessageValueList"
         )
         || node.factory == "form"
+        || node.factory == "detailsDrawer"
         || node.factory == "history"
         || node.props.iter().any(|(_, value)| expr_uses_async(value))
         || node.gate.as_ref().is_some_and(expr_uses_async)
@@ -7835,6 +7950,7 @@ fn ui_uses_async(node: &IrUi) -> bool {
                 | "textMessageValueList"
         )
         || node.factory == "form"
+        || node.factory == "detailsDrawer"
         || node.factory == "history"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
@@ -7843,6 +7959,10 @@ fn ui_uses_async(node: &IrUi) -> bool {
 
 fn ui_uses_message_values(node: &IrUi) -> bool {
     node.factory == "textMessageValueList" || node.children.iter().any(ui_uses_message_values)
+}
+
+fn ui_uses_details_drawer(node: &IrUi) -> bool {
+    node.factory == "detailsDrawer" || node.children.iter().any(ui_uses_details_drawer)
 }
 
 fn ui_uses_original_row(node: &IrUi) -> bool {
@@ -7899,7 +8019,7 @@ fn ui_uses_original_row(node: &IrUi) -> bool {
     }
     matches!(
         node.factory.as_str(),
-        "history" | "inspectionValueList" | "textMessageValueList"
+        "history" | "inspectionValueList" | "textMessageValueList" | "detailsDrawer"
     ) || node.props.iter().any(|(_, value)| protected(value))
         || node.gate.as_ref().is_some_and(protected)
         || node

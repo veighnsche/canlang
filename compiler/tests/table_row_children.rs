@@ -60,9 +60,13 @@ fn ordinary_table_rows_reach_installed_ui_with_aliases_and_ordered_protected_chi
     let default_path = scratch.path().join("default.can");
     let (default_output, default_artifact) = compile(&default_source, &default_path);
     assert!(default_output.status.success(), "{default_artifact}");
+    let mixed_source = SOURCE.replace("   status entry.visible", "   status row.visible");
+    let (mixed_output, mixed_artifact) = compile(&mixed_source, &scratch.path().join("mixed.can"));
+    assert!(mixed_output.status.success(), "{mixed_artifact}");
     for (file, value) in [
         ("artifact.json", &artifact),
         ("default.json", &default_artifact),
+        ("mixed.json", &mixed_artifact),
     ] {
         std::fs::write(
             scratch.path().join(file),
@@ -91,6 +95,7 @@ async function importArtifact(file,source,workDir) {
 }
 const entry=await importArtifact('artifact.json','table.can','modules');
 const defaultEntry=await importArtifact('default.json','default.can','default-modules');
+const mixedEntry=await importArtifact('mixed.json','mixed.can','mixed-modules');
 const originals=[
  {id:'one',version:2,fields:{name:'First <unsafe>',visible:true,inspection:null}},
  {id:'hidden',version:3,fields:{name:'Hidden',visible:false,inspection:null}},
@@ -134,7 +139,7 @@ const context={memberships:['members'],preferredLocales:['en'],appDefaultLocale:
  },
 };
 const render=definition=>definition.appDefinition.pages[0].render(context,{});
-for(const definition of [entry,defaultEntry]) {
+for(const definition of [entry,defaultEntry,mixedEntry]) {
  trace=[];queries=[];requests=[];fieldReads=[];
  const html=await render(definition);
  assert.equal(queries.length,1);assert.equal(queries[0].page,true);assert.equal(queries[0].limit,undefined);
@@ -182,13 +187,9 @@ assert.equal(queries.length,1);assert.deepEqual(trace,[]);assert.deepEqual(reque
 }
 
 #[test]
-fn table_children_keep_alias_slot_and_pagination_refusals() {
+fn table_children_keep_slot_and_pagination_refusals() {
     let scratch = tempfile::tempdir().unwrap();
     for (name, source) in [
-        (
-            "mixed-alias",
-            SOURCE.replace("   status entry.visible", "   status row.visible"),
-        ),
         (
             "slot",
             SOURCE.replace(

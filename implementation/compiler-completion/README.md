@@ -4364,3 +4364,21 @@ and native-owner prerequisites persist;58/67/nine and holds are unchanged.
 Coordinator defining source review CLEAR; owning139 and changed-source strict0/fmt0 reused. Integrated locally after deadline; actual original native29 diagnostics/zero modules still fails, and original application, G2/G3 and full-plan acceptance remain unfinished. Complete filetree checkpoint unchanged.
 
 **Current original SEND/event/fragments/TextMessage source (reviewed finite units; native application unfinished):** exact54ab plus corrected1afe/88f defining source/tests are integrated locally after deadline. Independent review CLEAR: actual send-guard/inputs census requires every canonical/artifact lexical slot while nullable values/empty arrays remain valid, exact ordered defaults/types/File traversal retained; original attachment-bearing copied TextMessage/header/content keeps supplier private occurrence and no copied authority; Teams removed subject uses fixed original ordered fields/root/source/hash/trigger/owner/type. Source sealing refuses undeclared contextual event member even when its forged IR retains original span/User type. Reuse owning189/strictalltargets0/fmt0 and affected source-corruption1/strict0, without unchanged reruns. Actual frozen a850 native27→20/complete/omitted0/modules0 still fails; full standard4, SENDseal2 cascades, active_member/catalog+source5, created-Run CALL2, lazy details2, gallery1 and exact held C14examples4 remain at their original scopes. Reviewed Statef95 created-Run and Packagesdf lazy-details outputs are released to their actual source/native consumers; no whole producer-plan wait or hold release. Complete checkpoint unchanged.
+
+**Local continuation — original lazy record drawers, 2026-10-11 (unfinished
+native/application joins).** Original details display=drawer consumes released
+detailsDrawer with the original queried RowView/context and deferred sequential
+body. DESIGN911 row and explicit aliases share that row; nested current-row
+shadowing preserves named parent aliases. Descriptor-preserving field exposure
+avoids inactive body reads. Actual CLI/verified assembly/installed UI and genuine
+full/partial page dispatch3 plus table2 pass current/stale/foreign/denied/gates,
+nested original identity/version, once/order/first failure, locale, unique IDs,
+query-preserving GET and source/IR refusals. Related codegen121/UI11/B1-B2shape2/
+UIguard3 pass (142 distinct), strictalltargets0 7.84s, fmt/diff0. Only the existing
+golden's hashed row name changes to its authored task alias. Exact a850 original
+compile exits10 complete=true omitted0 modules0, diagnostics20→18; native current
+grants/application and gallery/C04/C03/held C14 remain separate. Next ready C04
+consumes reviewed State f95 plus its aee/743 source-policy closure; its source
+result preparation and Dev current-stage binder remain unfinished.
+
+Coordinator independent defining lazy-drawer source review CLEAR; exact source preimages match LOCAL main and owning142/strict0/fmt results are reused. Genuine CLI/verified installed UI/Interfaces full-partial3 and table2 qualify their exact producer scope, retaining current queried row/context, named outer aliases, lazy sequential once/order/first-failure behavior and descriptor-backed inactive fields. Actual original frozen source20→18 diagnostics/no modules still fails; Dev original native current-authority/application acceptance remains unfinished. Complete checkpoint and precise holds unchanged.
