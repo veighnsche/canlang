@@ -2191,6 +2191,173 @@ fn stored_input_fact_comparison_retains_whole_owner_and_complete_query_child() {
 }
 
 #[test]
+fn original_root_create_archive_native_capture_refuses_ir_skew() {
+    use canlang_compiler::codegen::ir::{IrDefault, IrDeleteMode, IrExpr, IrItemKind, IrStmt};
+    use canlang_compiler::codegen::js;
+
+    let source = include_str!("../../packages/cloudflare/test/fixtures/typed-scenario-values.can");
+    assert_eq!(
+        sha256_hex(source.as_bytes()),
+        "57100433b813b279e68aa3409864f5bfd7bb6487502a8b2fe55fcff24b4223b4"
+    );
+    let (db, program, lowered) = checked_with_ir(&[(
+        "packages/cloudflare/test/fixtures/typed-scenario-values.can",
+        source,
+    )]);
+    for name in ["TypedScenarioValues.born", "TypedScenarioValues.discard"] {
+        origins(&db, complete(&program, name));
+    }
+    let item = |name: &str| {
+        lowered
+            .items
+            .iter()
+            .find(|item| item.canonical == name)
+            .unwrap()
+            .id
+    };
+    let born = item("TypedScenarioValues.born");
+    let discard = item("TypedScenarioValues.discard");
+    let count = item("TypedScenarioValues.Counter.count");
+    let emit =
+        |lowered: &ir::IrProgram| js::emit_program_with_native_source_receipts(lowered, true, &db);
+    let genuine = emit(&lowered);
+    for name in ["TypedScenarioValues.born", "TypedScenarioValues.discard"] {
+        assert!(
+            genuine
+                .operations
+                .iter()
+                .find(|operation| operation.name == name)
+                .unwrap()
+                .disclosure
+                .is_some(),
+            "original checked {name} publishes its whole native capture"
+        );
+    }
+    for corruption in 0..9 {
+        let mut changed = lowered.clone();
+        let target = match corruption {
+            0..=2 => {
+                let IrItemKind::Scenario { effects, .. } = &mut changed.items[born.0 as usize].kind
+                else {
+                    panic!("original born scenario");
+                };
+                let IrStmt::Create { model, binding, .. } = &mut effects[0] else {
+                    panic!("original CreateAs");
+                };
+                match corruption {
+                    0 => *model = "TypedScenarioValues.unchecked".into(),
+                    1 => *binding = Some("copied".into()),
+                    2 => *binding = None,
+                    _ => unreachable!(),
+                }
+                "TypedScenarioValues.born"
+            }
+            3 => {
+                let IrItemKind::Field {
+                    default: Some(IrDefault::Literal(value)),
+                    ..
+                } = &mut changed.items[count.0 as usize].kind
+                else {
+                    panic!("original model literal default");
+                };
+                assert!(matches!(value.expr, IrExpr::Int(1)));
+                value.expr = IrExpr::Int(2);
+                "TypedScenarioValues.born"
+            }
+            4..=5 => {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[discard.0 as usize].kind
+                else {
+                    panic!("original discard scenario");
+                };
+                let IrStmt::Delete { record, mode, .. } = &mut effects[0] else {
+                    panic!("original direct archive Delete");
+                };
+                if corruption == 4 {
+                    assert!(matches!(&record.expr, IrExpr::Name(name) if name == "counter"));
+                    record.expr = IrExpr::Name("copied".into());
+                } else {
+                    assert_eq!(*mode, IrDeleteMode::Archive);
+                    *mode = IrDeleteMode::Remove;
+                }
+                "TypedScenarioValues.discard"
+            }
+            6 => {
+                let IrItemKind::Scenario { effects, .. } = &mut changed.items[born.0 as usize].kind
+                else {
+                    panic!("original born scenario");
+                };
+                assert!(matches!(
+                    effects.as_slice(),
+                    [
+                        IrStmt::Create { .. },
+                        IrStmt::Set { .. },
+                        IrStmt::Return { .. }
+                    ]
+                ));
+                effects.swap(0, 1);
+                "TypedScenarioValues.born"
+            }
+            7..=8 => {
+                let IrItemKind::Scenario { effects, .. } = &mut changed.items[born.0 as usize].kind
+                else {
+                    panic!("original born scenario");
+                };
+                if corruption == 7 {
+                    let IrStmt::Set { record, .. } = &mut effects[1] else {
+                        panic!("original created-row Set");
+                    };
+                    assert!(matches!(&record.expr, IrExpr::Name(name) if name == "counter"));
+                    record.expr = IrExpr::Name("copied".into());
+                } else {
+                    let IrStmt::Return {
+                        value: Some(value), ..
+                    } = &mut effects[2]
+                    else {
+                        panic!("original created-row return");
+                    };
+                    let IrExpr::Member { base, .. } = &mut value.expr else {
+                        panic!("original returned count field");
+                    };
+                    assert!(matches!(&base.expr, IrExpr::Name(name) if name == "counter"));
+                    base.expr = IrExpr::Name("copied".into());
+                }
+                "TypedScenarioValues.born"
+            }
+            _ => unreachable!(),
+        };
+        assert!(
+            emit(&changed)
+                .operations
+                .iter()
+                .find(|operation| operation.name == target)
+                .unwrap()
+                .disclosure
+                .is_none(),
+            "original source/IR target, binding, default, mode or order skew {corruption} must withdraw {target} capture"
+        );
+    }
+    let unchanged = emit(&lowered);
+    for name in ["TypedScenarioValues.born", "TypedScenarioValues.discard"] {
+        assert_eq!(
+            unchanged
+                .operations
+                .iter()
+                .find(|operation| operation.name == name)
+                .unwrap()
+                .disclosure,
+            genuine
+                .operations
+                .iter()
+                .find(|operation| operation.name == name)
+                .unwrap()
+                .disclosure,
+            "cloned skew controls preserve the original checked capture"
+        );
+    }
+}
+
+#[test]
 fn stored_input_fact_comparison_refuses_nonowning_and_unsupported_origins() {
     let original = stored_input_query_parent_source();
     let mut cases = vec![

@@ -13,10 +13,10 @@ use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{
-    IrBinOp, IrCallTarget, IrDefault, IrEffectCallTarget, IrExpr, IrGuard, IrItem, IrItemKind,
-    IrOwner, IrProgram, IrStmt, IrType, TypedExpr,
+    IrBinOp, IrCallTarget, IrDefault, IrDeleteMode, IrEffectCallTarget, IrExpr, IrGuard, IrItem,
+    IrItemKind, IrOwner, IrProgram, IrStmt, IrType, TypedExpr,
 };
-use super::js::{JsModel, JsModelField, JsModelFieldType, JsValueTypes};
+use super::js::{JsFieldDefault, JsModel, JsModelField, JsModelFieldType, JsValueTypes};
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct ReceiptSource {
@@ -1509,6 +1509,203 @@ fn match_effect_proofs(
         }
         match (&proof.kind, *sites.effects.get(&site)?) {
             (
+                DisclosureEffectKind::Create {
+                    model,
+                    crud,
+                    binding: checked_binding,
+                    defaults,
+                },
+                IrStmt::Create {
+                    model: actual_model,
+                    input,
+                    when: None,
+                    binding: Some(binding),
+                    ..
+                },
+            ) => {
+                let db = db?;
+                let (model_item, descriptor) =
+                    root_effect_model(ir, owner, models, *model, *crud, true)?;
+                ordered_root_effects(owner, proof.node, *model, checked_binding, db)?;
+                let IrItemKind::Model { fields, .. } = &model_item.kind else {
+                    return None;
+                };
+                let authored = checked_effect_node(ir, owner, proof.node, db)?;
+                let text = &db.get(proof.node.file)?.text;
+                let target = authored
+                    .children
+                    .iter()
+                    .find(|node| node.kind == SyntaxKind::Path)?;
+                let object = authored
+                    .children
+                    .iter()
+                    .find(|node| node.kind == SyntaxKind::Object)?;
+                let names: Vec<_> = authored
+                    .children
+                    .iter()
+                    .filter(|node| node.kind == SyntaxKind::Name)
+                    .filter_map(|node| node.token().map(|token| token.text(text)))
+                    .collect();
+                if proof.node.kind != SyntaxKind::Create as u8
+                    || actual_model != &model_item.canonical
+                    || !direct_field_name(binding)
+                    || binding != checked_binding
+                    || names.as_slice() != ["create", "as", binding.as_str()]
+                    || direct_source_path_name(target, text)? != model_item.name
+                    || object
+                        .children
+                        .iter()
+                        .any(|node| node.kind == SyntaxKind::ObjectEntry)
+                    || input.span != site.span
+                    || !matches!(&input.expr, IrExpr::Object(entries) if entries.is_empty())
+                    || fields.len() != defaults.len()
+                    || descriptor.fields.len() != defaults.len()
+                    || defaults.is_empty()
+                {
+                    return None;
+                }
+                let mut seen = HashSet::new();
+                for ((id, original), emitted) in fields.iter().zip(defaults).zip(&descriptor.fields)
+                {
+                    let field = ir.items.get(id.0 as usize)?;
+                    let IrItemKind::Field {
+                        owner: field_owner,
+                        ty: IrType::Known(ty),
+                        required_array: false,
+                        default: Some(IrDefault::Literal(default)),
+                        server: None,
+                        modifiers,
+                        ..
+                    } = &field.kind
+                    else {
+                        return None;
+                    };
+                    let wire_value = serde_json::to_string(&original.value.to_string()).ok()?;
+                    if *id != original.field
+                        || field.id != *id
+                        || !seen.insert(*id)
+                        || field.module != owner.module
+                        || *field_owner != *model
+                        || field.canonical != format!("{}.{}", model_item.canonical, field.name)
+                        || *ty != ResolvedType::Scalar(Scalar::Int)
+                        || default.ty != *ty
+                        || default.span != node_span(original.default)
+                        || original.default.kind != SyntaxKind::Literal as u8
+                        || !matches!(default.expr, IrExpr::Int(value) if value == original.value)
+                        || modifiers.trim
+                        || modifiers.min.is_some()
+                        || modifiers.max.is_some()
+                        || modifiers.unique
+                        || modifiers.machine
+                        || emitted.name != field.name
+                        || !matches!(emitted.field, JsModelFieldType::Integer)
+                        || inventory_type(emitted).as_deref() != Some("int")
+                        || emitted.array_required.is_some()
+                        || emitted.nullable
+                        || emitted.server_only
+                        || emitted.required
+                        || emitted.machine.is_some()
+                        || emitted.trim.is_some()
+                        || emitted.min.is_some()
+                        || emitted.max.is_some()
+                        || !matches!(&emitted.default, Some(JsFieldDefault::Literal(value)) if value == &wire_value)
+                    {
+                        return None;
+                    }
+                    match_stored_contract_source(ir, &proof.source, field.span, db)?;
+                    match_stored_contract_source(ir, &proof.source, default.span, db)?;
+                    if text.get(field.span.start as usize..field.span.end as usize)? != field.name
+                        || text
+                            .get(default.span.start as usize..default.span.end as usize)?
+                            .parse::<i128>()
+                            .ok()?
+                            != original.value
+                    {
+                        return None;
+                    }
+                }
+            }
+            (
+                DisclosureEffectKind::Delete {
+                    model,
+                    crud,
+                    receiver,
+                },
+                IrStmt::Delete {
+                    record,
+                    mode: IrDeleteMode::Archive,
+                    ..
+                },
+            ) => {
+                let db = db?;
+                let (model_item, _) = root_effect_model(ir, owner, models, *model, *crud, false)?;
+                let IrItemKind::Scenario {
+                    params,
+                    effects,
+                    result: None,
+                    ..
+                } = &owner.kind
+                else {
+                    return None;
+                };
+                if effects.len() != 1 {
+                    return None;
+                }
+                let authored = checked_effect_node(ir, owner, proof.node, db)?;
+                let target = authored
+                    .children
+                    .iter()
+                    .find(|node| node.kind == SyntaxKind::Path)?;
+                let IrExpr::Name(name) = &record.expr else {
+                    return None;
+                };
+                if proof.node.kind != SyntaxKind::Delete as u8
+                    || receiver.kind != SyntaxKind::Path as u8
+                    || crate::analysis::NodeKey::of(target) != *receiver
+                    || record.span != node_span(*receiver)
+                    || record.ty
+                        != (ResolvedType::Record {
+                            symbol: model_item.id,
+                            stored: true,
+                        })
+                    || !direct_field_name(name)
+                    || direct_source_path_name(target, &db.get(receiver.file)?.text)? != name
+                {
+                    return None;
+                }
+                let mut parameters = params.iter().filter_map(|id| {
+                    ir.items
+                        .get(id.0 as usize)
+                        .filter(|parameter| parameter.name == *name)
+                });
+                let parameter = parameters.next()?;
+                let IrItemKind::Param {
+                    owner: parameter_owner,
+                    index,
+                    ty: IrType::Known(ty),
+                    default: None,
+                    default_node: None,
+                    array_bounds: None,
+                    ..
+                } = &parameter.kind
+                else {
+                    return None;
+                };
+                if parameters.next().is_some()
+                    || *parameter_owner != owner.id
+                    || parameter.module != owner.module
+                    || params.get(*index) != Some(&parameter.id)
+                    || *ty != record.ty
+                    || db
+                        .get(parameter.span.file)?
+                        .text
+                        .get(parameter.span.start as usize..parameter.span.end as usize)?
+                        != name
+                {
+                    return None;
+                }
+            }
+            (
                 DisclosureEffectKind::For {
                     domain: checked_domain,
                     limit: checked_limit,
@@ -1802,6 +1999,278 @@ fn match_effect_proofs(
         }
     }
     Some(())
+}
+
+/// These two effect proofs admit only the existing root-model constructor and
+/// archive operation. Neither containment nor hard removal inherits them.
+fn root_effect_model<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    models: &'a [JsModel],
+    model: crate::analysis::SymbolId,
+    crud: crate::analysis::SymbolId,
+    creating: bool,
+) -> Option<(&'a IrItem, &'a JsModel)> {
+    let item = ir.items.get(model.0 as usize)?;
+    let declaration = ir.items.get(crud.0 as usize)?;
+    let IrItemKind::Model {
+        owner: IrOwner::Team,
+        crud: Some(actual_crud),
+        invariants,
+        locks,
+        uniques,
+        retain: None,
+        ..
+    } = &item.kind
+    else {
+        return None;
+    };
+    let IrItemKind::Crud {
+        model: declared_model,
+        create,
+        delete,
+        ..
+    } = &declaration.kind
+    else {
+        return None;
+    };
+    let module = ir.modules.get(owner.module.0 as usize)?;
+    if item.id != model
+        || item.module != owner.module
+        || !direct_field_name(&item.name)
+        || item.canonical != format!("{}.{}", module.name, item.name)
+        || !invariants.is_empty()
+        || !locks.is_empty()
+        || !uniques.is_empty()
+        || ir.items.iter().any(|candidate| {
+            matches!(&candidate.kind, IrItemKind::Scenario { hook: Some(hook), .. }
+                if hook.model == model)
+        })
+        || *actual_crud != crud
+        || declaration.id != crud
+        || declaration.module != owner.module
+        || declaration.canonical != format!("{}.crud", item.canonical)
+        || *declared_model != model
+        || !(if creating { *create } else { *delete })
+        || ir.crud_when.iter().any(|guard| guard.name == item.name)
+    {
+        return None;
+    }
+    let operation = if creating {
+        crate::analysis::resolve::CrudOp::Create
+    } else {
+        crate::analysis::resolve::CrudOp::Delete
+    };
+    let mut operations = ir.items.iter().filter(|candidate| {
+        matches!(&candidate.kind, IrItemKind::CrudOp { model: target, op, .. }
+            if *target == model && *op == operation)
+    });
+    let operation_item = operations.next()?;
+    let IrItemKind::CrudOp {
+        has_when: false,
+        delete_mode,
+        ..
+    } = &operation_item.kind
+    else {
+        return None;
+    };
+    if operations.next().is_some()
+        || operation_item.module != owner.module
+        || (!creating && *delete_mode != IrDeleteMode::Archive)
+    {
+        return None;
+    }
+    let mut descriptors = models
+        .iter()
+        .filter(|descriptor| descriptor.name == item.canonical);
+    let descriptor = descriptors.next()?;
+    if descriptors.next().is_some()
+        || descriptor.parent.is_some()
+        || descriptor.scope_app
+        || !descriptor.unique_keys.is_empty()
+        || (!creating && descriptor.delete_mode != "archive")
+    {
+        return None;
+    }
+    Some((item, descriptor))
+}
+
+fn ordered_root_effects(
+    owner: &IrItem,
+    create: crate::analysis::NodeKey,
+    model: crate::analysis::SymbolId,
+    binding: &str,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    if effects.len() < 3
+        || !matches!(effects.first(), Some(IrStmt::Create { .. }))
+        || !matches!(effects.get(1), Some(IrStmt::Set { .. }))
+        || !matches!(effects.last(), Some(IrStmt::Return { .. }))
+        || effects[2..effects.len() - 1]
+            .iter()
+            .any(|effect| !matches!(effect, IrStmt::Require { .. }))
+    {
+        return None;
+    }
+    let record_type = ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    };
+    let IrStmt::Set {
+        record,
+        changes,
+        when: None,
+        span: set_span,
+    } = &effects[1]
+    else {
+        return None;
+    };
+    created_record_name_matches(record, &record_type, binding, *set_span, db)?;
+    if !closed_loop_changes(changes, binding, &record_type) {
+        return None;
+    }
+    let IrExpr::Object(entries) = &changes.expr else {
+        return None;
+    };
+    let mut pending: Vec<_> = entries.iter().map(|(_, value)| value).collect();
+    let mut visited = 0usize;
+    while let Some(value) = pending.pop() {
+        visited += 1;
+        if visited > 16384
+            || value.span.file != set_span.file
+            || value.span.start < set_span.start
+            || value.span.end > set_span.end
+        {
+            return None;
+        }
+        match &value.expr {
+            IrExpr::Member { base, .. } => {
+                created_record_name_matches(base, &record_type, binding, value.span, db)?;
+            }
+            IrExpr::Binary { left, right, .. } => {
+                pending.push(left);
+                pending.push(right);
+            }
+            IrExpr::Unary { operand, .. } => pending.push(operand),
+            _ => {}
+        }
+    }
+    let IrStmt::Return {
+        value: Some(value),
+        span: return_span,
+    } = effects.last()?
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, .. } = &value.expr else {
+        return None;
+    };
+    if value.span.file != return_span.file
+        || value.span.start < return_span.start
+        || value.span.end > return_span.end
+    {
+        return None;
+    }
+    created_record_name_matches(base, &record_type, binding, value.span, db)?;
+    let mut previous_end = 0;
+    let mut found = false;
+    for effect in effects {
+        let span = match effect {
+            IrStmt::Create { span, .. }
+            | IrStmt::Set { span, .. }
+            | IrStmt::Require { span, .. }
+            | IrStmt::Return { span, .. } => *span,
+            _ => return None,
+        };
+        if span.file != create.file || span.start < previous_end {
+            return None;
+        }
+        previous_end = span.end;
+        found |= span == node_span(create) && matches!(effect, IrStmt::Create { .. });
+    }
+    found.then_some(())
+}
+
+/// A created binding is the current owner-session row, never another same-type
+/// local or admitted input whose copied Member site happens to match the proof.
+fn created_record_name_matches(
+    value: &TypedExpr,
+    record: &ResolvedType,
+    binding: &str,
+    containing: Span,
+    db: &SourceDb,
+) -> Option<()> {
+    if value.ty != *record
+        || !matches!(&value.expr, IrExpr::Name(name) if name == binding)
+        || value.span.file != containing.file
+        || value.span.start < containing.start
+        || value.span.end > containing.end
+        || db
+            .get(value.span.file)?
+            .text
+            .get(value.span.start as usize..value.span.end as usize)?
+            .trim()
+            != binding
+    {
+        return None;
+    }
+    Some(())
+}
+
+fn checked_effect_node(
+    ir: &IrProgram,
+    owner: &IrItem,
+    key: crate::analysis::NodeKey,
+    db: &SourceDb,
+) -> Option<crate::syntax::SyntaxNode> {
+    let original = super::scenario_calls::checked_source(ir, owner, db)?;
+    if key.file != original.node.file
+        || key.start < original.node.start
+        || key.end > original.node.end
+    {
+        return None;
+    }
+    let file = db.get(key.file)?;
+    let (tree, diagnostics) = crate::syntax::parse_source(key.file, &file.text);
+    if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    let mut pending = vec![&tree];
+    let mut steps = 0usize;
+    while let Some(node) = pending.pop() {
+        steps += 1;
+        if steps > 200000 {
+            return None;
+        }
+        if crate::analysis::NodeKey::of(node) == key {
+            return Some(node.clone());
+        }
+        pending.extend(node.children.iter().rev());
+    }
+    None
+}
+
+/// CST path spans own their leading trivia. Match the sole actual name token
+/// while preserving the original whole-path span used by the checked proof.
+fn direct_source_path_name<'a>(node: &crate::syntax::SyntaxNode, text: &'a str) -> Option<&'a str> {
+    if node.kind != SyntaxKind::Path {
+        return None;
+    }
+    let mut parts = node
+        .children
+        .iter()
+        .filter(|child| child.kind != SyntaxKind::Trivia);
+    let name = parts.next()?;
+    if name.kind != SyntaxKind::Name || parts.next().is_some() {
+        return None;
+    }
+    Some(name.token()?.text(text))
 }
 
 /// The initial loop profile reads only its current element through direct
@@ -2117,6 +2586,27 @@ impl<'a> Sites<'a> {
                     IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
+                    IrStmt::Create {
+                        input,
+                        when: None,
+                        binding: Some(_),
+                        span,
+                        ..
+                    } if matches!(&input.expr, IrExpr::Object(entries) if entries.is_empty()) => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                    }
+                    IrStmt::Delete {
+                        record,
+                        mode: IrDeleteMode::Archive,
+                        span,
+                    } if matches!(record.expr, IrExpr::Name(_)) => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(record));
+                    }
                     IrStmt::For {
                         domain,
                         limit: Some(limit),

@@ -1267,3 +1267,258 @@ const otherIdentity=makeIdentity({userId:'nonmember',team:member.team,membership
 const foreign=request('step',{items:[ref(finalA)]}),beforeForeign=await stable(foreign),denied=await invoker.invokeMutation(foreign,otherIdentity);assert.ok('error' in denied,JSON.stringify(denied));
 for(const key of ['rows','history','outbox','schedules'])assert.deepEqual((await stable(foreign))[key],beforeForeign[key]);
 "#;
+
+#[test]
+fn original_root_create_archive_receipts_preserve_native_stages_and_replay() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let input = root.join("packages/cloudflare/test/fixtures/typed-scenario-values.can");
+    let source = std::fs::read_to_string(&input).unwrap();
+    assert_eq!(
+        canlang_compiler::source::sha256_hex(source.as_bytes()),
+        "57100433b813b279e68aa3409864f5bfd7bb6487502a8b2fe55fcff24b4223b4"
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg("packages/cloudflare/test/fixtures/typed-scenario-values.can")
+        .current_dir(root)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact: Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    let find = |name: &str| {
+        artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|op| op["name"] == format!("TypedScenarioValues.{name}"))
+            .unwrap()
+    };
+    // The eight already qualified sites retain their original plans; this
+    // consumer executes only the newly admitted create/archive sites.
+    for name in [
+        "increment",
+        "twice",
+        "rollback",
+        "echo",
+        "boundNullable",
+        "boundArray",
+        "observedVersion",
+        "finish",
+        "born",
+        "discard",
+    ] {
+        let plan = &find(name)["result"]["disclosure"];
+        assert_eq!(plan["version"], 1, "{name}");
+        assert_eq!(
+            plan["source"]["sha256"],
+            "57100433b813b279e68aa3409864f5bfd7bb6487502a8b2fe55fcff24b4223b4",
+            "{name}: original declaring source"
+        );
+    }
+    assert_eq!(find("born")["result"]["type"], "int");
+    let born = &find("born")["result"]["disclosure"]["returns"];
+    assert_eq!(born.as_array().unwrap().len(), 1);
+    assert_eq!(born[0]["dependencies"].as_array().unwrap().len(), 2);
+    for dependency in born[0]["dependencies"].as_array().unwrap() {
+        assert_eq!(dependency["model"], "TypedScenarioValues.Counter");
+        assert_eq!(dependency["field"], "count");
+        assert_eq!(dependency["role"], "data");
+        assert_eq!(dependency["type"], "int");
+    }
+    assert_eq!(find("discard")["result"]["type"], "void");
+    let discarded = &find("discard")["result"]["disclosure"]["returns"];
+    assert_eq!(discarded.as_array().unwrap().len(), 1);
+    assert_eq!(discarded[0]["dependencies"], serde_json::json!([]));
+    assert_eq!(find("readBound")["kind"], "read");
+    assert!(find("readBound")["result"].get("disclosure").is_none());
+    let artifact_path = scratch.path().join("original.json");
+    std::fs::write(&artifact_path, compiled.stdout).unwrap();
+    let compile_variant = |directory: &Path, text: &str| {
+        let input = directory.join("typed-scenario-values.can");
+        std::fs::write(&input, text).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args([
+                "compile",
+                "--format=json",
+                "--native-scenario-receipts",
+                "--catalog",
+            ])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        std::fs::write(directory.join("native.json"), &output.stdout).unwrap();
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+    };
+
+    // An actual late source guard must roll back the created row and its set.
+    let rollback = source.replacen(
+        "   create Counter {} as counter\n   set counter {count=counter.count+1}\n   return counter.count",
+        "   create Counter {} as counter\n   set counter {count=counter.count+1}\n   require false\n   return counter.count",
+        1,
+    );
+    assert_ne!(rollback, source);
+    let rollback_source = scratch.path().join("late-guard-source");
+    std::fs::create_dir(&rollback_source).unwrap();
+    compile_variant(&rollback_source, &rollback);
+    let rollback_path = scratch.path().join("rollback.json");
+    std::fs::copy(rollback_source.join("native.json"), &rollback_path).unwrap();
+    for (name, changed, operation) in [
+        (
+            "nonempty-create",
+            source.replacen("create Counter {} as counter", "create Counter {count=1} as counter", 1),
+            "born",
+        ),
+        (
+            "conditional-create",
+            source.replacen(
+                "   create Counter {} as counter\n   set counter {count=counter.count+1}\n   return counter.count",
+                "   if true\n    create Counter {} as counter\n    set counter {count=counter.count+1}\n    return counter.count\n   else\n    return 0",
+                1,
+            ),
+            "born",
+        ),
+        (
+            "hard-remove",
+            source.replacen("crud Counter by=members fields=count", "crud Counter by=members fields=count delete=remove", 1),
+            "discard",
+        ),
+    ] {
+        assert_ne!(changed, source, "{name}: actual original source variant");
+        let variant_source = scratch.path().join(name);
+        std::fs::create_dir(&variant_source).unwrap();
+        let unsupported = compile_variant(&variant_source, &changed);
+        let op = unsupported["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|op| op["name"] == format!("TypedScenarioValues.{operation}"))
+            .unwrap();
+        assert!(op["result"].get("disclosure").is_none(), "{name}");
+    }
+    let runner = scratch.path().join("root-create-archive.mjs");
+    std::fs::write(&runner, ROOT_CREATE_ARCHIVE_RUNNER).unwrap();
+    let output = Command::new("node")
+        .arg(&runner)
+        .arg(root)
+        .arg(&artifact_path)
+        .arg(&rollback_path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+const ROOT_CREATE_ARCHIVE_RUNNER: &str = r#"
+import assert from 'node:assert/strict';
+import {resolve,dirname} from 'node:path';
+import {pathToFileURL,fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+const [root,artifactPath,rollbackPath]=process.argv.slice(2),base=dirname(fileURLToPath(import.meta.url));
+const require=createRequire(resolve(root,'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {loadArtifactFile}=await load('@canlang/cloudflare/runtime/artifact');
+const {assembleModules,importVerifiedAssemblyModule}=await load('@canlang/cloudflare/runtime/modules');
+const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {loadCanonicalDescriptors}=await load('@canlang/cloudflare/runtime/invoke');
+const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
+const {readScenarioReceiptAssociation,projectScenarioReceipt}=await load('@canlang/state/invocation');
+const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
+const input=loadArtifactFile(artifactPath),artifact=input.artifact;
+const assemble=(input,name)=>assembleModules(input,{workDir:resolve(base,name),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const asm=await assemble(input,'original-modules');
+const generated=await importVerifiedAssemblyModule(asm,artifact.modules[0].path,artifact);
+assert.deepEqual(generated.canApp().operations,artifact.operations,'verified original module publishes the actual checked descriptors');
+const loaded=await loadCanonicalDescriptors(asm,artifact);
+const {store:backing,probe}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
+let commits=0;const store={...backing,commit:async batch=>{commits++;return backing.commit(batch);}};
+const member=await seedMember(memberships,{isOwner:false});
+const identity=makeIdentity({membership:member.membership,email:member.user.email});
+const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW});
+const APP='TypedScenarioValues',MODEL=APP+'.Counter';let sequence=0;
+const request=(name,inputs={})=>({operation:APP+'.'+name,operation_id:uuidv7(FIXED_NOW,++sequence),inputs});
+const receiptFor=req=>store.readReceipt({app:APP,owner:identity.team.team_id,principal:identity.actor.user_id,operation:req.operation,operationId:req.operation_id});
+const invoke=req=>invoker.invokeMutation(req,identity);
+const committed=async req=>{const value=await invoke(req);assert.ok('result' in value,JSON.stringify(value));assert.equal(value.result.status,'committed');return value.result;};
+const ref=row=>({id:row.id,version:String(row.version)});
+const seed=await committed(request('Counter.create'));
+assert.equal(seed.records.length,1);assert.equal(seed.records[0].data.count,'1');assert.equal(seed.records[0].version,1);
+const bornRequest=request('born'),bornResult=await committed(bornRequest),bornReceipt=await receiptFor(bornRequest);
+assert.equal(bornResult.result,'2');assert.equal(bornReceipt.outcome.result,'2');assert.equal(bornResult.records.length,1);
+const bornRow=await store.load(MODEL,bornResult.records[0].id);
+assert.equal(bornRow.data.count,'2');assert.equal(bornRow.version,1,'create then set finalizes one net insert');
+assert.equal(bornReceipt.resolvedDefaults[`0:${MODEL}.count`],'1','the owning model supplies its literal omission default');
+const bornAssociation=readScenarioReceiptAssociation(bornReceipt);assert.ok(bornAssociation);
+assert.deepEqual(bornAssociation.plan,artifact.operations.find(op=>op.name===bornRequest.operation).result.disclosure);
+assert.deepEqual(bornAssociation.observations.map(value=>value.row.data.count),['1','2'],'authored set operand precedes returned staged value');
+assert.deepEqual(bornAssociation.observations.map(value=>value.dependencyId),bornAssociation.plan.returns[0].dependencies.map(value=>value.id));
+for(const observation of bornAssociation.observations){assert.equal(observation.model,MODEL);assert.equal(observation.row.id,bornRow.id);assert.equal(observation.row.created,bornRow.created);}
+assert.equal(bornAssociation.changed.length,1);assert.deepEqual(bornAssociation.changed[0].row,bornRow);
+const bornHistory=await store.historyFor(MODEL,bornRow.id);
+assert.equal(bornHistory.length,1,'created stages finalize one net creation history entry');
+assert.equal(bornHistory[0].change,'create');assert.equal(bornHistory[0].before,null);assert.deepEqual(bornHistory[0].after,{count:'2'});
+for(const entry of bornHistory){assert.equal(entry.version,1);assert.equal(entry.operation,bornRequest.operation);assert.equal(entry.operationId,bornRequest.operation_id);assert.equal(entry.actor,identity.actor.user_id);assert.equal(entry.at,FIXED_NOW);}
+const discardRequest=request('discard',{counter:ref(seed.records[0])}),discardResult=await committed(discardRequest),discardReceipt=await receiptFor(discardRequest);
+assert.equal(discardResult.result,null);assert.deepEqual(discardResult.records,[]);assert.equal(discardReceipt.outcome.result,null);
+const discardedRow=await store.load(MODEL,seed.records[0].id);assert.equal(discardedRow.data.count,'1');assert.equal(discardedRow.version,2);assert.equal(discardedRow.archivedAt,FIXED_NOW);
+const discardAssociation=readScenarioReceiptAssociation(discardReceipt);assert.ok(discardAssociation);
+assert.deepEqual(discardAssociation.observations,[]);assert.equal(discardAssociation.resultType,'void');
+assert.deepEqual(discardAssociation.plan.returns[0].dependencies,[]);assert.equal(discardAssociation.changed.length,1);assert.deepEqual(discardAssociation.changed[0].row,discardedRow);
+assert.equal((await store.historyFor(MODEL,discardedRow.id)).length,2);
+const saved=[{req:bornRequest,result:bornResult,receipt:bornReceipt},{req:discardRequest,result:discardResult,receipt:discardReceipt}];
+const stable=async()=>({rows:await store.query({model:MODEL,authority:'owner',archived:'include'}),revision:await store.readRevision(),commits,
+ receipts:await Promise.all(saved.map(value=>receiptFor(value.req))),history:await Promise.all([bornRow.id,discardedRow.id].map(id=>store.historyFor(MODEL,id))),
+ outbox:probe.outboxAll(),schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
+let retainedCommits=0;
+const readonlyStore={...store,commit:async()=>{retainedCommits++;throw new Error('retained commit tripwire');}};
+const retained=buildInvoker(artifact,asm,readonlyStore,{memberships,now:()=>FIXED_NOW+16*60000});
+const replay=async(value,expected=value.result)=>{
+ const before=await stable();
+ for(const transport of [invoker,retained]){const outcome=await transport.invokeMutation(value.req,identity);assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'replayed');assert.deepEqual(outcome.result.result,expected.result);assert.deepEqual(outcome.result.records,expected.records);}
+ const dedicated=await retained.invokeRetainedMutation(value.req,identity);assert.ok('result' in dedicated,JSON.stringify(dedicated));assert.equal(dedicated.result.status,'replayed');assert.deepEqual(dedicated.result.result,expected.result);assert.deepEqual(dedicated.result.records,expected.records);
+ assert.deepEqual(await stable(),before);assert.equal(retainedCommits,0);assert.deepEqual(await receiptFor(value.req),value.receipt);
+};
+for(const value of saved)await replay(value);
+await committed(request('Counter.update',{record:ref(bornRow),count:'99'}));
+assert.equal((await store.load(MODEL,bornRow.id)).data.count,'99');await replay(saved[0]);
+assert.equal((await projectScenarioReceipt({receipt:bornReceipt,registry:loaded.registry,policy:loaded.policy,app:APP,identity,store,memberships})).result,'2');
+// The actual source-derived late guard rejects after both provisional stages.
+const failedInput=loadArtifactFile(rollbackPath),failedAsm=await assemble(failedInput,'late-guard-modules');
+await importVerifiedAssemblyModule(failedAsm,failedInput.artifact.modules[0].path,failedInput.artifact);
+const failedInvoker=buildInvoker(failedInput.artifact,failedAsm,store,{memberships,now:()=>FIXED_NOW});
+const failing=request('born'),beforeFailure=await stable(),failed=await failedInvoker.invokeMutation(failing,identity);
+assert.ok('error' in failed,JSON.stringify(failed));assert.equal(failed.error.code,'rule_failed');
+const rejected=await receiptFor(failing);assert.ok(rejected,JSON.stringify(failed));assert.equal(rejected.outcome.status,'rejected');assert.equal(readScenarioReceiptAssociation(rejected),null);
+const afterFailure=await stable();for(const key of ['rows','history','receipts','outbox','schedules'])assert.deepEqual(afterFailure[key],beforeFailure[key],key+' unchanged by late guard rollback');
+assert.equal(afterFailure.revision,beforeFailure.revision+1);assert.equal(afterFailure.commits,beforeFailure.commits+1,'only rejected bookkeeping commits');
+const beforeRejectedReplay=await stable(),again=await failedInvoker.invokeMutation(failing,identity);assert.ok('error' in again);assert.equal(again.error.code,'rule_failed');assert.deepEqual(await stable(),beforeRejectedReplay);assert.deepEqual(await receiptFor(failing),rejected);
+const updatedBorn=await store.load(MODEL,bornRow.id);await committed(request('discard',{counter:ref(updatedBorn)}));
+await replay(saved[0],{result:null,records:[]});await replay(saved[1]);
+assert.equal(bornReceipt.outcome.result,'2','current archive withholds the result without rewriting its original receipt');
+const beforeRevocation=await stable();await memberships.removeMembership(member.membership.membership_id);
+for(const value of saved){const outcome=await retained.invokeRetainedMutation(value.req,identity);assert.ok('error' in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,'forbidden');assert.deepEqual(await projectScenarioReceipt({receipt:value.receipt,registry:loaded.registry,policy:loaded.policy,app:APP,identity,store,memberships}),{result:null,records:[]});}
+assert.deepEqual(await stable(),beforeRevocation);assert.equal(retainedCommits,0);
+"#;
