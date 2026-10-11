@@ -8067,8 +8067,21 @@ impl<'a> Typer<'a> {
     /// `parent` is the immediate enclosing widget kind (`tab` must sit
     /// directly inside `tabs`).
     fn walk_ui_page(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, parent: SyntaxKind) {
+        self.walk_ui_page_with_tab_case(cx, node, parent, None);
+    }
+
+    /// A bound tabs owner supplies its exact enum only to direct tab headers.
+    /// Body/gate scopes and lexical name resolution remain the ordinary UI walk.
+    fn walk_ui_page_with_tab_case(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        parent: SyntaxKind,
+        tab_case: Option<&ResolvedType>,
+    ) {
         let domain = kids(node).iter().find(|n| is_expression(n.kind)).copied();
         let mut row_seed: Option<NarrowEnv> = None;
+        let mut bound_tab_expected = None;
         match node.kind {
             SyntaxKind::Show => {
                 let objects: Vec<_> = kids(node)
@@ -8198,7 +8211,36 @@ impl<'a> Typer<'a> {
                         }
                     }
                 } else if let Some(domain) = domain {
-                    let _ = self.expr(cx, domain, None);
+                    let ty = self.expr(cx, domain, None);
+                    let mut selector = domain;
+                    while selector.kind == SyntaxKind::Group {
+                        let Some(inner) = kids(selector)
+                            .into_iter()
+                            .find(|child| is_expression(child.kind))
+                        else {
+                            break;
+                        };
+                        selector = inner;
+                    }
+                    let owned = self.types.preference_field_references
+                        .get(&NodeKey::of(selector))
+                        .and_then(|id| self.tables.symbols.get(id.0 as usize))
+                        .is_some_and(|field| {
+                            field.module == cx.module
+                                && matches!(&field.kind, SymbolKind::Field { owner, .. }
+                                    if self.tables.symbols.get(owner.0 as usize).is_some_and(|owner|
+                                        owner.module == cx.module && matches!(owner.kind, SymbolKind::Preferences { .. })))
+                        });
+                    if owned && matches!(ty, ResolvedType::Enum { .. }) {
+                        bound_tab_expected = Some(ty);
+                    } else if !matches!(ty, ResolvedType::Error) {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "bound tab panels need an owned nonnullable enum preference selector"
+                                .to_string(),
+                            tight_span(cx.text, domain),
+                        ));
+                    }
                 }
             }
             SyntaxKind::Tab => {
@@ -8210,7 +8252,7 @@ impl<'a> Typer<'a> {
                     ));
                 }
                 if let Some(caption) = domain {
-                    let _ = self.expr(cx, caption, None);
+                    let _ = self.expr(cx, caption, tab_case.cloned());
                 }
             }
             SyntaxKind::Collection => {
@@ -8637,7 +8679,76 @@ impl<'a> Typer<'a> {
             if child.kind == SyntaxKind::Name || child.kind == SyntaxKind::Punct {
                 continue;
             }
-            self.walk_ui_page(inner, child, node.kind);
+            self.walk_ui_page_with_tab_case(
+                inner,
+                child,
+                node.kind,
+                if node.kind == SyntaxKind::Tabs && child.kind == SyntaxKind::Tab {
+                    bound_tab_expected.as_ref()
+                } else {
+                    None
+                },
+            );
+        }
+        if let Some(ResolvedType::Enum { cases, .. }) = bound_tab_expected {
+            let mut seen = HashSet::new();
+            for tab in kids(node)
+                .into_iter()
+                .filter(|child| child.kind == SyntaxKind::Tab)
+            {
+                let Some(header) = kids(tab)
+                    .into_iter()
+                    .find(|child| is_expression(child.kind))
+                else {
+                    continue;
+                };
+                let mut case = header;
+                while case.kind == SyntaxKind::Group {
+                    let Some(inner) = kids(case)
+                        .into_iter()
+                        .find(|child| is_expression(child.kind))
+                    else {
+                        break;
+                    };
+                    case = inner;
+                }
+                let name = nameref_word(case, cx.text);
+                if case.kind != SyntaxKind::NameRef
+                    || !self.types.resolved_cases.contains(&NodeKey::of(case))
+                    || !name.is_some_and(|name| cases.iter().any(|known| known == name))
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "bound tab header must name an exact case of its owning enum preference"
+                            .to_string(),
+                        tight_span(cx.text, header),
+                    ));
+                    continue;
+                }
+                let name = name.expect("checked exact enum case").to_string();
+                if !seen.insert(name.clone()) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!("bound tabs repeats case '{name}'"),
+                        tight_span(cx.text, header),
+                    ));
+                }
+            }
+            let missing: Vec<_> = cases
+                .iter()
+                .filter(|case| !seen.contains(*case))
+                .cloned()
+                .collect();
+            if !missing.is_empty() {
+                self.diags.push(Diagnostic::error(
+                    "E3001",
+                    format!(
+                        "bound tabs needs every owning enum case exactly once; missing {}",
+                        missing.join(", ")
+                    ),
+                    tight_span(cx.text, domain.expect("bound selector")),
+                ));
+            }
         }
     }
 

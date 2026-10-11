@@ -8661,3 +8661,24 @@ Files must release the exact current-authorized finalized File-to-safeURL and
 nullable/no-file behavior before checked lowering and Dev's saved-source
 consumer can join. Skip this blocked issue; keep CRM source and File emission
 unchanged.
+
+### 2026-10-11 — check bound tab headers against their owning enum
+
+Implement the accepted DESIGN921/GRAMMAR502 block rule: an exact owning local
+enum preference supplies its expectation only to direct tab headers. Preserve
+lexical-first lookup, require known/distinct/complete case coverage, and retain
+ordinary body scopes, local guards, nested ownership, selector leaves and
+transient captions. Original Volunteer source and its assignments authentication
+gate remain byte-identical. No source rename or quoted-caption workaround.
+
+Current actual original25 CLI/catalog32→30 removes only the two Volunteer E2001
+findings; every source hash and remaining diagnostic is unchanged. New7 owning
+cases plus367 existing affected outcomes pass374distinct; the full52 corpus
+retains50 pins, updating Volunteer46→44 and the same Loyalty rewards/history
+cases68→66. Strict all-target Clippy0 3.58s, fmt/diff0. Valid bound-source compile
+still retains E6008/no modules. The finite analysis criterion is satisfied;
+native panel lowering and guarded option/current-value behavior remain owning
+Compiler/UI work. Current UI requires exact option/panel correspondence, while
+an unavailable tab gate omits its item; do not invent filtered-current semantics
+or remove the original guard to bypass that join. Remaining original30/no
+artifact, full applications and all precise human holds remain open.
