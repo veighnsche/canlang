@@ -231,12 +231,14 @@ const VENDOR_TREES: readonly VendorTree[] = [
 ];
 
 /**
- * Staged keys never vendored: TEST-ONLY bridges with node-only imports
+ * Staged keys never vendored: TEST-ONLY fixtures and bridges with node-only imports
  * (see the walk exclusion). Exact keys, no blast radius.
  */
 const TEST_ONLY_VENDOR_KEYS: ReadonlySet<string> = new Set([
   "vendor/state/fanout/work-loader.js",
   "vendor/state/receipt/work-loader.js",
+  // Shared Memory/D1/DO assertions have only maintained test importers.
+  "vendor/state/storage/history-bounded-fixtures.js",
   // D3b Q3: the receipt join + worker-safe observer producers are
   // production-vendored — intentionally ABSENT here (present in the
   // vendor walk, resolved by the rewrite map above).
@@ -588,6 +590,8 @@ const STATE_MUTATION_SOURCE_SPECIFIER = "@canlang/state/mutation";
 const STATE_MUTATION_VENDOR_ENTRY = "vendor/state/mutation/index.js";
 const STATE_INVOCATION_SOURCE_SPECIFIER = "@canlang/state/invocation";
 const STATE_INVOCATION_VENDOR_ENTRY = "vendor/state/invocation/index.js";
+const STATE_QUERY_SOURCE_SPECIFIER = "@canlang/state/query";
+const STATE_QUERY_VENDOR_ENTRY = "vendor/state/query/index.js";
 /** D3b receipt producers (C's Q2 seam consts in pinned `invoke.js`). */
 const STATE_RECEIPT_JOIN_SOURCE_SPECIFIER = "@canlang/state/receipt/join";
 const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "@canlang/state/receipt";
@@ -675,6 +679,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
     if (spec === STATE_MUTATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_MUTATION_VENDOR_ENTRY);
     if (spec === STATE_INVOCATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_INVOCATION_VENDOR_ENTRY);
+    if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
     if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
       return relativeSpecifier(moduleKey, STATE_RECEIPT_JOIN_VENDOR_ENTRY);
     }
@@ -708,6 +713,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
     [STATE_MUTATION_SOURCE_SPECIFIER, STATE_MUTATION_VENDOR_ENTRY],
     [STATE_INVOCATION_SOURCE_SPECIFIER, STATE_INVOCATION_VENDOR_ENTRY],
+    [STATE_QUERY_SOURCE_SPECIFIER, STATE_QUERY_VENDOR_ENTRY],
     [STATE_RECEIPT_JOIN_SOURCE_SPECIFIER, STATE_RECEIPT_JOIN_VENDOR_ENTRY],
     [STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY],
     [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
@@ -809,6 +815,7 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
+    if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
