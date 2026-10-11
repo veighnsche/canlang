@@ -29,6 +29,7 @@ import { assembleModules, importVerifiedAssemblyModule } from '@canlang/cloudfla
 import { buildInvoker, createTeamOwnerStorageBoundary } from '@canlang/cloudflare/worker/assembly';
 import { createBoundFileHandler, createCanonicalFileBinding } from '@canlang/cloudflare/runtime/bound-files';
 import { createNativeFileRetirementBinding } from '../dist/dev/file-retirement.js';
+import { createBoundCohortTick } from '../dist/runtime/cohort-tick.js';
 import { invokeDueSourceRoutingCanonical, invokeRetainedHandlerOccurrenceCanonical } from '@canlang/cloudflare/runtime/invoke';
 import { WORK_SCHEDULE_MODEL, readScheduleRow, WORK_OCCURRENCE_MODEL, readOccurrenceRow } from '@canlang/work/kernel/tables';
 import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
@@ -929,7 +930,9 @@ test('native deferred File payload survives its original schedule fence and reop
       const selector={sourceOccurrence:retained.sourceOccurrence,handler:retained.handler,event:retained.event,scope,filePayloadOrigin:retained.filePayloadOrigin};
       const handlerOptions={artifact,asm,app,selector,store:binding.store,identities,now:clock.nowMs,files:host.files};
       const beforeHandlerRevision=await binding.store.readRevision();
-      assert.equal(object(await invokeRetainedHandlerOccurrenceCanonical(handlerOptions)).status,'completed');
+      const tick=await createBoundCohortTick({artifact,asm,identities,ownerStorage:binding.ownerStorage,scope,now:clock.nowMs,files:host.files});
+      const tickResults=await tick.tick();assert.ok(Array.isArray(tickResults));assert.equal(tickResults.length,1);
+      assert.equal(object(tickResults[0]).status,'completed','actual installed tick forwards the original handler header and genuine File binding');
       assert.equal(await binding.store.readRevision(),beforeHandlerRevision+1);
       const terminal=await resources();assert.equal(readHandlerOccurrenceRow((await query(WORK_HANDLER_OCCURRENCE_MODEL))[0]!).state,'completed');
       assert.deepEqual(await binding.store.load(model,entryId),originalRow);
