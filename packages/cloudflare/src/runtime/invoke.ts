@@ -8997,6 +8997,44 @@ export async function invokeReadCanonical(
   return served;
 }
 
+/** Resolve only the Compiler's closed page operand; generic State receives wire values. */
+function resolvePageQueryTime(
+  predicate: QueryPredicate, fields: Readonly<Record<string, CanonicalModelDescriptor['fields'][string]>>,
+  queryTimeMs: number | undefined, StateError: CanonicalStateProducers['errors'], depth = 0,
+): QueryPredicate {
+  if (depth > 32) throw new StateError('validation', 'Page predicate nesting exceeds the adapter bound.');
+  if (!isUnknownRecord(predicate)) return predicate; // State owns ordinary AST validation.
+  const node: Record<string, unknown> = predicate;
+  if ((node.op === 'and' || node.op === 'or') && Array.isArray(node.args)) {
+    return { ...node, op: node.op, args: node.args.map(arg =>
+      resolvePageQueryTime(arg as QueryPredicate, fields, queryTimeMs, StateError, depth + 1)) };
+  }
+  if (node.op === 'not') {
+    return { ...node, arg: resolvePageQueryTime(node.arg as QueryPredicate,
+      fields, queryTimeMs, StateError, depth + 1) } as QueryPredicate;
+  }
+  // Object operands have no generic viewer-page scalar meaning. Admit exactly
+  // the owning nonnullable Datetime comparison, without executing any accessor.
+  const value = node.value;
+  if (value !== null && typeof value === 'object') {
+    const keys = Reflect.ownKeys(value), kind = Object.getOwnPropertyDescriptor(value, 'kind');
+    const field = typeof node.field === 'string' ? fields[node.field] : undefined;
+    if (queryTimeMs === undefined || keys.length !== 1 || keys[0] !== 'kind' || kind?.value !== 'page-query-now' ||
+        (node.op !== 'gte' && node.op !== 'lt') || field?.valueType !== 'datetime' || field.nullable) {
+      throw new StateError('validation', 'Invalid page query-time operand.');
+    }
+    let wire: unknown;
+    try { wire = encodeValue('datetime', decodeValue('datetime', new Date(queryTimeMs).toISOString())); }
+    catch { throw new StateError('validation', 'Invalid admitted page query time.'); }
+    return { ...node, value: wire } as QueryPredicate;
+  }
+  if (node.kind === 'page-query-now' ||
+      (node.op === 'between' && [node.lo, node.hi].some(value => value !== null && typeof value === 'object'))) {
+    throw new StateError('validation', 'Page query-time operands require a checked datetime comparison.');
+  }
+  return predicate;
+}
+
 /** Page collections retain generated read admission and the defining viewer executor. */
 export async function queryPageRowsCanonical(
   opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
@@ -9056,14 +9094,22 @@ export async function queryPageRowsCanonical(
     }
     const scope = [binding.scope.app, binding.scope.owner, binding.scope.ownerPackage, binding.sourceIdentity];
     const cursors = binding.cursors;
+    const issuanceTimeMs = (opts.now ?? Date.now)();
     let decoded: Extract<PageCursorDecoded, { status: 'valid' }> | undefined;
     if (opts.args.cursor !== undefined) {
       if (cursors === undefined) throw new StateError('validation', 'Collection pagination is unavailable.');
-      const proof = await cursors.decode(opts.args.cursor, (opts.now ?? Date.now)());
+      const proof = await cursors.decode(opts.args.cursor, issuanceTimeMs);
       if (proof.status === 'valid') decoded = proof;
       else throw new StateError(proof.status === 'stale' ? 'conflict' : 'validation', proof.status === 'stale'
         ? 'Collection cursor expired; restart from the first page.' : 'Invalid collection cursor.');
     }
+    const queryTimeMs = decoded?.position.queryTimeMs ?? Date.parse(opts.identity.admitted_at);
+    if (!Number.isSafeInteger(queryTimeMs) || queryTimeMs < 0 || queryTimeMs > issuanceTimeMs) {
+      throw new StateError('validation', 'Paged collections require a trusted admission time.');
+    }
+    const fields = loaded.models.find(model => model.name === opts.model)?.fields ?? {};
+    const resolvedSelection = selection.where === undefined ? selection : { ...selection,
+      where: resolvePageQueryTime(selection.where, fields, queryTimeMs, StateError) };
     const createReader = loaded.producers.transact.createReadPageInvoker;
     if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
     const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
@@ -9071,7 +9117,7 @@ export async function queryPageRowsCanonical(
     const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
     return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
       selection: {
-        ...selection,
+        ...resolvedSelection,
         ...(opts.args.parent === undefined ? {} : { parent: {
           model: (parentModel ?? '') as ModelName, id: opts.args.parent.id as RecordId,
         } }),
@@ -9092,7 +9138,7 @@ export async function queryPageRowsCanonical(
         throw new StateError('validation', 'Collection pagination is unavailable.');
       }
       const nextCursor = page.continuation === null ? undefined :
-        await cursors!.encode(bindingDigest, page.continuation, (opts.now ?? Date.now)());
+        await cursors!.encode(bindingDigest, { ...page.continuation, queryTimeMs }, issuanceTimeMs);
       // The owning State invoker rechecks current authority and revision after this transform.
       const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
       const declared = loaded.collectionColumns.get(opts.model) ?? [];
@@ -9115,8 +9161,10 @@ export async function queryPageRowsCanonical(
   if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
   const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
     policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+  const ordinarySelection = selection.where === undefined ? selection : { ...selection,
+    where: resolvePageQueryTime(selection.where, {}, undefined, StateError) };
   return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
-    selection, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
+    selection: ordinarySelection, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
   }, async page => {
     if (page.continuation !== null) {
       throw new StateError('validation',

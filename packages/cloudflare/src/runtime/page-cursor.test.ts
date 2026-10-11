@@ -18,7 +18,7 @@ const hostKey = new Uint8Array(32).fill(77);
 const binding = 'a'.repeat(64);
 const now = 1_800_000_000_000;
 const lifetime = 15 * 60 * 1_000;
-const position = { revision: 7, after: 'visible-row-é😀' };
+const position = { revision: 7, after: 'visible-row-é😀', queryTimeMs: now };
 
 async function signed(text: string | Uint8Array): Promise<string> {
   const payload = typeof text === 'string' ? new TextEncoder().encode(text) : text;
@@ -39,12 +39,34 @@ test('page cursor transports only a bound visible position and expires at its fi
   assert.deepEqual(await decoder.decode(token, now + lifetime), { status: 'stale' });
   assert.deepEqual(await decoder.decode(token, now - 1), { status: 'stale' });
   const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(token.split('.')[0]!)!));
-  assert.deepEqual(payload, ['can-page-cursor', 1, binding, 7, position.after, now, now + lifetime]);
+  assert.deepEqual(payload, ['can-page-cursor', 2, binding, 7, position.after, now, now, now + lifetime]);
   const otherContext = await encoder.encode('b'.repeat(64), position, now);
   assert.notEqual(otherContext, token);
   assert.deepEqual(await decoder.decode(otherContext, now), { ...expected, bindingDigest: 'b'.repeat(64) });
   const otherHost = await createPageCursorCodec(new Uint8Array(32).fill(78));
   assert.deepEqual(await otherHost.decode(token, now), { status: 'invalid' });
+});
+
+test('page cursor retains the original query time across renewed issuance', async () => {
+  const codec = await createPageCursorCodec(hostKey);
+  const first = await codec.encode(binding, position, now);
+  const decoded = await codec.decode(first, now + lifetime - 1);
+  assert.equal(decoded.status, 'valid');
+  if (decoded.status !== 'valid') assert.fail('expected valid first cursor');
+  const renewalTime = now + lifetime - 1;
+  const renewedPosition = { ...decoded.position, after: 'next-visible-row' };
+  const renewed = await codec.encode(binding, renewedPosition, renewalTime);
+  assert.notEqual(renewed, first);
+  assert.deepEqual(await codec.decode(renewed, now + lifetime), {
+    status: 'valid', bindingDigest: binding, position: renewedPosition,
+  });
+  assert.deepEqual(await codec.decode(renewed, renewalTime + lifetime), { status: 'stale' });
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(base64UrlToBytes(renewed.split('.')[0]!)!)),
+    ['can-page-cursor', 2, binding, 7, renewedPosition.after, now, renewalTime, renewalTime + lifetime]);
+  const epochPosition = { ...position, queryTimeMs: 0 };
+  assert.deepEqual(await codec.decode(await codec.encode(binding, epochPosition, now), now), {
+    status: 'valid', bindingDigest: binding, position: epochPosition,
+  });
 });
 
 test('page cursor rejects tampering, alias encodings and cross-domain canonical signed payloads', async () => {
@@ -56,17 +78,29 @@ test('page cursor rejects tampering, alias encodings and cross-domain canonical 
   assert.deepEqual(base64UrlToBytes(alias), base64UrlToBytes(signature));
   assert.deepEqual(await codec.decode(`${payload}.${alias}`, now), { status: 'invalid' });
   assert.deepEqual(await codec.decode(`${payload}.${signature.slice(1)}`, now), { status: 'invalid' });
+  const changedPayload = bytesToBase64Url(new TextEncoder().encode(JSON.stringify([
+    'can-page-cursor', 2, binding, 7, position.after, now - 1, now, now + lifetime,
+  ])));
+  assert.deepEqual(await codec.decode(`${changedPayload}.${signature}`, now), { status: 'invalid' });
   assert.deepEqual(await codec.decode('not.a.valid.token', now), { status: 'invalid' });
   for (const tuple of [
-    ['can-source-form-binding', 1, binding, 7, position.after, now, now + lifetime],
-    ['can-page-cursor', 2, binding, 7, position.after, now, now + lifetime],
-    ['can-page-cursor', 1, binding, 7, position.after, now, now + lifetime, 'extra'],
-    ['can-page-cursor', 1, binding, -1, position.after, now, now + lifetime],
-    ['can-page-cursor', 1, binding, 7, '', now, now + lifetime],
-    ['can-page-cursor', 1, binding, 7, position.after, now, now + lifetime + 1],
-    ['can-page-cursor', 1, binding, 7, position.after, null, now + lifetime],
+    ['can-source-form-binding', 2, binding, 7, position.after, now, now, now + lifetime],
+    // A genuine old signed v1 cursor cannot identify an original query time.
+    ['can-page-cursor', 1, binding, 7, position.after, now, now + lifetime],
+    ['can-page-cursor', 1, binding, 7, position.after, now, now, now + lifetime],
+    ['can-page-cursor', 3, binding, 7, position.after, now, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, now, now, now + lifetime, 'extra'],
+    ['can-page-cursor', 2, binding, -1, position.after, now, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, '', now, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, now, now, now + lifetime + 1],
+    ['can-page-cursor', 2, binding, 7, position.after, -1, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, 1.5, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, Number.MAX_SAFE_INTEGER + 1, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, now + 1, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, null, now, now + lifetime],
+    ['can-page-cursor', 2, binding, 7, position.after, now, null, now + lifetime],
   ]) assert.deepEqual(await codec.decode(await signed(JSON.stringify(tuple)), now), { status: 'invalid' });
-  assert.deepEqual(await codec.decode(await signed(` ${JSON.stringify(['can-page-cursor', 1, binding, 7, position.after, now, now + lifetime])}`), now), { status: 'invalid' });
+  assert.deepEqual(await codec.decode(await signed(` ${JSON.stringify(['can-page-cursor', 2, binding, 7, position.after, now, now, now + lifetime])}`), now), { status: 'invalid' });
   assert.deepEqual(await codec.decode(await signed(new Uint8Array([0xc3, 0x28])), now), { status: 'invalid' });
 });
 
@@ -83,6 +117,12 @@ test('page cursor requires canonical host keys, bounded tokens and checked scala
   for (const revision of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
     await assert.rejects(codec.encode(binding, { ...position, revision }, now), TypeError);
   }
+  for (const queryTimeMs of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, now + 1]) {
+    await assert.rejects(codec.encode(binding, { ...position, queryTimeMs }, now), TypeError);
+  }
+  const { queryTimeMs: _queryTime, ...legacyPosition } = position;
+  void _queryTime;
+  await assert.rejects(codec.encode(binding, legacyPosition as typeof position, now), TypeError);
   for (const clock of [-1, 1.5, Number.MAX_SAFE_INTEGER]) {
     await assert.rejects(codec.encode(binding, position, clock), TypeError);
     await assert.rejects(codec.decode('invalid', clock), TypeError);
@@ -132,6 +172,10 @@ test('explicit hosted page reads bind current query, caller decisions and occurr
     assert.equal(filteredEmpty.nextCursor, undefined);
     const first = await queryPageRowsCanonical({ ...opts, args });
     assert.equal(first.rows.length, 1); assert.ok(first.nextCursor);
+    const firstProof = await cursors.decode(first.nextCursor, FIXED_NOW);
+    assert.equal(firstProof.status, 'valid');
+    if (firstProof.status !== 'valid') throw new Error('actual first page cursor did not decode');
+    assert.equal(firstProof.position.queryTimeMs, Date.parse(identity.admitted_at));
     assert.deepEqual(Object.keys(first.rows[0]!.fields), ['count']);
     assert.deepEqual(first.columns.map(column => column.field), ['count']);
     assert.equal(Object.hasOwn(first, 'emptyDeclarations'), false);
@@ -142,6 +186,17 @@ test('explicit hosted page reads bind current query, caller decisions and occurr
     assert.equal(third.rows.length, 1); assert.equal(third.nextCursor, undefined);
     assert.equal(new Set([...first.rows, ...second.rows, ...third.rows].map(row => row.id)).size, 3);
     const refuses = (code: string) => (error: unknown) => typeof error === 'object' && error !== null && 'code' in error && error.code === code;
+    const beforeInvalid = { revision: await store.readRevision(), rows: await store.query({ model: model as never, authority: 'owner' }) };
+    for (const where of [
+      { op: 'gte' as const, field: 'count', value: { kind: 'page-query-now' } },
+      { op: 'gte' as const, field: 'count', value: { kind: 'page-query-now', extra: true } },
+      { op: 'between' as const, field: 'count', lo: { kind: 'page-query-now' }, hi: '3' },
+      { op: 'eq' as const, field: 'count', value: { kind: 'unknown-page-time' } },
+    ]) await assert.rejects(queryPageRowsCanonical({ ...opts, args: { ...args, where } }), refuses('validation'));
+    await assert.rejects(queryPageRowsCanonical({ ...opts, args: {
+      where: { op: 'gte', field: 'count', value: { kind: 'page-query-now' } },
+    } }), refuses('validation'));
+    assert.deepEqual({ revision: await store.readRevision(), rows: await store.query({ model: model as never, authority: 'owner' }) }, beforeInvalid);
     await assert.rejects(queryPageRowsCanonical({ ...opts, args: { occurrence: args.occurrence, limit: 1 } }), refuses('validation'));
     const { pageReads: _binding, ...unboundOpts } = opts;
     void _binding;
