@@ -3823,7 +3823,7 @@ impl<'a> Emitter<'a> {
                 format!("[{}]", parts.join(","))
             }
             IrExpr::Object(entries) => {
-                let parts: Vec<String> = entries
+                let mut parts: Vec<String> = entries
                     .iter()
                     .map(|(k, v)| {
                         let value = self.lower_expr(v);
@@ -3834,6 +3834,34 @@ impl<'a> Emitter<'a> {
                         }
                     })
                     .collect();
+                if let ResolvedType::StdNominal { fields, .. } = &expr.ty {
+                    if crate::analysis::types::checked_standard_nominal_name(&expr.ty).is_none() {
+                        self.unsupported(
+                            "standard nominal literal",
+                            "missing exact owning schema",
+                            span,
+                        );
+                        return self.throw_expr("standard nominal literal schema");
+                    }
+                    for (name, ty) in fields {
+                        if entries.iter().any(|(key, _)| key == name) {
+                            continue;
+                        }
+                        let default = match ty {
+                            ResolvedType::Nullable(_) => "null",
+                            ResolvedType::Array { .. } => "[]",
+                            _ => {
+                                self.unsupported(
+                                    "standard nominal literal",
+                                    "missing required owning field",
+                                    span,
+                                );
+                                return self.throw_expr("standard nominal literal field");
+                            }
+                        };
+                        parts.push(format!("{}:{default}", object_key(name)));
+                    }
+                }
                 format!("{{{}}}", parts.join(","))
             }
             IrExpr::Query(query) => {

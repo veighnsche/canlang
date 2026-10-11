@@ -8588,3 +8588,22 @@ Authenticated standard event ingress, State commit/replay and File authority sta
 external, unfinished criteria; no full Inbox or whole-plan acceptance is claimed.
 
 Local original-ancestry integration424b959f: reuse the finite owner source review and458 affected passing outcomes/changed strict Clippy0. Coordinator checks exact IncomingEmail-only canonical name/12-field identity, generic/member traversal, exact sealed schema/publication refusals and original107 guard/create order. Source unit review CLEAR at this finite producer scope. The original native pure equality case remains explicitly unfinished until Compiler consumes the reviewed identical Values choose facade from0019835d and runs only that affected genuine source77f3eec7 case. C05 public producer/consumer completion is preserved; no verified ingress, File authority, full C06/application or hold acceptance.
+
+
+Current IncomingEmail qualification, 2026-10-11: complete the existing accepted
+nullable/array literal omission semantics only for exact checked IncomingEmail
+objects, appending null/[] after authored fields without reordering evaluation.
+Without these fields a typed literal disagreed with the complete canonical
+envelope used by the replay guard. The same untouched CLI/native pure case now
+proves this defaulted equality plus all12 fields, wrappers, generic selection,
+copy, datetime/File identity and strict malformed-input refusals.
+
+Reviewed containinge380 preserves424 ancestry and supplies Packagesffd's exact
+existing choose facade. Actual current CF graph22/22 uncached14.244s; current
+nominal target5/5 0.52s, zero failed/ignored/bodySKIP; existing454 affected checks
+reused, changed strict all-target Clippy0 7.10s, fmt/diff0. This satisfies only
+Compiler nominal identity/equality and genuine emitted schema/pure consumer
+correspondence. Dev/Interfaces still own the authenticated standard issuer,
+closed payload/cause/occurrence/trusted-null actor and native retained commit/
+replay. Pure File identity is not File authority; standard ingress E6008 and
+all human/recipient-specific holds remain. No whole-plan acceptance or publication.
