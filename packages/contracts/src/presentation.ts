@@ -20,7 +20,7 @@ import type {
 } from "./wire.js";
 import type { DeliveryStatus } from "./services.js";
 import type { HistoryEntry, Revision } from "./state.js";
-import type { UserRef } from "./values.js";
+import type { DatetimeValue, UserRef } from "./values.js";
 import type { ReceiptProperty } from "./work.js";
 
 /** Reused producer types, re-exported so lane-05 members import one contract file. */
@@ -169,6 +169,8 @@ export type PageChildren =
 
 /** Native source facts shared by page admission, discovery, and rendering. */
 export interface PageSourceContext {
+  /** Native Datetime from the trusted identity admission instant, shared by guards and rendering. */
+  readonly now: DatetimeValue;
   readonly actor: UserRef | null;
   readonly actorFacts: { readonly email: string; readonly email_verified: boolean } | null;
   readonly team: { readonly id: string; readonly timezone: string } | null;

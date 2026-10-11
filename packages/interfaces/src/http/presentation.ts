@@ -14,7 +14,7 @@
  * money rendering fails loudly without it rather than guessing.
  */
 import { DEFAULT_THEME, COLLECTION_FILTER_PREFIX, collectionFilterName } from '@canlang/contracts';
-import { makeUserRef } from '@canlang/values';
+import { decodeValue, makeUserRef } from '@canlang/values';
 import { createOperationFormPreparer } from './forms.js';
 import { buildBusinessError } from '../errors/envelope.js';
 import { systemInterfacesClock } from '../ports.js';
@@ -28,6 +28,7 @@ import type {
   ResolvedIdentity,
   RowQueryRunner,
   FilterCondition,
+  DatetimeValue,
 } from '@canlang/contracts';
 
 /** Bounds locator extraction only; the complete page query stays in polling state. */
@@ -133,6 +134,7 @@ export function buildPageSourceContext(identity: ResolvedIdentity): PageSourceCo
   const builtinRoles = ['public', ...(actor === null ? [] : ['authenticated']),
     ...(active ? ['members', ...(membership.is_owner ? ['owner'] : [])] : [])];
   return Object.freeze({
+    now: decodeValue('datetime', identity.admitted_at) as DatetimeValue,
     actor: actor === null ? null : makeUserRef(actor.user_id),
     actorFacts: actor === null ? null : Object.freeze({ email: actor.email, email_verified: actor.email_verified }),
     team: team === null ? null : Object.freeze({ id: team.team_id, timezone: team.timezone }),
@@ -165,9 +167,9 @@ function parseAcceptLanguage(header: string | null): readonly string[] {
 export function buildPresentationContext(
   input: BuildPresentationContextInput,
 ): PresentationContext {
-  // Source/identity facts cannot supply host configuration, including when the
-  // source object carries extra fields from another context.
-  const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory, ...source } =
+  // Source extras cannot override host configuration, native readers or the
+  // trusted identity admission instant shared with page guards and discovery.
+  const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory, now: _sourceNow, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
       Pick<PresentationContext, 'deploymentBase' | 'readHistory'>;
   const url = new URL(input.request.url);
@@ -185,6 +187,7 @@ export function buildPresentationContext(
   }
   const context: PresentationContext = {
     ...source,
+    now: decodeValue('datetime', input.principal.admitted_at) as DatetimeValue,
     canonical: Object.freeze({
       ...source.canonical,
       readRecords: input.readRecords ?? unavailablePageRecords,
