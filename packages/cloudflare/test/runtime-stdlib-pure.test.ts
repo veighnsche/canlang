@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { compileFunction, constants } from 'node:vm';
 import { ValueError, int64 as producerInt64, datetime as producerDatetime,
   compareInstant as producerCompareInstant } from '@canlang/values';
 import type { StoragePort } from '@canlang/contracts';
@@ -6,6 +9,28 @@ import { createContext } from '../src/runtime/context.js';
 import { app_url, int64, datetime, compareInstant } from '../src/runtime/stdlib.js';
 
 describe('runtime pure producer exports', () => {
+  it('exports strict choose through the actual installed named import', async () => {
+    const nativeImport = compileFunction('return import(url)', ['url'], {
+      importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+    }) as (url: string) => Promise<typeof import('@canlang/values')>;
+    const require = createRequire(import.meta.url);
+    const facadeUrl = pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href;
+    const source = `import { choose } from ${JSON.stringify(facadeUrl)}; export { choose };`;
+    const facade = await nativeImport(`data:text/javascript,${encodeURIComponent(source)}`);
+    const values = await nativeImport(pathToFileURL(require.resolve('@canlang/values')).href);
+    expect(facade.choose).toBe(values.choose);
+    const yes: Readonly<{ value: string }> = Object.freeze({ value: 'yes' });
+    const no: Readonly<{ value: string }> = Object.freeze({ value: 'no' });
+    expect(facade.choose(true, yes, no)).toBe(yes);
+    expect(facade.choose(false, yes, no)).toBe(no);
+    expect(facade.choose<unknown>(true, null, yes)).toBe(null);
+    for (const condition of [undefined, null, 0, 1, '', 'false', [], {}]) {
+      let thrown: unknown;
+      try { facade.choose(condition as boolean, yes, no); } catch (error) { thrown = error; }
+      expect(thrown).toBeInstanceOf(values.ValueError);
+      expect(thrown).toMatchObject({ kind: 'value', code: 'invalid-construction' });
+    }
+  });
   it('constructs app URLs only from the explicit host context', () => {
     const deps = { caller: { userId: 'u1', roles: [] }, store: {} as StoragePort };
     const c = createContext({ ...deps, deploymentBase: 'https://app.example/tenant/' });
