@@ -4,6 +4,7 @@ import type { DispatchClaimGuard } from '@canlang/work/kernel/commands';
 import { createReceiptJoinPort, RECEIPT_ASSOCIATION_MODEL, readAssociationRow, withAssociationRowData } from '@canlang/state/receipt/tables';
 import { decodeValue, equalValue, isDeliveryRef } from '@canlang/values';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
+import { enrollSystemCommandCommitCheck } from '@canlang/state';
 import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, dispatchGenerationTargetProfile,
@@ -317,7 +318,13 @@ async function createInstalledDispatcher(
       const outcome = args['outcome'];
       if (completion === undefined || typeof outcome !== 'object' || outcome === null) return staged;
       if (completion.control !== undefined) {
-        const extra = await stageGenerationControl(completion.intent, completion.control, ctx, (await options.store.readRevision()) + 1);
+        const acknowledging = staged.outboxAck?.includes(completion.intent.intentId) === true;
+        if (acknowledging && completion.intent.target.endsWith('.reconcile')) {
+          const admission = completion.control.admission;
+          enrollSystemCommandCommitCheck(ctx, () => admission.fence.revalidateAuthority());
+        }
+        const extra = await stageGenerationControl(completion.intent, completion.control, ctx,
+          (await options.store.readRevision()) + 1, acknowledging);
         return mergeStaging(staged, extra);
       }
       if (!staged.outboxAck?.includes(completion.intent.intentId)) return staged;
@@ -493,7 +500,7 @@ async function createInstalledDispatcher(
     ...(options.profile === 'images' ? { outputs: [], charged_jobs: null } : { content: '', used_tokens: null }),
   } as RichRunWire);
   const stageGenerationControl = async (control: OutboxIntent, observed: GenerationControlObservation,
-    ctx: SystemCommandContext, revision: number): Promise<SystemStaging> => {
+    ctx: SystemCommandContext, revision: number, acknowledging: boolean): Promise<SystemStaging> => {
     const current = await qualifyGenerationControl(control, observed.admission, ctx, observed.original.retained.intent.intentId);
     const original = current.original.retained.intent;
     const originalContext = current.originalContext;
@@ -524,6 +531,17 @@ async function createInstalledDispatcher(
           { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text'))) {
       staged = mergeStaging(staged, await stageRichProgress({ intent: original, context: originalContext,
         revision, progress, ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: observed.admission.fence.owner } }) }, ctx));
+    } else if (acknowledging && control.target.endsWith('.reconcile') && progressed !== undefined &&
+        progress !== undefined && current.receipt.status === 'succeeded' && current.receipt.result !== null &&
+        ['succeeded', 'failed', 'cancelled'].includes(progress.state) &&
+        sameRetainedEvidence({ kind: 'delivered', result: current.receipt.result },
+          { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text')) {
+      // A fresh acknowledged reconcile is a new source occurrence, while the
+      // immutable original provider snapshot keeps its receipt and sequence.
+      // The holding claim/recovery row and this one physical fence prevent the
+      // same control acknowledgement from publishing it twice.
+      staged = mergeStaging(staged,
+        await stageCheckedDeliveryProgress(progressed, original, observed.admission.fence.owner, ctx));
     }
     if (progress !== undefined) staged = mergeStaging(staged, await stageRichProgress({ intent: control,
       context: requireResultContext(control.intentId), revision, progress }, ctx));
@@ -868,7 +886,7 @@ async function createInstalledDispatcher(
             const admitted = options.profile === 'images' || rich && isGenerationControl(intent)
               ? await admitGenerationRecovery(intent, revision - 1) : undefined;
             const control = controlObservations.get(intentId);
-            if (control !== undefined) return stageGenerationControl(intent, control, context, revision);
+            if (control !== undefined) return stageGenerationControl(intent, control, context, revision, true);
             if (rich && isGenerationControl(intent)) {
               await qualifyGenerationControl(intent, input.admission!, context);
             }

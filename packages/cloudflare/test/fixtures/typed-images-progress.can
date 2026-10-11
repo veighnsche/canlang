@@ -11,6 +11,8 @@ When
  scenario progressed on=Images.submit.progressed
   do
    create ProgressNotice {delivery=event.delivery_id} as notice
+   for job in Job as row where row.request?.id==event.delivery_id limit=1
+    require job.label!="Reject callback"
    for job in Job as row where row.request?.id==event.delivery_id and row.label=="Cleanup" limit=1
     send Images.cancel {source=job.id,revision=job.revision} as cancellation
     set job {cancellation}
