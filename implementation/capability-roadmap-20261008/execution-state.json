@@ -1327,19 +1327,22 @@
       "title": "Test cancellation reuse in a second consumer",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
+      "state": "complete_at_original_two_consumer_cancellation_comparison",
+      "evidence": [
+        "implementation/capability-roadmap-20261008/execution-state.json#tasks/43/worker_update/validation",
+        "implementation/capability-roadmap-20261008/execution-state.json#tasks/43/worker_update/two_consumer_comparison"
+      ],
       "next_gate": [
         "SEQ-019",
         "SEQ-022"
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "implemented_tested_complete_native_two_consumer_component_review_and_broader_gates_open",
+        "state": "accepted_original_native_two_consumer_comparison_broader_app_provider_profiles_open",
         "owner": "Roadmap Work/Cloudflare/application producers and consumers; exact installed Text control observation policy belongs to Packages/Services. Original CanChat complete rule/attachment/current guard and real provider profiles retain Compiler/Dev/provider owners.",
         "implemented": "Existing Work/Cloudflare lifecycle recognizes exactly Images submit/cancel/reconcile and Text generate/cancel/reconcile. Actual bound Text adapter now resolves primitive source/revision controls against owning declarations, binding, TextRun result and installed profile; emits exact six-field correlation and a positive safe creation-anchored window. Dispatch/recovery forward the same host clock through its original input receiver, preserving method-based clock callbacks. Observation validates the retained original and bounds the entire live cancel/result/durable-progress/control-callback await by both persisted epoch and a fixed monotonic remaining budget. Timeout preserves original live cache and subsequent genuine success; recovery never repeats cancellation. No-handle exact Services no_run_resume is uncertainty with no synthetic progress/notices. Pending-stop, current owner/current association requalification, durable Work pinning and original terminal evidence reuse remain in the existing producer. Full native Text component is now tested. Generation-control qualification retries at most three complete current reads only for its private checkpoint-moved error; each attempt repeats guard, authority, original carrier/identity/correlation, current association and final checkpoint checks. The enclosing system commit retains its original expectedRevision; exhausted movement and all other refusals remain failures.",
         "validation": "Reviewed LOCAL6da0dd1d intaken atffbdbfa1; required State/CF emissions pass. SAME complete original compiled/nativeD1/localHTTP Text case initially fails31.57s at live cancellation control projection: original cancelled receipt is correct, control remains pending and Work uncertain. Temporary passive emitted-output diagnostics identify Generation cleanup admission changed during concurrent original Work acknowledgement; installed cancel takes1.6ms. No source/artifact/test/assertion changes. After bounded full-qualification retry and clean CF re-emission, SAME entire Text case1/1 passes48.22s and directly affected complete Images nativeD1/receivingSQLite/localHTTP case1/1 passes36.27s. Covers genuine provider progress, original source correlation, permissions/stale inputs, exact single owner/history/outbox/receipt effects, ordinary/retained replay, replacement, pending/claimed/live stops, terminal response loss/recovery, no-resume uncertainty, immutable expired control pin after reopen and genuine late success while durable progress stalls. Original .can SHAa075716ff96aab0517e07aaaaf2b80d1021daab3a433d703d831f07c77a9e7cf, artifact and entire test body are unchanged. Reuse current compiler bin/catalog and unchanged Work/Services/State producer scopes. Controlled local model/tokenizer and Memory Identity; native D1/receiving SQLite adapter reopen, not production provider/all-host/full CanChat acceptance.",
-        "prerequisite": "Statea4/Work7f/Dev5c+17072/Packages e3bf coherent reviewed LOCAL6da0dd1d and original complete Compiler Send/Set/intrinsic capture are consumed and native-component tested. Coordinator manual review of this exact new consumer unit remains required; checkpoints are not acceptance. Full original CanChat/CanCreative Task11 source-rule/current-context/attachment/guard qualification stays with Compiler/Contracts/Dev, and production model/account/tokenizer/profile qualification with Services/provider owners. Separate first-profile person fixture does not gate Text. LOCAL-only/manual/no-push holds remain.",
+        "prerequisite": "Statea4/Work7f/Dev5c+17072/Packages e3bf coherent reviewed LOCAL6da0dd1d and original complete Compiler Send/Set/intrinsic capture are consumed and native-component tested. Coordinator bounded source review55b and native/framework6da are complete; this original two-consumer criterion is accepted at its recorded frozen scope. Full original CanChat/CanCreative Task11 source-rule/current-context/attachment/guard qualification stays with Compiler/Contracts/Dev, and production model/account/tokenizer/profile qualification with Services/provider owners. Separate first-profile person fixture does not gate Text. LOCAL-only/manual/no-push holds remain.",
         "review_corrections": "Focused source review corrected unavailable-control suppression of original recovery and retained checked original contexts across concurrent acknowledgement. Recovery reserves one fresh observation per original per sweep; later controls reuse committed terminal evidence instead of staging stale-original observations.",
         "released_control_window_prerequisite": "Completed prerequisite: exact coordinator-reviewed eec2a044 includes Services56008fac. Existing installed immutable positive safe profile.maxDurationMs caps one distinct persisted control window from actual control-row creation. Work/Cloudflare retain original start/deadline without retry renewal and bound the whole remaining live await including durable progress; timeout is uncertainty, not provider cessation or generation renewal. Saved/late genuine success and restart unknown/no_run_resume/original delivery retained. No new Services ABI/timer; owning Services checks reused. Source capture and actual adapter adoption are released; complete original native Text component now passes. Broader original application/profile gates remain.",
         "released_native_capture_prerequisite": "Exact coordinator-reviewed LOCAL d392097e729355ba7f978066d86f5b1d15a8c6ea includes Compiler5aae8c18/ec3c2f50 original generate Send/Set closure, operation.id/job.version/prompt DATA and late accept CONTROL plus actual Dev eebec99e native facade. Exact tuple is taken onto preserved unfinished Text controls. Fresh current bin/catalog and unchanged .can --native-scenario-receipts emission plus entire original native D1/localHTTP body are required next; producer3/3 and Dev24/24/D1 owning results retain their reported scopes, not consumer acceptance.",
@@ -1350,7 +1353,9 @@
         "released_native_framework_adapter_prerequisite": "Exact reviewed LOCAL6da0dd1d11a3bad7afee7efb0eb5269df12d33af releases actual Dev5c native source-verified loader/Work profile binding, Send/current raw-row Delivery/finalizer and optional Dev17072 correction. Required output refresh and complete original native Text component now pass; exact consumer source55b7cc44 passed coordinator bounded manual review and broader original application gates remain.",
         "released_authored_delivery_bundle_prerequisite": "Packages e3bf613f in reviewed LOCAL6da0dd1d resolves bare State root import using genuine @canlang/state/receipt/authored-delivery public manifest leaf and existing finite vendor route; actual installed identity/link/deleted-leaf/workerdD1 cases2/2 reported pass, unchanged producer source/API/ledger. Reuse at that exact scope; no duplicate common repair or original bundle rerun before coherent intake.",
         "two_consumer_comparison": "Both source-authored consumers preserve exact source/revision/binding/deployment/app/owner/principal, current original association and explicit pending/claimed/live attempt identity. Both use immutable control-creation-anchored Work pins, finite observation windows, pending-stop fence, terminal receipt reuse and independent control receipts; shared finite retained lookup/qualification/staging remains ordinary code. Images has durable provider job identity and installed maxObservationDurationMs, finalizes receiving bytes under original provenance, and recovers by querying that job. Text reuses installed maxDurationMs as a distinct control-window ceiling, cancels only its actual live handle, awaits durable original progress, and fresh no_run_resume stays uncertain without synthetic progress. Unknown charged_jobs/used_tokens remain null; late genuine success survives expiry. No child-scope membership syntax or coordinator package is justified by these two consumers."
-      }
+      },
+      "previous_state": "not_started",
+      "accepted_outcome": "Declared SEQ-044 qualification accepted at the exact original Text/Images two-consumer stage: unchanged native Text D1/localHTTP1/1 in48.22s and affected Images D1/receivingSQLite1/1 in36.27s preserve actual actor/current association, unrelated/new-attempt refusal, pending/claimed/live stop, immutable creation-anchored observation windows, late genuine success, null unknown usage, response-loss/restart/no-resume uncertainty and no-execution terminal reuse. Exact consumer55b7cc44 and required framework/native6da0dd1d producer/adoption are reviewed and integrated; source comparison finds ordinary retained lookup/pin/staging sufficient, with no cancel_scope/child/coordinator abstraction. This retires only the original two-consumer comparison. Full CanChat/CanCreative, authentic production provider/account/tokenizer and other required parent profiles remain in their own rows; new native File declaration installation is a separate consumer, not an additional SEQ-044 requirement."
     },
     {
       "id": "SEQ-045",
@@ -1866,7 +1871,7 @@
       "status": "active_bounded_snapshot_probe"
     }
   ],
-  "updated_utc": "2026-10-09T18:04:15.421872Z",
+  "updated_utc": "2026-10-11T00:59:31.259190+00:00",
   "progress_reporting": {
     "user_requested": true,
     "format": "done / 63 after every finished roadmap task; report partial slices separately without incrementing full-task count",
@@ -1898,11 +1903,14 @@
       "SEQ-034",
       "SEQ-035",
       "SEQ-036",
+      "SEQ-041",
+      "SEQ-044",
       "SEQ-049",
+      "SEQ-050",
       "SEQ-055",
       "SEQ-056"
     ],
-    "done": 30,
+    "done": 33,
     "total": 63,
     "acceptance_rule": "A task counts when its declared deliverable/done_when and applicable stage/owner/original gates are accepted; bounded implementation substeps do not close parent tasks. Per-slice/conditional tasks retain their specific gates."
   },
