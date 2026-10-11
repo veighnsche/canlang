@@ -12379,6 +12379,13 @@ impl<'a> Cx<'a> {
         word: &str,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
+        if word == "details"
+            && ui_attributes(self.db, node)
+                .iter()
+                .any(|(name, _)| name == "display")
+        {
+            return self.decode_details_drawer(scope, node, row_ctx);
+        }
         self.check_ui_attributes(node, word, &["open", "id"]);
         if kids(node)
             .into_iter()
@@ -12428,6 +12435,93 @@ impl<'a> Cx<'a> {
             view: None,
             factory: "collapse".to_string(),
             props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Original record details use the released activated-body contract.
+    /// A selector conveys no grant: only the enclosing queried RowView owns
+    /// this body and its current row/parent aliases.
+    fn decode_details_drawer(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "details drawer", &["display"]);
+        let attributes = ui_attributes(self.db, node);
+        let owning = row_ctx.filter(|(model, row)| {
+            !scope.in_field_owner
+                && matches!(
+                    self.program
+                        .symbols
+                        .get(model.0 as usize)
+                        .map(|symbol| &symbol.kind),
+                    Some(SymbolKind::Model { .. })
+                )
+                && scope.name_types.get(row)
+                    == Some(&ResolvedType::Record {
+                        symbol: *model,
+                        stored: true,
+                    })
+                && scope.row_rewrite.get(row) == Some(row)
+        });
+        if owning.is_none()
+            || attributes.len() != 1
+            || !attributes.iter().all(|(name, value)| {
+                name == "display"
+                    && value.is_some_and(|value| display_text(self.db, value) == "drawer")
+            })
+            || kids(node)
+                .into_iter()
+                .any(|child| child.kind == SyntaxKind::Slot)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower details drawer: needs an owning queried record, only display=drawer and an ordinary body".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let (model, row) = owning?;
+        let caption = self.decode_single_ui_caption(scope, node, "details drawer")?;
+        let children = self.decode_ui_children(scope, node, Some((model, row.clone())));
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower details drawer: needs a nonempty body".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "detailsDrawer".to_string(),
+            props: vec![
+                ("caption".to_string(), caption),
+                (
+                    "model".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Text(self.canonical(model)),
+                        ResolvedType::Scalar(Scalar::Text),
+                        node.span,
+                    ),
+                ),
+                (
+                    "record".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Name(row),
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                        node.span,
+                    ),
+                ),
+            ],
             children,
             row_scope: None,
             gate: self.decode_gate(scope, node),
@@ -15882,8 +15976,8 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
-        // Row scope: the name the row children actually use (the `as`
-        // name when referenced, else `row`); mixed scopes stay loud.
+        // The collection owns one current row while retaining its named
+        // alias for descendants that establish another current row.
         let mut child_nodes: Vec<&SyntaxNode> = kids(node)
             .iter()
             .filter(|n| is_ui_node(n.kind))
@@ -16000,26 +16094,10 @@ impl<'a> Cx<'a> {
         let split = props.iter().any(|(name, value)| {
             name == "display" && matches!(&value.expr, IrExpr::Text(display) if display == "split")
         });
-        let mut uses_as = false;
-        let mut uses_row = false;
-        for child in &child_nodes {
-            let (child_as, child_row) = ui_row_refs(self.db, child, as_name.as_deref());
-            uses_as = uses_as || child_as;
-            uses_row = uses_row || child_row;
-        }
-        let row_name = match (as_name.clone(), uses_as, uses_row) {
-            (Some(alias), true, true) => {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower collection: row children mix the query alias with `row`"
-                        .to_string(),
-                    node.span,
-                ));
-                alias
-            }
-            (Some(alias), true, false) => alias,
-            _ => "row".to_string(),
-        };
+        // Both source spellings refer to this checked row. Use a named
+        // query alias as the actual binding so nested `row` shadowing cannot
+        // erase the enclosing explicit alias.
+        let row_name = as_name.clone().unwrap_or_else(|| "row".to_string());
         let row_ctx = model_id.map(|id| (id, row_name.clone()));
         // A collection scope ends field placement unless a nested owner
         // re-establishes it.
@@ -16041,6 +16119,9 @@ impl<'a> Cx<'a> {
             unowned
                 .row_rewrite
                 .insert(row_name.clone(), row_name.clone());
+            unowned
+                .row_rewrite
+                .insert("row".to_string(), row_name.clone());
         }
         let children: Vec<IrUi> = child_nodes
             .iter()
@@ -16460,63 +16541,6 @@ fn ui_attributes<'n>(db: &SourceDb, node: &'n SyntaxNode) -> Vec<(String, Option
             (name, value)
         })
         .collect()
-}
-
-/// Scan a row-child subtree for references to the query alias vs
-/// `row`. Nested collections bind their own row scope, so the scan
-/// descends into their queries/attributes but not their render children.
-fn ui_row_refs(db: &SourceDb, node: &SyntaxNode, alias: Option<&str>) -> (bool, bool) {
-    let mut uses_as = false;
-    let mut uses_row = false;
-    ui_row_refs_into(db, node, alias, true, &mut uses_as, &mut uses_row);
-    (uses_as, uses_row)
-}
-
-/// Recursive worker for [`ui_row_refs`].
-fn ui_row_refs_into(
-    db: &SourceDb,
-    node: &SyntaxNode,
-    alias: Option<&str>,
-    nested: bool,
-    uses_as: &mut bool,
-    uses_row: &mut bool,
-) {
-    match node.kind {
-        SyntaxKind::NameRef => {
-            if let Some(name) = kids(node).iter().find_map(|n| name_text(db, n)) {
-                if Some(name.as_str()) == alias {
-                    *uses_as = true;
-                }
-                if name == "row" {
-                    *uses_row = true;
-                }
-            }
-            return;
-        }
-        SyntaxKind::Member => {
-            // Only the base can be a row reference; fields are names.
-            if let Some(base) = kids(node).iter().find(|n| is_expression(n.kind)) {
-                ui_row_refs_into(db, base, alias, false, uses_as, uses_row);
-            }
-            return;
-        }
-        SyntaxKind::Collection if nested => {
-            // Own row scope: scan the query and attributes only.
-            for child in kids(node) {
-                if matches!(
-                    child.kind,
-                    SyntaxKind::Query | SyntaxKind::Attribute | SyntaxKind::MessageValue
-                ) {
-                    ui_row_refs_into(db, child, alias, false, uses_as, uses_row);
-                }
-            }
-            return;
-        }
-        _ => {}
-    }
-    for child in kids(node) {
-        ui_row_refs_into(db, child, alias, true, uses_as, uses_row);
-    }
 }
 
 /// Selector spellings of a `Selectors` value (`-field` keeps its minus).

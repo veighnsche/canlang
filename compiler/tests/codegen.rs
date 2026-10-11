@@ -562,10 +562,10 @@ fn golden_teamtasks_structure() {
         "unavailable filter option is refused"
     );
     assert!(
-        entry.contains("renderRow:async($can$l$313a726f77,$can$l$323a726f7756696577)=>"),
+        entry.contains("renderRow:async($can$l$313a7461736b,$can$l$323a726f7756696577)=>"),
         "protected edit preparation awaits inside the owning row scope"
     );
-    assert!(entry.contains(".prepareForm({operation:\"TeamTasks.Todo.update\",arguments:{record:$can$l$313a726f77},fields:[\"title\",\"done\",\"assignee\"]"),
+    assert!(entry.contains(".prepareForm({operation:\"TeamTasks.Todo.update\",arguments:{record:$can$l$313a7461736b},fields:[\"title\",\"done\",\"assignee\"]"),
         "bare task edit keeps its allowed update fields and excludes server-created fields");
     assert!(
         entry.contains("renderRow:async($can$l$333a726f77,$can$l$343a726f7756696577)=>")
