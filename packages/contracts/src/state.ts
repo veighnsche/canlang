@@ -842,6 +842,33 @@ export type FrameworkOpaqueDeliveryContext =
       readonly specification: FrameworkOpaqueJudgmentSpec; readonly order: ReadonlyArray<string>;
       readonly valueTypes: CanonicalValueTypes };
 
+/**
+ * Installed original provider profile, distinct from a request instance. Only
+ * the genuine checked Generation producer may select generation-profile; a
+ * provider/result name, tag or copied descriptor cannot establish eligibility.
+ * Preserve its complete canonical/artifact result, source, historical schema,
+ * raw defaults and original declaration-set/id correspondence. No per-request
+ * inventory install or fabricated static request is permitted.
+ *
+ * A generation-profile matches only the original runtime kind:generation
+ * context selected by that same declaration id, with exact canonical/artifact
+ * and source correspondence. Its request must come from the genuine retained
+ * SEND/frame/intent/association, including original binding/from and scope;
+ * completion retains its existing six-field Work correlation. String equality
+ * or this profile alone authenticates none of those facts. Validate that full
+ * relation even for pending/null/skipped, before any no-result early return or
+ * typed traversal. Rich result source/revision must match the original runtime
+ * request before traversing its values. Thread that verified existing origin;
+ * no additional raw request tuple or projection carrier is introduced.
+ *
+ * Existing capability, exact-request generation and Judgment profiles retain
+ * their full exact-context checks. Runtime origins never accept the static
+ * variant. Consumers without this relation must refuse it, never fall back.
+ */
+export type FrameworkOpaqueDeliveryProfile = FrameworkOpaqueDeliveryContext
+  | { readonly kind: 'generation-profile'; readonly canonical: CanonicalDeliveryDescriptor;
+      readonly artifact: Readonly<ArtifactDeliveryDescriptor> };
+
 /** Checked original SEND predicate occurrence and complete free lexical inputs.
  * These are the actual compiler/loader declaration, not a fabricated callable
  * signature or an execution verdict. Rule, source, owning callable, span,
@@ -866,7 +893,7 @@ export interface FrameworkOpaqueDeclaration {
         readonly callable: Readonly<ArtifactCallable> }
     | { readonly kind: 'event'; readonly source: ScenarioReceiptSourceOrigin; readonly event: string }
     | { readonly kind: 'delivery'; readonly source: ScenarioReceiptSourceOrigin;
-        readonly context: FrameworkOpaqueDeliveryContext }
+        readonly context: FrameworkOpaqueDeliveryProfile }
     | ({ readonly kind: 'send-guard' } & FrameworkOpaqueSendGuardDeclaration);
   readonly profile:
     | { readonly kind: 'inputs'; readonly canonical: ReadonlyArray<CanonicalInputDef>;
