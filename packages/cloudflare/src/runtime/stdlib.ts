@@ -71,7 +71,7 @@ export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, sele
 export {
   ValueError, int64, datetime, compareInstant, addDuration, abs, all, any, at, sum, join, trim, compareScalar, choose,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
-  date, add_days, compareDate,
+  date, add_days, compareDate, encodeValue,
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
