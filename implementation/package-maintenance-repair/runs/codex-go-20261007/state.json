@@ -2172,6 +2172,22 @@
               "holds": "Every precise native/security/timezone/payload/ingress/publication hold remains unchanged; local coherent commit only/no push."
             }
           }
+        },
+        "public_traversal_export": {
+          "status": "Existing mechanical public export implemented, resolution-tested once, source-reviewed and integrated in local main; Dev genuine consumer unfinished.",
+          "defining_release": "Coordinator released the existing Capability-owned binder/resolver through @canlang/state/storage only; preserve all existing exports, no algorithm, package subpath or profile change.",
+          "files": [
+            "packages/state/src/storage/index.ts"
+          ],
+          "exports": [
+            "bindOpaqueFileDeclarations",
+            "resolveOpaqueFileProjection",
+            "BoundOpaqueDeclarations"
+          ],
+          "contract": "Bind the complete ordered original canonical/artifact declaration pair and owning model validator, then resolve the actual selected declaration input wire. Existing frozen path/ref traversal facts convey no File admission, origin, disclosure or receiving authority.",
+          "verification": "State TypeScript emission exit0. One strict NodeNext virtual TypeScript consumer resolves both functions and BoundOpaqueDeclarations through @canlang/state/storage with zero diagnostics; dynamic public import resolves both functions and preserves prepareFrameworkFilePayloadOrigin. Reuse unchanged owning traversal controls; no runtime authority acceptance from this export.",
+          "remaining_owner": "Dev genuine installed event/callable declaration set, owning model validation, original receiving capture and current Files observations/authority; Compiler checked input pair; Capability durable original correspondence.",
+          "review": "Coordinator exact source review CLEAR: only two existing functions and existing BoundOpaqueDeclarations type re-exported; all prior exports retained. No algorithm, packageJSON/subpath/profile or authority change. Owner State emission and strict public TypeScript/runtime resolution results reused."
         }
       }
     },
