@@ -9912,3 +9912,24 @@ Coordinator reviewed defining source and genuine updated native diagnostic consu
 2026-10-11 — Native membership source lifetimes and supplied subject authority (implemented; original application join unfinished).
 
 Native membership source lifetime unit ede+79f+017 is independently reviewed CLEAR and integrated LOCAL main after deadline: actual State-issued call/read handles bind original owner/stage/source census, private fresh per-rule contexts and once-only arguments; copied/concurrent/closed/failed lifetimes refuse. Owner-frame installation preserves unevaluated no-Team branches; actual active_member still requires its verified live Team. Only an omitted third hasRole argument uses caller authority; every supplied undefined/null/foreign subject follows the source-read path and fails closed. Affected guard4/4 with zero store effects and changed complete callback witness native1/1 19257.48ms, CF emission/root0 are reused. Actual active_member/original Chat/Creative consumer remains unqualified pending exact logical-source/callable correspondence, fresh WHERE/query occurrence and coherent original field/ancestor consumer forwarding; Packages catalog availability remains external until genuine export qualification. No fallback or whole-plan acceptance.
+
+2026-10-11 — original query context and Create correspondence (implemented; native join unfinished).
+
+Native opt-in generated collection predicates accept the actual fresh sourceC
+supplied by the owning State/Dev query observation and shadow c inside the
+complete original predicate. There is no captured-root default or fallback.
+The private checked whereSource identity retains original source, owner, Bool
+node and outer statement; the owning native loader joins it to the existing
+complete source getter/census before execution. A shared helper node cannot
+select among multiple original where clauses. Generic and already qualified
+private Complete-query receipt contracts retain their existing ABI.
+
+Exact original Create target/input/when/binding/span and statement order now
+participate in decision-source semantic correspondence, enabling the authored
+create-before-guarded-SEND source without issuing any runtime authority. Consume
+only reviewed State c59a267a source-query observer/predicate corrections.
+Compiler134 distinct checks and State5 query controls pass; emitted getter
+consumption and syntax are direct checks. Native active_member availability,
+post-close guarded SEND and original application qualification remain required.
+
+Coordinator independent defining source review CLEAR. Finite source producer integrated LOCAL main after deadline; Dev binds fresh native contexts/actual verified factory before any original query acceptance. Existing current State projection and other worker edits preserved, scoped results reused, complete checkpoint unchanged.

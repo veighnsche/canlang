@@ -743,6 +743,177 @@ fn actual_ir_decisions_join_defaults_and_refuse_corrupt_proofs() {
 }
 
 #[test]
+fn create_before_membership_and_guarded_send_preserves_sources_and_refuses_create_edits() {
+    use canlang_compiler::codegen::{
+        ir::{self, IrExpr, IrItemKind, IrStmt},
+        scenario_decisions::{collect_decision_sources, serialize_decision_sources},
+    };
+    let source = "app CreateDecision\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\n Entry {person:user,label:text}\n Other {person:user,label:text}\n derive member(person:user?):bool=person!=null and active_member(person,team)\n policy Entry read=members\n policy Other read=members\nWhen\n crud Entry by=members fields=person,label when=true\n scenario run(person:user) by=members\n  require member(person)\n  do\n   create Entry {person,label=\"retained\"} as entry\n   if member(entry.person)\n    send LLM.cancel {revision=1,source=entry.label} when=member(entry.person) as stop\nThen\n";
+    let (db, initial, diagnostics) = check(&[("create-decision.can", source)]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(initial.checked_files()[0], 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, initial.checked_files(), catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "CreateDecision.run")
+        .unwrap()
+        .id;
+    let sites = collect_decision_sources(
+        &program,
+        &lowered,
+        &lowered.items[owner.0 as usize],
+        &db,
+        catalog.as_ref(),
+    )
+    .unwrap();
+    assert_eq!(
+        sites.iter().map(|site| site.stage).collect::<Vec<_>>(),
+        vec![
+            CheckedDecisionStage::LeadingRequire,
+            CheckedDecisionStage::BodyCondition,
+            CheckedDecisionStage::SendDispatch,
+        ]
+    );
+    assert_eq!(sites[1].position, vec![CheckedDecisionPosition::Body(1)]);
+    assert_eq!(
+        sites[2].position,
+        vec![
+            CheckedDecisionPosition::Body(1),
+            CheckedDecisionPosition::Then(0)
+        ]
+    );
+    for site in &sites {
+        assert_eq!(site.calls.len(), 2);
+        assert!(
+            matches!(&site.calls[1].target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "active_member")
+        );
+        assert_eq!(site.calls[1].chain.len(), 1);
+        assert_eq!(site.source.path, "create-decision.can");
+        assert_eq!(
+            site.source.sha256,
+            canlang_compiler::source::sha256_hex(source.as_bytes())
+        );
+    }
+    let serialized = serialize_decision_sources(
+        &program,
+        &lowered,
+        &lowered.items[owner.0 as usize],
+        &db,
+        catalog.as_ref(),
+    )
+    .unwrap();
+    assert_eq!(serialized[2].stage, "send-dispatch");
+    let IrItemKind::Scenario { effects, .. } = &lowered.items[owner.0 as usize].kind else {
+        panic!()
+    };
+    let IrStmt::Create {
+        model,
+        when,
+        binding,
+        ..
+    } = &effects[0]
+    else {
+        panic!()
+    };
+    assert_eq!(model, "CreateDecision.Entry");
+    assert!(when.is_some());
+    assert_eq!(binding.as_deref(), Some("entry"));
+    for mutation in 0..12 {
+        let mut changed = lowered.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+            panic!()
+        };
+        if mutation == 10 {
+            effects.swap(0, 1);
+        } else if mutation == 11 {
+            let IrStmt::If { then_branch, .. } = &mut effects[1] else {
+                panic!()
+            };
+            let IrStmt::Send { args, .. } = &mut then_branch[0] else {
+                panic!()
+            };
+            let IrExpr::Object(fields) = &mut args.expr else {
+                panic!()
+            };
+            fields[0].1.expr = IrExpr::Int(2);
+        } else {
+            let IrStmt::Create {
+                model,
+                input,
+                when,
+                binding,
+                span,
+            } = &mut effects[0]
+            else {
+                panic!()
+            };
+            match mutation {
+                0 => *model = "CreateDecision.Other".into(),
+                1 => {
+                    let IrExpr::Object(fields) = &mut input.expr else {
+                        panic!()
+                    };
+                    fields[1].0 = "edited".into();
+                }
+                2 => {
+                    let IrExpr::Object(fields) = &mut input.expr else {
+                        panic!()
+                    };
+                    fields[1].1.expr = IrExpr::Text("edited".into());
+                }
+                3 => {
+                    input.ty = canlang_compiler::analysis::ResolvedType::Scalar(
+                        canlang_compiler::analysis::Scalar::Bool,
+                    )
+                }
+                4 => input.span.start += 1,
+                5 => *when = None,
+                6 => *when = Some("Other.create.when".into()),
+                7 => *binding = None,
+                8 => *binding = Some("edited".into()),
+                _ => span.start += 1,
+            }
+        }
+        assert!(
+            collect_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "create/owner mutation {mutation}"
+        );
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                catalog.as_ref()
+            )
+            .is_none(),
+            "serialized create/owner mutation {mutation}"
+        );
+    }
+}
+
+#[test]
 fn named_page_query_predicates_keep_original_transitive_sites_and_refuse_render_edits() {
     use canlang_compiler::codegen::{
         ir::{self, IrCallTarget, IrExpr, IrItemKind},

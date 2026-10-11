@@ -1515,8 +1515,10 @@ fn emit_program_with_sources(
     membership: Option<&super::membership::MembershipSources>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    emitter.native_source_predicates = native_receipts;
     if let Some(membership) = membership {
         emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
+        emitter.membership_predicates = membership.predicates(ir).cloned().unwrap_or_default();
     }
     if let Some(db) = db {
         if ir.committed_sources.has_standard_value_inventory_fact() {
@@ -2394,6 +2396,8 @@ pub struct Emitter<'a> {
     prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
     membership_calls: HashMap<Span, serde_json::Value>,
+    membership_predicates: HashMap<Span, serde_json::Value>,
+    native_source_predicates: bool,
 }
 
 struct OriginalUiRow {
@@ -2465,6 +2469,8 @@ impl<'a> Emitter<'a> {
             prepared_query_receipts: std::collections::HashSet::new(),
             query_capture: None,
             membership_calls: HashMap::new(),
+            membership_predicates: HashMap::new(),
+            native_source_predicates: false,
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -5263,7 +5269,13 @@ impl<'a> Emitter<'a> {
                     let row = self.bind("row");
                     let body = self.lower_expr(pred);
                     self.exit_scope();
-                    if query.where_async {
+                    if self.native_source_predicates {
+                        let prefix = if query.where_async { "async" } else { "" };
+                        opts.push(format!("where:{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"));
+                        if let Some(source) = self.membership_predicates.get(&pred.span) {
+                            opts.push(format!("whereSource:{}", descriptor_json(source)));
+                        }
+                    } else if query.where_async {
                         opts.push(format!("where:async({row})=>{body}"));
                     } else {
                         opts.push(format!("where:({row})=>{body}"));
@@ -6987,6 +6999,20 @@ impl<'a> Emitter<'a> {
                     js_string(operation),
                     js_string(field)
                 )
+            } else if self.native_source_predicates
+                && key == "where"
+                && let IrExpr::Lambda { param, body } = &value.expr
+            {
+                self.enter_scope();
+                let row = self.bind(param);
+                let text = self.lower_expr(body);
+                self.exit_scope();
+                let prefix = if crate::codegen::ir::expr_uses_async(body) {
+                    "async"
+                } else {
+                    ""
+                };
+                format!("{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {text};}}")
             } else if node.factory == "history" && key == "record" {
                 original_history_row
                     .clone()
@@ -6996,6 +7022,19 @@ impl<'a> Emitter<'a> {
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
             };
+            if self.native_source_predicates
+                && key == "where"
+                && let IrExpr::Lambda { body, .. } = &node
+                    .props
+                    .iter()
+                    .find(|(name, _)| name == key)
+                    .expect("current prop")
+                    .1
+                    .expr
+                && let Some(source) = self.membership_predicates.get(&body.span)
+            {
+                props.push(format!("whereSource:{}", descriptor_json(source)));
+            }
             // Source rows retain native BigInt versions. The delete form owns
             // a wire MutationRef, so capture its row once and encode only the
             // protected identity/version at this presentation boundary.

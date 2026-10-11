@@ -11,6 +11,7 @@ use super::ir::IrProgram;
 /// Private prepared input. Raw IR cannot invent membership source identities.
 pub(super) struct MembershipSources {
     calls: HashMap<Span, serde_json::Value>,
+    predicates: HashMap<Span, serde_json::Value>,
     pub sites: BTreeMap<String, serde_json::Value>,
     closure: String,
 }
@@ -33,6 +34,10 @@ fn closure(ir: &IrProgram) -> String {
 impl MembershipSources {
     pub fn calls(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
         (self.closure == closure(ir)).then_some(&self.calls)
+    }
+
+    pub fn predicates(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
+        (self.closure == closure(ir)).then_some(&self.predicates)
     }
 }
 
@@ -140,9 +145,20 @@ pub(super) fn prepare(
         }
     }
     let mut pages = BTreeMap::<String, Vec<_>>::new();
+    let mut predicates = HashMap::new();
     for site in
         super::scenario_decisions::serialize_read_predicate_sources(program, ir, db, Some(catalog))?
     {
+        let file = db.iter().find(|(_, file)| file.path == site.source.path)?.0;
+        let identity = serde_json::json!({
+            "source":site.source,"owner":site.owner,"node":site.node,"statement":site.statement,
+        });
+        if predicates
+            .insert(Span::new(file, site.node.start, site.node.end), identity)
+            .is_some()
+        {
+            return None;
+        }
         pages.entry(site.owner.clone()).or_default().push(site);
     }
     for (owner, source) in pages {
@@ -155,6 +171,7 @@ pub(super) fn prepare(
     }
     Some(MembershipSources {
         calls,
+        predicates,
         sites,
         closure: closure(ir),
     })
