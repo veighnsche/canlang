@@ -31,9 +31,24 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         .collect::<Vec<_>>();
     let mut edits = std::collections::BTreeMap::new();
     let mut disclosures = 0;
+    let mut date_controls = 0;
     while let Some(node) = pending.pop() {
         pending.extend(&node.children);
         let authored = &original[node.span.start as usize..node.span.end as usize];
+        if node.factory == "form" && node.props.iter().any(|(key, value)| key == "operation"
+            && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.ClosedDay.create")) {
+            let calendar = node.children.iter().find(|child| child.factory == "calendar")
+                .expect("original ClosedDay calendar reaches the prepared form");
+            date_controls += 1;
+            assert!(calendar.props.iter().any(|(key,value)| key == "kind"
+                && matches!(&value.expr, IrExpr::Text(value) if value == "field")));
+            assert!(calendar.props.iter().any(|(key,value)| key == "field"
+                && matches!(&value.expr, IrExpr::Text(value) if value == "day")));
+            assert_eq!(original[calendar.span.start as usize..calendar.span.end as usize].trim(), "calendar day");
+            assert!(calendar.children.is_empty());
+            assert!(!diagnostics.iter().any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic.primary.start >= calendar.span.start && diagnostic.primary.end <= calendar.span.end));
+        }
         if node.factory == "collapse" && authored.contains("Appointment coordination") {
             disclosures += 1;
             let caption = &node
@@ -138,6 +153,7 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
         disclosures, 2,
         "both original view uses retain their authored disclosure: {diagnostics:?}"
     );
+    assert_eq!(date_controls, 1, "original date control occurs once");
     assert!(
         !diagnostics
             .iter()
@@ -168,6 +184,66 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                     .contains("checkbox active")),
         "Calendar edit body remains unsupported: {diagnostics:?}"
     );
+}
+
+#[test]
+fn owned_date_calendar_reaches_the_complete_installed_form_control() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/view-reuse.can")
+        .replace(" Detail in Card", " Holiday {note:text label=\"Authored note\",day:date=date(\"2030-01-02\") label=\"Holiday day\"}\n Detail in Card")
+        .replace(" crud Detail", " crud Holiday by=public fields=note,day\n crud Detail")
+        .replace("form save fields=note display=inline\n   input note", "form Holiday.create fields=note,day display=inline\n   input note\n   calendar day");
+    let input = scratch.path().join("date-control.can");
+    let compile = |source: &str| {
+        std::fs::write(&input, source).unwrap();
+        Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap()
+    };
+    let compiled = compile(&source);
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    let consumer = Command::new("node")
+        .arg(root.join("implementation/compiler-completion/view-reuse/consumer.mjs"))
+        .arg(root)
+        .arg(&artifact)
+        .arg(scratch.path().join("staged"))
+        .arg("calendar")
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        consumer.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&consumer.stdout),
+        String::from_utf8_lossy(&consumer.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumer.stdout));
+    for (name, refused) in [
+        ("wrong-type", source.replace("day:date=date(\"2030-01-02\")", "day:text=\"2030-01-02\"")),
+        ("not-selected", source.replace("form Holiday.create fields=note,day", "form Holiday.create fields=note")),
+        ("not-writable", source.replace("crud Holiday by=public fields=note,day", "crud Holiday by=public fields=note")),
+        ("no-form", source.replace("form Holiday.create fields=note,day display=inline\n   input note\n   calendar day", "calendar day")),
+        ("endpoint", source.replace("calendar day", "calendar day start=day")),
+        ("body", source.replace("calendar day", "calendar day\n    text \"invalid\"")),
+    ] {
+        let output = compile(&refused);
+        assert_eq!(output.status.code(), Some(10), "{name}: {}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(!artifact["diagnostics"].as_array().unwrap().is_empty(), "{name}");
+        assert!(artifact.get("modules").is_none(), "{name}: refused source cannot publish");
+    }
 }
 
 #[test]

@@ -4344,6 +4344,9 @@ struct Scope {
     /// field-placement controls need one. Collections reset it (their
     /// scope ends field placement unless nested under another owner).
     in_field_owner: bool,
+    /// Exact operation and selected input names of the enclosing prepared form.
+    field_operation: Option<SymbolId>,
+    form_fields: Option<Vec<String>>,
     /// Whether decoding sits inside a pre-commit hook body (T31 Rule A).
     /// Contextual values lower only in the private native candidate pass,
     /// which is returned after the complete owner-policy profile qualifies.
@@ -4361,6 +4364,8 @@ impl Scope {
             sequence_lets: HashSet::new(),
             name_types: HashMap::new(),
             in_field_owner: false,
+            field_operation: None,
+            form_fields: None,
             in_hook: false,
         }
     }
@@ -10892,6 +10897,7 @@ impl<'a> Cx<'a> {
             "input" | "textarea" | "radio" | "select" => {
                 Some(self.decode_field_control(scope, node, word, row_ctx))
             }
+            "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "hero" => self.decode_compact_hero(scope, node, row_ctx),
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
@@ -11040,6 +11046,69 @@ impl<'a> Cx<'a> {
     /// selector names an existing writable input of the nearest owning
     /// form, so it lowers to a `field` selector string, never a value.
     /// Controls outside a field owner stay loud `E6008`.
+    /// Only the original form-owned date field production, never an agenda.
+    fn decode_date_calendar(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "calendar", &[]);
+        let headers: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|child| is_expression(child.kind))
+            .collect();
+        let selector = match headers.as_slice() {
+            [header] => selector_spelling(self.db, header),
+            _ => None,
+        };
+        let owned_date = selector.as_ref().is_some_and(|selector| {
+            if !scope.in_field_owner || !scope.form_fields.as_ref().is_some_and(|fields| fields.contains(selector)) {
+                return false;
+            }
+            let Some(op) = scope.field_operation else { return false; };
+            let Some(data) = self.program.effects.crud_ops.get(&op) else { return false; };
+            if data.op != op || !matches!(data.operation, CrudOp::Create | CrudOp::Update)
+                || !self.program.effects.cruds.get(&data.crud_decl).is_some_and(|crud| {
+                    crud.crud == data.crud_decl && crud.model == data.model && crud.ops.contains(&op)
+                        && match data.operation { CrudOp::Create => crud.create, CrudOp::Update => crud.update, CrudOp::Delete => false }
+                })
+                || !matches!(self.program.symbols.get(op.0 as usize).map(|symbol| &symbol.kind), Some(SymbolKind::CrudOp { model, op: operation }) if *model == data.model && *operation == data.operation)
+                || !self.default_form_fields(op).is_some_and(|fields| fields.contains(selector)) {
+                return false;
+            }
+            self.program.effects.models.get(&data.model).is_some_and(|model| model.fields.iter().any(|field| {
+                self.program.symbols.get(field.field.0 as usize).is_some_and(|symbol| {
+                    symbol.name == *selector && matches!(symbol.kind, SymbolKind::Field { owner, .. } if owner == data.model)
+                        && self.program.types.symbol_types.get(&symbol.id) == Some(&ResolvedType::Scalar(Scalar::Date))
+                })
+            }))
+        });
+        if !owned_date
+            || !ui_attributes(self.db, node).is_empty()
+            || kids(node)
+                .into_iter()
+                .any(|child| is_ui_node(child.kind) || child.kind == SyntaxKind::MessageValue)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower calendar: only a body-free owned date input with no options is supported".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let mut control = self.decode_field_control(scope, node, "calendar", row_ctx);
+        control.props.push((
+            "kind".to_string(),
+            TypedExpr::new(
+                IrExpr::Text("field".to_string()),
+                ResolvedType::Scalar(Scalar::Text),
+                node.span,
+            ),
+        ));
+        Some(control)
+    }
+
     fn decode_field_control(
         &mut self,
         scope: &Scope,
@@ -12437,6 +12506,23 @@ impl<'a> Cx<'a> {
         // The form owns field placement for its suite.
         let mut owned = scope.clone();
         owned.in_field_owner = true;
+        owned.field_operation = operation_target;
+        owned.form_fields =
+            props
+                .iter()
+                .find(|(name, _)| name == "fields")
+                .and_then(|(_, fields)| {
+                    let IrExpr::Array(fields) = &fields.expr else {
+                        return None;
+                    };
+                    fields
+                        .iter()
+                        .map(|field| match &field.expr {
+                            IrExpr::Text(name) => Some(name.clone()),
+                            _ => None,
+                        })
+                        .collect()
+                });
         let children = self.decode_ui_children(&owned, node, row_ctx);
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
@@ -13024,6 +13110,8 @@ impl<'a> Cx<'a> {
         // re-establishes it.
         let mut unowned = scope.clone();
         unowned.in_field_owner = false;
+        unowned.field_operation = None;
+        unowned.form_fields = None;
         if let Some(model) = model_id {
             // The collection's checked element owns this lexical row slot;
             // a surrounding view's host type must not leak into its children.

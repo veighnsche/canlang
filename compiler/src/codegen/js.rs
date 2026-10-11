@@ -1770,6 +1770,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "badge"
             | "breadcrumbs"
             | "button"
+            | "calendar"
             | "card"
             | "chatBubble"
             | "collapse"
@@ -1844,6 +1845,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "input" | "textarea" | "radio" | "select" => {
             matches!(key, "field" | "tone" | "size" | "variant")
         }
+        "calendar" => matches!(key, "field" | "kind"),
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
         "hero" => key == "caption",
         "join" => matches!(key, "id" | "orientation" | "variant"),
@@ -1991,7 +1993,10 @@ fn collect_form_usages(node: &IrUi, page: &str, out: &mut Vec<FormUsage>) {
 
 /// Writable selector controls currently admitted by the source lowering.
 fn is_form_field_control(factory: &str) -> bool {
-    matches!(factory, "input" | "textarea" | "radio" | "select")
+    matches!(
+        factory,
+        "input" | "textarea" | "radio" | "select" | "calendar"
+    )
 }
 
 /// Collect actual controls owned by this form, preserving authored traversal.
@@ -6215,6 +6220,19 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
         }
+        if node.factory == "calendar"
+            && (prepared_form.is_none()
+                || !node.children.is_empty()
+                || form_prop_text(node, "kind").as_deref() != Some("field")
+                || form_prop_text(node, "field").is_none())
+        {
+            self.unsupported(
+                "calendar UI control",
+                "only an owned prepared date field control lowers",
+                node.span,
+            );
+            return self.throw_expr("unsupported calendar profile");
+        }
         for (key, value) in &node.props {
             if !ui_prop_is_admitted(&node.factory, key) {
                 self.unsupported(
@@ -6227,6 +6245,9 @@ impl<'a> Emitter<'a> {
             let typed = match key.as_str() {
                 "page" if matches!(node.factory.as_str(), "list" | "table") => {
                     matches!(value.expr, IrExpr::Bool(true))
+                }
+                "kind" | "field" if node.factory == "calendar" => {
+                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
                 "caption" | "title" | "text" | "label" => matches!(

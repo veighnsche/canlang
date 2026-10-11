@@ -4,7 +4,10 @@ import {registerHooks} from 'node:module';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
-const [root, artifactPath, scratch] = process.argv.slice(2);
+const [root, artifactPath, scratch, profile] = process.argv.slice(2);
+const dateControl = profile === 'calendar';
+const unboundOperation = dateControl ? 'ViewReuse.Holiday.create' : 'ViewReuse.save';
+const unboundMode = dateControl ? 'create' : 'scenario';
 registerHooks({resolve(specifier, context, next) {
   if (specifier.startsWith('.') && specifier.endsWith('.js') && context.parentURL?.endsWith('.ts')) {
     const candidate = new URL(specifier.slice(0, -3) + '.ts', context.parentURL);
@@ -85,7 +88,7 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     assert.ok(!html.includes('action="/api/operations/ViewReuse.Detail.update"'));
     assert.ok(!html.includes('action="/api/operations/ViewReuse.bind_card"'));
     assert.ok(!html.includes('name="form_binding"'), 'unavailable protected forms cannot publish a seal');
-    assert.equal(html.split('action="/api/operations/ViewReuse.save"').length - 1, 2,
+    assert.equal(html.split(`action="/api/operations/${unboundOperation}"`).length - 1, 2,
       'unbound forms remain available when protected forms refuse');
     return {context, queries, html};
   }
@@ -123,20 +126,34 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
   const forms = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/g)].map(match => match[0]);
   assert.equal(forms.length, hasDetails ? 10 : 6, 'each show renders its actual unbound, bound action and row edit forms');
   const operationForms = operation => forms.filter(form => attributes(form.split('>')[0]).action === '/api/operations/'+operation);
-  const unbound = operationForms('ViewReuse.save');
+  const unbound = operationForms(unboundOperation);
   assert.equal(unbound.length, 2);
   const inputIds = unbound.map(form => {
     const inputs = [...form.matchAll(/<input\b[^>]*>/g)].map(match => attributes(match[0]));
-    const note = inputs.filter(input => input.name === ui.fieldInputName('scenario', 'note'));
+    const note = inputs.filter(input => input.name === ui.fieldInputName(unboundMode, 'note'));
     assert.equal(note.length, 1, 'authored input note reaches the installed form preparer/factory once');
     assert.ok(note[0].id?.startsWith('operation-form-source-'), 'form uses a checked source occurrence prefix');
     const labels = [...form.matchAll(/<label\b[^>]*>[\s\S]*?<\/label>/g)];
     const label = labels.find(match => attributes(match[0].split('>')[0])['for'] === note[0].id);
     assert.ok(label, 'declaration label targets its actual input');
     assert.ok(label[0].includes('Authored note'), 'native catalog preserves the parameter declaration label');
+    if (dateControl) {
+      const metadata = JSON.parse(decodeAttribute(attributes(form.split('>')[0])['data-can-generated-form']));
+      assert.equal(metadata.derived.operation, 'ViewReuse.Holiday.create');
+      assert.deepEqual(metadata.renderedInputs, ['note', 'day'], 'authored input and calendar keep their complete owning order');
+      const dates = inputs.filter(input => input.name === ui.fieldInputName('create', 'day'));
+      assert.equal(dates.length, 1, 'authored calendar moves the date input without duplication');
+      assert.equal(dates[0].type, 'date');
+      assert.equal(dates[0].value, '2030-01-02', 'date declaration default reaches the native control unchanged');
+      assert.ok(dates[0].id.startsWith('operation-form-source-'));
+      assert.ok(form.includes(`for="${dates[0].id}"`), 'date label targets its actual native input');
+      assert.ok(form.includes('Holiday day'));
+      assert.ok(html.indexOf(`id="${note[0].id}"`) < html.indexOf(`id="${dates[0].id}"`));
+      return [note[0].id, dates[0].id];
+    }
     return note[0].id;
   });
-  assert.equal(new Set(inputIds).size, 2, 'same-operation shows have distinct form controls');
+  assert.equal(new Set(inputIds.flat()).size, dateControl ? 4 : 2, 'same-operation shows have distinct form controls');
   const editIdentities = {};
   const editControlIds = {};
   for (const [operation, row, expectedCount, fields] of [
