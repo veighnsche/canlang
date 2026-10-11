@@ -3402,8 +3402,8 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
     if (def === undefined || !plan?.queries?.length) continue;
     const bind = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
-    if (bind === undefined || loaded.valueSchema === undefined) {
-      throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer and owning Values schema.');
+    if (bind === undefined) {
+      throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer.');
     }
     const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
       entry.module === plan.source.module);
