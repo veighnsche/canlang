@@ -10037,3 +10037,35 @@ and current read/subject-role authority remain native-owner prerequisites.
 Generic emission and raw public IR do not issue these markers.
 
 Coordinator review CLEAR at the defining Compiler producer scopes; integrated locally after deadline with retained affected results. Callable identity and SEND metadata grant no native authority. Dev/State actual source and post-close dispatch consumers remain unfinished; complete checkpoint and exact holds remain.
+
+## 2026-10-11 — Public portable Work intent producer (implemented; Dev consumer unfinished)
+
+Expose the existing WebCrypto producer directly as @canlang/work/intent/staging,
+with its owning declarations. The v1 preimage, UTF-8/hash behavior, frozen-input
+capture and uncommitted staging semantics stay identical. Await
+deriveOutboxIdAsync in portable consumers. The demonstrated Dev744 callback
+bundle blocker needs this exact leaf, not a second hashing implementation.
+
+The shared bundle resolves the public export, deduplicates its existing staged
+closure and maps runtime/vendor imports to vendor/work/intent/staging.js. Node
+intent and unselected Work root imports retain their refusals. Twelve owning
+intent controls, both owning emissions and six affected bundle controls pass,
+including complete genuine producer bytes, missing closure and Node refusal.
+The added portable cases exceeded the existing large matrix time budget; split
+them into two finite cases and rerun only changed/failed cases with every prior
+assertion and timeout retained. Dev owns actual callback adoption, awaiting the
+producer and preserving the original revision/source fences, then its native
+qualification. No wider runtime acceptance or release of holds follows.
+
+## 2026-10-11 — Work callback fence-class bundle edge (implemented; Dev consumer unfinished)
+
+Dev's actual callback bundle fails on the genuine Work producer's public
+@canlang/state/storage/port import. Add its exact vendor relocation to the
+existing staged State port; preserve one defining FenceConflictError class,
+root/Node refusals and source/revision fences. Cloudflare emission and two
+affected runtime/vendor mapping controls pass, including complete public State
+bytes, missing-entry refusal and whole-map links/loadability. Reuse unchanged
+intent/root/receipt controls. Dev owns retrying its failed layout and original
+native/provider workflow; no feature duplication, parent acceptance or hold lift.
+
+Coordinator finite source review CLEAR: exact existing public producer and single defining State fence class are relocated without root/Node relaxation. Owning public12, affected runtime/vendor controls and normal emission reused. Integrated LOCAL main after deadline; Dev consumed exact prerequisites, original callback/Office acceptance remains separate.

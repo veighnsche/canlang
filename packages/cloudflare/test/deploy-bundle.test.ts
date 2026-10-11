@@ -953,6 +953,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       ["@canlang/work/receipt", "vendor/work/receipt/index.js"],
       ["@canlang/work/observation/observation", "vendor/work/observation/observation.js"],
       ["@canlang/work/observation/association", "vendor/work/observation/association.js"],
+      ["@canlang/work/intent/staging", "vendor/work/intent/staging.js"],
     ] as const;
     const producers = [];
     for (const [specifier, key] of owners) {
@@ -1016,6 +1017,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       "vendor/work/kernel/committed-model-source.js",
       "vendor/work/kernel/file-reference-inventory.js",
       "vendor/work/kernel/opaque-file-resolver.js",
+      "vendor/work/intent/staging.js",
       "vendor/state/storage/opaque-file-declarations.js",
       "vendor/state/storage/file-retirement.js",
       "vendor/work/receipt/index.js",
@@ -1029,6 +1031,48 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       const missing = { ...bundle.modules };
       delete missing[key];
       expect(() => assertLinksResolve(missing)).toThrow(/no such staged module/);
+    }
+  });
+
+  it.each(["runtime", "vendor"] as const)("links %s portable intent and State fence imports and refuses the Node intent entry", async (kind) => {
+    const runtime = dirname(resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build"));
+    const fixture = kind === "runtime" ? mkdtempSync(join(tmpdir(), "can-work-intent-import-")) : undefined;
+    if (fixture !== undefined) {
+      for (const entry of readdirSync(runtime).filter(name => name.endsWith(".js"))) {
+        writeFileSync(join(fixture, entry), readFileSync(join(runtime, entry)));
+      }
+    }
+    const workDistribution = await import("@canlang/work/distribution");
+    const target = fixture === undefined
+      ? new URL("kernel/committed-model-source.js", workDistribution.distribution.modules)
+      : join(fixture, "context.js");
+    const original = readFileSync(target);
+    const key = kind === "runtime" ? "runtime/context.js" : "vendor/work/kernel/committed-model-source.js";
+    const options = { repoRoot, ...(fixture === undefined ? {} : { runtimeDistDir: fixture }), verdict: ACTIVE_VERDICT };
+    try {
+      // Only the import carrier is overlaid; the staged intent body is the
+      // genuine public producer. Dev owns the actual callback consumer.
+      const stagingImport = 'import { deriveOutboxIdAsync } from "@canlang/work/intent/staging";';
+      const fenceImport = 'import { FenceConflictError } from "@canlang/state/storage/port";';
+      writeFileSync(target, `${original.toString("utf8")}\n${stagingImport}\n${fenceImport}\nexport const importFormControl = [deriveOutboxIdAsync, FenceConflictError];\n`);
+      const bundle = buildDeployBundle(testArtifact(), options);
+      const edges = scanModuleImports(bundle.modules[key]!, key).map(record => record.specifier);
+      expect(edges).toContain(kind === 'runtime' ? '../vendor/work/intent/staging.js' : '../intent/staging.js');
+      expect(edges).not.toContain('@canlang/work/intent/staging');
+      expect(edges).toContain(kind === 'runtime' ? '../vendor/state/storage/port.js' : '../../state/storage/port.js');
+      expect(edges).not.toContain('@canlang/state/storage/port');
+      expect(bundle.modules['vendor/state/storage/port.js']).toBe(readFileSync(
+        resolveProducerFile('@canlang/state/storage/port', 'bun run --filter @canlang/state build'), 'utf8'));
+      expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+      expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
+      const missingFence = { ...bundle.modules };
+      delete missingFence['vendor/state/storage/port.js'];
+      expect(() => assertLinksResolve(missingFence)).toThrow(/no such staged module/);
+      writeFileSync(target, `${original.toString("utf8")}\nimport { deriveOutboxId } from "@canlang/work/intent";\n`);
+      expect(() => buildDeployBundle(testArtifact(), options)).toThrow(/bare import "@canlang\/work\/intent"/);
+    } finally {
+      writeFileSync(target, original);
+      if (fixture !== undefined) rmSync(fixture, { recursive: true, force: true });
     }
   });
 
