@@ -4015,7 +4015,7 @@ decision; existing provider error/progress grants cannot supply them.
 
 Coordinator independent finite checked IR/JS and installed native-control reviews CLEAR. Retain owning146 affected assertions, strict all-target Clippy0/fmt and frozen graph22 results without reruns. Checked nonnullable owning Datetime >=now/<now uses the existing QueryPredicate and exact Values codec of trusted Identity admission time, preserving original source/field correspondence, order/once/current canonical query/UI bindings and unsupported-source refusal. Genuine generated child CRUD seeds real State rows and qualifies the ordinary direct-model-domain query; it does not qualify the separately failing ordinary contained-source create. This finite ordinary predicate producer/consumer is accepted; original paginated cursor-time correspondence, Dev parent issuance, original conditional policies/full application, diagnostic selection/source authority and all precise holds remain separate. Complete file-tree checkpoint is unchanged.
 
-**Original typed-scenario receipts — native joins qualified; D1/reopen unfinished, 2026-10-11.**
+**Original typed-scenario receipts — finite artifact/consumer join qualified, 2026-10-11.**
 
 Regenerate the unchanged typed-scenario-values.can (57100433) with the actual
 checked CLI --native-scenario-receipts and installed Values catalog. The saved
@@ -4061,11 +4061,15 @@ history/raw-CLI serialization assumptions were corrected without a shared repair
 Born projection retains current read and original creation lifetime. Discard's
 empty void retains current operation/receipt actor/team authority and withholds
 archived records; target read/lifetime survival is not an added prerequisite.
-Packages' eight-site real D1/reopen passed via f5d2b6ff/main7b7628f0. Packages owns
-the two original born/discard D1/reopen consumers after this exact artifact release.
+Packages' eight-site real D1/reopen passed via f5d2b6ff/main7b7628f0. Its
+reviewed2fc44274 closes both original born/discard physical D1/reopen criteria.
+Reuse the linked defining Packages record: discard1/1 1522.147ms and corrected
+born1/1 2202.868875ms; the net-creation correction retains exact attribution
+and ordered saved observations. This original artifact/consumer criterion
+is satisfied at scope, with all other canonical references and holds unchanged.
 Finite coordinator implementation review is CLEAR and integrated. No further ready unheld
 Compiler edit is identified in the current execution view; named source/current
 policy/ingress/File/cursor/callback/application dependencies and precise human holds
 remain with their existing owners.58/67 and the full-plan checkpoint do not advance.
 
-Coordinator focused analysis and native correspondence reviews CLEAR: exact checked root model, literal defaults, CreateAs binding, straight-line Set/current-field scalar Return and direct required archive/implicit void retain original source, emitted inventory, target, binding, mode and order. Unsupported profiles and skew controls decline whole capture. Original source/model and eight prior descriptors are unchanged; the regenerated artifact adds only born/discard capture and corresponding native module code. Reuse189 distinct owning/affected passes, genuine Memory association/default/net-row/history/version/late atomic rejection/aged replay/current membership/archive withholding, changed Clippy/fmt. No duplicate builds or tests. Discard empty void adds no target read or lifetime-survival gate. This accepts the finite producer/native component; Packages still owns the two original D1/reopen criteria. Full profile/plan acceptance, recipient holds and complete checkpoint remain unchanged.
+Coordinator focused analysis and native correspondence reviews CLEAR: exact checked root model, literal defaults, CreateAs binding, straight-line Set/current-field scalar Return and direct required archive/implicit void retain original source, emitted inventory, target, binding, mode and order. Unsupported profiles and skew controls decline whole capture. Original source/model and eight prior descriptors are unchanged; the regenerated artifact adds only born/discard capture and corresponding native module code. Reuse189 distinct owning/affected passes, genuine Memory association/default/net-row/history/version/late atomic rejection/aged replay/current membership/archive withholding, changed Clippy/fmt. No duplicate builds or tests. Discard empty void adds no target read or lifetime-survival gate. The finite producer/native component and linked original Packages two-site D1/reopen consumers are accepted at their recorded scope. Full profile/plan acceptance, recipient holds and complete checkpoint remain unchanged.
