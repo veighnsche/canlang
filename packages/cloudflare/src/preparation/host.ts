@@ -27,6 +27,7 @@ import { diffPlans, formatPreview, loadPreviousPlan, requireYes } from "../deplo
 import {
   DEPLOY_DIR_SUFFIX,
   WORKER_MAIN_MISSING,
+  assertPackageOutputFiles,
   buildDeployBundleWithAssets,
   deployBundleMain,
   writeDeployBundleWithAssets,
@@ -422,13 +423,23 @@ export async function runPreparedDeploy(
       `${compiler.detail} (release lockstep: rebuild with the pinned toolchain)`,
     );
   }
+  // Check both sidecars before any bundle or sidecar output. The same
+  // canonical-root/entry policy already guards the bundle's own files.
+  assertPackageOutputFiles(dir, [basename(planPath), basename(tomlPath)]);
   let bundleFiles: string[] = [];
-  if (deployBundle !== null) {
-    const written = writeDeployBundleWithAssets(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));
-    bundleFiles = written.files;
+  try {
+    if (deployBundle !== null) {
+      const written = writeDeployBundleWithAssets(deployBundle, join(dir, `${stem}${DEPLOY_DIR_SUFFIX}`));
+      bundleFiles = written.files;
+    }
+    writeFileSync(planPath, rendered.json, "utf8");
+    writeFileSync(tomlPath, rendered.toml, "utf8");
+  } catch (error) {
+    try {
+      process.stderr.write("deploy publication failed; earlier outputs may remain; no apply was attempted\n");
+    } catch { /* Preserve the operative write failure. */ }
+    throw error;
   }
-  writeFileSync(planPath, rendered.json, "utf8");
-  writeFileSync(tomlPath, rendered.toml, "utf8");
   const configPath = resolve(tomlPath);
   const manual = manualApplyCommand(configPath);
   let applied = false;

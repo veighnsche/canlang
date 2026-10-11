@@ -97,6 +97,13 @@ Wrangler has a configured 180-second child timeout, without a process-tree or
 remote rollback guarantee. After an attempted apply fails, the remote outcome
 is unconfirmed: inspect it before manual retry. There is no automatic retry.
 
+Confirmed deployment preflights both plan/TOML sidecars with the bundle writer's
+canonical-root and existing-entry checks before writing deployment output.
+Pre-existing symlinks and file/directory collisions refuse. Publication remains
+sequential: after a write failure earlier files may remain, the original error
+is retained, and apply is not attempted. Concurrent path replacement is outside
+this static preflight guarantee.
+
 To execute compiled example rows with `can test` or `can-platform test`, the
 invoking application explicitly installs both `@canlang/cloudflare` and
 `@canlang/testkit`. Run the command from that application's root. Testkit

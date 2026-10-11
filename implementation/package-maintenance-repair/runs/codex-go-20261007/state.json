@@ -2572,7 +2572,7 @@
         "limits": "No whole-command budget/run returned-URL/native preparation acceptance; no reduction credit."
       },
       "remaining_prerequisite": {
-        "prerequisite": "Define normal CLI/Bun limits and observable cancellation/partial-effect behavior; qualify plan/TOML sidecar containment, concurrent path replacement and interrupted sequential publication. Existing scoped budgets do not establish a whole-command/process-tree bound. Run file-URL lifetime/failure cleanup and test scratch cleanup are implemented/tested; native preparation remains held.",
+        "prerequisite": "Define normal CLI/Bun limits and observable cancellation/partial-effect behavior; qualify concurrent path replacement and broader interrupted sequential publication. Existing scoped budgets do not establish a whole-command/process-tree bound. Static plan/TOML containment, injected second-write partial-output/original-error behavior, run file-URL lifetime/failure cleanup and test scratch cleanup are implemented/tested; native preparation remains held.",
         "owner": "Dev/Cloudflare command/resource and confirmed-writer owner; human retains native-preparation hold"
       },
       "application_testkit_loader": {
@@ -2613,8 +2613,20 @@
         "contract": "Successful run staging survives CLI exit for its file-URL caller to remove, without a TTL/server promise. Failure attempts scratch removal without masking the operative thrown value. Local workerd and protected preview live until awaited owner disposal. After Wrangler is attempted, failure leaves remote outcome unconfirmed and requires inspection before manual retry; no automatic retry.",
         "resource_scope": "Compiler termination30s/stdout16MiB/stderr8KiB/grace250ms and control30s/default60smax are separate existing callers. Wrangler configures180s child timeout. Normal CLI has no whole-command budget; three synchronous Bun bundlers have no explicit timeout. No process-tree or absolute exit guarantee follows.",
         "validation": "CLI34 affected/unchanged controls pass on initial run; new URL fixture initially fails required-source validation, then corrected actual emitted CLI/independent post-exit import/removal passes1/1 with34 unselected. Mocked Wrangler8/8, current Cloudflare emit and frozen root noEmit0. Reuse accepted ancestry788/test scratch/cancellation/disposal outcomes.",
-        "limits": "Sidecar containment, concurrent replacement and interrupted non-atomic publication remain due. No real apply/native preparation, unchanged File/Office rerun, whole-plan acceptance or hold release.",
+        "limits": "Concurrent replacement and broader physical interruption remain due; the linked confirmed-sidecar correction closes only static containment/injected second-write behavior. No real apply/native preparation, unchanged File/Office rerun, whole-plan acceptance or hold release.",
         "review": "Independent exact-source review CLEAR for58bbedb8: primary thrown-value preservation, successful post-exit file lifetime and truthful one-attempt Wrangler uncertainty; unchanged validation reused. No real apply, broader resource acceptance or hold release."
+      },
+      "confirmed_sidecar_containment": {
+        "state": "implemented, tested and independently reviewed finite static confirmed-writer correction; parent unfinished",
+        "files": [
+          "packages/cloudflare/src/deploy/bundle.ts",
+          "packages/cloudflare/src/preparation/host.ts",
+          "packages/cloudflare/test/deploy-cli.test.ts"
+        ],
+        "behavior": "Reuse existing canonical-root/lstat output guard for fixed plan/TOML names before deployment writes. Preserve sequential publication; write failure warns earlier outputs may remain/no apply attempted and rethrows the original value even if warning fails. Failed post-spawn outcome remains unconfirmed, with no automatic retry.",
+        "validation": "Six actual host caller containment/ordinary writer/second-write failure controls pass4.91s after fixing mock Bun output syntax. Two new nonzero/timeout actual host-envelope controls pass2.38s; six unchanged writer/eight wrapper controls reused. Current CF emit/final root noEmit/boundaries0. Bun/Wrangler mocked; existing subprocess deployment cases unselected.",
+        "limits": "Static preflight is not concurrent replacement protection or atomic multi-output publication; broader interruption/resource policy/held native preparation stay open. No remote effects or whole-plan acceptance.",
+        "review": "Exact b3158791 source review CLEAR: fixed-sidecar preflight uses existing canonical-root policy before all output, failed sequential publication never reaches apply and preserves its original value even if warning fails. Reuse eight affected mocked-host cases, emissions and boundary results. No TOCTOU/atomic/publication or hold release."
       }
     },
     "DEL-D04": {

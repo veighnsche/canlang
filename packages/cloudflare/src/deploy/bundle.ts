@@ -1686,8 +1686,10 @@ function assertPlannedOutputFiles(outputs: ReadonlySet<string>): void {
   }
 }
 
-/** Existing output entries must not redirect any file write through symlinks. */
-function assertPackageOutputFiles(
+/** Existing output entries must not redirect any file write through symlinks.
+ * The confirmed host also uses this preflight for its fixed sidecar names.
+ */
+export function assertPackageOutputFiles(
   outDir: string,
   keys: readonly string[],
 ): void {
