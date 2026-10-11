@@ -3428,6 +3428,9 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
         loaded.models.some(model => model.name === name)) models.add(name);
   };
   add(def.descriptor.result?.type, true);
+  for (const query of def.descriptor.result?.disclosure?.queries ?? []) {
+    add(query.model, true);
+  }
   for (const returned of def.descriptor.result?.disclosure?.returns ?? []) {
     for (const dependency of returned.dependencies) {
       add(dependency.type);
