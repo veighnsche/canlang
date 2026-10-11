@@ -18,6 +18,8 @@ Given
  derive selected_equal(condition:bool,left:IncomingEmail,right:IncomingEmail):bool = choose(condition,left,right)==left
  derive copied(value:IncomingEmail):IncomingEmail = value
  derive copied_equal(left:IncomingEmail,right:IncomingEmail):bool = copied(left)==right
+ derive without_optional(value:IncomingEmail):IncomingEmail = {mailbox=value.mailbox,source=value.source,thread=value.thread,sender=value.sender,subject=value.subject,body=value.body,body_complete=value.body_complete,attachment_count=value.attachment_count,attachments_complete=value.attachments_complete,received=value.received}
+ derive omitted_equal(value:IncomingEmail):bool = without_optional(value)==value
  derive received_equal(left:IncomingEmail.received,right:IncomingEmail.received):bool = left==right
 When
  scenario lexically_equal(left:IncomingEmail,right:IncomingEmail) -> bool by=members
@@ -291,6 +293,10 @@ assert.equal(await pure('sequence_equal')(undefined,[original,different],[differ
 assert.equal(await pure('selected_equal')(undefined,true,original,different),true);
 assert.equal(await pure('selected_equal')(undefined,false,original,different),false);
 assert.equal(await pure('copied_equal')(undefined,original,identical),true);
+const noAttachments=decode({...wire,attachments:[],attachment_count:'0'});
+const omitted=await pure('without_optional')(undefined,noAttachments);
+assert.equal(omitted.reply_to,null);assert.deepEqual(omitted.attachments,[]);
+assert.equal(await pure('omitted_equal')(undefined,noAttachments),true);
 assert.equal(await pure('received_equal')(undefined,original.received,identical.received),true);
 assert.equal(await pure('received_equal')(undefined,original.received,different.received),true);
 for(const malformed of [
