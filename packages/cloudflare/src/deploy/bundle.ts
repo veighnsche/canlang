@@ -306,6 +306,8 @@ const STATE_RECEIPT_OBSERVER_VENDOR_ENTRY = "vendor/state/receipt/index.js";
 const VALUES_VENDOR_ENTRY = "vendor/values/index.js";
 const WORK_DISPATCH_SOURCE_SPECIFIER = "@canlang/work/kernel/dispatch-staging";
 const WORK_SOURCE_SPECIFIER = "@canlang/work";
+const WORK_INTENT_STAGING_SOURCE_SPECIFIER = "@canlang/work/intent/staging";
+const WORK_INTENT_STAGING_VENDOR_ENTRY = "vendor/work/intent/staging.js";
 /** Selected root export; the public barrel also exposes Node-only producers. */
 const WORK_VENDOR_ENTRY = "vendor/work/kernel/committed-model-source.js";
 const WORK_COMPLETION_VENDOR_ENTRY = "vendor/work/kernel/standard-completion-source.js";
@@ -690,6 +692,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
+    if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
     if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
@@ -720,6 +723,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_DISPATCH_VENDOR_ENTRY],
     [WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_SCHEDULE_VENDOR_ENTRY],
     [WORK_OCCURRENCE_SOURCE_SPECIFIER, WORK_OCCURRENCE_VENDOR_ENTRY],
+    [WORK_INTENT_STAGING_SOURCE_SPECIFIER, WORK_INTENT_STAGING_VENDOR_ENTRY],
     [WORK_RECEIPT_SOURCE_SPECIFIER, WORK_RECEIPT_VENDOR_ENTRY],
     [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
     [FILES_FINALIZE_SOURCE_SPECIFIER, FILES_FINALIZE_VENDOR_ENTRY],
@@ -740,6 +744,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
 /** Stage the public portable Work producers and deduplicate their relative closures. */
 function stageWorkStagingProducers(): Record<string, string> {
   const entries = [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_OCCURRENCE_SOURCE_SPECIFIER,
+    WORK_INTENT_STAGING_SOURCE_SPECIFIER,
     WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER,
     "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
@@ -816,7 +821,9 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
     if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
+    if (spec === "@canlang/state/storage/port") return relativeSpecifier(moduleKey, "vendor/state/storage/port.js");
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
+    if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);

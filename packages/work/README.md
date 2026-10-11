@@ -23,6 +23,12 @@ bun install --frozen-lockfile
 The root entry and explicit package subpaths load emitted modules.
 For example, import `@canlang/work/intent`.
 
+Worker and browser consumers use `@canlang/work/intent/staging` for the existing
+portable primitives. Await `deriveOutboxIdAsync(operationId, source,
+occurrenceIndex)` to obtain the same v1 identity as the synchronous Node entry,
+or `stageOutboxIntentAsync(input)` to capture a frozen, uncommitted intent.
+These functions use the host's WebCrypto and provide no dispatch or commit port.
+
 ## Usage
 
 Stage an intent, commit it with the fence-produced marker, then dispatch:

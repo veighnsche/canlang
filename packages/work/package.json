@@ -98,6 +98,10 @@
       "types": "./dist/src/intent/index.d.ts",
       "default": "./dist/src/intent/index.js"
     },
+    "./intent/staging": {
+      "types": "./dist/src/intent/staging.d.ts",
+      "default": "./dist/src/intent/staging.js"
+    },
     "./receipt": {
       "types": "./dist/src/receipt/index.d.ts",
       "default": "./dist/src/receipt/index.js"
