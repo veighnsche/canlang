@@ -18,6 +18,8 @@ import type { IdentityStore } from '../src/ports.js';
 import { createFrozenClock } from '../src/testing.js';
 import { resolveIdentity } from '../src/authentication/context.js';
 import { issueMcpGrant } from '../src/authentication/grants.js';
+import { consumePreSessionToken, mintPreSessionToken, PRESESSION_TTL_MS } from '../src/sessions/presession.js';
+import { sha256HexText } from '../src/sessions/tokens.js';
 import {
   createD1IdentityStore,
   ensureIdentitySchema,
@@ -434,6 +436,28 @@ test('pre-session tokens: create, lookup by hash, hard delete', async () => {
   assert.equal(await store.findPreSessionTokenByHash('presession-hash-1'), null);
   // Deleting twice is a no-op, never an error.
   await store.deletePreSessionToken(token_id);
+});
+
+test('pre-session atomic consume: two D1 handles yield one winner and expiry is consumed', async () => {
+  const { db, d1, clock, store } = await setup();
+  try {
+    const other = createD1IdentityStore(d1, { clock });
+    const { token } = await mintPreSessionToken(store, { clock });
+    const results = await Promise.all([
+      consumePreSessionToken(store, token, { clock }), consumePreSessionToken(other, token, { clock }),
+    ]);
+    assert.deepEqual(results.sort(), [false, true]);
+    assert.equal(await consumePreSessionToken(other, token, { clock }), false);
+    assert.equal(await store.findPreSessionTokenByHash(await sha256HexText(token)), null);
+    const expired = await mintPreSessionToken(store, { clock });
+    clock.advance(PRESESSION_TTL_MS);
+    assert.equal(await consumePreSessionToken(other, expired.token, { clock }), false);
+    assert.equal(await store.findPreSessionTokenByHash(await sha256HexText(expired.token)), null);
+    assert.equal(await consumePreSessionToken(store, expired.token, { clock }), false);
+    const live = await mintPreSessionToken(store, { clock });
+    clock.advance(PRESESSION_TTL_MS - 1);
+    assert.equal(await consumePreSessionToken(other, live.token, { clock }), true);
+  } finally { db.close(); }
 });
 
 test('email tokens: create, lookup, idempotent consume, purpose-scoped revocation', async () => {

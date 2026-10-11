@@ -306,6 +306,15 @@ export function createMemoryIdentityStore(opts?: {
     async findPreSessionTokenByHash(token_sha256) {
       return preSessions.get(preSessionsByHash.get(token_sha256) ?? '') ?? null;
     },
+    async consumePreSessionTokenByHash(token_sha256) {
+      step();
+      const token_id = preSessionsByHash.get(token_sha256);
+      const row = token_id === undefined ? undefined : preSessions.get(token_id);
+      if (row === undefined) return null;
+      preSessions.delete(row.token_id);
+      preSessionsByHash.delete(row.token_sha256);
+      return { expires_at: row.expires_at };
+    },
     async deletePreSessionToken(token_id) {
       step();
       const row = preSessions.get(token_id);

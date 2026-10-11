@@ -46,6 +46,7 @@ import type {
 } from "@canlang/contracts";
 import { buildSessionCookie, sha256HexText, IdentityError, exchangeCode, issueAuthCode, registerClient, createD1IdentityStore } from "@canlang/identity";
 import { createFrozenClock } from "@canlang/identity/testing";
+import { consumePreSessionToken, mintPreSessionToken, PRESESSION_TTL_MS, ensureIdentitySchema } from "@canlang/identity";
 import type {
   IdentityD1Database,
   IdentityStore as RealIdentityStore,
@@ -613,6 +614,35 @@ describe("refused verdict with production McpDeps", () => {
 });
 
 describe('OAuth one-use consumption on real D1', () => {
+  it('two actual D1 handles atomically consume presession tokens with exact ten-minute expiry', async () => {
+    const { db } = await startD1('presession-atomic-consume');
+    await ensureIdentitySchema(db);
+    const first = createD1IdentityStore(db);
+    const second = createD1IdentityStore(db);
+    const clock = createFrozenClock(Date.parse('2026-10-11T12:00:00Z'));
+    const concurrent = await mintPreSessionToken(first, { clock });
+    const results = await Promise.all([
+      consumePreSessionToken(first, concurrent.token, { clock }),
+      consumePreSessionToken(second, concurrent.token, { clock }),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(results.filter(result => result === false)).toHaveLength(1);
+    expect(await consumePreSessionToken(second, concurrent.token, { clock })).toBe(false);
+    expect(await first.findPreSessionTokenByHash(await sha256HexText(concurrent.token))).toBeNull();
+
+    const expired = await mintPreSessionToken(first, { clock });
+    clock.advance(PRESESSION_TTL_MS);
+    expect(await consumePreSessionToken(second, expired.token, { clock })).toBe(false);
+    expect(await first.findPreSessionTokenByHash(await sha256HexText(expired.token))).toBeNull();
+    expect(await consumePreSessionToken(first, expired.token, { clock })).toBe(false);
+
+    const live = await mintPreSessionToken(second, { clock });
+    clock.advance(PRESESSION_TTL_MS - 1);
+    expect(await consumePreSessionToken(first, live.token, { clock })).toBe(true);
+    expect(await consumePreSessionToken(second, live.token, { clock })).toBe(false);
+    expect(await second.findPreSessionTokenByHash(await sha256HexText(live.token))).toBeNull();
+  }, 30_000);
+
   it('two actual pre-reads yield one grant, and stale/missing/ambiguous consumers never mint', async () => {
     const { db } = await startD1('oauth-one-use');
     const deps = await buildProductionDeps({ DB: db });

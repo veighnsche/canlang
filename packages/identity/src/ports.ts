@@ -185,6 +185,9 @@ export interface IdentityStore {
   }): Promise<{ token_id: string }>;
   findPreSessionTokenByHash(token_sha256: string): Promise<PreSessionToken | null>;
   deletePreSessionToken(token_id: string): Promise<void>;
+  /** Atomically remove one hashed token, returning its original expiry only to the winner.
+   * Expired tokens are removed too; the public flow checks the returned expiry. */
+  consumePreSessionTokenByHash(token_sha256: string): Promise<{ readonly expires_at: InstantString } | null>;
 
   // -- email tokens --
   createEmailToken(input: {

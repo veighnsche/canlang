@@ -773,6 +773,13 @@ export function createD1IdentityStore(
         .first<PreSessionTokenRow>();
       return row === null ? null : toPreSessionToken(row);
     },
+    async consumePreSessionTokenByHash(token_sha256) {
+      const row = await db
+        .prepare('DELETE FROM identity_presession_tokens WHERE token_sha256 = ? RETURNING expires_at')
+        .bind(token_sha256)
+        .first<{ expires_at: string }>();
+      return row === null ? null : { expires_at: row.expires_at as PreSessionToken['expires_at'] };
+    },
     async deletePreSessionToken(token_id) {
       await db
         .prepare('DELETE FROM identity_presession_tokens WHERE token_id = ?')

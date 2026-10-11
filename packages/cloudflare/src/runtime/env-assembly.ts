@@ -194,6 +194,7 @@ export interface IdentityStore {
   }): Promise<{ token_id: string }>;
   findPreSessionTokenByHash(token_sha256: string): Promise<PreSessionToken | null>;
   deletePreSessionToken(token_id: string): Promise<void>;
+  consumePreSessionTokenByHash(token_sha256: string): Promise<{ expires_at: InstantString } | null>;
 
   // -- email tokens --
   createEmailToken(input: {

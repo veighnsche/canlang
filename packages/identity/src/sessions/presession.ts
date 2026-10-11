@@ -12,7 +12,7 @@
  *
  * Lifecycle: `mintPreSessionToken` stores only the SHA-256 hash (opaque
  * bearer, same primitives as sessions); `consumePreSessionToken` verifies
- * then hard-deletes, so every token is good for exactly one
+ * then atomically hard-deletes, so every token is good for exactly one
  * credential-checked POST — a failed login refetches the descriptor.
  * Expired rows met
  * during consume are deleted too; never-minted-presented rows linger until
@@ -52,7 +52,7 @@ export interface ConsumePreSessionOptions {
 }
 
 /**
- * Verify a presented token, then delete it. True only for a live stored
+ * Atomically consume a presented token. True only for a live stored
  * token; false for missing, malformed, unknown, or expired values — with
  * no observable distinction between them. Verify-before-delete: an invalid
  * presentation burns nothing.
@@ -64,8 +64,7 @@ export async function consumePreSessionToken(
 ): Promise<boolean> {
   if (typeof presented !== 'string' || presented.length === 0) return false;
   const clock = opts.clock ?? systemClock;
-  const row = await store.findPreSessionTokenByHash(await sha256HexText(presented));
+  const row = await store.consumePreSessionTokenByHash(await sha256HexText(presented));
   if (row === null) return false;
-  await store.deletePreSessionToken(row.token_id);
   return Date.parse(row.expires_at) > clock.nowMs();
 }
