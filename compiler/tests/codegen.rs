@@ -513,15 +513,13 @@ fn golden_teamtasks_structure() {
         entry.contains(&"c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$h$636865636b65645f6d657373616765(\"Title\",{nl:\"Titel\"},undefined,\"en\"),assignee:$can$h$636865636b65645f6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"},undefined,\"en\")},authoredFields:[\"title\"]})".replace(",labels:", &format!(",occurrence:{form_occurrence},labels:"))),
         "form operation"
     );
-    // Field controls consume prepared props. Breadcrumbs lack owning
-    // source carriers. No-recurse rule: children of an
+    // Field controls consume prepared props. Breadcrumbs consume the
+    // dispatcher-issued trail. No-recurse rule: children of an
     // *unlowered* factory are swallowed by its placeholder (one E6008
     // for the factory, none for the absorbed children).
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message
-                .contains("cannot lower breadcrumbs: ancestry and label carriers")),
-        "breadcrumbs carrier profile is refused"
+        entry.contains("c.breadcrumbs") && entry.contains("ancestry:"),
+        "breadcrumbs consume the admitted declared trail"
     );
     assert!(
         entry.contains("$can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"title\")})]})"),
@@ -780,7 +778,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        4,
+        2,
         "unsupported count: {diags:?}"
     );
     assert!(
@@ -802,7 +800,7 @@ fn golden_teamtasks_structure() {
         );
     }
     for (profile, count) in [
-        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower breadcrumbs:", 0),
         ("cannot lower pagination:", 0),
         ("cannot lower edit:", 0),
         ("cannot lower list: option search", 0),
@@ -1159,10 +1157,8 @@ fn golden_expenseflow_structure() {
         "row history retains the original projected row for its admitted reader"
     );
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message
-                .contains("cannot lower breadcrumbs: ancestry and label carriers")),
-        "page breadcrumbs carrier profile is refused"
+        entry.contains("c.breadcrumbs") && entry.contains("ancestry:"),
+        "page breadcrumbs consume the admitted declared trail"
     );
     assert!(
         entry.contains(
@@ -1449,11 +1445,11 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        5,
+        3,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
-        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower breadcrumbs:", 0),
         ("cannot lower pagination:", 0),
         ("cannot lower edit:", 0),
         ("cannot lower action:", 0),
@@ -3726,7 +3722,6 @@ fn catalog_profile_violations_stay_loud() {
     let _ = std::fs::remove_file(&catalog_path);
     let messages: Vec<&str> = diags.iter().map(|d| d.message.as_str()).collect();
     for marker in [
-        "cannot lower breadcrumbs: ancestry and label carriers are not implemented",
         "cannot lower pagination: the bare marker must belong directly to a list or table",
         "cannot lower pagination: pagination is valid only inside a collection",
         "cannot lower button: bound controls need one binding",

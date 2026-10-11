@@ -11,14 +11,14 @@
 //!
 //! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * TeamTasks: `E6006 == 0` (every needed position bridged),
-//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 4`
-//!   (breadcrumbs, list filter and unsupported content value).
+//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 2`
+//!   (list filter and unsupported content value).
 //!   NOTE: `can compile` (CLI policy) refuses to print an artifact
 //!   while `E6008`s report; this test drives `emit()` directly to pin
 //!   the artifact SHAPE those diagnostics accompany. A zero-`E6008`
 //!   source (`demo.can`, TeamTasks minus the unlowered lines)
 //!   compiles end to end via the CLI; see the phase-2 evidence note.
-//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 5`
+//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 3`
 //!   with the real catalog: exact unsupported UI profiles remain refused;
 //!   nominal preference tabs, fixed order and named slots retain their
 //!   owning transport. Multi-value stat remains explicitly unavailable.
@@ -176,7 +176,7 @@ fn b1_teamtasks_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: bridged (E6006=0), pinned (E6007=0),
-    // Four exact unsupported UI profiles (E6008). Nothing else may appear.
+    // Two exact unsupported UI profiles (E6008). Nothing else may appear.
     // (A2b closed the `delete` gap: bare delete lowers to deleteRecord.)
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
@@ -200,13 +200,13 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 4 {
-        failures.push(format!("expected E6008=4 pinned UI refusals, got {e6008}"));
+    if e6008 != 2 {
+        failures.push(format!("expected E6008=2 pinned UI refusals, got {e6008}"));
     }
     for (profile, expected) in [
         ("cannot lower tooltip:", 0),
         ("cannot lower collapse:", 0),
-        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower breadcrumbs:", 0),
         ("cannot lower edit:", 0),
         ("cannot lower list: option filter", 1),
         ("cannot lower content:", 1),
@@ -337,11 +337,11 @@ fn b2_expenseflow_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 5 {
-        failures.push(format!("expected E6008=5 UI refusals, got {e6008}"));
+    if e6008 != 3 {
+        failures.push(format!("expected E6008=3 UI refusals, got {e6008}"));
     }
     for (profile, expected) in [
-        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower breadcrumbs:", 0),
         ("cannot lower edit:", 0),
         ("cannot lower action:", 0),
         ("cannot lower history:", 0),
@@ -434,7 +434,8 @@ fn validate_expenseflow_artifact(
         "\"expenses.submit\":",
         "\"reporting.summarize\":",
         "pages:[$can$p$657870656e7365733a64657363726970746f723a2f,$can$p$7265706f7274696e673a64657363726970746f723a2f7265706f727473]",
-        "$can$u$62726561646372756d6273({context:c})",
+        "$can$u$62726561646372756d6273({context:c,label:",
+        "=c.breadcrumbs;",
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.status})",
         "binding:{name:\"status\",options:",
         "current:preferences.status,version:c.preferenceVersions.reporting.status,postTo:c.pollUrl ?? c.path",
@@ -480,7 +481,11 @@ fn validate_expenseflow_artifact(
                 module.path
             ));
         }
-        if module.js.contains("throw new Error") {
+        let without_missing_trail_guard = module.js.replace(
+            "throw new Error(\"breadcrumbs: admitted declared ancestry is unavailable\");",
+            "",
+        );
+        if without_missing_trail_guard.contains("throw new Error") {
             failures.push(format!(
                 "{}: throwing placeholder with zero diagnostics",
                 module.path

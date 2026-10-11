@@ -6806,6 +6806,29 @@ impl<'a> Emitter<'a> {
                 None => call,
             };
         }
+        if node.factory == "breadcrumbs" {
+            if !node.props.is_empty() || !node.children.is_empty() || node.row_scope.is_some() {
+                self.unsupported(
+                    "breadcrumbs",
+                    "only the bare admitted-context profile lowers",
+                    node.span,
+                );
+                return self.throw_expr("unsupported breadcrumbs profile");
+            }
+            self.ui.insert("breadcrumbs".to_string());
+            let trail = binding_ident("breadcrumb", "admitted");
+            let call = format!(
+                "(()=>{{const {trail}={ctx}.breadcrumbs;if({trail}==null)throw new Error(\"breadcrumbs: admitted declared ancestry is unavailable\");return {}({{context:{ctx},label:{trail}.label,ancestry:{trail}.ancestry}});}})()",
+                binding_ident("u", "breadcrumbs")
+            );
+            return match node.gate.as_ref() {
+                Some(gate) => {
+                    let gate = self.lower_business_expr(gate, "breadcrumbs gate");
+                    format!("{gate} ? {call} : null")
+                }
+                None => call,
+            };
+        }
         if !is_ui_factory(&node.factory) {
             self.unsupported(
                 "UI node",
