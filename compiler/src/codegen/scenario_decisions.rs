@@ -733,7 +733,7 @@ impl SemanticJoin<'_> {
                 self.target(x, y, depth + 1, Some(s))?;
                 self.call_arguments(a, b, depth + 1)?;
             }
-            (IrExpr::Query(a), IrExpr::Query(b)) => self.query(a, b, depth + 1)?,
+            (IrExpr::Query(x), IrExpr::Query(y)) => self.query(x, y, a.span, &a.ty, depth + 1)?,
             (IrExpr::Lambda { param: x, body: a }, IrExpr::Lambda { param: y, body: b })
                 if x == y =>
             {
@@ -920,9 +920,25 @@ impl SemanticJoin<'_> {
         }
         Some(())
     }
-    fn query(&mut self, a: &IrQuery, b: &IrQuery, d: usize) -> Option<()> {
-        checked_query(self.program, a)?;
-        checked_query(self.program, b)?;
+    fn query(
+        &mut self,
+        a: &IrQuery,
+        b: &IrQuery,
+        span: Span,
+        ty: &ResolvedType,
+        d: usize,
+    ) -> Option<()> {
+        match (&a.source, &b.source) {
+            (Some(_), Some(_)) => {
+                checked_query(self.program, a)?;
+                checked_query(self.program, b)?;
+            }
+            (None, None) => {
+                checked_contained_query(self.program, self.actual, a, span, ty)?;
+                checked_contained_query(self.program, self.expected, b, span, ty)?;
+            }
+            _ => return None,
+        }
         if a.source != b.source
             || a.collection_call != b.collection_call
             || a.contract_collection_call != b.contract_collection_call
@@ -1914,6 +1930,11 @@ pub(super) fn serial_type(
         ResolvedType::Array { element, .. } => {
             format!("{}[]", serial_type(element, program, ir, depth + 1)?)
         }
+        ResolvedType::StdNominal { .. }
+            if crate::analysis::types::checked_standard_nominal_name(ty) == Some("TextMessage") =>
+        {
+            "TextMessage".into()
+        }
         ResolvedType::Record { symbol, .. } => {
             let item = nominal(*symbol)?;
             if !matches!(
@@ -1956,6 +1977,106 @@ pub(super) fn serial_type(
         }
         _ => return None,
     })
+}
+
+/// A bare checked `parent.Child` member has no explicit query clauses. Its
+/// existing lowering remains source correspondence only, never a query receipt.
+fn checked_contained_query(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    query: &IrQuery,
+    span: Span,
+    ty: &ResolvedType,
+) -> Option<()> {
+    use crate::analysis::resolve::{ModelOwner, SymbolKind};
+    if query.source.is_some()
+        || query.collection_call.is_some()
+        || query.contract_collection_call.is_some()
+        || query.where_pred.is_some()
+        || query.where_async
+        || !query.order.is_empty()
+        || query.limit.is_some()
+        || query.archived.is_some()
+        || query.select.is_some()
+        || query.select_param.is_some()
+    {
+        return None;
+    }
+    let member = NodeKey {
+        file: span.file,
+        start: span.start,
+        end: span.end,
+        kind: SyntaxKind::Member as u8,
+    };
+    if program.types.node_types.get(&member) != Some(ty) {
+        return None;
+    }
+    let ResolvedType::Array {
+        element,
+        ordered: true,
+        nonempty: false,
+    } = ty
+    else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: child,
+        stored: true,
+    } = element.as_ref()
+    else {
+        return None;
+    };
+    let declaration = program.symbols.get(child.0 as usize)?;
+    let SymbolKind::Model {
+        owner: ModelOwner::ChildOf(owner),
+        ..
+    } = &declaration.kind
+    else {
+        return None;
+    };
+    let item = ir.items.get(child.0 as usize)?;
+    if declaration.id != *child
+        || item.id != *child
+        || item.canonical != declaration.canonical
+        || item.module != declaration.module
+        || !matches!(item.kind, IrItemKind::Model { owner: IrOwner::ChildOf(actual), .. } if actual == *owner)
+        || !matches!(&query.domain, IrQueryDomain::Model(name) if name == &declaration.canonical)
+    {
+        return None;
+    }
+    let parent = query.parent.as_deref()?;
+    let parent_ty = ResolvedType::Record {
+        symbol: *owner,
+        stored: true,
+    };
+    let parent_kind = match &parent.expr {
+        IrExpr::Name(_) => SyntaxKind::NameRef,
+        IrExpr::Member { .. } => SyntaxKind::Member,
+        _ => return None,
+    };
+    let parent_key = NodeKey {
+        file: parent.span.file,
+        start: parent.span.start,
+        end: parent.span.end,
+        kind: parent_kind as u8,
+    };
+    let parent_declaration = program.symbols.get(owner.0 as usize)?;
+    let parent_item = ir.items.get(owner.0 as usize)?;
+    if parent.ty != parent_ty
+        || program.types.node_types.get(&parent_key) != Some(&parent_ty)
+        || parent.span.file != span.file
+        || parent.span.start != span.start
+        || parent.span.end >= span.end
+        || parent_declaration.id != *owner
+        || !matches!(parent_declaration.kind, SymbolKind::Model { .. })
+        || parent_item.id != *owner
+        || parent_item.canonical != parent_declaration.canonical
+        || parent_item.module != parent_declaration.module
+        || !matches!(parent_item.kind, IrItemKind::Model { .. })
+    {
+        return None;
+    }
+    Some(())
 }
 
 fn checked_query(program: &CheckedProgram, query: &IrQuery) -> Option<()> {
