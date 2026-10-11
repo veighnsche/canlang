@@ -3397,10 +3397,26 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
 /** Query authority comes from the checked source module and actual same-load
  * viewer policy. A claimed descriptor cannot opt into a provisional host read. */
 async function bindNativeScenarioQueries(asm: AssembledModules, artifact: CompileArtifact,
-  loaded: LoadedCanonicalDescriptors): Promise<void> {
+  loaded: LoadedCanonicalDescriptors, context?: InvocationSourceReadContext): Promise<void> {
+  const sourceReads = context === undefined ? undefined : createSourceReadPolicyAdapter({ loaded,
+    opts: context.opts, now: context.now,
+    ...(context.preferences === undefined ? {} : { preferences: context.preferences }) });
   for (const value of loaded.registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
     if (def === undefined || !plan?.queries?.length) continue;
+    const needsSourcePolicy = plan.queries.some(query => {
+      const visited = new Set<ModelName>();
+      let model: ModelName | undefined = query.model;
+      while (model !== undefined && !visited.has(model)) {
+        if (loaded.ruledModels.has(model)) return true;
+        visited.add(model);
+        model = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model)?.parent;
+      }
+      return false;
+    });
+    // Source-only preloads cannot bind actor-dependent or ancestor rules.
+    // The fresh invocation registry supplies their original current context.
+    if (needsSourcePolicy && context === undefined) continue;
     const bind = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
     if (bind === undefined) {
       throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer.');
@@ -3413,7 +3429,12 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
     const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
     if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
-    bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'] });
+    const readPolicies = needsSourcePolicy ? new Map<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>() : undefined;
+    if (readPolicies !== undefined) for (const query of plan.queries) {
+      for (const [model, policy] of sourceReads!.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
+    }
+    bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
+      ...(readPolicies === undefined ? {} : { readPolicies }) });
   }
 }
 
@@ -3928,7 +3949,7 @@ async function loadCanonicalDescriptorsInternal(
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
-  await bindNativeScenarioQueries(asm, artifact, canonical);
+  await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   for (const [owner, sites] of canonical.membershipSources) {
     // Keep each complete original recipe in its defining lifetime. A SEND
@@ -5121,6 +5142,15 @@ function nativeScenarioQueryRecord(loaded: NativeRecordScope, model: string, row
     return value;
   } });
   Object.assign(view, nativeRecordMetadata(row));
+  const parentModel = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model as ModelName)?.parent;
+  if (parentModel !== undefined) Object.defineProperty(view, 'parent', { enumerable: true, get: () => {
+    read('parent');
+    const parent = current().parent;
+    if (parent != null && parent.model !== parentModel) {
+      throw new loaded.producers.errors('validation', 'Query parent differs from its declared owning model.');
+    }
+    return parent == null ? null : makeRecordRef(parent.model, parent.id);
+  } });
   bindNativeRecord(view, model, row.id, row.version);
   return Object.freeze(view);
 }
@@ -5736,17 +5766,17 @@ async function runScenarioExecution(
       removalSource.scope.app === call.context.app && removalSource.scope.owner === call.checkpoint?.owner &&
       removalSource.routes.some(route => route.handler === opts.operation)) &&
     call.checkpoint !== undefined && call.checkpoint.owner === (call.context.team?.teamId ?? call.context.app);
-  const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
+  const recordView = (modelName: string, row: StoredRow, queryParent = false): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
-    const existing = views.get(key);
+    const existing = queryParent ? undefined : views.get(key);
     if (existing !== undefined) return existing;
     const issued = ownerRows.get(key);
     if (ownerSession !== undefined && (issued === undefined || issued === null)) {
       return refuseRecordBinding('Scenario native row requires its actual current owner-session read.');
     }
     const snapshot = ownerSession === undefined
-      ? freezeScenarioSnapshot(structuredClone(row)) as StoredRow : issued!;
-    const current = () => ownerSession === undefined
+      ? freezeScenarioSnapshot(structuredClone(row)) as StoredRow : queryParent ? row : issued!;
+    const current = () => queryParent ? snapshot : ownerSession === undefined
       ? staged.has(key) ? staged.get(key) : snapshot : ownerRows.get(key);
     const model = loaded.models.find((model) => model.name === modelName);
     const record: Record<string, unknown> = {};
@@ -5773,13 +5803,20 @@ async function runScenarioExecution(
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, nativeRecordMetadata(row));
-    ownerNavigation.attach(record, modelName, ownerSession === undefined ? row : snapshot,
+    if (queryParent) {
+      // This exact query-parent row supports only the original parent metadata
+      // occurrence. Hydrating its ancestor would reenter the busy State query.
+      Object.defineProperty(record, 'parent', { enumerable: true, get: () => {
+        const parent = current()?.parent;
+        return parent == null ? null : makeRecordRef(parent.model, parent.id);
+      } });
+    } else ownerNavigation.attach(record, modelName, ownerSession === undefined ? row : snapshot,
       (model, parent) => recordView(model, parent as StoredRow),
       receiptAware ? (reference, parent, model) => scenarioReceiptFrame!.bindNavigationReference(reference, parent, model) : undefined);
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     scenarioReceiptFrame?.bind(record, modelName, current);
-    views.set(key, record);
+    if (!queryParent) views.set(key, record);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
   };
@@ -6826,20 +6863,28 @@ async function runScenarioExecution(
         // Query candidates stay separate from admitted/current owner rows. Never
         // register a viewer projection as a raw StoredRow or reconstruct one.
         record: (model, row, read, current) => nativeScenarioQueryRecord(loaded, model, row, read, current),
-        mutableRecord: async (model, row) => {
+        mutableRecord: async (model, row, mode) => {
           assertCall!(actualCall, receiptStore);
           if (ownerSession === undefined || scenarioReceiptFrame === undefined ||
               nativeScenarioExecutions.get(actualCall) !== active || !loaded.models.some(candidate => candidate.name === model)) {
-            return refuseRecordBinding('First query row requires its original live owning scenario frame.');
+            return refuseRecordBinding('Query owner row requires its original live owning scenario frame.');
           }
           // Only the private State selector supplies this genuine owner-issued
           // row. Preserve its pointer in the same cache used by native reads,
           // stored-reference observations and Set; never hydrate a projection.
-          ownerRows.set(stagedKey(model, row.id), row);
+          const key = stagedKey(model, row.id);
+          if (mode === 'query-parent') {
+            // Bind this exact issuance without replacing an admitted/cache alias.
+            const prior = ownerRows.get(key), present = ownerRows.has(key);
+            ownerRows.set(key, row);
+            try { return recordView(model, row, true); }
+            finally { if (present) ownerRows.set(key, prior!); else ownerRows.delete(key); }
+          }
+          ownerRows.set(key, row);
           await ownerNavigation.prepare(model, row);
           assertCall!(actualCall, receiptStore);
           if (nativeScenarioExecutions.get(actualCall) !== active || ownerRows.get(stagedKey(model, row.id)) !== row) {
-            return refuseRecordBinding('First query owner row changed during its native navigation preparation.');
+            return refuseRecordBinding('Query owner row changed during its native navigation preparation.');
           }
           return recordView(model, row);
         },

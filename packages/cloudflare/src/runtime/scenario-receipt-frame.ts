@@ -8,6 +8,7 @@ import { observeScenarioReceiptDependency as observeStateDependency,
   selectScenarioReceiptReturn as selectStateReturn,
   executeScenarioReceiptQuery as executeStateQuery,
   selectScenarioReceiptQueryFirstRow as selectStateQueryFirstRow,
+  readScenarioReceiptQueryParentRow as readStateQueryParentRow,
   bindScenarioReceiptQueryCount as bindStateQueryCount,
   observeScenarioReceiptQueryDependency as observeStateQueryDependency,
   bindScenarioReceiptQueryResult as bindStateQueryResult,
@@ -24,7 +25,7 @@ interface NativeQueryProducer {
   readonly record: (model: string, record: ProjectedRecord, read: (field: string) => void, current: () => ProjectedRecord) => Readonly<Record<string, unknown>>;
   readonly encode: (value: unknown) => unknown;
   /** Trusted receipt host binds only State's genuine selected owner row. */
-  readonly mutableRecord?: (model: string, row: StoredRow) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  readonly mutableRecord?: (model: string, row: StoredRow, mode?: 'query-parent') => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
 interface NativeQueryExecution {
   readonly plan: ScenarioReceiptQueryPlan;
@@ -55,6 +56,8 @@ export type ScenarioReceiptDependencyObserver = (input: {
 }, healthy: () => void) => Promise<readonly FinalizedFileObservation[] | undefined>;
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
+  readonly queryParents: WeakMap<object, { readonly candidate: object; readonly view: NativeQueryView;
+    readonly model: string; readonly dependencyId: string }>;
   readonly observeDependency?: ScenarioReceiptDependencyObserver;
   readonly call: AdmittedCall;
   readonly store: StoragePort;
@@ -168,7 +171,7 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics,
     ...(observeDependency === undefined ? {} : { observeDependency }), ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
-    owner: Object.freeze({}), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
+    owner: Object.freeze({}), queryParents: new WeakMap(), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
@@ -261,22 +264,34 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
   nativeRow: unknown, field: string, dependencyId: string): Promise<void> {
   const operation = (async () => {
     const frame = checked(c);
-    if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario dependency observations must run sequentially.'));
+    const sourceView = typeof nativeRow === 'object' && nativeRow !== null
+      ? frame.sourceViews.get(nativeRow) ?? nativeRow : undefined;
+    const parent = sourceView === undefined ? undefined : frame.queryParents.get(sourceView);
+    const healthy = () => {
+      checked(c);
+      if (parent !== undefined && (parent.view.query.active !== parent.candidate || parent.view.query.bound ||
+          parent.view.reads.length !== 0 || frame.pending !== 2 || parent.model !== model || parent.dependencyId !== dependencyId || field !== 'parent')) {
+        return refuse('Query parent observation crossed its original candidate and ordinary dependency.');
+      }
+    };
+    if (frame.pending !== (parent === undefined ? 0 : 1)) {
+      return fail(frame, new StateError('validation', 'Scenario dependency observations must run sequentially.'));
+    }
     frame.pending += 1;
     try {
+      healthy();
       const row = captureNativeScenarioReceiptRow(nativeRow, frame.owner, model);
       const files = frame.observeDependency === undefined ? undefined
-        : await frame.observeDependency({ dependencyId, model, row, field }, () => { checked(c); });
-      checked(c);
+        : await frame.observeDependency({ dependencyId, model, row, field }, healthy);
+      healthy();
       await observeStateDependency(frame.call, frame.store,
         { dependencyId, model: model as ModelName, row, field, ...(files === undefined ? {} : { files }) });
-      checked(c);
+      healthy();
       // This private cache records only actual successful State observation.
       // Native hydration must match the exact evaluated field's canonical wire;
       // owning grants, Identity, source lifetime and final guards stay in State.
-      const sourceView = frame.sourceViews.get(nativeRow as object) ?? nativeRow as object;
-      let fields = frame.observedFields.get(sourceView);
-      if (fields === undefined) { fields = new Map(); frame.observedFields.set(sourceView, fields); }
+      let fields = frame.observedFields.get(sourceView!);
+      if (fields === undefined) { fields = new Map(); frame.observedFields.set(sourceView!, fields); }
       fields.set(field, Object.freeze({ model, wire: field === 'parent'
         ? row.parent === null || row.parent === undefined ? null : { id: row.parent.id }
         : field === 'id' ? row.id : row.data[field] }));
@@ -322,6 +337,47 @@ export function observeScenarioReceiptIntrinsic(c: HandlerContext, dependencyId:
       }
       checked(c);
     } catch (error) { fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {});
+  return operation;
+}
+
+/** Resolve the actual active candidate's parent for its original ordinary
+ * parent dependency. Generated source never receives State slots or raw rows. */
+export function readScenarioReceiptQueryParent(c: HandlerContext, nativeCandidate: unknown,
+  dependencyId: string): Promise<Record<string, unknown>> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 1) return fail(frame, new StateError('validation', 'Query parent requires its sequential active predicate.'));
+    frame.pending += 1;
+    try {
+      const view = typeof nativeCandidate === 'object' && nativeCandidate !== null
+        ? frame.queryViews.get(nativeCandidate) : undefined;
+      const dependency = resultPlan(frame)?.returns.flatMap(entry => entry.dependencies)
+        .find(entry => entry.id === dependencyId && entry.field === 'parent');
+      const healthy = () => {
+        checked(c);
+        if (view === undefined || dependency === undefined || view.query.active !== nativeCandidate || view.query.bound ||
+            view.query.result !== undefined || view.reads.length !== 0 || frame.pending !== 2 ||
+            !view.query.plan.dependencies.some(entry => entry.field === 'parent' && entry.role === 'control' &&
+              entry.type === dependency.model && view.dependencies.has(entry.id))) {
+          return refuse('Query parent requires its original active candidate and completed parent marker.');
+        }
+      };
+      healthy();
+      if (frame.queryProducer?.mutableRecord === undefined) return refuse('Query parent requires its owning native mutable binder.');
+      const row = await readStateQueryParentRow(frame.call, frame.store, { slot: view!.slot, dependencyId });
+      healthy();
+      const model = dependency!.model;
+      const parent = await frame.queryProducer.mutableRecord(model, row, 'query-parent');
+      healthy();
+      if (captureNativeScenarioReceiptRow(parent, frame.owner, model) !== row) {
+        return refuse('Query parent binder lost its exact State-issued owning row.');
+      }
+      frame.queryParents.set(parent, { candidate: nativeCandidate as object, view: view!, model, dependencyId });
+      return parent;
+    } catch (error) { return fail(frame, error); }
     finally { frame.pending -= 1; }
   })();
   void operation.catch(() => {});
@@ -419,7 +475,7 @@ export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
         const view = frame.queryProducer!.record(plan.model, record, field => {
           try {
             checkedQuery(c);
-            if (query.bound || !plan.dependencies.some(dep => dep.field === field) ||
+            if (query.bound || query.active === view && frame.pending !== 1 || !plan.dependencies.some(dep => dep.field === field) ||
                 (query.active !== view && (frame.pending !== 0 || query.result === undefined ||
                   !query.result.rows.some(row => row.slot === slot)))) {
               return refuse('Query field read requires its checked live candidate or original selected projection.');
@@ -438,6 +494,7 @@ export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
         try {
           const accepted = await predicate(view);
           checkedQuery(c);
+          if (frame.pending !== 1) return refuse('Query predicate must await its original parent navigation and observation.');
           if (typeof accepted !== 'boolean') return refuse('Query predicate requires its actual boolean.');
           if (reads.length !== 0) return refuse('Query predicate omitted an actual field read marker.');
           return accepted;
