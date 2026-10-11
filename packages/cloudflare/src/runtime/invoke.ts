@@ -1340,6 +1340,7 @@ interface StateInvokeProducer {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
     readonly policy: unknown;
+    readonly sourceReadPolicies?: ReadonlyMap<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>;
     readonly app: string;
     readonly identity: ResolvedIdentity;
     readonly store: StoragePort;
@@ -4717,7 +4718,7 @@ function freezeScenarioSnapshot(value: unknown): unknown {
 function createSourceReadPolicyAdapter(input: {
   readonly loaded: LoadedCanonicalDescriptors;
   readonly opts: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'store' | 'source'>;
-  /** Omitted only for a fresh invocation registry: State supplies each admitted/replay observation R. */
+  /** Omitted for per-call invocation/disclosure policies: State supplies the coherent observation R. */
   readonly revision?: Revision;
   readonly now: () => number;
   readonly app?: string;
@@ -7531,9 +7532,40 @@ async function invokeCanonicalMutation(
     if (committedReceipt === undefined || loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
       throw new StateError('validation', 'Installed State producer cannot disclose a saved CRUD outcome.');
     }
+    const descriptor = checkedScenario?.descriptor;
+    const target = descriptor?.inputs.find(field => field.name === 'record' && field.kind === 'ref' && field.versioned);
+    const crudModel = descriptor?.kind === 'create' && descriptor.name.endsWith('.create')
+      ? descriptor.name.slice(0, -'.create'.length)
+      : descriptor?.kind === 'update' || descriptor?.kind === 'delete'
+        ? target?.kind === 'ref' ? target.model : undefined : undefined;
+    // Source disclosure belongs only to this checked CRUD target and its
+    // declared ancestors. Unrelated source declarations leave static CRUD alone.
+    let currentModel = crudModel as ModelName | undefined, needsSource = false;
+    const ancestors = new Set<string>();
+    while (currentModel !== undefined) {
+      if (ancestors.has(currentModel)) throw new StateError('validation', 'Unsupported CRUD disclosure containment scope.');
+      ancestors.add(currentModel);
+      needsSource ||= loaded.sourceReadPolicies.has(currentModel);
+      currentModel = (loaded.containment as LoadedArtifactDescriptors['containment']).get(currentModel)?.parent;
+    }
+    let sourceReadPolicies: ReadonlyMap<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy> | undefined;
+    if (needsSource) {
+      const at = opts.now();
+      // Use the same actual port as mutation. State selects the current saved
+      // disclosure revision; no earlier host read or cached registry pins it.
+      const sourceReads = createSourceReadPolicyAdapter({ loaded,
+        opts: { asm: opts.asm, artifact: opts.artifact, identity: opts.identity, source: opts.source, store: receiptStore },
+        now: () => at, app: opts.app,
+        ...(opts.preferences === undefined ? {} : { preferences: captureDispatchPreclaimData(opts.preferences) }),
+      });
+      sourceReadPolicies = sourceReads.policies(crudModel!);
+    }
     const projected = await loaded.producers.invoke.projectGeneratedCrudReceipt({
       receipt: committedReceipt, registry: loaded.registry, policy: loaded.policy,
-      app: opts.app, identity: opts.identity, store: invocationLocal ? receiptStore : opts.store, memberships: opts.memberships,
+      ...(sourceReadPolicies === undefined ? {} : { sourceReadPolicies }),
+      app: opts.app, identity: opts.identity,
+      store: sourceReadPolicies === undefined ? invocationLocal ? receiptStore : opts.store : receiptStore,
+      memberships: opts.memberships,
     });
     return { ...result, ...projected };
   }
