@@ -5878,19 +5878,28 @@
         "next_action": "Release the selected query/full-scan/recovery budget and refusal/continuation profile. Reuse accepted per-call viewer selection and existing fence/projection/admission outcomes.",
         "done_when": "Selected actual driver preserves continuation/order/fence and no partial published progress; tiny returned limits cannot mask unbounded scan work.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-query"
+      },
+      "owner_dependency": {
+        "state": "blocked_exact_driver_work_profile_release",
+        "defining_owner": "Capability State/Work query/recovery; Packages actual D1/DO storage driver contract/implementation",
+        "required_output": "Actual D1/DO selected scan/sort/read budget mechanism or enforceable bounded indexed-row admission that refuses before unrestricted SQL execution/materialization. Include units, exact query/candidate domain, order/continuation and first-failure/refusal policy; SQL returned LIMIT alone is insufficient.",
+        "evidence": "State ordinary queryRecords fetches full candidates and filters/project/sorts before result-overflow. Existing viewer page limits1000 candidates/100 page/25 default qualify that selected materialized scope only. D1 SELECT ORDER BY LIMIT then.all and DO.sql.exec.toArray can still scan/sort more rows. Work recover(limit) loads all claimed and uncertain rows; limit counts released stale claims/returned uncertain IDs, not visited rows.",
+        "preserved": "Keep accepted17 viewer controls and projection/archive/fence/authority order. Ordinary query limit remains complete-match validation refusal, never truncate. Work parse/query failure refuses whole stage before its atomic commit; claimed resumeAfter is not uncertain-row continuation.",
+        "finite_alternatives": "Owner may expose bounded indexed raw-row pages with counted visits and unchanged complete selection, or explicitly choose complete-query overflow refusal over a finite raw candidate domain. Exact domain/profile must be released by actual driver owner; neither an undocumented timeout nor global1000 from viewer pages is selected here.",
+        "next": "Skip this blocked contract; release only exact driver dependency to Packages/coordinator and continue independent original cohort contract. No product change/JEV adoption/runtime acceptance."
       }
     },
     {
       "family": "STATE / WORK",
       "kind": "resource-correctness",
-      "readiness": "blocked-canonical-input-and-storage-driver-resource-profile-release",
+      "readiness": "reviewed-original-cohort-contract-ready-exact-storage-state-native-producers",
       "audit_finding_ids": [
         "SSW05",
         "SQ04"
       ],
       "library_sequence_ids": [],
       "prerequisites": [
-        "Finite actual frozen cohort representation and durable continuation bounds selected by fanout owner; no global arbitrary cap or admission/query barrier."
+        "Packages bounded identity-only source pages, raw retained/page decoding and fenced bounded original-anchor fact; Capability exact State profile and Dev original native binding. Independent query scan/work policy remains separately blocked, not a blanket cohort barrier."
       ],
       "intended_deleted_mechanisms": [],
       "expected_production_reduction": {
@@ -6040,13 +6049,70 @@
         "dispatch_reminder": "Recheck the least expensive supported reliable pair for the finite source-current slice; this allocation is not dispatch authority or a permanent lane model."
       },
       "current_execution": {
-        "disposition": "open-selected-packet",
-        "next_work": "ready-owner-contract",
-        "owner": "Capability State and Dev fanout/resource owner",
-        "accepted_scope": "blocked on packet prerequisites",
-        "next_action": "Release finite frozen-membership representation/load/validation and durable continuation for the existing cohort consumer. Keep admission/hash/query policies independently owned.",
+        "disposition": "owner-contract-released-producer-joins-unfinished",
+        "next_work": "ready-exact-producer-dispatch",
+        "owner": "Packages bounded storage identity/decode; Capability State profile; Dev native consumer",
+        "accepted_scope": "Defining original private cohort profile only, preserving original scope; no implementation/runtime/native acceptance.",
+        "next_action": "Implement the exact first-materialization storage outputs including bounded anchor classification, State caller guards and native consumer; publish no append-only or page-only completion claim.",
         "done_when": "Original admitted child order/identity, membership and progress bytes persist; hostile cohort refuses before unbounded representation or checkpoint bypass.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-cohort"
+      },
+      "owner_contract": {
+        "status": "accepted_by_defining_owner_original_private_profile_only_implementation_unfinished",
+        "defining_owner": "Capability State representation/continuation; Dev actual native private cohort/resource binding",
+        "scope": "Existing original installed private-source model/anchored frozen-cohort consumer, including archived stored identities. Do not apply a new universal quota to all public codecs or replace its enumeration with committed-source archived-exclude semantics.",
+        "profile": {
+          "max_members": 1000,
+          "max_page_size": 100,
+          "max_child_admission_chunk": 100,
+          "default_page_and_chunk": 100,
+          "valid_configured_sizes": "Existing positive sizes1..100 remain valid; refuse outside this selected profile instead of silently clamping.",
+          "max_identity_utf16_units": 200,
+          "identity_scope": "Original source occurrence, handler, model/owner/anchor/member identity components; reuse existing committed-model source bounded nonempty/URI-valid/control-free identity rules at the private caller.",
+          "max_compound_id_utf16_units": 6000,
+          "compound_scope": "Existing v1 URI-derived intent/child/checkpoint row identities; preserve exact recipes and bytes. Validate component length before URI derivation.",
+          "captured_json_profile": "One complete captured representation/retained row/page: existing own-JSON20k expanded visits/rootdepth32/2m key+stringUTF16 and derived12640000canonicalUTF8 ceiling. Budget before parsing/copy/materialization, not after an unbounded clone. The ceiling is conservative and need not be reachable.",
+          "lifetime_work": "Freeze retains at most1000members and performs at mostceil(1000/pageSize)+1 <=1001 bounded identity reads; at full capacity use a one-identity overflow/empty peek before any next append. Continuation point-loads at most100children per slice; progress admits at most1000raw child-row visits plus an overflow/empty peek, uses pages<=100 and never retains an unbounded seen set. Count every returned/visited row, not only counted matching outcomes."
+        },
+        "fresh_freeze": "Require actual bounded identity-only pages before loading unused business-row data. Refuse oversized configured page/chunk, overlong/malformed IDs, over-return/nonadvancing cursor/duplicate identity or1001st member before growing/sorting/copying full members and before the original source/intent/checkpoint/first-chunk commit. No truncation or partial frozen set; preserve ID-sort/include-archived membership and original revision conflict behavior.",
+        "retained_and_progress": "Apply this trusted original source profile before complete retained member/checkpoint/child parsing or codec copies. Length/count checks precede Set/sort/URI work. Preserve immutable full members/memberCount, both legacyadmit/N and v2member-offset verification, current intent/checkpoint versions and atomic child inserts/cursor advance with terminal coverage. Missing child stays pending; only all original members terminal permits terminal, failures retain attention. Overflow/malformed source/profile/current intent refuses whole progress/admission; never publish partial counts or pretend completed.",
+        "first_materialization_prerequisites": [
+          {
+            "owner": "Packages actual State D1/DO/storage primitive",
+            "output": "Bounded identity-only source pages and bounded raw retained-row/page decoding at the actual pre-JSON-parse/pre-materialization site, with this selected row/identity/tree/text/byte profile. Existing StoragePort.query returns full business StoredRows and load decodes rows before State validation, so a State append guard alone is insufficient. Release exact paths/API consumer semantics; no query/hash policy barrier or unbounded fallback."
+          },
+          {
+            "owner": "Packages actual fenced State storage fact; Capability State and Dev native anchor consumers",
+            "output": "Bounded original-anchor existence/disposal-fact read within the original fenced revision: preserve present, archived or tombstoned as known and missing without disposal as unknown. State classifyAnchor and native classifyFanoutAnchor currently load the whole anchor row or historyFor; D1/DO materialize/decode complete history before checking remove/archive. Return the needed bounded fact without business/history payload materialization. No universal history quota, new driver framework or independent SQL-work policy barrier."
+          },
+          {
+            "owner": "Dev actual native private source and retained fanout join",
+            "output": "Bind the same trusted original profile to source freeze/native enumeration and retained admission/progress before first growing/copy/URI work. Use exact original installed source/owner/handler/current authority; no new durable profile carrier or helper-only claim. Apply no held artifact preparation."
+          }
+        ],
+        "compatibility": "This is a new selected private caller cap, reused from an actual existing source profile, not a claim that page100 previously bounded cohorts. Retained/private inputs>1000 or components>200/compound>6000 now refuse; do not silently trim/rewrite/migrate them. Within-profile membership, child order/identity, persisted fields and progress outputs remain unchanged. Frozen membership never grants execution/read authority.",
+        "refusal": "Resource excess uses generic nonretryable State limit at the defining boundary; malformed/duplicate/nonadvancing/profile/source/cursor disagreement retains existing validation/unavailable diagnosis. Preserve actual first failure for within-profile inputs and no source/child/progress/receipt/effect publication from a failed unit.",
+        "qualification_required": [
+          "Reuse unchanged original499/500/501/1000 native/F2 and two-live/reopen/current-authority/terminal/legacy-v2 outcomes. Do not rerun them at contract stage.",
+          "After concrete producer implementation, only relevant changed original source/driver/State/native consumers:1000complete/1001overflow, size1/100/101,200/201component and compound bound, tree/text/retained malformed input, archived cutoff/concurrent source conflict, no partial commit, cursor/prefix/terminal/reopen and bounded progress/raw visit refusal. Verify derived canonical bytes without impossible exact-ceiling inputs.",
+          "Defining contract/advice is not runtime, native consumer, whole-app or independent critical-security acceptance. Packages driver output, State implementation and Dev actual join remain unfinished."
+        ],
+        "advice": {
+          "requests": [
+            "implementation/capability-roadmap-20261008/cohort-resource-request-1.json",
+            "implementation/capability-roadmap-20261008/cohort-resource-request-2.json",
+            "implementation/capability-roadmap-20261008/cohort-resource-request-3.json"
+          ],
+          "responses": [
+            "implementation/capability-roadmap-20261008/cohort-resource-response-1.json",
+            "implementation/capability-roadmap-20261008/cohort-resource-response-2.json",
+            "implementation/capability-roadmap-20261008/cohort-resource-response-3.json"
+          ],
+          "model": "jev-1.13.0",
+          "result": "A in3/3 with probability/confidence1; no disagreement. Prefer actual selected1000/100/200/6000 profile over wider long-ID or~20k-member proposals and their added qualification/cost. Numerical certainty is advice only.",
+          "remaining_uncertainty": "Pre-materialization/decoding enforcement is not present in current storage ports, and native binding is not implemented by this decision. Query DB scan/sort work remains its separate exact driver prerequisite; arbitrary host/native allocation is not sandboxed."
+        },
+        "review": "Independent defining review CLEAR with the concrete full-anchor-history materialization omission corrected in this handoff. Existing selected caps, archived frozen membership, exact IDs/cursors, authority and no partial publication retained. No product, runtime or critical-security qualification follows from this defining contract."
       }
     },
     {

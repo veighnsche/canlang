@@ -1,0 +1,53 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "decision": "Choose the finite profile for the existing original private frozen-cohort representation/retained continuation. Contract selection only; original qualification already covers499/500/501/1000 and is reused.",
+      "verified_facts": [
+        "State/native freeze allocate a full growing member-ID array from id-ascending pages until a short page. Default native pageLimit/chunkSize100, but no aggregate member/text cap. Archived identities remain included and later receive skipped/deleted outcomes; committed-model source selection separately excludes archived, so do not replace its enumeration wholesale.",
+        "State stage/codec repeats full Set/copy/sort. Persisted intent stores immutable sourceOccurrence/handler/cohort/fullmembers/memberCount. Child ID and intent ID are unchanged encodeURIComponent-based v1 recipes. Missing children count pending; terminal requires all frozen members terminal, failed terminal attention. Frozen membership grants no current authority.",
+        "Source revision fences complete freeze/checkpoint/first chunk in one commit. Conflict/abort emits no partial set. Existing legacyadmit/N and v2admit/v2/memberOffset are preserved; v2 verifies one prefix slice. Retained continuation point-loads at mostchunkSize children and atomically advances cursor without replacing terminal coverage; current ownership/intent/version/membership precede execution.",
+        "Native private source and real Work F2 qualified499/500/501/1000 and exact-full-page continuation, plus original two-live/stale/reopen/refusal controls. These prove those scopes, not an existing universal1000cap. Existing native committed-model source explicitly selects maxMembers1000/chunk100, maxSources/maxHandlers200; its owning identity validator limits source/handler/model/record components to200UTF16 units and validates URI encoding, with6000compound framework IDs. This concrete local profile can be selected for the original private cohort, with its broader historical-domain restriction explicit.",
+        "Existing own JSON copies have20000expanded visits/rootdepth32/2000000aggregateUTF16key+string units. Conservative canonical JSON byte ceiling12640000=6*text+32*visits; not necessarily reachable. These are local policies, not global or an admission/query dependency.",
+        "Original progress drains full child pages into an unbounded seen set and then checks missing members. Current codecs load/JSON-decode full retained rows before inspecting member length. Original source query pages return full StoredRows including unused model data; pageLimit does not bound those row bytes or backend scan/sort. Thus just limiting append count or page length is insufficient for first materialization/load.",
+        "Complete protection needs actual driver/source identity-only bounded pages and bounded retained/page decode before copies, plus native same-profile binding. Packages owns shared driver/primitives; Dev owns actual native source/installed fanout join; State owns representation/continuation. Those exact producer releases can remain implementation prerequisites without blocking defining profile selection. Database scan/sort policy is independent TECH-S04-query; do not claim this profile is its solution."
+      ],
+      "common_requirements": [
+        "Preserve complete original include-archived membership, sorted order/IDs/bytes, one source fence, atomic failure/no truncation, both cursor forms/current intent authority and no false terminal progress.",
+        "Refuse hostile oversized/deep/overlong representations before full copies/ID derivation/hash and checkpoint publication, including reopened retained inputs; require actual predecode/identity producer where current API cannot enforce it.",
+        "Reuse the least complicated complete existing mechanisms and selected local limits; no paged manifest/new durable carrier/global cap/framework or unchanged test rerun.",
+        "A new finite caller profile can refuse formerly unbounded inputs before replay; state that honestly. Advice/contract is not runtime or original whole-app acceptance."
+      ]
+    },
+    "questions": {
+      "profile": {
+        "type": "choice",
+        "instructions": "For the verified original private-cohort caller, choose the least complex complete finite profile amongA/B/C. Compare the same full original identity/fence/authority/recovery outcomes and explicitly weigh permitted legacy input domain, bounded representation and implementation/qualification cost. Proposed producers are not implemented evidence.",
+        "criteria": {
+          "A": "Select the existing1000-member/100page/100chunk and200UTF16 per original identity component/6000compound profile for this original private-cohort caller. Reuse local ownJSON20k/depth32/2mUTF16/derived12.64m conservative byte ceiling for complete captured representation before codec copies/decoding. No format/identity/cursor change; preserve <=1000 boundary-valid original cohorts. Most economical and directly matches existing selected native source bounds; newly rejects legacy private components>200 and oversized historical cohorts. Require exact bounded source-ID pages/retained decode and native binding; no acceptance from limits alone.",
+          "B": "Keep1000members/100page/100chunk but use only aggregate2mUTF16 identity text, ownJSON20k/depth32/derived12.64m bytes and6000compound-ID bound; permit individual components>200 where every derived compound stays within6000. Same original representation/order/cursors/atomicity and required bounded identity/decode producers. Preserves more long legacy identities; requires pre-encoding length accounting, repeated-prefix/per-batch work accounting and actual broader identity boundary qualification beyond existing200component source profile. New finite larger-cohort refusal remains.",
+          "C": "Use existing generic ownJSON20k/depth32/2mUTF16/derived12.64m bytes as the full private-cohort bound,100page/chunk and6000compound IDs, without adding1000member or200component cap. Finite visit budget includes complete envelope/fields/members so at most<20000members; same full frozen carrier/IDs/cursors and required bounded identity/decode producers. Preserves more formerly valid larger cohorts at materially larger capture/continuation/progress cost;1000original results are insufficient to qualify its larger upper boundary, and its local source profile differs from existing native1000selection."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "profile": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 1.0,
+        "probabilities": {
+          "A": 1.0,
+          "B": 0.0,
+          "C": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1703,
+      "output_tokens": 38
+    }
+  }
+}
