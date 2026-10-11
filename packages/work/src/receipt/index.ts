@@ -412,3 +412,5 @@ export interface WorkReceiptFns {
 export async function loadWorkReceiptFns(): Promise<WorkReceiptFns> {
   return { observeSelectedReceipt, applyReceiptProgress, isConsistentCompletion };
 }
+
+export { readGenerationCallbackDiagnostics } from '../kernel/callback-diagnostics.js';

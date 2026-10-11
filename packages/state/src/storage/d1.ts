@@ -54,6 +54,8 @@ import {
   checkCohortIdentityRows,
   toCohortStoredRow,
   toCohortStoredRows,
+  captureBoundedOutboxRequest, compileBoundedOutbox, toBoundedRetainedOutbox,
+  type BoundedRetainedOutboxRow,
 } from './sqlite-codecs.js';
 import type { CohortRecordRow } from './sqlite-codecs.js';
 import type { RecordRow, ReceiptRow, OutboxRow, RetainedOutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
@@ -655,6 +657,17 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
         .bind(intentId)
         .first<RetainedOutboxRow>();
       return row === null ? null : toRetainedOutboxIntent(row);
+    },
+
+    async outboxGetBounded(request): Promise<RetainedOutboxIntent | null> {
+      const input = captureBoundedOutboxRequest(request);
+      const { sql, bindings } = compileBoundedOutbox(input);
+      const before = await readRevisionInner(db);
+      if (before !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, before);
+      const row = await db.prepare(sql).bind(...bindings).first<BoundedRetainedOutboxRow>();
+      const after = await readRevisionInner(db);
+      if (after !== input.expectedRevision) throw new FenceConflictError(input.expectedRevision, after);
+      return row === null ? null : toBoundedRetainedOutbox(row);
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {

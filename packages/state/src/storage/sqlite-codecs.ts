@@ -152,7 +152,7 @@ class CohortBudget {
 }
 
 /** Count raw bytes without allocating an encoding buffer before its cap. */
-function checkCohortRawBytes(raw: string): void {
+function checkCohortRawBytes(raw: string): number {
   if (raw.length > COHORT_BYTES) cohortLimit();
   let bytes = 0;
   for (let i = 0; i < raw.length; i++) {
@@ -163,6 +163,7 @@ function checkCohortRawBytes(raw: string): void {
     else bytes += 3;
     if (bytes > COHORT_BYTES) cohortLimit();
   }
+  return bytes;
 }
 
 /** Validate/count JSON tokens before JSON.parse can grow the retained tree. */
@@ -518,6 +519,61 @@ export type RetainedOutboxRow = OutboxRow & {
   readonly committed_revision: number | null;
   readonly created_at: number;
 };
+
+export interface BoundedOutboxRequest {
+  readonly intentId: string;
+  readonly expectedRevision: Revision;
+}
+export function captureBoundedOutboxRequest(input: BoundedOutboxRequest): BoundedOutboxRequest {
+  if (typeof input !== 'object' || input === null || Array.isArray(input) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(input))) cohortInvalid();
+  const own = (key: keyof BoundedOutboxRequest): unknown => {
+    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) cohortInvalid();
+    return descriptor.value;
+  };
+  const intentId = own('intentId'), expectedRevision = own('expectedRevision');
+  cohortIdentity(intentId, 200);
+  if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) cohortInvalid();
+  return Object.freeze({ intentId, expectedRevision: expectedRevision as Revision });
+}
+/** Withhold every raw column before the native driver materializes its payload. */
+export function compileBoundedOutbox(input: BoundedOutboxRequest): { sql: string; bindings: unknown[] } {
+  input = captureBoundedOutboxRequest(input);
+  const columns = `${OUTBOX_COLUMNS}, status, committed_revision, created_at`.split(', ');
+  const size = columns.map(column => `COALESCE(length(CAST(${column} AS BLOB)), 0)`).join(' + ');
+  const guarded = columns.map(column => `CASE WHEN (${size}) <= ${COHORT_BYTES} THEN ${column} ELSE NULL END AS ${column}`).join(', ');
+  return { sql: `SELECT ${guarded} FROM outbox WHERE intent_id = ?`, bindings: [input.intentId] };
+}
+export type BoundedRetainedOutboxRow = Omit<RetainedOutboxRow, 'arguments'> & { readonly arguments: string | null };
+
+/** Memory's private original is bounded before any deep copy. */
+export function captureBoundedOutbox(retained: RetainedOutboxIntent): RetainedOutboxIntent {
+  return captureCohort(retained, new CohortBudget(), 0, new Set()) as RetainedOutboxIntent;
+}
+/** Bound the full raw carrier and expanded envelope before the ordinary JSON decoder. */
+export function toBoundedRetainedOutbox(row: BoundedRetainedOutboxRow): RetainedOutboxIntent {
+  if (row.arguments === null) cohortLimit();
+  let bytes = 0;
+  for (const value of Object.values(row)) {
+    if (value === null) continue;
+    if (typeof value !== 'string' && typeof value !== 'number') cohortInvalid();
+    bytes += checkCohortRawBytes(String(value));
+    if (bytes > COHORT_BYTES) cohortLimit();
+  }
+  const budget = new CohortBudget();
+  captureCohort({ intent: {
+    intentId: row.intent_id, operation: row.operation, operationId: row.operation_id, target: row.target,
+    occurrenceIndex: row.occurrence_index,
+    ...(row.dispatch_guard === null ? {} : { dispatchGuard: row.dispatch_guard }),
+    ...(row.handler_contract === null ? {} : { handlerContract: row.handler_contract }),
+  }, status: row.status, ...(row.committed_revision === null ? {} : {
+    originalCommit: { revision: row.committed_revision, createdAt: row.created_at },
+  }) }, budget, 0, new Set());
+  budget.addText('arguments'.length);
+  checkCohortJson(row.arguments, budget, 2);
+  return toRetainedOutboxIntent(row as RetainedOutboxRow);
+}
 
 export function toRetainedOutboxIntent(row: RetainedOutboxRow): RetainedOutboxIntent {
   // A pre-provenance row retains its creation time but has no original
