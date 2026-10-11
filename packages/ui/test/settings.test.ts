@@ -244,13 +244,25 @@ describe("renderSettingsPanel", () => {
     });
     assert.ok(!html.includes("<script>"), html);
     assert.ok(html.includes("&lt;script&gt;"), html);
-    const hostile = await renderSettingsPanel({
-      context: makeContext(),
-      sectionId: "n",
-      preferences: [{ id: "n", caption: "N", saveTo: "javascript:alert(1)" }],
-    });
-    assert.ok(hostile.includes(`action="#"`), hostile);
-    assert.ok(!hostile.includes("javascript:"), hostile);
+    let controls = 0;
+    for (const target of ["javascript:alert(1)", "//evil.example/save", "/\\evil.example/save", "https://evil.example/save"]) {
+      await assert.rejects(renderSettingsPanel({ context: makeContext(), sectionId: "base",
+        base: makeBase({ postTo: target }) }), /operation POST action/);
+      for (const field of ["saveTo", "resetTo"] as const) {
+        await assert.rejects(renderSettingsPanel({ context: makeContext(), sectionId: "n",
+          preferences: [{ id: "n", caption: "N", saveTo: "/mount/save", resetTo: "/mount/reset", [field]: target,
+            controls: () => { controls++; return ["protected body"]; } }] }), /operation POST action/);
+      }
+    }
+    assert.equal(controls, 0);
+    const mounted = await renderSettingsPanel({ context: makeContext(), sectionId: "n",
+      preferences: [{ id: "n", caption: "N", saveTo: "/mount/save?mode=all", resetTo: "/mount/reset", version: "7",
+        controls: ['<input name="level" value="all">'] }] });
+    assert.ok(mounted.includes('action="/mount/save?mode=all"'));
+    assert.ok(mounted.includes('action="/mount/reset"'));
+    assert.ok(mounted.includes('name="_csrf" value="csrf-123"'));
+    assert.ok(mounted.includes('name="version" value="7"'));
+    assert.ok(mounted.includes('name="level" value="all"'));
   });
 
   it("exposes panel forms in the DOM", async () => {

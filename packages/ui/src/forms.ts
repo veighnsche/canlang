@@ -49,7 +49,7 @@ import type {
   DerivedOperationInputs,
   DerivedWritableInput,
 } from "@canlang/contracts";
-import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import { drawer } from "./overlays.js";
 // C4b explicit-control dispatch + label/validator fragment reuse. This is a
 // forms<->controls import cycle, safe under ESM: both modules touch the
@@ -701,7 +701,7 @@ function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperat
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
   const projection = derived === undefined ? ""
     : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs, bindingIdentity, draftIdentity }))}"`;
-  return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}${projection}>`;
+  return `<form action="${escapeAttr(action)}" method="post"${encoding}${projection}>`;
 }
 
 function splitErrors(
@@ -910,6 +910,7 @@ function outcomeBanner(
  * Transport fields, outcome banners and the submit/cancel row remain canonical.
  */
 export async function form(props: FormProps): Promise<string> {
+  const postTo = operationPostPath(props.action);
   if (props.derived !== undefined) {
     assertGeneratedMode(props.derived, props.mode);
     if (props.operation !== props.derived.operation) throw new Error("form: operation disagrees with checked inputs");
@@ -969,7 +970,7 @@ export async function form(props: FormProps): Promise<string> {
   const fieldsHtml = rendered.join("") + choicesHtml;
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   const renderedForm = (
-    formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
+    formOpenTag(postTo, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
@@ -1003,6 +1004,7 @@ export async function edit(props: EditProps): Promise<string> {
  * the declared operation owns archive/remove behavior.
  */
 export async function deleteRecord(props: DeleteProps): Promise<string> {
+  const postTo = operationPostPath(props.action);
   const heading = escapeHtml(resolveCaption(props.itemLabel, props.context));
   const copy = escapeHtml(resolveCaption(props.confirm, props.context));
   const tone = props.mode === "remove" ? "btn-error" : "btn-warning";
@@ -1016,7 +1018,7 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
     `<section class="card bg-base-100 shadow"><div class="card-body">` +
     `<h2 class="card-title">${heading}</h2>` +
     `<p>${copy}</p>` +
-    `<form action="${escapeAttr(safeHref(props.action))}" method="post">` +
+    `<form action="${escapeAttr(postTo)}" method="post">` +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
@@ -1033,6 +1035,7 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
  * travel as hidden fields; confirm copy renders above the submit button.
  */
 export async function action(props: ActionProps): Promise<string> {
+  const postTo = operationPostPath(props.action);
   // The rendering timezone is always declared so the server interprets
   // datetime inputs unambiguously; UTC when the caller supplies none.
   const timeZone = props.timeZone ?? "UTC";
@@ -1085,7 +1088,7 @@ export async function action(props: ActionProps): Promise<string> {
     props.variant === "danger" ? "btn-error" : props.variant === "ghost" ? "btn-ghost" : "btn-primary";
   const labelText = escapeHtml(resolveCaption(props.label, props.context));
   return (
-    formOpenTag(props.action, needsMultipart(props.fields)) +
+    formOpenTag(postTo, needsMultipart(props.fields)) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +

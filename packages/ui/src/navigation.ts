@@ -28,7 +28,7 @@ import type {
 import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
-import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import { assertFieldPath, serializeActionScalar } from "./forms.js";
 import { message, resolveCaption } from "./messages.js";
 
@@ -212,7 +212,8 @@ export function buildNavigation(
 // Fail-closed rule (C3/C5 precedent): invalid input throws -- empty
 // trails/suites, missing required captions/labels, out-of-range pages,
 // unknown themes, bad activation ids -- never clamps or invents content.
-// Hostile URLs fall back to "#" via safeHref (the link/shell precedent).
+// Hostile navigation URLs fall back to "#" via safeHref; protected POSTs
+// require rooted local paths and refuse invalid targets.
 //
 // Upstream evidence (daisyUI 5.7.47, pinned):
 // - breadcrumbs > ul > li; btn/btn-active/btn-disabled + tone/size/variant
@@ -279,7 +280,7 @@ function hidden(name: string, value: string): string {
 }
 
 function formOpen(postTo: string): string {
-  return `<form action="${escapeAttr(safeHref(postTo))}" method="post">`;
+  return `<form action="${escapeAttr(operationPostPath(postTo))}" method="post">`;
 }
 
 /** Non-empty string guard for POST targets, operations and captions. */

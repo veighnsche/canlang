@@ -65,6 +65,15 @@ export function safeHref(value: string, fallback = "#"): string {
   return isSafeUrl(value) ? value : fallback;
 }
 
+/** Protected POSTs use rooted local operation paths, never navigation URLs. */
+export function operationPostPath(value: string): string {
+  assertString(value, "operation POST action");
+  if (!value.startsWith("/") || value.startsWith("//") || /[\\\s\u0000-\u001F\u007F#]/.test(value)) {
+    throw new TypeError("operation POST action must be a rooted local path without backslashes, whitespace, controls or fragments");
+  }
+  return value;
+}
+
 /**
  * Spreadsheet-formula protection for CSV export cells: prefix cells starting
  * with = + - @ or whitespace/control C0 with a single quote, per the shared

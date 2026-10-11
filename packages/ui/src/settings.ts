@@ -37,7 +37,7 @@ import type {
 import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
-import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { escapeAttr, escapeHtml, operationPostPath } from "./escape.js";
 import { message, resolveCaption } from "./messages.js";
 import { themeController } from "./navigation.js";
 
@@ -92,6 +92,7 @@ async function renderBase(base: SettingsBaseControls, context: PresentationConte
   if (base.currentDensity !== undefined && base.currentDensity !== "comfortable" && base.currentDensity !== "compact") {
     throw new Error(`renderSettingsPanel unknown density ${JSON.stringify(base.currentDensity)}`);
   }
+  const postTo = operationPostPath(base.postTo);
   const theme = await themeController({
     context,
     label: base.themeLabel,
@@ -116,7 +117,7 @@ async function renderBase(base: SettingsBaseControls, context: PresentationConte
   const save = escapeHtml(resolveCaption(SAVE_LABEL, context));
   const reset = escapeHtml(resolveCaption(RESET_LABEL, context));
   const density =
-    `<form action="${escapeAttr(safeHref(base.postTo))}" method="post">` +
+    `<form action="${escapeAttr(postTo)}" method="post">` +
     hidden(CSRF_FIELD, context.csrfToken) +
     `<fieldset>` +
     (densityText === null ? "" : `<legend>${escapeHtml(densityText)}</legend>`) +
@@ -139,6 +140,8 @@ async function renderPreference(
   if (heading === "") {
     throw new Error(`renderSettingsPanel section ${JSON.stringify(section.id)} caption must not be empty`);
   }
+  const saveTo = operationPostPath(section.saveTo);
+  const resetTo = section.resetTo === undefined ? undefined : operationPostPath(section.resetTo);
   const body = await renderControls(section.id, section.controls);
   const save = escapeHtml(resolveCaption(SAVE_LABEL, context));
   const version =
@@ -146,7 +149,7 @@ async function renderPreference(
       ? ""
       : `<p>${escapeHtml(resolveCaption(VERSION_LABEL, context))}: ${escapeHtml(section.version)}</p>`;
   const saveForm =
-    `<form action="${escapeAttr(safeHref(section.saveTo))}" method="post">` +
+    `<form action="${escapeAttr(saveTo)}" method="post">` +
     hidden(CSRF_FIELD, context.csrfToken) +
     (section.version === undefined ? "" : hidden("version", section.version)) +
     (body === "" ? "" : `<div>${body}</div>`) +
@@ -156,7 +159,7 @@ async function renderPreference(
   }
   const reset = escapeHtml(resolveCaption(RESET_LABEL, context));
   const resetForm =
-    `<form action="${escapeAttr(safeHref(section.resetTo))}" method="post">` +
+    `<form action="${escapeAttr(resetTo!)}" method="post">` +
     hidden(CSRF_FIELD, context.csrfToken) +
     `<div class="flex gap-2"><button type="submit" class="btn btn-ghost">${reset}</button></div></form>`;
   return `<section><h3>${escapeHtml(heading)}</h3>${version}${saveForm}${resetForm}</section>`;

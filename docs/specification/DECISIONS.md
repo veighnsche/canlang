@@ -10154,3 +10154,69 @@ authority or original application acceptance. Dev owns that genuine join;
 other nominal/scalar/bytes requirements and human holds remain separate.
 
 Coordinator finite source/render review CLEAR; exact original copied-inspection component integrated after deadline and saved three JEV responses/uncertainty retained. Reuse182 owning/engine controls. Corrected a850 original semantic check is clear but actual original native compile refuses72 distinct diagnostics/no modules; no full application or parent acceptance follows. Compiler owns named original lowering gaps, Dev current native consumers, Packages genuine catalog/common prerequisites; exact holds and incomplete checkpoint persist.
+
+## 2026-10-11 — Rooted protected POST destinations (implemented; mounted journey unfinished)
+
+Protected form/login/account/preference/CSV actions carried CSRF, references and
+operation fields through a navigation filter that admitted foreign URLs. Require
+rooted local operation paths with one leading slash; refuse absolute/network
+URLs, backslashes, whitespace, controls and fragments before rendering protected
+children or performing generated upload/mutation effects. Preserve mounted paths,
+queries, original fields and ordinary external navigation. Mutation fetch uses
+same-origin mode and redirect:error, forwarded by the native browser adapter.
+
+JEV3 favors this finite policy (.88/.74/.80; confidence .82/.61/.70), with modest
+uncertainty for absolute local compatibility and no rationale. Current operation
+producers use rooted paths; no released requirement needs a new origin port.
+The direct human authorization for open-source design questions was verified
+before retrying identical requests after an initially restrictive automatic
+review. Responses and uncertainty remain in the existing DEL-B02 record.
+
+UI emission, browser asset build and nine affected existing test files pass
+(463/463), covering refusal before callbacks/upload effects, mounted queries,
+protected fields and native fetch options. Finite source review is CLEAR. Reuse
+unchanged CSV authorization, asset ownership, host helper and unrelated checks.
+This qualifies emitted option propagation, not physical redirect cancellation
+or the complete mounted journey. Dev owns original host/browser/native intake;
+Compiler owns checked helper lowering. Separate upload/export/diagnostic URL
+profiles, File retry/finalized progress, bounded download/print and lifetime
+qualification remain open. Parent and all precise holds remain unchanged.
+
+The coordinator found that authenticated full-page account targets were still
+validated after authored children. Cache applicable account HTML before child
+evaluation and reuse it at the final sink; partial/anonymous and current-only
+unused switch routes retain their behavior. The genuine child-effect control
+and affected shell file pass (56/56), with current UI emission. Reuse the other
+unchanged results and browser build; full mounted behavior remains open.
+
+
+## 2026-10-11 — Trusted page query association and admitted preferences (implemented; Dev consumer unfinished)
+
+Interfaces wraps the actual PageReadScope query to substitute the resolved
+request identity and enforce the default of 25 and maximum of 100. That wrapper lost Dev's private
+native WHERE association. Retain every guard and add optional scope-owned
+onQueryBound(boundQuery), awaited once before either render path. The hook
+receives the exact final query, preserves the scope receiver, and returns no
+replacement reader or authority. Invoke scoped queries with the scope receiver
+and fallback queries with the dependency receiver. Direct query reuse would
+remove existing Interfaces protections; a global dependency hook splits scope
+ownership unnecessarily. JEV3 favors scope ownership (.95/.98/.96; confidence
+.93/.97/.95), with no rationale; results remain advice in DEL-B02.
+
+Pass the same captured PageSourceContext used by admission as the second
+createReadScope argument, freezing its preference-bearing root as well as its
+checked saved actor/team/owner values and versions. Existing one-argument
+factories remain compatible. Renderer props or source copies do not create
+authority. Contracts/Interfaces emissions and 43 actual HTTP page controls pass,
+including full/partial association, awaited registration, receivers, genuine
+saved preferences, forged invocation substitution, bounds and safe admission/
+hook denials. Finite source review is CLEAR; unchanged native evidence is reused.
+
+Dev owns actual worker/assembly signature and source forwarding, private query
+association, original verified UI facade and fresh native predicate preference
+conversion, including selected-owner wrappers. Capability/State owns original
+source-parent reads within the same observation. This defining producer does
+not certify Office native behavior or duplicate those feature implementations;
+all parent gates and precise holds remain.
+
+Coordinator defining protected-sink/page-query reviews CLEAR. Corrected109 admits applicable authenticated account actions before child effects, preserving partial/anonymous/current-only paths. f37 full/partial scopes get the same frozen preference-bearing admitted source and await the exact bound-query hook once, preserving request identity/default25/max100/receiver safeguards. Integrated locally after deadline; affected shell56/HTTP43 and unchanged prior sink/browser results reused. Dev genuine private native query association and physical redirect/File/export/print/application acceptance remain unfinished; exact holds and incomplete checkpoint persist.

@@ -35,6 +35,7 @@ import {
   isolate,
   isSafeUrl,
   safeHref,
+  operationPostPath,
 } from "./escape.js";
 import { assertRegionId, fragmentRegion, hxAttrs } from "./htmx.js";
 import {
@@ -1174,8 +1175,7 @@ const CSV_REVIEW_LABEL = message("Preview", { nl: "Preview" });
 
 /**
  * Multipart CSV upload panel POSTing to the caller-supplied postTo path
- * (the themeController honesty rule: a missing path throws, a hostile one
- * falls back to "#" via safeHref, nothing is ever invented). The optional
+ * (missing or non-rooted operation paths throw). The optional
  * review section renders parsed preview rows with csvFormulaProtect
  * applied; a present-but-empty preview throws rather than rendering an
  * empty table.
@@ -1190,10 +1190,11 @@ export async function csvImport(props: CsvImportProps): Promise<string> {
   if (label === "") {
     throw new Error("csvImport label must not be empty");
   }
+  const postTo = operationPostPath(props.postTo);
   const review = props.review === undefined ? "" : renderCsvReview(props);
   return (
     `<section><h2>${escapeHtml(label)}</h2>` +
-    `<form action="${escapeAttr(safeHref(props.postTo))}" method="post" enctype="multipart/form-data">` +
+    `<form action="${escapeAttr(postTo)}" method="post" enctype="multipart/form-data">` +
     `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
     `<label>${escapeHtml(resolveCaption(CSV_FILE_LABEL, props.context))}` +
     `<input type="file" name="file" accept=".csv,text/csv" class="file-input"></label>` +

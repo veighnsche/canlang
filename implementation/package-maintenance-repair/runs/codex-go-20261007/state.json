@@ -4116,6 +4116,386 @@
           }
         ],
         "acceptance_limit": "Finite shared carrier/helper only; no configured deployment/native/browser complete acceptance or human hold lift. Existing Values corpus and unrelated gates are unchanged and reused."
+      },
+      "operation_post_sink_implementation": {
+        "status": "implemented and directly tested; parent unfinished; no publication or whole mounted-browser acceptance",
+        "defining_owner": "Packages UI/Contracts",
+        "contract": "Protected operation/login/account/preference/CSV POST actions require a rooted local path with exactly one leading slash; refuse absolute/network URLs, backslashes, whitespace, controls and fragments, with no # fallback. Preserve accepted path/query bytes and mount prefixes. Ordinary external navigation remains unchanged.",
+        "consumer_order": "Validate before protected form children/controls, generated upload key mint/intents/content effects and operation/CSV transport. Generated and CSV mutation fetch set same-origin mode and redirect:error; native browser adapter forwards the options.",
+        "files": [
+          "packages/contracts/src/presentation.ts",
+          "packages/ui/src/escape.ts",
+          "packages/ui/src/forms.ts",
+          "packages/ui/src/navigation.ts",
+          "packages/ui/src/panels.ts",
+          "packages/ui/src/settings.ts",
+          "packages/ui/src/collections.ts",
+          "packages/ui/src/shell.ts",
+          "packages/ui/src/client.ts",
+          "packages/ui/src/csv/parse.ts",
+          "packages/ui/src/csv/preview.ts",
+          "packages/ui/src/csv/confirm.ts"
+        ],
+        "verified": {
+          "ui_owning_emission": "pass0 Node24.19.0; first fixture-only PageChildren typing failure corrected, current emission passes",
+          "browser_asset_build": "pass0 installed bootstrap/polling/CSS manifest",
+          "affected_existing_files": "463/463 pass, 83 suites, 478.484625ms; forms/navigation/settings/panels/shell/collections/t20b-client/csv/browser-polling-join",
+          "finite_source_review": "CLEAR generated/CSV ordering and native option forwarding; renderer source/controls reviewed at changed scope",
+          "unchanged_results": "Prior CSV authenticated review/row commit, asset ownership, host-only deploymentBase helper and unrelated parent checks reused. Contracts/navigation documentation-only follow-up changes no emitted behavior."
+        },
+        "acceptance_limit": "Emitted adapter option propagation is qualified, not physical browser redirect cancellation. No separate intent/content/finalize upload URL policy, diagnostic/export URL intake, actual configured mounted-host File/export/print journey, native preparation activation, release-host qualification or parent acceptance claimed.",
+        "remaining_dependencies": [
+          {
+            "owner": "Dev",
+            "prerequisite": "Consume this rooted protected POST policy in original mounted auth/form/CSV native/browser workflow; preserve genuine configured host/mount and actual collected fields."
+          },
+          {
+            "owner": "Compiler",
+            "prerequisite": "Retain owning checked app_url(context,path) lowering against existing helper; installed-host configuration remains Dev-owned."
+          },
+          {
+            "owner": "UI/Interfaces/Files actual browser integrators",
+            "prerequisite": "Original selected upload retry/finalized progress, separate upload/export/diagnostic URL producer policies, authorized bounded download/print and physical lifetime/security journey remain."
+          }
+        ],
+        "commit_pending": false,
+        "account_order_correction": {
+          "reason": "Coordinator found authenticated full-page renderPage evaluated authored children before account POST target validation in1507. The initial new controls supplied an empty child array and did not expose this ordering gap.",
+          "implementation": "Render/cache only applicable authenticated full-page account HTML before renderChildren, reuse it at final sink. Partial/anonymous behavior and current-only unused switchTeam routes stay unchanged; invalid applicable signOut or noncurrent switchTeam refuses before child thunk.",
+          "verified": "UI owning emission pass0; changed shell file56/56 pass301.350542ms, including actual child-effect counters and mounted CSRF/current-team controls. Reuse other unchanged initial463 results and browser asset build; no shell module in browser entry closure.",
+          "acceptance_limit": "Finite source-order correction only. Original mounted host/physical redirect/File/export/print and all precise holds remain."
+        }
+      },
+      "page_read_forwarding_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct human open-source Canlang design-question authorization previously verified, message01a12ac7-94ee-7af3-8d38-d9799f4a4b44; no credentials, private app/provider/user data or code in requests. All execution/publication holds preserved.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Only the defining Interfaces page-read producer: preserve original trusted query association across its validating wrapper, and forward the existing admitted source context including saved preferences. Dev owns private association, native source predicates and installed consumers. State owns source-parent same-observation qualification.",
+              "verified_facts": [
+                "The dispatcher constructs the source context from resolved identity and checked saved actor/team/owner preferences. It invokes page admission before creating the read scope. Preference maps and nested values are frozen; the preference-bearing source root is currently mutable, while the no-preference source is frozen.",
+                "createReadScope currently receives only resolved identity. Both render paths replace scope.query with a new wrapper, which substitutes the resolved identity and defaults limit to 25, rejecting nonintegers or bounds outside 1..100 before calling the original query.",
+                "Dev registers its genuine native predicate association in a private WeakMap keyed by the scope query or selected-owner wrapper. The new Interfaces wrapper is not registered; copied source/UI props cannot safely infer that association.",
+                "The existing PageReadScope contains authorized query/read functions and is host-produced after admission, not authored input. UI receives selected readers and the bound query, not the whole scope.",
+                "RowQueryRunner has an opaque invocation argument; the current contract alone does not prove every scope query ignores a renderer-supplied forged invocation or preserves Interfaces limit normalization. Existing controls require current identity and original refusal meanings.",
+                "Calling a detached query also loses an object-method receiver. A retained validating wrapper can explicitly invoke the original with the owning scope receiver; fallback dependency query can retain its dependency receiver."
+              ],
+              "outcome": "Expose the exact final validating query to its genuine trusted producer before either render path without accepting renderer metadata as authority. Keep current identity/default/bounds/refusals and receiver, and pass the same frozen source used by admission as a second createReadScope argument. One-argument factories remain compatible."
+            },
+            "questions": {
+              "page_read_forwarding": {
+                "type": "choice",
+                "instructions": "Choose the smallest complete producer seam meeting every stated identity, bound, association, receiver and admission ordering outcome. Compare all alternatives against the same current code facts and finite Dev consumption needs.",
+                "criteria": {
+                  "scope_hook": "Add optional PageReadScope.onQueryBound(boundQuery) on the existing host-produced scope. Interfaces calls it once after constructing the validating wrapper, before rendering, with the scope receiver; callback may register its private association, returns no replacement query, and failure follows existing safe page refusal mapping. Freeze captured source root and forward same source as second factory argument. No UI authority carrier.",
+                  "dependency_hook": "Add optional PageHttpDeps.onReadScopeQueryBound(scope,boundQuery), invoked once with the dependency receiver after wrapping and before rendering. Same source forwarding, frozen capture, validation and no replacement semantics. Host assembly must explicitly propagate the additional dependency and register the private association.",
+                  "direct_scope": "Render with the exact scope.query and keep the wrapper only for fallback deps.query. Forward/freeze same source. Preserve WeakMap identity with no callback, but require the defining scope contract and every actual producer to guarantee forged invocation refusal/substitution, default25/max100 and receiver binding before this is safe; existing Interfaces controls must still pass.",
+                  "defer": "Keep existing wrapper and stop only this join pending a named Dev ownership-forwarding contract, while retaining all current validation and source behavior; no implemented association or Office acceptance."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Only the defining Interfaces page-read producer: preserve original trusted query association across its validating wrapper, and forward the existing admitted source context including saved preferences. Dev owns private association, native source predicates and installed consumers. State owns source-parent same-observation qualification.",
+              "verified_facts": [
+                "The dispatcher constructs the source context from resolved identity and checked saved actor/team/owner preferences. It invokes page admission before creating the read scope. Preference maps and nested values are frozen; the preference-bearing source root is currently mutable, while the no-preference source is frozen.",
+                "createReadScope currently receives only resolved identity. Both render paths replace scope.query with a new wrapper, which substitutes the resolved identity and defaults limit to 25, rejecting nonintegers or bounds outside 1..100 before calling the original query.",
+                "Dev registers its genuine native predicate association in a private WeakMap keyed by the scope query or selected-owner wrapper. The new Interfaces wrapper is not registered; copied source/UI props cannot safely infer that association.",
+                "The existing PageReadScope contains authorized query/read functions and is host-produced after admission, not authored input. UI receives selected readers and the bound query, not the whole scope.",
+                "RowQueryRunner has an opaque invocation argument; the current contract alone does not prove every scope query ignores a renderer-supplied forged invocation or preserves Interfaces limit normalization. Existing controls require current identity and original refusal meanings.",
+                "Calling a detached query also loses an object-method receiver. A retained validating wrapper can explicitly invoke the original with the owning scope receiver; fallback dependency query can retain its dependency receiver."
+              ],
+              "outcome": "Expose the exact final validating query to its genuine trusted producer before either render path without accepting renderer metadata as authority. Keep current identity/default/bounds/refusals and receiver, and pass the same frozen source used by admission as a second createReadScope argument. One-argument factories remain compatible."
+            },
+            "questions": {
+              "page_read_forwarding": {
+                "type": "choice",
+                "instructions": "Which defining page-read output should be released now so a genuine host can register its original query association without weakening Interfaces guards? Weigh scope callback, dependency callback, exact-query reuse and precise deferral equally.",
+                "criteria": {
+                  "scope_hook": "Add optional PageReadScope.onQueryBound(boundQuery) on the existing host-produced scope. Interfaces calls it once after constructing the validating wrapper, before rendering, with the scope receiver; callback may register its private association, returns no replacement query, and failure follows existing safe page refusal mapping. Freeze captured source root and forward same source as second factory argument. No UI authority carrier.",
+                  "dependency_hook": "Add optional PageHttpDeps.onReadScopeQueryBound(scope,boundQuery), invoked once with the dependency receiver after wrapping and before rendering. Same source forwarding, frozen capture, validation and no replacement semantics. Host assembly must explicitly propagate the additional dependency and register the private association.",
+                  "direct_scope": "Render with the exact scope.query and keep the wrapper only for fallback deps.query. Forward/freeze same source. Preserve WeakMap identity with no callback, but require the defining scope contract and every actual producer to guarantee forged invocation refusal/substitution, default25/max100 and receiver binding before this is safe; existing Interfaces controls must still pass.",
+                  "defer": "Keep existing wrapper and stop only this join pending a named Dev ownership-forwarding contract, while retaining all current validation and source behavior; no implemented association or Office acceptance."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Only the defining Interfaces page-read producer: preserve original trusted query association across its validating wrapper, and forward the existing admitted source context including saved preferences. Dev owns private association, native source predicates and installed consumers. State owns source-parent same-observation qualification.",
+              "verified_facts": [
+                "The dispatcher constructs the source context from resolved identity and checked saved actor/team/owner preferences. It invokes page admission before creating the read scope. Preference maps and nested values are frozen; the preference-bearing source root is currently mutable, while the no-preference source is frozen.",
+                "createReadScope currently receives only resolved identity. Both render paths replace scope.query with a new wrapper, which substitutes the resolved identity and defaults limit to 25, rejecting nonintegers or bounds outside 1..100 before calling the original query.",
+                "Dev registers its genuine native predicate association in a private WeakMap keyed by the scope query or selected-owner wrapper. The new Interfaces wrapper is not registered; copied source/UI props cannot safely infer that association.",
+                "The existing PageReadScope contains authorized query/read functions and is host-produced after admission, not authored input. UI receives selected readers and the bound query, not the whole scope.",
+                "RowQueryRunner has an opaque invocation argument; the current contract alone does not prove every scope query ignores a renderer-supplied forged invocation or preserves Interfaces limit normalization. Existing controls require current identity and original refusal meanings.",
+                "Calling a detached query also loses an object-method receiver. A retained validating wrapper can explicitly invoke the original with the owning scope receiver; fallback dependency query can retain its dependency receiver."
+              ],
+              "outcome": "Expose the exact final validating query to its genuine trusted producer before either render path without accepting renderer metadata as authority. Keep current identity/default/bounds/refusals and receiver, and pass the same frozen source used by admission as a second createReadScope argument. One-argument factories remain compatible."
+            },
+            "questions": {
+              "page_read_forwarding": {
+                "type": "choice",
+                "instructions": "Select the bounded implementation contract for this demonstrated wrapper/preference gap. Include receiver and denial behavior, backward compatibility and actual required host work; do not expand this into predicate or storage implementation.",
+                "criteria": {
+                  "scope_hook": "Add optional PageReadScope.onQueryBound(boundQuery) on the existing host-produced scope. Interfaces calls it once after constructing the validating wrapper, before rendering, with the scope receiver; callback may register its private association, returns no replacement query, and failure follows existing safe page refusal mapping. Freeze captured source root and forward same source as second factory argument. No UI authority carrier.",
+                  "dependency_hook": "Add optional PageHttpDeps.onReadScopeQueryBound(scope,boundQuery), invoked once with the dependency receiver after wrapping and before rendering. Same source forwarding, frozen capture, validation and no replacement semantics. Host assembly must explicitly propagate the additional dependency and register the private association.",
+                  "direct_scope": "Render with the exact scope.query and keep the wrapper only for fallback deps.query. Forward/freeze same source. Preserve WeakMap identity with no callback, but require the defining scope contract and every actual producer to guarantee forged invocation refusal/substitution, default25/max100 and receiver binding before this is safe; existing Interfaces controls must still pass.",
+                  "defer": "Keep existing wrapper and stop only this join pending a named Dev ownership-forwarding contract, while retaining all current validation and source behavior; no implemented association or Office acceptance."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "page_read_forwarding": {
+                "type": "choice",
+                "choice": "scope_hook",
+                "confidence": 0.93,
+                "probabilities": {
+                  "scope_hook": 0.95,
+                  "dependency_hook": 0.03,
+                  "direct_scope": 0.02,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1028,
+              "output_tokens": 55
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "page_read_forwarding": {
+                "type": "choice",
+                "choice": "scope_hook",
+                "confidence": 0.97,
+                "probabilities": {
+                  "scope_hook": 0.98,
+                  "dependency_hook": 0.0,
+                  "direct_scope": 0.02,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1034,
+              "output_tokens": 55
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "page_read_forwarding": {
+                "type": "choice",
+                "choice": "scope_hook",
+                "confidence": 0.95,
+                "probabilities": {
+                  "scope_hook": 0.96,
+                  "dependency_hook": 0.02,
+                  "direct_scope": 0.02,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1030,
+              "output_tokens": 55
+            }
+          }
+        ],
+        "status": "JEV3 completed: scope_hook selected after finite actual source and security assessment",
+        "authorization_evidence": "Fresh read of direct human userMessage01a12ac7-94ee-7af3-8d38-d9799f4a4b44 in thread01a12824-7fa9-7302-a503-b0e9662c2687 confirms all five workers may send Canlang design questions to JEV, beyond earlier Office payloads. Identical requests retried after that explicit evidence check succeeded; no remaining consultation blocker.",
+        "uncertainty": "All three choose scope_hook (.95/.98/.96, confidence .93/.97/.95), with no rationale. Direct exact-query reuse loses current Interfaces identity/bounds protection under existing contract; dependency-global hook splits genuine scope ownership. Hook association and fresh State predicate/preference conversion remain Dev work, not acceptance from Interfaces output."
+      },
+      "operation_post_sink_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct human authorization for public Canlang design/source-derived context, verified by coordinator; AGENTS difficult-design JEV3. No source code, private app/user/provider data, identifiers or credentials in requests. Consultation only; all nonconsultation holds intact.",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Choose only the protected operation POST destination policy for existing server-rendered forms/buttons/theme controls and generated client mutation submissions. Ordinary external navigation links and separately supplied upload intent/content/finalize destinations are not authorized to change by this choice.",
+              "verified_facts": [
+                "POST renderers reuse navigation URL filtering that accepts external HTTP(S), mailto and network-path references. Forms then carry protected operation IDs, references and CSRF fields.",
+                "The generated client checks action only for nonempty text, and performs any file-intent effects before its final operation POST. Its current native fetch wrapper detects redirects only after following them.",
+                "Existing meaningful operation-form and client examples use root-relative operation targets, including mounted path prefixes. No existing defining contract authorizes sending protected operation payloads to another origin.",
+                "An existing optional host-only deploymentBase carries trusted HTTP(S) origin plus mount for app_url links; it is not yet supplied by every installed host. Authored/request extras cannot supply it.",
+                "The browser adapter has genuine current Window location. Structural direct-client and renderer tests need no ambient browser origin. Existing no-JS POST forms also need safe output before protected fields are emitted.",
+                "The existing queue leaves POST sink policy open with UI/Interfaces ownership, Dev host configuration and Compiler URL lowering. No full browser/File/lifetime acceptance or hold is released."
+              ],
+              "outcome": "Refuse an external operation action before emitting a protected POST form or performing upload/mutation side effects. Preserve canonical mounted local operation targets and ordinary external links. Do not follow a mutation redirect with its protected body. Use the smallest complete producer/consumer correction."
+            },
+            "questions": {
+              "operation_post_sink": {
+                "type": "choice",
+                "instructions": "For the stated finite operation POST outcome, choose the smallest complete safe destination policy that can be implemented now. Compare root-relative-only, explicitly trusted same-origin/mount absolute support and deferral fairly against actual current producers and compatibility. Do not count navigation or independent upload policy as this outcome.",
+                "criteria": {
+                  "root_relative": "Accept only a nonempty rooted relative operation path with exactly one leading slash; reject absolute/network-path URLs, backslashes, control/whitespace smuggling and fragments rather than replacing with #. No new origin port. Apply renderer and client before effects; native mutation fetch uses same-origin mode and redirect:error, with current location rather than document base resolution. Keep other navigation/upload profiles unchanged and named remaining.",
+                  "trusted_origin": "Support rooted paths plus absolute HTTP(S) operation targets only against explicit trusted configured origin/mount on render and genuine current window origin on client. Refuse missing base for absolute targets and cross-origin/mount mismatch before effects; mutation fetch still refuses redirects. Requires carrying/configuring the existing base and a direct-client origin seam, preserving legitimate absolute local targets.",
+                  "defer": "Keep current behavior pending a named exact authored or deployment destination contract, with no implementation acceptance; ask owning UI/Interfaces/Dev to define it before rendering or sending restrictions change."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Choose only the protected operation POST destination policy for existing server-rendered forms/buttons/theme controls and generated client mutation submissions. Ordinary external navigation links and separately supplied upload intent/content/finalize destinations are not authorized to change by this choice.",
+              "verified_facts": [
+                "POST renderers reuse navigation URL filtering that accepts external HTTP(S), mailto and network-path references. Forms then carry protected operation IDs, references and CSRF fields.",
+                "The generated client checks action only for nonempty text, and performs any file-intent effects before its final operation POST. Its current native fetch wrapper detects redirects only after following them.",
+                "Existing meaningful operation-form and client examples use root-relative operation targets, including mounted path prefixes. No existing defining contract authorizes sending protected operation payloads to another origin.",
+                "An existing optional host-only deploymentBase carries trusted HTTP(S) origin plus mount for app_url links; it is not yet supplied by every installed host. Authored/request extras cannot supply it.",
+                "The browser adapter has genuine current Window location. Structural direct-client and renderer tests need no ambient browser origin. Existing no-JS POST forms also need safe output before protected fields are emitted.",
+                "The existing queue leaves POST sink policy open with UI/Interfaces ownership, Dev host configuration and Compiler URL lowering. No full browser/File/lifetime acceptance or hold is released."
+              ],
+              "outcome": "Refuse an external operation action before emitting a protected POST form or performing upload/mutation side effects. Preserve canonical mounted local operation targets and ordinary external links. Do not follow a mutation redirect with its protected body. Use the smallest complete producer/consumer correction."
+            },
+            "questions": {
+              "operation_post_sink": {
+                "type": "choice",
+                "instructions": "Which next operation-form/client sink contract meets every stated refusal and mounted-route behavior with the current released inputs? Evaluate rooted-only targets against trusted-origin absolute targets and a precise prerequisite deferral, including no-JS forms and redirect body handling.",
+                "criteria": {
+                  "root_relative": "Accept only a nonempty rooted relative operation path with exactly one leading slash; reject absolute/network-path URLs, backslashes, control/whitespace smuggling and fragments rather than replacing with #. No new origin port. Apply renderer and client before effects; native mutation fetch uses same-origin mode and redirect:error, with current location rather than document base resolution. Keep other navigation/upload profiles unchanged and named remaining.",
+                  "trusted_origin": "Support rooted paths plus absolute HTTP(S) operation targets only against explicit trusted configured origin/mount on render and genuine current window origin on client. Refuse missing base for absolute targets and cross-origin/mount mismatch before effects; mutation fetch still refuses redirects. Requires carrying/configuring the existing base and a direct-client origin seam, preserving legitimate absolute local targets.",
+                  "defer": "Keep current behavior pending a named exact authored or deployment destination contract, with no implementation acceptance; ask owning UI/Interfaces/Dev to define it before rendering or sending restrictions change."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Choose only the protected operation POST destination policy for existing server-rendered forms/buttons/theme controls and generated client mutation submissions. Ordinary external navigation links and separately supplied upload intent/content/finalize destinations are not authorized to change by this choice.",
+              "verified_facts": [
+                "POST renderers reuse navigation URL filtering that accepts external HTTP(S), mailto and network-path references. Forms then carry protected operation IDs, references and CSRF fields.",
+                "The generated client checks action only for nonempty text, and performs any file-intent effects before its final operation POST. Its current native fetch wrapper detects redirects only after following them.",
+                "Existing meaningful operation-form and client examples use root-relative operation targets, including mounted path prefixes. No existing defining contract authorizes sending protected operation payloads to another origin.",
+                "An existing optional host-only deploymentBase carries trusted HTTP(S) origin plus mount for app_url links; it is not yet supplied by every installed host. Authored/request extras cannot supply it.",
+                "The browser adapter has genuine current Window location. Structural direct-client and renderer tests need no ambient browser origin. Existing no-JS POST forms also need safe output before protected fields are emitted.",
+                "The existing queue leaves POST sink policy open with UI/Interfaces ownership, Dev host configuration and Compiler URL lowering. No full browser/File/lifetime acceptance or hold is released."
+              ],
+              "outcome": "Refuse an external operation action before emitting a protected POST form or performing upload/mutation side effects. Preserve canonical mounted local operation targets and ordinary external links. Do not follow a mutation redirect with its protected body. Use the smallest complete producer/consumer correction."
+            },
+            "questions": {
+              "operation_post_sink": {
+                "type": "choice",
+                "instructions": "Select the bounded policy for existing protected mutation POST destinations. Use the same observed forms, client ordering, optional trusted base and browser facts for all alternatives; weigh complete effect-before-refusal safety, current compatibility and added seams without extending this into upload or URL-lifetime work.",
+                "criteria": {
+                  "root_relative": "Accept only a nonempty rooted relative operation path with exactly one leading slash; reject absolute/network-path URLs, backslashes, control/whitespace smuggling and fragments rather than replacing with #. No new origin port. Apply renderer and client before effects; native mutation fetch uses same-origin mode and redirect:error, with current location rather than document base resolution. Keep other navigation/upload profiles unchanged and named remaining.",
+                  "trusted_origin": "Support rooted paths plus absolute HTTP(S) operation targets only against explicit trusted configured origin/mount on render and genuine current window origin on client. Refuse missing base for absolute targets and cross-origin/mount mismatch before effects; mutation fetch still refuses redirects. Requires carrying/configuring the existing base and a direct-client origin seam, preserving legitimate absolute local targets.",
+                  "defer": "Keep current behavior pending a named exact authored or deployment destination contract, with no implementation acceptance; ask owning UI/Interfaces/Dev to define it before rendering or sending restrictions change."
+                }
+              }
+            }
+          }
+        ],
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "operation_post_sink": {
+                "type": "choice",
+                "choice": "root_relative",
+                "confidence": 0.82,
+                "probabilities": {
+                  "root_relative": 0.88,
+                  "trusted_origin": 0.12,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 920,
+              "output_tokens": 44
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "operation_post_sink": {
+                "type": "choice",
+                "choice": "root_relative",
+                "confidence": 0.61,
+                "probabilities": {
+                  "root_relative": 0.74,
+                  "trusted_origin": 0.25,
+                  "defer": 0.01
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 910,
+              "output_tokens": 44
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "operation_post_sink": {
+                "type": "choice",
+                "choice": "root_relative",
+                "confidence": 0.7,
+                "probabilities": {
+                  "root_relative": 0.8,
+                  "trusted_origin": 0.2,
+                  "defer": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 917,
+              "output_tokens": 44
+            }
+          }
+        ],
+        "status": "completed JEV3 advisory; root_relative selected after current producer inspection",
+        "authorization_evidence": {
+          "thread": "01a12824-7fa9-7302-a503-b0e9662c2687",
+          "human_message": "01a12ac7-94ee-7af3-8d38-d9799f4a4b44",
+          "scope": "Human expressly authorized all five workers to send open-source Canlang design questions to JEV. Initial automatic review incorrectly restricted authorization to Office; retry of identical requests after verifying direct human evidence succeeded. No remaining consultation blocker; all execution/publication holds preserved."
+        },
+        "uncertainty": "All three choose root_relative (.88/.74/.80; confidence .82/.61/.70), with .12/.25/.20 on trusted_origin and no rationale. Current meaningful operation producers use rooted paths; absolute local compatibility has no defining requirement. No new origin port is needed for this finite policy. Separate upload URL profiles and complete installed-host/lifetime behavior remain open."
+      },
+      "page_read_forwarding_implementation": {
+        "status": "defining API/Interfaces producer implemented and directly checked; Dev Office/native consumer unfinished",
+        "files": [
+          "packages/contracts/src/presentation.ts",
+          "packages/interfaces/src/ports.ts",
+          "packages/interfaces/src/http/pages.ts",
+          "packages/interfaces/test/http-pages.test.ts"
+        ],
+        "contract": "PageReadScope.onQueryBound(boundQuery) is an optional genuine host-owned void/async association hook, awaited exactly once with scope receiver after page admission/factory and before full/partial rendering. It receives the exact final Interfaces identity/limit-bound query; its return cannot replace readers. Original scoped query keeps scope receiver; fallback query keeps dependency receiver. Existing current request identity/default25/max100 and refusal meanings stay enforced.",
+        "source_forwarding": "createReadScope(identity,source) receives the same frozen preference-bearing PageSourceContext used by admission. A second required call parameter leaves existing one-argument factories assignable. Checked actor/team/owner saved preference values and versions are captured before admission and forwarded unchanged; UI metadata/copies cannot supply factory authority.",
+        "verified": {
+          "contracts_owning_emission": "pass0 Node24.19.0",
+          "interfaces_owning_emission": "pass0 Node24.19.0",
+          "owning_http_pages": "43/43 pass4696.8335ms, including three new actual handler controls for full/partial association, same frozen source/saved prefs, awaited hook/query receivers, forged invocation replacement/default/bounds, admission/hook denial and fallback receiver",
+          "finite_source_review": "CLEAR defining hook order/exact query/receiver, frozen source forwarding and safe failure mapping",
+          "reuse": "Prior native source/history/receipt qualification and unrelated parent checks retained; no native WHERE acceptance or host requalification."
+        },
+        "remaining_dependencies": [
+          {
+            "owner": "Dev",
+            "prerequisite": "Propagate genuine source second argument through actual worker/assembly createReadScope mirror; bind original verified native facade/predicate association to exact boundQuery via owning scope.onQueryBound, including selected-owner wrapper. Use captured checked preferences before fresh State-issued source predicate; preserve same source/identity/storage observations."
+          },
+          {
+            "owner": "Capability/State",
+            "prerequisite": "Original source-parent within the same authorized observation remains separately owned; no forged raw UI props/source marker or alternate observation workaround."
+          }
+        ],
+        "acceptance_limit": "No defining native predicate/provider/store implementation duplicated. Actual installed Office WHERE source/preference conversion, UI facade/private WeakMap and State parent observation remain genuine consumer gates. No hold lifted, push or publication."
       }
     },
     "DEL-D03": {

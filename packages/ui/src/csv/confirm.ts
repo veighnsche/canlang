@@ -30,6 +30,7 @@ import {
   csvFormulaProtect,
   escapeAttr,
   escapeHtml,
+  operationPostPath,
   isolate,
 } from "../escape.js";
 import { assertRegionId, fragmentRegion } from "../htmx.js";
@@ -406,6 +407,7 @@ export async function submitCsvCommit(input: SubmitCsvCommitInput): Promise<Subm
   if (typeof input.action !== "string" || input.action === "") {
     throw new Error("submitCsvCommit needs a non-empty action");
   }
+  const action = operationPostPath(input.action);
   if (typeof input.csrf !== "string" || input.csrf === "") {
     throw new Error("submitCsvCommit needs the CSRF token");
   }
@@ -420,8 +422,10 @@ export async function submitCsvCommit(input: SubmitCsvCommitInput): Promise<Subm
   }
   let response: SubmitFetchResponse;
   try {
-    response = await input.fetchImpl(input.action, {
+    response = await input.fetchImpl(action, {
       method: "POST",
+      mode: "same-origin",
+      redirect: "error",
       headers: { "content-type": "application/json", [CSV_CSRF_HEADER]: input.csrf },
       body: JSON.stringify({
         operation: input.operation,

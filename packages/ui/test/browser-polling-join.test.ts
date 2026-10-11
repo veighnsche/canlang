@@ -283,7 +283,9 @@ describe('prepared source form browser submission', () => {
 
   it('uses fixed public text for transport, contract and usage failures without applying legacy HTML', async () => {
     let html = false;
+    let calls = 0;
     const page = await formPage(async () => {
+      calls += 1;
       if (!html) throw new Error('INTERNAL_TRANSPORT_DIAGNOSTIC');
       return { status: 422, headers: { get: () => 'text/html' },
         text: async () => '<form>UNRELATED_LEGACY_OCCURRENCE</form>' };
@@ -302,6 +304,14 @@ describe('prepared source form browser submission', () => {
       target.removeAttribute('action'); page.submit(); await settle();
       assert.equal(feedback.textContent, 'The submission could not be confirmed. Please try again.');
       assert.ok(page.errors[2] instanceof GeneratedSubmitError && page.errors[2].code === 'usage');
+      for (const action of ['https://foreign.test/submit', '//foreign.test/submit', '/\\foreign.test/submit']) {
+        target.setAttribute('action', action); page.submit(); await settle();
+        assert.ok(page.errors.at(-1) instanceof GeneratedSubmitError);
+        assert.equal(feedback.textContent, 'The submission could not be confirmed. Please try again.');
+        assert.equal(target.getAttribute('data-can-submit-state'), 'error');
+        assert.equal(page.window.document.querySelector('form'), target);
+      }
+      assert.equal(calls, 2);
     } finally { await page.close(); }
   });
 
@@ -335,6 +345,7 @@ describe('prepared source form browser submission', () => {
       const event = new window.SubmitEvent('submit', { bubbles: true, cancelable: true });
       target.dispatchEvent(event); await settle();
       assert.equal(event.defaultPrevented, true); assert.equal(calls.length, 1);
+      assert.equal(calls[0]!.mode, 'same-origin'); assert.equal(calls[0]!.redirect, 'error');
       assert.equal(JSON.parse(calls[0]!.body as string).operation, formDerived.operation);
       assert.equal(target.getAttribute('data-can-submit-state'), 'committed');
     } finally { client.stop(); await window.happyDOM.close(); }

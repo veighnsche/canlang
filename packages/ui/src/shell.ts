@@ -22,7 +22,7 @@ import type {
   RenderPageFn,
   ShellData,
 } from "@canlang/contracts";
-import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
+import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
@@ -110,8 +110,7 @@ function renderAccount(shell: ShellData, context: PresentationContext): string {
   const csrfField = escapeAttr(CSRF_FIELD);
   const csrfToken = escapeAttr(context.csrfToken);
   const teamField = escapeAttr(TEAM_FIELD);
-  const switchAction = escapeAttr(safeHref(shell.routes.switchTeam));
-  const signOutAction = escapeAttr(safeHref(shell.routes.signOut));
+  const signOutAction = escapeAttr(operationPostPath(shell.routes.signOut));
   const settingsLabel = escapeHtml(resolveText(CHROME.settings, context));
   const signOutLabel = escapeHtml(resolveText(CHROME.signOut, context));
 
@@ -126,7 +125,7 @@ function renderAccount(shell: ShellData, context: PresentationContext): string {
       }
       const id = escapeAttr(team.id);
       return (
-        `<li><form method="POST" action="${switchAction}">` +
+        `<li><form method="POST" action="${escapeAttr(operationPostPath(shell.routes.switchTeam))}">` +
         `<input type="hidden" name="${csrfField}" value="${csrfToken}">` +
         `<input type="hidden" name="${teamField}" value="${id}">` +
         `<button type="submit">${label}</button></form></li>`
@@ -209,6 +208,9 @@ export const renderPage: RenderPageFn = async (
     }
     pollAttrs = ` data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
   }
+  // Validate applicable protected account actions before authored child effects.
+  const accountHtml = !context.isPartial && shell?.account.authenticated === true
+    ? renderAccount(shell, context) : undefined;
   const body = await renderChildren(children);
   const main = `<main id="can-main"${contextAttr}${pollAttrs}>${body}</main>`;
   if (context.isPartial) {
@@ -275,7 +277,7 @@ export const renderPage: RenderPageFn = async (
     groups +
     incomplete +
     `</nav>` +
-    renderAccount(shell, context) +
+    (accountHtml ?? renderAccount(shell, context)) +
     `</aside></div></div>` +
     renderSettings(shell, context) +
     '<script type="module" src="/assets/browser/bootstrap.js"></script>' +
@@ -325,7 +327,7 @@ export async function renderLogin(props: LoginProps): Promise<string> {
   const direction = pageDirection(locale);
   const brand = resolveText(props.brand, context);
   const theme = `can-${context.theme.mode}-${context.theme.accent}`;
-  const action = escapeAttr(sanitizeAppPath(props.action, "#"));
+  const action = escapeAttr(operationPostPath(props.action));
   const csrfField = escapeAttr(CSRF_FIELD);
   const csrfToken = escapeAttr(context.csrfToken);
   const preSession =

@@ -68,6 +68,7 @@ import type {
   MutationResult,
   PageDescriptor,
   PageReadScope,
+  PageSourceContext,
   ReadEnvelope,
   ReadResult,
   ResolvedIdentity,
@@ -207,8 +208,10 @@ export interface PageHttpDeps {
    * Construct once after verified page admission. The owner binds collection,
    * native source-expression and receipt reads to the same current authority,
    * checked source and physical-store snapshot. No storage/mutation scope escapes.
+   * source is the same frozen, preference-bearing context used for admission;
+   * renderer context/metadata cannot supply or replace it.
    */
-  readonly createReadScope?: (identity: ResolvedIdentity) => PageReadScope | Promise<PageReadScope>;
+  readonly createReadScope?: (identity: ResolvedIdentity, source: PageSourceContext) => PageReadScope | Promise<PageReadScope>;
   /** The same checked operation catalog used by canonical HTTP submission. */
   readonly catalog?: SchemaCatalog;
   /** Explicit stable host-private protection; absent leaves bound forms unavailable. */

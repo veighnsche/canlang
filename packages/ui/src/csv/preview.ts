@@ -30,6 +30,7 @@ import {
   csvFormulaProtect,
   escapeAttr,
   escapeHtml,
+  operationPostPath,
   isolate,
 } from "../escape.js";
 import { assertRegionId, fragmentRegion } from "../htmx.js";
@@ -273,6 +274,7 @@ export async function csvPreviewSection(props: CsvPreviewProps): Promise<string>
   if (typeof props.commitPath !== "string" || props.commitPath.trim() === "") {
     throw new Error("csvPreviewSection needs a non-empty commitPath");
   }
+  const commitPath = operationPostPath(props.commitPath);
   if (typeof props.csvText !== "string" || props.csvText === "") {
     throw new Error("csvPreviewSection needs the echoed CSV text");
   }
@@ -318,7 +320,7 @@ export async function csvPreviewSection(props: CsvPreviewProps): Promise<string>
   const commitForm =
     review.counts.valid === 0
       ? `<p>${escapeHtml(resolveCaption(NO_VALID_ROWS, props.context))}</p>`
-      : `<form action="${escapeAttr(props.commitPath)}" method="post" ` +
+      : `<form action="${escapeAttr(commitPath)}" method="post" ` +
         `data-csv-commit-form="${escapeAttr(props.regionId)}">` +
         `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
         `<input type="hidden" name="operation" value="${escapeAttr(review.operation)}">` +
@@ -375,6 +377,7 @@ export async function submitCsvReview(input: SubmitCsvReviewInput): Promise<Subm
   if (typeof input.action !== "string" || input.action === "") {
     throw new Error("submitCsvReview needs a non-empty action");
   }
+  const action = operationPostPath(input.action);
   if (typeof input.csrf !== "string" || input.csrf === "") {
     throw new Error("submitCsvReview needs the CSRF token");
   }
@@ -386,8 +389,10 @@ export async function submitCsvReview(input: SubmitCsvReviewInput): Promise<Subm
   }
   let response: SubmitFetchResponse;
   try {
-    response = await input.fetchImpl(input.action, {
+    response = await input.fetchImpl(action, {
       method: "POST",
+      mode: "same-origin",
+      redirect: "error",
       headers: { "content-type": "application/json", [CSV_CSRF_HEADER]: input.csrf },
       body: JSON.stringify({ operation: input.operation, csv: input.csv }),
     });

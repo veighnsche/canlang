@@ -30,7 +30,7 @@ import type {
   PresentationContext,
 } from "@canlang/contracts";
 import { CSRF_FIELD } from "@canlang/contracts";
-import { escapeAttr, escapeHtml } from "../escape.js";
+import { escapeAttr, escapeHtml, operationPostPath } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
 import { digestBusinessError as digestUiBusinessError } from "../internal/business-errors.js";
 import { CSV_GRAMMAR_MAX_ROWS, CsvGrammarError, parseCsvGrammar } from "./grammar.js";
@@ -215,6 +215,7 @@ export async function csvReviewForm(props: CsvReviewFormProps): Promise<string> 
   if (typeof props.reviewPath !== "string" || props.reviewPath.trim() === "") {
     throw new Error("csvReviewForm needs a non-empty reviewPath");
   }
+  const reviewPath = operationPostPath(props.reviewPath);
   assertRegionId(props.regionId);
   if (!Array.isArray(props.operations) || props.operations.length === 0) {
     throw new Error("csvReviewForm needs at least one operation");
@@ -231,7 +232,7 @@ export async function csvReviewForm(props: CsvReviewFormProps): Promise<string> 
   const formId = `${props.regionId}-form`;
   return (
     `<section><h2>${escapeHtml(resolveCaption(REVIEW_HEADING, props.context))}</h2>` +
-    `<form id="${escapeAttr(formId)}" action="${escapeAttr(props.reviewPath)}" method="post" ` +
+    `<form id="${escapeAttr(formId)}" action="${escapeAttr(reviewPath)}" method="post" ` +
     `data-csv-review-form="${escapeAttr(props.regionId)}">` +
     `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
     `<label>${escapeHtml(resolveCaption(OPERATION_LABEL, props.context))}` +
