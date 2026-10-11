@@ -2297,7 +2297,7 @@ impl<'a> Cx<'a> {
                     }
                     current = super::types::std_delivery_result_type(op);
                 }
-                ResolvedType::Object(fields) => {
+                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
                     current = fields.iter().find(|(name, _)| name == segment)?.1.clone();
                 }
                 ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {

@@ -458,7 +458,7 @@ fn standard_declared_events_share_their_own_fields_with_body_examples_and_effect
         &ResolvedType::Null
     );
     assert!(
-        matches!(type_at(&checked, STANDARD_EVENT_SOURCE, "event.value"), ResolvedType::Object(fields)
+        matches!(type_at(&checked, STANDARD_EVENT_SOURCE, "event.value"), ResolvedType::StdNominal {name: "IncomingEmail", fields}
         if fields.iter().map(|(name,_)| name.as_str()).eq(["mailbox","source","thread","sender","reply_to","subject","body","body_complete","attachments","attachment_count","attachments_complete","received"]))
     );
     assert_eq!(

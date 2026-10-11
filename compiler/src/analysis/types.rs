@@ -268,6 +268,12 @@ pub enum ResolvedType {
     Union(Vec<SymbolId>),
     /// Closed object value (object literal, `group` row).
     Object(Vec<(String, ResolvedType)>),
+    /// Closed imported IncomingEmail value, retaining its canonical catalog
+    /// identity through locals, declarations and generic element typing.
+    StdNominal {
+        name: &'static str,
+        fields: Vec<(String, ResolvedType)>,
+    },
     /// Operation reference (scenario, capability op or CRUD op): a
     /// value only PR5 positions interpret; PR4 never errors on it.
     Operation(SymbolId),
@@ -357,6 +363,7 @@ impl ResolvedType {
                 .map(|a| record_name(tables, module, *a))
                 .collect::<Vec<_>>()
                 .join("|"),
+            ResolvedType::StdNominal { name, .. } => (*name).to_string(),
             ResolvedType::Object(fields) => {
                 let keys: Vec<&str> = fields.iter().map(|(k, _)| k.as_str()).collect();
                 format!("object{{{}}}", keys.join(","))
@@ -410,6 +417,20 @@ pub(crate) struct CheckedAnonymousMessage {
 pub struct CheckedJudgmentSpecificationCall {
     pub judgment: SymbolId,
     pub options: NodeKey,
+}
+
+/// Only the exact catalog-produced IncomingEmail type claims this identity.
+/// Consumers must not infer a nominal name from an anonymous object shape.
+pub(crate) fn checked_standard_nominal_name(ty: &ResolvedType) -> Option<&'static str> {
+    let ResolvedType::StdNominal {
+        name: "IncomingEmail",
+        ..
+    } = ty
+    else {
+        return None;
+    };
+    let schema = nominal_schema("IncomingEmail")?;
+    (ty == &std_nominal_object(schema)).then_some(schema.name)
 }
 
 /// Only declared T13b delivery observations alias progress to their latest result.
@@ -819,13 +840,19 @@ pub(crate) fn std_schema_type(declared: &str) -> Option<ResolvedType> {
 /// Closed field object for one transcribed T13c nominal (T14d): each
 /// field maps through [`std_nominal_leaf_type`] in producer order.
 fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
-    ResolvedType::Object(
-        schema
-            .fields
-            .iter()
-            .map(|(name, kind)| (name.to_string(), std_nominal_leaf_type(kind)))
-            .collect(),
-    )
+    let fields = schema
+        .fields
+        .iter()
+        .map(|(name, kind)| (name.to_string(), std_nominal_leaf_type(kind)))
+        .collect();
+    if schema.name == "IncomingEmail" {
+        ResolvedType::StdNominal {
+            name: schema.name,
+            fields,
+        }
+    } else {
+        ResolvedType::Object(fields)
+    }
 }
 
 fn delivery_status_type() -> ResolvedType {
@@ -5326,7 +5353,7 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let declared = match &expected {
-                ResolvedType::Object(fields) => fields
+                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => fields
                     .iter()
                     .find(|(field, _)| field == name)
                     .map(|(_, ty)| ty.clone()),
@@ -6558,7 +6585,9 @@ impl<'a> Typer<'a> {
                     return (last && matches!(*segment, "id" | "status" | "error" | "result"))
                         .then(|| canonical.join("."));
                 }
-                ResolvedType::Object(fields) if observed => {
+                ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. }
+                    if observed =>
+                {
                     current = fields.iter().find(|(name, _)| name == segment)?.1.clone();
                 }
                 _ => return None,
@@ -11038,7 +11067,7 @@ impl<'a> Typer<'a> {
                 let mut current = std_nominal_object(schema);
                 for (i, name) in segments.iter().enumerate().skip(1) {
                     match &current {
-                        ResolvedType::Object(fields) => {
+                        ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
                             if let Some((_, ty)) = fields.iter().find(|(field, _)| field == *name) {
                                 current = ty.clone();
                                 continue;
@@ -11873,6 +11902,16 @@ impl<'a> Typer<'a> {
             }
             (ResolvedType::Union(a), ResolvedType::Union(b)) => a.iter().all(|t| b.contains(t)),
             (ResolvedType::Record { symbol: a, .. }, ResolvedType::Union(b)) => b.contains(a),
+            (
+                ResolvedType::StdNominal {
+                    name: a,
+                    fields: af,
+                },
+                ResolvedType::StdNominal {
+                    name: b,
+                    fields: bf,
+                },
+            ) => a == b && af == bf,
             (ResolvedType::Object(a), ResolvedType::Object(b)) => b.iter().all(|(k, t)| {
                 match a.iter().find(|(ak, _)| ak == k) {
                     Some((_, at)) => self.types_compatible(at, t),
@@ -12579,13 +12618,15 @@ impl<'a> Typer<'a> {
                 None
             }
             ResolvedType::Union(arms) => self.union_member(cx, node, name_node, name, arms),
-            ResolvedType::Object(fields) => match fields.iter().find(|(k, _)| k == name) {
-                Some((_, ty)) => Some(ty.clone()),
-                None => {
-                    self.unknown_member(cx, node, name_node, name, "object");
-                    None
+            ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
+                match fields.iter().find(|(k, _)| k == name) {
+                    Some((_, ty)) => Some(ty.clone()),
+                    None => {
+                        self.unknown_member(cx, node, name_node, name, "object");
+                        None
+                    }
                 }
-            },
+            }
             ResolvedType::Delivery { op } => {
                 let op = *op;
                 match name {
@@ -13577,6 +13618,16 @@ impl<'a> Typer<'a> {
             ) => ac == bc && ao.name == bo.name,
             (ResolvedType::Team, ResolvedType::Team)
             | (ResolvedType::OperationContext, ResolvedType::OperationContext) => true,
+            (
+                ResolvedType::StdNominal {
+                    name: a,
+                    fields: af,
+                },
+                ResolvedType::StdNominal {
+                    name: b,
+                    fields: bf,
+                },
+            ) => a == b && af == bf,
             (ResolvedType::Union(a), ResolvedType::Union(b)) => a == b,
             (ResolvedType::Record { symbol: a, .. }, ResolvedType::Union(b))
             | (ResolvedType::Union(b), ResolvedType::Record { symbol: a, .. }) => b.contains(a),
@@ -14678,7 +14729,7 @@ impl<'a> Typer<'a> {
             };
             let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
             let entry_expect = match expect.map(|ty| ty.nullable_inner().unwrap_or(ty)) {
-                Some(ResolvedType::Object(exp)) => {
+                Some(ResolvedType::Object(exp) | ResolvedType::StdNominal { fields: exp, .. }) => {
                     exp.iter().find(|(k, _)| k == key).map(|(_, t)| t.clone())
                 }
                 _ => None,
@@ -14704,6 +14755,51 @@ impl<'a> Typer<'a> {
         if bad {
             // Entries keep their recorded types; the object itself is
             // still usable for member lookup of its good fields.
+        }
+        if let Some(ResolvedType::StdNominal {
+            name,
+            fields: declared,
+        }) = expect.map(|ty| ty.nullable_inner().unwrap_or(ty))
+        {
+            let closed = fields.iter().all(|(key, actual)| {
+                declared
+                    .iter()
+                    .find(|(field, _)| field == key)
+                    .is_some_and(|(_, expected)| self.types_compatible(actual, expected))
+            });
+            let complete = declared.iter().all(|(key, ty)| {
+                fields.iter().any(|(field, _)| field == key)
+                    || matches!(ty, ResolvedType::Nullable(_) | ResolvedType::Array { .. })
+            });
+            if check_entries && cx.strict {
+                for (key, key_node, _) in object_entries(node, cx.text) {
+                    if !declared.iter().any(|(field, _)| field == key) {
+                        self.member_fail(
+                            key_node,
+                            key_node.span,
+                            (*name).to_string(),
+                            key.to_string(),
+                        );
+                    }
+                }
+                for (key, ty) in declared {
+                    if !fields.iter().any(|(field, _)| field == key)
+                        && !matches!(ty, ResolvedType::Nullable(_) | ResolvedType::Array { .. })
+                    {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            format!("missing required field '{key}' of {name}"),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                }
+            }
+            if !bad && closed && complete {
+                return ResolvedType::StdNominal {
+                    name,
+                    fields: declared.clone(),
+                };
+            }
         }
         ResolvedType::Object(fields)
     }
@@ -15658,7 +15754,7 @@ impl<'a> Typer<'a> {
                     ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
                         pending.push((element, depth + 1))
                     }
-                    ResolvedType::Object(fields) => {
+                    ResolvedType::Object(fields) | ResolvedType::StdNominal { fields, .. } => {
                         pending.extend(fields.iter().map(|(_, ty)| (ty, depth + 1)))
                     }
                     _ => {}
@@ -17362,7 +17458,12 @@ impl<'a> Typer<'a> {
                 self.claim_enum_case(cx, arg.value, cases, claim_as, trial)
             }
             SigType::Object(fields) => {
-                let ResolvedType::Object(actual_fields) = actual else {
+                let (ResolvedType::Object(actual_fields)
+                | ResolvedType::StdNominal {
+                    fields: actual_fields,
+                    ..
+                }) = actual
+                else {
                     return matches!(actual, ResolvedType::Unknown | ResolvedType::Opaque(_));
                 };
                 // Closed: exact key sets.
@@ -17380,9 +17481,11 @@ impl<'a> Typer<'a> {
                 true
             }
             SigType::ClosedDisplayObject => match actual {
-                ResolvedType::Object(actual_fields) => {
-                    actual_fields.iter().all(|(_, v)| display_nonnull(v))
-                }
+                ResolvedType::Object(actual_fields)
+                | ResolvedType::StdNominal {
+                    fields: actual_fields,
+                    ..
+                } => actual_fields.iter().all(|(_, v)| display_nonnull(v)),
                 ResolvedType::Unknown | ResolvedType::Opaque(_) => true,
                 _ => false,
             },
@@ -18110,6 +18213,16 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
         }
         (ResolvedType::Nullable(a), ResolvedType::Nullable(b)) => loose_equal(a, b),
         (ResolvedType::Union(a), ResolvedType::Union(b)) => a == b,
+        (
+            ResolvedType::StdNominal {
+                name: a,
+                fields: af,
+            },
+            ResolvedType::StdNominal {
+                name: b,
+                fields: bf,
+            },
+        ) => a == b && af == bf,
         (ResolvedType::Object(a), ResolvedType::Object(b)) => {
             a.len() == b.len()
                 && a.iter().all(|(k, t)| {
