@@ -1272,6 +1272,25 @@ pub(super) fn checked_native_query_influences(
                 && first.first.as_ref()?.binding.end <= count.count.as_ref()?.statement.start
                 && count.count.as_ref()?.contained_parent.is_some()
                 && count.count.as_ref()?.parent_edges.is_empty() => {}
+        [ancestor, first, count]
+            if ancestor.first.is_none()
+                && ancestor.count.is_some()
+                && ancestor.projection.is_none()
+                && ancestor.cardinality_guard.is_none()
+                && ancestor.count.as_ref()?.contained_parent.is_none()
+                && ancestor.count.as_ref()?.parent_edges.len() == 3
+                && ancestor.count.as_ref()?.statement.kind == SyntaxKind::Require as u8
+                && checked_native_query_influences(&queries[1..]).is_some()
+                && ancestor.source == first.source
+                && ancestor.return_node == first.return_node
+                && ancestor.id != first.id
+                && ancestor.id != count.id
+                && ancestor.count.as_ref()?.statement.file
+                    == first.first.as_ref()?.binding.file
+                && ancestor.count.as_ref()?.statement.end
+                    <= first.first.as_ref()?.binding.start
+                && ancestor.inputs.len() == 1
+                && ancestor.inputs[0].1 == count.count.as_ref()?.contained_parent?.1 => {}
         _ => return None,
     }
     let mut ids = HashSet::new();
@@ -1304,9 +1323,13 @@ pub(super) fn merge_native_query_plans(
 ) -> Option<ReceiptDisclosurePlan> {
     if first.version != count.version
         || serde_json::to_value(&first.source).ok()? != serde_json::to_value(&count.source).ok()?
-        || first.queries.len() != 1
+        || first.queries.is_empty()
+        || first.queries.len() > 2
         || count.queries.len() != 1
-        || first.queries[0].id == count.queries[0].id
+        || first
+            .queries
+            .iter()
+            .any(|query| query.id == count.queries[0].id)
         || first.returns.len() != count.returns.len()
     {
         return None;
@@ -1315,7 +1338,7 @@ pub(super) fn merge_native_query_plans(
         if returned.id != counted.id
             || serde_json::to_value(&returned.source).ok()?
                 != serde_json::to_value(&counted.source).ok()?
-            || returned.influences.len() != 4
+            || returned.influences.len() != 4 * first.queries.len()
             || counted.influences.len() != 4
             || !returned.dependencies.is_empty()
             || !counted.dependencies.is_empty()
@@ -1372,6 +1395,20 @@ fn checked_native_first_query_plan<'a>(
         }
         [first, count] => merge_native_query_plans(
             checked_native_first_query_source_plan(ir, owner, checked, first, entry_module, db)?,
+            checked_native_count_query_plan(ir, owner, count, db, entry_module)?,
+        )?,
+        [ancestor, first, count] => merge_native_query_plans(
+            merge_native_query_plans(
+                checked_native_count_query_plan(ir, owner, ancestor, db, entry_module)?,
+                checked_native_first_query_source_plan(
+                    ir,
+                    owner,
+                    checked,
+                    first,
+                    entry_module,
+                    db,
+                )?,
+            )?,
             checked_native_count_query_plan(ir, owner, count, db, entry_module)?,
         )?,
         _ => return None,
@@ -1841,11 +1878,17 @@ fn checked_ancestor_count_query_operands<'a>(
     db: &SourceDb,
 ) -> Option<(&'a TypedExpr, &'a TypedExpr, &'a TypedExpr)> {
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let [owning] = facts.queries.as_deref()? else {
-        return None;
-    };
-    let [created] = facts.creates.as_deref()? else {
-        return None;
+    let queries = facts.queries.as_deref()?;
+    checked_native_query_influences(queries)?;
+    let (owning, created) = match queries {
+        [owning] => {
+            let [created] = facts.creates.as_deref()? else {
+                return None;
+            };
+            (owning, created)
+        }
+        [owning, _, _] => (owning, checked_created_pair(ir, owner, db)?.0),
+        _ => return None,
     };
     let count = query.count.as_ref()?;
     let [_, candidate, supplied] = count.parent_edges.as_slice() else {
@@ -1979,28 +2022,35 @@ fn checked_native_ancestor_count_query_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     checked_ancestor_count_query_operands(ir, owner, query, db)?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let [created] = facts.creates.as_deref()? else {
-        return None;
-    };
+    let queries = facts.queries.as_deref()?;
+    let expected_influences = checked_native_query_influences(queries)?;
     let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
     };
-    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
-        return None;
-    };
-    let mut statements = effects.iter().filter(|statement|
-        matches!(statement, IrStmt::Create {span,..} if *span == node_span(created.node)));
-    let statement = statements.next()?;
-    let mut creates = proof
-        .effects
-        .iter()
-        .filter(|effect| effect.node == created.node);
-    let create = creates.next()?;
-    if statements.next().is_some() || creates.next().is_some() {
-        return None;
+    if queries.len() == 1 {
+        let [created] = facts.creates.as_deref()? else {
+            return None;
+        };
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            return None;
+        };
+        let mut statements = effects.iter().filter(|statement|
+            matches!(statement, IrStmt::Create {span,..} if *span == node_span(created.node)));
+        let statement = statements.next()?;
+        let mut creates = proof
+            .effects
+            .iter()
+            .filter(|effect| effect.node == created.node);
+        let create = creates.next()?;
+        if statements.next().is_some() || creates.next().is_some() {
+            return None;
+        }
+        let models = super::js::Emitter::new(ir).collect_models();
+        checked_scenario_create(ir, owner, &models, proof, create, statement, db)?;
     }
-    let models = super::js::Emitter::new(ir).collect_models();
-    checked_scenario_create(ir, owner, &models, proof, create, statement, db)?;
+    // In the triple, the owning contained-count plan and final effect
+    // collector seal both constructors; ancestor operand validation does not
+    // recurse into their complete query plan or repeat constructor admission.
     let kinds = [
         InfluenceKind::QueryExistence,
         InfluenceKind::QueryCardinality,
@@ -2034,7 +2084,7 @@ fn checked_native_ancestor_count_query_plan(
         || proof.returns.iter().any(|returned| {
             returned.node != query.return_node
                 || returned.source != query.source
-                || returned.influences != query.influences
+                || returned.influences != expected_influences
                 || returned.model_result.is_none()
         })
     {
@@ -2129,7 +2179,7 @@ pub(super) fn checked_native_count_query_plan(
     if owning.next().is_some()
         || originals.is_empty()
         || originals.len() > 2
-        || facts.queries.as_deref()?.len() == 2 && originals.len() != 2
+        || facts.queries.as_deref()?.len() >= 2 && originals.len() != 2
     {
         return None;
     }

@@ -212,7 +212,7 @@ fn checked_query_plan(
         || source.source != original.source
         || source.queries != original.queries
         || queries.is_empty()
-        || queries.len() > 2
+        || queries.len() > 3
     {
         return None;
     }
@@ -239,12 +239,11 @@ fn checked_query_plan(
                 checked_count_query_plan(program, ir, owner, query, db, entry_module)
             }
         });
-        let first = plans.next()??;
-        return if let Some(count) = plans.next() {
-            super::scenario_receipts::merge_native_query_plans(first, count?)
-        } else {
-            Some(first)
-        };
+        let mut combined = plans.next()??;
+        for next in plans {
+            combined = super::scenario_receipts::merge_native_query_plans(combined, next?)?;
+        }
+        return Some(combined);
     }
     if queries.len() != 1 {
         return None;

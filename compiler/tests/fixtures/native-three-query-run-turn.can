@@ -1,0 +1,30 @@
+## Bounded original-purpose composition adds ask75 guard, Run unfinished and its parent/unfinished read fields; Budget and tail retain their original meaning. No full-app or native-authority claim.
+app ThreeQueryPair
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Conversation {title:text}
+ Branch in Conversation {title:text}
+ Budget { account:user unique, cap:int min=1, parallel:int=2 min=1 max=10, spent:int=0 min=0, held:int=0 min=0, running:int=0 min=0 max=10, active:bool=true }
+ Run in Branch {budget:Budget,request:delivery(Mail.send)?,unfinished:bool=true}
+ Turn in Branch {position:int min=1,run:Run}
+ policy Conversation read=members
+ policy Branch read=members
+ policy Budget read=members and row.account==actor
+ policy Run read=members fields=parent,budget,unfinished,request.status
+ policy Turn read=members
+ invariant Budget: row.spent+row.held<=row.cap and row.running<=row.parallel
+ lock Budget fields=account
+When
+ scenario generate(branch:Branch,enabled:bool,accept:bool) by=members -> Run
+  require count(Run as run where run.parent.parent==branch.parent and run.unfinished)<10
+  do
+   let budget=first(Budget as row where row.account==actor order=row.id)
+   require budget!=null and budget.active and budget.running<budget.parallel and budget.spent+budget.held+1<=budget.cap
+   create Run {parent=branch,budget,unfinished=true} as run
+   create Turn {parent=branch,position=count(branch.Turn)+1,run} as turn
+   set budget {held=budget.held+1,running=budget.running+1}
+   send Mail.send {to="recipient@example.test",subject="Source first",body="Original ordered selection"} when=enabled as request
+   set run {request}
+   require accept
+   return run
+Then
