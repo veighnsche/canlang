@@ -8,6 +8,7 @@ import type { CsvCommitOutcome, CsvReview } from '../src/http/csv.js';
 import { mintOperationId } from '../src/http/context.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 import { checkCsvHeader, mapCsvCells, parseCsvText as advisoryParse } from '@canlang/ui';
 
 const operation = 'Data.Row.put';
@@ -64,7 +65,7 @@ async function mounted() {
     return { result: { status: 'committed', operation_id: envelope.operation_id } };
   } } });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog: catalog(['__proto__']) };
+  const deps = { ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1'), catalog: catalog(['__proto__']) };
   const unexpected = async () => new Response('unexpected route', { status: 500 });
   const handler = createHttpHandler(deps, { csv: (request) => handleCsvRequest(deps, request),
     operations: unexpected, auth: unexpected, uploads: unexpected, ingress: unexpected, oauth: unexpected });
@@ -118,7 +119,7 @@ test('mounted scalar CSV keeps raw consent/calls while decoded duplicates and ad
     result: { status: 'committed', operation_id: envelope.operation_id },
   }) } });
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog: owner };
+  const deps = { ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1'), catalog: owner };
   const unexpected = async () => new Response('unexpected', { status: 500 });
   const handler = createHttpHandler(deps, { csv: (request) => handleCsvRequest(deps, request),
     operations: unexpected, auth: unexpected, uploads: unexpected, ingress: unexpected, oauth: unexpected });

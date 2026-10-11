@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { base64UrlToBytes, bytesToBase64Url } from '@canlang/identity';
 import type { ClosedInputs, DerivedOperationInputs, ResolvedIdentity } from '@canlang/contracts';
 import { createSourceFormBindings } from '../src/http/form-binding.js';
-import type { SourceFormBindingContext } from '../src/ports.js';
+import type { CsvReviewBindingContext, SourceFormBindingContext } from '../src/ports.js';
 
 const hostKey = new Uint8Array(32).fill(77);
 const revision = 'artifact-source-revision';
@@ -25,6 +25,72 @@ const context: SourceFormBindingContext = {
   operationId: 'rendered-nonce-1', nowMs: 1_800_000_000_000,
 };
 const bound: ClosedInputs = { record: { id: 'entry-1', version: '7' } };
+
+const csvContext: CsvReviewBindingContext = {
+  appId: context.appId, sessionToken: context.sessionToken, identity,
+  operation: derived.operation, reviewDigest: 'a'.repeat(64), nowMs: context.nowMs,
+};
+
+test('CSV review binding reconstructs with the genuine key and binds every review scope with an exclusive fresh lease', async () => {
+  const source = await createSourceFormBindings(hostKey, revision);
+  const target = await createSourceFormBindings(bytesToBase64Url(hostKey), revision);
+  assert.ok(source.csvReview); assert.ok(target.csvReview);
+  const token = await source.csvReview.seal(csvContext);
+  assert.equal(await target.csvReview.verify(csvContext, token), csvContext.nowMs + 900_000);
+  assert.equal(await target.csvReview.verify({ ...csvContext, nowMs: csvContext.nowMs + 899_999 }, token), csvContext.nowMs + 900_000);
+  for (const nowMs of [csvContext.nowMs - 1, csvContext.nowMs + 900_000, csvContext.nowMs + 86_400_000]) {
+    assert.equal(await target.csvReview.verify({ ...csvContext, nowMs }, token), null);
+  }
+  const foreign: CsvReviewBindingContext[] = [
+    { ...csvContext, appId: 'Other' }, { ...csvContext, sessionToken: 'other-session' },
+    { ...csvContext, operation: 'Store.Entry.create' }, { ...csvContext, reviewDigest: 'b'.repeat(64) },
+    { ...csvContext, identity: { ...identity, actor: { ...identity.actor!, user_id: 'other-user' } } },
+    { ...csvContext, identity: { ...identity, team: { ...identity.team!, team_id: 'other-team' } } },
+    { ...csvContext, identity: { ...identity, team: null } },
+  ];
+  for (const changed of foreign) assert.equal(await target.csvReview.verify(changed, token), null);
+  for (const service of [await createSourceFormBindings(hostKey, 'changed-revision'), await createSourceFormBindings(new Uint8Array(32).fill(78), revision)]) {
+    assert.equal(await service.csvReview!.verify(csvContext, token), null);
+  }
+  const form = await source.seal(context, bound, ['title']);
+  assert.equal(await target.csvReview.verify(csvContext, form.token), null, 'form proofs cannot authorize review integrity');
+  assert.equal(await target.restore(context, token, {}), null, 'review proofs cannot restore protected form refs');
+  assert.deepEqual({ ...await target.restore(context, form.token, { title: 'Still editable' }) }, { title: 'Still editable', ...bound });
+});
+
+test('CSV review binding refuses malformed contexts, canonical transport aliases and signed payload extensions', async () => {
+  const service = (await createSourceFormBindings(hostKey, revision)).csvReview!;
+  const token = await service.seal(csvContext);
+  for (const bad of [
+    null, { ...csvContext, identity: null }, { ...csvContext, identity: { ...identity, actor: null } },
+    { ...csvContext, identity: { ...identity, binding: { kind: 'none' } } },
+    { ...csvContext, reviewDigest: 'A'.repeat(64) }, { ...csvContext, reviewDigest: 'not-a-digest' },
+    { ...csvContext, appId: '' }, { ...csvContext, operation: '' }, { ...csvContext, sessionToken: '' },
+    ...[-1, 0.5, NaN, Number.MAX_SAFE_INTEGER].map(nowMs => ({ ...csvContext, nowMs })),
+  ]) {
+    const invalid = bad as unknown as CsvReviewBindingContext;
+    assert.equal(await service.verify(invalid, token), null);
+    await assert.rejects(service.seal(invalid), TypeError);
+  }
+  const [payloadPart, signaturePart] = token.split('.') as [string, string];
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const aliasedSignature = signaturePart.slice(0, -1) + alphabet[alphabet.indexOf(signaturePart.at(-1)!) + 1];
+  for (const malformed of ['', `${token}.extra`, `${payloadPart}.`, `${payloadPart}.${aliasedSignature}`, `${payloadPart}=.${signaturePart}`, 'x'.repeat(32_769)]) {
+    assert.equal(await service.verify(csvContext, malformed), null);
+  }
+  const original = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadPart)!)) as Record<string, unknown>;
+  const signingKey = await crypto.subtle.importKey('raw', hostKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signed = async (bytes: Uint8Array): Promise<string> => `${bytesToBase64Url(bytes)}.${bytesToBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', signingKey, bytes.slice())))}`;
+  for (const payload of [
+    { ...original, extra: true }, { ...original, expires: csvContext.nowMs + 900_001 },
+    { ...original, issued: -1 }, { ...original, reviewDigest: 'b'.repeat(64) },
+    { ...original, domain: 'can-source-form-binding' }, { ...original, version: 2 },
+    Object.fromEntries(Object.entries(original).reverse()),
+  ]) assert.equal(await service.verify(csvContext, await signed(new TextEncoder().encode(JSON.stringify(payload)))), null);
+  for (const bytes of [new Uint8Array([255]), new TextEncoder().encode('{')]) {
+    assert.equal(await service.verify(csvContext, await signed(bytes)), null, 'even genuine signatures cannot admit invalid UTF-8/JSON');
+  }
+});
 
 test('source binding survives transport and reconstruction with the same configured key, retaining canonical retry inputs', async () => {
   const renderer = await createSourceFormBindings(hostKey, revision);

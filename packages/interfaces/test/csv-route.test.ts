@@ -28,6 +28,7 @@ import { catalogFromArtifactOperations, handleOperationRequest } from '../src/ht
 import { handleAuthRequest } from '../src/http/auth.js';
 import { mintOperationId } from '../src/http/context.js';
 import { handleCsvRequest } from '../src/http/csv.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 import type { CsvCommitOutcome, CsvConsent, CsvReview } from '../src/http/csv.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import type { HttpSubHandlers } from '../src/http/routes.js';
@@ -53,7 +54,7 @@ const OPERATION = 'Billing.Invoice.issue';
 async function csvRouteDeps(overrides: Parameters<typeof createTestDeps>[0] = {}, slice = SLICE) {
   const t = await createTestDeps(overrides);
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(slice) };
+  const deps = { ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1'), catalog: catalogFromArtifactOperations(slice) };
   const sub: HttpSubHandlers = {
     operations: (req, op) => handleOperationRequest(deps, req, op),
     auth: (req) => handleAuthRequest(deps, req),

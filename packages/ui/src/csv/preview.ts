@@ -11,7 +11,7 @@
  * review-then-commit sessions; the host re-renders to re-mint).
  *
  * Flat-map collection contract (confirm.ts `collectCommitSelections`
- * reads it): `consent.<field>` for the five consent members, `csv`
+ * reads it): `consent.<field>` for the consent members, `csv`
  * for the echoed CSV text, `rows[<index>].selected = on` for checked
  * valid rows, `rows[<index>].operation_id` for the replay key.
  *
@@ -52,6 +52,7 @@ export interface CsvPreviewRow {
 /** Review consent, mirroring server CsvConsent JSON. */
 export interface CsvConsentModel {
   readonly review_id: string;
+  readonly review_token: string;
   readonly operation: string;
   readonly principal: string;
   readonly candidates_digest: string;
@@ -99,11 +100,13 @@ export function parseReviewPayload(value: unknown): CsvReviewModel {
   const consent = value["consent"];
   if (!isRecord(consent)) throw fail("consent");
   const reviewId = consent["review_id"];
+  const reviewToken = consent["review_token"];
   const consentOp = consent["operation"];
   const principal = consent["principal"];
   const digest = consent["candidates_digest"];
   const count = consent["candidate_count"];
   if (typeof reviewId !== "string" || reviewId === "") throw fail("consent.review_id");
+  if (typeof reviewToken !== "string" || reviewToken === "") throw fail("consent.review_token");
   if (typeof consentOp !== "string" || consentOp === "") throw fail("consent.operation");
   if (typeof principal !== "string" || principal === "") throw fail("consent.principal");
   if (typeof digest !== "string" || digest === "") throw fail("consent.candidates_digest");
@@ -153,6 +156,7 @@ export function parseReviewPayload(value: unknown): CsvReviewModel {
     review_id,
     consent: {
       review_id: reviewId,
+      review_token: reviewToken,
       operation: consentOp,
       principal,
       candidates_digest: digest,
@@ -320,6 +324,7 @@ export async function csvPreviewSection(props: CsvPreviewProps): Promise<string>
         `<input type="hidden" name="operation" value="${escapeAttr(review.operation)}">` +
         `<input type="hidden" name="csv" value="${escapeAttr(props.csvText)}">` +
         `<input type="hidden" name="consent.review_id" value="${escapeAttr(review.consent.review_id)}">` +
+        `<input type="hidden" name="consent.review_token" value="${escapeAttr(review.consent.review_token)}">` +
         `<input type="hidden" name="consent.operation" value="${escapeAttr(review.consent.operation)}">` +
         `<input type="hidden" name="consent.principal" value="${escapeAttr(review.consent.principal)}">` +
         `<input type="hidden" name="consent.candidates_digest" value="${escapeAttr(review.consent.candidates_digest)}">` +

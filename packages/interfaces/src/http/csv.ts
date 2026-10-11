@@ -25,22 +25,22 @@
  * earlier VALID row, pointing at it via `duplicate_of`; a repeat of
  * an invalid row keeps its own invalid verdict instead).
  *
- * Consent: the review mints `{review_id, operation, principal,
- * candidates_digest, candidate_count}` where the digest is sha256
- * over the canonical valid-candidate list and `review_id` derives
- * deterministically from it (`rev-<16 hex>`), so re-reviewing
- * unchanged candidates replays the same consent. The consent needs
- * no signature: commit re-derives the candidates from the echoed CSV
- * and compares digests itself, and the principal must equal the live
- * session user — a forged consent buys nothing. Changed candidates
- * void the consent (`conflict`, renewed review required).
+ * Consent: the pure candidate review preserves its diagnostic digest/count.
+ * The mounted review seals the complete source-row table and checked schema
+ * through the trusted host's purpose-specific review binding. The opaque token
+ * binds app, session, actor/team, source revision and a 15-minute review lifetime.
+ * Commit re-derives the complete table before verification; unsigned, altered,
+ * foreign or expired review contexts require a renewed review.
  *
  * Commit: authorized (session + CSRF, like operation POSTs), then
  * consent/selection validation, then — before ANY invocation — the
  * T32 commit-time authority check (team scope: `assertAuthorityLive`
  * re-reads the membership; teamless: the session resolution at
  * commit time is the liveness fact). Revoked authority voids the
- * whole commit. Each selected row then resolves to `committed`
+ * whole commit. Each valid selected row rereads credentials/membership and
+ * preserves the reviewed actor/team before canonical invocation; a later
+ * revocation returns a failed row while keeping the committed prefix. The
+ * canonical invoker retains its final mutation authority fence. Rows resolve to `committed`
  * (invoked once with its caller-supplied `operation_id` replay key),
  * `failed` (bad replay key or invoker error), `invalid` (kept
  * review error, never invoked), or `duplicate` (points at the
@@ -112,7 +112,7 @@ export interface CsvRowReview {
 }
 
 /** Review consent: digest-bound candidate set + reviewing principal. */
-export interface CsvConsent {
+export interface CsvCandidateConsent {
   readonly review_id: string;
   readonly operation: string;
   readonly principal: string;
@@ -120,13 +120,23 @@ export interface CsvConsent {
   readonly candidate_count: number;
 }
 
+/** Mounted review integrity proof; never an execution permission. */
+export interface CsvConsent extends CsvCandidateConsent {
+  readonly review_token: string;
+}
+
 /** Full review: every row preserved, consent for the candidate set. */
-export interface CsvReview {
+export interface CsvCandidateReview {
   readonly operation: string;
   readonly review_id: string;
-  readonly consent: CsvConsent;
+  readonly consent: CsvCandidateConsent;
   readonly rows: readonly CsvRowReview[];
   readonly counts: { readonly total: number; readonly valid: number; readonly invalid: number; readonly duplicate: number };
+}
+
+/** Authenticated HTTP review: the pure candidate table plus its host proof. */
+export interface CsvReview extends CsvCandidateReview {
+  readonly consent: CsvConsent;
 }
 
 /** One commit row selection: review row index + caller replay key. */
@@ -243,7 +253,7 @@ export async function reviewCsvCandidates(input: {
   principal: string;
   header: readonly string[];
   rows: readonly CsvDataRow[];
-}): Promise<CsvReview> {
+}): Promise<CsvCandidateReview> {
   const headerError = checkCsvHeader(input.header, input.derived, input.shape.allowed);
   if (headerError !== null) throw new CsvParseError(headerError.message);
   const plan = prepareHttpPlan(input.operation, input.shape, input.derived);
@@ -335,7 +345,8 @@ function isCsvConsent(value: unknown): value is CsvConsent {
     typeof record['operation'] === 'string' &&
     typeof record['principal'] === 'string' &&
     typeof record['candidates_digest'] === 'string' &&
-    typeof record['candidate_count'] === 'number'
+    typeof record['candidate_count'] === 'number' &&
+    typeof record['review_token'] === 'string' && record['review_token'] !== ''
   );
 }
 
@@ -392,7 +403,7 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
     return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
   }
   try {
-    const { identity, sessionToken } = await resolveRequestIdentity(
+    let { identity, sessionToken } = await resolveRequestIdentity(
       deps.identity.store,
       request,
       { clock: deps.clock },
@@ -406,6 +417,12 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
       headerValue: request.headers.get(CSRF_HEADER),
       fieldValue: body[CSRF_FIELD],
     });
+
+    // Body acquisition may suspend while credentials or selected team change.
+    ({ identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock }));
+    if (sessionToken === null || identity.actor === null) {
+      return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
+    }
 
     const operation = body['operation'];
     if (typeof operation !== 'string' || operation === '') {
@@ -450,8 +467,20 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
       header: parsed.header,
       rows: parsed.rows,
     });
+    const reviewBindings = deps.formBindings?.csvReview;
+    if (reviewBindings === undefined) {
+      return deny(deps, buildBusinessError('validation', 'CSV review integrity is unavailable.'), operation);
+    }
+    // Include invalid/duplicate rows and indexes: the candidate-only digest
+    // cannot authenticate which original source row the human selected.
+    const reviewDigest = await sha256HexText(canonicalJson({ shape, derived, review }));
+    const bindingContext = {
+      appId: deps.app.appId, sessionToken, identity, operation, reviewDigest,
+      nowMs: deps.clock.nowMs(),
+    };
     if (kind === 'review') {
-      return jsonOk(review);
+      const review_token = await reviewBindings.seal(bindingContext);
+      return jsonOk({ ...review, consent: { ...review.consent, review_token } } satisfies CsvReview);
     }
 
     /* Commit: consent + selection validation, then T32 BEFORE any invocation. */
@@ -473,6 +502,10 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
     }
     if (consent.principal !== identity.actor.user_id) {
       return deny(deps, buildBusinessError('forbidden', 'Consent was issued to a different principal.'), operation);
+    }
+    const reviewExpiresAt = await reviewBindings.verify(bindingContext, consent.review_token);
+    if (reviewExpiresAt === null) {
+      return deny(deps, buildBusinessError('conflict', 'Review context changed or expired; renewed consent required.'), operation);
     }
     const { selections, error: selectionError } = parseSelections(body['rows']);
     if (selectionError !== null) {
@@ -538,14 +571,40 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
         rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: idError });
         continue;
       }
+      // Current scope is a row admission fact, never granted by the review.
+      // A mid-batch revocation preserves prior outcomes and refuses this row.
+      let rowIdentity: typeof identity;
+      try {
+        const current = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+        if (current.sessionToken !== sessionToken || current.identity.actor?.user_id !== frozen.user_id ||
+            (current.identity.team?.team_id ?? null) !== frozen.team_id) {
+          rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed',
+            error: buildBusinessError('forbidden', 'Review principal context changed.') });
+          continue;
+        }
+        rowIdentity = current.identity;
+        if (frozen.team_id !== null) {
+          await assertAuthorityLive(deps.identity.store, { teamId: frozen.team_id, userId: frozen.user_id });
+        }
+      } catch (err) {
+        if (!(err instanceof IdentityError)) throw err;
+        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed',
+          error: caughtToBusinessError(err) });
+        continue;
+      }
+      if (deps.clock.nowMs() >= reviewExpiresAt) {
+        rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed',
+          error: buildBusinessError('conflict', 'Review context expired; renewed consent required.') });
+        continue;
+      }
       const envelope: MutationEnvelope = {
         operation,
         operation_id: selection.operation_id,
         inputs: verdict.inputs,
       };
       const outcome = retainedScenario
-        ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
-        : await deps.invoker.invokeMutation(envelope, identity);
+        ? await deps.invoker.invokeRetainedMutation!(envelope, rowIdentity)
+        : await deps.invoker.invokeMutation(envelope, rowIdentity);
       if ('error' in outcome) {
         rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: outcome.error });
       } else {

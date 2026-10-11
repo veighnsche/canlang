@@ -34,6 +34,7 @@ import type { ArtifactOperation } from '@canlang/contracts';
 import { catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
 import { handleAuthRequest } from '../src/http/auth.js';
 import { handleCsvRequest } from '../src/http/csv.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import type { HttpSubHandlers } from '../src/http/routes.js';
 import { createTestDeps } from '../src/testing.js';
@@ -54,7 +55,7 @@ const OPERATION = 'Billing.Invoice.issue';
 async function joinDeps(overrides: Parameters<typeof createTestDeps>[0] = {}) {
   const t = await createTestDeps(overrides);
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  const deps = { ...t.deps, catalog: catalogFromArtifactOperations(SLICE) };
+  const deps = { ...t.deps, formBindings: await createSourceFormBindings(new Uint8Array(32).fill(7), 'csv-review-test-source-v1'), catalog: catalogFromArtifactOperations(SLICE) };
   const sub: HttpSubHandlers = {
     operations: (req, op) => handleOperationRequest(deps, req, op),
     auth: (req) => handleAuthRequest(deps, req),

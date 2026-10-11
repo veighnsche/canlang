@@ -2,16 +2,27 @@
 import { base64UrlToBytes, bytesToBase64Url, sha256HexText } from '@canlang/identity';
 import type { ClosedInputs } from '@canlang/contracts';
 import { encodeValue } from '@canlang/values';
-import type { SourceFormBindingContext, SourceFormBindings } from '../ports.js';
+import type { CsvReviewBindingContext, SourceFormBindingContext, SourceFormBindings } from '../ports.js';
 import { checkBoundArguments } from '../mcp/schemas.js';
 
 const DOMAIN = 'can-source-form-binding';
 const VERSION = 1;
 const LIFETIME_MS = 15 * 60 * 1000;
 const MAX_TOKEN_CHARS = 32_768;
+const CSV_DOMAIN = 'can-csv-review-binding';
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validCsvContext(context: CsvReviewBindingContext): boolean {
+  const text = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+  return record(context) && text(context.appId) && text(context.sessionToken) && text(context.operation) &&
+    typeof context.reviewDigest === 'string' && /^[0-9a-f]{64}$/.test(context.reviewDigest) &&
+    Number.isSafeInteger(context.nowMs) && context.nowMs >= 0 && Number.isSafeInteger(context.nowMs + LIFETIME_MS) &&
+    record(context.identity) && record(context.identity.actor) && text(context.identity.actor.user_id) &&
+    record(context.identity.binding) && context.identity.binding.kind === 'session' && text(context.identity.binding.session_id) &&
+    (context.identity.team === null || (record(context.identity.team) && text(context.identity.team.team_id)));
 }
 
 function validContext(context: SourceFormBindingContext): boolean {
@@ -58,6 +69,11 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
     'raw', keyBytes.slice(), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'],
   );
   const revisionHash = await sha256HexText(revision);
+  const csvClaims = async (context: CsvReviewBindingContext) => ({
+    domain: CSV_DOMAIN, version: VERSION, revision: revisionHash, app: context.appId,
+    session: await sha256HexText(context.sessionToken), actor: context.identity.actor!.user_id,
+    team: context.identity.team?.team_id ?? null, operation: context.operation, reviewDigest: context.reviewDigest,
+  });
   const claims = async (context: SourceFormBindingContext) => ({
     domain: DOMAIN, version: VERSION, revision: revisionHash, app: context.appId,
     session: await sha256HexText(context.sessionToken),
@@ -89,6 +105,36 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
     return Object.assign(Object.create(null) as ClosedInputs, inputs, bound);
   };
   return {
+    csvReview: {
+      async seal(context) {
+        if (!validCsvContext(context)) throw new TypeError('CSV review bindings require finite trusted session context and a SHA-256 digest.');
+        const payload = new TextEncoder().encode(JSON.stringify({
+          ...await csvClaims(context), issued: context.nowMs, expires: context.nowMs + LIFETIME_MS,
+        }));
+        const signature = new Uint8Array(await globalThis.crypto.subtle.sign('HMAC', signingKey, payload));
+        const token = `${bytesToBase64Url(payload)}.${bytesToBase64Url(signature)}`;
+        if (token.length > MAX_TOKEN_CHARS) throw new TypeError('CSV review binding exceeds the token size limit.');
+        return token;
+      },
+      async verify(context, token) {
+        if (!validCsvContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS) return null;
+        const segments = token.split('.');
+        if (segments.length !== 2) return null;
+        const payload = canonicalBytes(segments[0]!), signature = canonicalBytes(segments[1]!);
+        if (payload === null || signature === null || signature.length !== 32 ||
+            !await globalThis.crypto.subtle.verify('HMAC', signingKey, signature.slice(), payload.slice())) return null;
+        let parsed: unknown, serialized: string;
+        try { serialized = new TextDecoder('utf-8', { fatal: true }).decode(payload); parsed = JSON.parse(serialized) as unknown; }
+        catch { return null; }
+        if (!record(parsed) || !Number.isSafeInteger(parsed['issued']) || !Number.isSafeInteger(parsed['expires']) ||
+            (parsed['issued'] as number) < 0 || (parsed['issued'] as number) > context.nowMs ||
+            (parsed['expires'] as number) <= context.nowMs ||
+            (parsed['expires'] as number) !== (parsed['issued'] as number) + LIFETIME_MS) return null;
+        // Exact serialization closes the payload and its canonical key order.
+        return serialized === JSON.stringify({ ...await csvClaims(context), issued: parsed['issued'], expires: parsed['expires'] })
+          ? parsed['expires'] as number : null;
+      },
+    },
     async seal(context, bound, editable) {
       if (Object.hasOwn(context, 'occurrence') && (typeof context.occurrence !== 'string' ||
           !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/.test(context.occurrence))) {
