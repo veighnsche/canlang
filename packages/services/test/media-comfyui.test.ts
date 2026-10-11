@@ -574,6 +574,58 @@ describe('media: reconcile', () => {
     );
   });
 
+  it('failed history uses generic detail for arbitrary first messages and preserves partial outputs', async () => {
+    for (const message of [
+      'bearer synthetic-private-token',
+      'Account email reviewer@example.test',
+      'Account number 123456789',
+      'Message body: private review notes',
+      'Trace: decode (/private/media.py:10)',
+      'VAE decode failed: private notes',
+      'private notes: VAE decode failed',
+      'model overloaded, try again',
+      'unrecognized provider explanation',
+    ]) {
+      const history = {
+        job_1: {
+          status: {
+            status_str: 'error',
+            completed: false,
+            messages: [null, '', message, 'VAE decode failed'],
+          },
+          outputs: {
+            '9': { images: [{ filename: 'a.png', subfolder: '', type: 'output' }] },
+          },
+        },
+      };
+      await withServer(
+        { kind: 'accept', history, files: { 'a.png': PNG_A } },
+        async (server) => {
+          const completion = await makeAdapter(server.url).reconcile('job_1', {
+            deliveryId: 'del_1',
+          });
+          assert.equal(completion.delivery_id, 'del_1');
+          assert.equal(completion.status, 'succeeded');
+          assert.equal(completion.error, null);
+          const run = completion.result as {
+            job: string;
+            state: string;
+            detail: string;
+            outputs: { node: string; position: number; bytes: Uint8Array }[];
+          };
+          assert.equal(run.job, 'job_1');
+          assert.equal(run.state, 'failed');
+          assert.equal(run.detail, 'Image provider reported run failure.');
+          assert.equal(run.outputs.length, 1);
+          assert.equal(run.outputs[0]?.node, '9');
+          assert.equal(run.outputs[0]?.position, 0);
+          assert.deepEqual(run.outputs[0]?.bytes, PNG_A);
+          assert.ok(server.requests.every((request) => request.method === 'GET'));
+        },
+      );
+    }
+  });
+
   it('failed runs without outputs carry the failure detail', async () => {
     const history = {
       job_1: {

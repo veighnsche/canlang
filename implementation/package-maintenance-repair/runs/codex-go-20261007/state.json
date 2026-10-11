@@ -3763,6 +3763,151 @@
           "packages/services/test/models-ollama.test.ts"
         ],
         "limits": "No new Services ABI/configured policy/timer, provider lookup or cancellation guarantee. Actual Work/Cloudflare consumer must persist original control deadline/anchor and bound its complete wait; do not renew generation, overwrite terminal success or treat unknown as remote stop. Native preparation/release and distinct timezone/raw-payload holds remain unchanged."
+      },
+      "safe_explanation_consultation": {
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "authorization": "Direct human supplied AGENTS: difficult verified-context JEV calls preauthorized. Public/MIT repo and current redact source verified unauthenticated on2026-10-11; only summarized public design facts and hypothetical options. Consultation only, all holds preserved.",
+        "public_source": "https://raw.githubusercontent.com/veighnsche/canlang/main/packages/services/src/mail/redact.ts",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Open-source public MIT Canlang provider DeliveryError/details safety repair; finite original requirement, design advice only.",
+              "required": "No credentials, provider bodies, traces or confidential account data in DeliveryError {code,message} or failed media detail. Preserve existing safe explanation specificity, delivery/job identity, partial model snapshots/images and provider failure versus unknown/observation status.",
+              "verified": "Public mail/redact helper admits arbitrary <=200 character single-line text if a blacklist leaves it unchanged. Lowercase bearer, email/account numbers/body/trace variants pass. Same helper used by mail 4xx send and rejected reconciliation, Ollama NDJSON error, ComfyUI first nonempty failed history message. Existing asserted safe phrases: mail Unknown recipient domain / No mailbox here / No mailbox for recipient; model model overloaded, try again; images VAE decode failed. Helper is exported (raw,generic,maxLength=200), all in-tree adapter fallbacks are fixed authored constants.",
+              "alternatives": "Closed mapping can key existing trusted fallback literal category plus exact known provider phrase and return fixed authored literal, generic for arbitrary/modified/wrongcategory/type/length values, no normalization/interpolation/freeform admission. Generic-only is smaller but changes five established safe explanations. Broader heuristic redaction retains unspecified legitimate specificity but cannot guarantee secrets absent and requires an unbounded sensitive pattern list.",
+              "limits": "No new caller configuration/category DTO/backend/library or provider-void support. Preserve first-message evaluation order and partial evidence. Separate durable control/lifetime host qualification and holds unchanged. No source code, credentials, app/user/provider data or real identifiers transmitted."
+            },
+            "questions": {
+              "policy": {
+                "type": "choice",
+                "instructions": "Which finite option best satisfies the same no-sensitive-data and legitimate-specificity outcomes using these verified existing contracts? Compare safety, complete consumer behavior and justified simplicity fairly.",
+                "criteria": {
+                  "closed_mapping": "Use fixed adapter-owned exact phrase/category mapping and authored output, preserve five existing safe explanations, otherwise generic. Keep existing exported helper signature and length/type guards; no freeform redaction admission.",
+                  "generic_only": "Always return fixed generic explanation for provider text; fewer branches/storage but replace existing legitimate specific explanation outcomes.",
+                  "heuristic_redaction": "Continue returning short provider text untouched by a broader sensitive-pattern scrubber; preserve wider specificity but manage incomplete secret detection heuristics."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Open-source public MIT Canlang provider DeliveryError/details safety repair; finite original requirement, design advice only.",
+              "required": "No credentials, provider bodies, traces or confidential account data in DeliveryError {code,message} or failed media detail. Preserve existing safe explanation specificity, delivery/job identity, partial model snapshots/images and provider failure versus unknown/observation status.",
+              "verified": "Public mail/redact helper admits arbitrary <=200 character single-line text if a blacklist leaves it unchanged. Lowercase bearer, email/account numbers/body/trace variants pass. Same helper used by mail 4xx send and rejected reconciliation, Ollama NDJSON error, ComfyUI first nonempty failed history message. Existing asserted safe phrases: mail Unknown recipient domain / No mailbox here / No mailbox for recipient; model model overloaded, try again; images VAE decode failed. Helper is exported (raw,generic,maxLength=200), all in-tree adapter fallbacks are fixed authored constants.",
+              "alternatives": "Closed mapping can key existing trusted fallback literal category plus exact known provider phrase and return fixed authored literal, generic for arbitrary/modified/wrongcategory/type/length values, no normalization/interpolation/freeform admission. Generic-only is smaller but changes five established safe explanations. Broader heuristic redaction retains unspecified legitimate specificity but cannot guarantee secrets absent and requires an unbounded sensitive pattern list.",
+              "limits": "No new caller configuration/category DTO/backend/library or provider-void support. Preserve first-message evaluation order and partial evidence. Separate durable control/lifetime host qualification and holds unchanged. No source code, credentials, app/user/provider data or real identifiers transmitted."
+            },
+            "questions": {
+              "policy": {
+                "type": "choice",
+                "instructions": "Select the smallest complete provider explanation policy that preserves the stated original safe examples and prevents arbitrary provider data from escaping. Weigh exact closed mapping, generic only and heuristic redaction equally.",
+                "criteria": {
+                  "closed_mapping": "Use fixed adapter-owned exact phrase/category mapping and authored output, preserve five existing safe explanations, otherwise generic. Keep existing exported helper signature and length/type guards; no freeform redaction admission.",
+                  "generic_only": "Always return fixed generic explanation for provider text; fewer branches/storage but replace existing legitimate specific explanation outcomes.",
+                  "heuristic_redaction": "Continue returning short provider text untouched by a broader sensitive-pattern scrubber; preserve wider specificity but manage incomplete secret detection heuristics."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "scope": "Open-source public MIT Canlang provider DeliveryError/details safety repair; finite original requirement, design advice only.",
+              "required": "No credentials, provider bodies, traces or confidential account data in DeliveryError {code,message} or failed media detail. Preserve existing safe explanation specificity, delivery/job identity, partial model snapshots/images and provider failure versus unknown/observation status.",
+              "verified": "Public mail/redact helper admits arbitrary <=200 character single-line text if a blacklist leaves it unchanged. Lowercase bearer, email/account numbers/body/trace variants pass. Same helper used by mail 4xx send and rejected reconciliation, Ollama NDJSON error, ComfyUI first nonempty failed history message. Existing asserted safe phrases: mail Unknown recipient domain / No mailbox here / No mailbox for recipient; model model overloaded, try again; images VAE decode failed. Helper is exported (raw,generic,maxLength=200), all in-tree adapter fallbacks are fixed authored constants.",
+              "alternatives": "Closed mapping can key existing trusted fallback literal category plus exact known provider phrase and return fixed authored literal, generic for arbitrary/modified/wrongcategory/type/length values, no normalization/interpolation/freeform admission. Generic-only is smaller but changes five established safe explanations. Broader heuristic redaction retains unspecified legitimate specificity but cannot guarantee secrets absent and requires an unbounded sensitive pattern list.",
+              "limits": "No new caller configuration/category DTO/backend/library or provider-void support. Preserve first-message evaluation order and partial evidence. Separate durable control/lifetime host qualification and holds unchanged. No source code, credentials, app/user/provider data or real identifiers transmitted."
+            },
+            "questions": {
+              "policy": {
+                "type": "choice",
+                "instructions": "For these existing mail/model/media consumers, which bounded policy should the owner implement? Account for fixed-category exact matching, exported helper compatibility and preserved partial evidence without adding an unbounded safety programme.",
+                "criteria": {
+                  "closed_mapping": "Use fixed adapter-owned exact phrase/category mapping and authored output, preserve five existing safe explanations, otherwise generic. Keep existing exported helper signature and length/type guards; no freeform redaction admission.",
+                  "generic_only": "Always return fixed generic explanation for provider text; fewer branches/storage but replace existing legitimate specific explanation outcomes.",
+                  "heuristic_redaction": "Continue returning short provider text untouched by a broader sensitive-pattern scrubber; preserve wider specificity but manage incomplete secret detection heuristics."
+                }
+              }
+            }
+          }
+        ],
+        "status": "complete; advice only",
+        "responses": [
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "policy": {
+                "type": "choice",
+                "choice": "closed_mapping",
+                "confidence": 1.0,
+                "probabilities": {
+                  "closed_mapping": 1.0,
+                  "generic_only": 0.0,
+                  "heuristic_redaction": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 806,
+              "output_tokens": 45
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "policy": {
+                "type": "choice",
+                "choice": "closed_mapping",
+                "confidence": 1.0,
+                "probabilities": {
+                  "closed_mapping": 1.0,
+                  "generic_only": 0.0,
+                  "heuristic_redaction": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 810,
+              "output_tokens": 45
+            }
+          },
+          {
+            "model": "jev-1.13.0",
+            "answers": {
+              "policy": {
+                "type": "choice",
+                "choice": "closed_mapping",
+                "confidence": 1.0,
+                "probabilities": {
+                  "closed_mapping": 1.0,
+                  "generic_only": 0.0,
+                  "heuristic_redaction": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 813,
+              "output_tokens": 45
+            }
+          }
+        ],
+        "assessment": "All3 equivalent responses choose closed_mapping at confidence1.0; advice only. Preserve5 existing safe explanation outcomes, exact category/phrase lookup, unknown provider text generic. No new profile/carrier/heuristic growth."
+      },
+      "safe_explanation_source": {
+        "status": "implemented_tested_reviewed_CLEAR_finite_library_component_in_LOCAL_main; original_observation_lifetime_consumer_unfinished",
+        "files": [
+          "packages/services/src/mail/redact.ts",
+          "packages/services/test/mail-redaction.test.ts",
+          "packages/services/test/models-ollama.test.ts",
+          "packages/services/test/media-comfyui.test.ts"
+        ],
+        "contract": "Existing exported specificOrGeneric(raw,generic,maxLength=200) selects only5 fixed authored explanations by trusted existing fallback category and exact known phrase; type/empty/length/newline/CR/NUL guard order and redactUntrusted retained. Unknown/modified/wrongcategory text returns trusted generic. No arbitrary freeform sanitization claim.",
+        "validation": "Pinned Node24 Services emit0.12 affected helper+genuine loopback mail send/rejected reconciliation/model NDJSON/media failed-history controlgroups PASS113.799042ms. Safeexisting assertions retained; synthetic unsafe provider messages generic, original identities/statuses/model snapshots/media partial bytes and firstnonempty selection retained. No unmodified suite repetition.",
+        "review": "Finite independent read-only security/correctness source review CLEAR.",
+        "remaining": "Work/Dev owns original immutable creation-anchor/deadline and complete observation/resource/lifetime consumer. Supplied-ID media producer already released62a0a87e0; no new blocker or whole-parent acceptance. Holds/provider-void preserved.",
+        "coordinator_review": "Direct defining source/test review CLEAR: exact private adapter category/phrase mapping returns five fixed authored explanations or trusted generic, never arbitrary provider text; existing guards, identities, partial snapshots/bytes and first nonempty message order preserved. Reuse owning12 affected genuine helper/loopback groups113.799042ms and recorded Node24 Services emission. Actual changed MAIN Services/CF/root normal emission0. Broad original Work/Dev observation deadline/evidence lifetime stays separate, all exact holds retained."
       }
     },
     "TECH-SV03": {
