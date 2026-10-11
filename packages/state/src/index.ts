@@ -179,7 +179,7 @@ export type { OperationRegistry } from './invocation/registry.js';
 export type { ClockPort } from './invocation/context.js';
 export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/invoke.js';
 export {
-  observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
+  observeScenarioReceiptDependency, observeScenarioReceiptRowId, type ScenarioReceiptRowIdInput, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, type ScenarioReceiptReferenceProducer,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,

@@ -11031,3 +11031,28 @@ Three independently worded equivalent synthetic/public-only JEV Choice requests 
 Remaining finite Dev output: bind the Packages configured verifier and implement the durable original-correlation sink through the existing ingress ports, then qualify this unchanged original control's signature/raw-byte/header/age/replay/refusal/current-authority/fence/receipt/history behavior with real local Identity/owner D1. Genuine trusted configuration/key/sink are required before mounting; local fixture qualification may supply ephemeral operator keys. Existing native internal Identity1/1 supplies no signed HTTP ingress acceptance. Provider activation/publication/recipient preparation holds, external vendor and File-bearing receiving profiles remain separate.
 
 Coordinator finite ownership refinement for the selected profile: Packages implements the existing Interfaces configured typed per-adapter library createIdentityRemovalIngressVerifier({binding,clock,keys,isCurrent,readOriginalOccurrence,captureVerified}). The reader is the captured original SELECT-only five-argument receiver; after all signature/raw-body/closed-schema/original-field/age/digest/read awaits and final current key/lifetime checks, the library synchronously captures the SAME authentic original envelope plus exact raw SHA256. Dev privately associates that envelope object with profile/raw digest/original cause/source and owns current trusted host/key/physical receiver plus durable existing occurrence/routing sink. No new public event/DTO/authority carrier, duplicated crypto, command fallback or signed JSON origin. Callback errors refuse verification. Local choice is authorized engineering; the named paired library/host/sink/native outputs and precise activation/publication/preparation holds remain. Incremental coverage reconciled; complete checkpoint unchanged.
+
+2026-10-11 — original scenario row ID source (unfinished original workflow)
+
+The actual receiving ImageRequest source reads `job.id`, reserved envelope text
+metadata absent from stored data fields. Reuse the existing checked dependency
+and saved row observation as `id:text`; no shared carrier or version intrinsic
+is needed. Accept only a genuine current-stage owner row or this call's exact
+admitted reference, preserving the original admitted row/version after later
+writes. Derive the ID internally, apply original source grants and complete
+ancestors, and retain full Identity/checkpoint authority. Existing visible-row
+metadata semantics permit id-only and domain-field grants alike.
+
+Capture revalidates after its common awaited load. Mandatory private guards
+resolve actual final owner effects or State's immutable captured no-owner
+writes before cohort reads; source/lifetime/ancestor loss rolls back the whole
+commit. Saved recovery uses each consuming definition's original source
+producer, current same lifetime and grants, with no source/child execution.
+Finite inspection found and corrected tail-revocation and pending-write gaps;
+11 new grouped controls plus 57 related outcomes qualify this State seam, with
+normal State/DO/root/boundaries passing. Coordinator review/release, Compiler
+original site correspondence and Dev authentic native capture/receiving
+qualification remain. All precise native preparation/publication and other
+human holds persist; this checkpoint does not establish full workflow acceptance.
+
+Coordinator defining authentic issuance/observation and retained/current-authority replay/commit reviews CLEAR. Primary normal emission caught the final8fca unescaped diagnostic apostrophe. Exact aa299 quote-only correction then fresh primary affected row-ID11/11 PASS241.988291ms, zero failure/cancel/skip, and normal State/DO/CF/root0 qualify final source. Reuse unchanged related57 outcomes only. This finite original row-ID source component is closed in LOCAL main after deadline. Compiler exact occurrence emitter and Dev genuine native row/reference/receiving adoption retain their separate unfinished criteria; no Contracts carrier, new intrinsic, version reinterpretation or native/full-plan/hold release. Coverage reconciled incrementally; complete checkpoint unchanged.
