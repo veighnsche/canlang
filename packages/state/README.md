@@ -80,3 +80,10 @@ The worker protocol and real Miniflare SQLite/transaction assertions stay
 unchanged. Missing or browser-incompatible dependencies fail the build; the
 bundler removes its old asset before attempting to rebuild it. The test worker
 is not a production deployment or a substitute for owning adapter qualification.
+
+Both artifact and canonical descriptor loading retain explicitly declared model
+field nullability and the complete checked delivery descriptor, including ordered
+result leaves and their constraints. Delivery metadata is copied from own data
+before freezing; getters and inherited claims supply no declaration authority.
+Source Judgment leaves must match their complete checked nominal declaration.
+This metadata preserves correspondence; it grants no delivery or File permission.
