@@ -480,6 +480,18 @@ function originalContractSet() {
 
 describe('complete original opaque contract admission (no source qualification)', () => {
   const admit = (set: FrameworkOpaqueDeclarationSet) => bindOpaqueFileDeclarations([set], () => {});
+  it('refuses the static Generation profile until its original request matcher is configured', () => {
+    const set: FrameworkOpaqueDeclarationSet = originalContractSet();
+    const source = { path: 'generation.can', sha256: '0'.repeat(64), module: 'generation.js' };
+    const descriptor = { kind: 'delivery' as const, capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
+      result: { name: 'UninstalledGenerationResult', fields: [] } };
+    Object.assign(set, { sources: [{ path: source.path, sha256: source.sha256 }], declarations: [{
+      id: 'generation/profile', source: { kind: 'delivery', source,
+        context: { kind: 'generation-profile', canonical: descriptor, artifact: descriptor } },
+      profile: { kind: 'provider-result', canonical: descriptor.result, artifact: descriptor.result },
+    }] });
+    assert.throws(() => admit(set), /original Generation profile matching is not configured/);
+  });
   it('retains null, false, empty defaults, raw trim literals and fields without defaults, including unused contracts', () => {
     const set = originalContractSet();
     const bound = admit(set).get(set.id)!;

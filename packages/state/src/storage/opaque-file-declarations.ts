@@ -333,7 +333,12 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
         callableShape(from.callable);
         if (from.callable.module !== from.source.module) return refuse('original source/callable module correspondence required.');
       } else if (from.kind === 'event') string(from.event);
-      else if (from.kind === 'delivery') deliveryContext(bound, from.context);
+      else if (from.kind === 'delivery') {
+        // Keep the shared ABI extension fail-closed until the owning original
+        // request/profile matcher is released. Never invent a static request.
+        if (from.context.kind === 'generation-profile') return refuse('original Generation profile matching is not configured.');
+        deliveryContext(bound, from.context);
+      }
       else if (from.kind === 'send-guard') sendGuard(set, from, true);
       else return refuse('checked source kind required.');
       const profile = item.profile;

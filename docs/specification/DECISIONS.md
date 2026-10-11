@@ -10612,3 +10612,29 @@ Coordinator independent defining source review CLEAR and LOCAL integration after
 Cache executing `loadArtifactDescriptors` outputs by the literal selected StoragePort as well as artifact, regenerating the complete genuine definition/binder/parent-child CALL closure for a new store. State dispatch membership binds an original definition to literal readers once; artifact-wide executable definitions cannot be rebound across physical owners, even at equal owner/revision. Preserve original assembler correspondence checks and source-only metadata preloads; never clone definitions or synthesize a store proxy. The focused two-store declared component fixture verifies isolated actual receipts/replay and copied-assembly refusal. Native dispatch qualification remains unfinished.
 
 Coordinator independent per-store producer source review CLEAR and LOCAL integration after deadline. Retain literal physical-store identity, genuine complete fresh definition/binder/CALL closure, original assembler validation before cache reuse, failed-load eviction and nongrant metadata preloads. Reuse the actual two-store component1/1 and owning emission0; changed normal Cloudflare emission0. Surgical application keeps main original query/source/guarded SEND behavior without importing an unrelated worker-parent helper. Original native dispatch/application acceptance remains unfinished. Separate Packages current-credential callthrough root17 failure remains pending; no unchanged rerun or root pass is claimed. Complete checkpoint and precise holds unchanged.
+
+## 2026-10-11 — Installed Generation profile and original request (shared ABI implemented; matcher unfinished)
+
+Separate the installed generation-profile declaration from its genuine runtime
+Generation request. The static variant retains complete canonical/artifact,
+source, historical schema/default and declaration-set/id facts; runtime origins
+still require the original request source/revision. Only the genuine checked
+Generation producer may select it. Existing exact-context variants remain exact.
+No per-request inventory, fabricated static request or additional raw tuple is
+introduced. This is the minimal defining ABI released for the owning consumers.
+
+Capability/State must validate its relation to the genuine original SEND/frame,
+intent, association, binding/from and scope even for pending/null/skipped before
+returning without a result. Match rich result source/revision before typed
+traversal and preserve the existing six-field Work completion correlation.
+Dev supplies genuine installed declarations and the original runtime capture;
+Compiler supplies checked source. Until that matcher is released, State refuses
+the new variant at admission rather than accepting incomplete correspondence.
+
+Contracts emission and public strict positive/negative type controls pass. The
+new profile exposed one State compile boundary, corrected by the explicit refusal;
+State typecheck/emission and only the new structural refusal control1/1 pass.
+This control does not qualify installed source or native matching. Unchanged
+checks are reused; provider-void stays skipped and parent/precise holds remain.
+
+Coordinator defining type/guard source review CLEAR and LOCAL integration after deadline. Installed generation-profile is distinct from genuine runtime generation request/source/revision; legacy exact-request/capability/Judgment variants remain. State explicitly refuses the new static mode until Capability releases its authentic original instance matcher. Reuse Contracts public strict0/State0 and structural refusal1/1; changed normal Contracts/State/Work/Cloudflare0. Capability consumes the finite contract without a whole-plan wait, retaining original declaration/source/default/File census and Work correlation even pending/null/skipped. No native acceptance, authority, hold release or complete checkpoint advancement. Separate credential callthrough root17 remains pending.
