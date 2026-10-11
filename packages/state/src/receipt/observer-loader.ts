@@ -3,8 +3,9 @@
  * owning implementation lands. Callers distinguish that exact absence from a
  * present module whose dependencies, initialization, or exports are broken.
  */
-const OBSERVER_MODULE = './observer.js';
-export const receiptObserverModuleUrl = new URL(OBSERVER_MODULE, import.meta.url).href;
+// Worker module identifiers need not be absolute URLs. Keep the exact relative
+// specifier and let the owning module resolver evaluate it only when requested.
+export const receiptObserverModuleUrl = './observer.js';
 export async function loadReceiptObserver(): Promise<unknown> {
-  return import(OBSERVER_MODULE);
+  return import(receiptObserverModuleUrl);
 }
