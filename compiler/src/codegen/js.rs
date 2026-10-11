@@ -1840,6 +1840,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "display"
                 | "page"
         ),
+        "history" => matches!(key, "model" | "record"),
         "form" => matches!(
             key,
             "operation" | "fields" | "arguments" | "submit" | "display"
@@ -2335,6 +2336,8 @@ pub struct Emitter<'a> {
     by_canonical: HashMap<String, usize>,
     stdlib: BTreeSet<String>,
     ui: BTreeSet<String>,
+    /// Original projected rows stay separate from business-expression rows.
+    original_ui_rows: Vec<OriginalUiRow>,
     relative: BTreeMap<String, BTreeSet<String>>,
     /// Checked derive calls used by this emitter; example modules link them to their real owner.
     derive_calls: BTreeSet<String>,
@@ -2367,6 +2370,12 @@ pub struct Emitter<'a> {
     /// Only the immutable CheckedProgram/fresh-IR producer can populate this.
     prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
+}
+
+struct OriginalUiRow {
+    name: String,
+    model: String,
+    binding: Option<String>,
 }
 
 #[derive(Clone)]
@@ -2408,6 +2417,7 @@ impl<'a> Emitter<'a> {
             by_canonical,
             stdlib: BTreeSet::new(),
             ui: BTreeSet::new(),
+            original_ui_rows: Vec::new(),
             relative: BTreeMap::new(),
             derive_calls: BTreeSet::new(),
             diags: Vec::new(),
@@ -6343,6 +6353,32 @@ impl<'a> Emitter<'a> {
         self.lower_ui_occurrence(node, ctx, &[], None, false)
     }
 
+    fn original_ui_row(&self, value: &TypedExpr, model: &str) -> Option<String> {
+        let (
+            IrExpr::Name(name),
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            },
+        ) = (&value.expr, &value.ty)
+        else {
+            return None;
+        };
+        let item = self.ir.items.get(symbol.0 as usize)?;
+        if item.id != *symbol
+            || item.canonical != model
+            || !matches!(item.kind, IrItemKind::Model { .. })
+        {
+            return None;
+        }
+        self.original_ui_rows
+            .iter()
+            .rev()
+            .find(|row| row.name == *name)
+            .filter(|row| row.model == model)
+            .and_then(|row| row.binding.clone())
+    }
+
     /// Occurrence identities thread through enclosing collection rows so
     /// repeated tabsets never share their radio group or panel identifiers.
     fn lower_ui_occurrence(
@@ -6359,8 +6395,26 @@ impl<'a> Emitter<'a> {
             // Evaluate the supplied authorized row once in the caller scope,
             // then shadow it only for this declaration-owned expansion.
             let argument = self.lower_business_expr(&view.argument, "view row argument");
+            let model = match &view.argument.ty {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => self
+                    .ir
+                    .items
+                    .get(symbol.0 as usize)
+                    .map(|item| item.canonical.clone())
+                    .unwrap_or_default(),
+                _ => String::new(),
+            };
+            let original = self.original_ui_row(&view.argument, &model);
             self.enter_scope();
             let row = self.bind("row");
+            self.original_ui_rows.push(OriginalUiRow {
+                name: "row".to_string(),
+                model,
+                binding: original,
+            });
             let mut nested = occurrences.to_vec();
             nested.push(js_string(&view.identity));
             nested.push(format!("{row}.id"));
@@ -6379,6 +6433,7 @@ impl<'a> Emitter<'a> {
                 })
                 .collect::<Vec<_>>()
                 .join(",");
+            self.original_ui_rows.pop();
             self.exit_scope();
             let guard = gate
                 .map(|gate| format!("if(!({gate}))return '';"))
@@ -6674,6 +6729,29 @@ impl<'a> Emitter<'a> {
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
+        let original_history_row = if node.factory == "history" {
+            let original = form_prop_text(node, "model").and_then(|model| {
+                node.props
+                    .iter()
+                    .find(|(key, _)| key == "record")
+                    .and_then(|(_, value)| self.original_ui_row(value, &model))
+            });
+            if original.is_none()
+                || node.props.len() != 2
+                || !node.children.is_empty()
+                || node.row_scope.is_some()
+            {
+                self.unsupported(
+                    "history",
+                    "an original queried row and its checked owning model are required",
+                    node.span,
+                );
+                return self.throw_expr("unsupported history row");
+            }
+            original
+        } else {
+            None
+        };
         if (node.factory == "calendar" && form_prop_text(node, "kind").as_deref() == Some("agenda"))
             || (matches!(node.factory.as_str(), "list" | "table")
                 && (form_prop_text(node, "display").as_deref() == Some("split")
@@ -6694,7 +6772,11 @@ impl<'a> Emitter<'a> {
             ));
         }
         for (key, value) in &node.props {
-            let value = if node.factory == "text" && key == "values" {
+            let value = if node.factory == "history" && key == "record" {
+                original_history_row
+                    .clone()
+                    .expect("history row checked above")
+            } else if node.factory == "text" && key == "values" {
                 self.lower_expr(value)
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
@@ -6739,8 +6821,17 @@ impl<'a> Emitter<'a> {
         match &node.row_scope {
             Some((row, view)) => {
                 self.enter_scope();
+                let source_row = row.clone();
                 let row = self.bind(row);
                 let child_ctx = self.bind(view);
+                let history = node.children.iter().any(ui_uses_history);
+                let original =
+                    binding_ident("rv", &format!("{}:{}", node.span.file.0, node.span.start));
+                self.original_ui_rows.push(OriginalUiRow {
+                    name: source_row,
+                    model: form_prop_text(node, "model").unwrap_or_default(),
+                    binding: history.then(|| original.clone()),
+                });
                 let mut child_occurrences = occurrences.to_vec();
                 child_occurrences.push(format!("{row}.id"));
                 let children = node
@@ -6766,8 +6857,14 @@ impl<'a> Emitter<'a> {
                 } else {
                     ""
                 };
+                self.original_ui_rows.pop();
+                let preserve_row = if history {
+                    format!("const {original}={row};")
+                } else {
+                    String::new()
+                };
                 props.push(format!(
-                    "renderRow:{prefix}({row},{child_ctx})=>{{{row}={{...{row}.fields,id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}};return [{children}];}}"
+                    "renderRow:{prefix}({row},{child_ctx})=>{{{preserve_row}{row}={{...{row}.fields,id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}};return [{children}];}}"
                 ));
                 self.exit_scope();
             }
@@ -7134,6 +7231,7 @@ fn sequence_ui_child(value: String, sequence: bool) -> String {
 fn ui_immediate_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
         || node.factory == "form"
+        || node.factory == "history"
         || node.props.iter().any(|(_, value)| expr_uses_async(value))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || (node.factory != "form"
@@ -7145,9 +7243,14 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
 fn ui_uses_async(node: &IrUi) -> bool {
     node.view.is_some()
         || node.factory == "form"
+        || node.factory == "history"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || node.children.iter().any(ui_uses_async)
+}
+
+fn ui_uses_history(node: &IrUi) -> bool {
+    node.factory == "history" || node.children.iter().any(ui_uses_history)
 }
 
 /// Whether a page body references the `preferences` record.

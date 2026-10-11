@@ -82,7 +82,9 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                     .iter()
                     .map(|child| child.factory.as_str())
                     .collect::<Vec<_>>(),
-                ["badge", "status", "status", "text", "form", "actions"]
+                [
+                    "badge", "status", "status", "text", "form", "actions", "history"
+                ]
             );
             let attendance = &node.children[4];
             assert!(attendance.props.iter().any(|(key,value)| key == "operation" && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.attendance")));
@@ -136,17 +138,19 @@ fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
                 checked.symbols[symbol.0 as usize].canonical,
                 "appointments.Appointment"
             );
-            assert!(
-                diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.code == "E6008"
-                        && diagnostic.message.contains("cannot lower history")
-                        && original
-                            [diagnostic.primary.start as usize..diagnostic.primary.end as usize]
-                            .trim()
-                            == "history"),
-                "bare original history remains its exact consumer refusal"
+            let history = &node.children[6];
+            assert_eq!(
+                original[history.span.start as usize..history.span.end as usize].trim(),
+                "history"
             );
+            assert!(history.props.iter().any(|(key,value)| key == "model" && matches!(&value.expr, IrExpr::Text(value) if value == "appointments.Appointment")));
+            assert!(history.props.iter().any(|(key, value)| key == "record"
+                && matches!(&value.expr, IrExpr::Name(value) if value == "row")
+                && value.ty
+                    == canlang_compiler::analysis::types::ResolvedType::Record {
+                        symbol,
+                        stored: true
+                    }));
         }
         if node.factory == "list"
             && (authored.contains("list row.Attempt columns=")

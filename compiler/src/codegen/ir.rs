@@ -14014,6 +14014,70 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// Bare history names the owning collection row; the admitted dispatcher
+    /// supplies the current-authorized reader, never a generated store lookup.
+    fn decode_row_history(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let Some((model, row)) = row_ctx else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower history: bare history needs an owning collection row".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let symbol = self.program.symbols.get(model.0 as usize)?;
+        if symbol.id != model
+            || !matches!(symbol.kind, SymbolKind::Model { .. })
+            || !self.program.effects.models.contains_key(&model)
+            || kids(node)
+                .iter()
+                .skip(1)
+                .any(|part| part.kind != SyntaxKind::Require)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower history: only bare checked owning row history has a reader profile"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "history".to_string(),
+            props: vec![
+                (
+                    "model".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Text(symbol.canonical.clone()),
+                        ResolvedType::Scalar(Scalar::Text),
+                        node.span,
+                    ),
+                ),
+                (
+                    "record".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Name(row),
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                        node.span,
+                    ),
+                ),
+            ],
+            children: Vec::new(),
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
     /// Decode a `UiLeaf` (`text`, `history`, `metrics`, `actions`, ...).
     fn decode_leaf(
         &mut self,
@@ -14025,7 +14089,10 @@ impl<'a> Cx<'a> {
         if word == "actions" {
             return self.decode_actions(scope, node, row_ctx);
         }
-        if matches!(word, "metrics" | "copy" | "action" | "history") {
+        if word == "history" {
+            return self.decode_row_history(scope, node, row_ctx);
+        }
+        if matches!(word, "metrics" | "copy" | "action") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -14052,14 +14119,6 @@ impl<'a> Cx<'a> {
                     "values".to_string(),
                     TypedExpr::new(IrExpr::Array(values), ResolvedType::Unknown, node.span),
                 ));
-            }
-            "history" => {
-                if let Some((_, row)) = &row_ctx {
-                    props.push((
-                        "record".to_string(),
-                        TypedExpr::new(IrExpr::Name(row.clone()), ResolvedType::Unknown, node.span),
-                    ));
-                }
             }
             "metrics" => {
                 // `metrics result.count,result.total`: the value roots
