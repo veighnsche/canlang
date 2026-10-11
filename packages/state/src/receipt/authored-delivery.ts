@@ -1,6 +1,6 @@
 /** Pure authored-delivery staging uses reader ports and returns writes for the caller's fence; it grants no public mutation authority. */
 import { T26_PROGRESS_RELATIONS } from '@canlang/contracts';
-import type { ArtifactModel, CanonicalValueTypes, DeliveryRef, JudgmentSpec, ReceiptResultContext, DomainWrite, ModelName, OutboxIntent, RecordId } from '@canlang/contracts';
+import type { ArtifactModel, CanonicalValueTypes, DeliveryRef, JudgmentSpec, ReceiptResultContext, FrameworkFilePayloadOrigin, DomainWrite, ModelName, OutboxIntent, RecordId } from '@canlang/contracts';
 import { isDeliveryRef, validateValue } from '@canlang/values';
 import type { NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -23,6 +23,17 @@ export interface AuthoredDeliveryInput {
   readonly valueSchema?: NormalizedSchema;
   /** Actual owner checkpoint for the containing canonical commit. */
   readonly revision: number;
+  /** Already source-bound original evidence. This staging DTO grants no authority. */
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
+}
+
+/** Both arguments are detached own JSON from the receipt reader. */
+function sameOriginal(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null || Array.isArray(a) !== Array.isArray(b)) return false;
+  const left = a as Record<string, unknown>, right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && sameOriginal(left[key], right[key]));
 }
 
 function refuse(): never {
@@ -54,6 +65,31 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
       if (queued === undefined || queued.intentId !== input.value.id || queued.target !== target ||
           queued.operationId !== input.operationId || queued.operation !== ctx.operation) refuse();
     }
+    // Snapshot the original pending receipt before the first reader can yield.
+    // Complete source closure and genuine File observations remain census checks.
+    const originProperty = Object.getOwnPropertyDescriptor(input, 'filePayloadOrigin');
+    if (originProperty === undefined ? 'filePayloadOrigin' in input :
+        !Object.hasOwn(originProperty, 'value') || !originProperty.enumerable) refuse();
+    if (originProperty !== undefined && input.value === null) refuse();
+    const meta = { actor: ctx.actor, nowMs: ctx.now };
+    const pendingReceipt = input.value === null || originProperty === undefined ? null : newReceiptRow({ deliveryId: input.value.id,
+      revision: input.revision, status: 'pending', result: null, error: null, contentRef: null, resultExpiresAtMs: null,
+      ...(originProperty === undefined ? {} : { filePayloadOrigin: originProperty.value as FrameworkFilePayloadOrigin }) }, meta, resultContext);
+    const originalBinding = pendingReceipt === null ? undefined : readReceiptRow(pendingReceipt, resultContext).filePayloadOrigin;
+    if (originalBinding !== undefined) {
+      const origin = originalBinding.origin;
+      if (origin.kind !== 'delivery-result' || input.value === null) refuse();
+      const queued = input.queued.get(input.value.id)!;
+      if (origin.intent.intentId !== queued.intentId || origin.intent.operation !== queued.operation ||
+          origin.intent.operationId !== queued.operationId || origin.intent.target !== queued.target ||
+          origin.intent.occurrenceIndex !== queued.occurrenceIndex || origin.caller.callable.id !== ctx.operation ||
+          origin.association.model !== input.model.name || origin.association.recordId !== input.recordId ||
+          origin.association.field !== input.field) refuse();
+    }
+    // Retain the validated assignment identities across asynchronous readers.
+    if (originalBinding !== undefined) {
+      input = { ...input, model: { ...input.model }, value: input.value === null ? null : { ...input.value } };
+    }
     const associationId = associationRowId(input.model.name, input.recordId, input.field);
     const existing = await ctx.load(RECEIPT_ASSOCIATION_MODEL as ModelName, associationId as RecordId);
     const current = existing === null ? null : readAssociationRow(existing);
@@ -81,7 +117,12 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
           current.locator.field !== input.field || current.source !== target || current.revision > input.revision) refuse();
       const retained = await ctx.load(RECEIPT_MODEL as ModelName, current.deliveryId as RecordId);
       if (retained === null) refuse();
-      const receipt = readReceiptRow(retained, resultContext).receipt;
+      const stored = readReceiptRow(retained, resultContext);
+      const original = stored.filePayloadOrigin?.origin;
+      if (original !== undefined && (original.kind !== 'delivery-result' ||
+          original.association.model !== input.model.name || original.association.recordId !== input.recordId ||
+          original.association.field !== input.field || original.intent.target !== current.source)) refuse();
+      const receipt = stored.receipt;
       if (receipt.deliveryId !== current.deliveryId || receipt.revision !== current.revision) refuse();
     }
     if (input.value === null) {
@@ -90,7 +131,9 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
     }
     const priorAttempt = await ctx.load(RECEIPT_MODEL as ModelName, input.value.id as RecordId);
     if (priorAttempt !== null) {
-      const receipt = readReceiptRow(priorAttempt, resultContext).receipt;
+      const stored = readReceiptRow(priorAttempt, resultContext);
+      if (originalBinding !== undefined && !sameOriginal(originalBinding, stored.filePayloadOrigin)) refuse();
+      const receipt = stored.receipt;
       // The overlay may already contain this same staged assignment. A known
       // attempt can never be reassigned or reset to pending from a saved result.
       if (current?.deliveryId === input.value.id && current.source === target && current.revision === input.revision &&
@@ -99,7 +142,6 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
       refuse();
     }
     if (current?.deliveryId === input.value.id) refuse();
-    const meta = { actor: ctx.actor, nowMs: ctx.now };
     const association = { recordModel: input.model.name, recordId: input.recordId, field: input.field,
       deliveryId: input.value.id, source: target, revision: input.revision };
     const associationWrite: DomainWrite = existing === null
@@ -107,6 +149,7 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
       : { kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: existing.id, expectedVersion: existing.version,
         row: withAssociationRowData(existing, association, meta) };
     return { writes: [associationWrite, { kind: 'insert', model: RECEIPT_MODEL as ModelName,
-      row: newReceiptRow({ deliveryId: input.value.id, revision: input.revision, status: 'pending', result: null,
-        error: null, contentRef: null, resultExpiresAtMs: null }, meta, resultContext) }] };
+      row: pendingReceipt ?? newReceiptRow({ deliveryId: input.value.id, revision: input.revision,
+        status: 'pending', result: null, error: null, contentRef: null, resultExpiresAtMs: null },
+        { actor: ctx.actor, nowMs: ctx.now }, resultContext) }] };
 }

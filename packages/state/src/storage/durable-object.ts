@@ -91,6 +91,7 @@ import {
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
+  ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES,
   FENCE_ROW_ID,
   SCHEMA_STATEMENTS,
   isDuplicateColumnError,
@@ -103,7 +104,7 @@ export async function ensureSchema(storage: DurableObjectStorage): Promise<void>
   }
   // Add missing columns without reconstructing legacy publication facts.
   // A legacy original revision remains NULL; only new fenced inserts fill it.
-  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION]) {
+  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION, ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES]) {
     try {
       storage.sql.exec(alteration);
     } catch (error) {
@@ -227,11 +228,12 @@ function toCommitError(
 }
 
 function readFileGuard(storage: DurableObjectStorage): FileGuardState {
-  const authority = storage.sql.exec<{ authority: string }>(
-    'SELECT authority FROM file_reference_authority WHERE id = 1',
+  const authority = storage.sql.exec<{ authority: string; opaque_lifetimes: string }>(
+    'SELECT authority, opaque_lifetimes FROM file_reference_authority WHERE id = 1',
   ).toArray()[0];
-  return {
+  const state: FileGuardState = {
     authority: authority === undefined ? null : checkedFileAuthority(JSON.parse(authority.authority)),
+    opaqueLifetimes: authority === undefined ? [] : fileGuardCopy(JSON.parse(authority.opaque_lifetimes)),
     inventories: storage.sql.exec<{ installed: string }>(
       'SELECT installed FROM file_reference_inventories ORDER BY owner',
     ).toArray().map(row => fileGuardCopy(JSON.parse(row.installed))),
@@ -244,7 +246,9 @@ function readFileGuard(storage: DurableObjectStorage): FileGuardState {
     retirements: storage.sql.exec<{ retirement: string }>(
       'SELECT retirement FROM file_retirements ORDER BY ref',
     ).toArray().map(row => fileGuardCopy(JSON.parse(row.retirement))),
-  } as FileGuardState;
+  };
+  checkFileBinding(state);
+  return state;
 }
 
 /** Query one extra row so a complete-census bound can only refuse, never truncate. */
@@ -260,8 +264,10 @@ function persistFileGuard(storage: DurableObjectStorage, state: FileGuardState):
   const previous = readFileGuard(storage);
   checkFileBinding(previous, state.authority);
   if (previous.authority === null) {
-    storage.sql.exec('INSERT INTO file_reference_authority(id, authority) VALUES (1, ?)', JSON.stringify(state.authority));
+    storage.sql.exec('INSERT INTO file_reference_authority(id, authority, opaque_lifetimes) VALUES (1, ?, ?)',
+      JSON.stringify(state.authority), JSON.stringify(state.opaqueLifetimes));
   }
+  storage.sql.exec('UPDATE file_reference_authority SET opaque_lifetimes = ? WHERE id = 1', JSON.stringify(state.opaqueLifetimes));
   storage.sql.exec('DELETE FROM file_reference_inventories');
   for (const installed of state.inventories) {
     storage.sql.exec('INSERT INTO file_reference_inventories(owner, installed) VALUES (?, ?)',
@@ -888,7 +894,11 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
           for (const statement of statements) {
             storage.sql.exec(statement.sql, ...statement.bindings);
           }
-          if (state.authority !== null) guardFileCommit(state, binding, before, readFileRows(storage), framework);
+          if (state.authority !== null) {
+            const nextGuard = guardFileCommit(state, binding, before, readFileRows(storage), framework);
+            storage.sql.exec('UPDATE file_reference_authority SET opaque_lifetimes = ? WHERE id = 1',
+              JSON.stringify(nextGuard.opaqueLifetimes));
+          }
         });
       } catch (error) {
         throw toCommitError(storage, batch.expectedRevision, error);

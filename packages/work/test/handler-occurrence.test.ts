@@ -1,18 +1,42 @@
 import { it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { DomainWrite, StoredRow } from '@canlang/contracts';
+import type { DomainWrite, FrameworkFilePayloadOrigin, FrameworkOpaqueCallable, ModelName, OperationId,
+  OperationName, RecordId, StoredRow } from '@canlang/contracts';
 import type { SystemCommandContext } from '@canlang/state';
 import { WORK_HANDLER_OCCURRENCE_MODEL, handlerOccurrencePendingQuery, handlerOccurrenceRowId,
   readHandlerOccurrenceRow, stageHandlerOccurrence, stageHandlerOccurrenceTerminal,
   stageRetainedHandlerOccurrence } from '../src/kernel/handler-occurrence.js';
 import type { HandlerOccurrenceSelector } from '../src/kernel/handler-occurrence.js';
-import { WORK_OCCURRENCE_MODEL, KernelTableError, newOccurrenceRow } from '../src/kernel/tables.js';
+import { WORK_OCCURRENCE_MODEL, WORK_SCHEDULE_MODEL, KernelTableError, newOccurrenceRow,
+  readOccurrenceRow } from '../src/kernel/tables.js';
 
 const scope = { app: 'app', owner: 'team-1', ownerPackage: 'demo' };
 const source = () => ({ occurrenceId: 'source/a', event: 'demo.changed', payload: { nested: { version: 1 } }, scope: { ...scope } });
 const selector = (handler = 'demo.handler'): HandlerOccurrenceSelector =>
   ({ sourceOccurrence: 'source/a', event: 'demo.changed', handler, scope: { ...scope } });
 const receipt = { status: 'completed' as const, result: { done: true }, code: null, message: null, recordedAtMs: 100 };
+
+// Header/persistence fixtures only; copied descriptors authenticate no owning source.
+function handlerHeader(model: ModelName, field: 'result' | 'payload'): FrameworkFilePayloadOrigin {
+  const id = handlerOccurrenceRowId('source/a', 'demo.handler');
+  const handler: FrameworkOpaqueCallable = {
+    source: { path: 'demo.can', sha256: 'original-source', module: 'demo' },
+    callable: { id: 'demo.handler', kind: 'handler', module: 'demo', export: 'canApp', member: ['handler'] },
+    canonical: { name: 'demo.handler' as OperationName, kind: 'scenario', inputs: [] },
+    artifact: { name: 'demo.handler', kind: 'scenario', description: '', inputs: { fields: [] } },
+    resultDeclarationId: 'handler-result',
+  };
+  const event = { kind: 'event-input' as const, occurrenceId: id, sourceOccurrence: 'source/a',
+    declaration: { kind: 'declared-event' as const, source: handler.source,
+      event: 'demo.changed', inputsDeclarationId: 'event-inputs' },
+    lineage: { kind: 'source' as const, sourceOccurrence: 'source/a' },
+    target: { kind: 'handler' as const, handler } };
+  return { version: 1, inventory: { owner: 'demo', snapshotId: 'original', digest: 'digest' },
+    declarationSetId: 'original-declarations', slot: { model, id: id as RecordId, created: 100,
+      createdBy: 'owner-host', field, role: field === 'result' ? 'retained-result' : 'deferred-input' }, scope: { ...scope },
+    origin: field === 'payload' ? event : { kind: 'handler-result', occurrenceId: id,
+      operationId: 'handler-op' as OperationId, handler, event }, files: [] };
+}
 
 function readers(rows = new Map<string, StoredRow>()): SystemCommandContext {
   return { actor: 'owner-host', now: 100, operation: 'checked-intake',
@@ -26,6 +50,74 @@ function retain(rows: Map<string, StoredRow>, writes: ReadonlyArray<DomainWrite>
     rows.set(`${write.model}\0${write.row.id}`, write.row);
   }
 }
+
+it('captures handler origin before held load and preserves input plus distinct terminal result origins', async () => {
+  const rows = new Map<string, StoredRow>();
+  const ctx = readers(rows);
+  const supplied = source();
+  const origin = handlerHeader(WORK_HANDLER_OCCURRENCE_MODEL, 'payload');
+  const original = structuredClone(origin);
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  let loads = 0;
+  const stage = stageHandlerOccurrence({ source: supplied, handler: 'demo.handler', filePayloadOrigin: origin }, {
+    ...ctx, load: async (model, id) => { if (++loads === 1) await held; return ctx.load(model, id); },
+  });
+  supplied.payload.nested.version = 99;
+  (origin.inventory as { snapshotId: string }).snapshotId = 'mutated';
+  release();
+  const admitted = await stage;
+  if (admitted.status !== 'ready') throw new Error('missing route');
+  assert.deepEqual(admitted.occurrence.payload, { nested: { version: 1 } });
+  assert.deepEqual(admitted.occurrence.filePayloadOrigin, original);
+  retain(rows, admitted.effects.writes);
+
+  const resultOrigin = handlerHeader(WORK_OCCURRENCE_MODEL, 'result');
+  const originalResultOrigin = structuredClone(resultOrigin);
+  const terminalReceipt = { ...receipt, result: { nested: { file: 'original-wire' } }, filePayloadOrigin: resultOrigin };
+  let releaseTerminal!: () => void;
+  const heldTerminal = new Promise<void>(resolve => { releaseTerminal = resolve; });
+  loads = 0;
+  const terminalStage = stageHandlerOccurrenceTerminal({ ...selector(), expectedVersion: 1, receipt: terminalReceipt }, {
+    ...ctx, load: async (model, id) => { if (++loads === 1) await heldTerminal; return ctx.load(model, id); },
+  });
+  terminalReceipt.result.nested.file = 'mutated';
+  (resultOrigin.inventory as { digest: string }).digest = 'mutated';
+  releaseTerminal();
+  const terminal = await terminalStage;
+  if (terminal.status !== 'ready') throw new Error('missing terminal');
+  retain(rows, terminal.effects.writes);
+  const route = rows.get(`${WORK_HANDLER_OCCURRENCE_MODEL}\0${admitted.row.id}`)!;
+  const recorded = rows.get(`${WORK_OCCURRENCE_MODEL}\0${admitted.row.id}`)!;
+  assert.deepEqual(readHandlerOccurrenceRow(route).filePayloadOrigin, original);
+  assert.deepEqual(readOccurrenceRow(recorded).filePayloadOrigin, originalResultOrigin);
+  assert.deepEqual(readOccurrenceRow(recorded).result, { nested: { file: 'original-wire' } });
+  assert.equal((await stageHandlerOccurrenceTerminal({ ...selector(), expectedVersion: 1,
+    receipt: { ...receipt, filePayloadOrigin: originalResultOrigin } }, { ...ctx, now: 200 })).status, 'replayed');
+  assert.equal((await stageHandlerOccurrence({ source: source(), handler: 'demo.handler',
+    filePayloadOrigin: original }, { ...ctx, now: 200 })).status, 'replayed');
+  await assert.rejects(stageHandlerOccurrenceTerminal({ ...selector(), expectedVersion: 1,
+    receipt: { ...receipt, filePayloadOrigin: { ...originalResultOrigin, declarationSetId: 'disagreement' } } }, ctx), KernelTableError);
+  await assert.rejects(stageHandlerOccurrence({ source: source(), handler: 'demo.handler',
+    filePayloadOrigin: { ...original, declarationSetId: 'disagreement' } }, ctx), KernelTableError);
+  await assert.rejects(stageRetainedHandlerOccurrence({ ...selector(),
+    filePayloadOrigin: { ...original, declarationSetId: 'disagreement' } }, ctx), KernelTableError);
+  await assert.rejects(stageHandlerOccurrenceTerminal({ ...selector(), expectedVersion: 1,
+    filePayloadOrigin: { ...original, declarationSetId: 'disagreement' }, receipt }, ctx), KernelTableError);
+});
+
+it('requires a supplied handler origin for bound sources and refuses copied source slot or creation lifetime', async () => {
+  const sourceOrigin = handlerHeader(WORK_SCHEDULE_MODEL, 'payload');
+  const bound = { ...source(), filePayloadOrigin: sourceOrigin };
+  await assert.rejects(stageHandlerOccurrence({ source: bound, handler: 'demo.handler' }, readers()), KernelTableError);
+  await assert.rejects(stageHandlerOccurrence({ source: bound, handler: 'demo.handler',
+    filePayloadOrigin: sourceOrigin }, readers()), KernelTableError);
+  const wrongLifetime = handlerHeader(WORK_HANDLER_OCCURRENCE_MODEL, 'payload');
+  await assert.rejects(stageHandlerOccurrence({ source: bound, handler: 'demo.handler',
+    filePayloadOrigin: wrongLifetime }, { ...readers(), now: 101 }), KernelTableError);
+  assert.equal((await stageHandlerOccurrence({ source: bound, handler: 'demo.handler',
+    filePayloadOrigin: handlerHeader(WORK_HANDLER_OCCURRENCE_MODEL, 'payload') }, readers())).status, 'ready');
+});
 
 it('captures exact checked source before await and gives each canonical sibling an independent stable route', async () => {
   const supplied = source();

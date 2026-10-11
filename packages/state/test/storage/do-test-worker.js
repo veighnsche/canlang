@@ -17,6 +17,11 @@
  */
 import { createDOStorage, ensureSchema } from '../../dist/src/storage/durable-object.js';
 import { STATE_FILE_REFERENCE_PRODUCER } from '../../dist/src/storage/file-reference-inventory.js';
+import { prepareFrameworkFilePayloadOrigin } from '../../dist/src/storage/file-retirement.js';
+import { finalizeProviderOutput, observeFinalizedFile, readFinalizedFileObservation, recordAttachment } from '@canlang/files/finalize';
+import { DEFAULT_FILE_POLICY } from '@canlang/files/upload';
+import { TestOnlyCounterFileIds, TestOnlyCounterIntentIds, TestOnlyMemoryBlobStore,
+  TestOnlyMemoryFinalizedStore, TestOnlyMemoryIntentStore } from '@canlang/files/ports';
 
 const TABLES = [
   'records',
@@ -53,6 +58,7 @@ export class TestDO {
     this.env = env;
     this.store = createDOStorage(state.storage);
     this.schemaReady = ensureSchema(state.storage);
+    this.observations = new Map();
   }
 
   async fetch(request) {
@@ -65,12 +71,45 @@ export class TestDO {
         return Response.json({ ok: true, value });
       }
       if (request.method === 'POST' && url.pathname === '/reset') {
+        this.observations.clear();
         for (const table of TABLES) {
           this.state.storage.sql.exec(`DELETE FROM ${table}`);
         }
         this.state.storage.sql.exec('DELETE FROM fence_log');
         this.state.storage.sql.exec('UPDATE fence SET revision = 0 WHERE id = 1');
         return Response.json({ ok: true });
+      }
+      // Genuine Files observations stay in this worker's own module instance.
+      // JSON transport carries refs and saved facts, never an observation issuer.
+      // Files uses test-only byte/metadata ports here; State persists in actual
+      // DO SQLite. This endpoint does not qualify native loader or File reuse.
+      if (request.method === 'POST' && url.pathname === '/finalize-provider') {
+        const { origin, receiver, retention, atMs } = await request.json();
+        const clock = { nowMs: () => atMs }, intents = new TestOnlyMemoryIntentStore();
+        const blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore();
+        const upload = { clock, intents, blobs, intentIds: new TestOnlyCounterIntentIds(),
+          policy: DEFAULT_FILE_POLICY, intentTtlMs: 60_000, urlBase: 'https://documents.example.test' };
+        const finalize = { clock, intents, blobs, files, fileIds: new TestOnlyCounterFileIds() };
+        const result = finalizeProviderOutput(upload, finalize, { receiver,
+          binding: { adapter: origin.request.from, deliveryId: origin.deliveryId, resultPath: 'outputs/0/image' },
+          operation: origin.intent.target, field: '/outputs/0/image', args: {}, name: 'generated.png',
+          claimedType: 'image/png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 1]) });
+        if (result.status !== 'finalized') throw new Error('Actual Files provider finalization failed');
+        const ref = result.file.id;
+        if (recordAttachment(finalize, ref, 'Documents.Job/bound-job', receiver).status !== 'attached') {
+          throw new Error('Actual Files attachment failed');
+        }
+        const observation = observeFinalizedFile(finalize, ref, receiver, { policy: DEFAULT_FILE_POLICY, retention });
+        const facts = readFinalizedFileObservation(observation);
+        if (facts === null) throw new Error('Actual Files observation required');
+        this.observations.set(ref, observation);
+        return Response.json({ ok: true, value: facts });
+      }
+      if (request.method === 'POST' && url.pathname === '/prepare-origin') {
+        const { input, files } = await request.json();
+        const value = await prepareFrameworkFilePayloadOrigin(this.store, { ...input,
+          files: files.map(({ path, ref }) => ({ path, observation: this.observations.get(ref) })) });
+        return Response.json({ ok: true, value });
       }
       if (request.method === 'POST' && url.pathname === '/reopen') {
         const body = await request.json();

@@ -1,11 +1,13 @@
 /** Retained ordinary-handler routes, staged in the existing owner fence. */
-import type { ModelName, QuerySpec, RecordId, RecordVersion, StoredRow, WorkScope } from '@canlang/contracts';
+import type { FrameworkFilePayloadOrigin, ModelName, QuerySpec, RecordId, RecordVersion, StoredRow, WorkScope } from '@canlang/contracts';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
 import { freezeRequest } from '../intent/staging.js';
 import { argRecord, argString, checkArgs } from './arguments.js';
 import { workOccurrencePutReceiptCommand } from './occurrence-staging.js';
 import { updateWrite } from './staging-support.js';
-import { KernelTableError, WORK_OCCURRENCE_MODEL, readOccurrenceRow, withRowData } from './tables.js';
+import { KernelTableError, WORK_OCCURRENCE_MODEL, readOccurrenceRow, withRowData,
+  readWorkFilePayloadOrigin, requireWorkFilePayloadOriginReplay, snapshotKernelJsonValue,
+  snapshotWorkFilePayloadOrigin } from './tables.js';
 import type { OccurrenceRowData } from './tables.js';
 
 export const WORK_HANDLER_OCCURRENCE_MODEL = 'work.handler_occurrence' as ModelName;
@@ -15,6 +17,7 @@ export interface HandlerOccurrenceSource {
   readonly occurrenceId: string;
   readonly event: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly scope: WorkScope;
 }
 
@@ -24,6 +27,7 @@ export interface HandlerOccurrenceSelector {
   readonly handler: string;
   readonly event: string;
   readonly scope: WorkScope;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
 }
 
 export interface HandlerOccurrenceRowData {
@@ -32,6 +36,7 @@ export interface HandlerOccurrenceRowData {
   readonly handler: string;
   readonly event: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly scopeApp: string;
   readonly scopeOwner: string;
   readonly scopeOwnerPackage: string;
@@ -47,9 +52,13 @@ function scopeOf(args: Readonly<Record<string, unknown>>, what: string): WorkSco
 function selectorOf(input: HandlerOccurrenceSelector): HandlerOccurrenceSelector {
   const args = input as unknown as Readonly<Record<string, unknown>>;
   checkArgs(args, 'handler occurrence selector');
+  const captured = snapshotWorkFilePayloadOrigin(args);
   return { sourceOccurrence: argString(args, 'sourceOccurrence', 'handler occurrence selector'),
     handler: argString(args, 'handler', 'handler occurrence selector'),
-    event: argString(args, 'event', 'handler occurrence selector'), scope: scopeOf(args, 'handler occurrence selector') };
+    event: argString(args, 'event', 'handler occurrence selector'), scope: scopeOf(args, 'handler occurrence selector'),
+    ...(Object.hasOwn(captured, 'filePayloadOrigin') ? {
+      filePayloadOrigin: captured['filePayloadOrigin'] as FrameworkFilePayloadOrigin,
+    } : {}) };
 }
 
 /** Independent of event names, sibling order, schedule keys or later heads. */
@@ -71,6 +80,7 @@ export function readHandlerOccurrenceRow(row: StoredRow): HandlerOccurrenceRowDa
   if (!Number.isInteger(row.version) || row.version < 1) {
     throw new KernelTableError(`${what}: version must be an integer >= 1.`);
   }
+  const filePayloadOrigin = readWorkFilePayloadOrigin(row.data, row, WORK_HANDLER_OCCURRENCE_MODEL, 'payload', 'deferred-input');
   // Reuse the JSON-safety/clone gate; this replacement is never staged.
   const data = withRowData(row, row.data, { nowMs: row.updated, actor: row.updatedBy }, what).data;
   if (!sameJson(data, JSON.parse(JSON.stringify(data)))) {
@@ -81,6 +91,7 @@ export function readHandlerOccurrenceRow(row: StoredRow): HandlerOccurrenceRowDa
     throw new KernelTableError(`${what}: unknown state.`);
   }
   const occurrence: HandlerOccurrenceRowData = {
+    ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
     occurrenceId: argString(data, 'occurrenceId', what),
     sourceOccurrence: argString(data, 'sourceOccurrence', what),
     handler: argString(data, 'handler', what), event: argString(data, 'event', what),
@@ -124,7 +135,9 @@ export type HandlerOccurrenceStageResult = Refused |
  * Replay returns only matching retained facts and never recaptures membership.
  */
 export async function stageHandlerOccurrence(
-  input: { readonly source: HandlerOccurrenceSource; readonly handler: string },
+  input: { readonly source: HandlerOccurrenceSource; readonly handler: string;
+    /** Original host-issued binding for this handler row, never a source-row copy. */
+    readonly filePayloadOrigin?: FrameworkFilePayloadOrigin },
   ctx: SystemCommandContext,
 ): Promise<HandlerOccurrenceStageResult> {
   const what = 'stageHandlerOccurrence';
@@ -133,26 +146,37 @@ export async function stageHandlerOccurrence(
   const source = argRecord(args, 'source', what);
   const selector = selectorOf({ sourceOccurrence: argString(source, 'occurrenceId', what),
     event: argString(source, 'event', what), handler: argString(args, 'handler', what), scope: scopeOf(source, what) });
-  const data: HandlerOccurrenceRowData = { occurrenceId: handlerOccurrenceRowId(selector.sourceOccurrence, selector.handler),
+  const captured = snapshotWorkFilePayloadOrigin(args);
+  if (Object.hasOwn(source, 'filePayloadOrigin') && !Object.hasOwn(captured, 'filePayloadOrigin')) {
+    throw new KernelTableError(`${what}: bound source requires its own supplied handler origin.`);
+  }
+  const id = handlerOccurrenceRowId(selector.sourceOccurrence, selector.handler);
+  const data: HandlerOccurrenceRowData = { occurrenceId: id,
     sourceOccurrence: selector.sourceOccurrence, handler: selector.handler, event: selector.event,
     payload: freezeRequest(argRecord(source, 'payload', what)), scopeApp: selector.scope.app,
     scopeOwner: selector.scope.owner, scopeOwnerPackage: selector.scope.ownerPackage, state: 'pending' };
-  // The zero-version base is not stored; the shared codec produces version 1.
-  const row = withRowData({ id: data.occurrenceId as RecordId, version: 0 as RecordVersion,
-    created: ctx.now, updated: ctx.now, createdBy: ctx.actor, updatedBy: ctx.actor,
-    archivedAt: null, parent: null, data: {} }, data as unknown as Readonly<Record<string, unknown>>,
-    { nowMs: ctx.now, actor: ctx.actor }, what);
-  const occurrence = readHandlerOccurrenceRow(row);
-  const existing = await ctx.load(WORK_HANDLER_OCCURRENCE_MODEL, row.id);
+  const existing = await ctx.load(WORK_HANDLER_OCCURRENCE_MODEL, id as RecordId);
   if (existing !== null) {
     const retained = readHandlerOccurrenceRow(existing);
-    if (!matches(retained, selector) || !sameJson(retained.payload, occurrence.payload)) {
+    requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(captured, existing,
+      WORK_HANDLER_OCCURRENCE_MODEL, 'payload', 'deferred-input'), retained.filePayloadOrigin);
+    if (!matches(retained, selector) || !sameJson(retained.payload, data.payload)) {
       return { status: 'refused', reason: 'mismatched' };
     }
     const checked = await retainedResult(existing, retained, ctx);
     if (checked.status === 'refused') return checked;
     return { status: 'replayed', row: existing, occurrence: retained, effects: {} };
   }
+  const filePayloadOrigin = readWorkFilePayloadOrigin(captured,
+    { id: id as RecordId, created: ctx.now, createdBy: ctx.actor },
+    WORK_HANDLER_OCCURRENCE_MODEL, 'payload', 'deferred-input');
+  const capturedData = { ...data, ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }) };
+  // The zero-version base is not stored; the shared codec produces version 1.
+  const row = withRowData({ id: data.occurrenceId as RecordId, version: 0 as RecordVersion,
+    created: ctx.now, updated: ctx.now, createdBy: ctx.actor, updatedBy: ctx.actor,
+    archivedAt: null, parent: null, data: {} }, capturedData as unknown as Readonly<Record<string, unknown>>,
+    { nowMs: ctx.now, actor: ctx.actor }, what);
+  const occurrence = readHandlerOccurrenceRow(row);
   if (await ctx.load(WORK_OCCURRENCE_MODEL, row.id) !== null) {
     return { status: 'refused', reason: 'orphan-receipt' };
   }
@@ -173,6 +197,8 @@ export async function stageRetainedHandlerOccurrence(
   const row = await ctx.load(WORK_HANDLER_OCCURRENCE_MODEL, id);
   if (row === null) return { status: 'refused', reason: 'missing' };
   const occurrence = readHandlerOccurrenceRow(row);
+  requireWorkFilePayloadOriginReplay(readWorkFilePayloadOrigin(selector as unknown as Readonly<Record<string, unknown>>,
+    row, WORK_HANDLER_OCCURRENCE_MODEL, 'payload', 'deferred-input'), occurrence.filePayloadOrigin);
   if (!matches(occurrence, selector)) return { status: 'refused', reason: 'mismatched' };
   return retainedResult(row, occurrence, ctx);
 }
@@ -211,8 +237,14 @@ export async function stageHandlerOccurrenceTerminal(
   if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
     throw new KernelTableError('stageHandlerOccurrenceTerminal: expectedVersion must be an integer >= 1.');
   }
-  const receipt = freezeRequest(input.receipt);
+  const receipt = snapshotKernelJsonValue(input.receipt, 'stageHandlerOccurrenceTerminal.receipt');
   const retained = await stageRetainedHandlerOccurrence(selector, ctx);
+  if (retained.status === 'replayed') {
+    // Reuse the owning receipt duplicate gate, including its actual row lifetime.
+    await workOccurrencePutReceiptCommand.stage({ ...receipt,
+      occurrenceId: handlerOccurrenceRowId(selector.sourceOccurrence, selector.handler) }, ctx);
+    return retained;
+  }
   if (retained.status !== 'ready') return retained;
   if (retained.row.version !== expectedVersion) return { status: 'refused', reason: 'stale' };
   const terminal = await workOccurrencePutReceiptCommand.stage({ ...receipt,

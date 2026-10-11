@@ -1,17 +1,20 @@
 import type { FrameworkFileReferenceField as Field, FrameworkFileReferenceModel,
-  FrameworkFileReferenceProducer, ModelName, ReceiptError, StoredRow } from '@canlang/contracts';
+  FrameworkFileReferenceProducer, FrameworkFilePayloadOrigin, FrameworkOpaqueFieldResolution,
+  InstalledFileReferenceInventory, JudgmentSpec, ModelName, ReceiptError, ReceiptResultContext, StoredRow } from '@canlang/contracts';
 import { StateError } from '../errors.js';
-import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow,
+import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow, createJudgmentReceiptContext,
   type AssociationRowData, type ReceiptRowData } from '../receipt/tables.js';
 import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL, fanoutNavigationRowId,
   readFanoutOwnerScanRow, type FanoutNavigationData, type FanoutOwnerScanData } from '../fanout/navigation.js';
 import { fanoutIntentRowId, fanoutChildRowId } from '../fanout/tables.js';
+import { decodeValue } from '@canlang/values';
 
 const string = Object.freeze({ kind: 'control', value: 'string' } as const);
 const number = Object.freeze({ kind: 'control', value: 'number' } as const);
 const nullableString = Object.freeze({ ...string, nullable: true } as const);
 const nullableNumber = Object.freeze({ ...number, nullable: true } as const);
 const result = Object.freeze({ kind: 'opaque', role: 'retained-result' } as const);
+const filePayloadOrigin = Object.freeze({ kind: 'opaque', role: 'payload-origin', payloadField: 'result', optional: true } as const);
 const deferred = Object.freeze({ kind: 'opaque', role: 'deferred-input' } as const);
 type Fields<T> = { readonly [K in keyof T]-?: Field };
 const errorFields = Object.freeze({ code: string, message: string } satisfies Fields<ReceiptError>);
@@ -19,7 +22,7 @@ const nullableError = Object.freeze({ kind: 'control', value: 'object', fields: 
 const association = { recordModel: string, recordId: string, field: string,
   deliveryId: string, source: string, revision: number } satisfies Fields<AssociationRowData>;
 const receipt = { deliveryId: string, revision: number, status: string, result,
-  error: nullableError, contentRef: nullableString, resultExpiresAtMs: nullableNumber } satisfies Fields<ReceiptRowData>;
+  error: nullableError, contentRef: nullableString, resultExpiresAtMs: nullableNumber, filePayloadOrigin } satisfies Fields<ReceiptRowData>;
 const navigation = { owner: string, fanoutId: string, sourceOccurrence: string,
   handler: string, cohort: string, intentVersion: number,
   lastVisitedChildId: nullableString } satisfies Fields<FanoutNavigationData>;
@@ -76,7 +79,7 @@ function closed(value: unknown, fields: Readonly<Record<string, Field>>): Record
   if (Object.keys(data).some(key => !Object.hasOwn(fields, key))) return invalid('unknown field.');
   for (const [key, field] of Object.entries(fields)) {
     if (!Object.hasOwn(data, key)) {
-      if (field.kind === 'control' && field.optional === true) continue;
+      if (field.kind === 'control' && field.optional === true || field.kind === 'opaque' && field.role === 'payload-origin' && field.optional === true) continue;
       return invalid(`missing ${key}.`);
     }
     const member = data[key];
@@ -123,10 +126,108 @@ function validateRow(model: ModelName, value: StoredRow): void {
   const data = closed(row.data, declaration.fields), stored = row as unknown as StoredRow;
   switch (model) {
     case RECEIPT_ASSOCIATION_MODEL: readAssociationRow(stored); break;
-    case RECEIPT_MODEL: readReceiptRow(stored); break;
+    case RECEIPT_MODEL: readReceiptRow(stored, originalReceiptContext(stored)); break;
     case FANOUT_NAVIGATION_MODEL: validateNavigation(stored); break;
     case FANOUT_OWNER_SCAN_MODEL: readFanoutOwnerScanRow(stored, data.owner as string); break;
   }
 }
 
-export const STATE_FILE_REFERENCE_PRODUCER: FrameworkFileReferenceProducer = Object.freeze({ models, validateRow });
+/** Decode only the frozen owning result context; current schemas never substitute. */
+function originalReceiptContext(row: StoredRow): ReceiptResultContext | undefined {
+  const binding = row.data.filePayloadOrigin as FrameworkFilePayloadOrigin | undefined;
+  if (binding === undefined) return undefined;
+  try {
+    if (binding.origin.kind !== 'delivery-result') return invalid('receipt requires its original delivery-result recipe.');
+    const origin = binding.origin, declaration = origin.declaration;
+    if (declaration.kind === 'judgment') {
+      const specification = { ...declaration.specification,
+        version: decodeValue('int', declaration.specification.version) } as JudgmentSpec;
+      return createJudgmentReceiptContext(declaration.canonical, specification, declaration.valueTypes);
+    }
+    if (declaration.kind !== 'capability' && declaration.kind !== 'generation') return invalid('unknown original provider context.');
+    return { source: origin.intent.target, declaredResult: declaration.canonical.result,
+      ...(declaration.kind === 'generation' ? { request: declaration.request } : {}) };
+  } catch { return invalid('invalid original provider result context.'); }
+}
+
+/** Arguments have already passed bounded own-data copying; key order is immaterial. */
+function sameData(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null || Array.isArray(left) !== Array.isArray(right)) return false;
+  const a = left as Record<string, unknown>, b = right as Record<string, unknown>, keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameData(a[key], b[key]));
+}
+
+/** Receipt-owned physical projection only. Source authentication and all File
+ * occurrence/fact correspondence are independently checked by guarded census. */
+function resolveOpaqueField(model: ModelName, value: StoredRow, field: string, context: {
+  readonly installed: InstalledFileReferenceInventory; readonly binding: FrameworkFilePayloadOrigin;
+}): FrameworkOpaqueFieldResolution {
+  if (model !== RECEIPT_MODEL || field !== 'result') return invalid('unknown receipt opaque field.');
+  // No provider, reader, promise or live observation can participate in this
+  // synchronous resolution. Thenables/accessors/functions fail the own JSON copy.
+  const row = copyJson(value) as StoredRow;
+  const copied = copyJson(context) as typeof context;
+  validateRow(model, row);
+  const stored = readReceiptRow(row, originalReceiptContext(row)), binding = stored.filePayloadOrigin;
+  if (binding === undefined || !sameData(binding, copied.binding) || binding.origin.kind !== 'delivery-result') {
+    return invalid('exact persisted original receipt binding required.');
+  }
+  const { installed } = copied, origin = binding.origin;
+  const sets = installed.inventory.opaqueDeclarationSets?.filter(set => set.id === binding.declarationSetId);
+  if (sets?.length !== 1) return invalid('one original receipt declaration set required.');
+  const declarations = sets[0]!;
+  if (!sameData(declarations.inventory, binding.inventory) || binding.inventory.owner !== installed.inventory.owner ||
+      binding.scope.app !== installed.authority.app || binding.scope.owner !== installed.authority.receiver.owner ||
+      binding.scope.ownerPackage !== binding.inventory.owner || binding.slot.id !== row.id || binding.slot.created !== row.created ||
+      binding.slot.createdBy !== row.createdBy || binding.slot.model !== model || binding.slot.field !== field ||
+      binding.slot.role !== 'retained-result' || origin.deliveryId !== row.id || origin.intent.intentId !== row.id ||
+      origin.intent.operation !== origin.caller.callable.id || origin.intent.operation !== origin.caller.canonical.name ||
+      origin.intent.operation !== origin.caller.artifact.name ||
+      origin.intent.target !== `${origin.declaration.canonical.capability}.${origin.declaration.canonical.operation}`) {
+    return invalid('original receipt lifetime, scope or intent correspondence.');
+  }
+  const providerProfiles = declarations.declarations.filter(profile => profile.id === origin.resultDeclarationId);
+  if (providerProfiles.length !== 1) return invalid('one original provider result declaration required.');
+  const provider = providerProfiles[0]!;
+  if (provider.source.kind !== 'delivery' || !sameData(provider.source.context, origin.declaration)) {
+    return invalid('original provider context differs from the result declaration.');
+  }
+  const callers = declarations.declarations.filter(profile => profile.id === origin.caller.resultDeclarationId);
+  if (callers.length !== 1) return invalid('one original caller result declaration required.');
+  const caller = callers[0]!;
+  const implicitVoid = caller.profile.kind === 'void' && origin.caller.canonical.result === undefined &&
+    origin.caller.artifact.result === undefined;
+  if (caller.source.kind !== 'callable' || !sameData(caller.source.source, origin.caller.source) ||
+      !sameData(caller.source.callable, origin.caller.callable) ||
+      caller.profile.kind !== 'result' && caller.profile.kind !== 'void' ||
+      !implicitVoid && (!sameData(caller.profile.canonical, origin.caller.canonical.result) ||
+      !sameData(caller.profile.artifact, origin.caller.artifact.result))) return invalid('original calling declaration differs.');
+  const canonicalModels = declarations.canonicalModels.filter(candidate => candidate.name === origin.association.model);
+  const artifactModels = declarations.artifactModels.filter(candidate => candidate.name === origin.association.model);
+  if (canonicalModels.length !== 1 || artifactModels.length !== 1) return invalid('one original association model required.');
+  const canonicalField = canonicalModels[0]!.fields[origin.association.field];
+  const artifactFields = artifactModels[0]!.fields.filter(candidate => candidate.name === origin.association.field);
+  if (canonicalField === undefined || artifactFields.length !== 1 || canonicalField.array !== undefined ||
+      artifactFields[0]!.array !== undefined || artifactFields[0]!.field.kind !== 'delivery' ||
+      !sameData(canonicalField.delivery, origin.declaration.canonical) ||
+      !sameData(artifactFields[0]!.field, origin.declaration.artifact)) return invalid('original association delivery differs.');
+  const profile = provider.profile;
+  const voidResult = profile.kind === 'void' && profile.canonical.type === 'void' && profile.artifact.type === 'void';
+  if (!voidResult && (profile.kind !== 'provider-result' ||
+      !sameData(profile.canonical, origin.declaration.canonical.result) ||
+      !sameData(profile.artifact, origin.declaration.artifact.result))) return invalid('original complete provider result differs.');
+  let presence: 'value' | 'no-result';
+  if (row.data.result === null) {
+    if (stored.receipt.status === 'succeeded' && !voidResult) return invalid('successful nonvoid receipt requires its original result.');
+    presence = 'no-result';
+  } else {
+    if (voidResult || stored.receipt.status === 'failed' || stored.receipt.status === 'skipped') return invalid('receipt result contradicts its owning phase.');
+    // The owning receipt codec has checked supported pending/unknown rich
+    // observations against the original TextRun/ImageRun/Judgment context.
+    presence = 'value';
+  }
+  return { binding, values: [{ path: [], kind: 'result', declarationId: provider.id, presence }] };
+}
+
+export const STATE_FILE_REFERENCE_PRODUCER: FrameworkFileReferenceProducer = Object.freeze({ models, validateRow, resolveOpaqueField });

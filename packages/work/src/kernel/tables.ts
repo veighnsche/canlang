@@ -33,6 +33,7 @@
  * not exist and claims refuse `not_found` — never invented.
  */
 import type {
+  FrameworkFilePayloadOrigin,
   ModelName,
   QuerySpec,
   RecordId,
@@ -195,6 +196,7 @@ export interface OccurrenceRowData {
   readonly occurrenceId: OccurrenceId;
   readonly status: 'completed' | 'failed';
   readonly result: unknown;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly code: string | null;
   readonly message: string | null;
   readonly recordedAtMs: number;
@@ -210,6 +212,7 @@ export interface ScheduleRowData {
   readonly at: number;
   readonly event: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   /**
    * Previous lineage head this entry observed, if any. Occurrence ids
    * are opaque (`OccurrenceIdPort` promises no ordering), so the head
@@ -361,6 +364,119 @@ function checkJsonSafe(value: unknown, what: string): void {
   visit(value, '');
 }
 
+/** Detached immutable JSON facts. Accessors, custom objects and lossy JSON refuse. */
+export function snapshotKernelJsonValue<T>(value: T, what: string): T {
+  const ancestors = new Set<object>();
+  let remaining = 100_000;
+  const visit = (node: unknown, depth = 0): unknown => {
+    if (--remaining < 0 || depth > 128) throw new KernelTableError(`${what} exceeds the JSON snapshot bound.`);
+    if (node === null || typeof node === 'string' || typeof node === 'boolean') return node;
+    if (typeof node === 'number' && Number.isFinite(node)) return node;
+    if (typeof node !== 'object' || node === null || ancestors.has(node)) {
+      throw new KernelTableError(`${what} must be acyclic JSON-safe data.`);
+    }
+    const array = Array.isArray(node);
+    const prototype = Object.getPrototypeOf(node);
+    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+      throw new KernelTableError(`${what} must contain plain JSON objects.`);
+    }
+    ancestors.add(node);
+    const copy: Record<string, unknown> | unknown[] = array ? [] : {};
+    const keys = Reflect.ownKeys(node).filter(key => !(array && key === 'length'));
+    if (keys.length > remaining) throw new KernelTableError(`${what} exceeds the JSON snapshot bound.`);
+    if (array && (keys.length !== node.length || keys.some((key, index) => key !== String(index)))) {
+      throw new KernelTableError(`${what} must contain dense JSON arrays.`);
+    }
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(node, key);
+      if (typeof key !== 'string' || descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+        throw new KernelTableError(`${what} must contain own JSON data properties.`);
+      }
+      Object.defineProperty(copy, key, { value: visit(descriptor.value, depth + 1), enumerable: true });
+    }
+    ancestors.delete(node);
+    return Object.freeze(copy);
+  };
+  return visit(value) as T;
+}
+
+/** Capture an optional original binding without touching accessor properties. */
+export function snapshotWorkFilePayloadOrigin(data: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  if (!Object.hasOwn(data, 'filePayloadOrigin')) return Object.freeze({});
+  const descriptor = Object.getOwnPropertyDescriptor(data, 'filePayloadOrigin');
+  if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) {
+    throw new KernelTableError('filePayloadOrigin must be an own JSON data property.');
+  }
+  return snapshotKernelJsonValue({ filePayloadOrigin: descriptor.value }, 'filePayloadOrigin');
+}
+
+function closedOriginRecord(value: unknown, fields: readonly string[], what: string): Record<string, unknown> {
+  const record = checkRecord(value, what);
+  if (Object.keys(record).length !== fields.length || fields.some(field => !Object.hasOwn(record, field))) {
+    throw new KernelTableError(`${what} requires its complete closed header.`);
+  }
+  return record;
+}
+
+/** Header/lifetime checks only. These persisted facts authenticate no source or File. */
+export function readWorkFilePayloadOrigin(
+  data: Readonly<Record<string, unknown>>,
+  row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
+  model: ModelName,
+  field: 'payload' | 'result',
+  role: 'retained-result' | 'deferred-input',
+): FrameworkFilePayloadOrigin | undefined {
+  if (!Object.hasOwn(data, 'filePayloadOrigin')) return undefined;
+  const descriptor = Object.getOwnPropertyDescriptor(data, 'filePayloadOrigin');
+  if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) throw new KernelTableError('filePayloadOrigin must be own JSON data.');
+  const value = snapshotKernelJsonValue(descriptor.value, 'filePayloadOrigin');
+  const origin = closedOriginRecord(value, ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin', 'files'], 'filePayloadOrigin');
+  if (origin['version'] !== 1) throw new KernelTableError('filePayloadOrigin.version must be 1.');
+  const inventory = closedOriginRecord(origin['inventory'], ['owner', 'snapshotId', 'digest'], 'filePayloadOrigin.inventory');
+  for (const key of ['owner', 'snapshotId', 'digest']) checkString(inventory, key, 'filePayloadOrigin.inventory');
+  checkString(origin, 'declarationSetId', 'filePayloadOrigin');
+  const slot = closedOriginRecord(origin['slot'], ['model', 'id', 'created', 'createdBy', 'field', 'role'], 'filePayloadOrigin.slot');
+  for (const key of ['model', 'id', 'createdBy', 'field', 'role']) checkString(slot, key, 'filePayloadOrigin.slot');
+  checkInstant(slot, 'created', 'filePayloadOrigin.slot');
+  if (slot['model'] !== model || slot['id'] !== row.id || slot['created'] !== row.created ||
+      slot['createdBy'] !== row.createdBy || slot['field'] !== field || slot['role'] !== role) {
+    throw new KernelTableError('filePayloadOrigin disagrees with its owning row lifetime/slot.');
+  }
+  const scope = closedOriginRecord(origin['scope'], ['app', 'owner', 'ownerPackage'], 'filePayloadOrigin.scope');
+  for (const key of ['app', 'owner', 'ownerPackage']) checkString(scope, key, 'filePayloadOrigin.scope');
+  const recipe = checkRecord(origin['origin'], 'filePayloadOrigin.origin');
+  if (!['delivery-result', 'event-input', 'handler-result', 'source-routing', 'standard-completion'].includes(checkString(recipe, 'kind', 'filePayloadOrigin.origin'))) {
+    throw new KernelTableError('filePayloadOrigin.origin has an unknown kind.');
+  }
+  if (!Array.isArray(origin['files'])) throw new KernelTableError('filePayloadOrigin.files must be an array.');
+  for (const entry of origin['files']) {
+    const fact = closedOriginRecord(entry, ['path', 'file'], 'filePayloadOrigin.files entry');
+    if (!Array.isArray(fact['path']) || fact['path'].some(part =>
+      typeof part !== 'string' && (typeof part !== 'number' || !Number.isSafeInteger(part) || part < 0))) {
+      throw new KernelTableError('filePayloadOrigin.files path must contain strings or array indices.');
+    }
+    checkRecord(fact['file'], 'filePayloadOrigin.files file');
+  }
+  return value as FrameworkFilePayloadOrigin;
+}
+
+/** Supplied metadata must agree on replay; omission preserves legacy replay behavior. */
+export function requireWorkFilePayloadOriginReplay(
+  supplied: FrameworkFilePayloadOrigin | undefined,
+  retained: FrameworkFilePayloadOrigin | undefined,
+): void {
+  const equal = (a: unknown, b: unknown): boolean => {
+    if (a === b) return true;
+    if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null || Array.isArray(a) !== Array.isArray(b)) return false;
+    const keys = Object.keys(a).sort(), other = Object.keys(b).sort();
+    return keys.length === other.length && keys.every((key, index) => key === other[index] &&
+      equal((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+  };
+  if (supplied !== undefined && !equal(supplied, retained)) {
+    throw new KernelTableError('Supplied filePayloadOrigin disagrees with the retained original.');
+  }
+}
+
 /** Read one dispatch row's data, failing closed on any shape drift. */
 export function readDispatchRow(row: StoredRow): DispatchRowData {
   const data = checkRecord(row.data, 'work.dispatch data');
@@ -416,10 +532,12 @@ export function readOccurrenceRow(row: StoredRow): OccurrenceRowData {
       `work.occurrence.status must be completed or failed, got ${JSON.stringify(status)}.`,
     );
   }
+  const filePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_OCCURRENCE_MODEL, 'result', 'retained-result');
   return {
+    ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
     occurrenceId: checkString(data, 'occurrenceId', 'work.occurrence'),
     status,
-    result: data['result'] ?? null,
+    result: structuredClone(snapshotKernelJsonValue(data['result'] ?? null, 'work.occurrence.result')),
     code: checkNullableString(data, 'code', 'work.occurrence'),
     message: checkNullableString(data, 'message', 'work.occurrence'),
     recordedAtMs: checkInstant(data, 'recordedAtMs', 'work.occurrence'),
@@ -433,7 +551,9 @@ export function readScheduleRow(row: StoredRow): ScheduleRowData {
   if (!SCHEDULE_STATES.has(state)) {
     throw new KernelTableError(`work.schedule.state is unknown: ${JSON.stringify(state)}.`);
   }
+  const filePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_SCHEDULE_MODEL, 'payload', 'deferred-input');
   return {
+    ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
     occurrenceId: checkString(data, 'occurrenceId', 'work.schedule'),
     key: checkString(data, 'key', 'work.schedule'),
     scopeApp: checkString(data, 'scopeApp', 'work.schedule'),
@@ -441,7 +561,7 @@ export function readScheduleRow(row: StoredRow): ScheduleRowData {
     scopeOwnerPackage: checkString(data, 'scopeOwnerPackage', 'work.schedule'),
     at: checkInstant(data, 'at', 'work.schedule'),
     event: checkString(data, 'event', 'work.schedule'),
-    payload: checkRecord(data['payload'], 'work.schedule.payload'),
+    payload: structuredClone(snapshotKernelJsonValue(checkRecord(data['payload'], 'work.schedule.payload'), 'work.schedule.payload')),
     replaces: checkNullableString(data, 'replaces', 'work.schedule') as OccurrenceId | null,
     state: state as ScheduledOccurrenceState,
   };
@@ -578,12 +698,17 @@ export function newOccurrenceRow(
   input: OccurrenceRowData,
   meta: NewRowMeta,
 ): StoredRow {
-  return newRow(
+  readWorkFilePayloadOrigin(input as unknown as Readonly<Record<string, unknown>>,
+    { id: input.occurrenceId as RecordId, created: meta.nowMs, createdBy: meta.actor },
+    WORK_OCCURRENCE_MODEL, 'result', 'retained-result');
+  const row = newRow(
     input.occurrenceId,
     input as unknown as Record<string, unknown>,
     meta,
     'work.occurrence',
   );
+  readWorkFilePayloadOrigin(row.data, row, WORK_OCCURRENCE_MODEL, 'result', 'retained-result');
+  return row;
 }
 
 /** Keyed schedule lineage row (id = occurrence id; key is looked up). */
@@ -591,12 +716,17 @@ export function newScheduleRow(
   input: ScheduleRowData,
   meta: NewRowMeta,
 ): StoredRow {
-  return newRow(
+  readWorkFilePayloadOrigin(input as unknown as Readonly<Record<string, unknown>>,
+    { id: input.occurrenceId as RecordId, created: meta.nowMs, createdBy: meta.actor },
+    WORK_SCHEDULE_MODEL, 'payload', 'deferred-input');
+  const row = newRow(
     input.occurrenceId,
     input as unknown as Record<string, unknown>,
     meta,
     'work.schedule',
   );
+  readWorkFilePayloadOrigin(row.data, row, WORK_SCHEDULE_MODEL, 'payload', 'deferred-input');
+  return row;
 }
 
 /**

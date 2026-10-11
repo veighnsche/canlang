@@ -34,6 +34,7 @@ import type {
   CanonicalJudgmentDeliveryDescriptor,
   CanonicalValueTypes,
   JudgmentSpec,
+  FrameworkFilePayloadOrigin,
 } from '@canlang/contracts';
 import { DELIVERY_RESULT_LEAVES, GENERATED_IMAGE_FIELDS } from '@canlang/contracts';
 import { decodeValue, encodeValue, normalizeSchema, normalizeValueTypes, parseTypeId, validateValue } from '@canlang/values';
@@ -97,6 +98,8 @@ export interface ReceiptRowData {
   readonly error: ReceiptError | null;
   readonly contentRef: string | null;
   readonly resultExpiresAtMs: number | null;
+  /** Original owning evidence; persistence supplies no issuer or File authority. */
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
 }
 
 const RECEIPT_STATUSES: ReadonlySet<string> = new Set([
@@ -690,6 +693,124 @@ export interface StoredReceiptRow {
   readonly receipt: AssociatedReceipt;
   readonly contentRef: string | null;
   readonly resultExpiresAtMs: number | null;
+  /** Original owning evidence; persistence supplies no issuer or File authority. */
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
+}
+
+/** Bounded own JSON snapshot; neither accessors nor inherited facts become evidence. */
+function snapshotReceiptOrigin(value: unknown): unknown {
+  let nodes = 0, textSize = 0;
+  const ancestors = new Set<object>();
+  const visit = (node: unknown, depth: number): unknown => {
+    if (++nodes > 20_000 || depth > 32) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
+    if (node === null || typeof node === 'boolean') return node;
+    if (typeof node === 'string') {
+      if ((textSize += node.length) > 2_000_000) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
+      return node;
+    }
+    if (typeof node === 'number' && Number.isFinite(node)) return node;
+    if (typeof node !== 'object' || ancestors.has(node)) throw new ReceiptTableError('work.receipt filePayloadOrigin must be own JSON data.');
+    const array = Array.isArray(node), prototype = Object.getPrototypeOf(node);
+    if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+      throw new ReceiptTableError('work.receipt filePayloadOrigin must be own JSON data.');
+    }
+    const keys = Reflect.ownKeys(node);
+    if (keys.length > 20_000 || (array && keys.length !== node.length + 1)) throw new ReceiptTableError('work.receipt filePayloadOrigin must be dense bounded JSON.');
+    const out: Record<string, unknown> | unknown[] = array ? [] : {};
+    ancestors.add(node);
+    for (const key of keys) {
+      if (array && key === 'length') continue;
+      if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= node.length))) {
+        throw new ReceiptTableError('work.receipt filePayloadOrigin has an invalid key.');
+      }
+      const property = Object.getOwnPropertyDescriptor(node, key);
+      if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) {
+        throw new ReceiptTableError('work.receipt filePayloadOrigin must contain own data properties.');
+      }
+      if ((textSize += key.length) > 2_000_000) throw new ReceiptTableError('work.receipt filePayloadOrigin exceeds its bounds.');
+      Object.defineProperty(out, key, { enumerable: true, configurable: true, writable: true, value: visit(property.value, depth + 1) });
+    }
+    ancestors.delete(node);
+    return out;
+  };
+  return visit(value, 0);
+}
+
+function originRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || !exactJudgmentKeys(value, keys)) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin has an incomplete or extended header.');
+  }
+  return value as Record<string, unknown>;
+}
+function originString(value: unknown): value is string { return typeof value === 'string' && value !== ''; }
+
+/** Validate local correspondence only; the complete installed source/recipe belongs to State census. */
+function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
+  deliveryId: string, context?: ReceiptResultContext): FrameworkFilePayloadOrigin | undefined {
+  const property = Object.getOwnPropertyDescriptor(data, 'filePayloadOrigin');
+  if (property === undefined) {
+    if ('filePayloadOrigin' in data) throw new ReceiptTableError('work.receipt filePayloadOrigin must be an own property.');
+    return undefined;
+  }
+  if (!Object.hasOwn(property, 'value') || !property.enumerable) throw new ReceiptTableError('work.receipt filePayloadOrigin must be own data.');
+  const header = originRecord(snapshotReceiptOrigin(property.value), ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin', 'files']);
+  const inventory = originRecord(header.inventory, ['owner', 'snapshotId', 'digest']);
+  const slot = originRecord(header.slot, ['model', 'id', 'created', 'createdBy', 'field', 'role']);
+  const scope = originRecord(header.scope, ['app', 'ownerPackage', 'owner']);
+  const origin = originRecord(header.origin, ['kind', 'deliveryId', 'intent', 'request', 'caller', 'association', 'declaration', 'resultDeclarationId']);
+  const intent = originRecord(origin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+  const request = originRecord(origin.request, ['binding', 'from']);
+  const caller = originRecord(origin.caller, ['source', 'callable', 'canonical', 'artifact', 'resultDeclarationId']);
+  const source = originRecord(caller.source, ['path', 'sha256', 'module']);
+  const association = originRecord(origin.association, ['model', 'recordId', 'field']);
+  const declarationKind = (origin.declaration as { kind?: unknown } | null)?.kind;
+  const declaration = originRecord(origin.declaration, declarationKind === 'generation' ? ['kind', 'canonical', 'artifact', 'request'] :
+    declarationKind === 'judgment' ? ['kind', 'canonical', 'artifact', 'specification', 'order', 'valueTypes'] : ['kind', 'canonical', 'artifact']);
+  const canonical = declaration.canonical as Record<string, unknown> | null;
+  const artifact = declaration.artifact as Record<string, unknown> | null;
+  const callable = caller.callable as Record<string, unknown> | null;
+  const callerCanonical = caller.canonical as Record<string, unknown> | null;
+  const callerArtifact = caller.artifact as Record<string, unknown> | null;
+  if (header.version !== 1 || !Object.values(inventory).every(originString) || !originString(header.declarationSetId) ||
+      !Object.values(scope).every(originString) || !Object.values(source).every(originString) ||
+      slot.model !== RECEIPT_MODEL || slot.id !== row.id || slot.created !== row.created || slot.createdBy !== row.createdBy ||
+      typeof slot.created !== 'number' || !Number.isFinite(slot.created) || slot.created < 0 || !originString(slot.createdBy) ||
+      slot.field !== 'result' || slot.role !== 'retained-result' || origin.kind !== 'delivery-result' || origin.deliveryId !== deliveryId ||
+      intent.intentId !== deliveryId || !originString(intent.operation) || !originString(intent.operationId) || !originString(intent.target) ||
+      typeof intent.occurrenceIndex !== 'number' || !Number.isSafeInteger(intent.occurrenceIndex) || intent.occurrenceIndex < 0 ||
+      !Object.values(request).every(originString) || !Object.values(association).every(originString) ||
+      !originString(origin.resultDeclarationId) || !originString(caller.resultDeclarationId) ||
+      callable?.id !== intent.operation || callerCanonical?.name !== intent.operation || callerArtifact?.name !== intent.operation ||
+      !['capability', 'generation', 'judgment'].includes(String(declarationKind)) ||
+      canonical?.kind !== 'delivery' || artifact?.kind !== 'delivery' || !originString(canonical?.capability) || !originString(canonical?.operation) ||
+      `${canonical.capability}.${canonical.operation}` !== intent.target || artifact.capability !== canonical.capability ||
+      artifact.operation !== canonical.operation || artifact.version !== canonical.version ||
+      (context !== undefined && intent.target !== context.source) || !Array.isArray(header.files)) {
+    throw new ReceiptTableError('work.receipt filePayloadOrigin disagrees with its original receipt binding.');
+  }
+  for (const entry of header.files) {
+    const fact = originRecord(entry, ['path', 'file']);
+    if (!Array.isArray(fact.path) || fact.path.some(segment => !(typeof segment === 'string' ||
+        (typeof segment === 'number' && Number.isSafeInteger(segment) && segment >= 0)))) {
+      throw new ReceiptTableError('work.receipt filePayloadOrigin has an invalid File path.');
+    }
+    const file = originRecord(fact.file, ['ref', 'receiver', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAtMs', 'retention']);
+    const receiver = originRecord(file.receiver, ['app', 'team', 'owner', 'principal']);
+    const retention = originRecord(file.retention, ['unattachedHorizonMs', 'retentionMs']);
+    const provenanceKind = (file.provenance as { kind?: unknown } | null)?.kind;
+    const provenance = originRecord(file.provenance, provenanceKind === 'request' ?
+      ['kind', 'app', 'team', 'owner', 'principal', 'adapter', 'deliveryId', 'resultPath'] :
+      ['kind', 'source', 'adapter', 'occurrenceId', 'fieldPath', 'itemIndex']);
+    const epoch = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+    if (!originString(file.ref) || !originString(file.contentType) || typeof file.bytesDigest !== 'string' ||
+        !/^sha256:[0-9a-f]{64}$/.test(file.bytesDigest) || !epoch(file.sizeBytes) || !epoch(file.finalizedAtMs) ||
+        !Object.values(receiver).every(originString) || !Object.values(retention).every(epoch) ||
+        !['request', 'event'].includes(String(provenanceKind)) ||
+        !Object.entries(provenance).every(([key, value]) => key === 'itemIndex' ? epoch(value) : originString(value))) {
+      throw new ReceiptTableError('work.receipt filePayloadOrigin has invalid original File facts.');
+    }
+  }
+  return header as unknown as FrameworkFilePayloadOrigin;
 }
 
 /** Read one receipt row's data, failing closed on any shape drift. */
@@ -708,6 +829,7 @@ export function readReceiptRow(row: StoredRow, context?: ReceiptResultContext): 
   if (row.id !== deliveryId) {
     throw new ReceiptTableError('work.receipt row id must equal its deliveryId.');
   }
+  const filePayloadOrigin = receiptOrigin(data, row, deliveryId, context);
   return {
     receipt: {
       deliveryId,
@@ -718,6 +840,7 @@ export function readReceiptRow(row: StoredRow, context?: ReceiptResultContext): 
     },
     contentRef: checkNullableContentRef(data),
     resultExpiresAtMs: checkNullableExpiry(data),
+    ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
   };
 }
 
@@ -814,9 +937,10 @@ export function newReceiptRow(input: ReceiptRowData, meta: NewRowMeta, context?:
       !isStoredReceiptPayload(input.status, input.result, input.error, context)) {
     throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
   }
+  const filePayloadOrigin = receiptOrigin(input, { id: input.deliveryId as RecordId, created: meta.nowMs, createdBy: meta.actor }, input.deliveryId, context);
   const row = newRow(
     input.deliveryId,
-    input as unknown as Readonly<Record<string, unknown>>,
+    (filePayloadOrigin === undefined ? input : { ...input, filePayloadOrigin }) as unknown as Readonly<Record<string, unknown>>,
     meta,
     'work.receipt',
   );
@@ -854,9 +978,30 @@ export function withReceiptRowData(
       !isStoredReceiptPayload(data.status, data.result, data.error, context)) {
     throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
   }
+  const original = receiptOrigin(row.data, row, row.id as string, context);
+  const supplied = receiptOrigin(data, row, data.deliveryId, context);
+  if (original !== undefined && supplied !== undefined) {
+    const { files: originalFiles, ...originalBinding } = original;
+    const { files: suppliedFiles, ...suppliedBinding } = supplied;
+    if (!sameJudgmentWire(originalBinding, suppliedBinding)) {
+      throw new ReceiptTableError('work.receipt cannot replace its original payload binding.');
+    }
+    // Replacing a File position may add/remove original observations, but a
+    // repeated physical reference must keep its original facts and horizons.
+    const priorFacts = new Map(originalFiles.map(entry => [entry.file.ref, entry.file]));
+    for (const entry of suppliedFiles) {
+      const prior = priorFacts.get(entry.file.ref);
+      if (prior !== undefined && !sameJudgmentWire(entry.file, prior)) {
+        throw new ReceiptTableError('work.receipt cannot renew or replace original File facts.');
+      }
+    }
+  } else if (original === undefined && supplied !== undefined) {
+    throw new ReceiptTableError('work.receipt cannot bind an existing unbound lifetime.');
+  }
+  const filePayloadOrigin = supplied ?? original;
   const next = withRowData(
     row,
-    data as unknown as Readonly<Record<string, unknown>>,
+    (filePayloadOrigin === undefined ? data : { ...data, filePayloadOrigin }) as unknown as Readonly<Record<string, unknown>>,
     data.revision,
     meta,
     'work.receipt',
@@ -870,6 +1015,8 @@ interface JoinWrite {
   readonly id: string;
   readonly deliveryId: string;
   readonly revision: number;
+  readonly association?: AssociationRowData;
+  readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
 }
 
 function readJoinWrite(
@@ -893,6 +1040,7 @@ function readJoinWrite(
         id: row.id as string,
         deliveryId: association.deliveryId,
         revision: association.revision,
+        association: row.data as unknown as AssociationRowData,
       };
     }
     const deliveryId = checkString(checkRecord(row.data, 'work.receipt data'), 'deliveryId', 'work.receipt');
@@ -902,6 +1050,7 @@ function readJoinWrite(
       id: row.id as string,
       deliveryId: stored.receipt.deliveryId,
       revision: stored.receipt.revision,
+      ...(stored.filePayloadOrigin === undefined ? {} : { filePayloadOrigin: stored.filePayloadOrigin }),
     };
   } catch (error) {
     if (error instanceof ReceiptTableError) {
@@ -973,6 +1122,13 @@ export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<str
         `Receipt join: association for ${JSON.stringify(association.deliveryId)} ` +
           'has no receipt row in this batch.',
       );
+    }
+    const original = receipt.filePayloadOrigin?.origin;
+    if (original !== undefined && (original.kind !== 'delivery-result' ||
+        original.association.model !== association.association!.recordModel ||
+        original.association.recordId !== association.association!.recordId ||
+        original.association.field !== association.association!.field || original.intent.target !== association.association!.source)) {
+      throw new StateError('validation', 'Receipt join: original payload binding disagrees with its association.');
     }
     if (receipt.revision !== association.revision) {
       throw new StateError(

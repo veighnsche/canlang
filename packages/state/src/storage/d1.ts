@@ -81,6 +81,7 @@ import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileRefer
 import {
   ALTER_OUTBOX_HANDLER_CONTRACT,
   ALTER_OUTBOX_COMMITTED_REVISION,
+  ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES,
   FENCE_ROW_ID,
   SCHEMA_STATEMENTS,
   isDuplicateColumnError,
@@ -93,7 +94,7 @@ export async function ensureSchema(db: D1Database): Promise<void> {
   }
   // Add missing columns without reconstructing legacy publication facts.
   // A legacy original revision remains NULL; only new fenced inserts fill it.
-  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION]) {
+  for (const alteration of [ALTER_OUTBOX_HANDLER_CONTRACT, ALTER_OUTBOX_COMMITTED_REVISION, ALTER_FILE_REFERENCE_OPAQUE_LIFETIMES]) {
     try {
       await db.exec(alteration);
     } catch (error) {
@@ -204,7 +205,7 @@ async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | 
   framework: FileFrameworkBinding, maxRows = FILE_GUARD_MAX_ROWS) {
   const results = await db.batch([
     db.prepare('SELECT revision FROM fence WHERE id = 1'),
-    db.prepare('SELECT authority FROM file_reference_authority WHERE id = 1'),
+    db.prepare('SELECT authority, opaque_lifetimes FROM file_reference_authority WHERE id = 1'),
     db.prepare('SELECT installed FROM file_reference_inventories ORDER BY owner'),
     db.prepare('SELECT migration_id, inventory FROM file_reference_migrations ORDER BY migration_id'),
     db.prepare('SELECT model, id, migration_id FROM file_reference_publications ORDER BY model, id'),
@@ -214,9 +215,10 @@ async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | 
   ]);
   const revisionRow = results[0]!.results[0] as { revision: number } | undefined;
   if (revisionRow === undefined) throw new Error('schema not initialized: fence row is missing (run ensureSchema first)');
-  const assignment = results[1]!.results[0] as { authority: string } | undefined;
+  const assignment = results[1]!.results[0] as { authority: string; opaque_lifetimes: string } | undefined;
   const state: FileGuardState = {
     authority: assignment === undefined ? null : checkedFileAuthority(JSON.parse(assignment.authority)),
+    opaqueLifetimes: assignment === undefined ? [] : fileGuardCopy(JSON.parse(assignment.opaque_lifetimes)),
     inventories: results[2]!.results.map(raw => fileGuardCopy(JSON.parse((raw as { installed: string }).installed) as InstalledFileReferenceInventory)),
     migrations: results[3]!.results.map(raw => { const row = raw as { migration_id: string; inventory: string }; return { migrationId: row.migration_id, inventory: fileGuardCopy(JSON.parse(row.inventory)) }; }),
     publications: results[4]!.results.map(raw => { const row = raw as { model: string; id: string; migration_id: string }; return { model: row.model, id: row.id, migrationId: row.migration_id }; }),
@@ -243,7 +245,12 @@ function guardedFileInput<T>(input: T, captured: { value?: T; error?: unknown },
 }
 function fileGuardStatements(db: D1Database, state: FileGuardState) {
   const statements = [];
-  if (state.authority !== null) statements.push(db.prepare('INSERT OR IGNORE INTO file_reference_authority(id, authority) VALUES (1, ?)').bind(JSON.stringify(state.authority)));
+  if (state.authority !== null) {
+    statements.push(db.prepare('INSERT OR IGNORE INTO file_reference_authority(id, authority, opaque_lifetimes) VALUES (1, ?, ?)')
+      .bind(JSON.stringify(state.authority), JSON.stringify(state.opaqueLifetimes)));
+    statements.push(db.prepare('UPDATE file_reference_authority SET opaque_lifetimes = ? WHERE id = 1')
+      .bind(JSON.stringify(state.opaqueLifetimes)));
+  }
   statements.push(db.prepare('DELETE FROM file_reference_inventories'), db.prepare('DELETE FROM file_reference_migrations'), db.prepare('DELETE FROM file_reference_publications'));
   for (const installed of state.inventories) statements.push(db.prepare('INSERT INTO file_reference_inventories(owner, installed) VALUES (?, ?)').bind(installed.inventory.owner, JSON.stringify(installed)));
   for (const migration of state.migrations) statements.push(db.prepare('INSERT INTO file_reference_migrations(migration_id, inventory) VALUES (?, ?)').bind(migration.migrationId, JSON.stringify(migration.inventory)));
@@ -318,9 +325,10 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
       const captured = captureFileInput(batch);
       const guard = await readFileGuard(db, binding, framework);
       batch = guardedFileInput(batch, captured, guard.state.authority !== null || binding !== undefined);
+      let nextGuard = guard.state;
       if (guard.state.authority !== null) {
         requireFileRevision(batch.expectedRevision, guard.revision);
-        guardFileCommit(guard.state, binding, guard.rows, commitFileRows(guard.rows, batch), framework);
+        nextGuard = guardFileCommit(guard.state, binding, guard.rows, commitFileRows(guard.rows, batch), framework);
       }
       const expected = batch.expectedRevision as number;
       if (!Number.isInteger(expected) || expected < 0) {
@@ -350,6 +358,10 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
           .bind(next, at, operation),
         db.prepare('UPDATE fence SET revision = ? WHERE id = ?').bind(next, FENCE_ROW_ID),
       ];
+      if (nextGuard.authority !== null) {
+        statements.push(db.prepare('UPDATE file_reference_authority SET opaque_lifetimes = ? WHERE id = 1')
+          .bind(JSON.stringify(nextGuard.opaqueLifetimes)));
+      }
       for (const write of batch.writes) {
         if (write.kind === 'insert') {
           statements.push(

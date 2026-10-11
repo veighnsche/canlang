@@ -5,7 +5,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { StoredRow } from '@canlang/contracts';
+import type { FrameworkFilePayloadOrigin, ModelName, RecordId, StoredRow } from '@canlang/contracts';
 import {
   KernelTableError,
   WORK_DISPATCH_MODEL,
@@ -35,6 +35,52 @@ import {
 } from '../src/kernel/tables.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 'test' };
+
+// Header-codec fixture only: no installed source or genuine File acceptance claim.
+function payloadOrigin(model: ModelName, id: string, field: 'result' | 'payload'): FrameworkFilePayloadOrigin {
+  return { version: 1, inventory: { owner: 'demo', snapshotId: 'original', digest: 'digest' },
+    declarationSetId: 'original-declarations', slot: { model, id: id as RecordId,
+      created: META.nowMs, createdBy: META.actor, field,
+      role: field === 'result' ? 'retained-result' : 'deferred-input' },
+    scope: { app: 'app', owner: 'team-1', ownerPackage: 'demo' },
+    origin: { kind: 'event-input', occurrenceId: id, sourceOccurrence: id,
+      declaration: { kind: 'declared-event', source: { path: 'demo.can', sha256: 'source', module: 'demo' },
+        event: 'demo.changed', inputsDeclarationId: 'event-inputs' },
+      lineage: { kind: 'schedule', key: 'key', replaces: null }, target: { kind: 'schedule' } }, files: [] };
+}
+
+it('retains detached optional opaque headers and rejects malformed or copied row lifetimes', () => {
+  const original = payloadOrigin(WORK_OCCURRENCE_MODEL, 'receipt', 'result');
+  const row = newOccurrenceRow({ occurrenceId: 'receipt', status: 'completed', result: { original: ['wire'] },
+    code: null, message: null, recordedAtMs: META.nowMs, filePayloadOrigin: original }, META);
+  const read = readOccurrenceRow(row);
+  assert.deepEqual(read.filePayloadOrigin, original);
+  assert.notEqual(read.filePayloadOrigin, row.data['filePayloadOrigin']);
+  assert.ok(Object.isFrozen(read.filePayloadOrigin?.origin));
+  const advanced = withRowData(row, read as unknown as StoredRow['data'], { nowMs: META.nowMs + 1, actor: 'later' }, 'receipt progress');
+  assert.deepEqual(readOccurrenceRow(advanced).filePayloadOrigin, original);
+  for (const changed of [
+    { ...original, version: 2 }, { ...original, extra: true },
+    { ...original, inventory: { owner: 'demo', snapshotId: 'original' } },
+    { ...original, scope: { ...original.scope, extra: true } },
+    { ...original, slot: { ...original.slot, model: WORK_SCHEDULE_MODEL } },
+    { ...original, slot: { ...original.slot, id: 'copy' } },
+    { ...original, slot: { ...original.slot, created: META.nowMs + 1 } },
+    { ...original, slot: { ...original.slot, createdBy: 'later' } },
+    { ...original, slot: { ...original.slot, field: 'payload' } },
+    { ...original, slot: { ...original.slot, role: 'deferred-input' } },
+    { ...original, origin: { kind: 'unknown' } },
+    { ...original, files: [{ path: [-1], file: {} }] },
+    { ...original, files: new Array(1) },
+  ]) assert.throws(() => readOccurrenceRow({ ...row, data: { ...row.data, filePayloadOrigin: changed } }), KernelTableError);
+  let touched = false;
+  const getter = { ...original };
+  Object.defineProperty(getter, 'origin', { enumerable: true, get() { touched = true; return original.origin; } });
+  assert.throws(() => newOccurrenceRow({ ...read, filePayloadOrigin: getter }, META), KernelTableError);
+  assert.equal(touched, false);
+  assert.throws(() => readOccurrenceRow({ ...row, data: { ...row.data,
+    filePayloadOrigin: Object.assign(Object.create({ inherited: true }), original) } }), KernelTableError);
+});
 
 function rowWithData(data: unknown): StoredRow {
   return {
