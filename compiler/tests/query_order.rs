@@ -94,22 +94,20 @@ fn ui_order_aliases_and_descending_datetime_keys_keep_their_owning_domain() {
             "{name}: {response}"
         );
     }
-    let unsupported = source.replace("list Entry as item order=-item.at\n    text row.at\n    list Entry as inner order=inner.at\n     text row.at", "table Entry as item columns=at order=item.at");
-    let (output, response) = invoke("table-order", &unsupported, "compile");
-    assert_eq!(output.status.code(), Some(10), "{response}");
+    let table = source.replace("list Entry as item order=-item.at\n    text row.at\n    list Entry as inner order=inner.at\n     text row.at", "table Entry as item columns=at order=item.at");
+    let (output, response) = invoke("table-order", &table, "compile");
+    assert!(output.status.success(), "{response}");
     assert!(
-        response["diagnostics"]
+        response["modules"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"
-                && diagnostic["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("table order")),
+            .any(|module| module["js"]
+                .as_str()
+                .unwrap()
+                .contains("({context:c,model:\"shop.Entry\",columns:[\"at\"],order:[\"at\"]})")),
         "{response}"
     );
-    assert!(response.get("modules").is_none(), "{response}");
 }
 
 #[test]
@@ -217,5 +215,91 @@ fn production_model_query_order_preserves_direct_alias_fields_and_refuses_expres
             response.get("modules").is_none(),
             "{name}: refused query must not publish modules"
         );
+    }
+}
+
+#[test]
+fn first_query_orders_checked_owning_row_ids_without_admitting_other_keys() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = "app MetadataOrders\nGiven\n Allowance { account:user }\n policy Allowance read=owner\nWhen\n scenario ascending() -> Allowance? by=owner\n  do return first(Allowance as row where row.account==actor order=row.id)\n scenario descending() -> Allowance? by=owner\n  do return first(Allowance as row where row.account==actor order=-row.id)\nThen\n";
+    let invoke = |name: &str, source: &str, command: &str| {
+        let path = scratch.path().join(format!("{name}.can"));
+        std::fs::write(&path, source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args([command, "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(path)
+            .env_remove("CAN_CATALOG")
+            .current_dir(root)
+            .output()
+            .unwrap();
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout)
+            .unwrap_or_else(|error| panic!("{error}: {}", String::from_utf8_lossy(&output.stdout)));
+        (output, response)
+    };
+    let (output, artifact) = invoke("owning-row-id", source, "compile");
+    assert!(output.status.success(), "{artifact}");
+    let generated = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    for order in ["id", "-id"] {
+        assert_eq!(
+            generated.matches(&format!("order:[\"{order}\"]")).count(),
+            1,
+            "one normalized original selector: {generated}"
+        );
+    }
+    assert!(
+        !generated.contains("order:[\"row.id\"]") && !generated.contains("order:[\"-row.id\"]"),
+        "an alias must not reach the native selector: {generated}"
+    );
+    for id in ["MetadataOrders.ascending", "MetadataOrders.descending"] {
+        assert!(
+            artifact["callables"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|callable| callable["id"] == id),
+            "original first-query callable missing: {id}"
+        );
+    }
+    for (name, refused_source) in [
+        (
+            "computed-id",
+            source.replacen("order=row.id", "order=lower(row.id)", 1),
+        ),
+        (
+            "foreign-record-id",
+            source
+                .replacen(
+                    "scenario ascending()",
+                    "scenario ascending(other:Allowance)",
+                    1,
+                )
+                .replacen("order=row.id", "order=other.id", 1),
+        ),
+        (
+            "metadata-datetime",
+            source.replacen("order=row.id", "order=row.created", 1),
+        ),
+    ] {
+        let (output, checked) = invoke(name, &refused_source, "check");
+        assert!(output.status.success(), "{name}: {checked}");
+        let (output, artifact) = invoke(name, &refused_source, "compile");
+        assert_eq!(output.status.code(), Some(10), "{name}: {artifact}");
+        let diagnostics = artifact["diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics.len(), 1, "{name}: {artifact}");
+        assert_eq!(diagnostics[0]["code"], "E6008", "{name}: {artifact}");
+        assert_eq!(
+            diagnostics[0]["message"],
+            "cannot lower expression query order: no §13 lowering exists",
+            "{name}: {artifact}"
+        );
+        assert!(artifact.get("modules").is_none(), "{name}: {artifact}");
     }
 }

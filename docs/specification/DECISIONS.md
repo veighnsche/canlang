@@ -10298,3 +10298,52 @@ does not accept those consumers or the unfinished parent, add provider-void supp
 reopen V05 release-host qualification, or release any precise hold.
 
 Coordinator finite defining reviews CLEAR and integrated locally after deadline. Reuse recorded owning checks and advisory responses; existing newer native stdlib exports retained. Original source lowerings/native application and all exact holds remain unfinished, complete filetree checkpoint unchanged.
+
+2026-10-11 — checked stored-row metadata ordering (implemented; native join unfinished).
+
+Preserve the checked owning stored model's Text id as the native direct order
+key, alongside declared orderable stored fields. The type checker already owns
+metadata identity and State already accepts id; no new query semantics or key
+expression evaluator is introduced. Foreign records, computed keys and temporal
+metadata retain their existing refusal. CLI query_order3/3 passes. Original
+full application lowering and native authority remain separate requirements.
+
+2026-10-11 — preserve released Text/Workflow nominal identity
+(implemented; original native join unfinished).
+
+Keep exact catalog-produced TextMessage/TextRequest/WorkflowInput/
+WorkflowDefinition identities through the checked type producer, reusing their
+existing owning schemas and private complete-source inventory. Anonymous
+objects do not claim identity, and altered/unreleased/foreign schemas refuse.
+Actual CLI/verified assembly/installed Values3 plus IncomingEmail5 pass.
+Whole original IR errors still prevent the census seal; actual native/application
+joins remain separate and no handler payload is inferred from field spelling.
+
+2026-10-11 — ordered supplied-array plus (implemented; native seam unfinished).
+
+Use existing Values concat for identical checked element arrays, preserving
+authored operand order, frozen output, duplicates and original element identity.
+No new schema, type-id argument or generic object admission is introduced.
+Public installed stdlib2/2 passes. Packages owns the missing canonical Cloudflare
+stdlib re-export; native source/application qualification awaits that exact seam.
+
+2026-10-11 — consume released original UI profiles
+(implemented; native/application joins unfinished).
+
+Use existing ordinary table renderRow and protected form/preparer for singular
+owning-row actions. Preserve original RowView/context and infer only one exact
+nonnullable protected record; scalar controls remain generated. Integer progress
+converts exactly displayable values only; nullable/unsafe values use invalid
+presentation and maxima fail rather than round. Loading is an explicit readable
+boolean or authored placeholder; tooltip owns scoped content, and owned integer
+range/file controls reuse checked prepared fields. Installed table/action/leaf6,
+codegen121/UI11/B1-B2 shape2 and strict0 pass at this finite producer scope.
+
+Existing drawer eagerly evaluates repeated rows; bare breadcrumbs lacks admitted
+declared ancestry; explicit label/validator would duplicate generated fragments.
+Keep these refusals until defining owner outputs exist. Creative example
+operation.id needs held C14 genuine observation context; production operation.id
+is already implemented. No native authority or original application acceptance
+follows from supplied presentation snapshots or partial diagnostic artifacts.
+
+Coordinator defining reviews CLEAR and local integration after deadline, frozen changed-source strict0 and scoped owning results reused. Original native diagnostics reduce72→36 but no modules are emitted, so the actual application remains unfinished. Admitted breadcrumb/concat/field placement producers are now released; preserve private original source seal, C14 observation hold and all other recipient restrictions.
