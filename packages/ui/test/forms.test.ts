@@ -12,7 +12,7 @@ import type {
 } from "@canlang/contracts";
 import type { FieldError, SealedActionHandle } from "@canlang/contracts";
 import { message } from "../src/messages.js";
-import { input } from "../src/controls.js";
+import { input, label, validator } from "../src/controls.js";
 import { loadHtml } from "./harness.js";
 import {
   action,
@@ -203,6 +203,66 @@ describe("formatDatetimeLocal", () => {
 });
 
 describe("form hidden fields and roots", () => {
+  it("moves authored labels and validators independently around explicit and default generated controls", async () => {
+    for (const explicit of [true, false]) {
+      const props = makeFormProps({ fields: [field('title', explicit ? { control: 'input' } : {}), field('note')],
+        errors: [fieldError('/title', 'Keep this error')] });
+      const title = props.fields[0]!;
+      const shared = { context: props.context, field: title, idPrefix: props.idPrefix, mode: props.mode, ...(props.errors === undefined ? {} : { errors: props.errors }) };
+      const html = await form({ ...props, authoredLabels: ['title'],
+        ...(explicit ? { authoredValidators: ['title'] } : {}), children: async () => [
+          '<section data-authored="placement">', await label(shared),
+          ...(explicit ? [await validator(shared)] : []), '</section>',
+        ] });
+      const page = await loadHtml(html);
+      try {
+        const document = page.document;
+        assert.equal(document.querySelectorAll('label[for="f1-title"]').length, 1);
+        assert.equal(document.querySelectorAll('#f1-title').length, 1);
+        assert.equal(document.querySelectorAll('#f1-title-error').length, 1);
+        assert.equal(document.querySelectorAll('input[name="inputs[title]"]').length, 1);
+        assert.equal(document.querySelectorAll('input[name="inputs[note]"]').length, 1);
+        assert.equal(document.querySelector('#f1-title')?.getAttribute('aria-describedby'), 'f1-title-error');
+        assert.equal(document.querySelector('#f1-title')?.getAttribute('aria-invalid'), 'true');
+        assert.ok(document.querySelector('#f1-title-error')?.textContent?.includes('Keep this error'));
+        assert.ok(document.querySelector('[data-authored="placement"] label'));
+        assert.equal(document.querySelector('[data-authored="placement"] #f1-title-error') !== null, explicit);
+        assert.ok(html.indexOf('data-authored="placement"') < html.indexOf('id="f1-title"'));
+        assert.ok(html.indexOf('id="f1-title"') < html.indexOf('id="f1-note"'));
+        for (const name of ['operation', 'operation_id', CSRF_FIELD, 'timezone']) {
+          assert.equal(document.querySelectorAll(`input[type="hidden"][name="${name}"]`).length, 1);
+        }
+      } finally { await page.close(); }
+    }
+  });
+
+  it("validates authored fragment placement before children and retains explicitly placed protected controls", async () => {
+    const props = makeFormProps({ mode: 'update', record: { id: 'r1', version: '3' },
+      fields: [field('title', { readonly: true, value: 'Protected' })], errors: [fieldError('/changes/title')] });
+    let children = 0;
+    const child = () => { children++; return []; };
+    for (const key of ['authoredLabels', 'authoredValidators'] as const) {
+      await assert.rejects(form({ ...props, [key]: ['missing'], children: child }), /outside its prepared form/);
+      await assert.rejects(form({ ...props, [key]: ['title', 'title'], children: child }), /duplicate authored/);
+      await assert.rejects(form({ ...props, [key]: ['title'] }), /requires authored children/);
+    }
+    assert.equal(children, 0);
+    const shared = { context: props.context, field: props.fields[0]!, idPrefix: props.idPrefix, mode: props.mode, ...(props.errors === undefined ? {} : { errors: props.errors }) };
+    const html = await form({ ...props, authoredFields: ['title'], authoredLabels: ['title'], authoredValidators: ['title'],
+      children: async () => [await label(shared), await input({ ...shared, authoredLabel: true, authoredValidator: true }), await validator(shared)] });
+    const page = await loadHtml(html);
+    try {
+      const document = page.document;
+      assert.equal(document.querySelectorAll('#f1-title').length, 1);
+      assert.equal(document.querySelectorAll('label[for="f1-title"]').length, 1);
+      assert.equal(document.querySelectorAll('#f1-title-error').length, 1);
+      assert.equal(document.querySelector('#f1-title')?.hasAttribute('disabled'), true);
+      assert.equal(document.querySelector('#f1-title')?.getAttribute('aria-describedby'), 'f1-title-error');
+      assert.equal(document.querySelectorAll('input[type="hidden"][name="inputs[changes][title]"]').length, 1);
+      assert.equal(document.querySelector('input[name="inputs[record][id]"]')?.getAttribute('value'), 'r1');
+      assert.equal(document.querySelector('input[name="inputs[record][version]"]')?.getAttribute('value'), '3');
+    } finally { await page.close(); }
+  });
   it("renders operation, operation_id, csrf and timezone hiddens", async () => {
     const html = await form(makeFormProps());
     assert.ok(html.includes('<form action="/submit" method="post">'));

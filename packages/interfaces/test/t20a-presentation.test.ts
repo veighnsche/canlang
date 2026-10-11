@@ -52,6 +52,8 @@ import {
   generatedForm,
   form,
   input as renderInput,
+  label as renderLabel,
+  validator as renderValidator,
   checkbox,
   toggle,
   calendar,
@@ -462,6 +464,48 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   if (allAutomatic.status !== 'ready') throw new Error('expected unplaced required automatic control');
   assert.deepEqual(allAutomatic.props.fields.map(field => field.path), ['title']);
   assert.match(await form({ ...allAutomatic.props, children: [] }), /name="inputs\[title\]"/);
+  const authoredLabels = ['title'];
+  const authoredValidators = ['title', 'code'];
+  const fragments = await prepare({ operation: GADGET_CREATE_OP.name, authoredLabels, authoredValidators });
+  assert.equal(fragments.status, 'ready');
+  if (fragments.status !== 'ready') throw new Error('expected label/validator-only generated remainder');
+  authoredLabels.push('stock'); authoredValidators.splice(0);
+  assert.deepEqual(fragments.props.authoredLabels, ['title']);
+  assert.deepEqual(fragments.props.authoredValidators, ['title', 'code']);
+  assert.deepEqual(fragments.props.authoredFields, []);
+  assert.equal(Object.isFrozen(fragments.props.authoredLabels), true);
+  assert.equal(Object.isFrozen(fragments.props.authoredValidators), true);
+  assert.equal(fragments.field('title').authoredLabel, true);
+  assert.equal(fragments.field('title').authoredValidator, true, 'separate placements may overlap');
+  assert.equal(Object.hasOwn(fragments.field('code'), 'authoredLabel'), false);
+  assert.equal(fragments.field('code').authoredValidator, true);
+  assert.equal(Object.hasOwn(fragments.field('stock'), 'authoredLabel'), false);
+  assert.equal(Object.hasOwn(fragments.field('stock'), 'authoredValidator'), false);
+  const labelHtml = await renderLabel(fragments.field('title'));
+  const titleValidator = await renderValidator(fragments.field('title'));
+  const codeValidator = await renderValidator(fragments.field('code'));
+  const fragmentHtml = await form({ ...fragments.props,
+    children: [labelHtml, titleValidator, codeValidator] });
+  for (const field of fragments.props.fields) {
+    assert.equal(fragmentHtml.split(`name="inputs[${field.path}]"`).length - 1, 1,
+      `fragment-only placement retains automatic ${field.path}`);
+  }
+  assert.equal(fragmentHtml.split(labelHtml).length - 1, 1, 'one authored label');
+  assert.equal(fragmentHtml.split(titleValidator).length - 1, 1, 'one authored title error outlet');
+  assert.equal(fragmentHtml.split(codeValidator).length - 1, 1, 'one authored code error outlet');
+  assert.equal(validateOperationId(fragments.props.operationId, deps.clock), null);
+  const validationContext = makeContext();
+  for (const key of ['authoredLabels', 'authoredValidators'] as const) {
+    for (const paths of [['title', 'title'], ['foreign'], ['title', 'stock']]) {
+      assert.throws(() => validationContext.prepareForm!({ operation: GADGET_CREATE_OP.name,
+        fields: ['title', 'price', 'ids', 'code'],
+        [key]: paths }), /unique.*selected|unique.*generated/);
+    }
+  }
+  const afterInvalidPlacement = await validationContext.prepareForm!({ operation: STORE_CREATE_OP.name });
+  assert.equal(afterInvalidPlacement.status, 'ready');
+  if (afterInvalidPlacement.status !== 'ready') throw new Error('expected form after placement refusals');
+  assert.equal(afterInvalidPlacement.props.idPrefix, 'operation-form-1', 'invalid placement never consumes a form identity');
   for (const request of [
     { operation: STORE_CREATE_OP.name, arguments: { title: 'protected' } },
     { operation: STORE_UPDATE_OP.name },

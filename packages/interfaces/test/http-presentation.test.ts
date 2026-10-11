@@ -38,6 +38,20 @@ function fakeIdentity(): ResolvedIdentity {
   };
 }
 
+test('breadcrumb context uses only the explicit admitted dispatcher trail', () => {
+  const principal = fakeIdentity();
+  const forged = { label: 'Private source extra', ancestry: [{ owner: 'Private', path: '/private', title: 'Secret', active: false }] };
+  const trusted = Object.freeze({ label: 'Breadcrumbs', ancestry: Object.freeze([
+    Object.freeze({ owner: 'Current', path: '/hello', title: 'Hello', active: true }),
+  ]) });
+  const input = { request: testRequest('/hello'), pathname: '/hello', isPartial: true,
+    appDefaultLocale: 'en', csrfToken: '', principal,
+    source: { ...buildPageSourceContext(principal), breadcrumbs: forged }, query: fakeQuery() };
+  const absent = buildPresentationContext(input);
+  assert.equal(Object.hasOwn(absent, 'breadcrumbs'), false);
+  assert.equal(buildPresentationContext({ ...input, breadcrumbs: trusted }).breadcrumbs, trusted);
+});
+
 test('page now decodes the trusted admission instant and ignores source, request and renderer clock overrides', () => {
   const principal = { ...fakeIdentity(), admitted_at: '1969-12-31T23:59:59.999Z' };
   const source = buildPageSourceContext(principal);

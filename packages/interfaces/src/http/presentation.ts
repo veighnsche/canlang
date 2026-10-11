@@ -113,6 +113,8 @@ export interface BuildPresentationContextInput {
   readonly principal: ResolvedIdentity;
   /** Source facts shared with admission and discovery for this request. */
   readonly source?: PageSourceContext;
+  /** Actual declared/admitted trail; source extras cannot supply it. */
+  readonly breadcrumbs?: PresentationContext['breadcrumbs'];
   readonly catalog?: SchemaCatalog;
   readonly clock?: InterfacesClock;
   readonly formBindings?: SourceFormBindings;
@@ -171,9 +173,10 @@ export function buildPresentationContext(
 ): PresentationContext {
   // Source extras cannot override host configuration, native readers or the
   // trusted identity admission instant shared with page guards and discovery.
-  const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory, now: _sourceNow, ...source } =
+  const { deploymentBase: _sourceDeploymentBase, readHistory: _sourceReadHistory,
+    breadcrumbs: _sourceBreadcrumbs, now: _sourceNow, ...source } =
     (input.source ?? buildPageSourceContext(input.principal)) as PageSourceContext &
-      Pick<PresentationContext, 'deploymentBase' | 'readHistory'>;
+      Pick<PresentationContext, 'deploymentBase' | 'readHistory' | 'breadcrumbs'>;
   const { observeGenerationCallbackDiagnostics: _sourceCallbackDiagnostics, ...canonical } = source.canonical;
   const url = new URL(input.request.url);
   const collectionSelections = new Map<string, string>();
@@ -204,6 +207,7 @@ export function buildPresentationContext(
     appDefaultLocale: input.appDefaultLocale,
     theme: DEFAULT_THEME,
     path: input.pathname,
+    ...(input.breadcrumbs === undefined ? {} : { breadcrumbs: input.breadcrumbs }),
     pollUrl: input.pathname + url.search,
     ...(input.searchQuery === undefined ? {} : { searchQuery: input.searchQuery }),
     collectionSelections,

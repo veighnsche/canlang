@@ -26,9 +26,11 @@ import type {
   AdmissionOutcome,
   ListQueryArgs,
   NavigationResult,
+  NavigationEntry,
   PageDescriptor,
   PageSourceContext,
   PageReadScope,
+  PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
   ShellData,
@@ -286,6 +288,29 @@ async function admitDiscovery(
   return outcomes;
 }
 
+/** Only real static route ancestors are implicit destinations; no segment route is invented. */
+function declaredAncestors(descriptors: readonly PageDescriptor[], candidates: readonly PageDescriptor[],
+  current: PageDescriptor): PageDescriptor[] {
+  return candidates.filter(candidate => candidate.path !== current.path &&
+    (candidate.path === '/' || current.path.startsWith(candidate.path + '/')) &&
+    matchDescriptor(descriptors, candidate.path)?.descriptor === candidate)
+    .sort((a, b) => a.path.length - b.path.length);
+}
+
+function pageBreadcrumbs(current: PageDescriptor, pathname: string, ancestors: readonly PageDescriptor[],
+  outcomes: ReadonlyMap<PageDescriptor, AdmissionOutcome>): NonNullable<PresentationContext['breadcrumbs']> {
+  const ancestry: NavigationEntry[] = [];
+  for (const ancestor of ancestors) {
+    const outcome = outcomes.get(ancestor);
+    if (outcome === undefined) throw new Error('Missing breadcrumb admission outcome.');
+    if (outcome === 'admitted') ancestry.push(Object.freeze({
+      owner: ancestor.owner, path: ancestor.path, title: ancestor.title, active: false,
+    }));
+  }
+  ancestry.push(Object.freeze({ owner: current.owner, path: pathname, title: current.title, active: true }));
+  return Object.freeze({ label: 'Breadcrumbs', ancestry: Object.freeze(ancestry) });
+}
+
 /**
  * Cap the rendered bytes: past PAGE_MAX_RESPONSE_BYTES the generator is
  * faulty (internal), else 200 HTML — HEAD with the same headers and an
@@ -394,6 +419,15 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   } catch (err) {
     return renderThrowResponse(deps, err, pathname);
   }
+  const candidates = selectDiscoveryCandidates(descriptors);
+  const ancestors = declaredAncestors(descriptors, candidates, match.descriptor);
+  const outcomes = await admitDiscovery(deps, partial ? ancestors : candidates, source);
+  let breadcrumbs: ReturnType<typeof pageBreadcrumbs>;
+  try {
+    breadcrumbs = pageBreadcrumbs(match.descriptor, pathname, ancestors, outcomes);
+  } catch (err) {
+    return internalResponse(deps, err, pathname);
+  }
   if (partial) {
     const context = buildPresentationContext({
       ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
@@ -405,6 +439,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       csrfToken,
       principal: identity,
       source,
+      breadcrumbs,
       query,
       ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
       ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
@@ -432,8 +467,6 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     return cappedHtmlResponse(deps, html, { method, path: pathname });
   }
 
-  const candidates = selectDiscoveryCandidates(descriptors);
-  const outcomes = await admitDiscovery(deps, candidates, source);
   let navigation: NavigationResult;
   try {
     navigation = buildNavigation(candidates, outcomes, {
@@ -473,6 +506,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     csrfToken,
     principal: identity,
     source,
+    breadcrumbs,
     query,
     ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
     ...(scope?.readHistory === undefined ? {} : { readHistory: scope.readHistory }),
