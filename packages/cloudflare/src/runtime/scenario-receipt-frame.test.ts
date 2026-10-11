@@ -11,16 +11,21 @@ import { createMemoryStorage } from '@canlang/state/storage/memory';
 import { isGeneratedOperationDef, loadArtifactDescriptors, type ArtifactDescriptorSlice } from '@canlang/state/invocation/registry';
 import { invoke, type ExecutionEffects } from '@canlang/state/invocation/invoke';
 import { beginScenarioReceiptMutation, bindScenarioReceiptCallProducer,
-  invokeScenarioReceiptCall as invokeStateCall, readScenarioReceiptAssociation } from '@canlang/state/invocation';
+  invokeScenarioReceiptCall as invokeStateCall, bindScenarioReceiptQueryProducer, bindScenarioReceiptReferenceProducer,
+  readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import { buildModelTable } from '@canlang/state/mutation';
+import { buildPolicyTable } from '@canlang/state/policy/grants';
+import type { ViewerSourceReadPolicy } from '@canlang/state/query';
+import { first as pureFirst, count as pureValuesCount } from '@canlang/values';
 import { field, modelDef } from '@canlang/state/testing/mutation/fixtures';
-import { FIXED_NOW, asModel, createMemoryIdentityStore, makeIdentity, makeEnvelope,
+import { FIXED_NOW, asId, asModel, createMemoryIdentityStore, makeIdentity, makeEnvelope, makeBatch,
   seedMember, seedRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { createContext, type HandlerContext } from './context.js';
 import { bindNativeRecord } from './native-records.js';
-import { invokeScenarioReceiptCall, openScenarioReceiptFrame } from './scenario-receipt-frame.js';
+import { invokeScenarioReceiptCall, openScenarioReceiptFrame, firstQuery, countQuery, bindScenarioReceiptModelResult,
+  executeScenarioReceiptQuery as executeNativeQuery, observeScenarioReceiptQueryDependency as observeNativeQueryDependency } from './scenario-receipt-frame.js';
 import type { ScenarioReceiptFrame } from './scenario-receipt-frame.js';
-import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn } from './stdlib.js';
+import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn, count as pureCount, int64 } from './stdlib.js';
 
 const MODEL = asModel('Bridge.Record'), OP = 'Bridge.saved', APP = 'bridge-component';
 const source = 'package Bridge\nmodel Record do\n  visible: text\nend\n';
@@ -378,6 +383,53 @@ it('owns detached pending failures and refuses overlapping markers or selection 
   }
 });
 
+it('keeps a receiving dependency capture inside its original pending frame lifetime', async () => {
+  for (const closed of [false, true]) {
+    const w = await world(), baseline = await w.store.readRevision();
+    let release!: () => void, entered!: () => void, first: unknown;
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const failures: unknown[] = [];
+    let loads = 0, captureLoads = 0, captures = 0;
+    const store: StoragePort = { ...w.store, load: async (model, id) => {
+      loads++; return w.store.load(model, id);
+    } };
+    const attempt = invoke({ ...w, store, execute: async call => {
+      const c = context({ ...w, store }, call.context);
+      const row = call.recordRefs[0]!.row, view = native(row);
+      const frame = openScenarioReceiptFrame(c, call, store, error => { failures.push(error); },
+        undefined, undefined, async (input, healthy) => {
+          captures++;
+          assert.equal(input.dependencyId, 'visible'); assert.equal(input.model, MODEL);
+          assert.equal(input.field, 'visible'); assert.deepEqual(input.row, row);
+          healthy(); captureLoads = loads; entered(); await waiting; healthy();
+          return undefined;
+        });
+      try {
+        frame.bind(view, MODEL, () => row);
+        const pending = observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
+        await started;
+        if (closed) frame.close();
+        release();
+        try { await pending; } catch (error) { first = error; }
+        if (closed) {
+          assert.ok(validation(first)); assert.equal(loads, captureLoads, 'closed capture never reaches State observation');
+          assert.deepEqual(failures, [first]);
+          assert.throws(() => frame.assertCompleted(), error => error === first);
+        }
+        selectScenarioReceiptReturn(c, 'selected'); frame.assertCompleted();
+        return effects(row.data['visible']);
+      } finally { release(); frame.close(); }
+    } });
+    if (closed) {
+      await assert.rejects(attempt, error => error === first);
+      rejectedFence(w, baseline, first);
+    } else await attempt;
+    assert.equal(captures, 1);
+    assert.deepEqual(await w.store.load(MODEL, w.row.id), w.row);
+  }
+});
+
 it('joins a genuine State child frame and original slots; caught call failures roll back the enclosing stage', async () => {
   const CHILD = 'Bridge.child';
   for (const mode of ['positive', 'missing-callback', 'closed', 'overlap', 'state-rejection'] as const) {
@@ -480,5 +532,277 @@ it('joins a genuine State child frame and original slots; caught call failures r
       assert.equal(childExecutions, mode === 'overlap' ? 1 : 0);
     }
     assert.equal(publicStoreReads, 0);
+  }
+});
+
+/** Consumer-only first(Query) controls. The owning fixture metadata is handbuilt
+ * like the other bridge controls; candidates/handles/rows come from actual State.
+ * No Compiler/native acceptance is asserted here. */
+async function firstQueryWorld(domain: 'matched' | 'empty' | 'false' = 'matched', consumer: 'first' | 'count' = 'first') {
+  const w = await world(slice => {
+    intrinsicFixture(slice);
+    slice.operations![0]!.inputs.fields.shift(); // Remove the fixture's record parameter before loading; keep its declared prompt.
+    slice.operations![0]!.result = { type: MODEL as CanTypeId, disclosure: {
+      version: 1, source: origin, queries: [{ id: 'first-record', source: origin, model: MODEL,
+        order: [{ field: 'id', direction: 'asc' }], limit: null, archived: 'exclude',
+        dependencies: [{ id: 'visible-control', source: origin, role: 'control', field: 'visible', type: 'text' as CanTypeId }],
+      }], returns: [{ id: 'first-result', source: origin,
+        dependencies: domain === 'matched' && consumer === 'first' ? [plan.returns[0]!.dependencies[0]!] : [],
+        influences: (['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
+          .map(kind => ({ id: kind, kind, queryId: 'first-record' })),
+      }],
+    } };
+  });
+  // The admitted original seed is a genuine false candidate. Empty means an
+  // actual empty live query domain; the removed seed is fixture setup only.
+  if (domain === 'empty') await w.store.commit(makeBatch(await w.store.readRevision(), {
+    writes: [{ kind: 'remove', model: MODEL, id: w.row.id, expectedVersion: w.row.version }],
+  }));
+  const seededRows = domain === 'empty' ? [] : [
+    await seedRow(w.store, MODEL, { id: 'first-z', data: { visible: domain === 'false' ? 'excluded z' : 'matched z' } }),
+    await seedRow(w.store, MODEL, { id: 'first-a', data: { visible: domain === 'false' ? 'excluded a' : 'matched a' } }),
+  ];
+  const selectedRows = await Promise.all(seededRows.map(async row => {
+    const stored = await w.store.load(MODEL, row.id); assert.ok(stored); return stored;
+  }));
+  const def = w.registry.get(OP); assert.ok(def && isGeneratedOperationDef(def));
+  const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['visible'] }] }]);
+  const readPolicies = new Map<import('@canlang/contracts').ModelName, ViewerSourceReadPolicy>([[MODEL, {
+    fields: ['visible'], secretFields: [], grants: [{ fields: ['id', 'visible'],
+      read: async ({ context }) => context.membership?.status === 'active' }],
+  }]]);
+  bindScenarioReceiptReferenceProducer(def, { source: origin, app: APP, policy, readPolicies });
+  bindScenarioReceiptQueryProducer(def, { source: origin, app: APP, policy });
+  const table = buildModelTable([modelDef(MODEL, { fields: { visible: field({ required: true }) } })]);
+  // Keep setup outside the observed invocation fence, as world() already does.
+  w.batches.length = 0;
+  // Query has no admitted model parameter; an empty domain must not require one.
+  const envelope = makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { prompt: 'original prompt' });
+  return { ...w, table, selectedRows, envelope };
+}
+
+function queryCandidate(model: string, row: import('@canlang/contracts').ProjectedRecord,
+  read: (field: string) => void, current: () => import('@canlang/contracts').ProjectedRecord) {
+  const view: Record<string, unknown> = Object.create(null);
+  for (const field of Object.keys(row.data)) Object.defineProperty(view, field, {
+    enumerable: true, get: () => { read(field); return current().data[field]; },
+  });
+  bindNativeRecord(view, model, row.id, row.version); return Object.freeze(view);
+}
+
+it('firstQuery binds the actual sorted State owner row or genuine null and preserves receipt replay', async () => {
+  assert.equal(pureFirst([]), null);
+  const literal = { literal: true }; assert.equal(pureFirst([literal]), literal);
+  assert.equal(pureFirst([literal]) instanceof Promise, false);
+  for (const domain of ['matched', 'empty', 'false'] as const) {
+    const w = await firstQueryWorld(domain), failures: unknown[] = [], issued: StoredRow[] = [];
+    let receipt: Receipt | undefined, escaped: HandlerContext | undefined, originalArray: unknown;
+    let predicates = 0, executions = 0;
+    const input: Parameters<typeof invoke>[0] = { ...w, observeCommittedReceipt: value => { receipt = value; }, execute: async call => {
+      executions++;
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+      const c = context(w, call.context);
+      let frame!: ScenarioReceiptFrame;
+      const bind = (row: StoredRow) => {
+        const view = Object.freeze({ visible: row.data['visible'] });
+        bindNativeRecord(view, MODEL, row.id, row.version); frame.bind(view, MODEL, () => row); return view;
+      };
+      frame = openScenarioReceiptFrame(c, call, w.store, error => failures.push(error), undefined, {
+        record: queryCandidate, encode: value => value,
+        mutableRecord: (model, row) => { assert.equal(model, MODEL); issued.push(row); return bind(row); },
+      });
+      try {
+        const rows = await executeNativeQuery(c, 'first-record', row => {
+          predicates++; const visible = row['visible'];
+          observeNativeQueryDependency(c, MODEL, row, 'visible', 'visible-control');
+          return typeof visible === 'string' && visible.startsWith('matched');
+        });
+        originalArray = rows; escaped = c;
+        await assert.rejects(firstQuery({ ...c }, rows), validation);
+        assert.deepEqual(failures, [], 'foreign context does not poison this source');
+        const selected = await firstQuery(c, rows);
+        if (domain === 'matched') {
+          assert.ok(selected); assert.equal(selected['visible'], 'matched a');
+          assert.equal(issued.length, 1); assert.equal(issued[0]!.id, 'first-a');
+          await observeScenarioReceiptDependency(c, MODEL, selected, 'visible', 'visible');
+          await session.stage({ op: 'update', model: MODEL, id: issued[0]!.id, data: { visible: 'changed first' } }, { cause: 'scenario' });
+        } else { assert.equal(selected, null); assert.deepEqual(issued, []); }
+        await session.stage({ op: 'create', model: MODEL, id: asId('first-created'), data: {
+          visible: domain === 'matched' ? 'matched a' : 'genuine absence',
+        } }, { cause: 'scenario' });
+        const created = await session.read(MODEL, asId('first-created')); assert.ok(created);
+        const result = await bindScenarioReceiptModelResult(c, 'first-result', bind(created));
+        selectScenarioReceiptReturn(c, 'first-result'); frame.assertCompleted();
+        return { ...await session.finalize(), result, outbox: [] };
+      } finally { frame.close(); }
+    } };
+    assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
+    const saved = readScenarioReceiptAssociation(receipt)!.queries![0]!;
+    assert.equal(saved.candidates.length, domain === 'empty' ? 0 : 3);
+    assert.deepEqual(saved.selectedIndices.map(index => saved.candidates[index]!.row.id), domain === 'matched' ? ['first-a', 'first-z'] : []);
+    if (domain === 'matched') {
+      assert.equal((await w.store.load(MODEL, asId('first-a')))!.data['visible'], 'changed first');
+      assert.equal((await w.store.load(MODEL, asId('first-z')))!.data['visible'], 'matched z');
+    }
+    const revision = await w.store.readRevision();
+    assert.equal((await invoke(input)).status, 'replayed'); assert.equal(executions, 1);
+    assert.equal(predicates, domain === 'empty' ? 0 : 3); assert.equal(await w.store.readRevision(), revision);
+    assert.equal(w.batches.length, 1); assert.deepEqual(failures, []);
+    assert.ok(escaped); await assert.rejects(firstQuery(escaped, originalArray), validation);
+  }
+});
+
+it('firstQuery refuses copied, repeated, stale and pending/closed consumer lifetimes without escaping an owner row', async () => {
+  for (const mode of ['copy', 'once', 'stale', 'close', 'overlap', 'binder-close'] as const) {
+    const w = await firstQueryWorld(), baseline = await w.store.readRevision(), failures: unknown[] = [];
+    let first: unknown, bindings = 0, release!: () => void, entered!: () => void;
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    await assert.rejects(invoke({ ...w, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+      const c = context(w, call.context); let frame!: ScenarioReceiptFrame;
+      frame = openScenarioReceiptFrame(c, call, w.store, error => failures.push(error), undefined, {
+        record: queryCandidate, encode: value => value,
+        mutableRecord: async (model, row) => {
+          assert.equal(model, MODEL); assert.equal(row.id, 'first-a'); bindings++;
+          if (mode === 'overlap' || mode === 'binder-close') { entered(); await waiting; }
+          const view = native(row); frame.bind(view, MODEL, () => row); return view;
+        },
+      });
+      try {
+        const rows = await executeNativeQuery(c, 'first-record', row => {
+          const visible = row['visible']; observeNativeQueryDependency(c, MODEL, row, 'visible', 'visible-control');
+          return typeof visible === 'string' && visible.startsWith('matched');
+        });
+        if (mode === 'stale') await session.stage({ op: 'update', model: MODEL, id: asId('first-z'), data: { visible: 'next stage' } }, { cause: 'scenario' });
+        if (mode === 'close') frame.close();
+        const pending = firstQuery(c, mode === 'copy' ? [...rows] : rows);
+        if (mode === 'overlap' || mode === 'binder-close') {
+          await Promise.race([started, pending.then(() => assert.fail('Expected pending mutable owner binding.'))]);
+          if (mode === 'binder-close') frame.close();
+          else try { await firstQuery(c, rows); } catch (error) { first = error; }
+          release();
+        }
+        try { await pending; if (mode === 'once') await firstQuery(c, rows); }
+        catch (error) { first ??= error; assert.equal(error, first); }
+        assert.ok(validation(first), mode);
+        assert.throws(() => frame.assertCompleted(), error => error === first);
+        assert.deepEqual(failures, [first]);
+        frame.assertCompleted(); return effects('must not commit');
+      } finally { release(); frame.close(); }
+    } }), error => error === first);
+    assert.equal(bindings, ['once', 'overlap', 'binder-close'].includes(mode) ? 1 : 0, mode);
+    rejectedFence(w, baseline, first);
+    for (const row of w.selectedRows) assert.deepEqual(await w.store.load(MODEL, row.id), row);
+    assert.equal(await w.store.load(MODEL, asId('first-created')), null);
+  }
+});
+
+/** Actual State count consumer bridge only; generated count/containment source
+ * and arithmetic lowering remain a separate Compiler/native prerequisite. */
+it('countQuery consumes actual matched cardinality as Can bigint and preserves created result/census on replay', async () => {
+  assert.equal(pureValuesCount([]), 0n); assert.equal(pureCount([]), 0n);
+  assert.equal(pureValuesCount([1n, 2n]), 2n); assert.equal(pureCount([1n, 2n]), 2n);
+  assert.equal(typeof pureCount([1n, 2n]), 'bigint', 'generic count is synchronous');
+  for (const domain of ['matched', 'empty', 'false'] as const) {
+    const w = await firstQueryWorld(domain, 'count'), failures: unknown[] = [];
+    let receipt: Receipt | undefined, executions = 0, predicates = 0;
+    let escaped: HandlerContext | undefined, originalArray: unknown;
+    const expected = domain === 'matched' ? 2n : 0n;
+    const input: Parameters<typeof invoke>[0] = { ...w, observeCommittedReceipt: value => { receipt = value; }, execute: async call => {
+      executions++;
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+      const c = context(w, call.context), frame = openScenarioReceiptFrame(c, call, w.store, error => failures.push(error), undefined, {
+        record: queryCandidate, encode: value => value,
+        // A count-only consumer deliberately has no mutable first-row binder.
+      });
+      try {
+        const rows = await executeNativeQuery(c, 'first-record', row => {
+          predicates++; const visible = row['visible'];
+          observeNativeQueryDependency(c, MODEL, row, 'visible', 'visible-control');
+          return typeof visible === 'string' && visible.startsWith('matched');
+        });
+        await assert.rejects(countQuery({ ...c }, rows), validation);
+        assert.deepEqual(failures, [], 'foreign context cannot poison the original count');
+        originalArray = rows; escaped = c;
+        const count = await countQuery(c, rows);
+        assert.equal(count, expected); assert.equal(typeof count, 'bigint');
+        const next = int64(count + 1n); assert.equal(next, expected + 1n);
+        await session.stage({ op: 'create', model: MODEL, id: asId('count-created'),
+          data: { visible: next.toString() } }, { cause: 'scenario' });
+        const created = await session.read(MODEL, asId('count-created')); assert.ok(created);
+        const view = native(created); frame.bind(view, MODEL, () => created);
+        const result = await bindScenarioReceiptModelResult(c, 'first-result', view);
+        selectScenarioReceiptReturn(c, 'first-result'); frame.assertCompleted();
+        return { ...await session.finalize(), result, outbox: [] };
+      } finally { frame.close(); }
+    } };
+    assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
+    const saved = readScenarioReceiptAssociation(receipt)!.queries![0]!;
+    assert.equal(saved.candidates.length, domain === 'empty' ? 0 : 3);
+    assert.deepEqual(saved.selectedIndices.map(index => saved.candidates[index]!.row.id),
+      domain === 'matched' ? ['first-a', 'first-z'] : []);
+    assert.ok(saved.candidates.every(candidate => candidate.dependencies.includes('visible-control')));
+    assert.equal(saved.candidates.find(candidate => candidate.row.id === w.row.id)?.matched,
+      domain === 'empty' ? undefined : false);
+    const created = await w.store.load(MODEL, asId('count-created')); assert.ok(created);
+    assert.equal(created.data['visible'], (expected + 1n).toString());
+    for (const row of w.selectedRows) assert.deepEqual(await w.store.load(MODEL, row.id), row);
+    assert.deepEqual(await w.store.outboxPending(), []);
+    assert.equal(w.batches.length, 1); assert.equal(w.batches[0]!.writes.length, 1);
+    const revision = await w.store.readRevision(), retained = structuredClone(receipt);
+    assert.equal((await invoke(input)).status, 'replayed'); assert.equal(executions, 1);
+    assert.equal(predicates, domain === 'empty' ? 0 : 3); assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await w.store.load(MODEL, asId('count-created')), created);
+    assert.deepEqual(receipt, retained); assert.equal(w.batches.length, 1); assert.deepEqual(failures, []);
+    assert.ok(escaped); await assert.rejects(countQuery(escaped, originalArray), validation);
+  }
+});
+
+it('countQuery refuses copied arrays, repeat/mutual first selection, stale stage and closed or overlapping frame', async () => {
+  for (const mode of ['copy', 'once', 'count-first', 'first-count', 'stale', 'close', 'overlap'] as const) {
+    const w = await firstQueryWorld('matched', 'count'), baseline = await w.store.readRevision(), failures: unknown[] = [];
+    let first: unknown, bindings = 0;
+    await assert.rejects(invoke({ ...w, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+      const c = context(w, call.context); let frame!: ScenarioReceiptFrame;
+      frame = openScenarioReceiptFrame(c, call, w.store, error => failures.push(error), undefined, {
+        record: queryCandidate, encode: value => value,
+        ...(mode !== 'first-count' ? {} : { mutableRecord: (model: string, row: StoredRow) => {
+          assert.equal(model, MODEL); assert.equal(row.id, 'first-a'); bindings++;
+          const view = native(row); frame.bind(view, MODEL, () => row); return view;
+        } }),
+      });
+      try {
+        const rows = await executeNativeQuery(c, 'first-record', row => {
+          const visible = row['visible']; observeNativeQueryDependency(c, MODEL, row, 'visible', 'visible-control');
+          return typeof visible === 'string' && visible.startsWith('matched');
+        });
+        if (mode === 'stale') await session.stage({ op: 'update', model: MODEL, id: asId('first-z'),
+          data: { visible: 'next stage' } }, { cause: 'scenario' });
+        if (mode === 'close') frame.close();
+        if (mode === 'first-count') assert.ok(await firstQuery(c, rows));
+        const pending = countQuery(c, mode === 'copy' ? [...rows] : rows);
+        if (mode === 'overlap') {
+          try { await countQuery(c, rows); } catch (error) { first = error; }
+        }
+        try {
+          const count = await pending;
+          assert.equal(count, 2n);
+          if (mode === 'once') await countQuery(c, rows);
+          if (mode === 'count-first') await firstQuery(c, rows);
+        } catch (error) { first ??= error; assert.equal(error, first); }
+        assert.ok(validation(first), mode);
+        assert.throws(() => frame.assertCompleted(), error => error === first);
+        assert.deepEqual(failures, [first]);
+        frame.assertCompleted(); return effects('must not commit');
+      } finally { frame.close(); }
+    } }), error => error === first);
+    assert.equal(bindings, mode === 'first-count' ? 1 : 0, 'count cannot mint a mutable first-row view');
+    rejectedFence(w, baseline, first);
+    for (const row of w.selectedRows) assert.deepEqual(await w.store.load(MODEL, row.id), row);
+    assert.deepEqual(await w.store.historyFor(MODEL, w.selectedRows[0]!.id), []);
+    assert.deepEqual(await w.store.outboxPending(), []);
+    assert.equal(await w.store.load(MODEL, asId('count-created')), null);
   }
 });
