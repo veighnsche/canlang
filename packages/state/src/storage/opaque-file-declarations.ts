@@ -15,6 +15,8 @@ import { deepFreeze } from '../internal/own-data.js';
 import { stableStringify } from '../invocation/replay.js';
 import { bindDeclaredFileReferenceProfile, bindFileReferenceProfile, fileReferenceOccurrences,
   type FileReferenceProfile, type FileReferenceProfileBound } from '../ports/file-reference-profile.js';
+import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences,
+  type ModelLexicalSnapshotProfile } from '../ports/model-lexical-snapshot.js';
 import { createJudgmentReceiptContext, readJudgmentResult } from '../receipt/tables.js';
 
 export interface BoundOpaqueDeclarations {
@@ -23,6 +25,7 @@ export interface BoundOpaqueDeclarations {
 interface BoundInput {
   readonly declaration: CanonicalInputDef;
   readonly profile: FileReferenceProfile;
+  readonly modelSnapshot?: ModelLexicalSnapshotProfile;
 }
 interface BoundDeclaration {
   readonly declaration: FrameworkOpaqueDeclaration;
@@ -165,7 +168,7 @@ const scalarTypes: Readonly<Record<string, string>> = {
   string: 'text', integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
   duration: 'duration', user: 'user', boolean: 'bool', file: 'file',
 };
-function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInputDef, artifact: Readonly<ArtifactOperationInput>): BoundInput {
+function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInputDef, artifact: Readonly<ArtifactOperationInput>, sendOnly = false): BoundInput {
   const input = record(canonical, ['name', 'kind', 'required'], ['model', 'versioned', 'valueType', 'enumValues',
     'delivery', 'array', 'nullable', 'min', 'max', 'default', 'computedDefault']);
   const authored = record(artifact, ['name', 'field', 'required'], ['valueType', 'nullable', 'array', 'min', 'max',
@@ -233,7 +236,8 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
   if ((canonical as { default?: { kind: string; value?: unknown } }).default?.kind === 'literal') {
     fileReferenceOccurrences(profile, (canonical as { default: { value: unknown } }).default.value);
   }
-  return { declaration: canonical, profile };
+  const modelSnapshot = sendOnly ? bindModelLexicalSnapshotProfile(values, original) : undefined;
+  return { declaration: canonical, profile, ...(modelSnapshot === undefined ? {} : { modelSnapshot }) };
 }
 function nominalResult(values: FileReferenceProfileBound, canonical: unknown, artifact: unknown): FileReferenceProfile {
   same(canonical, artifact);
@@ -341,7 +345,7 @@ export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclara
         if (from.kind === 'send-guard' && canonical.length !== from.inputs.length) return refuse('complete original send-guard inputs required.');
         const members = new Map<string, BoundInput>();
         for (let index = 0; index < canonical.length; index++) {
-          const input = boundInput(values, canonical[index] as CanonicalInputDef, artifact[index] as ArtifactOperationInput);
+          const input = boundInput(values, canonical[index] as CanonicalInputDef, artifact[index] as ArtifactOperationInput, from.kind === 'send-guard');
           if (from.kind === 'send-guard') {
             const expected = from.inputs[index]!;
             if (input.declaration.name !== expected.name || input.profile.type !== expected.type || input.declaration.required !== true ||
@@ -394,12 +398,13 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
         continue;
       }
       const member = data[name];
-      if (input.declaration.kind === 'ref' && input.declaration.versioned) {
+      if (input.modelSnapshot === undefined && input.declaration.kind === 'ref' && input.declaration.versioned) {
         for (const ref of input.profile.array && member !== null ? array(member) : member === null ? [] : [member]) {
           if (typeof ref !== 'object' || ref === null || !Object.hasOwn(ref, 'version')) return refuse('original admitted reference version required.');
         }
       }
-      for (const item of fileReferenceOccurrences(input.profile, member)) found.push({ path: [name, ...item.path], ref: item.ref });
+      for (const item of input.modelSnapshot === undefined ? fileReferenceOccurrences(input.profile, member)
+        : modelLexicalSnapshotOccurrences(input.modelSnapshot, member)) found.push({ path: [name, ...item.path], ref: item.ref });
     }
     return deepFreeze(found);
   }

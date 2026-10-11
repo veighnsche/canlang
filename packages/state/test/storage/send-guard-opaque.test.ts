@@ -2,10 +2,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { FrameworkFilePayloadOrigin, FrameworkFileReferenceModel, FrameworkOpaqueDeclarationSet,
-  FrameworkOpaqueSendGuardDeclaration, FileReferenceInventory, FileRetirementAuthority, OperationName, OperationId } from '@canlang/contracts';
+  ArtifactModel, CanTypeId, CanonicalModelDescriptor, FrameworkOpaqueSendGuardDeclaration, FileReferenceInventory, FileRetirementAuthority, OperationName, OperationId } from '@canlang/contracts';
 import { normalizeValueTypes } from '@canlang/values';
 import { bindOpaqueFileDeclarations, resolveOpaqueFileProjection, validateOpaqueFileOrigin } from '../../src/storage/opaque-file-declarations.js';
 import { bindFileFrameworkProducers, emptyFileGuard, guardFileCommit, checkedFileInventory } from '../../src/storage/file-retirement.js';
+import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences } from '../../src/ports/model-lexical-snapshot.js';
 import { asId, asModel, asRevision, makeRow } from '../invocation/fixtures.js';
 
 const source = { path: 'guard.can', sha256: 'a'.repeat(64), module: 'guard.mjs' };
@@ -111,4 +112,85 @@ test('only absent optional deferred payloads may skip census; present values and
     { kind: 'opaque', role: 'deferred-input', optional: false }]) {
     assert.throws(() => bindFileFrameworkProducers([{ models: [{ ...declaration, fields: { sourceGuard: field } } as unknown as FrameworkFileReferenceModel], validateRow: () => {} }]));
   }
+});
+
+
+function modelSnapshotSet(): FrameworkOpaqueDeclarationSet {
+  const set = declarationSet(), model = asModel('Guard.Run');
+  const fields: ArtifactModel['fields'] = [
+    { name: 'packet', field: { kind: 'nominal', name: 'Guard.Packet' }, valueType: 'Guard.Packet' as CanTypeId, required: true, serverOnly: false },
+    { name: 'hidden', field: { kind: 'secret' }, valueType: 'secret' as CanTypeId, required: false, serverOnly: true },
+  ];
+  const canonical: CanonicalModelDescriptor = { name: model, deleteMode: 'remove', fields: Object.fromEntries(fields.map(({ name, field: _field, ...value }) => [name, value])) };
+  Object.assign(set, { canonicalModels: [canonical], artifactModels: [{ name: model, deleteMode: 'remove', fields }],
+    valueTypes: structuredClone(normalizeValueTypes({ contracts: [{ name: 'Guard.Packet', fields: [
+      { name: 'photo', type: 'file' }, { name: 'photos', type: 'file[]' },
+    ] }] }, [model]).valueTypes),
+    originalContracts: { 'Guard.Packet': { fields: { photo: { type: 'file' }, photos: { type: 'file', array: true } } } },
+  });
+  const entry = set.declarations[0]!;
+  assert.equal(entry.source.kind, 'send-guard'); assert.equal(entry.profile.kind, 'inputs');
+  if (entry.source.kind !== 'send-guard' || entry.profile.kind !== 'inputs') throw new Error('fixture');
+  Object.assign(entry.source, { inputs: [{ name: 'run', type: model }] });
+  Object.assign(entry.profile, {
+    canonical: [{ name: 'run', kind: 'ref', model, versioned: false, required: true }],
+    artifact: [{ name: 'run', field: { kind: 'ref', model, requireVersion: false }, required: true }],
+  });
+  return set;
+}
+const snapshotProjection = { path: ['inputs'], kind: 'inputs' as const, declarationId: 'guard/inputs' };
+const modelSnapshot = () => ({ ...makeRow({ data: { packet: { photo: { id: 'one' }, photos: [{ id: 'two' }] } } }), parent: null });
+
+test('SEND model lexical snapshots census nested Files while partial projected fields remain absent', () => {
+  const bound = admit(modelSnapshotSet());
+  assert.deepEqual(resolveOpaqueFileProjection(bound, snapshotProjection, { run: modelSnapshot() }), [
+    { path: ['run', 'data', 'packet', 'photo'], ref: 'one' },
+    { path: ['run', 'data', 'packet', 'photos', 0], ref: 'two' },
+  ]);
+  assert.deepEqual(resolveOpaqueFileProjection(bound, snapshotProjection, { run: { ...modelSnapshot(), data: {} } }), []);
+  for (const wire of [{ id: 'bare-reference' }, { ...modelSnapshot(), archivedAt: 10 },
+    { ...modelSnapshot(), version: 0 }, { ...modelSnapshot(), extra: true },
+    { ...modelSnapshot(), parent: { model: 'Guard.Other', id: 'parent' } },
+    { ...modelSnapshot(), data: { extra: { id: 'untyped' } } },
+    { ...modelSnapshot(), data: { hidden: 'secret' } },
+    { ...modelSnapshot(), data: { packet: { photo: { id: 'one' }, photos: ['not-a-file'] } } }]) {
+    assert.throws(() => resolveOpaqueFileProjection(bound, snapshotProjection, { run: wire }));
+  }
+});
+
+test('model lexical profile retains exact containment and refuses copied profiles and namespace collisions', () => {
+  const set = modelSnapshotSet(), root = set.artifactModels[0]!;
+  const parent = asModel('Guard.Parent');
+  Object.assign(root, { parent });
+  Object.assign(set, { artifactModels: [...set.artifactModels, { name: parent, fields: [], deleteMode: 'remove' }],
+    canonicalModels: [...set.canonicalModels, { name: parent, fields: {}, deleteMode: 'remove' }] });
+  const values = { artifactModels: new Map(set.artifactModels.map(model => [asModel(model.name), model])),
+    canonicalModels: set.canonicalModels, valueTypes: set.valueTypes };
+  const profile = bindModelLexicalSnapshotProfile(values, asModel('Guard.Run'))!;
+  assert.deepEqual(modelLexicalSnapshotOccurrences(profile, { ...modelSnapshot(), parent: { model: parent, id: 'parent' }, data: {} }), []);
+  assert.throws(() => modelLexicalSnapshotOccurrences(profile, modelSnapshot()));
+  assert.throws(() => modelLexicalSnapshotOccurrences({ ...profile }, modelSnapshot()));
+  assert.equal(bindModelLexicalSnapshotProfile(values, 'file' as CanTypeId), undefined);
+  const mismatched = structuredClone(set.canonicalModels);
+  Object.assign(mismatched[0]!.fields.packet!, { valueType: 'text' });
+  assert.throws(() => bindModelLexicalSnapshotProfile({ ...values, canonicalModels: mismatched }, 'Guard.Run' as CanTypeId));
+  const unsupported = modelSnapshotSet();
+  const unknown = 'Guard.Unknown' as CanTypeId;
+  Object.assign(unsupported.artifactModels[0]!, { fields: [...unsupported.artifactModels[0]!.fields,
+    { name: 'untyped', field: { kind: 'nominal', name: unknown }, valueType: unknown, required: false, serverOnly: false }] });
+  Object.assign(unsupported.canonicalModels[0]!, { fields: { ...unsupported.canonicalModels[0]!.fields,
+    untyped: { valueType: unknown, required: false, serverOnly: false } } });
+  assert.throws(() => admit(unsupported));
+  assert.throws(() => bindModelLexicalSnapshotProfile(values, 'Guard.Run?' as CanTypeId));
+  assert.throws(() => bindModelLexicalSnapshotProfile({ ...values, valueTypes: { contracts: [
+    ...set.valueTypes.contracts, { name: 'Guard.Run', fields: [] },
+  ] } }, 'Guard.Run' as CanTypeId));
+  // Ordinary callable references retain their existing ModelRef wire semantics.
+  const ordinary = modelSnapshotSet(), entry = ordinary.declarations[0]!;
+  Object.assign(entry, { source: { kind: 'callable', source, callable: {
+    id: 'Guard.send', kind: 'operation', module: source.module, export: 'canApp', member: ['send'],
+  } } });
+  const bound = admit(ordinary);
+  assert.deepEqual(resolveOpaqueFileProjection(bound, { ...snapshotProjection, path: [] }, { run: { id: 'model-ref' } }), []);
+  assert.throws(() => resolveOpaqueFileProjection(bound, { ...snapshotProjection, path: [] }, { run: modelSnapshot() }));
 });

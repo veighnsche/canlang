@@ -1,16 +1,19 @@
 /** Defining State/Work component fixture. No original-source/native acceptance claim. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { BoundCapabilityRequest, CanTypeId, DeliveryRef, FileReferenceInventory, FrameworkOpaqueDeliveryContext, FrameworkOpaquePayloadOrigin, FrameworkFilePayloadOrigin, Revision } from '@canlang/contracts';
+import type { BoundCapabilityRequest, CanTypeId, DeliveryRef, FileReferenceInventory, FrameworkOpaqueDeliveryContext, FrameworkOpaquePayloadOrigin, FrameworkFilePayloadOrigin, Revision, StoredRow } from '@canlang/contracts';
 import { encodeValue, makeUserRef, makeDeliveryRef, SchemaError } from '@canlang/values';
+import { createFrozenClock, createMemoryIdentityStore as createOwningMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { STATE_FILE_REFERENCE_PRODUCER, prepareFrameworkFilePayloadOrigin } from '@canlang/state/storage';
 import { WORK_FILE_REFERENCE_PRODUCER } from '../src/kernel/file-reference-inventory.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice, type GeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { buildModelTableFromCanonical } from '@canlang/state/mutation/models';
+import { buildPolicyTable } from '@canlang/state/policy/grants';
 import { beginScenarioReceiptMutation, bindScenarioReceiptFrameworkProducer, invoke,
   selectScenarioReceiptReturn, stageScenarioReceiptDelivery, stageScenarioReceiptSend,
   bindScenarioReceiptSendMembershipProducer, evaluateScenarioReceiptSendMembership,
+  bindScenarioReceiptReferenceProducer,
   type AdmittedCall, type ExecutionEffects } from '@canlang/state/invocation';
 import { StateError } from '@canlang/state/errors';
 import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow } from '@canlang/state/receipt/tables';
@@ -24,6 +27,8 @@ const source = { path: 'guarded.can', sha256: 'b'.repeat(64), module: 'guarded.m
 const rule = 'Guarded.generate.send.0', node = { start: 10, end: 30 };
 const guard = { rule, source, owner: OP, node, binding: BINDING, target: TARGET,
   inputs: [{ name: 'subject', type: 'user' as CanTypeId }, { name: 'enabled', type: 'bool' as CanTypeId }] };
+const modelGuard = { ...guard, inputs: [{ name: 'run', type: MODEL as CanTypeId }, { name: 'enabled', type: 'bool' as CanTypeId }] };
+const OTHER_MODEL = asModel('Guarded.Other');
 let sequence = 82000;
 const textResult = { name: 'TextRun', fields: [
   { name: 'source', type: 'text' as CanTypeId }, { name: 'revision', type: 'int' as CanTypeId },
@@ -32,7 +37,7 @@ const textResult = { name: 'TextRun', fields: [
   { name: 'content', type: 'text' as CanTypeId }, { name: 'used_tokens', type: 'int?' as CanTypeId },
   { name: 'detail', type: 'text?' as CanTypeId },
 ] };
-function artifact(): ArtifactDescriptorSlice {
+function artifact(modelSnapshot = false): ArtifactDescriptorSlice {
   return { artifact_version: 1, valueTypes: { contracts: [textResult] }, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="Guarded.generate";', map: {
       version: 3, file: source.module, sources: [source.path], sourcesContent: [null], names: [], mappings: '' } }],
@@ -40,8 +45,14 @@ function artifact(): ArtifactDescriptorSlice {
     models: [{ name: MODEL, deleteMode: 'archive', fields: [
       { name: 'title', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true, serverOnly: false },
       { name: 'request', field: { kind: 'delivery', capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
-        result: textResult }, required: true, nullable: false, serverOnly: false },
-    ] }], operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [] },
+        result: textResult }, required: !modelSnapshot, nullable: modelSnapshot, serverOnly: false },
+      ...(modelSnapshot ? [
+        { name: 'author', field: { kind: 'user' as const }, valueType: 'user' as CanTypeId, required: true, serverOnly: false },
+        { name: 'stop_requested', field: { kind: 'boolean' as const }, valueType: 'bool' as CanTypeId, required: true, serverOnly: false },
+      ] : []),
+    ] }, ...(modelSnapshot ? [{ name: OTHER_MODEL, deleteMode: 'archive' as const, fields: [
+      { name: 'title', field: { kind: 'string' as const }, required: true, serverOnly: false },
+    ] }] : [])], operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [] },
       result: { type: 'void' as CanTypeId, disclosure: { version: 1, source,
         returns: [{ id: 'done', source, dependencies: [], influences: [] }] } } }],
   };
@@ -49,15 +60,28 @@ function artifact(): ArtifactDescriptorSlice {
 function request(): BoundCapabilityRequest {
   return { binding: BINDING, from: FROM, arguments: { value: { source: 'run-request', revision: '7', prompt: 'Generate' } } };
 }
-async function world(mode: 'plain' | 'membership' = 'plain', verdict = true, initiallyActive = true, receiptMode: 'ordinary' | 'wrong-association' | 'advance-revision' = 'ordinary') {
-  const memberships = createMemoryIdentityStore(), actor = await seedMember(memberships, { isOwner: false });
-  const subject = await memberships.createUser('guard-subject@example.test');
-  const member = initiallyActive ? await memberships.createMembership({ team_id: actor.team.team_id, user_id: subject.user_id, is_owner: false, roles: [] }) : null;
+async function world(mode: 'plain' | 'membership' | 'model' = 'plain', verdict = true, initiallyActive = true, receiptMode: 'ordinary' | 'wrong-association' | 'advance-revision' = 'ordinary') {
+  const { memberships, actor, subject, member } = await (async () => {
+    if (mode === 'model') {
+      const memberships = createOwningMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
+      const team = await memberships.createTeam({ timezone: 'UTC' });
+      const user = await memberships.createUser({ email: 'guard-caller@example.test', password_hash: 'component-fixture', email_verified: true });
+      const membership = await memberships.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+      const subject = await memberships.createUser({ email: 'guard-subject@example.test', password_hash: 'component-fixture', email_verified: true });
+      const member = initiallyActive ? await memberships.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] }) : null;
+      return { memberships, actor: { user, team, membership }, subject, member };
+    }
+    const memberships = createMemoryIdentityStore(), actor = await seedMember(memberships, { isOwner: false });
+    const subject = await memberships.createUser('guard-subject@example.test');
+    const member = initiallyActive ? await memberships.createMembership({ team_id: actor.team.team_id, user_id: subject.user_id, is_owner: false, roles: [] }) : null;
+    return { memberships, actor, subject, member };
+  })();
   const authority = { app: APP, stateOwner: 'Guarded', stateStoreId: 'guarded-state', fileStoreId: 'guarded-files',
     receiver: { app: APP, team: actor.team.team_id, owner: actor.team.team_id } };
   const producers = [STATE_FILE_REFERENCE_PRODUCER, WORK_FILE_REFERENCE_PRODUCER];
   const { store, probe } = createTestMemoryStorage(authority, producers);
-  const original = artifact(), loaded = loadArtifactDescriptors(original, { by: 'members' });
+  const original = artifact(mode === 'model'), loaded = loadArtifactDescriptors(original, { by: 'members' });
+  const selectedGuard = mode === 'model' ? modelGuard : guard;
   const def = loaded.registry.get(OP)! as GeneratedOperationDef;
   const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields, containment: loaded.containment,
@@ -90,11 +114,13 @@ async function world(mode: 'plain' | 'membership' = 'plain', verdict = true, ini
           profile: { kind: 'void', canonical: { ...def.descriptor.result!, type: 'void' }, artifact: { ...authored.result!, type: 'void' } } },
         { id: providerResult, source: { kind: 'delivery', source, context: declaration },
           profile: { kind: 'provider-result', canonical: canonicalDelivery.result, artifact: deliveryField.field.result } },
-        { id: guardInputs, source: { kind: 'send-guard', ...guard }, profile: { kind: 'inputs', canonical: [
-          { name: 'subject', kind: 'user', valueType: 'user', required: true },
+        { id: guardInputs, source: { kind: 'send-guard', ...selectedGuard }, profile: { kind: 'inputs', canonical: [
+          ...(mode === 'model' ? [{ name: 'run', kind: 'ref' as const, model: MODEL, versioned: true, required: true }] :
+            [{ name: 'subject', kind: 'user' as const, valueType: 'user', required: true }]),
           { name: 'enabled', kind: 'boolean', valueType: 'bool', required: true },
         ], artifact: [
-          { name: 'subject', field: { kind: 'user' }, valueType: 'user', required: true },
+          ...(mode === 'model' ? [{ name: 'run', field: { kind: 'ref' as const, model: MODEL, requireVersion: true }, valueType: MODEL, required: true }] :
+            [{ name: 'subject', field: { kind: 'user' as const }, valueType: 'user', required: true }]),
           { name: 'enabled', field: { kind: 'boolean' }, valueType: 'bool', required: true },
         ] } },
       ],
@@ -108,12 +134,21 @@ async function world(mode: 'plain' | 'membership' = 'plain', verdict = true, ini
   let handles: ReturnType<typeof bindScenarioReceiptSendMembershipProducer>, calls = 0, stages = 0, captures = 0;
   let duringGuard: (() => Promise<void>) | undefined;
   let foreignSite: ReturnType<typeof bindScenarioReceiptSendMembershipProducer>[number] | undefined;
+  const modelAccess = { allowed: true, sendAttempts: 0 }, guardSnapshots: StoredRow[] = [];
   bindScenarioReceiptFrameworkProducer(def, { source, app: APP,
     bindings: [{ binding: BINDING, from: FROM, targets: [{ source: TARGET, correlation: 'value' }] }],
-    sendGuards: [guard], evaluateGuard: async ({ call, inputs }) => {
+    sendGuards: [selectedGuard], evaluateGuard: async ({ call, inputs }) => {
       calls++;
       const enabled = inputs.enabled === true;
       let allowed = enabled && verdict;
+      if (mode === 'model') {
+        const row = inputs.run as StoredRow;
+        assert.ok(Object.isFrozen(row)); assert.ok(Object.isFrozen(row.data));
+        assert.equal(row.id, ID); assert.ok(Number.isInteger(row.version));
+        assert.deepEqual(row.data.author, encodeValue('user', makeUserRef(subject.user_id)));
+        guardSnapshots.push(structuredClone(row));
+        allowed = allowed && row.data.stop_requested === false;
+      }
       if (mode === 'membership' && enabled) {
         assert.ok(call.context.team);
         pairs.set(call, { person: makeUserRef((inputs.subject as { id: string }).id), team: call.context.team });
@@ -124,7 +159,7 @@ async function world(mode: 'plain' | 'membership' = 'plain', verdict = true, ini
       prepareSourceGuardOrigin: async (row, intent) => prepareFrameworkFilePayloadOrigin(store, {
         expectedRevision: await store.readRevision(), inventoryOwner: identity.owner, declarationSetId: 'guarded/original',
         model: WORK_DISPATCH_MODEL, row, field: 'sourceGuard', scope, files: [],
-        origin: { kind: 'send-guard', declaration: guard, inputsDeclarationId: guardInputs, intent: {
+        origin: { kind: 'send-guard', declaration: selectedGuard, inputsDeclarationId: guardInputs, intent: {
           intentId: intent.intentId, operation: intent.operation, operationId: intent.operationId, target: intent.target,
           occurrenceIndex: intent.occurrenceIndex, dispatchGuard: intent.dispatchGuard! } },
       }),
@@ -157,6 +192,17 @@ async function world(mode: 'plain' | 'membership' = 'plain', verdict = true, ini
       return header;
     },
   });
+  if (mode === 'model') {
+    const fields = ['title', 'request', 'author', 'stop_requested'];
+    const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields }] }]);
+    bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies: new Map([[MODEL, {
+      fields, secretFields: [], grants: [{ fields: ['id', ...fields], read: async ({ context, row }) => {
+        // This literal component adapter interprets its declared user wire.
+        assert.deepEqual(row.data.author, encodeValue('user', makeUserRef(subject.user_id)));
+        return modelAccess.allowed && (await context.memberships.findMembership(actor.team.team_id, subject.user_id))?.status === 'active';
+      } }],
+    }]]) });
+  }
   if (mode === 'membership') handles = bindScenarioReceiptSendMembershipProducer(def, { source, app: APP,
     sites: [{ version: 1, source, owner: OP, node, statement: { start: 9, end: 31 }, stage: 'send-dispatch', position: [], calls: [{
       source, node: { start: 11, end: 29 }, target: { kind: 'builtin', id: 'active_member', overload: 0 },
@@ -166,7 +212,7 @@ async function world(mode: 'plain' | 'membership' = 'plain', verdict = true, ini
       captures++; const pair = pairs.get(call); pairs.delete(call);
       if (pair === undefined) throw new StateError('validation', 'No fresh source SEND native pair.'); return pair;
     } });
-  return { store, probe, memberships, actor, subject, member, table, pairs, preparedOrigins, externalSchedule,
+  return { store, probe, memberships, actor, subject, member, table, pairs, preparedOrigins, externalSchedule, modelAccess, guardSnapshots,
     get receiptPreparations() { return receiptPreparations; },
     get calls() { return calls; }, get stages() { return stages; }, get captures() { return captures; },
     get handles() { return handles; }, set foreignSite(value: ReturnType<typeof bindScenarioReceiptSendMembershipProducer>[number]) { foreignSite = value; }, set duringGuard(value: (() => Promise<void>) | undefined) { duringGuard = value; },
@@ -349,4 +395,111 @@ for (const verdict of [true, false]) test(`${verdict ? 'pending' : 'skipped'} re
   assert.deepEqual(retained.filePayloadOrigin, w.preparedOrigins[0]);
   assert.equal(readAssociationRow(saved.associations[0]!).deliveryId, result.delivery.id);
   assert.equal(retained.receipt.status, verdict ? 'pending' : 'skipped');
+});
+
+/** The literal evaluator above consumes a canonical StoredRow snapshot. It is
+ * an installed component adapter, not an original Can/native guard issuer. */
+async function runModel(w: World, options: { stop?: boolean; invalid?: 'copy' | 'stale' | 'foreign' | 'bare';
+  catchInvalid?: boolean; updateAfter?: boolean; lateRequire?: boolean;
+  afterSend?: () => Promise<void> } = {}) {
+  let snapshot: StoredRow | undefined, delivery: DeliveryRef | undefined;
+  const outcome = await invoke({ ...w, execute: async call => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+    await session.stage({ op: 'create', model: MODEL, id: ID, data: { title: 'Run', request: null,
+      author: encodeValue('user', makeUserRef(w.subject.user_id)), stop_requested: options.stop ?? false } }, { cause: 'scenario' });
+    const current = await session.read(MODEL, ID); assert.ok(current); snapshot = structuredClone(current);
+    let lexical: unknown = current;
+    if (options.invalid === 'copy') lexical = structuredClone(current);
+    if (options.invalid === 'bare') lexical = { id: ID };
+    if (options.invalid === 'stale') await session.stage({ op: 'update', model: MODEL, id: ID,
+      data: { title: 'New stage' } }, { cause: 'scenario' });
+    if (options.invalid === 'foreign') {
+      await session.stage({ op: 'create', model: OTHER_MODEL, id: asId('other'), data: { title: 'Other' } }, { cause: 'scenario' });
+      lexical = await session.read(OTHER_MODEL, asId('other')); assert.ok(lexical);
+    }
+    const send = () => {
+      w.modelAccess.sendAttempts++;
+      return stageScenarioReceiptSend(call, w.store, { source: TARGET, request: request(),
+        when: { rule, inputs: { run: lexical, enabled: true } } });
+    };
+    if (options.catchInvalid) {
+      await assert.rejects(send(), error => error instanceof StateError || error instanceof SchemaError);
+      selectScenarioReceiptReturn(call, w.store, 'done');
+      return { ...await session.finalize(), result: null, outbox: [] } as ExecutionEffects;
+    }
+    delivery = await send(); assert.ok(delivery);
+    if (options.updateAfter) await session.stage({ op: 'update', model: MODEL, id: ID,
+      data: { title: 'Later parent update', stop_requested: true } }, { cause: 'scenario' });
+    await session.stage({ op: 'update', model: MODEL, id: ID,
+      data: { request: encodeValue(`delivery(${TARGET})`, delivery) } }, { cause: 'scenario' });
+    const row = await session.read(MODEL, ID); assert.ok(row);
+    await stageScenarioReceiptDelivery(call, w.store, { model: MODEL, row, field: 'request' });
+    await options.afterSend?.();
+    if (options.lateRequire) throw new StateError('forbidden', 'Parent rejected after model SEND.');
+    selectScenarioReceiptReturn(call, w.store, 'done');
+    const effects = await session.finalize(); return { ...effects, result: null, outbox: effects.outbox ?? [] } as ExecutionEffects;
+  } });
+  return { outcome, snapshot, delivery };
+}
+
+test('model SEND retains its original row snapshot after later parent updates and replay performs no guard or Work allocation', async () => {
+  const w = await world('model'), result = await runModel(w, { updateAfter: true });
+  assert.equal(result.outcome.status, 'committed'); assert.ok(result.snapshot); assert.ok(result.delivery);
+  const saved = await effects(w); assert.equal(saved.dispatch.length, 1); assert.equal(saved.outbox.length, 1);
+  assert.equal(saved.rows[0]!.data.stop_requested, true); assert.equal(saved.rows[0]!.data.title, 'Later parent update');
+  const persisted = readDispatchSourceGuard(saved.dispatch[0]!.data); assert.ok(persisted);
+  assert.deepEqual(persisted.inputs, { run: result.snapshot, enabled: true });
+  assert.equal(readDispatchRow(saved.dispatch[0]!).filePayloadOrigin?.origin.kind, 'send-guard');
+  assert.ok(w.guardSnapshots.length > 0);
+  for (const captured of w.guardSnapshots) assert.deepEqual(captured, result.snapshot);
+  const calls = w.calls, stages = w.stages;
+  assert.equal((await runModel(w)).outcome.status, 'replayed');
+  assert.equal(w.calls, calls); assert.equal(w.stages, stages); assert.deepEqual(await effects(w), saved);
+});
+
+test('false model source guard records a skipped receipt with no Work dispatch or provider intent', async () => {
+  const w = await world('model'), result = await runModel(w, { stop: true });
+  assert.equal(result.outcome.status, 'committed'); assert.ok(result.delivery); assert.equal(w.stages, 0);
+  const saved = await effects(w); assert.equal(saved.rows.length, 1); assert.deepEqual(saved.dispatch, []); assert.deepEqual(saved.outbox, []);
+  assert.equal(saved.receipts.length, 1); assert.equal(saved.associations.length, 1);
+  const retained = readReceiptRow(saved.receipts[0]!);
+  assert.equal(retained.receipt.status, 'skipped'); assert.equal(retained.receipt.deliveryId, result.delivery.id);
+  assert.equal(retained.filePayloadOrigin?.origin.kind, 'delivery-skipped');
+  if (retained.filePayloadOrigin?.origin.kind !== 'delivery-skipped') assert.fail('Actual source-skipped origin required.');
+  assert.deepEqual(retained.filePayloadOrigin.origin.guard, modelGuard);
+});
+
+test('model SEND refuses copied, stale, foreign and bare reference inputs even when the owner catches the refusal', async () => {
+  for (const invalid of ['copy', 'stale', 'foreign', 'bare'] as const) {
+    const w = await world('model');
+    await assert.rejects(runModel(w, { invalid, catchInvalid: true }), error => error instanceof StateError || error instanceof SchemaError);
+    assert.equal(w.modelAccess.sendAttempts, 1, `${invalid} must reach the genuine SEND boundary`);
+    assert.equal(w.calls, 0, `${invalid} must refuse before the literal evaluator`);
+    assert.equal(w.stages, 0); assert.equal(w.receiptPreparations, 0);
+    assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
+    assert.deepEqual(await w.store.query({ model: OTHER_MODEL, authority: 'owner' }), []);
+  }
+});
+
+test('model SEND current source grant and tracked author membership fence capture and commit', async () => {
+  for (const loss of ['capture-grant', 'capture-subject', 'commit-grant', 'commit-subject'] as const) {
+    const w = await world('model');
+    const revoke = async () => {
+      if (loss.endsWith('grant')) w.modelAccess.allowed = false;
+      else await w.memberships.removeMembership(w.member!.membership_id);
+    };
+    if (loss.startsWith('capture')) await revoke();
+    await assert.rejects(runModel(w, { updateAfter: true,
+      ...(loss.startsWith('commit') ? { afterSend: revoke } : {}) }), error => error instanceof StateError && error.code === 'forbidden');
+    assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
+    if (loss.startsWith('capture')) assert.equal(w.stages, 0);
+  }
+});
+
+test('later parent rejection rolls back model creation, frozen SEND snapshot and pending or skipped receipt effects', async () => {
+  for (const verdict of [true, false]) {
+    const w = await world('model', verdict);
+    await assert.rejects(runModel(w, { updateAfter: true, lateRequire: true }), error => error instanceof StateError && error.code === 'forbidden');
+    assert.deepEqual(await effects(w), { rows: [], dispatch: [], receipts: [], associations: [], outbox: [] });
+  }
 });

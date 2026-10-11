@@ -40,6 +40,8 @@ import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, sce
 import { storedNominalType, storedNominalField, storedNominalWire, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
 import { storedReferenceField, storedReferenceWire, type StoredReferenceFieldProfile } from './scenario-stored-reference.js';
 import { FenceConflictError } from '../storage/port.js';
+import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences,
+  type ModelLexicalSnapshotProfile } from '../ports/model-lexical-snapshot.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -872,6 +874,8 @@ export interface ScenarioReceiptSendGuard {
 }
 export interface ScenarioReceiptSendGuardFrame {
   readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard;
+  /** Declaration-ordered canonical wires, with singular model inputs captured
+   * as frozen source-projected StoredRow snapshots rather than ModelRef wires. */
   readonly inputs: Readonly<Record<string, unknown>>;
 }
 export interface ScenarioReceiptSourceSendGuard {
@@ -888,6 +892,7 @@ export interface ScenarioReceiptSendProducerInput {
 }
 export interface ScenarioReceiptSendStaging { readonly effects: SystemStaging; readonly delivery: DeliveryRef }
 const frameworkProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptFrameworkProducer>();
+const frameworkModelInputs = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, ReadonlyMap<string, ModelLexicalSnapshotProfile>>>();
 export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef, producer: ScenarioReceiptFrameworkProducer): void {
   const bound = boundPlans.get(def);
   if (bound === undefined || frameworkProducers.has(def) || invokedPlans.has(def)) return invalid('framework producer requires one checked source binding before execution.');
@@ -918,6 +923,7 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     }
   }
   const guardRules = new Set<string>(), guardNodes = new Set<string>();
+  const modelInputs = new Map<string, ReadonlyMap<string, ModelLexicalSnapshotProfile>>();
   for (const value of list(metadata.sendGuards ?? [])) {
     const guard = object(value, ['rule', 'source', 'owner', 'node', 'binding', 'target', 'inputs']);
     const rule = text(guard['rule']); origin(guard['source']);
@@ -930,16 +936,22 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
     guardRules.add(rule); guardNodes.add(occurrence);
     const binding = metadata.bindings.find(item => item.binding === guard['binding']);
     if (binding === undefined || !binding.targets.some(item => item.source === guard['target'])) return invalid('SEND guard differs from checked binding/target.');
-    const inputs = new Set<string>();
+    const inputs = new Set<string>(), models = new Map<string, ModelLexicalSnapshotProfile>();
     for (const value of list(guard['inputs'])) {
       const input = object(value, ['name', 'type']), name = text(input['name']), type = text(input['type']);
       if (inputs.has(name) || printTypeId(parseTypeId(type)) !== type) return invalid('exact unique canonical SEND lexical type required.');
       inputs.add(name);
+      const model = bindModelLexicalSnapshotProfile({ artifactModels: bound.artifactModels, canonicalModels: bound.canonicalModels,
+        ...(bound.valueSchema === undefined ? {} : { valueSchema: bound.valueSchema }),
+        ...(bound.valueTypes === undefined ? {} : { valueTypes: bound.valueTypes }) }, type as CanTypeId);
+      if (model !== undefined) models.set(name, model);
     }
+    modelInputs.set(rule, models);
   }
   frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read,
     ...(producer.evaluateGuard === undefined ? {} : { evaluateGuard: producer.evaluateGuard }),
     ...(producer.prepareReceiptOrigin === undefined ? {} : { prepareReceiptOrigin: producer.prepareReceiptOrigin }) }));
+  frameworkModelInputs.set(def, modelInputs);
 }
 
 function primitiveInputType(type: unknown): type is CanTypeId {
@@ -978,13 +990,17 @@ export interface ScenarioReceiptReferenceProducer {
   readonly app: string;
   readonly policy: PolicyTable;
   /** Complete original current read declarations, captured by the same verified
-   * loader. Required for the newly-created stored model result profile. */
+   * loader. Required for newly-created model results and complete field-grant
+   * projection of original SEND model lexicals. Bind the framework producer
+   * first when SEND lexicals are this definition's only reference consumer. */
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
 }
 const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptReferenceProducer>();
 export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef, producer: ScenarioReceiptReferenceProducer): void {
   const bound = boundPlans.get(def);
-  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.resultModel === undefined || invokedPlans.has(def) || referenceProducers.has(def)) {
+  const modelInputs = frameworkModelInputs.get(def);
+  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.resultModel === undefined &&
+      ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) || invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
   }
   object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : [])]); origin(producer.source); text(producer.app);
@@ -1003,6 +1019,9 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if (bound.resultModel !== undefined && (readPolicies === undefined || !readPolicies.has(bound.resultModel))) {
     return invalid('model result requires its installed original source read policy.');
   }
+  if ([...modelInputs?.values() ?? []].some(inputs => [...inputs.values()].some(model => {
+    const read = readPolicies?.get(model.model); return read === undefined || !('grants' in read);
+  }))) return invalid('model SEND lexical inputs require their complete original source field grants.');
   referenceProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy,
     ...(readPolicies === undefined ? {} : { readPolicies }) }));
 }
@@ -1304,6 +1323,104 @@ async function appendFrameworkWrites(owner: ReceiptOwnerSession, effects: System
   }
 }
 
+/** Freeze actual model lexical rows through the same owning source grants.
+ * Ordinary Values inputs retain their existing wire profile. Historical SEND
+ * census uses the same model field declarations; reference authority does not
+ * arise from the retained snapshot. */
+async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession, guard: ScenarioReceiptSendGuard,
+  supplied: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>> {
+  const state = capture(call, owner.store), stage = owner.stage, active = owner.activeSend;
+  const profiles = frameworkModelInputs.get(call.def as GeneratedOperationDef)?.get(guard.rule);
+  const producer = referenceProducers.get(call.def as GeneratedOperationDef);
+  const inputs = object(supplied, guard.inputs.map(input => input.name)), values: Record<string, unknown> = {};
+  const models: Array<{ readonly name: string; readonly profile: ModelLexicalSnapshotProfile; readonly row: StoredRow }> = [];
+  // Preserve private row identity before copying any input or yielding.
+  for (const input of guard.inputs) {
+    const profile = profiles?.get(input.name);
+    if (profile !== undefined) {
+      const actual = inputs[input.name] as StoredRow, issued = ownerRows.get(actual);
+      if (issued?.session !== owner || issued.model !== profile.model || issued.stage !== stage) {
+        return invalid('SEND model input requires its actual current-stage owner row.');
+      }
+      models.push({ name: input.name, profile, row: checkedRow(dataCopy(actual)) });
+    } else {
+      const wire = dataCopy(inputs[input.name]);
+      const value = state.bound.valueSchema === undefined ? decodeValue(input.type, wire)
+        : validateValue(state.bound.valueSchema, input.type, wire, 'create');
+      if (stableStringify(encodeValue(input.type, value)) !== stableStringify(wire)) return invalid('SEND lexical input is not canonical owning typed wire.');
+      values[input.name] = wire;
+    }
+  }
+  if (models.length === 0) return deepFreeze(values);
+  if (owner.session === null || producer?.app !== call.context.app || producer.readPolicies === undefined ||
+      owner.busy || state.pending !== 0 || owner.callGuards.length + models.length >= MAX_ITEMS) {
+    return invalid('SEND model snapshot requires its complete installed source grant and nonconcurrent owner stage.');
+  }
+  const reads = producer.readPolicies;
+  owner.busy = true; state.pending++;
+  const healthy = () => {
+    capture(call, owner.store); ownerHealthy(owner);
+    if (owner.executingCall !== call || owner.stage !== stage || owner.activeSend !== active || active?.guard !== guard ||
+        !owner.busy || state.pending !== 1 || state.returnId !== null) return invalid('SEND model capture crossed its actual original source stage.');
+  };
+  try {
+    healthy();
+    const reader = scenarioReceiptMemberships(owner.call, owner.store), actorUserId = call.context.actor?.userId ?? null,
+      teamId = call.context.team?.teamId ?? null;
+    const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
+    const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
+    for (const { name, profile, row } of models) {
+      const read = reads.get(profile.model);
+      if (read === undefined || !('grants' in read)) return invalid('SEND model requires original ordered source field grants.');
+      const project = async (current: StoredRow, observed: ByContext, load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
+        assertHealthy: () => void) => {
+        try {
+          return await projectInstalledSourceRowAndAncestors({ model: profile.model, row: current,
+            readPolicies: reads, policy: producer.policy, context: observed, revision: call.revision, fence: undefined,
+            store: owner.store, rows: new Map([[`${profile.model}\0${current.id}`, current]]), ownerRows: { read: load, assertHealthy } });
+        } catch (error) {
+          if (error instanceof FenceConflictError) throw new StateError('conflict', 'SEND model authority moved beyond its checkpoint.');
+          throw error;
+        }
+      };
+      const authority = await observeRowGrantAuthority(context, observed => project(row, observed,
+        async (model, id) => { healthy(); const row = await owner.session!.views.final.get(model, id); healthy(); return row; }, healthy));
+      healthy();
+      if (authority.value.record === null) throw new StateError('forbidden', 'Current SEND model field authority is unavailable.');
+      const snapshot = deepFreeze({ ...row, parent: row.parent ?? null, data: dataCopy(authority.value.record.data) });
+      modelLexicalSnapshotOccurrences(profile, snapshot);
+      await authority.revalidate(); healthy();
+      values[name] = snapshot;
+      owner.callGuards.push(Object.freeze({ name: `send-model:${guard.rule}:${name}:${stage}`, evaluate: async () => {
+        if (owner.finalized === null) return invalid('SEND model snapshot lacks actual final owner effects.');
+        const final = owner.finalized;
+        const finalHealthy = () => {
+          if (owner.finalized !== final || owner.capture.poisoned) return invalid('SEND model final owner effects changed.');
+        };
+        const load = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+          finalHealthy();
+          const write = final.writes.find(write => write.model === model && (write.kind === 'insert' ? write.row.id : write.id) === id);
+          const current = write === undefined ? await owner.store.cohortLoad({ model, id, expectedRevision: call.revision })
+            : write.kind === 'remove' ? null : write.row;
+          finalHealthy(); return current;
+        };
+        const current = await load(profile.model, row.id);
+        if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'SEND model lifetime is unavailable at commit.');
+        const projected = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy));
+        finalHealthy();
+        if (projected.value.record === null || stableStringify(projectSourceRowFields(snapshot, projected.value.grants, read.secretFields).data) !==
+            stableStringify(snapshot.data)) throw new StateError('forbidden', 'Original SEND model fields are no longer readable at commit.');
+        await projected.revalidate(); await authority.revalidate(); finalHealthy();
+        if (await owner.store.readRevision() !== call.revision) throw new StateError('conflict', 'SEND model commit authority moved beyond its checkpoint.');
+        finalHealthy(); return true;
+      } }));
+    }
+    if (await owner.store.readRevision() !== call.revision) throw new StateError('conflict', 'SEND model capture moved beyond its checkpoint.');
+    healthy(); return deepFreeze(Object.fromEntries(guard.inputs.map(input => [input.name, values[input.name]])));
+  } catch (error) { state.poisoned = true; owner.capture.poisoned = true; throw error; }
+  finally { state.pending--; owner.busy = false; }
+}
+
 /** Allocate and stage at the actual source Send evaluation point. Only the
  * once-bound installed producer can contribute framework effects. */
 export async function stageScenarioReceiptSend(call: AdmittedCall, store: StoragePort,
@@ -1312,11 +1429,11 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
   const owner = frameworkOwner(call, store);
   try {
     if (owner.busy || owner.activeSend !== null) return invalid('SEND requires its nonconcurrent original owner stage.');
-    // Capture request and lexical values once, before entering native code or yielding.
-    const copied = dataCopy(report);
-    const received = object(copied, ['source', 'request', ...(Object.hasOwn(copied, 'when') ? ['when'] : [])]);
+    // Capture request once; model lexical provenance must be inspected before
+    // generic copying can erase its private current-stage row identity.
+    const received = object(report, ['source', 'request', ...(Object.hasOwn(report, 'when') ? ['when'] : [])]);
     const source = text(received['source']);
-    const request = object(received['request'], ['binding', 'from', 'arguments',
+    const request = object(dataCopy(received['request']), ['binding', 'from', 'arguments',
       ...(typeof received['request'] === 'object' && received['request'] !== null &&
         Object.hasOwn(received['request'], 'judgment') ? ['judgment'] : [])]) as unknown as BoundCapabilityRequest;
     const ledger = owner.framework!, producer = ledger.producer;
@@ -1331,16 +1448,11 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
       const guard = producer.sendGuards?.find(item => item.rule === rule);
       if (guard === undefined || guard.binding !== binding.binding || guard.target !== source ||
           producer.evaluateGuard === undefined) return invalid('SEND when lacks its exact checked owner/binding/target guard.');
-      const inputs = object(when['inputs'], guard.inputs.map(input => input.name));
-      for (const input of guard.inputs) {
-        const value = owner.capture.bound.valueSchema === undefined ? decodeValue(input.type, inputs[input.name])
-          : validateValue(owner.capture.bound.valueSchema, input.type, inputs[input.name], 'create');
-        if (stableStringify(encodeValue(input.type, value)) !== stableStringify(inputs[input.name])) return invalid('SEND lexical input is not canonical owning typed wire.');
-      }
-      const lexical = deepFreeze(dataCopy(inputs));
-      sourceGuard = deepFreeze({ rule, source: guard.source, owner: guard.owner, node: guard.node, inputs: lexical });
       const active = Object.freeze({ call, guard, stage: owner.stage }); owner.activeSend = active;
       try {
+        const lexical = await captureSendLexical(call, owner, guard, when['inputs'] as Readonly<Record<string, unknown>>);
+        ownerHealthy(owner);
+        sourceGuard = deepFreeze({ rule, source: guard.source, owner: guard.owner, node: guard.node, inputs: lexical });
         accepted = await producer.evaluateGuard(Object.freeze({ call, guard, inputs: lexical }));
         ownerHealthy(owner);
         if (owner.activeSend !== active || owner.stage !== active.stage || owner.busy || owner.capture.pending !== 0 ||
