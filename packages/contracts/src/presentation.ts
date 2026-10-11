@@ -625,6 +625,7 @@ export interface TableProps {
   readonly model: string;
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  readonly order?: readonly string[];
   readonly limit?: number;
   readonly cursor?: string;
   /** Explicit finite page read, independent of presentation layout. */

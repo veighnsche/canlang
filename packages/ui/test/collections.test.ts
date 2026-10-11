@@ -844,6 +844,7 @@ describe("table", () => {
     const seen: SeenCall[] = [];
     const invocation = { request: "req-7" };
     const where = { done: false };
+    const order: readonly string[] = ["from"];
     const context = makeContext({
       invocation,
       query: stubRunner(seen, { rows: [], columns: [titleCol] }),
@@ -853,6 +854,7 @@ describe("table", () => {
       model: "TeamTasks.Todo",
       parent: { id: "p-2" },
       where,
+      order,
       limit: 5,
       cursor: "c-2",
       page: true,
@@ -862,7 +864,8 @@ describe("table", () => {
     });
     assert.strictEqual(seen[0]?.invocation, invocation);
     assert.equal(seen[0]?.model, "TeamTasks.Todo");
-    assert.deepEqual(seen[0]?.args, { parent: { id: "p-2" }, where, limit: 5, cursor: "c-2", page: true, occurrence: "page:/todos/table:1" });
+    assert.strictEqual(seen[0]?.args.order, order);
+    assert.deepEqual(seen[0]?.args, { parent: { id: "p-2" }, where, order, limit: 5, cursor: "c-2", page: true, occurrence: "page:/todos/table:1" });
   });
 
   it("appends a more-note after the table when nextCursor is present", async () => {
