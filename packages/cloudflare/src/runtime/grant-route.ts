@@ -14,7 +14,8 @@
  * `resolveIdentity` (session audience); the grant mints only for a
  * verified actor WITH an active team membership in a team. Failures
  * are safe + loud: 405 non-POST, 401 missing/invalid session, 403 no
- * active membership, 400 malformed body/client_id, 500 unexpected
+ * active membership or missing session CSRF, 400 unsupported JSON media
+ * type/malformed body/client_id, 429 over the existing 1MiB body cap, 500 unexpected
  * (generic body after a console journal entry — the raw token is
  * NEVER stored or logged anywhere on this path).
  *
@@ -26,10 +27,12 @@
  * skew can never turn a safe 4xx into a 500 or vice versa — unknown
  * failures always 500 generic.
  *
- * Worker-safe: type-only imports, no `node:` builtins.
+ * Worker-safe: owning portable body limits and identity CSRF, no `node:` builtins.
  */
 
 import type { BusinessErrorCode, McpGrant, ResolvedIdentity } from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
+import { parseJsonBody, JSON_BODY_MAX_BYTES } from "@canlang/interfaces";
 import type { IdentityStore } from "./env-assembly.js";
 
 /** Identity package root (resolves via the workspace link + exports map). */
@@ -44,6 +47,7 @@ const IDENTITY_SPECIFIER = "@canlang/identity";
  * test, proving it at runtime.
  */
 interface GrantIdentityProducer {
+  verifyCsrfToken(sessionToken: string, presented: string): Promise<boolean>;
   parseSessionCookie(header: string | readonly string[] | undefined): string | null;
   resolveIdentity(
     store: unknown,
@@ -87,10 +91,11 @@ async function loadIdentity(): Promise<GrantIdentityProducer> {
     typeof mod["parseSessionCookie"] !== "function" ||
     typeof mod["resolveIdentity"] !== "function" ||
     typeof mod["issueMcpGrant"] !== "function" ||
+    typeof mod["verifyCsrfToken"] !== "function" ||
     typeof mod["IdentityError"] !== "function"
   ) {
     throw new Error(
-      `mcp-grant: identity module lacks parseSessionCookie/resolveIdentity/issueMcpGrant/IdentityError (stale dist?)`,
+      `mcp-grant: identity module lacks parseSessionCookie/resolveIdentity/issueMcpGrant/verifyCsrfToken/IdentityError (stale dist?)`,
     );
   }
   return mod as unknown as GrantIdentityProducer;
@@ -170,11 +175,22 @@ export async function handleMcpGrant(
     return jsonError("mcp-grant needs an active team membership", 403);
   }
 
+  const mediaType = (req.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
+  if (mediaType !== 'application/json') return jsonError('grant body must be JSON', 400);
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await parseJsonBody(req, JSON_BODY_MAX_BYTES);
+  } catch (err) {
+    if (readIdentityFailure(identity, err)?.code === 'limit') return jsonError('grant body too large', 429);
     return jsonError("grant body must be JSON", 400);
+  }
+  const presented = req.headers.get('x-csrf-token') ?? (isRecord(body) && typeof body[CSRF_FIELD] === 'string' ? body[CSRF_FIELD] : null);
+  try {
+    if (presented === null || !(await identity.verifyCsrfToken(sessionToken, presented))) {
+      return jsonError('Invalid or missing CSRF token.', 403);
+    }
+  } catch {
+    return jsonError('grant issuance failed', 500);
   }
   const clientId: unknown = isRecord(body) ? body["client_id"] : undefined;
   if (typeof clientId !== "string" || clientId.trim() === "") {

@@ -186,6 +186,8 @@ export const HTTP_BUNDLE_MARKERS: readonly string[] = [
   "handlePageRequest",
   "handlePagePreferencePost",
   "handleAuthRequest",
+  "parseJsonBody",
+  "JSON_BODY_MAX_BYTES",
   "SESSION_EXPIRES_MS",
   "createSourceFormBindings",
   "IdentityError",
@@ -983,6 +985,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
       `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
       `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
+      `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
       `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +
       `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
       `export { handlePageRequest, handlePagePreferencePost } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +

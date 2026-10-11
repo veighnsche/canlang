@@ -932,7 +932,7 @@
     },
     "TECH-I02": {
       "planning_status": "blocked",
-      "state": "independently accepted finite S256 issuance; committed1eeedb6d",
+      "state": "Finite grant body/CSRF source implemented, tested and reviewed in local main; installed host and browser/effect policy unfinished.",
       "files": [
         "packages/identity/src/authentication/oauth.ts",
         "packages/identity/src/sessions/presession.ts",
@@ -969,8 +969,167 @@
       "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open",
       "commit": "1eeedb6d",
       "remaining_prerequisite": {
-        "prerequisite": "Browser presession binding, capped-body/Origin/CSRF versus nonbrowser contract, and revoke-during-effect outcome.",
-        "owner": "Identity/Interfaces/Cloudflare browser/security contract owners"
+        "prerequisite": "Exact pending human disclosure approval for the three frozen browser/effect Choice bodies, defining Origin/presession/revoke-during-effect contract and genuine mounted consumers; affected installed grant consumer after available main mapper intake.",
+        "owner": "Human exact disclosure; Packages defining contract/installed grant consumer; Dev genuine mounted consumers"
+      },
+      "browser_effect_contract_consultation": {
+        "status": "prepared; not sent; exact human approval pending after automatic approval review rejection",
+        "authorization": "AGENTS difficult-decision JEV calls preauthorized; coordinator expressly released this finite TECH-I02 decision. Summarized verified contracts only; no source, credentials, app/user/provider data or held legacy payloads.",
+        "endpoint": "https://api.typesafe.ai/v1/systemone",
+        "requests": [
+          {
+            "model": "jev-latest",
+            "state": {
+              "goal": "Release only the missing mounted Identity/Interfaces/Cloudflare browser request and revocation boundary contract, preserving existing auth/evaluation/recovery. No global backend, epoch, deployment activation or whole-security acceptance.",
+              "verified_source": [
+                "Login GET rate-limits then mints a ten-minute opaque single-use token stored hashed. Descriptor JSON gives the raw token; POST JSON/form consumes presented token before password checking. It currently has no browser cookie binding. An attacker can obtain a token in their own browser; secrecy of each descriptor alone does not bind the victim browser.",
+                "Ordinary Interfaces auth bodies use existing streaming 1048576-byte JSON/form caps. Session-cookie mutations use the session-bound CSRF header or field. Cookies are host-scoped HttpOnly, SameSite=Lax, Secure by default; explicit local HTTP opts out. No Origin enforcement exists in these helpers.",
+                "Mounted production POST /mcp/grants bypasses Interfaces. It resolves cookie session/current active membership before unbounded req.json(), then issues a grant; it checks no content type, CSRF or Origin. Valid JSON text can be supplied as a simple-request content type. SameSite and same-origin response reading constrain attacks; no generic bearer exfiltration is established.",
+                "Production already accepts an explicit canonical HTTP(S) CAN_AUTH_ORIGIN and derives auth origin/secure cookie policy from it. Grant mount currently forwards only identityStore, not that trusted auth configuration. Public request URL/Host is not the chosen trusted-origin source.",
+                "OAuth authorize GET is descriptor-only; POST is capped JSON, current session/team and session CSRF, then exact client/redirect/43-character S256 validation and issue. Public registration and token exchange are separate: capped JSON registration; form/JSON token exchange plus matching single-use code/client/redirect/PKCE verifier. No ambient cookie authorizes exchange.",
+                "MCP transport authenticates an explicit grant Bearer and audience before SDK body parsing; cookie/presession do not authenticate it. A valid bearer with a foreign Origin alone is not an authentication bypass. Mutation dispatch rereads credential after arguments/permission and immediately before invoker entry; read/discovery lack this second mutation check.",
+                "Credential reread returns no atomic fence or revision token. HTTP has the same pre-invoker liveness boundary. Identity revocation does not change the separate team State revision. The source cannot guarantee cancellation if revocation completes after invoker entry but before eventual effects/commit.",
+                "Maintained B4 witness revokes during permission checking before invoker entry and asserts denial/zero calls plus live/control denial equivalence. Existing source review describes revoke-after-entry as a missing controlled witness. Requested suspended-body and after-entry artifacts were not located in current checkout or retained temp path; no observed outcome is claimed for them.",
+                "Presession atomic consume concurrency remains separate Identity-store owner work. Existing S256 result is accepted and reused. Native preparation, security qualification, unrelated payload and publication holds remain."
+              ],
+              "required_outcomes": [
+                "Browser login must refuse a token transplanted from another browser before consuming token/password checking/session issuance. Retain ten-minute/one credential-attempt semantics and generic failures; do not claim concurrent atomic consume without its owner primitive.",
+                "Cookie-auth credential issuance must enforce actual bounded approved body type, session CSRF and explicitly configured browser-origin policy. Origin supplies request-context defense, never actor authentication.",
+                "Keep legitimate nonbrowser explicit Bearer MCP and code+PKCE OAuth exchange usable without browser-cookie CSRF or an Origin credential; preserve current audience, membership, permissions and generic failures.",
+                "Describe exactly which revocation-before-boundary refuses and which already-entered effects are outside the dispatcher guarantee. Stronger effect/commit cancellation cannot be asserted from a reread; genuine delayed-body/after-entry consumers and critical security qualification remain required."
+              ]
+            },
+            "questions": {
+              "browser_profile": {
+                "type": "choice",
+                "instructions": "Choose the smallest complete browser contract satisfying required_outcomes at verified_source. Compare transplant protection, legitimate client compatibility and necessary owning changes fairly; select defer if none suffices.",
+                "criteria": {
+                  "bound_cookie": "Use existing anonymous token as a short-lived host-only HttpOnly SameSite=Lax presession cookie plus descriptor form token; POST requires exact cookie/token match before stored consume. For cookie-mutating browser auth/authorize/grant routes reject any present Origin that is not the configured canonical auth origin, including null/malformed; missing Origin requires the same binding or session-CSRF controls rather than becoming authentication. Keep existing body caps, require JSON for direct grant, preserve nonbrowser Bearer/code+PKCE profiles. Needs precise route/cookie/host wiring and caller updates, no new database binding field.",
+                  "origin_only": "Keep anonymous bearer token without browser cookie and require an exact configured Origin on every browser credential-setting/mutating POST. Preserve CSRF and caps elsewhere; refuse missing Origin on those routes. This avoids cookie lifecycle changes but changes no-Origin clients and relies on the Origin requirement to reject transplanted-token browser posts.",
+                  "stored_browser_binding": "Add a separate browser nonce cookie and persist its hash with each presession token; require bound nonce+form token. Apply configured Origin/CSRF/caps and separate nonbrowser profile. Supports multiple outstanding login descriptors but needs new Identity schema/store/issuance and full writer/consumer release.",
+                  "defer": "No offered contract sufficiently meets the required outcomes from verified facts; keep exact missing browser-owner prerequisite rather than assuming secrecy/SameSite suffices."
+                }
+              },
+              "effect_boundary": {
+                "type": "choice",
+                "instructions": "Choose the truthful accepted credential revocation boundary for this finite caller release. Preserve actual current authority and admitted-work semantics; weigh stronger atomic cancellation against its exact unimplemented owner primitive and do not certify missing witnesses.",
+                "criteria": {
+                  "pre_invoker": "Accept only the explicit dispatcher boundary: after complete capped body and existing permissions/args, current credential is reread immediately before mutation invoker entry; dead credentials never enter. Revocation after entry does not retroactively cancel admitted work or promise atomic commit fencing. Downstream current-authority/guard/replay and disclosure rules remain independent, and real suspended-body/after-entry witnesses plus security review remain unqualified.",
+                  "atomic_commit": "Require revoke-before-eventual-commit cancellation. Before releasing this behavior add a credential-aware atomic authority/commit fence spanning every relevant Identity writer and actual State/effect store, with complete routing/recovery ownership and genuine after-entry witness. Dispatcher reread remains insufficient; current runtime acceptance stays blocked on the named primitive.",
+                  "post_effect_check": "Add a credential reread after invoking and withhold success if revoked. This limits late disclosure but cannot undo committed effects; it must not be advertised as atomic cancellation and needs replay/uncertain-result semantics before acceptance.",
+                  "defer": "No offered boundary is acceptable from verified requirements; keep exact defining revocation decision blocked, preserving the current narrow source facts without changing advertised guarantee."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "goal": "Release only the missing mounted Identity/Interfaces/Cloudflare browser request and revocation boundary contract, preserving existing auth/evaluation/recovery. No global backend, epoch, deployment activation or whole-security acceptance.",
+              "verified_source": [
+                "Login GET rate-limits then mints a ten-minute opaque single-use token stored hashed. Descriptor JSON gives the raw token; POST JSON/form consumes presented token before password checking. It currently has no browser cookie binding. An attacker can obtain a token in their own browser; secrecy of each descriptor alone does not bind the victim browser.",
+                "Ordinary Interfaces auth bodies use existing streaming 1048576-byte JSON/form caps. Session-cookie mutations use the session-bound CSRF header or field. Cookies are host-scoped HttpOnly, SameSite=Lax, Secure by default; explicit local HTTP opts out. No Origin enforcement exists in these helpers.",
+                "Mounted production POST /mcp/grants bypasses Interfaces. It resolves cookie session/current active membership before unbounded req.json(), then issues a grant; it checks no content type, CSRF or Origin. Valid JSON text can be supplied as a simple-request content type. SameSite and same-origin response reading constrain attacks; no generic bearer exfiltration is established.",
+                "Production already accepts an explicit canonical HTTP(S) CAN_AUTH_ORIGIN and derives auth origin/secure cookie policy from it. Grant mount currently forwards only identityStore, not that trusted auth configuration. Public request URL/Host is not the chosen trusted-origin source.",
+                "OAuth authorize GET is descriptor-only; POST is capped JSON, current session/team and session CSRF, then exact client/redirect/43-character S256 validation and issue. Public registration and token exchange are separate: capped JSON registration; form/JSON token exchange plus matching single-use code/client/redirect/PKCE verifier. No ambient cookie authorizes exchange.",
+                "MCP transport authenticates an explicit grant Bearer and audience before SDK body parsing; cookie/presession do not authenticate it. A valid bearer with a foreign Origin alone is not an authentication bypass. Mutation dispatch rereads credential after arguments/permission and immediately before invoker entry; read/discovery lack this second mutation check.",
+                "Credential reread returns no atomic fence or revision token. HTTP has the same pre-invoker liveness boundary. Identity revocation does not change the separate team State revision. The source cannot guarantee cancellation if revocation completes after invoker entry but before eventual effects/commit.",
+                "Maintained B4 witness revokes during permission checking before invoker entry and asserts denial/zero calls plus live/control denial equivalence. Existing source review describes revoke-after-entry as a missing controlled witness. Requested suspended-body and after-entry artifacts were not located in current checkout or retained temp path; no observed outcome is claimed for them.",
+                "Presession atomic consume concurrency remains separate Identity-store owner work. Existing S256 result is accepted and reused. Native preparation, security qualification, unrelated payload and publication holds remain."
+              ],
+              "required_outcomes": [
+                "Browser login must refuse a token transplanted from another browser before consuming token/password checking/session issuance. Retain ten-minute/one credential-attempt semantics and generic failures; do not claim concurrent atomic consume without its owner primitive.",
+                "Cookie-auth credential issuance must enforce actual bounded approved body type, session CSRF and explicitly configured browser-origin policy. Origin supplies request-context defense, never actor authentication.",
+                "Keep legitimate nonbrowser explicit Bearer MCP and code+PKCE OAuth exchange usable without browser-cookie CSRF or an Origin credential; preserve current audience, membership, permissions and generic failures.",
+                "Describe exactly which revocation-before-boundary refuses and which already-entered effects are outside the dispatcher guarantee. Stronger effect/commit cancellation cannot be asserted from a reread; genuine delayed-body/after-entry consumers and critical security qualification remain required."
+              ]
+            },
+            "questions": {
+              "browser_profile": {
+                "type": "choice",
+                "instructions": "Which browser binding/profile should the defining owner release next, given the current mounted routes and unchanged nonbrowser authentication? Require foreign presession refusal, bounded parsing and cookie-CSRF context. Evaluate all alternatives by the same outcomes and acknowledge necessary implementation work.",
+                "criteria": {
+                  "bound_cookie": "Use existing anonymous token as a short-lived host-only HttpOnly SameSite=Lax presession cookie plus descriptor form token; POST requires exact cookie/token match before stored consume. For cookie-mutating browser auth/authorize/grant routes reject any present Origin that is not the configured canonical auth origin, including null/malformed; missing Origin requires the same binding or session-CSRF controls rather than becoming authentication. Keep existing body caps, require JSON for direct grant, preserve nonbrowser Bearer/code+PKCE profiles. Needs precise route/cookie/host wiring and caller updates, no new database binding field.",
+                  "origin_only": "Keep anonymous bearer token without browser cookie and require an exact configured Origin on every browser credential-setting/mutating POST. Preserve CSRF and caps elsewhere; refuse missing Origin on those routes. This avoids cookie lifecycle changes but changes no-Origin clients and relies on the Origin requirement to reject transplanted-token browser posts.",
+                  "stored_browser_binding": "Add a separate browser nonce cookie and persist its hash with each presession token; require bound nonce+form token. Apply configured Origin/CSRF/caps and separate nonbrowser profile. Supports multiple outstanding login descriptors but needs new Identity schema/store/issuance and full writer/consumer release.",
+                  "defer": "No offered contract sufficiently meets the required outcomes from verified facts; keep exact missing browser-owner prerequisite rather than assuming secrecy/SameSite suffices."
+                }
+              },
+              "effect_boundary": {
+                "type": "choice",
+                "instructions": "For this existing dispatcher and separate durable stores, which effect boundary should be accepted rather than merely proposed? Require a precise revoke-before/after result and preserve independent permission/replay behavior; never turn a pre-invoker read into an atomic commit fence.",
+                "criteria": {
+                  "pre_invoker": "Accept only the explicit dispatcher boundary: after complete capped body and existing permissions/args, current credential is reread immediately before mutation invoker entry; dead credentials never enter. Revocation after entry does not retroactively cancel admitted work or promise atomic commit fencing. Downstream current-authority/guard/replay and disclosure rules remain independent, and real suspended-body/after-entry witnesses plus security review remain unqualified.",
+                  "atomic_commit": "Require revoke-before-eventual-commit cancellation. Before releasing this behavior add a credential-aware atomic authority/commit fence spanning every relevant Identity writer and actual State/effect store, with complete routing/recovery ownership and genuine after-entry witness. Dispatcher reread remains insufficient; current runtime acceptance stays blocked on the named primitive.",
+                  "post_effect_check": "Add a credential reread after invoking and withhold success if revoked. This limits late disclosure but cannot undo committed effects; it must not be advertised as atomic cancellation and needs replay/uncertain-result semantics before acceptance.",
+                  "defer": "No offered boundary is acceptable from verified requirements; keep exact defining revocation decision blocked, preserving the current narrow source facts without changing advertised guarantee."
+                }
+              }
+            }
+          },
+          {
+            "model": "jev-latest",
+            "state": {
+              "goal": "Release only the missing mounted Identity/Interfaces/Cloudflare browser request and revocation boundary contract, preserving existing auth/evaluation/recovery. No global backend, epoch, deployment activation or whole-security acceptance.",
+              "verified_source": [
+                "Login GET rate-limits then mints a ten-minute opaque single-use token stored hashed. Descriptor JSON gives the raw token; POST JSON/form consumes presented token before password checking. It currently has no browser cookie binding. An attacker can obtain a token in their own browser; secrecy of each descriptor alone does not bind the victim browser.",
+                "Ordinary Interfaces auth bodies use existing streaming 1048576-byte JSON/form caps. Session-cookie mutations use the session-bound CSRF header or field. Cookies are host-scoped HttpOnly, SameSite=Lax, Secure by default; explicit local HTTP opts out. No Origin enforcement exists in these helpers.",
+                "Mounted production POST /mcp/grants bypasses Interfaces. It resolves cookie session/current active membership before unbounded req.json(), then issues a grant; it checks no content type, CSRF or Origin. Valid JSON text can be supplied as a simple-request content type. SameSite and same-origin response reading constrain attacks; no generic bearer exfiltration is established.",
+                "Production already accepts an explicit canonical HTTP(S) CAN_AUTH_ORIGIN and derives auth origin/secure cookie policy from it. Grant mount currently forwards only identityStore, not that trusted auth configuration. Public request URL/Host is not the chosen trusted-origin source.",
+                "OAuth authorize GET is descriptor-only; POST is capped JSON, current session/team and session CSRF, then exact client/redirect/43-character S256 validation and issue. Public registration and token exchange are separate: capped JSON registration; form/JSON token exchange plus matching single-use code/client/redirect/PKCE verifier. No ambient cookie authorizes exchange.",
+                "MCP transport authenticates an explicit grant Bearer and audience before SDK body parsing; cookie/presession do not authenticate it. A valid bearer with a foreign Origin alone is not an authentication bypass. Mutation dispatch rereads credential after arguments/permission and immediately before invoker entry; read/discovery lack this second mutation check.",
+                "Credential reread returns no atomic fence or revision token. HTTP has the same pre-invoker liveness boundary. Identity revocation does not change the separate team State revision. The source cannot guarantee cancellation if revocation completes after invoker entry but before eventual effects/commit.",
+                "Maintained B4 witness revokes during permission checking before invoker entry and asserts denial/zero calls plus live/control denial equivalence. Existing source review describes revoke-after-entry as a missing controlled witness. Requested suspended-body and after-entry artifacts were not located in current checkout or retained temp path; no observed outcome is claimed for them.",
+                "Presession atomic consume concurrency remains separate Identity-store owner work. Existing S256 result is accepted and reused. Native preparation, security qualification, unrelated payload and publication holds remain."
+              ],
+              "required_outcomes": [
+                "Browser login must refuse a token transplanted from another browser before consuming token/password checking/session issuance. Retain ten-minute/one credential-attempt semantics and generic failures; do not claim concurrent atomic consume without its owner primitive.",
+                "Cookie-auth credential issuance must enforce actual bounded approved body type, session CSRF and explicitly configured browser-origin policy. Origin supplies request-context defense, never actor authentication.",
+                "Keep legitimate nonbrowser explicit Bearer MCP and code+PKCE OAuth exchange usable without browser-cookie CSRF or an Origin credential; preserve current audience, membership, permissions and generic failures.",
+                "Describe exactly which revocation-before-boundary refuses and which already-entered effects are outside the dispatcher guarantee. Stronger effect/commit cancellation cannot be asserted from a reread; genuine delayed-body/after-entry consumers and critical security qualification remain required."
+              ]
+            },
+            "questions": {
+              "browser_profile": {
+                "type": "choice",
+                "instructions": "Select the appropriate finite browser request contract using these verified facts. Balance the anonymous token transplant threat, trusted origin availability, missing-Origin compatibility and added store/cookie scope; choose no release if the alternatives cannot meet the stated criteria.",
+                "criteria": {
+                  "bound_cookie": "Use existing anonymous token as a short-lived host-only HttpOnly SameSite=Lax presession cookie plus descriptor form token; POST requires exact cookie/token match before stored consume. For cookie-mutating browser auth/authorize/grant routes reject any present Origin that is not the configured canonical auth origin, including null/malformed; missing Origin requires the same binding or session-CSRF controls rather than becoming authentication. Keep existing body caps, require JSON for direct grant, preserve nonbrowser Bearer/code+PKCE profiles. Needs precise route/cookie/host wiring and caller updates, no new database binding field.",
+                  "origin_only": "Keep anonymous bearer token without browser cookie and require an exact configured Origin on every browser credential-setting/mutating POST. Preserve CSRF and caps elsewhere; refuse missing Origin on those routes. This avoids cookie lifecycle changes but changes no-Origin clients and relies on the Origin requirement to reject transplanted-token browser posts.",
+                  "stored_browser_binding": "Add a separate browser nonce cookie and persist its hash with each presession token; require bound nonce+form token. Apply configured Origin/CSRF/caps and separate nonbrowser profile. Supports multiple outstanding login descriptors but needs new Identity schema/store/issuance and full writer/consumer release.",
+                  "defer": "No offered contract sufficiently meets the required outcomes from verified facts; keep exact missing browser-owner prerequisite rather than assuming secrecy/SameSite suffices."
+                }
+              },
+              "effect_boundary": {
+                "type": "choice",
+                "instructions": "Pick the next defining revocation contract consistent with the evidenced evaluation order and required outcomes. Compare current pre-entry admission, full atomic commit fencing, late response withholding and deferral fairly, keeping actual after-entry and delayed-body qualification separate.",
+                "criteria": {
+                  "pre_invoker": "Accept only the explicit dispatcher boundary: after complete capped body and existing permissions/args, current credential is reread immediately before mutation invoker entry; dead credentials never enter. Revocation after entry does not retroactively cancel admitted work or promise atomic commit fencing. Downstream current-authority/guard/replay and disclosure rules remain independent, and real suspended-body/after-entry witnesses plus security review remain unqualified.",
+                  "atomic_commit": "Require revoke-before-eventual-commit cancellation. Before releasing this behavior add a credential-aware atomic authority/commit fence spanning every relevant Identity writer and actual State/effect store, with complete routing/recovery ownership and genuine after-entry witness. Dispatcher reread remains insufficient; current runtime acceptance stays blocked on the named primitive.",
+                  "post_effect_check": "Add a credential reread after invoking and withhold success if revoked. This limits late disclosure but cannot undo committed effects; it must not be advertised as atomic cancellation and needs replay/uncertain-result semantics before acceptance.",
+                  "defer": "No offered boundary is acceptable from verified requirements; keep exact defining revocation decision blocked, preserving the current narrow source facts without changing advertised guarantee."
+                }
+              }
+            }
+          }
+        ],
+        "witness_limit": "Existing B4 source is pre-invoker permission-window control only; requested suspended-body/after-entry retained witness not located and not accepted.",
+        "approval_limit": "Automatic review rejected transmission of summarized internal authentication, CSRF, Origin and revocation-contract details to the external TypeSafe endpoint: general JEV preauthorization did not clearly authorize this specific sensitive payload/destination. No request executed or transmitted; exact human question remains pending."
+      },
+      "partial_grant_body_csrf": {
+        "state": "Implemented, six direct cases tested and independently source/security reviewed; installed consumer unfinished",
+        "files": [
+          "packages/cloudflare/src/runtime/grant-route.ts",
+          "packages/cloudflare/src/deploy/bundle.ts",
+          "packages/cloudflare/test/mcp-grant-route.test.ts",
+          "packages/cloudflare/test/deploy-bundle.test.ts"
+        ],
+        "behavior": "Preserve method/session/current active membership precedence; require normalized application/json, existing Interfaces streaming1MiB cap and real session CSRF header/field with header precedence before semantic client validation/issue. Generic400/403/429 refusals and exact four-key real grant response retained. Pure HTTP bundle reexports existing parseJsonBody/JSON_BODY_MAX_BYTES, no new API/parser/limit.",
+        "validation": "Owning Cloudflare TypeScript and strict grant-test noEmit exit0. Existing grant tests6/6pass28ms, including unknown/absent session, active membership, malformed/client semantics, genuine grant resolution, missing/wrong/foreign/header-precedence CSRF with zero issuance, media refusal, first over-cap chunk cancellation and exact-cap admission. Finite read-only source assessment CLEAR, with no atomic/post-body authority claim.",
+        "installed_failure": "Affected actual whole deploy bundle consumer failed before HTTP import: existing runtime/invoke.js now imports createStandardCompletionSourceCommand/isConsistentCompletion with createCommittedModelSourceStager from Work root; current bundle admits/maps only the old single selected name. Common closure correction is next; source/grant passes remain reusable. Exact already-reviewed mapper e4ac1798 and current invoke receipt-leaf import exist in local main; Packages was given that available input. No new common mapper repair is required, and only the affected failed installed consumer needs retry.",
+        "witness_scope": "Exact packages/interfaces/test/b4-spend-race.test.ts: HTTP63ff injects revoked row at catalog shape; MCP actually revokes in canCall before reread. Existing live/expiry/no-oracle cases prove pre-invoker only. No separate suspended-body/after-entry witness located; unchanged cases not rerun.",
+        "limits": "No Origin/presession change, late revocation or atomic commit guarantee, browser/security/native acceptance, unrelated hold release or push. Partial coherent local implementation, parent unfinished.",
+        "review": "Independent exact source/security review CLEAR: existing capped portable parser, session-derived CSRF header/field precedence before issuance, identity/refusal/response behavior and pure actual exports. No installed current-head or late-credential/Origin/presession acceptance."
       }
     },
     "TECH-F01": {
