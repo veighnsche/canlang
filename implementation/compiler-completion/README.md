@@ -3839,3 +3839,31 @@ agenda unit, not full native/application acceptance.23 findings,58/67/nine and
 precise recipient holds remain; unchanged accepted components are reused.
 
 Coordinator finite integration review accepts the checked endpoint/raw-body component; retained171 affected/strict/fmt results are reused. Executable agenda/filter/history and whole-plan acceptance remain unfinished.
+
+
+**Unfinished original agenda — native body/filter/preference join, 2026-10-11.**
+
+Released Packages rows/page and exact occurrence enum-filter/nullable preference
+carrier are consumed at main0096. Compiler now emits owned enum:canonical metadata,
+original labels/cases/default expression and receiving defaultValue:null,nullable:true,
+plus checked endpoints/page/source occurrence and complete protected renderRow.
+Prepared Date and existing tabs remain unchanged. Unsupported parent/history,
+unknown/duplicate/nonenum selectors/defaults and filter+lambda where retain E6008.
+No independent URL parser, shared consumer rewrite or new query authority.
+
+141 distinct affected PASS: codegen121, UI adapter11 and view-reuse9. A build/test
+overlap invalidated seven native checks with missing stdlib; only those scopes and
+the affected installed UI/codegen consumers were rerun against frozen outputs,
+with final seven native7/7 .84s, UI2/2 .38s and codegen3/3. Updated endpoint carrier
+1/1 .35s; unchanged successful pure/other original results reused. Seven source
+refusals execute/no modules. Strict Clippy0 5.12s,fmt/diff0; graph22/22 13.362s.
+
+The new actual CLI/public modules/installed agenda native is still FAILED0/1:
+after complete body, signed row forms, query order, null default, own selection/
+clear, poll-state and refusal assertions, empty rendering throws because UI uses
+props.empty without a shared default. Initial producer enum-prefix failure is fixed.
+Packages owns the exact optional omitted-empty mapping; coordinator has the actual
+stack/source. Skip that blocked leaf and continue the ready deferred File sealed
+Event/no-contract census repair. Bare history/current-policy and original full
+application gates retain their named owners. This related checkpoint is unfinished;
+23 findings,58/67/nine and precise recipient holds remain, with no publication.

@@ -9056,3 +9056,18 @@ Use the existing dispatcher context and query predicates for the original checke
 The original nullable enum preference now supplies own null/version0 when no saved row exists, using nullable:true/defaultValue:null in the existing descriptor. Saved cases, actor/team/app/key scope and versioned CAS remain unchanged; empty/null/noncase saves refuse. No nullable record profile, null persistence or schema is introduced. Contracts/UI/Interfaces/Cloudflare emissions and actual browser bundle pass; five changed Interfaces cases and one changed UI branch case pass on Node24.19. Reuse accepted row/page/form results. Coordinator finite review, Compiler original checked source/installed consumer and Dev mounted authority remain. Later history awaits Capability's defining bounded current-authorized State reader; pagination and all precise holds remain separate.
 
 Coordinator finite filter/default/preference integration review accepts the shared consumer, retaining its owning direct checks. Explicit Apply filters starts at the first page and preserves the selected filter and unrelated query state; retaining the current page on an unchanged Apply is not a required extension. Original checked source/installed/mounted authority and actual history consumer remain unfinished; all precise holds and the complete review checkpoint remain.
+
+
+### 2026-10-11 — connect original agenda filter and row consumers (unfinished)
+
+Use the released existing Calendar row/page and occurrence filter/preference APIs.
+Compiler supplies checked enum:canonical ColumnMeta with exact declaration case
+order, matching literal/null/own preference defaults, nullable receiving descriptor
+and original row/source occurrence; Interfaces alone parses request state and UI
+consumes current authorized queries. Keep unsupported filter+lambda where refused
+until a data-only authored predicate producer is selected. Preserve existing Date,
+tabs, source order, protected row/version and bare history E6008.141 affected
+assertions/strict0 pass; the new native owning case remains failed on original
+omitted-empty UI rendering. Packages owns its exact shared default repair. Preserve
+this as unfinished and continue the ready File event-aware empty inventory producer;
+no complete agenda/application or hold release is claimed.
