@@ -10,8 +10,8 @@ use super::resolve::{
     Binding, ContextVar, ModelOwner, ResolveTables, ScopedName, SymbolKind, TypeRef,
 };
 use super::types::{
-    CheckedQueryClauseKind, CheckedQueryProjectionField, CheckedQueryProjectionMapping,
-    SelectedCallTarget, checked_standard_nominal_name,
+    CheckedQuery, CheckedQueryClauseKind, CheckedQueryProjectionField,
+    CheckedQueryProjectionMapping, SelectedCallTarget, checked_standard_nominal_name,
 };
 use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable};
 use crate::source::{SourceDb, SourceId, sha256_hex};
@@ -369,9 +369,52 @@ pub struct CheckedScenarioSource {
     /// Original supported query occurrences; this inventory grants no closure.
     /// Unhandled query uses still decline the executable scenario independently.
     pub queries: Option<Vec<DisclosureQuery>>,
+    /// Original transcript invocations and eager row projections, source only.
+    pub(crate) transcripts: Option<Vec<CheckedTranscriptSource>>,
     /// Private owning stored-field/Contract snapshots and two-parent Model
     /// source operands. File declarations here grant no receipt admission.
     pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
+}
+
+/// This catalog projection is not a local Contract and issues no row/File grant.
+/// Retained source anchors await the defining native projection consumer.
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedTranscriptSource {
+    pub id: String,
+    pub source: DisclosureSource,
+    pub derive: SymbolId,
+    pub declaration: NodeKey,
+    pub body: NodeKey,
+    pub call: NodeKey,
+    pub statement: NodeKey,
+    pub slots: Vec<Option<usize>>,
+    pub argument: NodeKey,
+    pub parameter: SymbolId,
+    pub formal: SymbolId,
+    pub branch: SymbolId,
+    pub prefix: SymbolId,
+    pub prefix_node: NodeKey,
+    pub prefix_max: NodeKey,
+    pub query: CheckedQuery,
+    pub model: SymbolId,
+    pub alias: NodeKey,
+    pub order: SymbolId,
+    pub order_node: NodeKey,
+    pub select: NodeKey,
+    pub ty: ResolvedType,
+    pub fields: Vec<CheckedTranscriptField>,
+    pub influences: Vec<DisclosureInfluence>,
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct CheckedTranscriptField {
+    pub name: String,
+    pub key_node: NodeKey,
+    pub value_node: NodeKey,
+    pub source_field: SymbolId,
+    pub ty: ResolvedType,
 }
 
 #[derive(Debug, Clone)]
@@ -1176,6 +1219,9 @@ struct ValuePath {
     /// Exact Complete query child whose actual call occurrence owns this wire.
     /// This marker admits only direct cardinality consumption, never a row view.
     query_child: Option<SymbolId>,
+    /// Only exact transcript-origin TextMessage concat/count consumers use these.
+    transcript_messages: Option<NodeKey>,
+    transcript_count: bool,
     contract_value: Option<ContractValue>,
     /// Original input and at most two checked implicit containment edges.
     reference_origin: Option<ReferenceOrigin>,
@@ -1960,7 +2006,427 @@ impl<'a> Closure<'a> {
             creates: self.checked_create_sources(scenario),
             decision_sites: self.checked_decision_sites(scenario),
             queries: self.checked_query_sources(scenario),
+            transcripts: self.checked_transcript_sources(scenario),
             stored_contracts: self.checked_stored_contracts(scenario),
+        })
+    }
+
+    fn checked_transcript_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedTranscriptSource>> {
+        let mut out = Vec::new();
+        let mut visits = 0;
+        for statement in scenario.guards.iter().chain(&scenario.effects) {
+            let mut pending = vec![*self.nodes.get(&statement.node)?];
+            while let Some(node) = pending.pop() {
+                visits += 1;
+                if visits > 16384 || out.len() > 200 {
+                    return None;
+                }
+                let key = NodeKey::of(node);
+                if let Some(SelectedCallTarget::DeriveFn(derive)) =
+                    self.types.selected_calls.get(&key).map(|call| &call.target)
+                    && self.resolve.symbols.get(derive.0 as usize)?.name == "transcript"
+                {
+                    out.push(self.checked_transcript_source(scenario, statement.node, key)?);
+                }
+                // Source order, including nested operands; no derive invocation
+                // is hoisted, reused or replaced with a cardinality shortcut.
+                pending.extend(node.children.iter().rev());
+            }
+        }
+        out.sort_by_key(|fact| (fact.call.start, fact.call.end));
+        Some(out)
+    }
+
+    fn checked_transcript_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        statement: NodeKey,
+        call: NodeKey,
+    ) -> Option<CheckedTranscriptSource> {
+        if scenario.read
+            || scenario.on.is_some()
+            || !scenario
+                .guards
+                .iter()
+                .chain(&scenario.effects)
+                .any(|effect| effect.node == statement)
+            || call.file != statement.file
+            || call.start < statement.start
+            || call.end > statement.end
+        {
+            return None;
+        }
+        let selected = self.types.selected_calls.get(&call)?;
+        let SelectedCallTarget::DeriveFn(derive) = &selected.target else {
+            return None;
+        };
+        let derive = *derive;
+        let data = self.effects.derives.get(&derive)?;
+        let declaration = self.resolve.symbols.get(derive.0 as usize)?;
+        let SymbolKind::DeriveFn {
+            params,
+            result_node,
+        } = &declaration.kind
+        else {
+            return None;
+        };
+        let [formal] = data.params.as_slice() else {
+            return None;
+        };
+        let [argument] = selected.arguments.as_slice() else {
+            return None;
+        };
+        let parameter = self.query_parameter(scenario, *argument)?;
+        let actual = scenario
+            .params
+            .iter()
+            .find(|param| param.param == parameter)?;
+        let formal_symbol = self.resolve.symbols.get(formal.param.0 as usize)?;
+        let actual_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        let ResolvedType::Record {
+            symbol: branch,
+            stored: true,
+        } = self.types.symbol_types.get(&parameter)?
+        else {
+            return None;
+        };
+        let branch = *branch;
+        let branch_ty = ResolvedType::Record {
+            symbol: branch,
+            stored: true,
+        };
+        let body = data.expr?;
+        let result = data.result?;
+        let text = &self.db.get(data.node.file)?.text;
+        let call_node = self.nodes.get(&call)?;
+        let mut syntax_arguments = call_node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument);
+        let syntax_argument = syntax_arguments.next()?;
+        let syntax_values: Vec<_> = syntax_argument
+            .children
+            .iter()
+            .filter(|child| expression(child.kind))
+            .map(NodeKey::of)
+            .collect();
+        let head = call_node
+            .children
+            .iter()
+            .find(|child| expression(child.kind))?;
+        let result_ty = self.types.symbol_results.get(&derive)?.as_ref()?;
+        let parameter_name = |parameter: &super::effects::ParamData,
+                              symbol: &super::resolve::Symbol| {
+            self.nodes
+                .get(&parameter.node)
+                .and_then(|node| {
+                    node.children
+                        .iter()
+                        .find(|child| child.kind == SyntaxKind::Name)
+                })
+                .is_some_and(|name| {
+                    self.word(name) == Some(symbol.name.as_str()) && name.span == symbol.span
+                })
+        };
+        if declaration.name != "transcript"
+            || declaration.module != scenario.module
+            || declaration.canonical
+                != format!(
+                    "{}.transcript",
+                    self.resolve.modules.get(scenario.module.0 as usize)?.name
+                )
+            || data.module != scenario.module
+            || data.derive != derive
+            || data.model.is_some()
+            || params.as_slice() != [formal.param]
+            || *result_node != data.node
+            || selected.slots.as_slice() != [Some(0)]
+            || formal.default.is_some()
+            || actual.default.is_some()
+            || formal_symbol.module != scenario.module
+            || actual_symbol.module != scenario.module
+            || !parameter_name(formal, formal_symbol)
+            || !parameter_name(actual, actual_symbol)
+            || formal_symbol.name != "branch"
+            || formal_symbol.canonical != format!("{}.branch", declaration.canonical)
+            || !matches!(formal_symbol.kind,SymbolKind::Param {owner,type_node,..} if owner==derive && type_node==formal.type_node)
+            || !matches!(actual_symbol.kind,SymbolKind::Param {owner,type_node,..} if owner==scenario.scenario && type_node==actual.type_node)
+            || self.types.symbol_types.get(&formal.param) != Some(&branch_ty)
+            || self.types.node_types.get(argument) != Some(&branch_ty)
+            || text
+                .get(formal.type_node.start as usize..formal.type_node.end as usize)?
+                .trim()
+                != "Branch"
+            || text
+                .get(actual.type_node.start as usize..actual.type_node.end as usize)?
+                .trim()
+                != "Branch"
+            || text.get(result.start as usize..result.end as usize)?.trim() != "TextMessage[]"
+            || !self
+                .nodes
+                .get(&data.node)?
+                .children
+                .iter()
+                .any(|child| NodeKey::of(child) == result)
+            || !transcript_message_array(result_ty)
+            || self.types.node_types.get(&call) != Some(result_ty)
+            || self.types.node_types.get(&body) != Some(result_ty)
+            || call_node.kind != SyntaxKind::Call
+            || syntax_arguments.next().is_some()
+            || syntax_values.as_slice() != [*argument]
+            || !matches!(self.query_binding(NodeKey::of(head)),Some(Binding::Symbol(id)) if *id==derive)
+        {
+            return None;
+        }
+        let branch_definition = self.checked_created_model(branch, scenario.module)?;
+        if self.resolve.symbols.get(branch.0 as usize)?.name != "Branch" {
+            return None;
+        }
+        let (prefix_node, query_group) = self.query_binary(body, "+")?;
+        let (prefix_receiver, prefix_name) = self.count_member(prefix_node)?;
+        if prefix_name != "prefix"
+            || !matches!(self.query_binding(prefix_receiver),Some(Binding::Symbol(id)) if *id==formal.param)
+            || self.types.node_types.get(&prefix_receiver) != Some(&branch_ty)
+            || self.types.node_types.get(&prefix_node) != Some(result_ty)
+        {
+            return None;
+        }
+        let prefix_field = branch_definition
+            .fields
+            .iter()
+            .find(|field| field.name == "prefix")?;
+        let prefix_data = branch_definition
+            .declaration
+            .fields
+            .iter()
+            .find(|field| field.field == prefix_field.field)?;
+        let prefix_max = prefix_data
+            .modifiers
+            .iter()
+            .find(|modifier| modifier.name == "max")?
+            .value?;
+        if prefix_field.ty != *result_ty
+            || prefix_data.required_array
+            || prefix_data.default.is_some()
+            || prefix_data.server.is_some()
+            || self.nodes.get(&prefix_max)?.kind != SyntaxKind::Literal
+            || text
+                .get(prefix_max.start as usize..prefix_max.end as usize)?
+                .trim()
+                != "120"
+            || self.types.node_types.get(&prefix_max) != Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return None;
+        }
+        let query_node = self.query_group(query_group)?;
+        let query = self.types.checked_queries.get(&query_node)?;
+        let [alias, order, select] = query.clauses.as_slice() else {
+            return None;
+        };
+        let CheckedQueryClauseKind::As { name: alias_name } = &alias.kind else {
+            return None;
+        };
+        if query.node != query_node
+            || self.nodes.get(&query_node)?.kind != SyntaxKind::Query
+            || query.projection.is_some()
+            || order.kind != CheckedQueryClauseKind::Order
+            || select.kind != CheckedQueryClauseKind::Select
+            || alias_name != "turn"
+            || query.result != *result_ty
+            || self.types.node_types.get(&query_node) != Some(result_ty)
+        {
+            return None;
+        }
+        let [order_node] = order.expressions.as_slice() else {
+            return None;
+        };
+        let [select_node] = select.expressions.as_slice() else {
+            return None;
+        };
+        let (domain_receiver, child_name) = self.count_member(query.domain)?;
+        let ResolvedType::Array {
+            element,
+            ordered: true,
+            nonempty: false,
+        } = &query.domain_type
+        else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        let model = *model;
+        let model_definition = self.checked_created_model(model, scenario.module)?;
+        let model_symbol = self.resolve.symbols.get(model.0 as usize)?;
+        if child_name != "Turn"
+            || model_symbol.name != child_name
+            || !matches!(model_symbol.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(parent),..} if parent==branch)
+            || branch_definition
+                .fields
+                .iter()
+                .any(|field| field.name == child_name)
+            || !matches!(self.query_binding(domain_receiver),Some(Binding::Symbol(id)) if *id==formal.param)
+            || self.types.node_types.get(&domain_receiver) != Some(&branch_ty)
+            || self.types.node_types.get(&query.domain) != Some(&query.domain_type)
+        {
+            return None;
+        }
+        let position = self.query_member(*order_node, alias.node, model)?;
+        if self.query_member_name(*order_node, alias.node, model) != Some("position")
+            || self.types.symbol_types.get(&position) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || self.types.node_types.get(order_node) != Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return None;
+        }
+        let constructor = self.nodes.get(select_node)?;
+        let constructor_head = constructor
+            .children
+            .iter()
+            .find(|child| expression(child.kind))?;
+        let imported = self.word(constructor_head)?;
+        let element_ty = match result_ty {
+            ResolvedType::Array { element, .. } => element.as_ref(),
+            _ => return None,
+        };
+        if constructor.kind != SyntaxKind::Construct
+            || checked_standard_nominal_name(element_ty) != Some("TextMessage")
+            || self.types.node_types.get(select_node) != Some(element_ty)
+            || !matches!(
+                self.resolve
+                    .node_typeref
+                    .get(&NodeKey::of(constructor_head)),
+                Some(TypeRef::External)
+            )
+            || !matches!(self.resolve.module_scopes.get(scenario.module.0 as usize)?.prod.get(imported),Some(ScopedName::External {provider,name}) if provider=="std" && name=="TextMessage")
+        {
+            return None;
+        }
+        let object = constructor
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Object)?;
+        let entries: Vec<_> = object
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::ObjectEntry)
+            .collect();
+        let schema = checked_text_schema_fields(element_ty, Some("TextMessage"))?;
+        if entries.len() != 3 || schema.len() != 3 {
+            return None;
+        }
+        let mut fields = Vec::new();
+        for (entry, (expected, expected_ty)) in entries.iter().zip(schema) {
+            let key_node = entry.children.first()?;
+            let mut values = entry.children.iter().filter(|child| expression(child.kind));
+            let value_node = NodeKey::of(values.next()?);
+            let source_field = self.query_member(value_node, alias.node, model)?;
+            let field = model_definition
+                .fields
+                .iter()
+                .find(|field| field.field == source_field)?;
+            let source_data = model_definition
+                .declaration
+                .fields
+                .iter()
+                .find(|field| field.field == source_field)?;
+            if key_node.kind != SyntaxKind::Name
+                || self.word(key_node)? != expected
+                || values.next().is_some()
+                || self.query_member_name(value_node, alias.node, model) != Some(expected.as_str())
+                || field.ty != *expected_ty
+                || self.types.node_types.get(&value_node) != Some(expected_ty)
+                || source_data.default.is_some()
+                || source_data.server.is_some()
+                || source_data.required_array
+            {
+                return None;
+            }
+            if expected == "attachments" {
+                let maximum = source_data
+                    .modifiers
+                    .iter()
+                    .find(|modifier| modifier.name == "max")?
+                    .value?;
+                if text
+                    .get(maximum.start as usize..maximum.end as usize)?
+                    .trim()
+                    != "8"
+                    || self.types.node_types.get(&maximum)
+                        != Some(&ResolvedType::Scalar(Scalar::Int))
+                {
+                    return None;
+                }
+            }
+            fields.push(CheckedTranscriptField {
+                name: expected.clone(),
+                key_node: NodeKey::of(key_node),
+                value_node,
+                source_field,
+                ty: expected_ty.clone(),
+            });
+        }
+        let source = self.source(scenario.module, call).ok()?;
+        if source.sha256 != sha256_hex(self.db.get(call.file)?.text.as_bytes()) {
+            return None;
+        }
+        let id = self
+            .opaque(
+                "transcript-query",
+                query_node,
+                &self.call_stamp(&[call]).ok()?,
+            )
+            .ok()?;
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", query_node, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node: query_node,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(CheckedTranscriptSource {
+            id,
+            source,
+            derive,
+            declaration: data.node,
+            body,
+            call,
+            statement,
+            slots: selected.slots.clone(),
+            argument: *argument,
+            parameter,
+            formal: formal.param,
+            branch,
+            prefix: prefix_field.field,
+            prefix_node,
+            prefix_max,
+            query: query.clone(),
+            model,
+            alias: alias.node,
+            order: position,
+            order_node: *order_node,
+            select: *select_node,
+            ty: result_ty.clone(),
+            fields,
+            influences,
         })
     }
 
@@ -2164,6 +2630,11 @@ impl<'a> Closure<'a> {
             return None;
         }
         let mut anchors = vec![owner.node];
+        for transcript in self.checked_transcript_sources(owner).unwrap_or_default() {
+            if !anchors.contains(&transcript.declaration) {
+                anchors.push(transcript.declaration);
+            }
+        }
         for site in self.checked_decision_sites(owner).unwrap_or_default() {
             if site.stage != CheckedDecisionStage::LeadingRequire {
                 continue;
@@ -6014,7 +6485,60 @@ impl<'a> Closure<'a> {
                     "stored reference operand needs direct child or count consumer",
                 ));
             }
-            self.product(key, &left, &right)
+            let mut values = self.product(key, &left, &right)?;
+            if op == "+"
+                && self
+                    .types
+                    .node_types
+                    .get(&key)
+                    .is_some_and(transcript_message_array)
+            {
+                let operand = |node: &SyntaxNode, paths: &[ValuePath]| {
+                    let original = self
+                        .query_group(NodeKey::of(node))
+                        .unwrap_or(NodeKey::of(node));
+                    self.types
+                        .node_types
+                        .get(&NodeKey::of(node))
+                        .is_some_and(transcript_message_array)
+                        && (self
+                            .nodes
+                            .get(&original)
+                            .is_some_and(|node| node.kind == SyntaxKind::Array)
+                            || paths
+                                .iter()
+                                .all(|value| value.transcript_messages == Some(original)))
+                };
+                if operand(children[0], &left)
+                    && operand(children[1], &right)
+                    && left
+                        .iter()
+                        .chain(&right)
+                        .any(|value| value.transcript_messages.is_some())
+                {
+                    for value in &mut values {
+                        value.transcript_messages = Some(key);
+                    }
+                }
+            }
+            // Only this original cardinality guard retains query/prefix
+            // controls on a scalar Return; other authorization pruning stays.
+            if op == "<"
+                && left.iter().all(|value| value.transcript_count)
+                && self
+                    .nodes
+                    .get(&NodeKey::of(children[1]))
+                    .is_some_and(|node| {
+                        node.kind == SyntaxKind::Literal && self.word(node) == Some("120")
+                    })
+                && self.types.node_types.get(&NodeKey::of(children[1]))
+                    == Some(&ResolvedType::Scalar(Scalar::Int))
+            {
+                for value in &mut values {
+                    value.transcript_count = true;
+                }
+            }
+            Ok(values)
         }
     }
     fn bounded(
@@ -6052,6 +6576,8 @@ impl<'a> Closure<'a> {
                 merged.reference = None;
                 merged.input = None;
                 merged.contract_value = None;
+                merged.transcript_messages = None;
+                merged.transcript_count = false;
                 out.push(merged);
             }
         }
@@ -6351,6 +6877,135 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing checked call selection"))?
             .clone();
+        if calls.is_empty()
+            && self.statement_depth == 1
+            && self.loop_node.is_none()
+            && matches!(&selected.target,SelectedCallTarget::DeriveFn(id)
+                if self.resolve.symbols.get(id.0 as usize).is_some_and(|symbol| symbol.name=="transcript"))
+            && self
+                .types
+                .node_types
+                .get(&key)
+                .is_some_and(transcript_message_array)
+        {
+            let fact = self
+                .effects
+                .scenarios
+                .values()
+                .find_map(|scenario| {
+                    (scenario.module == module).then_some(())?;
+                    self.checked_transcript_sources(scenario)?
+                        .into_iter()
+                        .find(|fact| fact.call == key)
+                })
+                .ok_or_else(|| {
+                    self.fail(key, "transcript needs its exact original source projection")
+                })?;
+            if !env.get(&Local::Symbol(fact.parameter)).is_some_and(|value| {
+                value.record==Some(fact.branch)
+                    && matches!(value.reference_origin,Some(ReferenceOrigin::Parameter(parameter)) if parameter==fact.parameter)
+            }) {
+                return Err(self.fail(key,"transcript needs its original required Branch parameter"));
+            }
+            let model = self
+                .resolve
+                .symbols
+                .get(fact.branch.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing transcript owning Branch"))?;
+            let nested = vec![key];
+            return Ok(vec![ValuePath {
+                reads: vec![DisclosureDependency {
+                    id: self.opaque("read-data", fact.prefix_node, &self.call_stamp(&nested)?)?,
+                    source: fact.source.clone(),
+                    node: fact.prefix_node,
+                    calls: nested.clone(),
+                    role: DependencyRole::Data,
+                    model: fact.branch,
+                    field: fact.prefix,
+                    model_name: model.canonical.clone(),
+                    field_name: "prefix".into(),
+                    ty: fact.ty.clone(),
+                    type_id: "TextMessage[]".into(),
+                    query_id: None,
+                }],
+                observed: vec![(fact.prefix_node, nested)],
+                influences: fact.influences,
+                transcript_messages: Some(key),
+                ..ValuePath::default()
+            }]);
+        }
+        if calls.is_empty()
+            && self.statement_depth == 1
+            && self.loop_node.is_none()
+            && matches!(&selected.target,SelectedCallTarget::Builtin {id,overload:0} if id=="count")
+            && selected.slots.as_slice() == [Some(0)]
+            && selected.arguments.len() == 1
+            && self.types.node_types.get(&key) == Some(&ResolvedType::Scalar(Scalar::Int))
+            && self
+                .types
+                .node_types
+                .get(&selected.arguments[0])
+                .is_some_and(transcript_message_array)
+        {
+            let argument = selected.arguments[0];
+            let original = self
+                .query_group(argument)
+                .ok_or_else(|| self.fail(key, "missing transcript count operand"))?;
+            let operand = match self.query_binding(original) {
+                Some(Binding::Let { node }) => self
+                    .effects
+                    .scenarios
+                    .values()
+                    .filter(|scenario| scenario.module == module)
+                    .flat_map(|scenario| &scenario.effects)
+                    .find(|effect| effect.node == *node && effect.verb == EffectVerb::Let)
+                    .and_then(|effect| self.query_group(effect.value?)),
+                _ => Some(original),
+            }
+            .ok_or_else(|| {
+                self.fail(key, "transcript count needs its original immutable concat")
+            })?;
+            let count_node = self
+                .nodes
+                .get(&key)
+                .ok_or_else(|| self.fail(key, "missing transcript count"))?;
+            let head = count_node
+                .children
+                .iter()
+                .find(|child| expression(child.kind))
+                .ok_or_else(|| self.fail(key, "missing transcript count target"))?;
+            let syntax_args: Vec<_> = count_node
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Argument)
+                .filter_map(|child| {
+                    child
+                        .children
+                        .iter()
+                        .find(|child| expression(child.kind))
+                        .map(NodeKey::of)
+                })
+                .collect();
+            if count_node.kind != SyntaxKind::Call
+                || syntax_args.as_slice() != [argument]
+                || !matches!(self.query_binding(NodeKey::of(head)),Some(Binding::Builtin {id}) if id=="count")
+            {
+                return Err(self.fail(key, "transcript count source selection mismatch"));
+            }
+            let mut values = self.expr(argument, module, env, calls)?;
+            if values.is_empty()
+                || values
+                    .iter()
+                    .any(|value| value.transcript_messages != Some(operand))
+            {
+                return Err(self.fail(key, "count needs exact transcript-origin messages"));
+            }
+            for value in &mut values {
+                value.transcript_messages = None;
+                value.transcript_count = true;
+            }
+            return Ok(values);
+        }
         if self.authorization
             && calls.len() == 1
             && self
@@ -9504,6 +10159,15 @@ impl<'a> Closure<'a> {
                                 continue;
                             }
                             let mut path = flow.clone();
+                            if value.transcript_count {
+                                // The exact eager transcript cardinality guard
+                                // controls this scalar sink as well as effects.
+                                path.controls.join(&self.control(ValuePath {
+                                    reads: value.reads.clone(),
+                                    influences: value.influences.clone(),
+                                    ..ValuePath::default()
+                                })?);
+                            }
                             // The new finite reference operand retains whole
                             // source-field authority even on a scalar return.
                             // Ordinary scalar/Contract guard pruning is unchanged.
@@ -9906,6 +10570,11 @@ fn result_type(ty: &ResolvedType) -> bool {
     primitive_type(base)
         || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
         || matches!(base, ResolvedType::Array { element, .. } if primitive_type(element))
+}
+
+fn transcript_message_array(ty: &ResolvedType) -> bool {
+    matches!(ty,ResolvedType::Array {element,ordered:true,..}
+        if checked_standard_nominal_name(element)==Some("TextMessage"))
 }
 
 /// The owning imported constructor supplies the carried schema identity.
