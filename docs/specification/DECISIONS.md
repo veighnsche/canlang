@@ -12019,3 +12019,10 @@ Changed MAIN checks all0: {"UI": 1.6, "root": 4.64} seconds.
 
 
 Execution-list reconciliation after actual reviewed releases: Profile source690e, selectionc1de, nullable8de5 and prefix4074 now supply their finite producer inputs. Their source criteria remain closed; Compiler transcript DATA inventory/emission and Dev original native20d/three-query/selected/nullable consumers stay separate. The four existing worker instructions were successfully delivered. Packages completed the demonstrated source fixes; its26 parent remainder is now24 exact-owner leaves/two held/local-ready0, without invented work. All original accounting/holds/complete checkpoint remain unchanged.
+
+
+### 2026-10-12 — retain authentic eager transcript DATA dependencies
+
+Accepted Compilerdc67 at finite source/control scope after independent defining review CLEAR. Each actual transcript caller mints three ordered DATA IDs from original Turn role/content/attachments and its real helper invocation chain, query/model/source/type. Every consuming Return retains these eager reads, including count-discarded projections; exact original dependency equality prevents unrelated ordinary controls from becoming DATA. Fresh transcript correspondence and complete Turn field/schema source refusals remain. Private3 and affected249/9 scopes plus166 unchanged owner outcomes/strict/fmt reused, changed MAIN locked/offline CLI follows. Native metadata/position CONTROL/emission and Dev actual selected row/File/current-saved authority remain unfinished; no shape grants, new carrier or whole-plan/hold release.
+
+Changed MAIN locked/offline CLI0 19.49s; Dev own26b frozen source/dist/CLI/catalog unaffected.

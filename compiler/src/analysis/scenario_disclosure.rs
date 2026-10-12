@@ -379,7 +379,7 @@ pub struct CheckedScenarioSource {
 /// This catalog projection is not a local Contract and issues no row/File grant.
 /// Retained source anchors await the defining native projection consumer.
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CheckedTranscriptSource {
     pub id: String,
     pub source: DisclosureSource,
@@ -404,10 +404,13 @@ pub(crate) struct CheckedTranscriptSource {
     pub select: NodeKey,
     pub ty: ResolvedType,
     pub fields: Vec<CheckedTranscriptField>,
+    /// Actual eager selection reads, in authored TextMessage field order.
+    /// Each dependency retains the original owning helper invocation chain.
+    pub dependencies: Vec<DisclosureDependency>,
     pub influences: Vec<DisclosureInfluence>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub(crate) struct CheckedTranscriptField {
     pub name: String,
@@ -2834,13 +2837,32 @@ impl<'a> Closure<'a> {
         if source.sha256 != sha256_hex(self.db.get(call.file)?.text.as_bytes()) {
             return None;
         }
+        let calls = vec![call];
+        let call_stamp = self.call_stamp(&calls).ok()?;
         let id = self
-            .opaque(
-                "transcript-query",
-                query_node,
-                &self.call_stamp(&[call]).ok()?,
-            )
+            .opaque("transcript-query", query_node, &call_stamp)
             .ok()?;
+        let dependencies = fields
+            .iter()
+            .map(|field| {
+                Some(DisclosureDependency {
+                    id: self
+                        .opaque("read-data", field.value_node, &call_stamp)
+                        .ok()?,
+                    source: self.source(scenario.module, field.value_node).ok()?,
+                    node: field.value_node,
+                    calls: calls.clone(),
+                    role: DependencyRole::Data,
+                    model,
+                    field: field.source_field,
+                    model_name: model_symbol.canonical.clone(),
+                    field_name: field.name.clone(),
+                    ty: field.ty.clone(),
+                    type_id: checked_stored_contract_type_id(&field.ty, None, self.resolve, 0)?,
+                    query_id: Some(id.clone()),
+                })
+            })
+            .collect::<Option<Vec<_>>>()?;
         let influences = [
             InfluenceKind::QueryExistence,
             InfluenceKind::QueryCardinality,
@@ -2884,6 +2906,7 @@ impl<'a> Closure<'a> {
             select: *select_node,
             ty: result_ty.clone(),
             fields,
+            dependencies,
             influences,
         })
     }
@@ -3678,6 +3701,12 @@ impl<'a> Closure<'a> {
                 pending.push((edge.child, true));
                 pending.push((edge.parent, true));
             }
+        }
+        for transcript in self
+            .checked_transcript_sources(scenario)
+            .unwrap_or_default()
+        {
+            pending.push((transcript.model, true));
         }
         let mut seen = HashSet::new();
         let mut inventory = Vec::new();
@@ -5995,6 +6024,12 @@ impl<'a> Closure<'a> {
 
     fn control(&self, mut value: ValuePath) -> Result<ValuePath, DisclosureDecline> {
         for read in &mut value.reads {
+            // Constructing the original selected TextMessage eagerly consumes
+            // its DATA fields even when count later uses only cardinality.
+            // Query association alone never exempts another ordinary read.
+            if self.transcript_selection_dependency(read) {
+                continue;
+            }
             read.role = DependencyRole::Control;
             read.id = self.opaque("read-control", read.node, &self.call_stamp(&read.calls)?)?;
         }
@@ -6007,6 +6042,37 @@ impl<'a> Closure<'a> {
             )?;
         }
         Ok(value)
+    }
+
+    fn transcript_selection_dependency(&self, read: &DisclosureDependency) -> bool {
+        let [call] = read.calls.as_slice() else {
+            return false;
+        };
+        let Some(query_id) = read.query_id.as_deref() else {
+            return false;
+        };
+        if read.role != DependencyRole::Data {
+            return false;
+        }
+        self.effects.scenarios.values().any(|scenario| {
+            scenario
+                .guards
+                .iter()
+                .chain(&scenario.effects)
+                .any(|statement| {
+                    statement.node.file == call.file
+                        && statement.node.start <= call.start
+                        && call.end <= statement.node.end
+                        && self
+                            .checked_transcript_source(scenario, statement.node, *call)
+                            .is_some_and(|fact| {
+                                fact.id == query_id
+                                    && fact.call == *call
+                                    && fact.source == read.source
+                                    && fact.dependencies.iter().any(|original| original == read)
+                            })
+                })
+        })
     }
 
     fn influence(
@@ -7404,22 +7470,32 @@ impl<'a> Closure<'a> {
                 .get(fact.branch.0 as usize)
                 .ok_or_else(|| self.fail(key, "missing transcript owning Branch"))?;
             let nested = vec![key];
+            let mut observed = vec![(fact.prefix_node, nested.clone())];
+            observed.extend(
+                fact.dependencies
+                    .iter()
+                    .map(|dependency| (dependency.node, dependency.calls.clone())),
+            );
+            let mut reads = vec![DisclosureDependency {
+                id: self.opaque("read-data", fact.prefix_node, &self.call_stamp(&nested)?)?,
+                source: fact.source.clone(),
+                node: fact.prefix_node,
+                calls: nested.clone(),
+                role: DependencyRole::Data,
+                model: fact.branch,
+                field: fact.prefix,
+                model_name: model.canonical.clone(),
+                field_name: "prefix".into(),
+                ty: fact.ty.clone(),
+                type_id: "TextMessage[]".into(),
+                query_id: None,
+            }];
+            reads.extend(fact.dependencies);
             return Ok(vec![ValuePath {
-                reads: vec![DisclosureDependency {
-                    id: self.opaque("read-data", fact.prefix_node, &self.call_stamp(&nested)?)?,
-                    source: fact.source.clone(),
-                    node: fact.prefix_node,
-                    calls: nested.clone(),
-                    role: DependencyRole::Data,
-                    model: fact.branch,
-                    field: fact.prefix,
-                    model_name: model.canonical.clone(),
-                    field_name: "prefix".into(),
-                    ty: fact.ty.clone(),
-                    type_id: "TextMessage[]".into(),
-                    query_id: None,
-                }],
-                observed: vec![(fact.prefix_node, nested)],
+                // Retain each real eager selection in every consuming Return;
+                // its exact query association still owns candidate capture.
+                reads,
+                observed,
                 influences: fact.influences,
                 transcript_messages: Some(key),
                 ..ValuePath::default()
