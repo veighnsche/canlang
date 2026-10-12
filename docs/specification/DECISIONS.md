@@ -12038,3 +12038,10 @@ Actual Dev originalProfile20d failed1/1 in10329ms/11.05s before D1 at loadCanoni
 Accepted Capability0f887918 direct consumer control after independent defining review CLEAR. Existing nullable promotion and whole owning WorkflowDefinition observation suffice with genuine finalized receiving graph before Values ImageRequest validation; a subfield grant cannot substitute. Real absent/copied graph facts leave no Run/business history, successful saved disclosure retains original definition/File census. One owning1/1 69.56ms result reused without repeated107/13 qualification. This is a handbound State/Files/Values component chain, not compiled native source/provider/application acceptance; no API, carrier or hold release.
 
 Changed MAIN root noEmit0 6.85s; no unchanged package emission/test rerun.
+
+
+### 2026-10-12 — publish checked transcript selection metadata
+
+Accepted Compiler292726cb after independent defining source/metadata review CLEAR. Derive actual two query plans/position controls and operation.querySelections whole-array TextMessage[] field mapping from the authenticated original caller/helper source and matching ordinary Return DATA. Preserve admitted Branch scoping/ascending order/archive exclusion/eager calls/eight influences and complete original/fresh Return/IR/Turn seals. Shape cannot grant rows/Files; native emitter remains E6008 until genuine Dev receiver. Owning3/.17s+332 affected/strict/fmt reused, no broader native/application/hold acceptance. Existing State receiver suffices without new row API. Dev own frozen26b capture remains untouched.
+
+Changed MAIN locked/offline CLI0 15.45s.

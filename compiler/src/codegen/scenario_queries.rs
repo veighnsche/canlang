@@ -15,9 +15,10 @@ use crate::source::{SourceDb, Span};
 use super::ir::{IrExpr, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrStmt, IrType};
 use super::scenario_decisions::{same_scenario_semantics, serial_type};
 use super::scenario_receipts::{
-    NativeReturn, NativeScenarioReceipt, ReceiptDisclosurePlan, ReceiptInfluence, ReceiptQuery,
-    ReceiptQueryDependency, ReceiptQueryOrder, ReceiptQueryProjection, ReceiptQueryProjectionField,
-    ReceiptReturn, ReceiptRole, ReceiptSource,
+    NativeIntrinsicKind, NativeReturn, NativeScenarioReceipt, ReceiptDependency,
+    ReceiptDisclosurePlan, ReceiptInfluence, ReceiptIntrinsic, ReceiptQuery,
+    ReceiptQueryDependency, ReceiptQueryOrder, ReceiptQueryParent, ReceiptQueryParentOrigin,
+    ReceiptQueryProjection, ReceiptQueryProjectionField, ReceiptReturn, ReceiptRole, ReceiptSource,
 };
 
 /// Serialize the real checked model scan, local nominal select and all four
@@ -40,6 +41,40 @@ pub fn serialize_query_sources(
         entry_module,
     )?)
     .ok()
+}
+
+/// Literal intermediate selection metadata, authenticated through the same
+/// source query path. This does not bind a result or activate native capture.
+pub(super) fn serialize_transcript_selections(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<serde_json::Value> {
+    let facts = ir
+        .scenario_disclosures
+        .get(&owner.id)?
+        .source_facts()?
+        .transcripts
+        .as_deref()
+        .filter(|facts| !facts.is_empty())?;
+    checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
+    Some(serde_json::Value::Array(
+        facts
+            .iter()
+            .map(|fact| {
+                serde_json::json!({
+                    "queryId": fact.id,
+                    "type": "TextMessage[]",
+                    "fields": fact.fields.iter().zip(&fact.dependencies).map(|(field, dependency)| {
+                        serde_json::json!({"name": field.name, "dependencyId": dependency.id})
+                    }).collect::<Vec<_>>()
+                })
+            })
+            .collect(),
+    ))
 }
 
 /// Whole checked query closure for the released public-read/private-child
@@ -67,6 +102,16 @@ pub(super) fn collect_complete_query_receipt(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<NativeScenarioReceipt> {
+    if ir
+        .scenario_disclosures
+        .get(&owner.id)?
+        .source_facts()?
+        .transcripts
+        .as_deref()
+        .is_some_and(|facts| !facts.is_empty())
+    {
+        return None;
+    }
     // Reuse the full owning source/type/executable correspondence, not a
     // caller-supplied JSON plan or an IR-only Complete tag.
     let plan = checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
@@ -211,9 +256,22 @@ fn checked_query_plan(
     if source.node != original.node
         || source.source != original.source
         || source.queries != original.queries
-        || queries.is_empty()
+        || source.transcripts != original.transcripts
         || queries.len() > 3
     {
+        return None;
+    }
+    if source
+        .transcripts
+        .as_deref()
+        .is_some_and(|facts| !facts.is_empty())
+    {
+        if !queries.is_empty() {
+            return None;
+        }
+        return checked_transcript_query_plan(program, ir, owner, db, catalog, entry_module);
+    }
+    if queries.is_empty() {
         return None;
     }
     // Build from the immutable checked owner rather than accepting a second
@@ -476,6 +534,334 @@ fn checked_query_plan(
                 fields,
             }),
         }],
+    })
+}
+
+/// The two original eager transcript invocations have separate query and
+/// DATA identities even though they evaluate the same declared helper body.
+/// This transports source correspondence only; the native receiver is separate.
+fn checked_transcript_query_plan(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    use crate::analysis::scenario_disclosure::{DisclosureIntrinsicKind, ScenarioDisclosure};
+    use crate::analysis::{ResolvedType, Scalar};
+    super::scenario_decisions::collect_decision_sources(program, ir, owner, db, catalog)?;
+    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    same_scenario_semantics(program, ir, &fresh, owner)?;
+    same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [first, later] = source.transcripts.as_deref()? else {
+        return None;
+    };
+    if first.id == later.id
+        || first.call.file != later.call.file
+        || first.call.end > later.call.start
+        || first.statement.kind != crate::syntax::SyntaxKind::Require as u8
+        || later.statement.kind != crate::syntax::SyntaxKind::Let as u8
+        || first.derive != later.derive
+        || first.declaration != later.declaration
+        || first.body != later.body
+        || first.query != later.query
+        || first.branch != later.branch
+        || first.model != later.model
+        || first.parameter != later.parameter
+        || first.formal != later.formal
+        || first.source != source.source
+        || later.source != source.source
+    {
+        return None;
+    }
+    let mut queries = Vec::new();
+    let mut influences = Vec::new();
+    let mut ids = HashSet::new();
+    for fact in [first, later] {
+        let model = nominal(program, ir, fact.model)?;
+        let branch = nominal(program, ir, fact.branch)?;
+        let parameter = nominal(program, ir, fact.parameter)?;
+        let IrItemKind::Model {
+            owner: super::ir::IrOwner::ChildOf(parent),
+            ..
+        } = &model.kind
+        else {
+            return None;
+        };
+        let IrItemKind::Param {
+            owner: parameter_owner,
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                }),
+            default: None,
+            default_node: None,
+            default_copy_source: None,
+            array_bounds: None,
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        let order = &fact.order_dependency;
+        if fact.id.is_empty()
+            || !ids.insert(fact.id.clone())
+            || *parent != fact.branch
+            || *symbol != fact.branch
+            || *parameter_owner != owner.id
+            || model.name != "Turn"
+            || branch.name != "Branch"
+            || fact.slots != [Some(0)]
+            || order.role != DependencyRole::Control
+            || order.model != fact.model
+            || order.model_name != model.canonical
+            || order.field != fact.order
+            || order.field_name != "position"
+            || order.ty != ResolvedType::Scalar(Scalar::Int)
+            || order.type_id != "int"
+            || order.node != fact.order_node
+            || order.calls != [fact.call]
+            || order.source != fact.source
+            || order.query_id.is_some()
+            || field_type(program, ir, fact.order, fact.model)? != &order.ty
+            || fact.dependencies.len() != 3
+            || fact.fields.len() != 3
+            || fact.influences.len() != 4
+        {
+            return None;
+        }
+        let mut dependencies = vec![ReceiptQueryDependency {
+            id: order.id.clone(),
+            source: origin(&order.source, entry),
+            role: ReceiptRole::Control,
+            field: order.field_name.clone(),
+            type_id: order.type_id.clone(),
+        }];
+        if order.id.is_empty() || !ids.insert(order.id.clone()) {
+            return None;
+        }
+        for ((field, read), name) in
+            fact.fields
+                .iter()
+                .zip(&fact.dependencies)
+                .zip(["role", "content", "attachments"])
+        {
+            if field.name != name
+                || read.id.is_empty()
+                || !ids.insert(read.id.clone())
+                || read.role != DependencyRole::Data
+                || read.query_id.as_deref() != Some(fact.id.as_str())
+                || read.calls != [fact.call]
+                || read.source != fact.source
+                || read.node != field.value_node
+                || read.model != fact.model
+                || read.model_name != model.canonical
+                || read.field != field.source_field
+                || read.field_name != field.name
+                || read.ty != field.ty
+                || field_type(program, ir, read.field, fact.model)? != &read.ty
+            {
+                return None;
+            }
+            dependencies.push(ReceiptQueryDependency {
+                id: read.id.clone(),
+                source: origin(&read.source, entry),
+                role: ReceiptRole::Data,
+                field: read.field_name.clone(),
+                type_id: read.type_id.clone(),
+            });
+        }
+        for (influence, kind) in fact.influences.iter().zip([
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]) {
+            if influence.id.is_empty()
+                || !ids.insert(influence.id.clone())
+                || influence.query_id.as_deref() != Some(fact.id.as_str())
+                || influence.source != fact.source
+                || influence.node != fact.query.node
+                || influence.kind != kind
+            {
+                return None;
+            }
+            influences.push(influence.clone());
+        }
+        queries.push(ReceiptQuery {
+            id: fact.id.clone(),
+            source: origin(&fact.source, entry),
+            model: model.canonical.clone(),
+            parent: Some(ReceiptQueryParent {
+                source: origin(&fact.source, entry),
+                model: branch.canonical.clone(),
+                origin: ReceiptQueryParentOrigin::AdmittedReference {
+                    parameter: parameter.name.clone(),
+                },
+            }),
+            order: vec![ReceiptQueryOrder {
+                field: "position".into(),
+                direction: "asc".into(),
+            }],
+            limit: None,
+            archived: "exclude".into(),
+            dependencies,
+        });
+    }
+    let (
+        ScenarioDisclosure::Complete(checked),
+        ScenarioDisclosure::Complete(original),
+        ScenarioDisclosure::Complete(rebuilt),
+    ) = (
+        ir.scenario_disclosures.get(&owner.id)?,
+        program.scenario_disclosures().get(&owner.id)?,
+        fresh.scenario_disclosures.get(&owner.id)?,
+    )
+    else {
+        return None;
+    };
+    if checked.returns.is_empty()
+        || checked.returns.len() > 200
+        || checked.returns.len() != original.returns.len()
+        || checked.returns.len() != rebuilt.returns.len()
+    {
+        return None;
+    }
+    let mut returns = Vec::new();
+    let mut return_ids = HashSet::new();
+    for ((returned, original), rebuilt) in checked
+        .returns
+        .iter()
+        .zip(&original.returns)
+        .zip(&rebuilt.returns)
+    {
+        if returned.id.is_empty()
+            || !return_ids.insert(&returned.id)
+            || returned.source != source.source
+            || returned.influences != influences
+            || [original, rebuilt].iter().any(|expected| {
+                returned.id != expected.id
+                    || returned.node != expected.node
+                    || returned.source != expected.source
+                    || returned.decisions != expected.decisions
+                    || returned.dependencies != expected.dependencies
+                    || returned.intrinsics.len() != expected.intrinsics.len()
+                    || returned.intrinsics.iter().zip(&expected.intrinsics).any(
+                        |(actual, original)| {
+                            actual.id != original.id
+                                || actual.source != original.source
+                                || actual.node != original.node
+                                || actual.calls != original.calls
+                                || actual.role != original.role
+                                || actual.kind != original.kind
+                                || actual.ty != original.ty
+                                || actual.type_id != original.type_id
+                        },
+                    )
+                    || returned.influences != expected.influences
+                    || returned.model_result != expected.model_result
+            })
+        {
+            return None;
+        }
+        for fact in [first, later] {
+            if returned
+                .dependencies
+                .iter()
+                .any(|read| read.id == fact.order_dependency.id)
+            {
+                return None;
+            }
+            for read in &fact.dependencies {
+                let mut actual = returned
+                    .dependencies
+                    .iter()
+                    .filter(|actual| actual.id == read.id);
+                if actual.next()? != read || actual.next().is_some() {
+                    return None;
+                }
+            }
+        }
+        returns.push(ReceiptReturn {
+            id: returned.id.clone(),
+            source: origin(&returned.source, entry),
+            influences: returned
+                .influences
+                .iter()
+                .map(|influence| ReceiptInfluence {
+                    id: influence.id.clone(),
+                    query_id: influence.query_id.clone(),
+                    kind: match influence.kind {
+                        InfluenceKind::QueryExistence => "query-existence",
+                        InfluenceKind::QueryCardinality => "query-cardinality",
+                        InfluenceKind::QueryMembership => "query-membership",
+                        InfluenceKind::QueryOrder => "query-order",
+                        InfluenceKind::AbsentReference => {
+                            unreachable!("checked transcript influences")
+                        }
+                    }
+                    .into(),
+                })
+                .collect(),
+            dependencies: returned
+                .dependencies
+                .iter()
+                .map(|read| ReceiptDependency {
+                    id: read.id.clone(),
+                    source: origin(&read.source, entry),
+                    role: match read.role {
+                        DependencyRole::Data => ReceiptRole::Data,
+                        DependencyRole::Control => ReceiptRole::Control,
+                    },
+                    model: read.model_name.clone(),
+                    field: read.field_name.clone(),
+                    type_id: read.type_id.clone(),
+                    query_id: read.query_id.clone(),
+                })
+                .collect(),
+            intrinsics: returned
+                .intrinsics
+                .iter()
+                .map(|read| ReceiptIntrinsic {
+                    id: read.id.clone(),
+                    source: origin(&read.source, entry),
+                    role: match read.role {
+                        DependencyRole::Data => ReceiptRole::Data,
+                        DependencyRole::Control => ReceiptRole::Control,
+                    },
+                    type_id: read.type_id.clone(),
+                    kind: match &read.kind {
+                        DisclosureIntrinsicKind::OperationId => NativeIntrinsicKind::OperationId,
+                        DisclosureIntrinsicKind::AdmittedInput { parameter_name, .. } => {
+                            NativeIntrinsicKind::AdmittedInput {
+                                parameter: parameter_name.clone(),
+                            }
+                        }
+                        DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                            parameter_name,
+                            model_name,
+                            ..
+                        } => NativeIntrinsicKind::AdmittedReferenceVersion {
+                            parameter: parameter_name.clone(),
+                            model: model_name.clone(),
+                        },
+                    },
+                })
+                .collect(),
+            projection: None,
+        });
+    }
+    Some(ReceiptDisclosurePlan {
+        version: 1,
+        source: origin(&source.source, entry),
+        queries,
+        returns,
     })
 }
 

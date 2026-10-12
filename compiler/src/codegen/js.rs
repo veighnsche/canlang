@@ -1477,6 +1477,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
+    pub query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub membership: Option<&'a super::membership::MembershipSources>,
     pub read_predicates: Option<&'a super::read_predicates::PreparedReadPredicates>,
     pub send_guards: Option<&'a super::send_guards::PreparedSendGuards>,
@@ -1549,6 +1550,7 @@ fn emit_program_with_sources(
         }
     }
     emitter.native_source_predicates = native_receipts;
+    emitter.query_selections = decisions.query_selections;
     emitter.send_guard_gap = decisions.send_guard_gap;
     if let Some(membership) = decisions.membership {
         emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
@@ -2566,6 +2568,8 @@ pub struct Emitter<'a> {
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
     receipt_calls: Vec<Span>,
     native_query_sources: HashMap<SymbolId, NativeQuerySource>,
+    /// Independently checked transcript metadata; this grants no capture.
+    query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
     /// Only the immutable CheckedProgram/fresh-IR producer can populate this.
     prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
@@ -2643,6 +2647,7 @@ impl<'a> Emitter<'a> {
             receipt_capture: None,
             receipt_calls: Vec::new(),
             native_query_sources: HashMap::new(),
+            query_selections: None,
             prepared_query_receipts: std::collections::HashSet::new(),
             query_capture: None,
             membership_calls: HashMap::new(),
@@ -9978,6 +9983,12 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(selections) = self
+                        .query_selections
+                        .and_then(|selections| selections.get(&item.canonical))
+                    {
+                        members.push(format!("querySelections:{}", descriptor_json(selections)));
+                    }
                     if let Some(guards) = self
                         .send_guard_owners
                         .and_then(|owners| owners.get(&item.canonical))
