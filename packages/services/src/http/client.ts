@@ -9,7 +9,9 @@
  *   (even mid-body: a header-then-drip response cannot hang the adapter);
  *   unreachable hosts yield `network-error`.
  * - Response bodies are read through a bounded reader (`maxBodyBytes`);
- *   oversized bodies yield `HttpBodyLimitError`, never truncation.
+ *   oversized bodies yield `HttpBodyLimitError`, never truncation. The
+ *   same deadline/caller signal bounds cancellation waits; the detected
+ *   limit remains authoritative and physical cleanup may stay pending.
  * - Non-2xx responses yield `HttpStatusError` with 4xx-permanent /
  *   5xx-transient classification.
  */
@@ -95,6 +97,7 @@ async function readBoundedBytes(
   response: Response,
   maxBytes: number,
   status: number,
+  signal: AbortSignal,
 ): Promise<Uint8Array> {
   if (response.body === null) {
     return new Uint8Array(0);
@@ -110,11 +113,7 @@ async function readBoundedBytes(
       }
       total += value.byteLength;
       if (total > maxBytes) {
-        try {
-          await reader.cancel();
-        } catch {
-          // Already closed; the limit error below is what matters.
-        }
+        await cancelStreamReader(reader, signal);
         throw new HttpBodyLimitError(status, maxBytes);
       }
       chunks.push(value);
@@ -143,9 +142,10 @@ async function readBoundedBody(
   response: Response,
   maxBytes: number,
   status: number,
+  signal: AbortSignal,
 ): Promise<string> {
   return new TextDecoder().decode(
-    await readBoundedBytes(response, maxBytes, status),
+    await readBoundedBytes(response, maxBytes, status, signal),
   );
 }
 
@@ -224,7 +224,7 @@ async function fetchWithRedirects(
     // Without another hop, the normal bounded status reader owns the body.
     if (location === null) return { response, url };
     try {
-      await readBoundedBytes(response, config.maxBodyBytes, response.status);
+      await readBoundedBytes(response, config.maxBodyBytes, response.status, signal);
     } catch (err) {
       if (err instanceof HttpBodyLimitError) throw err;
       if (timedOut()) {
@@ -305,6 +305,7 @@ export async function httpRequest(
         fetched.response,
         config.maxBodyBytes,
         fetched.response.status,
+        signal,
       );
     } catch (err) {
       if (err instanceof HttpBodyLimitError) {
@@ -368,6 +369,7 @@ export async function httpRequestBinary(
         fetched.response,
         config.maxBodyBytes,
         fetched.response.status,
+        signal,
       );
     } catch (err) {
       if (err instanceof HttpBodyLimitError) {
@@ -463,6 +465,7 @@ export async function* httpStreamText(
           response,
           config.maxBodyBytes,
           response.status,
+          signal,
         );
       } catch (err) {
         if (err instanceof HttpBodyLimitError) {

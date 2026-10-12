@@ -2881,7 +2881,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Capability/Work control lifecycle; Dev original observation consumer",
-        "accepted_scope": "Independently accepted finite stream cancellation-wait correction committed8c8daeb9; broader services open",
+        "accepted_scope": "Independently accepted finite stream cancellation-wait correction committed8c8daeb9; broader services open Same-signal bounded buffered body-cap cancellation970 independently reviewed/tested and integrated LOCAL main; original complete control-window consumer unfinished.",
         "next_action": "Bound only the remaining original control observation window; reuse closed explanation and media correspondence source checks.",
         "done_when": "Selected actual control consumer cannot renew its window or overwrite late success, reconciles original identity truthfully as succeeded/failed/unknown, and preserves secrecy and cancellation uncertainty.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02",
@@ -2893,7 +2893,8 @@
           "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
           "finish_condition": "Retry cannot renew the deadline or overwrite late success; original-ID outcome remains succeeded/failed/unknown truthfully with secrecy and cancellation uncertainty preserved.",
           "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
-        }
+        },
+        "buffered_body_limit_cleanup": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02/buffered_body_limit_cleanup"
       }
     },
     {
@@ -8373,7 +8374,7 @@
     "accounting": "Current snapshot is22 finished selected packets,15 partial,10 open/blocked,1 human-held=48 after selected original bounded cohort acceptance. Separate from333 canonical identities and wider parent closure.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Actual-code reevaluation completed six independent library criteria: release byte-inventory correspondence, complete workspace-version inputs, unique release path inventory, immutable asset getter capture, protected browser export targets, and timezone range-edge reconstruction. Their source/affected controls are implemented/tested; continue only next genuine ready source/consumer/shared failure, keeping foreign mounted/source/release-host outputs and precise holds separate. Accepted components stay closed.",
+    "dispatch": "Actual-code reevaluation completed seven independent library criteria: release byte-inventory correspondence, complete workspace-version inputs, unique release path inventory, immutable asset getter capture, protected browser export targets, bounded buffered body-limit cleanup, and timezone range-edge reconstruction. Their source/affected controls are implemented/tested; continue only next genuine ready source/consumer/shared failure, keeping foreign mounted/source/release-host outputs and precise holds separate. Accepted components stay closed.",
     "completion": "Keep22/48 complete selected-packet accounting unchanged. Closing minimum-engine or another finite component does not close its broader parent. Source acceptance, original consumer qualification and actual host/human release stay distinct.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "V03 actual descriptor/source-owner/revision association; S03 actual app/mixed owner-store binding; S04 visited-work/continuation/refusal profile; D03 actual concurrent-writer interruption scope; D04 emitted namespace/maps; F01 actual external-host serialization/power-loss contract. Each belongs to the named entry owner; no global decision barrier.",

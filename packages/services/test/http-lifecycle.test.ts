@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { httpRequest, httpRequestBinary, httpStreamText } from '../src/http/client.js';
 import type { HttpClientConfig, HttpRequest } from '../src/http/client.js';
+import { HttpBodyLimitError } from '../src/http/errors.js';
 
 const variants: Array<(config: HttpClientConfig, request: HttpRequest) => Promise<unknown>> = [
   httpRequest,
@@ -112,13 +113,58 @@ test('a redirect without Location keeps its unread status body', async () => {
   } finally {globalThis.fetch=original;}
 });
 
-test('redirect quota detection is not relabeled during slow reader cancellation', async () => {
-  const original=globalThis.fetch;
+test('body quota detection bounds held cancellation without relabeling the original refusal', async () => {
+  const original = globalThis.fetch;
   try {
-    for(const invoke of variants){
-      const body=new ReadableStream<Uint8Array>({start(c){c.enqueue(new Uint8Array(9));},cancel(){return new Promise<void>(resolve=>setTimeout(resolve,35));}});
-      globalThis.fetch=async()=>new Response(body,{status:302,headers:{location:'/next'}});
-      await assert.rejects(invoke({...config,timeoutMs:5,maxBodyBytes:8},{method:'GET',path:'/'}),error=>error instanceof Error&&error.name==='HttpBodyLimitError');
+    for (const invoke of variants) {
+      for (const status of [200, 302, 500]) {
+        for (const trigger of ['deadline', 'caller']) {
+          const caller = new AbortController();
+          let releaseCancel!: () => void, startedCancel!: () => void, observedAbort!: () => void;
+          const held = new Promise<void>(resolve => { releaseCancel = resolve; });
+          const started = new Promise<void>(resolve => { startedCancel = resolve; });
+          const aborted = new Promise<void>(resolve => { observedAbort = resolve; });
+          let calls = 0, cancellations = 0;
+          let cleanupFinished = false, completed = false;
+          const body = new ReadableStream<Uint8Array>({
+            start(controller) { controller.enqueue(new Uint8Array(9)); },
+            cancel() {
+              cancellations++;
+              startedCancel();
+              return held.then(() => { cleanupFinished = true; });
+            },
+          });
+          globalThis.fetch = async (_url, init) => {
+            calls++;
+            assert.ok(init?.signal);
+            init.signal.addEventListener('abort', observedAbort, { once: true });
+            return new Response(body, { status, ...(status === 302 ? { headers: { location: '/next' } } : {}) });
+          };
+          const outcome = invoke({ ...config, timeoutMs: trigger === 'deadline' ? 5 : 1000, maxBodyBytes: 8 },
+            { method: 'GET', path: '/', signal: caller.signal }).then(
+              value => { completed = true; return value; },
+              error => { completed = true; return error as unknown; },
+            );
+          try {
+            await started;
+            if (trigger === 'caller') caller.abort(new Error('caller cancelled cleanup wait'));
+            await aborted;
+            await new Promise<void>(resolve => setImmediate(resolve));
+            assert.equal(completed, true, `${status}/${trigger}: request must stop waiting after abort`);
+            const error = await outcome;
+            assert.ok(error instanceof HttpBodyLimitError);
+            assert.equal(error.status, status);
+            assert.equal(error.maxBytes, 8);
+            assert.equal(calls, 1, 'a rejected redirect body never sends the next hop');
+            assert.equal(cancellations, 1);
+            assert.equal(body.locked, false);
+            assert.equal(cleanupFinished, false, 'return does not claim physical cleanup completed');
+          } finally {
+            releaseCancel();
+            await outcome;
+          }
+        }
+      }
     }
-  }finally{globalThis.fetch=original;}
+  } finally { globalThis.fetch = original; }
 });

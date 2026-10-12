@@ -42,6 +42,12 @@ scenario tables `SCENARIO_TABLES`, `parseScenarioTable`,
 `startControlledMailServer`, `startControlledOllamaServer`,
 `startControlledSystemOneServer`, `startControlledComfyServer`.
 
+HTTP readers share one request deadline across redirect hops and body reads.
+After detecting an oversized body, cancellation waits use that same deadline
+and caller signal; the original body-limit refusal remains authoritative.
+The reader lock is released on return even when physical provider cleanup is
+still pending, and a refused redirect body cannot send the next hop.
+
 Media workflow graphs admit own JSON data: plain or null-prototype records,
 dense arrays, strings, booleans, null and finite numbers. Graph capture refuses
 accessors, executable `toJSON`, undefined, nonfinite numbers, cycles and other
