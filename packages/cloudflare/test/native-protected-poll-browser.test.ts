@@ -28,6 +28,7 @@ test('emitted protected row action and poll drop held bodies after context/logou
   const { buildPresentationContext, createSourceFormBindings, catalogFromArtifactOperations } =
     await nodeImport(producer('@canlang/interfaces')) as typeof import('@canlang/interfaces');
   const { renderPage } = await nodeImport(producer('@canlang/ui')) as typeof import('@canlang/ui');
+  const { distribution: uiDistribution } = await nodeImport(producer('@canlang/ui/distribution')) as typeof import('@canlang/ui/distribution');
   const { makeIdentity, uuidv7, FIXED_NOW } = await nodeImport(producer('@canlang/state/testing/invocation/fixtures')) as
     typeof import('@canlang/state/testing/invocation/fixtures');
   const originalPath = join(root, 'compiler/tests/fixtures/view-reuse.can');
@@ -94,7 +95,7 @@ test('emitted protected row action and poll drop held bodies after context/logou
     assert.match(initial, /data-can-generated-form/);
     assert.match(initial, /form_binding/);
     assert.match(initial, /ViewReuse\.bind_card/);
-    const browserScript = await readFile(join(root, 'packages/ui/dist/browser/bootstrap.js'));
+    const browserScript = await readFile(new URL('bootstrap.js', uiDistribution.browser));
     let views = 0, operations = 0;
     let heldView: ServerResponse | undefined, heldAction: ServerResponse | undefined;
     let viewArrived!: () => void, actionArrived!: () => void;
