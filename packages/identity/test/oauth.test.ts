@@ -44,17 +44,19 @@ function isValidation(error: unknown): boolean {
 test('register ok: defaults the name, keeps query-bearing redirect URIs', async () => {
   const { clock, store } = await setup();
   const withQuery = 'https://app.example/callback?source=mcp';
+  const withEncodedFragmentData = 'https://app.example/callback%23section?source=%23mcp';
   const client = await registerClient(
     store,
-    { redirect_uris: [REDIRECT, withQuery] },
+    { redirect_uris: [REDIRECT, withQuery, withEncodedFragmentData] },
     { clock },
   );
   assert.match(client.client_id, /^client_[0-9a-f]{16}$/);
   assert.equal(client.client_name, 'MCP client');
-  assert.deepEqual([...client.redirect_uris], [REDIRECT, withQuery]);
+  assert.deepEqual([...client.redirect_uris], [REDIRECT, withQuery, withEncodedFragmentData]);
   assert.equal(client.registered_at, new Date(NOW).toISOString());
   const found = await store.findOAuthClient(client.client_id);
   assert.equal(found?.client_name, 'MCP client');
+  assert.deepEqual(found?.redirect_uris, [REDIRECT, withQuery, withEncodedFragmentData]);
 });
 
 test('register accepts loopback http and trims the client name', async () => {
@@ -94,22 +96,30 @@ test('register rejects non-loopback http, non-URLs, and too many URIs', async ()
 
 test('register rejects credentialed/fragment redirect URIs and bad names', async () => {
   const { clock, store } = await setup();
+  let persisted = 0;
+  const observedStore: IdentityStore = { ...store, createOAuthClient: input => {
+    persisted += 1;
+    return store.createOAuthClient(input);
+  } };
   await assert.rejects(
-    () => registerClient(store, { redirect_uris: ['https://user@app.example/cb'] }, { clock }),
+    () => registerClient(observedStore, { redirect_uris: ['https://user@app.example/cb'] }, { clock }),
+    isValidation,
+  );
+  for (const redirect of ['https://app.example/cb#frag', 'https://app.example/cb#', 'https://app.example/cb?source=mcp#']) {
+    await assert.rejects(
+      () => registerClient(observedStore, { redirect_uris: [redirect] }, { clock }),
+      isValidation,
+    );
+  }
+  await assert.rejects(
+    () => registerClient(observedStore, { redirect_uris: [REDIRECT], client_name: '   ' }, { clock }),
     isValidation,
   );
   await assert.rejects(
-    () => registerClient(store, { redirect_uris: ['https://app.example/cb#frag'] }, { clock }),
+    () => registerClient(observedStore, { redirect_uris: [REDIRECT], client_name: 'n'.repeat(101) }, { clock }),
     isValidation,
   );
-  await assert.rejects(
-    () => registerClient(store, { redirect_uris: [REDIRECT], client_name: '   ' }, { clock }),
-    isValidation,
-  );
-  await assert.rejects(
-    () => registerClient(store, { redirect_uris: [REDIRECT], client_name: 'n'.repeat(101) }, { clock }),
-    isValidation,
-  );
+  assert.equal(persisted, 0);
 });
 
 test('issue ok: 10-minute row, raw code never stored', async () => {

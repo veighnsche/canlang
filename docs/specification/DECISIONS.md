@@ -11833,3 +11833,17 @@ at their scope. Dev/L7 release runtime/data corpus and all holds remain separate
 Packagesf954 supplementary-digit grouping width component independently reviewed CLEAR and integrated LOCAL main after deadline. Count Unicode codepoints in existing Intl integer probe runs without an intermediate array, so mathematical supplementary digits do not double group widths when exact output uses Latin digits. Actual direct renderMessage and selected descriptor formatMessage preserve original 1,234,567 and selected locale. Owning ICU60+locale39=99 distinct zero skips/cancels reused, retaining exact bigint/decimal scale/sign/-0, Intl separators/minus/decimal, Indic secondary groups/parser/binding/fallback/refusals. Changed MAIN Values emission and owning catalog regeneration, CF/root0. No cache/API/profile/localized-digit policy, release-host corpus or native acceptance claim. Dev/L7 exact release runtime/ICU/tzdb/CLDR original corpus remains separate; V04/source/adoption/native/default/activation/publication/provider-void holds and22/48/26/complete checkpoint unchanged.
 
 Changed MAIN normal checks: Values0 1.59s, Values catalog0 0.04s, Cloudflare0 4.32s, root0 4.43s. Owning99 reused; no unchanged native/installed/host qualification reruns.
+
+2026-10-12 — Empty OAuth fragment refusal (implemented/tested local component).
+Enforce the existing no-fragment redirect endpoint rule on the original URI
+delimiter: URL.hash hides a bare trailing #. Keep the same validation stage/error
+and permit percent-encoded %23 path/query data with exact stored string matching.
+The maintained real registration first reproduces forbidden acceptance, then
+refuses populated/empty/query+empty fragments before any client persistence.
+All13 OAuth cases, Identity emission and finite independent source review pass;
+protocol/loopback/userinfo/query/PKCE/one-use behavior remains. Unchanged types
+and installed/D1/native/mounted outcomes are reused at their scope; holds remain.
+
+Coordinator source review CLEAR and coherent LOCAL main integration after deadline. Owning oauth13/13 with zero skips/cancels reused; invalid fragment cases make zero createOAuthClient calls and real encoded %23 URIs persist exactly. Protocol/loopback/userinfo/query/PKCE/one-use/expiry/contender/mint behavior preserved. Dev mounted/native acceptance,22/48/26 parents, complete checkpoint and recipient holds remain separate.
+
+Changed MAIN normal checks: Identity0 0.86s, root0 4.9s. Unchanged accounts/D1/native/mounted checks reused at their original scope.

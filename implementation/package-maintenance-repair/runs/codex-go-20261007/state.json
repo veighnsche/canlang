@@ -2575,6 +2575,15 @@
         "effect_scope": "HTTP/MCP comments now accurately call current credential reread pre-invoker admission after capped body/arguments/permission. No behavior change or retroactive cancellation/atomic cross-store commit claim; original B4 evidence reused.",
         "remaining": "Dev actual mounted browser cookie helpers, genuine suspended-body revocation and after-entry outcome consumers. No complete TECH-I02/native/security/held scope acceptance.",
         "review": "Independent critical source/security review CLEAR for exact cookie/body comparison before atomic consumption/password, trusted configured Origin before writes, distinct cookie headers, production forwarding and portable exports; missing-Origin CSRF and separate bearer/PKCE profiles retained. Pre-invoker reread gives no retroactive cancellation. Owning affected checks/emissions and real D1 installed case reused."
+      },
+      "oauth_empty_fragment_refusal": {
+        "status": "implemented_tested_independently_reviewed_CLEAR_source_component_in_LOCAL_main; mounted_parent_unfinished",
+        "source_base": "f954afa76cd1f64a69abdff2181c06bb175347c4",
+        "defect": "Registration used URL.hash to enforce its documented no-fragment redirect endpoint rule. A bare trailing # has an empty hash and was accepted/persisted, then exact authorization matching could consume that forbidden URI.",
+        "repair": "Reject a literal fragment delimiter in the original URI at the same existing validation stage/message. Percent-encoded %23 path/query data stays valid; protocol/loopback/userinfo/query/exact matching and token/PKCE behavior unchanged. No new URL/profile/auth policy/API.",
+        "validation": "Fresh Identity emission0 followed by maintained registration RED missing expected refusal for bare #. Final Identity emission0 and oauth13/13 PASS,0fail/cancel/skip. Populated/empty/query+empty fragments refuse with zero createOAuthClient calls; real store preserves exact percent-encoded path/query redirect strings. Existing issue/exchange/one-use/expiry/generic failures/contenders/ambiguous consume/mint controls retained; finite independent source review CLEAR. Unchanged root/public types/accounts/installed/D1/native/mounted outcomes reused at original scopes.",
+        "remaining": "Dev genuine mounted cookie/Origin/revocation timing and original native consumer qualification remain separate; all recipient holds preserved.",
+        "coordinator_review": "Independent defining review CLEAR; exact two source/control preimages. Owning oauth13 reused, changed MAIN Identity/root0. No new policy/profile or native/mounted credit; complete checkpoint and holds unchanged."
       }
     },
     "TECH-F01": {
