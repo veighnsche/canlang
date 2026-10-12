@@ -417,7 +417,7 @@ pub fn local_rule_fields(
         return None;
     }
     let mut fields = Vec::new();
-    visit(program, model, predicate, &mut fields)?;
+    visit(program, model, predicate, &mut fields, false)?;
     Some(fields)
 }
 
@@ -440,9 +440,9 @@ pub(crate) fn local_stored_field_type(
     model: SymbolId,
     ty: &ResolvedType,
 ) -> bool {
-    // A lock compares the owning stored value; it does not read a User in
-    // a predicate or acquire invocation/identity authority.
-    if ty == &ResolvedType::Scalar(Scalar::User) {
+    // A lock compares the singular owning stored value. Duration does not
+    // enter the generic rule arithmetic/container profile through this path.
+    if matches!(ty, ResolvedType::Scalar(Scalar::User | Scalar::Duration)) {
         return true;
     }
     matches!(
@@ -456,11 +456,19 @@ fn visit(
     model: SymbolId,
     expr: &TypedExpr,
     fields: &mut Vec<SymbolId>,
+    duration_operand: bool,
 ) -> Option<()> {
-    if !local_type(program, model, &expr.ty) {
+    if duration_operand {
+        if expr.ty != ResolvedType::Scalar(Scalar::Duration)
+            || !matches!(expr.expr, IrExpr::Member { .. } | IrExpr::DurationMs(_))
+        {
+            return None;
+        }
+    } else if !local_type(program, model, &expr.ty) {
         return None;
     }
     match &expr.expr {
+        IrExpr::DurationMs(_) if duration_operand => Some(()),
         IrExpr::Int(_) if expr.ty == ResolvedType::Scalar(Scalar::Int) => Some(()),
         IrExpr::Bool(_) if expr.ty == ResolvedType::Scalar(Scalar::Bool) => Some(()),
         IrExpr::Text(value) => match &expr.ty {
@@ -508,11 +516,11 @@ fn visit(
             };
             if *owner != model
                 || *ty != expr.ty
-                || !matches!(
+                || !(matches!(
                     ty,
                     ResolvedType::Scalar(Scalar::Int | Scalar::Text | Scalar::Bool)
                         | ResolvedType::Enum { .. }
-                )
+                ) || duration_operand && ty == &ResolvedType::Scalar(Scalar::Duration))
             {
                 return None;
             }
@@ -521,14 +529,31 @@ fn visit(
             }
             Some(())
         }
-        IrExpr::Binary { left, right, .. } => {
-            visit(program, model, left, fields)?;
-            visit(program, model, right, fields)
+        IrExpr::Binary { op, left, right }
+            if left.ty == ResolvedType::Scalar(Scalar::Duration)
+                || right.ty == ResolvedType::Scalar(Scalar::Duration) =>
+        {
+            if expr.ty != ResolvedType::Scalar(Scalar::Bool)
+                || !matches!(op, IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge)
+                || !matches!(
+                    (&left.expr, &right.expr),
+                    (IrExpr::Member { .. }, IrExpr::DurationMs(_))
+                        | (IrExpr::DurationMs(_), IrExpr::Member { .. })
+                )
+            {
+                return None;
+            }
+            visit(program, model, left, fields, true)?;
+            visit(program, model, right, fields, true)
         }
-        IrExpr::Unary { operand, .. } => visit(program, model, operand, fields),
+        IrExpr::Binary { left, right, .. } => {
+            visit(program, model, left, fields, false)?;
+            visit(program, model, right, fields, false)
+        }
+        IrExpr::Unary { operand, .. } => visit(program, model, operand, fields, false),
         IrExpr::Array(items) => {
             for item in items {
-                visit(program, model, item, fields)?;
+                visit(program, model, item, fields, false)?;
             }
             Some(())
         }

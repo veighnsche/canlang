@@ -604,7 +604,7 @@ pub struct IrModelRuleOrigin {
     pub node: NodeKey,
     pub span: Span,
     pub kind: IrModelRuleKind,
-    /// Existing model-local callable registry identity.
+    /// Checked callable registry identity, qualified when model names collide.
     pub registry_id: String,
 }
 

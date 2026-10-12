@@ -228,6 +228,108 @@ fn unsupported_dependencies_do_not_publish_partial_or_empty_certificates() {
 }
 
 #[test]
+fn original_profile_publishes_duration_invariant_and_complete_seven_field_lock() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let primary = Path::new("/Users/vince/Projects/canlang");
+    let installed = if primary
+        .join("packages/cloudflare/dist/native-catalog.json")
+        .is_file()
+    {
+        primary
+    } else {
+        root
+    };
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/source-profile-scalars.can");
+    let hash = "06e8633f8d0b8d1b7b57333447a4bda47db36676db8b43bab5259f6064693995";
+    assert_eq!(
+        canlang_compiler::source::sha256_hex(source.as_bytes()),
+        hash
+    );
+    let input = scratch.path().join("source-profile-scalars.can");
+    std::fs::write(&input, source).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
+        .arg(installed.join("packages/cloudflare/dist/native-catalog.json"))
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    let module = artifact["modules"][0]["path"].as_str().unwrap();
+    assert_eq!(
+        artifact["modelPolicies"],
+        serde_json::json!([{
+            "abi":"state.owner-model-policies@1", "model":"SourceProfileScalars.Profile",
+            "ownerPackage":"SourceProfileScalars", "module":module,
+            "rules":[{"kind":"invariant","id":"SourceProfileScalars.Profile.require.1","dependencies":[]},
+                {"kind":"lock","id":"SourceProfileScalars.Profile.lock.1","fields":["name","provider_key","policy_revision","system_prompt","input_tokens","output_tokens","duration"]}],
+            "hooks":[]
+        }])
+    );
+    let runner = scratch.path().join("profile-policy.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createHash} from 'node:crypto';
+import {dirname,resolve} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),root=process.argv[2],installed=process.argv[3],sourcePath=process.argv[4];
+const require=createRequire(resolve(root,'package.json')),ownerRequire=createRequire(resolve(installed,'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules,importVerifiedAssemblyModule}=await load('@canlang/cloudflare/runtime/modules');
+const {decodeValue}=await load('@canlang/values');
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const hash=createHash('sha256').update(readFileSync(sourcePath)).digest('hex');assert.equal(hash,process.argv[5]);
+const [descriptor]=artifact.modelPolicies;
+const origin=artifact.operations.find(operation=>operation.name==='SourceProfileScalars.ask').result.disclosure.source;
+assert.deepEqual(origin,{path:sourcePath,sha256:hash,module:descriptor.module});
+const profile=artifact.models.find(model=>model.name===descriptor.model);
+assert.equal(profile.fields.find(field=>field.name==='duration').field.kind,'duration');
+const assembly=await assembleModules({artifact,sourcePath},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(ownerRequire.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const module=await importVerifiedAssemblyModule(assembly,descriptor.module,artifact),registry=module.canApp();
+const expected=descriptor.rules.map(rule=>({id:rule.id,kind:rule.kind,module:descriptor.module,ownerPackage:descriptor.ownerPackage,model:descriptor.model}));
+assert.deepEqual(registry.modelPolicyBindings.map(({evaluate,...identity})=>identity),expected);
+const [invariant,lock]=registry.modelPolicyBindings;
+const ruleKey=invariant.id.slice(descriptor.ownerPackage.length+1),lockKey=lock.id.slice(descriptor.ownerPackage.length+1);
+assert.deepEqual(registry.locks[lockKey].fields,descriptor.rules[1].fields);
+assert.equal(Object.hasOwn(registry.locks[lockKey],'when'),false);
+// This genuine installed native callback is pure. Domain mutation/current-row
+// activation and update/remove lock enforcement belong to the native owner run.
+for(const [milliseconds,accepted] of [['999',false],['1000',true],['600000',true],['600001',false]]) {
+ const row=Object.freeze({duration:decodeValue('duration',milliseconds)});
+ assert.equal(await invariant.evaluate(undefined,row),accepted);
+ assert.equal(await registry.invariants[ruleKey](undefined,row),accepted);
+}
+assert.equal(await lock.evaluate(undefined,Object.freeze({})),true);
+"#).unwrap();
+    let run = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(installed)
+        .arg(&input)
+        .arg(hash)
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        run.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+}
+
+#[test]
 fn protected_lock_targets_obey_the_same_native_field_profile() {
     for field in ["text?", "money", "Other"] {
         let scratch = tempfile::tempdir().unwrap();

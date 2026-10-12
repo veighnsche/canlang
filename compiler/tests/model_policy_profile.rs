@@ -2,7 +2,7 @@
 use canlang_compiler::{
     analysis::{ResolvedType, Scalar, check_program, resolve::SymbolId},
     codegen::{
-        ir::{self, IrItemKind, IrProgram, IrType},
+        ir::{self, IrBinOp, IrExpr, IrItemKind, IrProgram, IrType, IrUnOp},
         js,
         model_policy_profile::local_rule_fields,
     },
@@ -213,6 +213,226 @@ fn user_predicates_and_nullable_or_array_user_lock_sources_keep_existing_refusal
         assert!(
             js::emit_program(&program).model_policies.is_none(),
             "{field}"
+        );
+    }
+}
+
+#[test]
+fn original_duration_relations_deduplicate_the_owning_field_and_publish_its_lock() {
+    let (program, model) = rule_with_fields(
+        "lock Item fields=duration",
+        "row.duration>=1s and row.duration<=10m",
+        ",duration:duration=120s",
+    );
+    let duration = program
+        .items
+        .iter()
+        .find(|item| item.canonical == "LocalRule.Item.duration")
+        .unwrap()
+        .id;
+    assert_eq!(
+        local_rule_fields(&program, model, &program.invariants[0].pred),
+        Some(vec![duration])
+    );
+    let IrExpr::Binary {
+        op: IrBinOp::And,
+        left,
+        right,
+    } = &program.invariants[0].pred.expr
+    else {
+        panic!("original two bounds")
+    };
+    for (comparison, expected_op, millis) in
+        [(left, IrBinOp::Ge, 1_000), (right, IrBinOp::Le, 600_000)]
+    {
+        let IrExpr::Binary {
+            op,
+            left: field,
+            right: literal,
+        } = &comparison.expr
+        else {
+            panic!("Duration comparison")
+        };
+        assert_eq!(*op, expected_op);
+        assert!(matches!(&field.expr, IrExpr::Member { field, .. } if field == "duration"));
+        assert_eq!(field.ty, ResolvedType::Scalar(Scalar::Duration));
+        assert_eq!(literal.ty, ResolvedType::Scalar(Scalar::Duration));
+        assert!(matches!(literal.expr, IrExpr::DurationMs(value) if value == millis));
+    }
+    let emitted = js::emit_program(&program);
+    assert!(emitted.diagnostics.is_empty(), "{:#?}", emitted.diagnostics);
+    let descriptors = emitted
+        .model_policies
+        .expect("singular original Duration invariant and lock");
+    assert_eq!(descriptors.len(), 1);
+    let descriptor = serde_json::to_value(&descriptors[0]).unwrap();
+    assert_eq!(descriptor["model"], "LocalRule.Item");
+    assert_eq!(
+        descriptor["rules"],
+        serde_json::json!([
+            {"kind":"lock","id":"LocalRule.Item.lock.1","fields":["duration"]},
+            {"kind":"invariant","id":"LocalRule.Item.require.1","dependencies":[]}
+        ])
+    );
+}
+
+#[test]
+fn duration_field_type_or_owner_changes_cannot_claim_the_original_relational_policy() {
+    let (program, model) = rule_with_fields(
+        "Other {duration:duration}\n policy Other read=members\n lock Item fields=duration",
+        "row.duration>=1s and row.duration<=10m",
+        ",duration:duration=120s",
+    );
+    let duration = program
+        .items
+        .iter()
+        .find(|item| item.canonical == "LocalRule.Item.duration")
+        .unwrap()
+        .id;
+    let other = program
+        .items
+        .iter()
+        .find(|item| item.canonical == "LocalRule.Other")
+        .unwrap()
+        .id;
+    assert_eq!(
+        local_rule_fields(&program, model, &program.invariants[0].pred),
+        Some(vec![duration])
+    );
+    for ty in [
+        ResolvedType::Scalar(Scalar::Int),
+        ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Duration))),
+        ResolvedType::Array {
+            element: Box::new(ResolvedType::Scalar(Scalar::Duration)),
+            ordered: true,
+            nonempty: false,
+        },
+        ResolvedType::Record {
+            symbol: other,
+            stored: true,
+        },
+    ] {
+        let mut changed = program.clone();
+        let IrItemKind::Field { ty: actual, .. } = &mut changed.items[duration.0 as usize].kind
+        else {
+            panic!("owning duration")
+        };
+        *actual = IrType::Known(ty);
+        assert!(local_rule_fields(&changed, model, &changed.invariants[0].pred).is_none());
+        assert!(js::emit_program(&changed).model_policies.is_none());
+    }
+    let mut changed = program;
+    let IrItemKind::Field { owner, .. } = &mut changed.items[duration.0 as usize].kind else {
+        panic!("owning duration")
+    };
+    *owner = other;
+    assert!(local_rule_fields(&changed, model, &changed.invariants[0].pred).is_none());
+    assert!(js::emit_program(&changed).model_policies.is_none());
+    // Source-legal unsupported lock targets retain the same boundary even
+    // when the predicate itself is an ordinary supported integer rule.
+    for ty in ["duration?", "duration[]", "Other"] {
+        let (program, _) = rule_with_fields(
+            "Other {duration:duration}\n policy Other read=members\n lock Item fields=duration",
+            "row.count>=0",
+            &format!(",duration:{ty}"),
+        );
+        assert!(
+            js::emit_program(&program).model_policies.is_none(),
+            "{ty} lock"
+        );
+    }
+}
+
+#[test]
+fn duration_literals_fields_and_receivers_require_exact_types_without_arithmetic_or_unary_expansion()
+ {
+    let (program, model) = rule_with_fields(
+        "Other {duration:duration}\n policy Other read=members",
+        "row.duration>=1s and row.duration<=10m",
+        ",duration:duration=120s",
+    );
+    let other = program
+        .items
+        .iter()
+        .find(|item| item.canonical == "LocalRule.Other")
+        .unwrap()
+        .id;
+    assert!(local_rule_fields(&program, model, &program.invariants[0].pred).is_some());
+    for mode in [
+        "literal-type",
+        "literal-shape",
+        "field-type",
+        "field-name",
+        "receiver",
+        "arithmetic",
+        "unary",
+        "array",
+        "equality",
+        "field-to-field",
+    ] {
+        let mut changed = program.clone();
+        let IrExpr::Binary { left, .. } = &mut changed.invariants[0].pred.expr else {
+            panic!("bounds")
+        };
+        let IrExpr::Binary {
+            op,
+            left: field,
+            right: literal,
+        } = &mut left.expr
+        else {
+            panic!("lower bound")
+        };
+        match mode {
+            "literal-type" => literal.ty = ResolvedType::Scalar(Scalar::Int),
+            "literal-shape" => literal.expr = IrExpr::Int(1_000),
+            "field-type" => field.ty = ResolvedType::Scalar(Scalar::Int),
+            "field-name" => {
+                let IrExpr::Member { field, .. } = &mut field.expr else {
+                    panic!("Duration member")
+                };
+                *field = "count".into();
+            }
+            "receiver" => {
+                let IrExpr::Member { base, .. } = &mut field.expr else {
+                    panic!("Duration member")
+                };
+                base.ty = ResolvedType::Record {
+                    symbol: other,
+                    stored: true,
+                };
+            }
+            "arithmetic" => {
+                field.expr = IrExpr::Binary {
+                    op: IrBinOp::Add,
+                    left: Box::new(field.as_ref().clone()),
+                    right: Box::new(literal.as_ref().clone()),
+                }
+            }
+            "unary" => {
+                field.expr = IrExpr::Unary {
+                    op: IrUnOp::Neg,
+                    operand: Box::new(field.as_ref().clone()),
+                }
+            }
+            "array" => {
+                literal.expr = IrExpr::Array(vec![literal.as_ref().clone()]);
+                literal.ty = ResolvedType::Array {
+                    element: Box::new(ResolvedType::Scalar(Scalar::Duration)),
+                    ordered: true,
+                    nonempty: false,
+                };
+            }
+            "equality" => *op = IrBinOp::Eq,
+            "field-to-field" => *literal = field.clone(),
+            _ => unreachable!(),
+        }
+        assert!(
+            local_rule_fields(&changed, model, &changed.invariants[0].pred).is_none(),
+            "{mode}"
+        );
+        assert!(
+            js::emit_program(&changed).model_policies.is_none(),
+            "{mode}"
         );
     }
 }
