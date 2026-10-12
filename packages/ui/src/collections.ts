@@ -169,9 +169,9 @@ function sourceSearchForm(context: PresentationContext): string {
     new URL(context.pollUrl, "https://can.invalid").searchParams.get("team");
   const team = selectedTeam === null ? "" :
     `<input type="hidden" name="team" value="${escapeAttr(selectedTeam)}">`;
-  return `<form method="get" action="${escapeAttr(context.path)}" role="search">` +
-    `<label>${label}<input type="search" name="q" value="${escapeAttr(context.searchQuery ?? "")}"></label>` +
-    `${team}<button type="submit">${label}</button></form>`;
+  return `<form method="get" action="${escapeAttr(context.path)}" role="search" class="can-search">` +
+    `<label class="fieldset-label">${label}<input type="search" name="q" value="${escapeAttr(context.searchQuery ?? "")}" class="input w-full"></label>` +
+    `${team}<button type="submit" class="btn">${label}</button></form>`;
 }
 
 /** Refuse a silently truncated/missing summary from the query owner. */

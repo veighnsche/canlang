@@ -219,7 +219,9 @@ export const renderPage: RenderPageFn = async (
   const accountHtml = !context.isPartial && shell?.account.authenticated === true
     ? renderAccount(shell, context) : undefined;
   const body = await renderChildren(children);
-  const main = `<main id="can-main"${contextAttr}${pollAttrs}>${body}</main>`;
+  const pageHeading = `<header class="can-page-heading"><h1 class="text-3xl font-bold">${escapeHtml(resolveText(descriptor.title, context))}</h1>` +
+    (descriptor.description === undefined ? "" : `<p>${escapeHtml(resolveText(descriptor.description, context))}</p>`) + `</header>`;
+  const main = `<main id="can-main"${contextAttr}${pollAttrs}>${pageHeading}${body}</main>`;
   if (context.isPartial) {
     return main;
   }

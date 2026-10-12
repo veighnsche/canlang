@@ -253,8 +253,10 @@ describe("list", () => {
     assert.deepEqual(seen[0]?.args, {
       order: ["name"], search: { fields: ["name"], query: 'pen"' }, includeCount: true,
     });
-    assert.match(html, /<form method="get" action="\/supplies" role="search">/);
-    assert.match(html, /name="q" value="pen&quot;"/);
+    assert.match(html, /<form method="get" action="\/supplies" role="search" class="can-search">/);
+    assert.match(html, /name="q" value="pen&quot;" class="input w-full"/);
+    assert.match(html, /<label class="fieldset-label">Search/);
+    assert.match(html, /<button type="submit" class="btn">Search<\/button>/);
     assert.match(html, /name="team" value="team-1"/);
     assert.match(html, /data-can-list-count>Supplies in this view: 0<\/p>/);
     await rejectsWith(() => list({

@@ -139,7 +139,7 @@ describe("full-document structure", () => {
     );
     assert.match(html, /<title>Team tasks — CanApp<\/title>/);
     assert.match(html, /<body class="density-compact">/);
-    assert.match(html, /<main id="can-main"><p>hi<\/p><\/main>/);
+    assert.match(html, /<main id="can-main"><header class="can-page-heading">.*?<\/header><p>hi<\/p><\/main>/);
     await assertTrustedBootstrap(html);
   });
 
@@ -433,7 +433,7 @@ describe("partial mode", () => {
       ["<p>a</p>", "<p>b</p>"],
       makeShell(),
     );
-    assert.equal(html, "<main id=\"can-main\"><p>a</p><p>b</p></main>");
+    assert.equal(html, "<main id=\"can-main\"><header class=\"can-page-heading\"><h1 class=\"text-3xl font-bold\">Team tasks</h1></header><p>a</p><p>b</p></main>");
   });
 
   it("allows absent shell for partials", async () => {
@@ -442,7 +442,7 @@ describe("partial mode", () => {
       makeDescriptor(),
       ["x"],
     );
-    assert.equal(html, "<main id=\"can-main\">x</main>");
+    assert.equal(html, "<main id=\"can-main\"><header class=\"can-page-heading\"><h1 class=\"text-3xl font-bold\">Team tasks</h1></header>x</main>");
   });
 });
 
@@ -460,7 +460,7 @@ describe("children", () => {
       makeDescriptor(),
       ["a", Promise.resolve("b"), "c"],
     );
-    assert.equal(html, "<main id=\"can-main\">abc</main>");
+    assert.equal(html, "<main id=\"can-main\"><header class=\"can-page-heading\"><h1 class=\"text-3xl font-bold\">Team tasks</h1></header>abc</main>");
   });
 
   it("accepts thunk children, sync and async", async () => {
@@ -469,13 +469,13 @@ describe("children", () => {
       makeDescriptor(),
       () => ["x", Promise.resolve("y")],
     );
-    assert.equal(sync, "<main id=\"can-main\">xy</main>");
+    assert.equal(sync, "<main id=\"can-main\"><header class=\"can-page-heading\"><h1 class=\"text-3xl font-bold\">Team tasks</h1></header>xy</main>");
     const asyncThunk = await renderPage(
       makeContext({ isPartial: true }),
       makeDescriptor(),
       async () => ["p", "q"],
     );
-    assert.equal(asyncThunk, "<main id=\"can-main\">pq</main>");
+    assert.equal(asyncThunk, "<main id=\"can-main\"><header class=\"can-page-heading\"><h1 class=\"text-3xl font-bold\">Team tasks</h1></header>pq</main>");
   });
 });
 
@@ -693,7 +693,7 @@ describe("navigation join", () => {
     assert.match(html, /<a href="\/notes" class="menu-active" aria-current="page">/);
     assert.ok(!html.includes("/expenses/review"));
     assert.match(html, /<p role="status">Navigation is temporarily incomplete\.<\/p>/);
-    assert.match(html, /<main id="can-main"><p>body<\/p><\/main>/);
+    assert.match(html, /<main id="can-main"><header class="can-page-heading">.*?<\/header><p>body<\/p><\/main>/);
   });
 });
 

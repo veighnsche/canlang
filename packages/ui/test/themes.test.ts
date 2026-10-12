@@ -15,6 +15,7 @@ const themesCss = readFileSync(join(packageRoot, "themes.css"), "utf8");
 const pkgRequire = createRequire(import.meta.url);
 const daisyRoot = dirname(pkgRequire.resolve("daisyui/package.json"));
 const daisyCss = readFileSync(join(daisyRoot, "daisyui.css"), "utf8");
+const sourceCss = readFileSync(join(srcDir, "browser", "style.css"), "utf8");
 
 const THEME_NAMES = [
   "can-light-blue",
@@ -30,6 +31,10 @@ const THEME_NAMES = [
 
 /** Structural `can-*` markup hooks owned by this package (reviewed). */
 const CAN_HOOKS = new Set([
+  "can-page-heading",
+  "can-form",
+  "can-search",
+  "can-preference-tabs",
   "can-account",
   "can-account-toggle",
   "can-account-avatar",
@@ -43,44 +48,6 @@ const CAN_HOOKS = new Set([
   "can-region",
   "can-settings-panel",
   "can-settings-sidebar",
-]);
-
-/**
- * Tailwind utility tokens used in src markup, reviewed by hand. Anything used
- * in src that is neither can-* structural, nor in daisyUI's CSS, nor listed
- * here fails the audit (likely a typo or an unreviewed dependency).
- */
-const TAILWIND_UTILS = new Set([
-  "absolute",
-  "flex",
-  "flex-1",
-  "flex-col",
-  "font-bold",
-  "gap-2",
-  "gap-4",
-  "grid",
-  "grid-cols-2",
-  "h-4",
-  "hidden",
-  "min-h-full",
-  "overflow-y-auto",
-  "p-2",
-  "p-4",
-  "px-4",
-  "py-3",
-  "right-2",
-  "rounded-full",
-  "shadow",
-  "sr-only",
-  "text-2xl",
-  "text-3xl",
-  "text-lg",
-  "text-xl",
-  "top-2",
-  "w-12",
-  "w-64",
-  "w-80",
-  "w-full",
 ]);
 
 function extractClassTokens(): Set<string> {
@@ -219,19 +186,17 @@ describe("themes.css", () => {
 });
 
 describe("class audit", () => {
-  it("resolves every markup class to daisyUI, tailwind-utils or can-* hooks", () => {
+  it("supplies CSS for emitted classes including their responsive prefixes", () => {
     const unknown: string[] = [];
     for (const token of extractClassTokens()) {
       if (token.startsWith("can-")) {
         if (!CAN_HOOKS.has(token)) {
           unknown.push(token);
         }
-        continue;
       }
-      const base = token.includes(":") ? (token.split(":").pop() as string) : token;
-      const escaped = base.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
-      const found = new RegExp(`\\.${escaped}(?![a-zA-Z0-9_-])`).test(daisyCss);
-      if (!found && !TAILWIND_UTILS.has(base)) {
+      const selector = "." + token.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+      const found = [daisyCss, themesCss, sourceCss].some(css => css.includes(selector));
+      if (!found) {
         unknown.push(token);
       }
     }

@@ -441,7 +441,7 @@ describe("generated form rendering", () => {
       submit: "Create",
       idPrefix: "store-create",
     });
-    assert.ok(html.includes('<form action="/api/operations/Store.Gadget.create" method="post" data-can-generated-form="'));
+    assert.ok(html.includes('<form action="/api/operations/Store.Gadget.create" method="post" class="can-form" data-can-generated-form="'));
     assert.ok(html.includes('name="operation" value="Store.Gadget.create"'));
     assert.ok(html.includes('name="operation_id" value="op-1"'));
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));
@@ -773,7 +773,9 @@ describe("pilot shell, settings, and appearance integration", () => {
       makeDescriptor(),
       [formFragmentWrap("store-create", partialForm)],
     );
-    assert.equal(partial, `<main id="can-main">${formFragmentWrap("store-create", partialForm)}</main>`);
+    assert.ok(partial.startsWith('<main id="can-main"><header class="can-page-heading">'));
+    assert.ok(partial.endsWith(`${formFragmentWrap("store-create", partialForm)}</main>`));
+    assert.ok(!partial.includes('<!DOCTYPE'));
     assert.ok(partial.includes('<div id="store-create-form">'));
     assert.ok(partial.includes('name="inputs[title]"'));
   });
