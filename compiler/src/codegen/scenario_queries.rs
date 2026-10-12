@@ -108,6 +108,32 @@ pub(super) fn serialize_query_any(
 ) -> Option<serde_json::Value> {
     use super::ir::{IrCallTarget, IrOwner, IrUnOp};
     use crate::analysis::Scalar;
+    if !matches!(
+        owner.kind,
+        IrItemKind::Scenario {
+            read: false,
+            trusted: false,
+            cohort: None,
+            ..
+        }
+    ) || !program
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?
+        .queries
+        .as_deref()?
+        .iter()
+        .any(|query| {
+            query.first.is_none()
+                && query.count.is_none()
+                && query.projection.is_none()
+                && program.types.checked_collection_calls.values().any(|call| {
+                    call.builtin == "any" && call.query == query.node && call.model == query.model
+                })
+        })
+    {
+        return None;
+    }
     program.validate_cohort(db, catalog).ok()?;
     if entry_module.is_empty() {
         return None;
@@ -358,6 +384,11 @@ pub(super) fn collect_complete_query_receipt(
             return None;
         }
         let mut native_returns = Vec::new();
+        let prepared = super::scenario_feasibility::prepare(program, ir, db, catalog)?;
+        let selected_returns = prepared.returns(ir, owner.id)?;
+        let ScenarioDisclosure::Complete(original_checked) = original else {
+            return None;
+        };
         for disclosure in [
             original,
             fresh.scenario_disclosures.get(&owner.id)?,
@@ -369,13 +400,13 @@ pub(super) fn collect_complete_query_receipt(
             if checked.scenario != owner.id
                 || checked.node != original.source_facts()?.node
                 || checked.source != query.source
-                || checked.returns.len() != plan.returns.len()
+                || !super::scenario_feasibility::same_disclosure(original_checked, checked)
                 || checked.returns.is_empty()
-                || checked.returns.len() > 200
+                || selected_returns.len() != plan.returns.len()
             {
                 return None;
             }
-            for (returned, emitted) in checked.returns.iter().zip(&plan.returns) {
+            for (returned, emitted) in selected_returns.iter().zip(&plan.returns) {
                 if returned.node != query.return_node
                     || returned.id != emitted.id
                     || returned.source != query.source
@@ -387,8 +418,7 @@ pub(super) fn collect_complete_query_receipt(
                 }
             }
             if native_returns.is_empty() {
-                native_returns = checked
-                    .returns
+                native_returns = selected_returns
                     .iter()
                     .map(|returned| NativeReturn {
                         id: returned.id.clone(),
@@ -465,6 +495,28 @@ pub(super) fn collect_complete_query_receipt(
 }
 
 fn checked_query_plan(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    let mut plan = checked_query_plan_full(program, ir, owner, db, catalog, entry_module)?;
+    if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
+        && matches!(
+            program.scenario_disclosures().get(&owner.id)?,
+            ScenarioDisclosure::Complete(_)
+        )
+    {
+        let prepared = super::scenario_feasibility::prepare(program, ir, db, catalog)?;
+        let returned = prepared.returns(ir, owner.id)?;
+        super::scenario_receipts::project_plan_returns(&mut plan, &returned)?;
+    }
+    Some(plan)
+}
+
+fn checked_query_plan_full(
     program: &CheckedProgram,
     ir: &IrProgram,
     owner: &IrItem,
@@ -971,9 +1023,10 @@ fn checked_transcript_query_plan(
         return None;
     };
     if checked.returns.is_empty()
-        || checked.returns.len() > 200
         || checked.returns.len() != original.returns.len()
         || checked.returns.len() != rebuilt.returns.len()
+        || !super::scenario_feasibility::same_disclosure(original, checked)
+        || !super::scenario_feasibility::same_disclosure(original, rebuilt)
     {
         return None;
     }
@@ -1344,7 +1397,6 @@ fn checked_first_query_plan(
     let return_ids = match ir.scenario_disclosures.get(&owner.id)? {
         ScenarioDisclosure::Complete(checked) => {
             if checked.returns.is_empty()
-                || checked.returns.len() > 200
                 || checked.returns.iter().any(|returned| {
                     returned.node != q.return_node
                         || returned.source != q.source

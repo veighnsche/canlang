@@ -35,6 +35,47 @@ pub(super) struct ReceiptDisclosurePlan {
     pub returns: Vec<ReceiptReturn>,
 }
 
+/// Apply an already authenticated borrowed subset; preserve surviving rows
+/// verbatim and retain the existing transport capacity.
+pub(super) fn project_plan_returns(
+    plan: &mut ReceiptDisclosurePlan,
+    returned: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
+) -> Option<()> {
+    if returned.is_empty() || returned.len() > 200 {
+        return None;
+    }
+    plan.returns
+        .retain(|row| returned.iter().any(|original| original.id == row.id));
+    if plan.returns.len() != returned.len()
+        || plan
+            .returns
+            .iter()
+            .zip(returned)
+            .any(|(row, original)| row.id != original.id)
+    {
+        return None;
+    }
+    let nodes = plan
+        .returns
+        .iter()
+        .try_fold(7usize + 40 * plan.queries.len(), |nodes, row| {
+            nodes.checked_add(
+                9 + 5 * row.influences.len()
+                    + 10 * row.dependencies.len()
+                    + row
+                        .dependencies
+                        .iter()
+                        .filter(|read| read.query_id.is_some())
+                        .count()
+                    + 16 * row.intrinsics.len(),
+            )
+        })?;
+    if nodes > 20_000 {
+        return None;
+    }
+    Some(())
+}
+
 /// Original source and the independently prepared guards/query plan consumed
 /// together by the native receipt matcher. This is private compiler input.
 pub(super) struct NativeReceiptSources<'a> {
@@ -384,7 +425,6 @@ pub(super) fn checked_created_model_result(
                     stored: true,
                 })
             || checked.returns.is_empty()
-            || checked.returns.len() > 200
         {
             return None;
         }
@@ -478,6 +518,7 @@ pub(super) fn checked_created_model_result(
 /// `models` must be the actual descriptors emitted by the owning emitter.
 /// `entry_module` is the actual artifact callable module, not an inferred
 /// package path: native scenario implementations currently execute in entry.
+#[cfg(test)]
 pub(super) fn collect_native_scenario_receipt(
     ir: &IrProgram,
     item: &IrItem,
@@ -485,6 +526,26 @@ pub(super) fn collect_native_scenario_receipt(
     entry_module: &str,
     value_types: Option<&JsValueTypes>,
     sources: NativeReceiptSources<'_>,
+) -> Option<NativeScenarioReceipt> {
+    collect_native_scenario_receipt_with_feasibility(
+        ir,
+        item,
+        models,
+        entry_module,
+        value_types,
+        sources,
+        None,
+    )
+}
+
+pub(super) fn collect_native_scenario_receipt_with_feasibility(
+    ir: &IrProgram,
+    item: &IrItem,
+    models: &[JsModel],
+    entry_module: &str,
+    value_types: Option<&JsValueTypes>,
+    sources: NativeReceiptSources<'_>,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
 ) -> Option<NativeScenarioReceipt> {
     let transcript = has_original_transcript_source(ir, item.id);
     let NativeReceiptSources {
@@ -517,7 +578,13 @@ pub(super) fn collect_native_scenario_receipt(
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&item.id)? else {
         return None;
     };
-    if checked.scenario != item.id || checked.returns.is_empty() || checked.returns.len() > 200 {
+    let returned_paths: Vec<_> = match feasibility
+        .filter(|_| super::scenario_feasibility::requires_projection(checked, ir))
+    {
+        Some(prepared) => prepared.returns(ir, item.id)?,
+        None => checked.returns.iter().collect(),
+    };
+    if checked.scenario != item.id || returned_paths.is_empty() || returned_paths.len() > 200 {
         return None;
     }
     let module = ir.modules.get(item.module.0 as usize)?;
@@ -552,8 +619,15 @@ pub(super) fn collect_native_scenario_receipt(
     if has_original_images_source(ir, item.id) {
         checked_images_source(ir, item, db?)?;
     }
-    let first_plan =
-        checked_native_first_query_plan(ir, item, checked, query_plan, entry_module, db)?;
+    let first_plan = checked_native_first_query_plan(
+        ir,
+        item,
+        checked,
+        query_plan,
+        entry_module,
+        db,
+        &returned_paths,
+    )?;
     let sites = Sites::collect(ir, item, send_guards, db)?;
     match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
     let mut profile_scalar_pairs = HashMap::new();
@@ -613,7 +687,7 @@ pub(super) fn collect_native_scenario_receipt(
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
     let mut data_nodes: usize = first_plan.map_or(7, |plan| 7 + 40 * plan.queries.len());
-    for returned in &checked.returns {
+    for returned in returned_paths {
         if (first_plan.is_none() && !returned.influences.is_empty())
             || returned.node.file != checked.node.file
             || returned.id.is_empty()
@@ -1538,6 +1612,7 @@ fn checked_native_first_query_plan<'a>(
     supplied: Option<&'a ReceiptDisclosurePlan>,
     entry_module: &str,
     db: Option<&SourceDb>,
+    returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     if facts
@@ -1545,8 +1620,15 @@ fn checked_native_first_query_plan<'a>(
         .as_deref()
         .is_some_and(|facts| !facts.is_empty())
     {
-        return checked_native_transcript_plan(ir, owner, checked, supplied?, entry_module)
-            .map(Some);
+        return checked_native_transcript_plan(
+            ir,
+            owner,
+            checked,
+            supplied?,
+            entry_module,
+            returned_paths,
+        )
+        .map(Some);
     }
     let queries = facts.queries.as_deref().unwrap_or_default();
     if queries
@@ -1564,7 +1646,7 @@ fn checked_native_first_query_plan<'a>(
     checked_native_query_influences(queries)?;
     let plan = supplied?;
     let db = db?;
-    let expected = match queries {
+    let mut expected = match queries {
         [query] if query.count.is_some() => {
             checked_native_count_query_plan(ir, owner, query, db, entry_module)?
         }
@@ -1591,6 +1673,7 @@ fn checked_native_first_query_plan<'a>(
         )?,
         _ => return None,
     };
+    project_plan_returns(&mut expected, returned_paths)?;
     (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
 }
 
@@ -1600,6 +1683,7 @@ fn checked_native_transcript_plan<'a>(
     checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
     plan: &'a ReceiptDisclosurePlan,
     entry: &str,
+    returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
 ) -> Option<&'a ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let [first, later] = facts.transcripts.as_deref()? else {
@@ -1616,7 +1700,7 @@ fn checked_native_transcript_plan<'a>(
         || later.source != checked.source
         || plan.version != 1
         || plan.queries.len() != 2
-        || plan.returns.len() != checked.returns.len()
+        || plan.returns.len() != returned_paths.len()
         || serde_json::to_value(&plan.source).ok()?
             != serde_json::to_value(transport_source(&checked.source, entry)?).ok()?
     {
@@ -1671,7 +1755,7 @@ fn checked_native_transcript_plan<'a>(
         }
         influences.extend(fact.influences.iter().cloned());
     }
-    for (returned, actual) in checked.returns.iter().zip(&plan.returns) {
+    for (returned, actual) in returned_paths.iter().zip(&plan.returns) {
         if returned.influences != influences
             || actual.id != returned.id
             || actual.dependencies.len() != returned.dependencies.len()
@@ -1728,7 +1812,7 @@ fn checked_native_first_query_source_plan(
 ) -> Option<ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let expected_influences = checked_native_query_influences(facts.queries.as_deref()?)?;
-    if checked.returns.is_empty() || checked.returns.len() > 200 {
+    if checked.returns.is_empty() {
         return None;
     }
     let first = query.first.as_ref()?;
@@ -2382,7 +2466,6 @@ fn checked_native_ancestor_count_query_plan(
         })
         .collect::<Option<Vec<_>>>()?;
     if proof.returns.is_empty()
-        || proof.returns.len() > 200
         || proof.returns.iter().any(|returned| {
             returned.node != query.return_node
                 || returned.source != query.source
@@ -2520,7 +2603,6 @@ pub(super) fn checked_native_count_query_plan(
         || checked.source != query.source
         || facts.source != query.source
         || checked.returns.is_empty()
-        || checked.returns.len() > 200
         || checked.returns.iter().any(|returned| {
             returned.node != query.return_node
                 || returned.source != query.source
@@ -4354,7 +4436,6 @@ pub(super) fn checked_profile_scalar_pair<'a>(
         || proof.node != source.node
         || proof.source != source.source
         || proof.returns.is_empty()
-        || proof.returns.len() > 200
     {
         return None;
     }
