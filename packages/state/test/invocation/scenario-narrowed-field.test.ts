@@ -29,6 +29,68 @@ function fixture() {
   return { plan, artifactModels: new Map<ModelName, ArtifactModel>([[TEMPLATE, template], [REVISION, revision]]), canonicalModels };
 }
 const refuses = (error: unknown) => error instanceof StateError && error.code === 'validation';
+function requiredControlFixture() {
+  const bound = fixture();
+  const returned = bound.plan.returns[0]!;
+  const deps = returned.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+  deps.splice(0, deps.length, { ...deps[1]!, id: 'current-published', role: 'control' });
+  return bound;
+}
+test('required current reference CONTROL retains its actual occurrence and authenticates itself without a nullable predecessor', () => {
+  const bound = requiredControlFixture();
+  const deps = bound.plan.returns[0]!.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+  deps.push({ ...deps[0]!, id: 'current-let' });
+  const bindings = bindScenarioNarrowedFields(bound);
+  assert.deepEqual([...bindings.keys()], ['current-published', 'current-let']);
+  for (const id of bindings.keys()) {
+    const binding = bindings.get(id)!;
+    assert.equal(binding.data.id, id); assert.equal(binding.data.role, 'control');
+    assert.equal(binding.data.type, REVISION); assert.equal(binding.declarationType, `${REVISION}?`);
+    assert.equal(binding.kind, 'reference'); assert.equal(binding.target, REVISION);
+    assert.equal(scenarioNarrowedFieldControl(binding), binding.data);
+    assert.ok(Object.isFrozen(binding)); assert.ok(Object.isFrozen(binding.data));
+    assert.throws(() => scenarioNarrowedFieldControl({ ...binding }), refuses);
+  }
+});
+test('required reference CONTROL does not replace the unique nullable predecessor for DATA', () => {
+  const bound = fixture();
+  const deps = bound.plan.returns[0]!.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+  deps.push({ ...deps[1]!, id: 'current-published', role: 'control' });
+  const bindings = bindScenarioNarrowedFields(bound);
+  assert.equal(scenarioNarrowedFieldControl(bindings.get('current-data')!).id, 'current-presence');
+  deps.splice(0, 1);
+  assert.throws(() => bindScenarioNarrowedFields(bound), refuses);
+});
+test('required CONTROL refuses text, array, query, metadata, nonowning and declaration drift', () => {
+  for (const mode of ['text', 'array', 'required-array', 'query', 'metadata', 'nonowning', 'nullable', 'type', 'marker', 'target', 'field-kind'] as const) {
+    const bound = requiredControlFixture();
+    const deps = bound.plan.returns[0]!.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+    const field = bound.artifactModels.get(TEMPLATE)!.fields[0]!;
+    const checked = bound.canonicalModels[0]!.fields.current!;
+    if (mode === 'text') deps[0] = { ...deps[0]!, model: REVISION, field: 'digest', type: type('text') };
+    else if (mode === 'array') deps[0] = { ...deps[0]!, type: type(`${REVISION}[]`) };
+    else if (mode === 'required-array') deps[0] = { ...deps[0]!, type: type(`${REVISION}[]!`) };
+    else if (mode === 'query') deps[0] = { ...deps[0]!, queryId: 'foreign' };
+    else if (mode === 'metadata') {
+      field.name = 'version';
+      bound.canonicalModels[0] = { ...bound.canonicalModels[0]!, fields: { version: checked } };
+      deps[0] = { ...deps[0]!, field: 'version' };
+    } else if (mode === 'nonowning') field.field = { kind: 'ref', model: TEMPLATE };
+    else if (mode === 'nullable') field.nullable = false;
+    else if (mode === 'type' || mode === 'marker') bound.canonicalModels[0] = { ...bound.canonicalModels[0]!, fields: {
+      ...bound.canonicalModels[0]!.fields, current: { ...checked, ...(mode === 'type' ? { valueType: type('Other?') } : { serverOnly: true }) },
+    } };
+    else if (mode === 'target') bound.canonicalModels.splice(1, 1);
+    else field.field = { kind: 'string' };
+    assert.throws(() => bindScenarioNarrowedFields(bound), refuses, mode);
+  }
+});
+test('required CONTROL gains no narrowing binding without an explicit nullable declaration', () => {
+  const bound = requiredControlFixture();
+  delete bound.artifactModels.get(TEMPLATE)!.fields[0]!.valueType;
+  Reflect.deleteProperty(bound.canonicalModels[0]!.fields.current!, 'valueType');
+  assert.equal(bindScenarioNarrowedFields(bound).size, 0);
+});
 test('original current reference and digest text pair with exact nullable CONTROL while exact fields stay untouched', () => {
   const bound = fixture(), bindings = bindScenarioNarrowedFields(bound);
   assert.deepEqual([...bindings.keys()], ['current-data', 'digest-data']);

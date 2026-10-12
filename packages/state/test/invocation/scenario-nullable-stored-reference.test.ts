@@ -17,7 +17,7 @@ import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescript
 import { invoke } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { beginScenarioReceiptMutation, bindScenarioReceiptReferenceProducer, bindScenarioReceiptFileProducer, observeScenarioReceiptDependency,
-  readScenarioReceiptNullableStoredReferenceRow, bindScenarioReceiptModelResult, selectScenarioReceiptReturn,
+  readScenarioReceiptNullableStoredReferenceRow, readScenarioReceiptStoredReferenceRow, bindScenarioReceiptModelResult, selectScenarioReceiptReturn,
   readScenarioReceiptAssociation, projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
 import { asId, asModel, FIXED_NOW, makeIdentity, makeEnvelope, seedRow, updateRow, uuidv7 } from './fixtures.js';
 
@@ -28,9 +28,9 @@ const source = { path: 'nullable-reader.can', module: 'nullable-reader.mjs', sha
 let sequence = 121_000;
 const refuses = (error: unknown) => error instanceof StateError;
 type Mode = 'normal' | 'null' | 'null-data' | 'null-digest' | 'null-digest-data' | 'unobserved' | 'copied-source' | 'stale-stage'
-  | 'wrong-pair' | 'copied-call-caught' | 'foreign-store-caught' | 'copied-target' | 'unobserved-digest' | 'array' | 'state-race';
+  | 'wrong-pair' | 'copied-call-caught' | 'foreign-store-caught' | 'copied-target' | 'unobserved-digest' | 'array' | 'state-race' | 'required-api';
 
-async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subfield' }) {
+async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subfield' }, requiredCurrentControl = false) {
   const array = mode === 'array', currentType = `${REVISION}${array ? '[]' : '?'}` as CanTypeId;
   const dependencies = [
     { id: 'current-control', source, role: 'control' as const, model: TEMPLATE, field: 'current', type: currentType },
@@ -57,6 +57,16 @@ async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subf
     ], operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [] }, result: { type: RUN as CanTypeId,
       disclosure: { version: 1, source, returns: [{ id: 'created-run', source, influences: [], dependencies }] } } }],
   };
+  if (requiredCurrentControl) {
+    // Isolate the newly narrowed CONTROL occurrence from the separately
+    // pending full required-reference DATA/Return correspondence decision.
+    slice.operations![0]!.result = { type: 'bool' as CanTypeId, disclosure: { version: 1, source, returns: [{
+      id: 'created-run', source, influences: [], dependencies: [
+        { id: 'current-control', source, role: 'control', model: TEMPLATE, field: 'current', type: REVISION as CanTypeId },
+        { id: 'published-control', source, role: 'data', model: REVISION, field: 'published', type: 'bool' as CanTypeId },
+      ],
+    }] } };
+  }
   if (workflow !== undefined) {
     slice.valueTypes = { contracts: [
       { name: 'WorkflowInput', fields: [{ name: 'node', type: 'text' as CanTypeId }, { name: 'key', type: 'text' as CanTypeId }] },
@@ -120,7 +130,7 @@ async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subf
     [RUN, { parent: TEMPLATE, fields: ['digest'], secretFields: [], grants: [{ fields: ['id', 'digest'], read: async ({ context }) => context.membership?.status === 'active' }] }],
   ]);
   bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies });
-  return { mode, workflow, definition, observeGraph, valueSchema: loaded.valueSchema, store, memberships, caller, reader, table, access, policy, readPolicies, registry: loaded.registry,
+  return { mode, requiredCurrentControl, slice, workflow, definition, observeGraph, valueSchema: loaded.valueSchema, store, memberships, caller, reader, table, access, policy, readPolicies, registry: loaded.registry,
     app: APP, source: 'component', identity: makeIdentity({ userId: user.user_id, team, membership: caller }),
     clock: { nowMs: () => FIXED_NOW }, envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), {}),
     targetReads: () => targetReads, beforeTargetRead: (hook?: () => Promise<void> | void) => { beforeTargetRead = hook; } };
@@ -151,7 +161,8 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
     const promote = async () => {
       promoting = true;
       try {
-        return await readScenarioReceiptNullableStoredReferenceRow(w.mode === 'copied-call-caught' ? { ...call } : call,
+        const reader = w.mode === 'required-api' ? readScenarioReceiptStoredReferenceRow : readScenarioReceiptNullableStoredReferenceRow;
+        return await reader(w.mode === 'copied-call-caught' ? { ...call } : call,
           w.mode === 'foreign-store-caught' ? { ...w.store } : w.store, { sourceDependencyId: 'current-control',
             scalarLeafDependencyId: w.mode === 'wrong-pair' ? 'digest-data' : 'published-control',
             sourceRow: w.mode === 'copied-source' ? { ...template } : template });
@@ -173,6 +184,10 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
     await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'published-control', model: REVISION,
       row: w.mode === 'copied-target' ? { ...promoted } : promoted, field: 'published' });
     assert.equal(published, true);
+    if (w.requiredCurrentControl) {
+      await after?.(session); selectScenarioReceiptReturn(call, w.store, 'created-run');
+      return { ...await session.finalize(), result: published, outbox: [] };
+    }
     await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'current-data', model: TEMPLATE, row: template, field: 'current' });
     const digest = promoted.data.digest;
     if (w.mode !== 'unobserved-digest') await observeScenarioReceiptDependency(call, w.store,
@@ -341,5 +356,49 @@ test('published nullable Revision supplies its whole standard WorkflowDefinition
     assert.equal(definition.files![0]!.ref, w.definition!.graph.id);
     assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, { id: 'created-run' });
     assert.equal((await w.store.historyFor(RUN, asId('created-run'))).length, 1);
+  }
+});
+
+test('required current CONTROL occurrence uses the owning nullable declaration and genuine marker for Bool leaf promotion', async () => {
+  const w = await world('normal', undefined, true), ex = execution(w);
+  assert.equal((await invoke(ex.request)).status, 'committed');
+  const association = readScenarioReceiptAssociation(ex.receipt())!;
+  assert.deepEqual(association.observations.map(value => [value.dependencyId, value.row.id]), [
+    ['current-control', 'template'], ['published-control', 'revision'],
+  ]);
+  assert.equal(association.plan.returns[0]!.dependencies[0]!.type, REVISION);
+  assert.deepEqual(association.observations[0]!.row.data.current, { id: 'revision' });
+  assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, true);
+  assert.equal(await w.store.load(RUN, asId('created-run')), null, 'this finite CONTROL unit returns only the Bool leaf');
+  const revision = await w.store.readRevision();
+  assert.equal((await invoke(ex.request)).status, 'replayed'); assert.equal(ex.runs(), 1); assert.equal(await w.store.readRevision(), revision);
+});
+
+test('required current CONTROL cannot capture null, use the required-declaration API or bypass genuine source issuance', async () => {
+  for (const mode of ['null', 'required-api', 'unobserved', 'copied-source', 'stale-stage', 'copied-call-caught', 'foreign-store-caught'] as const) {
+    const w = await world(mode, undefined, true), ex = execution(w);
+    await assert.rejects(invoke(ex.request), refuses); assert.equal(ex.exposed(), false); await unchanged(w);
+    if (mode === 'null') { assert.equal(w.targetReads(), 0); assert.equal(ex.promoted(), undefined); }
+  }
+});
+
+test('narrowed reference CONTROL retains source/target/ancestor/Identity authority at late effects and saved disclosure', async () => {
+  for (const loss of ['source', 'target', 'ancestor', 'identity'] as const) {
+    const late = await world('normal', undefined, true), failed = execution(late, undefined, async () => {
+      if (loss === 'source') late.access.source = false;
+      if (loss === 'target') late.access.target = false;
+      if (loss === 'ancestor') late.access.ancestor = false;
+      if (loss === 'identity') await late.memberships.removeMembership(late.reader.membership_id);
+    });
+    await assert.rejects(invoke(failed.request), refuses); await unchanged(late);
+    const current = await world('normal', undefined, true), saved = execution(current);
+    await invoke(saved.request); const receipt = saved.receipt();
+    if (loss === 'source') current.access.source = false;
+    if (loss === 'target') current.access.target = false;
+    if (loss === 'ancestor') current.access.ancestor = false;
+    if (loss === 'identity') await current.memberships.removeMembership(current.reader.membership_id);
+    const revision = await current.store.readRevision();
+    assert.deepEqual(await projectScenarioReceipt({ ...current, receipt }), { result: null, records: [] });
+    assert.equal(await current.store.readRevision(), revision); assert.equal(saved.runs(), 1);
   }
 });

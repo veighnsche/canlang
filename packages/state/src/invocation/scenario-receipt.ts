@@ -1361,22 +1361,32 @@ const narrowedControlInputs = new WeakMap<DependencyObservation, {
 function capturedNarrowedControl(call: AdmittedCall, owner: ReceiptOwnerSession | undefined, state: Capture,
   binding: ScenarioNarrowedFieldBinding, row: StoredRow): void {
   const control = scenarioNarrowedFieldControl(binding);
+  const wire = dependencyObservedWire(binding.data, row);
+  if (wire === null) return invalid('required narrowed occurrence cannot observe null.');
+  savedDependencyWire(binding.declarationType, wire); savedDependencyWire(binding.data.type, wire);
+  // A required reference CONTROL is the actual nonnull typed read itself.
+  // Its ordinary observer still verifies the genuine owner row and authority.
+  if (binding.data.role === 'control') return;
   const observations = state.observations.filter(observation => observation.dependencyId === control.id);
   const observation = observations[0], issued = observation === undefined ? undefined : narrowedControlInputs.get(observation);
   if (owner === undefined || observations.length !== 1 || issued?.call !== call || issued.owner !== owner ||
       issued.stage !== owner.stage || issued.row !== row || observation!.model !== binding.data.model ||
       stableStringify(observation!.row) !== stableStringify(row)) return invalid('narrowed DATA requires its genuine same-row nullable CONTROL at the original stage.');
-  const wire = dependencyObservedWire(binding.data, row);
-  if (wire === null || stableStringify(wire) !== stableStringify(dependencyObservedWire(control, observation!.row))) {
+  if (stableStringify(wire) !== stableStringify(dependencyObservedWire(control, observation!.row))) {
     return invalid('narrowed DATA requires the original nonnull CONTROL wire.');
   }
-  savedDependencyWire(binding.declarationType, wire); savedDependencyWire(binding.data.type, wire);
 }
 
 function savedNarrowedControls(bound: BoundPlan, observations: readonly DependencyObservation[]): boolean {
   for (const observation of observations) {
     const binding = bound.narrowedDependencies.get(observation.dependencyId);
     if (binding === undefined) continue;
+    try {
+      const wire = dependencyObservedWire(binding.data, observation.row);
+      if (wire === null) return false;
+      savedDependencyWire(binding.declarationType, wire); savedDependencyWire(binding.data.type, wire);
+    } catch { return false; }
+    if (binding.data.role === 'control') continue;
     const control = scenarioNarrowedFieldControl(binding), prior = observations.filter(candidate => candidate.dependencyId === control.id);
     if (prior.length !== 1 || observations.indexOf(prior[0]!) >= observations.indexOf(observation) ||
         prior[0]!.model !== observation.model || stableStringify(prior[0]!.row) !== stableStringify(observation.row)) return false;

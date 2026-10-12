@@ -21,8 +21,8 @@ const authentic = new WeakSet<ScenarioNarrowedFieldBinding>();
 const fail = (message: string): never => { throw new StateError('validation', `Scenario narrowed field: ${message}`); };
 const same = (a: unknown, b: unknown) => stableStringify(a) === stableStringify(b);
 
-/** Only required text or genuine model-reference DATA may narrow a nullable
- * owning field, paired with its unique CONTROL occurrence in every used return. */
+/** Required DATA pairs with its unique nullable CONTROL. A required genuine
+ * model-reference CONTROL authenticates its own nullable declaration narrowing. */
 export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, ScenarioNarrowedFieldBinding> {
   try {
     const plan = copyScenarioFileData(bound.plan) as ScenarioResultDisclosurePlan;
@@ -32,7 +32,8 @@ export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, Sc
     for (const [name, value] of Map.prototype.entries.call(bound.artifactModels) as Iterable<[ModelName, ArtifactModel]>) artifacts.set(name, copyScenarioFileData(value) as ArtifactModel);
     const result = new Map<string, ScenarioNarrowedFieldBinding>();
     for (const returned of plan.returns) for (const dependency of returned.dependencies) {
-      if (dependency.role !== 'data' || dependency.field === 'id' || dependency.field === 'parent') continue;
+      if (dependency.role !== 'data' && dependency.role !== 'control' ||
+          dependency.role === 'data' && (dependency.field === 'id' || dependency.field === 'parent')) continue;
       const artifact = artifacts.get(dependency.model);
       const declarations = canonical.filter(model => model.name === dependency.model);
       const fields = artifact?.fields.filter(field => field.name === dependency.field);
@@ -63,13 +64,20 @@ export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, Sc
         if (artifacts.get(target)?.name !== target || canonical.filter(model => model.name === target).length !== 1) return fail('genuine same-load target model required.');
         kind = 'reference';
       } else return fail('only nullable text and genuine model references may narrow.');
-      const controls = returned.dependencies.filter(control => control.role === 'control' && control.queryId === undefined &&
-        control.model === dependency.model && control.field === dependency.field && control.type === owning.valueType && same(control.source, dependency.source));
-      if (controls.length !== 1 || controls[0]!.id === dependency.id) return fail('unique exact nullable CONTROL counterpart required.');
-      const binding = deepFreeze({ data: dependency, control: controls[0]!, declarationType: owning.valueType, kind,
+      let control: Dependency;
+      if (dependency.role === 'control') {
+        if (kind !== 'reference') return fail('only genuine model-reference CONTROL may narrow.');
+        control = dependency;
+      } else {
+        const controls = returned.dependencies.filter(control => control.role === 'control' && control.queryId === undefined &&
+          control.model === dependency.model && control.field === dependency.field && control.type === owning.valueType && same(control.source, dependency.source));
+        if (controls.length !== 1 || controls[0]!.id === dependency.id) return fail('unique exact nullable CONTROL counterpart required.');
+        control = controls[0]!;
+      }
+      const binding = deepFreeze({ data: dependency, control, declarationType: owning.valueType, kind,
         ...(target === undefined ? {} : { target }) });
       const previous = result.get(dependency.id);
-      if (previous !== undefined && !same(previous, binding)) return fail('DATA occurrence has inconsistent return correspondence.');
+      if (previous !== undefined && !same(previous, binding)) return fail('narrowed occurrence has inconsistent return correspondence.');
       if (previous === undefined) { authentic.add(binding); result.set(dependency.id, binding); }
     }
     return result;
