@@ -83,7 +83,7 @@ function assertRegistrableRedirectUri(uri: unknown): string {
   if (url.username !== '' || url.password !== '') {
     throw new IdentityError('validation', 'redirect_uri must not include credentials.');
   }
-  if (url.hash !== '') {
+  if (uri.includes('#')) {
     throw new IdentityError('validation', 'redirect_uri must not include a fragment.');
   }
   return uri;
