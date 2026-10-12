@@ -1052,17 +1052,23 @@ fn draft_outcome_table() {
     // Decide1/Gallery1/Shift1/Employees2). Nested inspection source typingedfd
     // also clears Creative's one fields-empty-fallback E3004. All52 rows and
     // the other46 diagnostic counts remain; these are source criteria only.
+    // Draft6c1a6d8 corrects Catch's Note timestamp to created and Mail's
+    // automatic Notice author to nullable with explicit kind attribution.
+    // At the current compiler/catalog inputs, the affected table measures
+    // Catch53->52 and Mail133->132; Creative21->20 is additionally stale,
+    // not a Creative source change or the disclosure-only matching refactor.
+    // All49 other rows and the explanation-code checks remain unchanged.
     let table: &[(&str, usize)] = &[
         ("draft/CanAffiliate.can", 39),
         ("draft/CanApprove.can", 46),
         ("draft/CanBoard.can", 3),
         ("draft/CanBook.can", 154),
         ("draft/CanCRM.can", 146),
-        ("draft/CanCatch.can", 53),
+        ("draft/CanCatch.can", 52),
         ("draft/CanChat.can", 0),
         ("draft/CanCheck.can", 38),
         ("draft/CanContract.can", 22),
-        ("draft/CanCreative.can", 21),
+        ("draft/CanCreative.can", 20),
         // Nine committed create/update/delete handlers now receive typed
         // event.id text; the unchanged source still has 49 other findings.
         ("draft/CanCustomer.can", 49),
@@ -1088,7 +1094,7 @@ fn draft_outcome_table() {
         // The same owned bound-tab cases (rewards/history) now resolve;
         // transient caption tabs and all original source remain unchanged.
         ("draft/CanLoyalty.can", 66),
-        ("draft/CanMail.can", 133),
+        ("draft/CanMail.can", 132),
         ("draft/CanMaintain.can", 110),
         ("draft/CanMember.can", 319),
         ("draft/CanOnboard.can", 54),

@@ -615,3 +615,144 @@ fn catalog_pure_reclassification_and_defaulted_recursive_or_runtime_data_authori
         );
     }
 }
+
+#[test]
+fn renamed_authorization_declaration_and_formals_keep_the_original_source_relation() {
+    let source = SOURCE
+        .replace("can_use", "may_access")
+        .replace("person", "principal")
+        .replace("conversation", "subject")
+        .replace("Conversation", "Topic");
+    let (db, program, ir, catalog) = checked(&source, "renamed-authorization.can");
+    let owner = item(&ir, OWNER);
+    let sites = collect_decision_sources(&program, &ir, owner, &db, Some(&catalog)).unwrap();
+    assert_eq!(sites.len(), 1);
+    assert!(matches!(&sites[0].calls[0].target,
+        CheckedDecisionCallTarget::DeriveFn(id) if *id == item(&ir, "AuthorizationCanUse.may_access").id));
+    assert_eq!(text(&db, sites[0].calls[1].arguments[0].0), "principal");
+    let artifact = prepared(&program, &db, &catalog);
+    assert!(!operation(&artifact)["result"]["disclosure"].is_null());
+    assert_eq!(
+        operation(&artifact)["result"]["disclosure"]["source"]["sha256"],
+        sha256_hex(source.as_bytes())
+    );
+}
+
+#[test]
+fn aliased_exported_authorization_and_model_keep_binding_slots_and_body_sealed() {
+    let library = SOURCE
+        .replace("can_use", "may_access")
+        .replace("person", "principal")
+        .replace("conversation", "subject")
+        .replace("\n Conversation {", "\n export Conversation {")
+        .replace(" policy Conversation read=", " export derive other_access(principal:user?,subject:Conversation):bool = principal!=null and active_member(principal,team) and subject.account==principal and subject.active\n policy Conversation read=");
+    let caller = "app AliasCaller\nuse AuthorizationCanUse {Conversation as Topic,may_access as authorize}\nGiven\n Result {active:bool=true}\n policy Result read=members\nWhen\n scenario ask(conversation:Topic?=null) by=members -> Result\n  require conversation==null or authorize(actor,conversation)\n  do\n   create Result {active=true} as run\n   return run\nThen\n";
+    let mut db = SourceDb::new();
+    let library_file = db.add("authorization.can".into(), library.clone());
+    let caller_file = db.add("caller.can".into(), caller.into());
+    let catalog = load(&db, &native_catalog());
+    let (program, diagnostics) = check_program(&db, &[library_file, caller_file], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let owner = item(&ir, "AliasCaller.ask").id;
+    let helper = item(&ir, "AuthorizationCanUse.may_access").id;
+    let sites = collect_decision_sources(
+        &program,
+        &ir,
+        &ir.items[owner.0 as usize],
+        &db,
+        Some(&catalog),
+    )
+    .unwrap();
+    assert!(sites.iter().flat_map(|site| &site.calls).any(
+        |call| matches!(&call.target, CheckedDecisionCallTarget::DeriveFn(id) if *id == helper)
+    ));
+    let artifact = prepared(&program, &db, &catalog);
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "AliasCaller.ask")
+        .unwrap();
+    assert!(!operation["result"]["disclosure"].is_null());
+    assert_eq!(
+        operation["inputs"]["fields"][0]["field"]["model"],
+        "AuthorizationCanUse.Conversation"
+    );
+    for mode in ["import-binding", "formal-slot", "body"] {
+        let mut changed = ir.clone();
+        match mode {
+            "import-binding" => {
+                let module = changed.items[owner.0 as usize].module;
+                let member = changed.modules[module.0 as usize]
+                    .imports
+                    .iter_mut()
+                    .flat_map(|import| &mut import.members)
+                    .find(|(_, alias, _)| alias == "authorize")
+                    .unwrap();
+                member.0 = "other_access".into();
+                // The decision collector seals the executable target; its
+                // source-expression consumer also checks the imported spelling.
+                let IrItemKind::Scenario { guards, .. } = &mut changed.items[owner.0 as usize].kind
+                else {
+                    panic!("caller")
+                };
+                let IrStmt::Require { cond, .. } = &mut guards[0] else {
+                    panic!("guard")
+                };
+                let call = expression_mut(cond, caller, "authorize(actor,conversation)").unwrap();
+                let (IrExpr::Call { target, .. } | IrExpr::BoundCall { target, .. }) =
+                    &mut call.expr
+                else {
+                    panic!("authorization")
+                };
+                *target = canlang_compiler::codegen::ir::IrCallTarget::DeriveFn(
+                    "AuthorizationCanUse.other_access".into(),
+                );
+            }
+            "formal-slot" => {
+                let IrItemKind::DeriveFn { params, .. } =
+                    &mut changed.items[helper.0 as usize].kind
+                else {
+                    panic!("helper")
+                };
+                params.swap(0, 1);
+            }
+            "body" => {
+                let IrItemKind::DeriveFn {
+                    expr: Some(body), ..
+                } = &mut changed.items[helper.0 as usize].kind
+                else {
+                    panic!("body")
+                };
+                expression_mut(body, &library, "subject.active")
+                    .unwrap()
+                    .expr = IrExpr::Bool(true);
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            collect_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "{mode}"
+        );
+        assert!(
+            serialize_decision_sources(
+                &program,
+                &changed,
+                &changed.items[owner.0 as usize],
+                &db,
+                Some(&catalog)
+            )
+            .is_none(),
+            "transport {mode}"
+        );
+    }
+}

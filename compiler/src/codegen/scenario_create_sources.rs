@@ -668,7 +668,7 @@ struct SourceExpressions<'a> {
     text: &'a str,
     operands: bool,
     /// Borrow the existing exact transitive membership proof only while
-    /// matching the admitted can_use body; ordinary StateRead stays refused.
+    /// matching the admitted authorization body; ordinary StateRead stays refused.
     membership_call: Option<&'a crate::analysis::scenario_disclosure::CheckedDecisionCall>,
 }
 
@@ -740,7 +740,7 @@ impl SourceExpressions<'_> {
             || !matches!(&formal.kind, IrItemKind::Param { owner, index: 0, ty: IrType::Known(ty), default: None, .. }
                 if *owner == fact.derive && ty == &argument.ty)
             || slots.is_some_and(|slots| slots.as_slice() != [Some(0)])
-            || source_path(expressions(self.nodes.get(&key)?).first()?, self.text)? != "transcript"
+            || source_path(expressions(self.nodes.get(&key)?).first()?, self.text)? != callee.name
         {
             return None;
         }
@@ -1006,7 +1006,7 @@ impl SourceExpressions<'_> {
         Some(())
     }
 
-    fn can_use(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
+    fn authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         use crate::analysis::scenario_disclosure::{
             CheckedDecisionCallTarget, CheckedDecisionStage,
         };
@@ -1094,9 +1094,6 @@ impl SourceExpressions<'_> {
         {
             return None;
         }
-        if imported {
-            reference_name(self.ir, owner, derive, "can_use", self.db)?;
-        }
         // A separate source owns imported formals/body. Keep the caller nodes
         // for real argument occurrences and parse the defining file when needed.
         let defining_tree = if defining.file != self.original.node.file {
@@ -1120,7 +1117,7 @@ impl SourceExpressions<'_> {
         if sites.next().is_some() || outer_calls.next().is_some()
             || !guards.iter().any(|statement|
                 matches!(statement, super::ir::IrStmt::Require {span:at, ..} if *at == span(site.statement)))
-            || item.id != derive || item.canonical != *target || item.name != "can_use"
+            || item.id != derive || item.canonical != *target
             || outer.module != owner.module
             || outer.source != self.original.source || !outer.defaults.is_empty()
             || outer.slots.as_slice() != [Some(0),Some(1)]
@@ -1131,9 +1128,14 @@ impl SourceExpressions<'_> {
         { return None; }
         let call_node = self.nodes.get(&key)?;
         let call_head = expressions(call_node).first().copied()?;
-        if source_path(call_head, self.text)? != "can_use"
-            || source_path(self.nodes.get(&outer.arguments[0].0)?, self.text)? != "actor"
-        {
+        reference_name(
+            self.ir,
+            owner,
+            derive,
+            &source_path(call_head, self.text)?,
+            self.db,
+        )?;
+        if source_path(self.nodes.get(&outer.arguments[0].0)?, self.text)? != "actor" {
             return None;
         }
         let conversation = if imported {
@@ -1227,14 +1229,24 @@ impl SourceExpressions<'_> {
                 || conversation.module != item.module
                 || conversation.source != defining_source
                 || !model_item.exported
-                || self
-                    .text
-                    .get(authored_type.span.start as usize..authored_type.span.end as usize)?
-                    != format!("{}?", model_item.name)
             {
                 return None;
             }
-            reference_name(self.ir, owner, *model, &model_item.name, self.db)?;
+            let named_type = authored_type
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::NamedType)?;
+            let type_path = named_type
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Path)?;
+            reference_name(
+                self.ir,
+                owner,
+                *model,
+                single_name(type_path, self.text)?,
+                self.db,
+            )?;
             super::scenario_receipts::match_stored_contract_schema(self.ir, conversation, self.db)?;
             conversation
         } else {
@@ -1346,7 +1358,7 @@ impl SourceExpressions<'_> {
                     stored: true,
                 }
             };
-            let spelling = if index == 0 { "person" } else { "conversation" };
+            let spelling = parameter.name.as_str();
             let type_spelling = if index == 0 {
                 "user?"
             } else {
@@ -1423,17 +1435,19 @@ impl SourceExpressions<'_> {
         else {
             return None;
         };
+        let person_name = &self.ir.items.get(params[0].0 as usize)?.name;
+        let model_name = &self.ir.items.get(params[1].0 as usize)?.name;
         let formal_member = |value: &TypedExpr, expected: &str| {
             matches!(&value.expr,
             IrExpr::Member {base,field} if field == expected
-                && matches!(&base.expr,IrExpr::Name(name) if name == "conversation")
+                && matches!(&base.expr,IrExpr::Name(name) if name == model_name)
                 && base.ty == (ResolvedType::Record {symbol:conversation.id,stored:true}))
         };
-        if !matches!(&person.expr,IrExpr::Name(name) if name == "person")
+        if !matches!(&person.expr,IrExpr::Name(name) if name == person_name)
             || !matches!(null.expr, IrExpr::Null)
             || member.span != span(membership.node)
             || !formal_member(account_member, "account")
-            || !matches!(&account_person.expr,IrExpr::Name(name) if name == "person")
+            || !matches!(&account_person.expr,IrExpr::Name(name) if name == person_name)
             || !formal_member(active, "active")
         {
             return None;
@@ -1484,10 +1498,10 @@ impl SourceExpressions<'_> {
             || original.arguments[0].1 != ResolvedType::Scalar(Scalar::User)
             || original.arguments[1].1 != ResolvedType::Team
             || actual.ty != ResolvedType::Scalar(Scalar::Bool)
-            || !matches!(&args[0].expr,IrExpr::Name(name) if name == "person")
+            || !matches!(&args[0].expr,IrExpr::Name(name)
+                if source_path(self.nodes.get(&original.arguments[0].0)?, self.text)?.as_str() == name)
             || !matches!(&args[1].expr,IrExpr::Member {base,field}
                 if field == "team" && matches!(&base.expr,IrExpr::Name(name) if name == "c"))
-            || source_path(self.nodes.get(&original.arguments[0].0)?, self.text)? != "person"
             || source_path(self.nodes.get(&original.arguments[1].0)?, self.text)? != "team"
             || source_path(expressions(node).first()?, self.text)? != "active_member"
         {
@@ -1745,13 +1759,13 @@ impl SourceExpressions<'_> {
                 if name.token()?.text(self.text) != field {
                     return None;
                 }
-                // Only the original Profile or leading Turn.run scalar pair joins
+                // Only the original checked profile or leading run scalar pair joins
                 // its actual reads here; this issues no native row view.
                 if matches!(&base.expr, IrExpr::Member { field, .. } if field == "profile" || field == "run")
                     && self.original.expression_types.iter().any(|(at, ty)| {
                         *at == NodeKey::of(source_base)
                             && matches!(ty, ResolvedType::Record { symbol, stored: true }
-                                if self.ir.items.get(symbol.0 as usize).is_some_and(|item| matches!(item.name.as_str(), "Profile" | "Run")))
+                                if self.ir.items.get(symbol.0 as usize).is_some_and(|item| item.id == *symbol && matches!(item.kind, IrItemKind::Model { .. })))
                     })
                 {
                     let mut owners = self.ir.items.iter().filter(|owner| {
@@ -1992,7 +2006,7 @@ impl SourceExpressions<'_> {
                 },
                 SyntaxKind::Call,
             ) if self.operands && primitive(Scalar::Bool) => {
-                self.can_use(actual, NodeKey::of(node), depth)?;
+                self.authorization(actual, NodeKey::of(node), depth)?;
                 true
             }
             (

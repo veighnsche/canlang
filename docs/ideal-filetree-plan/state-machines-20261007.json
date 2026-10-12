@@ -1,6 +1,6 @@
 {
   "date": "2026-10-12",
-  "integrated_source_pin": "7d9b506814993f9bee56efbf20ee350c76928feb",
+  "integrated_source_pin": "9d2a16575d6735cbcbe33f3488c7215b304ca015",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
@@ -12,7 +12,7 @@
     "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9705,
-    "scope": "Human-reviewed draft commit 6c1a6d8d7674be0f9a48e243ab175fe64222df54 adopted onto stopped local main 7d9b506814993f9bee56efbf20ee350c76928feb. The draft gitlink already exists in retained checkpoint coverage; 18 nested draft source/requirement/desired-JavaScript leaves are reviewed at source/syntax scope. No added, removed or relocated primary source paths; retain prior history counts and owner/target allocations without reconstructing unchanged history. Compiler/runtime/native acceptance, task counts and all four stopped workers remain unchanged; complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f is not advanced."
+    "scope": "Human-authorized compiler refactor on stopped local main 9d2a16575d6735cbcbe33f3488c7215b304ca015 against corrected draft 6c1a6d8: 13 existing compiler source/control paths replace authored-name and fixed transcript-bound recognition with owning declaration/binding/type/source relations, refresh the measured live diagnostic baseline, and correct obsolete native-catalog/prepared-emission test assumptions. Reuse retained filetree allocations and unchanged reviews; no added/removed/relocated source path, worker restart, draft edit, full application acceptance or complete-checkpoint advance."
   },
   "methods": [
     "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -24,7 +24,8 @@
     "feature": "Fresh source/actual consumer review at implementation/state-machines integration verification; advanced/full hook-policy/form/provider/durable/release limits retained.",
     "inherited": "Reuse original exact-source evidence/owner gates only; no fresh semantic or complete target acceptance. FP.SOURCE-CLOSURE remains OPEN.",
     "inherited-unallocated": "Current checkpoint delta lacks an allocation in the prior selected input ledger; exact owner duty/target review required before complete checkpoint advance.",
-    "draft-corrections": "Independent draft repository 6c1a6d8d7674be0f9a48e243ab175fe64222df54: CanCatch.can, CanChat.mjs, CanCheck.can/.mjs, CanCreative.mjs, CanDo.can/.md/.mjs, CanMail.can/.md/.mjs, CanSuccess.can/.md/.mjs, CanTime.can/.md/.mjs and README.md. Defining app source/requirements/witness responsibility stays in draft; no compiler compensation. Six-source parsing, seven JavaScript syntax checks and manual diff review only; whole applications/fanout/providers remain unqualified. Unchanged nested draft and inherited target review remain open."
+    "draft-corrections": "Independent draft repository 6c1a6d8d7674be0f9a48e243ab175fe64222df54: CanCatch.can, CanChat.mjs, CanCheck.can/.mjs, CanCreative.mjs, CanDo.can/.md/.mjs, CanMail.can/.md/.mjs, CanSuccess.can/.md/.mjs, CanTime.can/.md/.mjs and README.md. Defining app source/requirements/witness responsibility stays in draft; no compiler compensation. Six-source parsing, seven JavaScript syntax checks and manual diff review only; whole applications/fanout/providers remain unqualified. Unchanged nested draft and inherited target review remain open.",
+    "compiler-declaration-matching": "Focused source review and affected compiler analysis/emitter, declaration-renaming, source/IR corruption, unsupported-profile, current receiver and live-corpus controls. Preserve native200/20k bounds, source seals, current Identity/File authority and evaluation order. Runtime field-role and finite query-composition contracts remain; no whole app/provider/deployment qualification. Paths: compiler/src/analysis/scenario_disclosure.rs, compiler/src/codegen/scenario_create_sources.rs, compiler/src/codegen/scenario_current_revision.rs, compiler/src/codegen/scenario_current_revision_tests.rs, compiler/src/codegen/scenario_queries.rs, compiler/src/codegen/scenario_receipts.rs, compiler/src/codegen/scenario_transcript_selection_tests.rs, compiler/tests/analysis.rs, compiler/tests/current_revision_definition_sources.rs, compiler/tests/scenario_authorization_sources.rs, compiler/tests/scenario_current_revision_sources.rs, compiler/tests/scenario_inline_selection_sources.rs, compiler/tests/scenario_transcript_sources.rs."
   },
   "owner_rules": {
     "packages/<owner>": "Existing package owner; no language/backend responsibility transfer",
@@ -67364,5 +67365,5 @@
   "lanes": "Four existing local workers retain their assigned plans and precise holds. Coordinator alone integrates committed or human-authorized prepared changes into local main. No remote publication or PR gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Human-reviewed draft commit 6c1a6d8d7674be0f9a48e243ab175fe64222df54 adopted onto stopped local main 7d9b506814993f9bee56efbf20ee350c76928feb. The draft gitlink already exists in retained checkpoint coverage; 18 nested draft source/requirement/desired-JavaScript leaves are reviewed at source/syntax scope. No added, removed or relocated primary source paths; retain prior history counts and owner/target allocations without reconstructing unchanged history. Compiler/runtime/native acceptance, task counts and all four stopped workers remain unchanged; complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f is not advanced."
+  "current_maintenance_summary": "Human-authorized compiler refactor on stopped local main 9d2a16575d6735cbcbe33f3488c7215b304ca015 against corrected draft 6c1a6d8: 13 existing compiler source/control paths replace authored-name and fixed transcript-bound recognition with owning declaration/binding/type/source relations, refresh the measured live diagnostic baseline, and correct obsolete native-catalog/prepared-emission test assumptions. Reuse retained filetree allocations and unchanged reviews; no added/removed/relocated source path, worker restart, draft edit, full application acceptance or complete-checkpoint advance."
 }

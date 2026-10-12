@@ -9,8 +9,8 @@ fn checked(sources: &[(&str, &str)]) -> (SourceDb, CheckedProgram, IrProgram, Op
         .iter()
         .map(|(name, text)| db.add((*name).into(), (*text).into()))
         .collect::<Vec<_>>();
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let path = root.join("target/profile-native-catalog.json");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/cloudflare/dist/native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
         env: None,
@@ -173,6 +173,79 @@ fn original_current_getters_and_same_let_data_are_borrowed_without_promotion() {
                         .unwrap()
                         .role = DependencyRole::Control;
                 }
+            }
+        }
+        assert!(
+            checked_current_revision(&changed, &changed.items[owner.id.0 as usize], &db).is_none(),
+            "{mode}"
+        );
+    }
+}
+
+#[test]
+fn equivalent_current_revision_declarations_use_bound_models_formals_and_lets() {
+    let source = include_str!("../../tests/fixtures/source-current-revision.can")
+        .replace("SourceCurrentRevision", "DeclarationBound")
+        .replace("Template", "Blueprint")
+        .replace("Revision", "Edition")
+        .replace("template", "blueprint")
+        .replace("revision", "edition")
+        .replace("validation", "stamp")
+        .replace("WorkflowDefinition", "Workflow")
+        .replace(
+            "use std {Workflow}",
+            "use std {WorkflowDefinition as Workflow}",
+        );
+    let (db, _, ir, _) = checked(&[("declaration-bound.can", &source)]);
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "DeclarationBound.generate")
+        .unwrap();
+    let sites =
+        checked_current_revision(&ir, owner, &db).expect("equivalent checked declaration lineage");
+    assert_eq!(sites.parameter.name, "blueprint");
+    assert_eq!(sites.template.canonical, "DeclarationBound.Blueprint");
+    assert_eq!(sites.revision.canonical, "DeclarationBound.Edition");
+    assert!(matches!(sites.revision_statement, IrStmt::Let {name, ..} if name == "edition"));
+    assert_eq!(
+        sites.presence_read.control.field,
+        sites.revision_read.control.field
+    );
+    assert_eq!(
+        sites.digest_control.dependency.field,
+        sites.digest_data.dependency.field
+    );
+    assert!(sites.presence.span.end < sites.published.value.span.end);
+    assert!(sites.digest_presence.span.end <= sites.digest_data.value.span.start);
+    // Renaming authored declarations is different from mutating only their IR.
+    for mode in ["target", "order", "copied-binding"] {
+        let mut changed = ir.clone();
+        if mode == "target" {
+            let field = changed
+                .items
+                .iter_mut()
+                .find(|item| item.id == sites.presence_read.control.field)
+                .unwrap();
+            let IrItemKind::Field { ty, .. } = &mut field.kind else {
+                panic!("field")
+            };
+            *ty = IrType::Known(ResolvedType::Nullable(Box::new(ResolvedType::Record {
+                symbol: sites.template.id,
+                stored: true,
+            })));
+        } else {
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.id.0 as usize].kind
+            else {
+                panic!("scenario")
+            };
+            if mode == "order" {
+                effects.swap(0, 1);
+            } else {
+                let IrStmt::Let { name, .. } = &mut effects[0] else {
+                    panic!("captured Let")
+                };
+                *name = "copied".into();
             }
         }
         assert!(

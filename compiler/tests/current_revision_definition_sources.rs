@@ -174,3 +174,50 @@ fn definition_does_not_admit_a_copied_revision_or_other_standard_nominal() {
         );
     }
 }
+
+#[test]
+fn renamed_current_definition_declarations_keep_the_genuine_standard_type_alias() {
+    let source = source()
+        .replace("SourceCurrentRevision", "DeclarationBound")
+        .replace("Template", "Blueprint")
+        .replace("Revision", "Edition")
+        .replace("template", "blueprint")
+        .replace("revision", "edition")
+        .replace("validation", "stamp")
+        .replace("WorkflowDefinition", "Workflow")
+        .replace(
+            "use std {Workflow}",
+            "use std {WorkflowDefinition as Workflow}",
+        );
+    let (_, program, _, _) = checked(&source);
+    let owner = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "DeclarationBound.generate")
+        .unwrap();
+    let revision = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "DeclarationBound.Edition")
+        .unwrap();
+    let definition = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "DeclarationBound.Edition.definition")
+        .unwrap();
+    let ScenarioDisclosure::Complete(proof) = &program.scenario_disclosures()[&owner.id] else {
+        panic!("{:?}", program.scenario_disclosures()[&owner.id]);
+    };
+    for returned in &proof.returns {
+        let read = returned
+            .dependencies
+            .iter()
+            .find(|read| read.field == definition.id)
+            .expect("owning definition read");
+        assert_eq!(read.model, revision.id);
+        assert_eq!(read.type_id, "WorkflowDefinition");
+        assert_eq!(read.role, DependencyRole::Data);
+        assert_eq!(read.ty, program.types.symbol_types[&definition.id]);
+        assert!(read.calls.is_empty() && read.query_id.is_none());
+    }
+}

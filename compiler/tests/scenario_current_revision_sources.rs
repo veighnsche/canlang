@@ -487,7 +487,7 @@ fn missing_late_copied_current_and_same_span_guard_binding_type_edits_refuse() {
 }
 
 #[test]
-fn actual_current_source_stays_native_refused_until_real_nullable_field_receiver_is_released() {
+fn actual_current_source_requires_preparation_and_emits_released_nullable_field_receivers() {
     let (db, program, ir, catalog) = checked(SOURCE);
     assert!(matches!(
         program.scenario_disclosures()[&symbol(&program, OWNER)],
@@ -511,7 +511,7 @@ fn actual_current_source_stays_native_refused_until_real_nullable_field_receiver
     );
     let mut result = DiagnosticResult::new("current-revision-source", "1.0", 1);
     result.add_sources(&db);
-    let (_, diagnostics) = emit(
+    let (artifact, diagnostics) = emit(
         &program,
         &EmitSources {
             db: &db,
@@ -523,12 +523,84 @@ fn actual_current_source_stays_native_refused_until_real_nullable_field_receiver
             },
         },
     );
-    assert!(
-        diagnostics
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(sha256_hex(SOURCE.as_bytes()), HASH);
+    let assert_native_artifact = |artifact: &Value| {
+        assert_eq!(artifact["sources"].as_array().unwrap().len(), 1);
+        assert_eq!(artifact["sources"][0]["sha256"], HASH);
+        let modules = artifact["modules"].as_array().unwrap();
+        assert_eq!(modules.len(), 1);
+        assert_eq!(
+            modules[0]["path"],
+            "$can$m$536f7572636543757272656e745265766973696f6e.mjs"
+        );
+        let js = modules[0]["js"].as_str().unwrap();
+        assert_eq!(
+            js.matches("readScenarioReceiptNullableStoredReference(c,")
+                .count(),
+            2
+        );
+        assert_eq!(js.matches("$receiptCurrentSource[\"current\"]").count(), 1);
+        assert!(js.contains("let $receiptCurrentView;let $receiptCurrentData=false;"));
+        assert!(js.contains("if($receiptCurrentView===undefined){$receiptCurrentView=await"));
+        assert!(js.contains("if(!$receiptCurrentData){await"));
+        let operations = artifact["operations"].as_array().unwrap();
+        let operation = operations
             .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"),
-        "{diagnostics:?}"
-    );
+            .find(|operation| operation["name"] == OWNER)
+            .unwrap();
+        assert_eq!(operation["inputs"]["fields"].as_array().unwrap().len(), 1);
+        assert_eq!(operation["inputs"]["fields"][0]["name"], "template");
+        assert_eq!(
+            operation["inputs"]["fields"][0]["field"]["model"],
+            "SourceCurrentRevision.Template"
+        );
+        assert_eq!(operation["result"]["type"], "SourceCurrentRevision.Run");
+        let returns = operation["result"]["disclosure"]["returns"]
+            .as_array()
+            .unwrap();
+        assert_eq!(returns.len(), 1, "prepared native path only");
+        let reads = returns[0]["dependencies"].as_array().unwrap();
+        assert_eq!(reads.len(), 10);
+        assert_eq!(
+            reads
+                .iter()
+                .map(|read| (
+                    read["field"].as_str().unwrap(),
+                    read["role"].as_str().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("active", "control"),
+                ("current", "control"),
+                ("current", "control"),
+                ("published", "control"),
+                ("current", "control"),
+                ("current", "data"),
+                ("digest", "control"),
+                ("digest", "data"),
+                ("outputs", "data"),
+                ("duration", "data")
+            ]
+        );
+        assert_eq!(artifact["modelPolicies"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            artifact["models"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|model| model["name"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "SourceCurrentRevision.Template",
+                "SourceCurrentRevision.Revision",
+                "SourceCurrentRevision.Run"
+            ]
+        );
+    };
+    let emitted: Value =
+        serde_json::from_str(&canlang_compiler::codegen::artifact::to_json(&artifact)).unwrap();
+    assert_native_artifact(&emitted);
     let scratch = tempfile::tempdir().unwrap();
     let source = scratch.path().join("current-revision.can");
     std::fs::write(&source, SOURCE).unwrap();
@@ -551,15 +623,13 @@ fn actual_current_source_stays_native_refused_until_real_nullable_field_receiver
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
-    assert!(!output.status.success());
-    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(report.get("modules").is_none());
     assert!(
-        report["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"),
-        "{report}"
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(report.get("diagnostics").is_none(), "{report}");
+    assert_native_artifact(&report);
 }
