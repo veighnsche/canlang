@@ -177,6 +177,53 @@ describe("dist manifest (B5-J3)", () => {
     }
   });
 
+  it("keeps overlapping captures unique and refuses hidden duplicate claims", () => {
+    const { root, dist } = fixtureDist();
+    try {
+      mkdirSync(join(dist, "nested"));
+      writeFileSync(join(dist, "nested", "entry.js"), "export const nested = true;\n");
+      const manifest = buildDistManifest(root, [
+        "packages/demo/dist",
+        "packages/demo/dist/nested",
+        "packages/demo/dist",
+      ]);
+      expect(manifest.roots).toEqual(["packages/demo/dist", "packages/demo/dist/nested"]);
+      expect(new Set(manifest.files.map((file) => file.path)).size).toBe(manifest.files.length);
+      const manifestPath = writeDistManifest(root, manifest);
+      expect(() => verifyDistManifest(root, manifestPath)).not.toThrow();
+      const original = manifest.files[0]!;
+      for (const duplicate of [original, { ...original, sha256: "0".repeat(64), bytes: original.bytes + 1 }]) {
+        writeDistManifest(root, { ...manifest, files: [duplicate, ...manifest.files] });
+        expect(() => verifyDistManifest(root, manifestPath)).toThrow(`duplicate: ${original.path}`);
+      }
+      const missing = manifest.files[1]!;
+      rmSync(join(root, missing.path));
+      writeFileSync(join(dist, "extra.js"), "export const extra = true;\n");
+      writeDistManifest(root, {
+        ...manifest,
+        release: "9.9.9",
+        files: [{ ...original, sha256: "0".repeat(64), bytes: original.bytes + 1 }, ...manifest.files],
+      });
+      let message = "";
+      try {
+        verifyDistManifest(root, manifestPath);
+      } catch (error) {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      expect(message).toContain("release: manifest pins 9.9.9");
+      expect(message).toContain(`duplicate: ${original.path}`);
+      expect(message).toContain(`changed: ${original.path}`);
+      expect(message).toContain(`missing: ${missing.path}`);
+      expect(message).toContain("unexpected: packages/demo/dist/extra.js");
+      writeFileSync(join(root, missing.path), "export const x = 1;\n");
+      rmSync(join(dist, "extra.js"));
+      writeDistManifest(root, manifest);
+      expect(() => verifyDistManifest(root, manifestPath)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("verify fails loud on a missing file", () => {
     const { root } = fixtureDist();
     const manifest = buildDistManifest(root, ["packages/demo/dist"]);
