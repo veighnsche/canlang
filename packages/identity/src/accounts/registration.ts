@@ -78,10 +78,12 @@ export async function registerWithEmail(
     token_sha256,
     expires_at: toInstant(clock.nowMs() + (opts.verifyExpiresMs ?? VERIFY_EMAIL_EXPIRES_MS)),
   });
+  const verifyUrl = new URL(opts.verifyBaseUrl);
+  verifyUrl.searchParams.set('token', token);
   await mail.sendMail(
     email,
     'Verify your email',
-    `Welcome. Confirm this address to finish creating your account:\n${opts.verifyBaseUrl}?token=${token}\nThis link expires in 24 hours.`,
+    `Welcome. Confirm this address to finish creating your account:\n${verifyUrl.href}\nThis link expires in 24 hours.`,
   );
   return { user_id: user.user_id, email };
 }

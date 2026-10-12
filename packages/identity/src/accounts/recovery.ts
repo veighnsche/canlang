@@ -53,10 +53,12 @@ export async function requestRecovery(
     token_sha256,
     expires_at: toInstant(clock.nowMs() + (opts.recoveryExpiresMs ?? RECOVERY_EXPIRES_MS)),
   });
+  const recoveryUrl = new URL(opts.recoveryBaseUrl);
+  recoveryUrl.searchParams.set('token', token);
   await mail.sendMail(
     email,
     'Recover your account',
-    `Reset your password with this link:\n${opts.recoveryBaseUrl}?token=${token}\nIt expires in 1 hour. If you did not ask for this, ignore this message.`,
+    `Reset your password with this link:\n${recoveryUrl.href}\nIt expires in 1 hour. If you did not ask for this, ignore this message.`,
   );
   return { ok: true };
 }

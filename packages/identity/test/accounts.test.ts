@@ -114,6 +114,44 @@ test('registration creates an unverified user and mails a token link', async () 
   assert.equal(stored.consumed_at, null);
 });
 
+test('account token links preserve base query and fragment while replacing stale tokens', async () => {
+  const { store, mail, clock } = setup();
+  const { user_id } = await registerWithEmail(store, mail,
+    { email: 'links@example.com', password: 's3cure-password' },
+    { clock, verifyBaseUrl: 'https://app.example.com/verify?lang=nl&token=stale#form' });
+  const verifyUrl = new URL(mail.messages[0]!.body_text.split('\n')[1]!);
+  assert.equal(verifyUrl.pathname, '/verify');
+  assert.equal(verifyUrl.searchParams.get('lang'), 'nl');
+  assert.equal(verifyUrl.hash, '#form');
+  const verifyToken = verifyUrl.searchParams.get('token');
+  assert.ok(verifyToken && verifyToken !== 'stale');
+  assert.deepEqual(verifyUrl.searchParams.getAll('token'), [verifyToken]);
+  const verification = await store.findEmailTokenByHash(await sha256HexText(verifyToken));
+  assert.ok(verification);
+  assert.equal(verification.user_id, user_id);
+  assert.equal(verification.purpose, 'verify_email');
+  assert.deepEqual(await verifyEmail(store, { token: verifyToken }, { clock }), { user_id });
+
+  await requestRecovery(store, mail, { email: 'links@example.com' },
+    { clock, recoveryBaseUrl: 'https://app.example.com/recover?lang=nl&token=stale#form' });
+  const recoveryUrl = new URL(mail.messages[1]!.body_text.split('\n')[1]!);
+  assert.equal(recoveryUrl.pathname, '/recover');
+  assert.equal(recoveryUrl.searchParams.get('lang'), 'nl');
+  assert.equal(recoveryUrl.hash, '#form');
+  const recoveryToken = recoveryUrl.searchParams.get('token');
+  assert.ok(recoveryToken && recoveryToken !== 'stale');
+  assert.deepEqual(recoveryUrl.searchParams.getAll('token'), [recoveryToken]);
+  const recovery = await store.findEmailTokenByHash(await sha256HexText(recoveryToken));
+  assert.ok(recovery);
+  assert.equal(recovery.user_id, user_id);
+  assert.equal(recovery.purpose, 'recover_account');
+  assert.deepEqual(await recoverAccount(store,
+    { token: recoveryToken, new_password: 'br4nd-new-password' }, { clock }), { user_id });
+  const user = await store.findUserById(user_id);
+  assert.ok(user);
+  assert.equal(await verifyPassword('br4nd-new-password', user.password_hash), true);
+});
+
 test('registration rejects duplicates and invalid input', async () => {
   const { store, mail, clock } = setup();
   const opts = { clock, verifyBaseUrl: 'https://app.example.com/verify' };
