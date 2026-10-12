@@ -7034,16 +7034,33 @@ async function runScenarioExecution(
     },
     sendDeferred: async (source, request, bindingKey, when) => {
       try {
+        const assertChildSend = (): void => {
+          if (child === undefined) return;
+          const parent = nativeScenarioExecutions.get(child.parent);
+          const active = nativeScenarioExecutions.get(call as AdmittedCall);
+          const assertCall = loaded.producers.invoke.assertScenarioReceiptCallExecution;
+          if (child.call !== call || ownerSession !== child.session || receiptStore === undefined ||
+              parent === undefined || active === undefined ||
+              parent.loaded !== loaded || active.loaded !== loaded ||
+              parent.asm !== opts.asm || active.asm !== opts.asm ||
+              parent.artifact !== opts.artifact || active.artifact !== opts.artifact ||
+              parent.store !== receiptStore || active.store !== receiptStore || assertCall === undefined) {
+            return refuseRecordBinding('Child SEND requires its exact live parent and owner framework binding.');
+          }
+          assertCall(call as AdmittedCall, receiptStore);
+        };
+        assertChildSend();
         // Capture original typed lexical values synchronously before the first await.
         let frozenWhen: import('./context.js').NativeSendWhen | undefined;
         let guardedDefinition: unknown;
         if (when !== undefined) {
           const actual = call as AdmittedCall;
           const selected = nativeSourceSendGuards.get(actual.def as GeneratedOperationDef)?.get(when.rule);
-          if (source !== 'std.EmailV1.send' || ownerSession === undefined || selected === undefined ||
+          if (!['std.EmailV1.send', 'std.TextGenerationV1.generate'].includes(source) ||
+              ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
               selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type))) {
-            return refuseRecordBinding('Guarded SEND requires its original installed Email predicate and typed lexical declaration join.');
+            return refuseRecordBinding('Guarded SEND requires its original installed predicate and typed lexical declaration join.');
           }
           guardedDefinition = selected.definition;
           const raw = localPolicyObject(when.inputs, selected.guard.inputs.map(input => input.name));
@@ -7064,7 +7081,7 @@ async function runScenarioExecution(
           }
           frozenWhen = Object.freeze({ rule: when.rule, inputs: Object.freeze(wire) });
         }
-        if (child !== undefined) return refuseRecordBinding('Child sends require their defining owner-session join.');
+        assertChildSend();
         const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
         if (moduleUrl === undefined) throw new Error('Bound send has no owning compiled module.');
         const module: unknown = guardedDefinition === undefined ? await import(moduleUrl) : undefined;
@@ -13857,7 +13874,7 @@ export async function bindNativeEmailDispatchGuards(input: {
       await opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row, field: 'sourceGuard', binding: header }, claim.revision, input.files);
       // The original complete historical typed census includes model fields.
       // revalidateSource above requires the genuine physical observer for every File.
-      opaque.occurrences({ kind: 'inputs', declarationId: declaration.inputsDeclarationId, path: ['inputs'] }, guard.inputs);
+      opaque.occurrences({ kind: 'inputs', declarationId: declaration.inputsDeclarationId, path: ['inputs'] }, guard.inputs, header);
       const lexical = guard.inputs;
       for (const slot of selected.guard.inputs) {
         if (sendSnapshots?.has(slot.type)) {
