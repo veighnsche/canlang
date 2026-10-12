@@ -898,6 +898,7 @@ Then
             super::super::js::EmitDecisionSources {
                 local_policies: None,
                 unique_conditions: None,
+                model_rule_origins: None,
                 query_any: None,
                 query_selections: None,
                 transcript_queries: None,
@@ -1066,6 +1067,7 @@ await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
                 EmitDecisionSources {
                     local_policies: None,
                     unique_conditions: None,
+                    model_rule_origins: None,
                     query_any: None,
                     query_selections: None,
                     transcript_queries: None,

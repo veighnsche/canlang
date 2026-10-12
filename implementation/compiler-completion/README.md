@@ -4,7 +4,7 @@
 
 Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. The human requested all remaining work be reevaluated and each existing worker receive its own prioritized list. This section replaces historical next/pending/source-lease instructions. [status.json](status.json) retains **58/67 references accepted at scope; nine remaining**. C01–C24 below are shared work labels, not additional canonical tasks. No active/unmerged release is accepted by this planning edit. Apply [finite execution](../../AGENTS.md#finite-execution).
 
-**First deliverable:** release the smallest genuine checked model-rule origin/global ordinal census companion for Dev conditional unique admission. Original six-query producer and installed nongrant State binders are CLOSED after870+8bf; remaining original caller execution/private Files/SEND/CALL belongs to Dev. Current337 actual main criterion remains closed. Take next original producer defect only from a real consumer; preserve58/67/nine/source seals/caps/recipient holds.
+**First deliverable:** complete the exact original CanChat regenerate→chat.ask canonical cross-operation CALL correspondence and native lowering. Dev full original CLI exits10/complete=false with one E6008 at11379..11457; accepted scoped chat.ask six-query SDK binders do not certify full artifact emission. Rule-origin census9d source criterion is CLOSED and released; Dev owns conditional verified ordinal/native collision. Preserve complete original source/caller/parent-child authority/evaluation order/rollback/receipts/caps and all holds, no surrogate or source pruning.58/67/nine remain.
 
 ### Nine canonical references
 
@@ -4977,3 +4977,26 @@ the precise conditional global ordinal census companion and affected validation.
 Final changed Bool/source/binder closure strictalltargets0/9.10s/fmt/diff0.
 
 Coordinator source integration: Finite defining source review CLEAR for net870ce37d+8bfad087, three exact source/control preimages. An unprepared native direct Query first refuses E6008/throw before invalid pure-array import or argument lowering in both Call forms; prepared genuine firstQuery and ordinary array lowering retain their original branches. Artifact valueType bool is emitted only for authentic Known Scalar(Bool); original nonnullable Run.unfinished declaration now meets the strict ANY binder without weakening State. Source256/private original native Return1/six chronological queries/24 genuine influences/full source/roles/guards/effects/SEND order/native200-20k constraints retained. Genuine owning source/refusal1/.03s, actual original collector/emitter/ownSDK Node24 verified composed CanChat entry/descriptor loader/State plan/two TextMessage selection binders/ANY binder1/221.50s and final strictalltargets0/9.10s/fmt/diff0 are reused; earlier209/225.19/218.32s import/facade failures remain failures. This closes the implemented producer and installed nongrant binder criterion in local main, not Dev original caller execution/rollback/replay/current physical Files or full apps. Main changed check {"check": "locked offline CLI", "exit": 0, "seconds": 9.89}. Original current337 main criterion remains closed, all58/67/nine/35of48/30remaining33stages/recipient holds and complete824 unchanged.
+
+
+**Affected six-query library qualification, 2026-10-12.** The frozen affected
+library capture passes191 and exposes three stale checks. Exact failed scopes
+now pass request3/.02s and original input guard1/1.98s: request descriptor
+comparison uses authenticated source models, released nominal receipt admission
+is asserted without native File authority, and the guard uses the own captured
+catalog. The other191 results and full original1/221.50s are reused.
+
+
+**Conditional unique global ordinal companion, 2026-10-12.** The verified
+appDefinition publishes one checked modelRuleOrigins census with the eleven
+original policy/invariant/unique/lock declarations, global IDs0..10 and unique
+ID5. Original CST allocation order, owner/source/anchors and complete fresh
+executable tables reject missing/reordered/corrupted declarations and coordinated
+mutable effects ordinal edits. Preferences invariants retain the same real global
+allocation. Existing conditional unique entry and registry remain unchanged; no
+new State engine/sharedABI or row authority. Owning8/.29s including ownSDK
+verified entry pass, strictalltargets0/.95s/fmt/diff0. Dev owns census admission
+and genuine original collision/rollback. Continue changed original CLI validation
+and the genuine caller dependency; do not reopen accepted current337.
+
+Coordinator source integration: Defining independent source review CLEAR for9d926907 at exact rule-origin census producer scope. Five exact source/control preimages publish one nongrant verified appDefinition.modelRuleOrigins census, original eleven policy/invariant/unique/lock declarations0..10/unique5 including preferences invariants and original CST global allocation. Complete fresh executable tables/source/module/canonical model/owner/anchors/registry reject missing/reordered/corrupted and coordinated checked-effects ordinal edits. Existing typed conditional predicate association and fieldmodifier unconditional keys retain their original scopes; no source rewrite/new registry/sharedABI/State engine/row authority. Owning8/.29s actual verified ownSDK factory and mutation/refusal/preferences cases, strictalltargets0/.95s/fmt/diff0 reused. Separate fae4dcd5 two-path affected request/guard expectation companion uses authenticated source nominal models and owning captured catalog, preserves source mutations/refusals, distinguishes checked receipt admission from genuine native File authority. Request3/.02s+guard1/1.98s PASS and191 unaffected outcomes reused. No original native caller/conditional collision/rollback/current-saved qualification. Main changed check {"check": "locked offline CLI", "exit": 0, "seconds": 13.85}. Dev exact verified census admission/wrongordinal refusal and genuine original conditional collision remain required. Original current337 main criterion and mixed installed nongrant binders remain CLOSED, no unchanged reruns; full source/module cross-CALL defect is a separate defining Compiler task.

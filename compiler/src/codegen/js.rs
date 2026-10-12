@@ -1479,6 +1479,7 @@ pub fn emit_program_with_native_source_receipts(
 pub(super) struct EmitDecisionSources<'a> {
     pub local_policies: Option<&'a LocalPolicies>,
     pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
+    pub model_rule_origins: Option<&'a [serde_json::Value]>,
     pub query_any: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub transcript_queries:
@@ -1580,6 +1581,7 @@ fn emit_program_with_sources(
     }
     emitter.native_source_predicates = native_receipts;
     emitter.unique_conditions = decisions.unique_conditions.unwrap_or_default().to_vec();
+    emitter.model_rule_origins = decisions.model_rule_origins.map(|origins| origins.to_vec());
     emitter.query_selections = decisions.query_selections;
     emitter.query_any = decisions.query_any;
     emitter.send_guard_gap = decisions.send_guard_gap;
@@ -2619,6 +2621,7 @@ pub struct Emitter<'a> {
     receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
     unique_conditions: Vec<super::model_unique_conditions::CheckedUniqueCondition>,
+    model_rule_origins: Option<Vec<serde_json::Value>>,
     current_revision_binding: Option<String>,
     current_policy_rule: Option<super::model_policy_profile::CurrentRevisionRuleProfile>,
     receipt_calls: Vec<Span>,
@@ -2703,6 +2706,7 @@ impl<'a> Emitter<'a> {
             receipt_call_sites: Vec::new(),
             receipt_capture: None,
             unique_conditions: Vec::new(),
+            model_rule_origins: None,
             current_revision_binding: None,
             current_policy_rule: None,
             receipt_calls: Vec::new(),
@@ -9288,6 +9292,9 @@ impl<'a> Emitter<'a> {
             .and_then(|module| module.description.clone())
         {
             members.push(format!("description:{}", self.lower_message(&description)));
+        }
+        if let Some(origins) = &self.model_rule_origins {
+            members.push(format!("modelRuleOrigins:{}", descriptor_json(origins)));
         }
         members.push(self.emit_packages_member(entry));
         members.push(self.emit_bindings_member());

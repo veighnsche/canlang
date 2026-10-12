@@ -1,35 +1,21 @@
-//! Exact original constructor correspondence; nested File receiving remains a native owner prerequisite.
+//! Exact original constructor correspondence and checked receipt admission.
 use super::*;
 use crate::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use crate::analysis::scenario_disclosure::{CheckedScenarioCreate, CheckedScenarioDisclosure};
 use crate::analysis::{CheckedProgram, check_program};
 use crate::codegen::{EmitOptions, EmitSources, emit};
 use crate::diagnostic::DiagnosticResult;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const SOURCE: &str = include_str!("../../tests/fixtures/source-text-request.can");
 const HASH: &str = "f1e2b2aa7581a73de310d7ac9f140e6e46083ee29b7dca37854ddb3d9b39e69d";
 const OWNER: &str = "SourceTextRequest.compose";
 
-fn native_owner() -> PathBuf {
-    let primary = Path::new("/Users/vince/Projects/canlang");
-    if primary
-        .join("packages/cloudflare/dist/native-catalog.json")
-        .is_file()
-    {
-        primary.into()
-    } else {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .unwrap()
-            .into()
-    }
-}
 fn fixture(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
     let file = db.add("source-text-request.can".into(), source.into());
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let path = native_owner().join("packages/cloudflare/dist/native-catalog.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/profile-native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
         env: None,
@@ -204,7 +190,8 @@ fn original_eight_entry_request_and_messages_are_checked_before_same_created_run
         checked_created_statements(&ir, owner(&ir), checked, original, &db).is_some(),
         "real private statement consumer"
     );
-    let models = super::super::js::Emitter::new(&ir).collect_models();
+    let models =
+        super::super::js::Emitter::source_models(&ir, &db).expect("sealed owning nominal schema");
     assert!(
         super::super::scenario_create_sources::checked_created_schema(
             &ir,
@@ -334,7 +321,8 @@ fn constructor_literal_schema_entries_shorthand_capture_and_foreign_import_edits
         panic!("field")
     };
     *default = Some(IrDefault::Literal(request));
-    let models = super::super::js::Emitter::new(&defaulted).collect_models();
+    let models = super::super::js::Emitter::source_models(&defaulted, &db)
+        .expect("unchanged nominal inventory");
     assert!(
         super::super::scenario_create_sources::checked_created_schema(
             &defaulted,
@@ -349,19 +337,19 @@ fn constructor_literal_schema_entries_shorthand_capture_and_foreign_import_edits
 }
 
 #[test]
-fn source_sealing_does_not_publish_native_request_with_unreleased_nested_file_receiving() {
+fn source_sealing_publishes_checked_request_receipt_without_native_file_authority() {
     let (db, program, ir, catalog) = fixture(SOURCE);
     let (checked, original) = source(&ir);
     assert!(
         checked_created_statements(&ir, owner(&ir), checked, original, &db).is_some(),
-        "source matcher positive before native refusal"
+        "source matcher positive before checked receipt emission"
     );
     let raw = super::super::js::emit_program_with_native_source_receipts(&ir, true, &db);
     assert!(
-        raw.diagnostics
+        !raw.diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "E6008"),
-        "missing real TextRequest/File receiving: {:?}",
+        "released checked TextRequest nominal receiving: {:?}",
         raw.diagnostics
     );
     assert!(
@@ -370,8 +358,8 @@ fn source_sealing_does_not_publish_native_request_with_unreleased_nested_file_re
             .find(|operation| operation.name == OWNER)
             .unwrap()
             .disclosure
-            .is_none(),
-        "source-only constructor cannot publish native receipt"
+            .is_some(),
+        "checked constructor publishes a recipe; execution and File authority remain native"
     );
     let mut result = DiagnosticResult::new("text-request-source", "1.0", 1);
     result.add_sources(&db);
@@ -388,9 +376,9 @@ fn source_sealing_does_not_publish_native_request_with_unreleased_nested_file_re
         },
     );
     assert!(
-        diagnostics
+        !diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code == "E6008"),
-        "public preparation cannot replace native receiving: {diagnostics:?}"
+        "released public preparation: {diagnostics:?}"
     );
 }

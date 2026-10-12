@@ -258,6 +258,12 @@ pub fn emit(
         sources.catalog,
         &policy_module,
     );
+    let model_rule_origins = model_unique_conditions::collect_checked_model_rule_origins(
+        program,
+        &ir,
+        sources.db,
+        sources.catalog,
+    );
     let unique_conditions = model_unique_conditions::collect_checked_unique_conditions(
         program,
         &ir,
@@ -273,6 +279,7 @@ pub fn emit(
         js::EmitDecisionSources {
             local_policies: local_policies.as_ref(),
             unique_conditions: unique_conditions.as_deref(),
+            model_rule_origins: model_rule_origins.as_deref(),
             query_any: Some(&query_any),
             query_selections: Some(&query_selections),
             transcript_queries: Some(&transcript_queries),
