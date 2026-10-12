@@ -32,15 +32,11 @@ fn root() -> PathBuf {
         .into()
 }
 fn native_owner() -> PathBuf {
-    let primary = Path::new("/Users/vince/Projects/canlang");
-    if primary
-        .join("packages/cloudflare/dist/native-catalog.json")
-        .is_file()
-    {
-        primary.into()
-    } else {
-        root()
-    }
+    // Each new capture consumes this worker's unchanged released SDK closure.
+    root()
+}
+fn native_catalog() -> PathBuf {
+    root().join("packages/cloudflare/dist/native-catalog.json")
 }
 fn load(db: &SourceDb, path: &Path) -> Catalog {
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
@@ -55,10 +51,7 @@ fn load(db: &SourceDb, path: &Path) -> Catalog {
 fn checked(source: &str, path: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
     let file = db.add(path.into(), source.into());
-    let catalog = load(
-        &db,
-        &native_owner().join("packages/cloudflare/dist/native-catalog.json"),
-    );
+    let catalog = load(&db, &native_catalog());
     let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
@@ -228,11 +221,7 @@ fn actual_cli_verified_factory_and_installed_state_accept_original_leading_membe
     // Isolate this capture from concurrent rebuilds of the installed catalogue.
     // Copy the real released input byte-for-byte; keep actual runtime imports.
     let catalog = scratch.path().join("native-catalog.json");
-    std::fs::copy(
-        native_owner().join("packages/cloudflare/dist/native-catalog.json"),
-        &catalog,
-    )
-    .unwrap();
+    std::fs::copy(native_catalog(), &catalog).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
         .args([
             "compile",
@@ -537,11 +526,8 @@ fn catalog_pure_reclassification_and_defaulted_recursive_or_runtime_data_authori
     let (db, _, _, catalog) = checked(SOURCE, "authorization.can");
     assert_eq!(catalog.effects("active_member"), Some(Effects::StateRead));
     let scratch = tempfile::tempdir().unwrap();
-    let mut payload: Value = serde_json::from_slice(
-        &std::fs::read(native_owner().join("packages/cloudflare/dist/native-catalog.json"))
-            .unwrap(),
-    )
-    .unwrap();
+    let mut payload: Value =
+        serde_json::from_slice(&std::fs::read(native_catalog()).unwrap()).unwrap();
     let entry = payload["entries"]
         .as_array_mut()
         .unwrap()

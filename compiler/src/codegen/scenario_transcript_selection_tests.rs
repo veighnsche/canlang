@@ -1386,3 +1386,204 @@ assert.throws(()=>bindScenarioQuerySelection(bound,wrong));
         String::from_utf8_lossy(&executed.stderr)
     );
 }
+
+#[test]
+fn original_optional_conversation_guard_matches_imported_helper_and_refuses_changed_ir() {
+    let (db, _, ir, _) = full_original_fixture(None);
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "creative.generate")
+        .unwrap();
+    let disclosure = &ir.scenario_disclosures[&owner.id];
+    let facts = disclosure
+        .source_facts()
+        .expect("original Creative source facts");
+    let conversation = facts
+        .stored_contracts
+        .as_deref()
+        .expect("original stored contracts")
+        .iter()
+        .find(|schema| schema.canonical == "chat.Conversation")
+        .expect("optional input's genuine owning schema");
+    assert!(
+        conversation
+            .fields
+            .iter()
+            .any(|field| field.name == "account" && field.ty == ResolvedType::Scalar(Scalar::User))
+    );
+    assert!(
+        conversation
+            .fields
+            .iter()
+            .any(|field| field.name == "active" && field.ty == ResolvedType::Scalar(Scalar::Bool))
+    );
+    let created = facts
+        .creates
+        .as_deref()
+        .expect("original Create facts")
+        .iter()
+        .find(|created| ir.items[created.model.0 as usize].canonical == "creative.Run")
+        .unwrap();
+    let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        panic!("original scenario")
+    };
+    fn helper(value: &TypedExpr) -> Option<&TypedExpr> {
+        match &value.expr {
+            IrExpr::Call {
+                target: super::super::ir::IrCallTarget::DeriveFn(name),
+                ..
+            }
+            | IrExpr::BoundCall {
+                target: super::super::ir::IrCallTarget::DeriveFn(name),
+                ..
+            } if name == "chat.can_use" => Some(value),
+            IrExpr::Binary { left, right, .. } => helper(left).or_else(|| helper(right)),
+            _ => None,
+        }
+    }
+    let call = guards
+        .iter()
+        .find_map(|statement| match statement {
+            IrStmt::Require { cond, .. } => helper(cond),
+            _ => None,
+        })
+        .expect("original imported optional-input call");
+    let key = created
+        .expression_types
+        .iter()
+        .map(|(key, _)| *key)
+        .find(|key| {
+            key.kind == crate::syntax::SyntaxKind::Call as u8 && node_span(*key) == call.span
+        })
+        .unwrap();
+    assert_eq!(text(&db, key), "can_use(actor,conversation)");
+    assert!(
+        super::super::scenario_create_sources::checked_create_expression(
+            &ir, created, call, key, &db
+        )
+        .is_some(),
+        "original imported helper consumer"
+    );
+    for mode in [
+        "target",
+        "argument",
+        "nullable-occurrence",
+        "slots",
+        "result",
+    ] {
+        let mut changed = call.clone();
+        if mode == "result" {
+            changed.ty = ResolvedType::Scalar(Scalar::Int);
+        } else {
+            let (mut target, mut args) = match changed.expr {
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                    (target, args)
+                }
+                _ => unreachable!(),
+            };
+            match mode {
+                "target" => {
+                    target = super::super::ir::IrCallTarget::DeriveFn("creative.can_use".into())
+                }
+                "argument" => args[1].expr = IrExpr::Name("copied".into()),
+                "nullable-occurrence" => {
+                    args[1].ty = ResolvedType::Nullable(Box::new(args[1].ty.clone()))
+                }
+                "slots" => {}
+                _ => unreachable!(),
+            }
+            changed.expr = IrExpr::BoundCall {
+                target,
+                args,
+                slots: if mode == "slots" {
+                    vec![Some(1), Some(0)]
+                } else {
+                    vec![Some(0), Some(1)]
+                },
+            };
+        }
+        assert!(
+            super::super::scenario_create_sources::checked_create_expression(
+                &ir, created, &changed, key, &db
+            )
+            .is_none(),
+            "changed {mode}"
+        );
+    }
+    let helper_id = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "chat.can_use")
+        .unwrap()
+        .id;
+    let parameter_id = facts
+        .parameters
+        .iter()
+        .find(|parameter| ir.items[parameter.parameter.0 as usize].name == "conversation")
+        .unwrap()
+        .parameter;
+    for mode in [
+        "callee-module",
+        "callee-body",
+        "default",
+        "parameter-type",
+        "export",
+        "bound-import",
+        "model-import",
+    ] {
+        let mut changed = ir.clone();
+        match mode {
+            "callee-module" => changed.items[helper_id.0 as usize].module = owner.module,
+            "export" => changed.items[helper_id.0 as usize].exported = false,
+            "bound-import" => {
+                let import = changed.modules[owner.module.0 as usize]
+                    .imports
+                    .iter_mut()
+                    .find(|import| import.provider == "chat")
+                    .unwrap();
+                import.from = Some("foreign".into());
+            }
+            "model-import" => {
+                for import in &mut changed.modules[owner.module.0 as usize].imports {
+                    import.members.retain(|(name, _, _)| name != "Conversation");
+                }
+            }
+            "callee-body" => {
+                let IrItemKind::DeriveFn {
+                    expr: Some(body), ..
+                } = &mut changed.items[helper_id.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                body.expr = IrExpr::Bool(true);
+            }
+            "default" => {
+                let IrItemKind::Param { default, .. } =
+                    &mut changed.items[parameter_id.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                *default = None;
+            }
+            "parameter-type" => {
+                let IrItemKind::Param {
+                    ty: super::super::ir::IrType::Known(ty),
+                    ..
+                } = &mut changed.items[parameter_id.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                *ty = ResolvedType::Scalar(Scalar::Text);
+            }
+            _ => unreachable!(),
+        }
+        assert!(
+            super::super::scenario_create_sources::checked_create_expression(
+                &changed, created, call, key, &db
+            )
+            .is_none(),
+            "changed {mode}"
+        );
+    }
+}

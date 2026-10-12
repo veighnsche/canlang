@@ -4618,6 +4618,12 @@ impl<'a> Closure<'a> {
             pending.push((fact.revision, true));
         }
         for parameter in &scenario.params {
+            // The sealed optional input still owns its actual model schema;
+            // null/default paths create no row view or reference observation.
+            if let Some(model) = self.nullable_model_input(scenario, parameter) {
+                pending.push((model, true));
+                continue;
+            }
             let Some(ResolvedType::Record { symbol, .. }) =
                 self.types.symbol_types.get(&parameter.param)
             else {
@@ -14683,6 +14689,28 @@ mod tests {
         }
         let mut cx = make!(&types, &effects, &resolve);
         assert_eq!(cx.nullable_model_input(scenario, parameter), Some(model));
+        let inventory = cx
+            .checked_stored_contracts(scenario)
+            .expect("original optional input schema census");
+        let conversation = inventory
+            .iter()
+            .find(|schema| schema.id == model)
+            .expect("same imported Conversation");
+        assert_eq!(conversation.source.module, "chat");
+        assert!(
+            conversation
+                .fields
+                .iter()
+                .any(|field| field.name == "account"
+                    && field.ty == ResolvedType::Scalar(Scalar::User))
+        );
+        assert!(
+            conversation
+                .fields
+                .iter()
+                .any(|field| field.name == "active"
+                    && field.ty == ResolvedType::Scalar(Scalar::Bool))
+        );
         let mut env = Env::new();
         env.insert(
             Local::Symbol(parameter.param),
