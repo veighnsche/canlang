@@ -3370,12 +3370,9 @@ impl<'a> Closure<'a> {
             if !value.reads.contains(&fact.parent_dependency) {
                 return Err(self.fail(key, "inline selection exact domain parent read"));
             }
-            // Preserve source operand order: WHERE(candidate,bound), ORDER, SELECT.
-            for dependency in std::iter::once(fact.predicate_dependency)
-                .chain(std::iter::once(fact.bound_dependency))
-                .chain(std::iter::once(fact.order_dependency))
-                .chain(fact.dependencies)
-            {
+            // Candidate WHERE and engine ORDER controls remain in the query.
+            // Ordinary observations preserve the real bound, then eager SELECT.
+            for dependency in std::iter::once(fact.bound_dependency).chain(fact.dependencies) {
                 value.observed.push((dependency.node, Vec::new()));
                 value.reads.push(dependency);
             }

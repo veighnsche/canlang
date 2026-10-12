@@ -5053,3 +5053,42 @@ original artifact or execution is claimed. Continue those ready consumers.
 Changed source/actual pair/complete plan strictalltargets0/8.48s,fmts/diff0.
 
 Coordinator original Run guard source intake: Independent defining review CLEAR for Compiler78 required Run-reference/Bool source checkpoint after reviewed4a. Four exact source preimages. Pair requires original required Turn parameter, owning singular Run field, exact leading not unfinished occurrence, full declarations and distinct ordered CONTROL IDs. Consumer requires actual borrowed IR expression; copied/foreign/nullable-defaulted/mistyped/corrupted bindings refuse. Source1/5.59s with eight mutants and complete original source/query plan+actual pair1/6.04s with five IR corruptions/copied-expression refusal, strictalltargets0/8.48s/fmt/diff reused. Original regenerate source is Complete at this finite source stage; native inline collector, eager selection, child CALL/SEND and genuine original execution remain unfinished, with original caps/guards/effects/evaluation order/holds preserved. Main changed checks [{"check": "locked offline CLI", "exit": 0, "seconds": 8.86}, {"check": "actual primary boundary", "exit": 0, "seconds": 3.52}]. StateDO6.37/Work2.60/root9.77 from unchanged414 scope reused; no extra source/behavior test run. Full plans/counts/holds and complete824 unchanged.
+
+**Original inline native collector and child SEND (unfinished caller).**
+The actual original regenerate now produces a complete native inline receipt
+with the real stored parent, five query dependencies and four influences,
+per-candidate supplied position CONTROL and three eager selected DATA reads.
+Candidate WHERE and engine ORDER controls remain query-scoped; no synthetic
+order getter is inserted. The original collector positive passes1/30.59s with
+actual source models and complete TextMessage inventory. Retained authorization
+Returns all seal the same actual intermediate Branch→ask CALL provenance,
+without source-path pruning or capacity changes. The private emitter may admit
+child SEND only from its complete native producer matching the emitted child
+operation disclosure; raw call collection remains refused. Real JS executes the
+original predicate and eager selected construction in engine order. Changed
+refusal checks, strict validation and unchanged complete CanChat CLI are in
+progress; full original artifact/native execution is not yet accepted. State9c/
+f063 released receiving joins belong to the genuine Dev caller. Continue
+validation and next ready leaves; existing scopes and precise holds remain.
+
+
+**Original complete CanChat CLI, 2026-10-12.**
+The unchanged full CanChat native CLI now exits0 and emits both original modules,
+all18 operations, six models, three pages and five authored examples; original
+source SHA8eb79dd397aa801d97692aa195e24ad9ee29977b4e102e7cbc35e21c9fdd0ad3
+is retained. This supersedes the original regenerate→ask E6008 artifact blocker.
+The genuine inline collector/source/query/selection unit passes1/20.20s with
+missing-plan refusal and six corrupt parent/model/query-role/query-source/
+Return-role/influence controls. The emitted predicate observes candidate position
+and awaits supplied turn.position per candidate; the original stored parent is
+observed first, projection remains eager in engine order, and real child SEND
+requires its exact native producer. Strictalltargets0/8.70s,fmt/diff0 after one
+mechanical helper argument grouping; this does not invalidate unchanged CLI
+behavior. Existing complete six-query ask/current337 criteria stay closed.
+Dev must execute this authentic whole caller using released State9c/f063 and
+own invocation/authority/fence/rollback/replay outputs before runtime acceptance.
+Affected original source2/1.96s, reference5/.31s, defaults3/.34s and actual
+native setup1/.94s all pass.58/67/nine and exact recipient/publication holds
+remain unchanged.
+
+Coordinator full-original producer source integration: Independent defining source review CLEAR for Compiler765 full-original executable producer, exact five source preimages after4a/78. Inline receipt+JS preserve actual stored parent observation, per-candidate supplied position read, query-only candidate/order controls and eager ordered TextMessage projection. Child SEND requires exact private native receipt matching emitted child disclosure; raw collection refuses it. Every intermediate Branch→CALL Return retains SAME actual Run provenance. Owning unchanged full CanChat CLI native-scenario-receipts exits0 with2modules/18operations/6models/3pages/5examples and original SHA8eb79dd397aa801d97692aa195e24ad9ee29977b4e102e7cbc35e21c9fdd0ad3; this is WORKER producer evidence, not a main native execution result. Original source hash remains exact in primary. Nativecollector+six corruptplans1/20.20s, source2/1.96s/reference5/.31/default3/.34/native setup1/.94/strictalltargets8.70/fmt/diff reused. Main changed CLI {"check": "changed locked offline CLI", "exit": 0, "seconds": 12.72}. Original artifact blocker is retired at producer scope; genuine Dev runtime caller/private receiving Files/child SEND/position/whole rollback/replay/current authority and cleanup remain unfinished. Original source-path/cap/guard/effect/evaluation order and recipient holds preserved; no new carrier/profile/pruning/chosen-operation artifact or full-plan acceptance.
