@@ -62,13 +62,23 @@ function stamp(value: unknown): unknown {
 }
 const sealedData = (value: unknown): string => JSON.stringify(stamp(value));
 
+function wireLengthBound(value: unknown): unknown {
+  if (typeof value !== 'bigint') return value;
+  // Compiler model declarations retain native Can integers. Values length
+  // metadata uses descriptor numbers, unlike scalar bounds and defaults.
+  if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) return refuse('length bound has no exact descriptor number');
+  return Number(value);
+}
+
 function wireField(value: unknown): FieldDescriptor {
   const field = record(capture(value)), type = member(field, 'type');
   if (typeof type !== 'string') return refuse('field has no owning type');
   const parsed = parseTypeId(type), out: Record<string, unknown> = { type: printTypeId(parsed) };
   for (const key of ['min', 'max', 'trim', 'format', 'distinctBy', 'excludedIds']) if (Object.hasOwn(field, key)) {
     const length = parsed.array || parsed.base.kind === 'stringlike' || parsed.base.kind === 'scalar' && parsed.base.name === 'text';
-    out[key] = (key === 'min' || key === 'max') && !length ? encodeServingLiteral(type, field[key] as CanValue) : field[key];
+    out[key] = key === 'min' || key === 'max'
+      ? length ? wireLengthBound(field[key]) : encodeServingLiteral(type, field[key] as CanValue)
+      : field[key];
   }
   if (Object.hasOwn(field, 'default')) out.default = encodeServingLiteral(type, field.default as CanValue);
   if (Object.hasOwn(field, 'server')) out.server = true;
