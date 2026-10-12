@@ -478,6 +478,7 @@ fn same_source(a: &CheckedScenarioSource, b: &CheckedScenarioSource) -> bool {
         && a.decision_sites == b.decision_sites
         && a.queries == b.queries
         && a.transcripts == b.transcripts
+        && a.inline_selections == b.inline_selections
         && same_slice(&a.parameters, &b.parameters, |a, b| {
             a.parameter == b.parameter
                 && a.node == b.node

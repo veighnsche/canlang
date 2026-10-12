@@ -107,7 +107,13 @@ pub(super) struct ReceiptQueryParent {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub(super) enum ReceiptQueryParentOrigin {
-    AdmittedReference { parameter: String },
+    AdmittedReference {
+        parameter: String,
+    },
+    StoredReference {
+        #[serde(rename = "dependencyId")]
+        dependency_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2310,7 +2316,10 @@ fn checked_native_transcript_plan<'a>(
         let parent = query.parent.as_ref()?;
         let ReceiptQueryParentOrigin::AdmittedReference {
             parameter: selected,
-        } = &parent.origin;
+        } = &parent.origin
+        else {
+            return None;
+        };
         if query.id != fact.id
             || query.model != model.canonical
             || parent.model != branch.canonical

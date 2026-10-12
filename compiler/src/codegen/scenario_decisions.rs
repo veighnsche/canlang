@@ -27,6 +27,7 @@ pub fn collect_decision_sources(
         .source_facts()?;
     if own.decision_sites.as_ref() != Some(proofs)
         || own.transcripts != source.transcripts
+        || own.inline_selections != source.inline_selections
         || own.source.path != source.source.path
         || own.source.sha256 != source.source.sha256
     {

@@ -748,6 +748,102 @@ impl SourceExpressions<'_> {
         self.expression(body, fact.body, depth + 1)
     }
 
+    /// Match the original inline, WHERE-bound standard message selection.
+    /// The source query has no local Contract identity or helper invocation.
+    fn inline_selection_query(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
+        let source = self.transcript_source()?;
+        let mut facts = source
+            .inline_selections
+            .as_deref()?
+            .iter()
+            .filter(|fact| fact.query.node == key);
+        let fact = facts.next()?;
+        if facts.next().is_some() {
+            return None;
+        }
+        let IrExpr::Query(query) = &actual.expr else {
+            return None;
+        };
+        let model = self.ir.items.get(fact.query.model.0 as usize)?;
+        let parent = query.parent.as_ref()?;
+        let predicate = query.where_pred.as_ref()?;
+        let select = query.select.as_ref()?;
+        let predicate_node = fact.query.predicate?;
+        let alias = fact
+            .checked
+            .clauses
+            .iter()
+            .find(|clause| Some(clause.node) == fact.query.alias)?;
+        let crate::analysis::types::CheckedQueryClauseKind::As { name: alias_name } = &alias.kind
+        else {
+            return None;
+        };
+        if actual.ty != fact.ty
+            || actual.span != span(key)
+            || query.source.as_deref() != Some(&fact.checked)
+            || !matches!(&query.domain, super::ir::IrQueryDomain::Model(name) if name == &model.canonical)
+            || parent.span != span(fact.parent.node)
+            || predicate.span != span(predicate_node)
+            || select.span != span(fact.select)
+            || query.select_param.as_deref() != Some(alias_name.as_str())
+            || query.where_async
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || query.collection_call.is_some()
+            || query.contract_collection_call.is_some()
+            || query.order.len() != 1
+            || query.order[0].field != "position"
+            || query.order[0].descending
+            || fact.query.first.is_some()
+            || fact.query.count.is_some()
+            || fact.query.projection.is_some()
+        {
+            return None;
+        }
+        self.expression(parent, fact.parent.node, depth + 1)?;
+        // Ordinary query predicates lower their authored alias to `row`; the
+        // select expression keeps `prior`. Authenticate that existing rewrite
+        // at this exact checked predicate instead of changing source or IR.
+        let IrExpr::Binary {
+            op: IrBinOp::Lt,
+            left,
+            right,
+        } = &predicate.expr
+        else {
+            return None;
+        };
+        let IrExpr::Member { base, field } = &left.expr else {
+            return None;
+        };
+        let original_predicate = self.nodes.get(&predicate_node)?;
+        let original_operands = expressions(original_predicate);
+        let [original_left, original_right] = original_operands.as_slice() else {
+            return None;
+        };
+        let left_children = expressions(original_left);
+        let [original_alias] = left_children.as_slice() else {
+            return None;
+        };
+        if field != "position"
+            || !matches!(&base.expr,IrExpr::Name(name) if name=="row")
+            || base.span != original_alias.span
+            || left.span != original_left.span
+            || left.span != span(fact.predicate_dependency.node)
+            || self.word(NodeKey::of(original_alias))? != alias_name
+            || base.ty
+                != (ResolvedType::Record {
+                    symbol: model.id,
+                    stored: true,
+                })
+            || left.ty != ResolvedType::Scalar(Scalar::Int)
+            || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        {
+            return None;
+        }
+        self.expression(right, NodeKey::of(original_right), depth + 1)?;
+        self.expression(select, fact.select, depth + 1)
+    }
+
     fn transcript_query(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         let source = self.transcript_source()?;
         let fact = source
@@ -1025,7 +1121,9 @@ impl SourceExpressions<'_> {
             return None;
         };
         if field != "parent"
-            || !matches!(base.expr, IrExpr::Name(_))
+            || !(matches!(base.expr, IrExpr::Name(_))
+                || matches!(&base.expr, IrExpr::Member { base: required, field }
+                    if field == "parent" && matches!(required.expr, IrExpr::Name(_))))
             || branch.parent != Some(conversation.id)
             || !matches!(&actor.expr,IrExpr::Member {base,field}
                 if field == "actor" && matches!(&base.expr,IrExpr::Name(name) if name == "c"))
@@ -1412,7 +1510,8 @@ impl SourceExpressions<'_> {
         let primitive = |scalar| actual.ty == ResolvedType::Scalar(scalar);
         let matched = match (&actual.expr, node.kind) {
             (IrExpr::Query(_), SyntaxKind::Query) if self.operands => {
-                self.transcript_query(actual, NodeKey::of(node), depth)?;
+                self.inline_selection_query(actual, NodeKey::of(node), depth)
+                    .or_else(|| self.transcript_query(actual, NodeKey::of(node), depth))?;
                 true
             }
             (
