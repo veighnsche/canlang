@@ -11981,3 +11981,10 @@ Changed MAIN checks all0: {"owning": 0.73, "root": 4.75} seconds; no unchanged n
 Accepted finite DEL-B01 source component e0bd2809bf72df19e25e4ae38b76139d0536f3b0: Capture existing BrowserClient context at bind and compare at all current checks; old-context fetch/blob/decode cannot paint, owned requests/URLs clean up and fresh context may rebind. Independent defining source review CLEAR; six held gallery/context groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 1.63, "root": 4.93} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — refuse duplicate selected row aliases
+
+Accepted finite DEL-C02 source component 6a2c92da8882aa617257d0ad3205f386510b96b5: After existing canonical replay-key validation, reject selected numeric aliases mapping to the same row before insertion; preserve permitted spelling, safe integers and sorted output. Independent defining source review CLEAR; three selected-alias groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 2.21, "root": 7.27} seconds; no unchanged native/installed/engine reruns.
