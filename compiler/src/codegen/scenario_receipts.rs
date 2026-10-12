@@ -2462,7 +2462,21 @@ fn checked_native_inline_selection_plan<'a>(
         return None;
     };
     let expected_influences = checked_scenario_query_influences(facts)?;
-    if plan.version != 1
+    // The producer deliberately gives query predicate/order/selection reads
+    // different IDs from the ordinary receipt observations of the same fields.
+    // Reconstruct those exact source-owned identities; all other fields still
+    // compare as a complete dependency, and the returned observations stay unchanged.
+    let identity = |kind: &str, node: crate::analysis::NodeKey, discriminator: &str| {
+        sha256_hex(
+            format!(
+                "scenario-disclosure/v1:{kind}:{}:{}:{}:{}:{}:{discriminator}",
+                query.source.path, query.source.sha256, query.source.module, node.start, node.end,
+            )
+            .as_bytes(),
+        )
+    };
+    if query.id != identity("inline-selection-query", query.node, "")
+        || plan.version != 1
         || plan.returns.len() != returned_paths.len()
         || returned_paths.is_empty()
         || !matches!(model.kind,IrItemKind::Model {owner:IrOwner::ChildOf(id),..} if id==parent.id)
@@ -2494,6 +2508,17 @@ fn checked_native_inline_selection_plan<'a>(
             .chain(std::iter::once(&fact.order_dependency))
             .chain(&fact.dependencies),
     ) {
+        let mut expected_query = expected.clone();
+        expected_query.id = identity(
+            if expected.role == DependencyRole::Data {
+                "query-data"
+            } else {
+                "query-control"
+            },
+            expected.node,
+            &query.id,
+        );
+        expected_query.query_id = None;
         let role = expected.role;
         let field = expected.field_name.as_str();
         let emitted_role = match role {
@@ -2504,7 +2529,7 @@ fn checked_native_inline_selection_plan<'a>(
             || !ids.insert(original.id.as_str())
             || original.model != query.model
             || original.source != query.source
-            || original != expected
+            || original != &expected_query
             || original.role != role
             || original.field_name != field
             || !original.calls.is_empty()

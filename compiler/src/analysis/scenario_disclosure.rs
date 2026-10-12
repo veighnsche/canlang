@@ -2,7 +2,9 @@
 //!
 //! These facts are not grants. Only `Complete` may become a disclosure plan.
 //! A failed closure declines the whole scenario, including earlier returns.
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use super::catalog::{Catalog, Effects, SigType, nominal_schema, std_capability, std_operation};
 use super::effects::{DeleteMode, Effect, EffectTables, EffectTarget, EffectVerb, HandlerSource};
@@ -652,6 +654,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
         complete_model_children: HashMap::new(),
         result_model: None,
         statement_expressions: None,
+        source_facts: RefCell::new(ImmutableSourceFacts::default()),
     };
     let mut out = HashMap::new();
     // Resolve only proven acyclic children. A prior wave can establish a
@@ -992,6 +995,7 @@ pub fn checked_read_decision_sites(
         complete_model_children: HashMap::new(),
         result_model: None,
         statement_expressions: None,
+        source_facts: RefCell::new(ImmutableSourceFacts::default()),
     };
     let mut sites = Vec::new();
     let mut steps = 0;
@@ -1122,6 +1126,7 @@ pub fn checked_read_predicate_site(
         complete_model_children: HashMap::new(),
         result_model: None,
         statement_expressions: None,
+        source_facts: RefCell::new(ImmutableSourceFacts::default()),
     };
     let mut calls = Vec::new();
     let mut steps = 0;
@@ -1367,6 +1372,15 @@ struct CompletedStatementExpression {
     values: Vec<ValuePath>,
 }
 
+/// Completed source checks against this Closure's immutable analysis tables.
+/// No lexical environment, traversal state, or recursive prerequisite is cached.
+#[derive(Default)]
+struct ImmutableSourceFacts {
+    models: HashMap<(SymbolId, ModuleId), Option<Rc<CheckedScenarioCreatedModel>>>,
+    revisions: HashMap<(SymbolId, ModuleId, NodeKey), Option<CurrentRevisionSource>>,
+    revision_owners: HashMap<(NodeKey, ModuleId), Option<CurrentRevisionSource>>,
+}
+
 struct Closure<'a> {
     complete_children: HashSet<SymbolId>,
     complete_model_children: HashMap<SymbolId, SymbolId>,
@@ -1386,6 +1400,7 @@ struct Closure<'a> {
     effect_visits: usize,
     loop_node: Option<NodeKey>,
     statement_expressions: Option<Vec<CompletedStatementExpression>>,
+    source_facts: RefCell<ImmutableSourceFacts>,
 }
 
 impl<'a> Closure<'a> {
@@ -1522,6 +1537,32 @@ impl<'a> Closure<'a> {
     /// The original successful presence/published guard narrows exactly one
     /// required Template.current into its original lexical Revision binding.
     fn checked_current_revision_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<CurrentRevisionSource> {
+        // Only the immutable table's own declaration can use its identity key.
+        // A copied or altered declaration still receives the full source check.
+        if !self
+            .effects
+            .scenarios
+            .get(&scenario.scenario)
+            .is_some_and(|original| std::ptr::eq(original, scenario))
+        {
+            return self.check_current_revision_source(scenario);
+        }
+        let key = (scenario.scenario, scenario.module, scenario.node);
+        if let Some(result) = self.source_facts.borrow().revisions.get(&key) {
+            return result.clone();
+        }
+        let result = self.check_current_revision_source(scenario);
+        self.source_facts
+            .borrow_mut()
+            .revisions
+            .insert(key, result.clone());
+        result
+    }
+
+    fn check_current_revision_source(
         &self,
         scenario: &super::effects::ScenarioData,
     ) -> Option<CurrentRevisionSource> {
@@ -1737,6 +1778,23 @@ impl<'a> Closure<'a> {
     }
 
     fn current_revision_at(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<CurrentRevisionSource> {
+        let key = (node, module);
+        if let Some(result) = self.source_facts.borrow().revision_owners.get(&key) {
+            return result.clone();
+        }
+        let result = self.check_current_revision_at(node, module);
+        self.source_facts
+            .borrow_mut()
+            .revision_owners
+            .insert(key, result.clone());
+        result
+    }
+
+    fn check_current_revision_at(
         &self,
         node: NodeKey,
         module: ModuleId,
@@ -4101,7 +4159,7 @@ impl<'a> Closure<'a> {
             model,
             binding: binding.into(),
             inputs,
-            definition,
+            definition: definition.as_ref().clone(),
             expression_types: self.checked_create_expression_types(effect.node, module)?,
         })
     }
@@ -4164,6 +4222,25 @@ impl<'a> Closure<'a> {
     }
 
     fn checked_created_model(
+        &self,
+        model: SymbolId,
+        module: ModuleId,
+    ) -> Option<Rc<CheckedScenarioCreatedModel>> {
+        let key = (model, module);
+        if let Some(result) = self.source_facts.borrow().models.get(&key) {
+            return result.clone();
+        }
+        // Insert only a finished check, including refusal. Never mark an
+        // in-progress model as admitted or suppress recursive validation.
+        let result = self.check_created_model(model, module).map(Rc::new);
+        self.source_facts
+            .borrow_mut()
+            .models
+            .insert(key, result.clone());
+        result
+    }
+
+    fn check_created_model(
         &self,
         model: SymbolId,
         module: ModuleId,
@@ -14317,6 +14394,7 @@ mod tests {
                 complete_model_children: HashMap::new(),
                 result_model: None,
                 statement_expressions: None,
+                source_facts: RefCell::new(ImmutableSourceFacts::default()),
             };
             cx.checked_authorization_derive(call, scenario.module)
         };
@@ -14421,6 +14499,7 @@ mod tests {
                 complete_model_children: HashMap::new(),
                 result_model: None,
                 statement_expressions: None,
+                source_facts: RefCell::new(ImmutableSourceFacts::default()),
             }
         }
         let mut run_cx = make_run_cx(
@@ -14675,7 +14754,10 @@ mod tests {
             ),
         ];
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let catalog_path = root.join("target/profile-native-catalog.json");
+        let catalog_path = root
+            .parent()
+            .unwrap()
+            .join("packages/cloudflare/dist/native-catalog.json");
         let (catalog, errors) = load_catalog(&CatalogRequest {
             flag: Some(&catalog_path),
             env: None,
@@ -14766,6 +14848,7 @@ mod tests {
                     complete_model_children: HashMap::new(),
                     result_model: None,
                     statement_expressions: None,
+                    source_facts: RefCell::new(ImmutableSourceFacts::default()),
                 }
             };
         }

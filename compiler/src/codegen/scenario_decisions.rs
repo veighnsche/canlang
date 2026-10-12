@@ -19,6 +19,70 @@ pub fn collect_decision_sources(
     catalog: Option<&Catalog>,
 ) -> Option<Vec<CheckedDecisionSite>> {
     program.validate_cohort(db, catalog).ok()?;
+    super::scenario_calls::checked_source(ir, owner, db)?
+        .decision_sites
+        .as_ref()?;
+    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+    if diagnostics
+        .iter()
+        .any(|d| d.severity == crate::diagnostic::Severity::Error)
+    {
+        return None;
+    }
+    collect_decision_sources_with_fresh(program, ir, owner, db, catalog, &fresh)
+}
+
+pub(super) fn collect_decision_sources_with_fresh(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    fresh: &IrProgram,
+) -> Option<Vec<CheckedDecisionSite>> {
+    program.validate_cohort(db, catalog).ok()?;
+    super::scenario_calls::checked_source(ir, owner, db)?
+        .decision_sites
+        .as_ref()?;
+    let mut trees = Vec::new();
+    for &file in program.checked_files() {
+        let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
+        if diagnostics
+            .iter()
+            .any(|d| d.severity == crate::diagnostic::Severity::Error)
+        {
+            return None;
+        }
+        trees.push((file, tree));
+    }
+    collect_decision_sources_checked(program, ir, owner, db, catalog, fresh, &trees)
+}
+
+pub(super) fn collect_decision_sources_with_context(
+    context: &FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<Vec<CheckedDecisionSite>> {
+    collect_decision_sources_checked(
+        context.program,
+        context.ir,
+        owner,
+        context.db,
+        context.catalog,
+        &context.fresh,
+        &context.trees,
+    )
+}
+
+fn collect_decision_sources_checked(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    fresh: &IrProgram,
+    trees: &[(crate::source::SourceId, SyntaxNode)],
+) -> Option<Vec<CheckedDecisionSite>> {
+    program.validate_cohort(db, catalog).ok()?;
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let proofs = source.decision_sites.as_ref()?;
     let own = program
@@ -50,13 +114,6 @@ pub fn collect_decision_sources(
     else {
         return None;
     };
-    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-    if diagnostics
-        .iter()
-        .any(|d| d.severity == crate::diagnostic::Severity::Error)
-    {
-        return None;
-    }
     let expected = fresh.items.get(owner.id.0 as usize)?;
     let IrItemKind::Scenario {
         guards: original_guards,
@@ -69,7 +126,7 @@ pub fn collect_decision_sources(
     let mut semantics = SemanticJoin {
         program,
         actual: ir,
-        expected: &fresh,
+        expected: fresh,
         nodes: 0,
         stack: HashSet::new(),
     };
@@ -84,16 +141,8 @@ pub fn collect_decision_sources(
         steps: 0,
         count: 0,
     };
-    for &file in program.checked_files() {
-        let input = db.get(file)?;
-        let (tree, diagnostics) = syntax::parse_source(file, &input.text);
-        if diagnostics
-            .iter()
-            .any(|d| d.severity == crate::diagnostic::Severity::Error)
-        {
-            return None;
-        }
-        cx.index(&tree)?;
+    for (_, tree) in trees {
+        cx.index(tree)?;
     }
     cx.steps = 0;
     let mut sites = Vec::new();
@@ -1440,83 +1489,150 @@ pub fn serialize_decision_sources(
     serialize_sites(program, ir, db, sites, None)
 }
 
-/// Fresh original source inputs shared only during one immutable membership
-/// preparation. Construction and fields stay private to this checked producer;
-/// standalone serializers build their own genuine context on every call.
-pub(super) struct ReadDecisionSources<'a> {
+/// One fresh, invocation-local source cohort. No authority or global cache;
+/// all consumers borrow the exact supplied inputs and retain their own checks.
+pub(super) struct FreshSourceContext<'a> {
     program: &'a CheckedProgram,
     ir: &'a IrProgram,
     db: &'a SourceDb,
     catalog: Option<&'a Catalog>,
     original: CheckedProgram,
     fresh: IrProgram,
+    has_ir_diagnostics: bool,
     trees: Vec<(crate::source::SourceId, SyntaxNode)>,
     resolved: crate::analysis::resolve::ResolveTables,
 }
 
-impl<'a> ReadDecisionSources<'a> {
+#[derive(Debug, Clone, Copy)]
+pub(super) enum SourcePreparationGap {
+    Cohort,
+    Analysis,
+    Ir,
+    MissingSource,
+    Cst(Span),
+    Resolution,
+}
+
+impl<'a> FreshSourceContext<'a> {
     pub(super) fn prepare(
         program: &'a CheckedProgram,
         ir: &'a IrProgram,
         db: &'a SourceDb,
         catalog: Option<&'a Catalog>,
-    ) -> Option<Self> {
-        program.validate_cohort(db, catalog).ok()?;
+    ) -> Result<Self, SourcePreparationGap> {
+        program
+            .validate_cohort(db, catalog)
+            .map_err(|_| SourcePreparationGap::Cohort)?;
         let (original, diagnostics) =
             crate::analysis::check_program(db, program.checked_files(), catalog);
         if diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            .any(|d| d.severity == crate::diagnostic::Severity::Error)
         {
-            return None;
+            return Err(SourcePreparationGap::Analysis);
         }
         let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
+        let has_ir_diagnostics = !diagnostics.is_empty();
         if diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            .any(|d| d.severity == crate::diagnostic::Severity::Error)
         {
-            return None;
+            return Err(SourcePreparationGap::Ir);
         }
         let mut trees = Vec::new();
         for &file in original.checked_files() {
-            let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
+            let input = db.get(file).ok_or(SourcePreparationGap::MissingSource)?;
+            let (tree, diagnostics) = syntax::parse_source(file, &input.text);
             if diagnostics
                 .iter()
-                .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+                .any(|d| d.severity == crate::diagnostic::Severity::Error)
             {
-                return None;
+                return Err(SourcePreparationGap::Cst(tree.span));
             }
             trees.push((file, tree));
         }
         let mut diagnostics = Vec::new();
         let resolved =
             crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
-                .ok()?;
+                .map_err(|_| SourcePreparationGap::Resolution)?;
         if diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            .any(|d| d.severity == crate::diagnostic::Severity::Error)
         {
-            return None;
+            return Err(SourcePreparationGap::Resolution);
         }
-        Some(Self {
+        Ok(Self {
             program,
             ir,
             db,
             catalog,
             original,
             fresh,
+            has_ir_diagnostics,
             trees,
             resolved,
         })
     }
 
+    pub(super) fn program(&self) -> &CheckedProgram {
+        self.program
+    }
+    pub(super) fn ir(&self) -> &IrProgram {
+        self.ir
+    }
+    pub(super) fn db(&self) -> &SourceDb {
+        self.db
+    }
+    pub(super) fn catalog(&self) -> Option<&Catalog> {
+        self.catalog
+    }
+    pub(super) fn original(&self) -> &CheckedProgram {
+        &self.original
+    }
+    pub(super) fn fresh(&self) -> &IrProgram {
+        &self.fresh
+    }
+    pub(super) fn has_ir_diagnostics(&self) -> bool {
+        self.has_ir_diagnostics
+    }
+    pub(super) fn trees(&self) -> &[(crate::source::SourceId, SyntaxNode)] {
+        &self.trees
+    }
+    pub(super) fn resolved(&self) -> &crate::analysis::resolve::ResolveTables {
+        &self.resolved
+    }
     pub(super) fn serialize_rule(&self, rule: &IrRuleFn) -> Option<Vec<SerialDecisionSite>> {
         serialize_read_rule(self, rule)
     }
-
     pub(super) fn serialize_predicates(&self) -> Option<Vec<SerialDecisionSite>> {
         serialize_read_predicates(self)
     }
+}
+
+pub(super) fn serialize_decision_sources_with_context(
+    context: &FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<Vec<SerialDecisionSite>> {
+    let sites = collect_decision_sources_with_context(context, owner)?;
+    serialize_sites(context.program, context.ir, context.db, sites, None)
+}
+
+/// SEND compares against the freshly checked original; preserve that distinction
+/// from membership/query consumers of the supplied checked tables.
+pub(super) fn serialize_original_decision_sources_with_context(
+    context: &FreshSourceContext<'_>,
+    owner: &IrItem,
+) -> Option<Vec<SerialDecisionSite>> {
+    let sites = collect_decision_sources_checked(
+        &context.original,
+        context.ir,
+        owner,
+        context.db,
+        context.catalog,
+        &context.fresh,
+        &context.trees,
+    )?;
+    serialize_sites(&context.original, context.ir, context.db, sites, None)
 }
 
 /// Original policy source correspondence for a registered ordinary or protected
@@ -1528,11 +1644,13 @@ pub fn serialize_read_decision_sources(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Option<Vec<SerialDecisionSite>> {
-    ReadDecisionSources::prepare(program, ir, db, catalog)?.serialize_rule(rule)
+    FreshSourceContext::prepare(program, ir, db, catalog)
+        .ok()?
+        .serialize_rule(rule)
 }
 
 fn serialize_read_rule(
-    sources: &ReadDecisionSources<'_>,
+    sources: &FreshSourceContext<'_>,
     rule: &IrRuleFn,
 ) -> Option<Vec<SerialDecisionSite>> {
     let program = sources.program;
@@ -1695,10 +1813,12 @@ pub fn serialize_read_predicate_sources(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Option<Vec<SerialDecisionSite>> {
-    ReadDecisionSources::prepare(program, ir, db, catalog)?.serialize_predicates()
+    FreshSourceContext::prepare(program, ir, db, catalog)
+        .ok()?
+        .serialize_predicates()
 }
 
-fn serialize_read_predicates(sources: &ReadDecisionSources<'_>) -> Option<Vec<SerialDecisionSite>> {
+fn serialize_read_predicates(sources: &FreshSourceContext<'_>) -> Option<Vec<SerialDecisionSite>> {
     let ir = sources.ir;
     let db = sources.db;
     let catalog = sources.catalog;

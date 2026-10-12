@@ -11,12 +11,13 @@ use crate::analysis::scenario_disclosure::{
     ScenarioDisclosure,
 };
 use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, SymbolId};
-use crate::diagnostic::Severity;
 use crate::source::{SourceDb, Span};
 use crate::syntax::SyntaxKind;
 
+#[cfg(test)]
+use super::ir;
 use super::ir::{
-    self, IrBinOp, IrCallTarget, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt, IrType, TypedExpr,
+    IrBinOp, IrCallTarget, IrExpr, IrItem, IrItemKind, IrProgram, IrStmt, IrType, TypedExpr,
 };
 
 /// Only this producer constructs the subset. The borrowed immutable IR is the
@@ -49,6 +50,7 @@ impl<'a> PreparedRequireReturns<'a> {
     }
 }
 
+#[cfg(test)]
 pub(super) fn prepare<'a>(
     program: &'a CheckedProgram,
     ir: &'a IrProgram,
@@ -56,13 +58,26 @@ pub(super) fn prepare<'a>(
     catalog: Option<&Catalog>,
 ) -> Option<PreparedRequireReturns<'a>> {
     program.validate_cohort(db, catalog).ok()?;
-    let (fresh, diagnostics) = ir::build(program, db, catalog);
+    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
     if diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
     {
         return None;
     }
+    prepare_with_fresh(program, ir, db, catalog, &fresh)
+}
+
+/// Reuse the freshly lowered immutable cohort inside a single emission.
+/// All original/actual/fresh declarations and paths are still compared here.
+pub(super) fn prepare_with_fresh<'a>(
+    program: &'a CheckedProgram,
+    ir: &'a IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    fresh: &IrProgram,
+) -> Option<PreparedRequireReturns<'a>> {
+    program.validate_cohort(db, catalog).ok()?;
     let mut indices = HashMap::new();
     for owner in &ir.items {
         let Some(ScenarioDisclosure::Complete(original)) =
@@ -83,8 +98,7 @@ pub(super) fn prepare<'a>(
         if !same_disclosure(original, actual) || !same_disclosure(original, rebuilt) {
             continue;
         }
-        let Some(selected) = prepare_owner(program, ir, &fresh, owner, original, db, catalog)
-        else {
+        let Some(selected) = prepare_owner(program, ir, fresh, owner, original, db, catalog) else {
             continue;
         };
         indices.insert(owner.id, selected);

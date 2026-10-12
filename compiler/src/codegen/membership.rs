@@ -1,10 +1,16 @@
 //! Checked membership source correspondence; the native loader supplies authority.
 use std::collections::{BTreeMap, HashMap};
 
-use crate::analysis::catalog::{Catalog, Effects, SigType};
+#[cfg(test)]
+use crate::analysis::CheckedProgram;
+#[cfg(test)]
+use crate::analysis::catalog::Catalog;
+use crate::analysis::catalog::{Effects, SigType};
 use crate::analysis::types::SelectedCallTarget;
-use crate::analysis::{CheckedProgram, ResolvedType, Scalar};
-use crate::source::{SourceDb, Span};
+use crate::analysis::{ResolvedType, Scalar};
+#[cfg(test)]
+use crate::source::SourceDb;
+use crate::source::Span;
 
 use super::ir::IrProgram;
 
@@ -43,12 +49,25 @@ impl MembershipSources {
 
 /// Reuse the original checked call slots and complete decision inventories.
 /// A source recipe names a call; it never supplies a membership answer or scope.
+#[cfg(test)]
 pub(super) fn prepare(
     program: &CheckedProgram,
     ir: &IrProgram,
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Option<MembershipSources> {
+    let context =
+        super::scenario_decisions::FreshSourceContext::prepare(program, ir, db, catalog).ok()?;
+    prepare_with_context(&context)
+}
+
+pub(super) fn prepare_with_context(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Option<MembershipSources> {
+    let program = context.program();
+    let ir = context.ir();
+    let db = context.db();
+    let catalog = context.catalog();
     program.validate_cohort(db, catalog).ok()?;
     let catalog = catalog?;
     let mut calls = HashMap::new();
@@ -107,22 +126,15 @@ pub(super) fn prepare(
     if calls.is_empty() {
         return None;
     }
-    // One fresh owning graph check, reused by all source/call consumers.
-    let (fresh, diagnostics) = super::ir::build(program, db, Some(catalog));
-    if !diagnostics.is_empty() || closure(&fresh) != closure(ir) {
+    // Same original execution closure, now borrowed from this invocation.
+    let fresh = context.fresh();
+    if context.has_ir_diagnostics() || closure(fresh) != closure(ir) {
         return None;
     }
-    let read_sources =
-        super::scenario_decisions::ReadDecisionSources::prepare(program, ir, db, Some(catalog))?;
+    let read_sources = context;
     let mut sites = BTreeMap::new();
     for item in &ir.items {
-        if let Some(source) = super::scenario_decisions::serialize_decision_sources(
-            program,
-            ir,
-            item,
-            db,
-            Some(catalog),
-        ) && source.iter().any(|site| site.calls.iter().any(|call| {
+        if let Some(source) = super::scenario_decisions::serialize_decision_sources_with_context(context, item) && source.iter().any(|site| site.calls.iter().any(|call| {
                 matches!(&call.target, super::scenario_decisions::SerialDecisionTarget::Builtin { id, .. }
                     if id == "active_member")
             })) {

@@ -21,6 +21,193 @@ use super::scenario_receipts::{
     ReceiptQueryProjection, ReceiptQueryProjectionField, ReceiptReturn, ReceiptRole, ReceiptSource,
 };
 
+/// Fresh lowering and successful-requirement correspondence for exactly one
+/// immutable query input cohort. Standalone consumers construct their own;
+/// the emitter borrows its shared source preparation instead.
+pub(super) struct PreparedQuerySources<'a> {
+    program: &'a CheckedProgram,
+    ir: &'a IrProgram,
+    db: &'a SourceDb,
+    catalog: Option<&'a Catalog>,
+    fresh: std::borrow::Cow<'a, IrProgram>,
+    has_diagnostics: bool,
+    returns: Option<super::scenario_feasibility::PreparedRequireReturns<'a>>,
+    source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
+}
+
+pub(super) enum CollectedQueryPlan {
+    Transcript(ReceiptDisclosurePlan),
+    Receipt(Box<NativeScenarioReceipt>),
+    Source(ReceiptDisclosurePlan),
+}
+
+pub(super) struct CollectedQuerySources {
+    pub any: Option<serde_json::Value>,
+    pub selections: Option<serde_json::Value>,
+    pub plan: Option<CollectedQueryPlan>,
+}
+
+impl<'a> PreparedQuerySources<'a> {
+    fn standalone(
+        program: &'a CheckedProgram,
+        ir: &'a IrProgram,
+        db: &'a SourceDb,
+        catalog: Option<&'a Catalog>,
+    ) -> Option<Self> {
+        program.validate_cohort(db, catalog).ok()?;
+        let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+        let returns = if diagnostics
+            .iter()
+            .any(|d| d.severity == crate::diagnostic::Severity::Error)
+        {
+            None
+        } else {
+            super::scenario_feasibility::prepare_with_fresh(program, ir, db, catalog, &fresh)
+        };
+        Some(Self {
+            program,
+            ir,
+            db,
+            catalog,
+            fresh: std::borrow::Cow::Owned(fresh),
+            has_diagnostics: !diagnostics.is_empty(),
+            returns,
+            source_context: None,
+        })
+    }
+
+    pub(super) fn from_context(
+        context: &'a super::scenario_decisions::FreshSourceContext<'a>,
+    ) -> Self {
+        let program = context.program();
+        let ir = context.ir();
+        let db = context.db();
+        let catalog = context.catalog();
+        Self {
+            program,
+            ir,
+            db,
+            catalog,
+            fresh: std::borrow::Cow::Borrowed(context.fresh()),
+            has_diagnostics: context.has_ir_diagnostics(),
+            returns: super::scenario_feasibility::prepare_with_fresh(
+                program,
+                ir,
+                db,
+                catalog,
+                context.fresh(),
+            ),
+            source_context: Some(context),
+        }
+    }
+
+    pub(super) fn returns(
+        &self,
+    ) -> Option<&super::scenario_feasibility::PreparedRequireReturns<'a>> {
+        self.returns.as_ref()
+    }
+
+    fn decisions(&self, owner: &IrItem) -> Option<()> {
+        if let Some(context) = self.source_context {
+            super::scenario_decisions::collect_decision_sources_with_context(context, owner)?;
+        } else {
+            super::scenario_decisions::collect_decision_sources_with_fresh(
+                self.program,
+                self.ir,
+                owner,
+                self.db,
+                self.catalog,
+                &self.fresh,
+            )?;
+        }
+        Some(())
+    }
+
+    fn plan(&self, owner: &IrItem, entry: &str) -> Option<ReceiptDisclosurePlan> {
+        let returned = if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
+            && matches!(
+                self.program.scenario_disclosures().get(&owner.id)?,
+                ScenarioDisclosure::Complete(_)
+            ) {
+            Some(self.returns.as_ref()?.returns(self.ir, owner.id)?)
+        } else {
+            None
+        };
+        let mut plan = checked_query_plan_full(
+            self.program,
+            self.ir,
+            owner,
+            self.db,
+            self.catalog,
+            entry,
+            self,
+        )?;
+        if let Some(returned) = returned {
+            super::scenario_receipts::project_plan_returns(&mut plan, &returned)?;
+        }
+        Some(plan)
+    }
+
+    /// Authenticate each owner plan once, then derive its separate metadata.
+    pub(super) fn collect_owner(&self, owner: &IrItem, entry: &str) -> CollectedQuerySources {
+        let any = serialize_query_any_prepared(
+            self.program,
+            self.ir,
+            owner,
+            self.db,
+            self.catalog,
+            entry,
+            Some(self),
+        );
+        let Some(plan) = self.plan(owner, entry) else {
+            return CollectedQuerySources {
+                any,
+                selections: None,
+                plan: None,
+            };
+        };
+        let source = self
+            .ir
+            .scenario_disclosures
+            .get(&owner.id)
+            .and_then(|d| d.source_facts());
+        let transcript = source.is_some_and(|source| {
+            source
+                .transcripts
+                .as_deref()
+                .is_some_and(|facts| !facts.is_empty())
+                || source
+                    .inline_selections
+                    .as_deref()
+                    .is_some_and(|facts| !facts.is_empty())
+        });
+        if transcript {
+            return CollectedQuerySources {
+                any,
+                selections: selection_metadata(self.ir, owner),
+                plan: Some(CollectedQueryPlan::Transcript(plan)),
+            };
+        }
+        // A failed native-receipt join still retains the authenticated source
+        // plan exactly as the former standalone source fallback did.
+        let receipt = collect_complete_query_receipt_prepared(
+            self.program,
+            self.ir,
+            owner,
+            self,
+            plan.clone(),
+        );
+        CollectedQuerySources {
+            any,
+            selections: None,
+            plan: Some(match receipt {
+                Some(receipt) => CollectedQueryPlan::Receipt(Box::new(receipt)),
+                None => CollectedQueryPlan::Source(plan),
+            }),
+        }
+    }
+}
+
 /// Serialize the real checked model scan, local nominal select and all four
 /// domain influences. The plan is source correspondence only: State still
 /// requires its actual private query execution, candidates and checkpoint.
@@ -45,6 +232,7 @@ pub fn serialize_query_sources(
 
 /// Retain the authenticated transcript plan for the native collector. The
 /// source plan alone still cannot admit capture or a created-model result.
+#[cfg(test)]
 pub(super) fn collect_transcript_query_source(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -70,6 +258,7 @@ pub(super) fn collect_transcript_query_source(
 
 /// Literal intermediate selection metadata, authenticated through the same
 /// source query path. This does not bind a result or activate native capture.
+#[cfg(test)]
 pub(super) fn serialize_transcript_selections(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -85,6 +274,16 @@ pub(super) fn serialize_transcript_selections(
         return None;
     }
     checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
+    selection_metadata(ir, owner)
+}
+
+fn selection_metadata(ir: &IrProgram, owner: &IrItem) -> Option<serde_json::Value> {
+    let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let transcripts = source.transcripts.as_deref()?;
+    let inline = source.inline_selections.as_deref()?;
+    if transcripts.is_empty() && inline.is_empty() {
+        return None;
+    }
     let metadata=transcripts.iter().map(|fact|(&fact.id,&fact.fields,&fact.dependencies))
         .chain(inline.iter().map(|fact|(&fact.query.id,&fact.fields,&fact.dependencies)))
         .map(|(id,fields,dependencies)|serde_json::json!({"queryId":id,"type":"TextMessage[]",
@@ -95,6 +294,7 @@ pub(super) fn serialize_transcript_selections(
 
 /// The literal existential selector belongs to its original checked collection
 /// call. Publishing it does not admit the scenario or a native query lifetime.
+#[cfg(test)]
 pub(super) fn serialize_query_any(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -102,6 +302,18 @@ pub(super) fn serialize_query_any(
     db: &SourceDb,
     catalog: Option<&Catalog>,
     entry_module: &str,
+) -> Option<serde_json::Value> {
+    serialize_query_any_prepared(program, ir, owner, db, catalog, entry_module, None)
+}
+
+fn serialize_query_any_prepared(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+    prepared: Option<&PreparedQuerySources<'_>>,
 ) -> Option<serde_json::Value> {
     use super::ir::{IrCallTarget, IrOwner, IrUnOp};
     use crate::analysis::Scalar;
@@ -146,10 +358,18 @@ pub(super) fn serialize_query_any(
     {
         return None;
     }
-    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-    if !diagnostics.is_empty() {
-        return None;
-    }
+    let fresh = if let Some(prepared) = prepared {
+        if prepared.has_diagnostics {
+            return None;
+        }
+        std::borrow::Cow::Borrowed(prepared.fresh.as_ref())
+    } else {
+        let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+        if !diagnostics.is_empty() {
+            return None;
+        }
+        std::borrow::Cow::Owned(fresh)
+    };
     same_scenario_semantics(program, ir, &fresh, owner)?;
     same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
     let IrItemKind::Scenario {
@@ -354,6 +574,18 @@ pub(super) fn collect_complete_query_receipt(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<NativeScenarioReceipt> {
+    let prepared = PreparedQuerySources::standalone(program, ir, db, catalog)?;
+    let plan = prepared.plan(owner, entry_module)?;
+    collect_complete_query_receipt_prepared(program, ir, owner, &prepared, plan)
+}
+
+fn collect_complete_query_receipt_prepared(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    prepared: &PreparedQuerySources<'_>,
+    plan: ReceiptDisclosurePlan,
+) -> Option<NativeScenarioReceipt> {
     if ir
         .scenario_disclosures
         .get(&owner.id)?
@@ -366,7 +598,6 @@ pub(super) fn collect_complete_query_receipt(
     }
     // Reuse the full owning source/type/executable correspondence, not a
     // caller-supplied JSON plan or an IR-only Complete tag.
-    let plan = checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
     let original = program.scenario_disclosures().get(&owner.id)?;
     let queries = original.source_facts()?.queries.as_ref()?;
     let query = queries.first()?;
@@ -376,13 +607,12 @@ pub(super) fn collect_complete_query_receipt(
     {
         let expected_influences =
             super::scenario_receipts::checked_native_query_influences(queries)?;
-        let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-        if !diagnostics.is_empty() {
+        if prepared.has_diagnostics {
             return None;
         }
+        let fresh = prepared.fresh.as_ref();
         let mut native_returns = Vec::new();
-        let prepared = super::scenario_feasibility::prepare(program, ir, db, catalog)?;
-        let selected_returns = prepared.returns(ir, owner.id)?;
+        let selected_returns = prepared.returns.as_ref()?.returns(ir, owner.id)?;
         let ScenarioDisclosure::Complete(original_checked) = original else {
             return None;
         };
@@ -442,10 +672,10 @@ pub(super) fn collect_complete_query_receipt(
     let [query] = queries.as_slice() else {
         return None;
     };
-    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-    if !diagnostics.is_empty() {
+    if prepared.has_diagnostics {
         return None;
     }
+    let fresh = prepared.fresh.as_ref();
     for disclosure in [
         original,
         fresh.scenario_disclosures.get(&owner.id)?,
@@ -501,24 +731,7 @@ fn checked_query_plan(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<ReceiptDisclosurePlan> {
-    // Direct source-plan consumers also validate the complete original/fresh
-    // declaration before constructor matching. The oversized mixed source's
-    // derived members cannot borrow a later native-only validation step.
-    let returned = if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
-        && matches!(
-            program.scenario_disclosures().get(&owner.id)?,
-            ScenarioDisclosure::Complete(_)
-        ) {
-        let prepared = super::scenario_feasibility::prepare(program, ir, db, catalog)?;
-        Some(prepared.returns(ir, owner.id)?)
-    } else {
-        None
-    };
-    let mut plan = checked_query_plan_full(program, ir, owner, db, catalog, entry_module)?;
-    if let Some(returned) = returned {
-        super::scenario_receipts::project_plan_returns(&mut plan, &returned)?;
-    }
-    Some(plan)
+    PreparedQuerySources::standalone(program, ir, db, catalog)?.plan(owner, entry_module)
 }
 
 fn checked_query_plan_full(
@@ -528,6 +741,7 @@ fn checked_query_plan_full(
     db: &SourceDb,
     catalog: Option<&Catalog>,
     entry_module: &str,
+    prepared: &PreparedQuerySources<'_>,
 ) -> Option<ReceiptDisclosurePlan> {
     program.validate_cohort(db, catalog).ok()?;
     if entry_module.is_empty() {
@@ -556,14 +770,14 @@ fn checked_query_plan_full(
         {
             return None;
         }
-        return checked_transcript_query_plan(program, ir, owner, db, catalog, entry_module);
+        return checked_transcript_query_plan(program, ir, owner, db, entry_module, prepared);
     }
     if source
         .inline_selections
         .as_deref()
         .is_some_and(|facts| !facts.is_empty())
     {
-        return checked_inline_selection_query_plan(program, ir, owner, db, catalog, entry_module);
+        return checked_inline_selection_query_plan(program, ir, owner, db, entry_module, prepared);
     }
     if queries.is_empty() || queries.len() > 3 {
         return None;
@@ -571,11 +785,11 @@ fn checked_query_plan_full(
     // Build from the immutable checked owner rather than accepting a second
     // mutable IR proof. Unrelated emission diagnostics cannot grant this plan;
     // every executable owner expression must still join the original lowering.
-    let (fresh, _) = super::ir::build(program, db, catalog);
-    same_scenario_semantics(program, ir, &fresh, owner)?;
+    let fresh = prepared.fresh.as_ref();
+    same_scenario_semantics(program, ir, fresh, owner)?;
     // Public callers may pass a detached owner. Its valid body cannot cover
     // a different executable scenario stored in the supplied IR.
-    same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
+    same_scenario_semantics(program, ir, fresh, ir.items.get(owner.id.0 as usize)?)?;
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
@@ -841,15 +1055,15 @@ fn checked_inline_selection_query_plan(
     ir: &IrProgram,
     owner: &IrItem,
     db: &SourceDb,
-    catalog: Option<&Catalog>,
     entry: &str,
+    prepared: &PreparedQuerySources<'_>,
 ) -> Option<ReceiptDisclosurePlan> {
-    super::scenario_decisions::collect_decision_sources(program, ir, owner, db, catalog)?;
-    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-    if !diagnostics.is_empty() {
+    prepared.decisions(owner)?;
+    if prepared.has_diagnostics {
         return None;
     }
-    same_scenario_semantics(program, ir, &fresh, owner)?;
+    let fresh = prepared.fresh.as_ref();
+    same_scenario_semantics(program, ir, fresh, owner)?;
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let [fact] = source.inline_selections.as_deref()? else {
         return None;
@@ -1041,18 +1255,18 @@ fn checked_transcript_query_plan(
     ir: &IrProgram,
     owner: &IrItem,
     db: &SourceDb,
-    catalog: Option<&Catalog>,
     entry: &str,
+    prepared: &PreparedQuerySources<'_>,
 ) -> Option<ReceiptDisclosurePlan> {
     use crate::analysis::scenario_disclosure::{DisclosureIntrinsicKind, ScenarioDisclosure};
     use crate::analysis::{ResolvedType, Scalar};
-    super::scenario_decisions::collect_decision_sources(program, ir, owner, db, catalog)?;
-    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-    if !diagnostics.is_empty() {
+    prepared.decisions(owner)?;
+    if prepared.has_diagnostics {
         return None;
     }
-    same_scenario_semantics(program, ir, &fresh, owner)?;
-    same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
+    let fresh = prepared.fresh.as_ref();
+    same_scenario_semantics(program, ir, fresh, owner)?;
+    same_scenario_semantics(program, ir, fresh, ir.items.get(owner.id.0 as usize)?)?;
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
     let [first, later] = source.transcripts.as_deref()? else {
         return None;
@@ -1230,7 +1444,15 @@ fn checked_transcript_query_plan(
         }
         // The owning checked call retains its separate external predicate.
         // Public metadata is checked here, never used as receipt authority.
-        serialize_query_any(program, ir, owner, db, catalog, entry)?;
+        serialize_query_any_prepared(
+            program,
+            ir,
+            owner,
+            db,
+            prepared.catalog,
+            entry,
+            Some(prepared),
+        )?;
         let [any, ancestor, selected, count] = source.queries.as_deref()? else {
             return None;
         };
@@ -1777,7 +1999,10 @@ mod any_source_tests {
             include_str!("../../tests/fixtures/original-a850/CanCreative.can").into(),
         );
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let path = root.join("target/profile-native-catalog.json");
+        let path = root
+            .parent()
+            .unwrap()
+            .join("packages/cloudflare/dist/native-catalog.json");
         let (catalog, diagnostics) = load_catalog(&CatalogRequest {
             flag: Some(&path),
             env: None,
@@ -1992,7 +2217,10 @@ mod inline_selection_tests {
             include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
         );
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let path = root.join("target/profile-native-catalog.json");
+        let path = root
+            .parent()
+            .unwrap()
+            .join("packages/cloudflare/dist/native-catalog.json");
         let (catalog, errors) = load_catalog(&CatalogRequest {
             flag: Some(&path),
             env: None,
@@ -2220,6 +2448,8 @@ mod inline_selection_tests {
             "parent",
             "model",
             "query-role",
+            "query-id",
+            "query-dependency-id",
             "query-source",
             "return-role",
             "influence",
@@ -2236,6 +2466,8 @@ mod inline_selection_tests {
                 }
                 "model" => changed.queries[0].model.push_str("-foreign"),
                 "query-role" => changed.queries[0].dependencies[0].role = ReceiptRole::Data,
+                "query-id" => changed.queries[0].id.push_str("-foreign"),
+                "query-dependency-id" => changed.queries[0].dependencies[0].id.push_str("-foreign"),
                 "query-source" => changed.queries[0].dependencies[0].source.sha256 = "0".repeat(64),
                 "return-role" => {
                     changed.returns[0].dependencies[0].role =
