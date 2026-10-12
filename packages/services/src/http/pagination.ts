@@ -70,21 +70,29 @@ export function assertProviderPage<T>(
     throw new ProviderPageError('Provider page must be an object');
   }
   const record = value as Record<string, unknown>;
-  if (!Array.isArray(record['items']) || !record['items'].every(isItem)) {
+  const items = record['items'];
+  if (!Array.isArray(items)) {
     throw new ProviderPageError(
       'Provider page items must be an array of typed items',
     );
   }
-  if (
-    !(record['nextCursor'] === null || typeof record['nextCursor'] === 'string')
-  ) {
+  const length = items.length;
+  for (let index = 0; index < length; index++) {
+    if (!isItem(items[index])) {
+      throw new ProviderPageError(
+        'Provider page items must be an array of typed items',
+      );
+    }
+  }
+  const nextCursor = record['nextCursor'];
+  if (!(nextCursor === null || typeof nextCursor === 'string')) {
     throw new ProviderPageError(
       'Provider page nextCursor must be a string or null',
     );
   }
   return {
-    items: record['items'] as T[],
-    nextCursor: record['nextCursor'] as string | null,
+    items: items as T[],
+    nextCursor,
   };
 }
 

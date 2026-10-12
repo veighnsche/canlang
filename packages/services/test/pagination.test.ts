@@ -35,6 +35,19 @@ describe('pagination', () => {
       },
     );
     assert.deepEqual(page, { items: ['a', 'b'], nextCursor: 'next' });
+    const optionalPage = await fetchPage<string | undefined>(
+      request, LIMITS, item => item === undefined || isString(item),
+      async () => ({ items: new Array<string | undefined>(1), nextCursor: null }),
+    );
+    assert.deepEqual([...optionalPage.items], [undefined]);
+    assert.equal(optionalPage.nextCursor, null);
+    let cursorReads = 0;
+    const capturedPage = await fetchPage<string>(request, LIMITS, isString, async () => ({
+      items: ['stable'],
+      get nextCursor() { return cursorReads++ === 0 ? null : 42; },
+    }));
+    assert.deepEqual(capturedPage, { items: ['stable'], nextCursor: null });
+    assert.equal(cursorReads, 1);
   });
 
   it('rejects over-limit requests without calling the loader', async () => {
@@ -107,19 +120,34 @@ describe('pagination', () => {
     assert.equal(calls, 0);
   });
 
-  it('rejects malformed provider pages', () => {
+  it('rejects malformed provider pages', async () => {
     const badPages: unknown[] = [
       null,
       { items: 'nope', nextCursor: null },
       { items: ['ok', 42], nextCursor: null },
+      { items: new Array(1), nextCursor: null },
       { items: [], nextCursor: 7 },
       { items: [] },
     ];
     for (const page of badPages) {
+      await assert.rejects(
+        fetchPage<string>({ cursor: null, limit: 1 }, LIMITS, isString, async () => page),
+        ProviderPageError,
+      );
       assert.throws(
         () => assertProviderPage<string>(page, isString),
         ProviderPageError,
       );
     }
+    const seen: unknown[] = [];
+    assert.throws(() => assertProviderPage<string>({ items: ['ok', 42, 'later'], nextCursor: null }, item => {
+      seen.push(item);
+      return isString(item);
+    }), ProviderPageError);
+    assert.deepEqual(seen, ['ok', 42]);
+    const failure = new Error('item predicate failed');
+    assert.throws(() => assertProviderPage({ items: ['ok'], nextCursor: null }, () => {
+      throw failure;
+    }), error => error === failure);
   });
 });
