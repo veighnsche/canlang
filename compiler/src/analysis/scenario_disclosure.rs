@@ -409,6 +409,9 @@ pub(crate) struct CheckedTranscriptSource {
     /// Actual eager selection reads, in authored TextMessage field order.
     /// Each dependency retains the original owning helper invocation chain.
     pub dependencies: Vec<DisclosureDependency>,
+    /// Query candidate attribution is distinct from the ordinary selected
+    /// DATA observations carried by consuming Returns and selection metadata.
+    pub query_dependencies: Vec<DisclosureDependency>,
     pub influences: Vec<DisclosureInfluence>,
 }
 
@@ -2879,6 +2882,15 @@ impl<'a> Closure<'a> {
                 })
             })
             .collect::<Option<Vec<_>>>()?;
+        let query_dependencies = dependencies
+            .iter()
+            .map(|dependency| {
+                let mut query = dependency.clone();
+                query.id = self.opaque("query-data", query.node, &id).ok()?;
+                query.query_id = None;
+                Some(query)
+            })
+            .collect::<Option<Vec<_>>>()?;
         let influences = [
             InfluenceKind::QueryExistence,
             InfluenceKind::QueryCardinality,
@@ -2924,6 +2936,7 @@ impl<'a> Closure<'a> {
             ty: result_ty.clone(),
             fields,
             dependencies,
+            query_dependencies,
             influences,
         })
     }

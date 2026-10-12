@@ -134,6 +134,13 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
         selections(&program, &ir, &db, Some(&catalog)).expect("genuine selection metadata");
     let metadata = metadata.as_array().unwrap();
     assert_eq!(metadata.len(), 2);
+    let ordinary_ids = plan["returns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|returned| returned["dependencies"].as_array().unwrap())
+        .map(|read| read["id"].as_str().unwrap())
+        .collect::<HashSet<_>>();
     for returned in plan["returns"].as_array().unwrap() {
         let influences = returned["influences"].as_array().unwrap();
         assert_eq!(influences.len(), 8);
@@ -169,6 +176,7 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
         assert_eq!(fact.source, proof.source);
         assert_eq!(fact.slots, [Some(0)]);
         assert_eq!(fact.dependencies.len(), 3);
+        assert_eq!(fact.query_dependencies.len(), 3);
         assert_eq!(fact.fields.len(), 3);
         let query = &queries[index];
         assert_eq!(query["id"], fact.id);
@@ -197,6 +205,7 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
         assert_eq!(position["source"], query["source"]);
         assert_eq!(position["id"], fact.order_dependency.id);
         assert!(ids.insert(position["id"].as_str().unwrap()));
+        assert!(!ordinary_ids.contains(position["id"].as_str().unwrap()));
         assert_eq!(text(&db, fact.order_node), "turn.position");
         assert_eq!(
             program.types.symbol_types[&fact.order],
@@ -268,9 +277,29 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
                 .iter()
                 .position(|field| *field == name)
                 .unwrap();
-            assert_eq!(data[field_index]["id"], dependency.id);
+            let query_read = &fact.query_dependencies[field_index];
+            assert_eq!(data[field_index]["id"], query_read.id);
             assert_eq!(data[field_index]["field"], dependency.field_name);
             assert_eq!(data[field_index]["type"], dependency.type_id);
+            assert_eq!(data[field_index]["source"], query["source"]);
+            assert_ne!(query_read.id, dependency.id);
+            assert!(
+                ids.insert(query_read.id.as_str()),
+                "caller-specific query DATA identity"
+            );
+            assert!(
+                !ordinary_ids.contains(query_read.id.as_str()),
+                "query-only IDs cannot collide with any ordinary Return read"
+            );
+            assert_eq!(query_read.field, dependency.field);
+            assert_eq!(query_read.model, dependency.model);
+            assert_eq!(query_read.node, dependency.node);
+            assert_eq!(query_read.ty, dependency.ty);
+            assert_eq!(query_read.type_id, dependency.type_id);
+            assert_eq!(query_read.source, dependency.source);
+            assert_eq!(query_read.calls, dependency.calls);
+            assert_eq!(query_read.role, DependencyRole::Data);
+            assert!(query_read.query_id.is_none());
             for emitted_return in plan["returns"].as_array().unwrap() {
                 let original = emitted_return["dependencies"]
                     .as_array()
@@ -313,8 +342,8 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
     }
     assert_eq!(
         ids.len(),
-        8,
-        "six selection IDs plus each caller's position CONTROL"
+        14,
+        "six ordinary selection IDs, six distinct query DATA IDs and two position CONTROL IDs"
     );
 }
 
@@ -349,6 +378,7 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
         "query-order",
         "selection-type",
         "return-data",
+        "query-data-id-collision",
     ] {
         let mut changed = ir.clone();
         if mode == "source-schema" {
@@ -426,6 +456,9 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
                 "id" => fact.dependencies[0].id = fact.dependencies[1].id.clone(),
                 "caller" => fact.dependencies[0].calls = vec![other_call],
                 "query-id" => fact.id = other_id,
+                "query-data-id-collision" => {
+                    fact.query_dependencies[0].id = fact.dependencies[0].id.clone()
+                }
                 "order-control" => fact.order_dependency.role = DependencyRole::Data,
                 "selection-type" => {
                     fact.ty = ResolvedType::Array {
@@ -556,5 +589,71 @@ fn additional_selection_ids_do_not_publish_a_native_stored_message_receiver() {
     assert!(
         !raw.entry.js.contains("querySelections:"),
         "raw source inventory does not manufacture prepared operation metadata"
+    );
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let primary = Path::new("/Users/vince/Projects/canlang");
+    let installed = if primary
+        .join("packages/cloudflare/dist/native-catalog.json")
+        .is_file()
+    {
+        primary
+    } else {
+        root
+    };
+    let scratch = tempfile::tempdir().unwrap();
+    let source_path = scratch.path().join("source-transcript.can");
+    std::fs::write(&source_path, SOURCE).unwrap();
+    std::fs::write(
+        scratch.path().join("artifact.json"),
+        crate::codegen::artifact::to_json(&artifact),
+    )
+    .unwrap();
+    let runner = scratch.path().join("selection-binder.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+import {dirname,resolve} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),require=createRequire(resolve(process.argv[2],'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules,importVerifiedAssemblyModule}=await load('@canlang/cloudflare/runtime/modules');
+const {loadArtifactDescriptors}=await load('@canlang/state/invocation/registry');
+const state=dirname(require.resolve('@canlang/state'));
+const {checkScenarioResultDisclosurePlan}=await import(pathToFileURL(resolve(state,'invocation/scenario-receipt.js')));
+const {bindScenarioQuerySelection}=await import(pathToFileURL(resolve(state,'invocation/scenario-query-selection.js')));
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const assembly=await assembleModules({artifact,sourcePath:process.argv[3]},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const module=await importVerifiedAssemblyModule(assembly,artifact.modules[0].path,artifact);
+const plan=module.canScenarioQuerySources()['SourceTranscript.compose'];
+const selections=module.appDefinition.operations['SourceTranscript.compose'].querySelections;
+assert.deepEqual(checkScenarioResultDisclosurePlan(plan),plan);
+const loaded=loadArtifactDescriptors(artifact,{by:{role:'members'}});
+const bound={plan,artifactModels:new Map(artifact.models.map(model=>[model.name,model])),canonicalModels:loaded.models,valueSchema:loaded.valueSchema};
+assert.equal(selections.length,2);
+for(const metadata of selections) {
+ const profile=bindScenarioQuerySelection(bound,metadata);
+ assert.equal(profile.queryId,metadata.queryId);assert.equal(profile.type,'TextMessage[]');
+ assert.equal(profile.model,'SourceTranscript.Turn');
+ assert.deepEqual(profile.fields.map(field=>[field.name,field.dependencyId]),metadata.fields.map(field=>[field.name,field.dependencyId]));
+ assert.ok(profile.fields.find(field=>field.name==='attachments').fileProfile);
+}
+// These are literal loader/selection declarations, not an admitted call,
+// query execution, selected slot, row/File grant or native result receipt.
+const collision=structuredClone(plan);
+collision.queries[0].dependencies.find(dep=>dep.role==='data').id=selections[0].fields[0].dependencyId;
+assert.throws(()=>checkScenarioResultDisclosurePlan(collision));
+const wrong=structuredClone(selections[0]);wrong.fields[0].dependencyId=selections[1].fields[0].dependencyId;
+assert.throws(()=>bindScenarioQuerySelection(bound,wrong));
+"#).unwrap();
+    let executed = std::process::Command::new("node")
+        .arg(runner)
+        .arg(installed)
+        .arg(source_path)
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
     );
 }

@@ -631,6 +631,7 @@ fn checked_transcript_query_plan(
             || order.query_id.is_some()
             || field_type(program, ir, fact.order, fact.model)? != &order.ty
             || fact.dependencies.len() != 3
+            || fact.query_dependencies.len() != 3
             || fact.fields.len() != 3
             || fact.influences.len() != 4
         {
@@ -646,11 +647,12 @@ fn checked_transcript_query_plan(
         if order.id.is_empty() || !ids.insert(order.id.clone()) {
             return None;
         }
-        for ((field, read), name) in
-            fact.fields
-                .iter()
-                .zip(&fact.dependencies)
-                .zip(["role", "content", "attachments"])
+        for (((field, read), query_read), name) in fact
+            .fields
+            .iter()
+            .zip(&fact.dependencies)
+            .zip(&fact.query_dependencies)
+            .zip(["role", "content", "attachments"])
         {
             if field.name != name
                 || read.id.is_empty()
@@ -666,15 +668,28 @@ fn checked_transcript_query_plan(
                 || read.field_name != field.name
                 || read.ty != field.ty
                 || field_type(program, ir, read.field, fact.model)? != &read.ty
+                || query_read.id.is_empty()
+                || !ids.insert(query_read.id.clone())
+                || query_read.role != DependencyRole::Data
+                || query_read.query_id.is_some()
+                || query_read.source != read.source
+                || query_read.node != read.node
+                || query_read.calls != read.calls
+                || query_read.model != read.model
+                || query_read.model_name != read.model_name
+                || query_read.field != read.field
+                || query_read.field_name != read.field_name
+                || query_read.ty != read.ty
+                || query_read.type_id != read.type_id
             {
                 return None;
             }
             dependencies.push(ReceiptQueryDependency {
-                id: read.id.clone(),
-                source: origin(&read.source, entry),
+                id: query_read.id.clone(),
+                source: origin(&query_read.source, entry),
                 role: ReceiptRole::Data,
-                field: read.field_name.clone(),
-                type_id: read.type_id.clone(),
+                field: query_read.field_name.clone(),
+                type_id: query_read.type_id.clone(),
             });
         }
         for (influence, kind) in fact.influences.iter().zip([
@@ -771,11 +786,13 @@ fn checked_transcript_query_plan(
             return None;
         }
         for fact in [first, later] {
-            if returned
-                .dependencies
-                .iter()
-                .any(|read| read.id == fact.order_dependency.id)
-            {
+            if returned.dependencies.iter().any(|read| {
+                read.id == fact.order_dependency.id
+                    || fact
+                        .query_dependencies
+                        .iter()
+                        .any(|query| query.id == read.id)
+            }) {
                 return None;
             }
             for read in &fact.dependencies {
