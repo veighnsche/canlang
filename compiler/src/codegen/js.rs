@@ -1487,6 +1487,7 @@ pub(super) struct EmitDecisionSources<'a> {
     pub send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
 }
 
+#[cfg(test)]
 pub(super) fn emit_program_with_query_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -1505,6 +1506,27 @@ pub(super) fn emit_program_with_query_sources(
         Some(queries),
         Some(query_receipts),
         decisions,
+        None,
+    )
+}
+
+pub(super) fn emit_program_with_feasible_query_sources(
+    ir: &IrProgram,
+    native_receipts: bool,
+    db: &crate::source::SourceDb,
+    queries: &BTreeMap<String, serde_json::Value>,
+    query_receipts: &BTreeMap<String, super::scenario_receipts::NativeScenarioReceipt>,
+    decisions: EmitDecisionSources<'_>,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+) -> JsOutput {
+    emit_program_with_sources(
+        ir,
+        native_receipts,
+        Some(db),
+        Some(queries),
+        Some(query_receipts),
+        decisions,
+        feasibility,
     )
 }
 
@@ -1520,6 +1542,7 @@ fn emit_program_with_receipt_sources(
         None,
         None,
         EmitDecisionSources::default(),
+        None,
     )
 }
 
@@ -1532,6 +1555,7 @@ fn emit_program_with_sources(
         &std::collections::BTreeMap<String, super::scenario_receipts::NativeScenarioReceipt>,
     >,
     decisions: EmitDecisionSources<'_>,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     for handler in &ir.items {
@@ -1668,21 +1692,24 @@ fn emit_program_with_sources(
     if native_receipts {
         let models = emitter.collect_models();
         for (index, item) in ir.items.iter().enumerate() {
-            if let Some(recipe) = super::scenario_receipts::collect_native_scenario_receipt(
-                ir,
-                item,
-                &models,
-                &module_path(&entry_name),
-                emitter.value_types.as_ref(),
-                super::scenario_receipts::NativeReceiptSources {
-                    db,
-                    send_guards: emitter.send_guards,
-                    query_plan: query_receipts
-                        .and_then(|recipes| recipes.get(&item.canonical))
-                        .map(|recipe| &recipe.plan)
-                        .or_else(|| decisions.transcript_queries?.get(&item.canonical)),
-                },
-            ) {
+            if let Some(recipe) =
+                super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                    ir,
+                    item,
+                    &models,
+                    &module_path(&entry_name),
+                    emitter.value_types.as_ref(),
+                    super::scenario_receipts::NativeReceiptSources {
+                        db,
+                        send_guards: emitter.send_guards,
+                        query_plan: query_receipts
+                            .and_then(|recipes| recipes.get(&item.canonical))
+                            .map(|recipe| &recipe.plan)
+                            .or_else(|| decisions.transcript_queries?.get(&item.canonical)),
+                    },
+                    feasibility,
+                )
+            {
                 emitter.native_receipts.insert(item.id, recipe);
             } else if super::scenario_receipts::has_original_transcript_source(
                 ir,

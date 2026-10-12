@@ -49,6 +49,7 @@ pub mod model_policy_profile;
 mod read_predicates;
 pub mod scenario_calls;
 mod scenario_create_sources;
+mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
 mod send_guards;
@@ -154,6 +155,11 @@ pub fn emit(
         return (empty_artifact(sources.db), vec![diagnostic]);
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
+    let feasibility = sources
+        .options
+        .native_scenario_receipts
+        .then(|| scenario_feasibility::prepare(program, &ir, sources.db, sources.catalog))
+        .flatten();
     let mut query_sources = std::collections::BTreeMap::new();
     let mut query_receipts = std::collections::BTreeMap::new();
     let mut transcript_queries = std::collections::BTreeMap::new();
@@ -240,7 +246,7 @@ pub fn emit(
         .options
         .native_scenario_receipts
         .then(|| send_guards::prepare(program, &ir, sources.db, sources.catalog));
-    let js_out = js::emit_program_with_query_sources(
+    let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
         sources.db,
@@ -257,6 +263,7 @@ pub fn emit(
                 .as_ref()
                 .and_then(|guards| guards.as_ref().err()),
         },
+        feasibility.as_ref(),
     );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {
