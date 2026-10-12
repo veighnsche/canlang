@@ -597,11 +597,11 @@ async function appendStagedPublish(
     const oldValue = canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef);
     if (oldValue === null) continue;
     const sameKey = desiredDef.uniqueKeys.includes(key) &&
-      canonicalUniqueRowValue({data: stagedData, parent: live.parent ?? null}, key, desiredDef) === oldValue;
+      canonicalUniqueRowValue({data: stagedData, parent: row.parent}, key, desiredDef) === oldValue;
     if (renamed || !sameKey) uniqueReleases.push({model: source, keyName: key, keyValue: oldValue});
   }
   for (const key of desiredDef.uniqueKeys) {
-    const newValue = canonicalUniqueRowValue({data: stagedData, parent: live.parent ?? null}, key, desiredDef);
+    const newValue = canonicalUniqueRowValue({data: stagedData, parent: row.parent}, key, desiredDef);
     if (newValue === null) continue;
     const sameKey = oldDef.uniqueKeys.includes(key) &&
       canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef) === newValue;
