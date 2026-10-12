@@ -26,7 +26,7 @@ const ROOT = 'QueryLinkedDependency.start', CHILD = 'QueryLinkedDependency.reser
 const CREATED = asId('created-run'), cause = { cause: 'scenario' } as const, bounds = { maxRows: 10, maxWork: 1000 };
 const source = { path: 'query-linked-dependency.can', sha256: 'd'.repeat(64), module: 'query-linked-dependency.mjs' };
 let sequence = 100_000;
-function artifact(mandatory: 'field' | 'intrinsic' | undefined = undefined): ArtifactDescriptorSlice {
+function artifact(mandatory: 'field' | 'intrinsic' | undefined = undefined, suppliedPosition = false): ArtifactDescriptorSlice {
   return { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="QueryLinkedDependency.start";', map: {
       version: 3, file: source.module, sources: [source.path], sourcesContent: [null], names: [], mappings: '',
@@ -39,17 +39,22 @@ function artifact(mandatory: 'field' | 'intrinsic' | undefined = undefined): Art
     ] }, { name: RUN, deleteMode: 'remove', fields: [
       ...['account', 'title'].map(name => ({ name, field: { kind: 'string' as const }, required: true, serverOnly: false })),
     ] }],
-    operations: [ROOT, CHILD].map(name => ({ name, kind: 'scenario' as const, description: '', inputs: { fields: [{ name: 'branch', field: { kind: 'ref' as const, model: PARENT, requireVersion: true }, required: true }] },
+    operations: [ROOT, CHILD].map(name => ({ name, kind: 'scenario' as const, description: '', inputs: { fields: [{ name: 'branch', field: { kind: 'ref' as const, model: PARENT, requireVersion: true }, required: true },
+      ...(suppliedPosition ? [{ name: 'turn', field: { kind: 'ref' as const, model: TURN, requireVersion: true }, required: true }] : [])] },
       result: { type: RUN as CanTypeId, disclosure: { version: 1 as const, source,
         ...(name === CHILD ? { queries: [{ id: 'turns', source, model: TURN,
+          ...(suppliedPosition ? { parent: { source, model: PARENT, origin: { kind: 'admitted-reference' as const, parameter: 'branch' } } } : {}),
           order: [{ field: 'id', direction: 'asc' as const }], limit: null, archived: 'exclude' as const,
           dependencies: [{ id: 'parent-control', source, role: 'control' as const, field: 'parent', type: PARENT as CanTypeId }, { id: 'account-control', source, role: 'control' as const, field: 'account', type: 'text' as CanTypeId },
+            ...(suppliedPosition ? [{ id: 'prior-position', source, role: 'control' as const, field: 'position', type: 'int' as CanTypeId }] : []),
           ],
         }] } : {}),
         returns: [{ id: name === ROOT ? 'root-return' : 'child-return', source,
           dependencies: name === CHILD ? [
-            { id: 'branch-parent', queryId: 'turns', source, role: 'control' as const, model: PARENT, field: 'parent', type: CONVERSATION as CanTypeId },
-            { id: 'supplied-branch-parent', queryId: 'turns', source, role: 'control' as const, model: PARENT, field: 'parent', type: CONVERSATION as CanTypeId },
+            ...(suppliedPosition ? [{ id: 'supplied-position', queryId: 'turns', source, role: 'control' as const, model: TURN, field: 'position', type: 'int' as CanTypeId }] : [
+              { id: 'branch-parent', queryId: 'turns', source, role: 'control' as const, model: PARENT, field: 'parent', type: CONVERSATION as CanTypeId },
+              { id: 'supplied-branch-parent', queryId: 'turns', source, role: 'control' as const, model: PARENT, field: 'parent', type: CONVERSATION as CanTypeId },
+            ]),
             ...(mandatory === 'field' ? [{ id: 'mandatory-title', source, role: 'control' as const, model: PARENT, field: 'title', type: 'text' as CanTypeId }] : []),
           ] : [],
           ...(name === CHILD && mandatory === 'intrinsic' ? { intrinsics: [{ id: 'mandatory-operation', source, role: 'control' as const, kind: 'operation-id' as const, type: 'text' as CanTypeId }] } : {}),
@@ -59,13 +64,15 @@ function artifact(mandatory: 'field' | 'intrinsic' | undefined = undefined): Art
       } } })),
   };
 }
-async function world(options: { domain?: 'empty' | 'false'; mandatory?: 'field' | 'intrinsic'; queryOwnedParents?: boolean } = {}) {
+async function world(options: { domain?: 'empty' | 'false'; mandatory?: 'field' | 'intrinsic'; queryOwnedParents?: boolean;
+  suppliedPosition?: boolean; transform?: (artifact: ArtifactDescriptorSlice) => void } = {}) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const reader = await memberships.createMembership({ team_id: TEAM, user_id: 'turn-reader', is_owner: false, roles: [] });
   const parentReader = await memberships.createMembership({ team_id: TEAM, user_id: 'parent-reader', is_owner: false, roles: [] });
-  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(
-    artifact(options.mandatory), { by: 'members' });
+  const store = createMemoryStorage(), original = artifact(options.mandatory, options.suppliedPosition);
+  options.transform?.(original);
+  const loaded = loadArtifactDescriptors(original, { by: 'members' });
   const root = loaded.registry.get(ROOT), child = loaded.registry.get(CHILD);
   assert.ok(root && isGeneratedOperationDef(root)); assert.ok(child && isGeneratedOperationDef(child));
   const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, serverInits: loaded.serverInits,
@@ -84,11 +91,18 @@ async function world(options: { domain?: 'empty' | 'false'; mandatory?: 'field' 
     ['turn-a', 'caller', 'branch-a'], ['turn-b', 'caller', 'branch-b'],
     ['turn-c', 'caller', 'branch-c'], ['turn-d', 'other', 'branch-a'],
   ] as const) {
-    const row: StoredRow = { ...makeRow({ id, data: { account: options.domain === 'false' ? 'other' : account, held: '7' } }), parent: { model: PARENT, id: asId(branch) } };
+    const row: StoredRow = { ...makeRow({ id, data: { account: options.domain === 'false' ? 'other' : account, held: '7',
+      ...(options.suppliedPosition ? { position: id === 'turn-a' ? '1' : '6' } : {}) } }), parent: { model: PARENT, id: asId(branch) } };
     await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: TURN, row }] }));
     const stored = await store.load(TURN, row.id); assert.ok(stored); rows.push(stored);
   }
-  const access = { turn: true, run: true, parent: true, conversation: true, queryParent: true };
+  if (options.suppliedPosition) {
+    const row: StoredRow = { ...makeRow({ id: 'supplied-turn', data: { account: 'caller', held: '7', position: '5' } }),
+      parent: { model: PARENT, id: asId('branch-b') } };
+    await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: TURN, row }] }));
+    const stored = await store.load(TURN, row.id); assert.ok(stored); rows.push(stored);
+  }
+  const access = { turn: true, run: true, parent: true, conversation: true, queryParent: true, position: true };
   const policy = buildPolicyTable([
     { model: CONVERSATION, secretFields: [], grants: [{ by: 'members', fields: ['title'] }] },
     { model: PARENT, secretFields: [], grants: [{ by: 'members', fields: ['title'] }] },
@@ -104,6 +118,15 @@ async function world(options: { domain?: 'empty' | 'false'; mandatory?: 'field' 
       context.membership?.status === 'active',
     }] });
   }
+  if (options.suppliedPosition) {
+    const original = readPolicies.get(TURN)!;
+    assert.ok('grants' in original);
+    readPolicies.set(TURN, { ...original, grants: original.grants.flatMap(grant => [
+      { ...grant, fields: grant.fields.filter(field => field !== 'position') },
+      { fields: ['position'], read: async observation => await grant.read(observation) &&
+        (observation.row.id !== 'supplied-turn' || access.position) },
+    ]) });
+  }
   for (const def of [root, child]) bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies });
   const queryPolicy = new Map(policy), queryReads = new Map(readPolicies);
   if (options.queryOwnedParents) {
@@ -116,7 +139,8 @@ async function world(options: { domain?: 'empty' | 'false'; mandatory?: 'field' 
     ...(options.queryOwnedParents ? { readPolicies: queryReads } : {}) });
   return { store, memberships, caller, reader, parentReader, root, child, table, policy, queryPolicy, queryReads, access, readPolicies, rows,
  registry: loaded.registry, app: APP, source: 'component', clock: { nowMs: () => FIXED_NOW },
-    identity: makeIdentity({ membership: caller }), envelope: makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), { branch: { id: 'branch-a', version: '1' } }) };
+    identity: makeIdentity({ membership: caller }), envelope: makeEnvelope(ROOT, uuidv7(FIXED_NOW, ++sequence), { branch: { id: 'branch-a', version: '1' },
+      ...(options.suppliedPosition ? { turn: { id: 'supplied-turn', version: '1' } } : {}) }) };
 }
 type World = Awaited<ReturnType<typeof world>>;
 type Session = Awaited<ReturnType<typeof beginScenarioReceiptMutation>>;
@@ -317,4 +341,157 @@ test('direct external CHILD empty query keeps its finalized root lifetime for re
   assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, { id: CREATED });
   assert.equal((await invoke(request)).status, 'replayed'); assert.equal(executions, 1); assert.equal(predicates, 0);
   assert.equal((await w.store.load(RUN, CREATED))!.data.title, '0');
+});
+
+type PositionMode = 'normal' | 'copy-row' | 'foreign-ref' | 'wrong-version' | 'wrong-field' | 'wrong-dependency' |
+  'copy-call' | 'foreign-store' | 'duplicate' | 'missing-left-marker' | 'after-query';
+function bindPositionChild(w: World, mode: PositionMode = 'normal', hook?: QueryHook) {
+  let executions = 0, predicates = 0, observations = 0;
+  const order: string[] = [];
+  bindScenarioReceiptCallProducer(w.root, { source, app: APP, registry: w.registry,
+    sites: [{ id: 'reserve-site', source, kind: 'operation', targets: [{ operation: CHILD, interface: w.child.descriptor }],
+      resultType: RUN as CanTypeId }], prepare: (_def, inputs) => inputs as ClosedInputs,
+    execute: async frame => {
+      executions++;
+      const supplied = frame.call.recordRefs.find(reference => reference.param === 'turn'); assert.ok(supplied);
+      const report = () => ({ dependencyId: mode === 'wrong-dependency' ? 'account-control' : 'supplied-position', model: TURN,
+        row: mode === 'copy-row' ? { ...supplied.row } : mode === 'wrong-version' ? { ...supplied.row, version: (supplied.row.version + 1) as StoredRow['version'] }
+          : mode === 'foreign-ref' ? frame.parent.recordRefs.find(reference => reference.param === 'turn')!.row : supplied.row,
+        field: mode === 'wrong-field' ? 'held' : 'position' });
+      const observe = () => observeScenarioReceiptDependency(mode === 'copy-call' ? { ...frame.call } : frame.call,
+        mode === 'foreign-store' ? { ...w.store } : w.store, report());
+      const result = await executeScenarioReceiptQuery(frame.call, w.store, { queryId: 'turns', predicate: async ({ slot, record }) => {
+        predicates++; order.push(`${record.id}:account`);
+        const account = record.data.account; observeScenarioReceiptQueryDependency(frame.call, w.store, { slot, dependencyId: 'account-control' });
+        if (account !== 'caller') return false;
+        order.push(`${record.id}:prior-position`);
+        const prior = record.data.position;
+        if (mode !== 'missing-left-marker') observeScenarioReceiptQueryDependency(frame.call, w.store, { slot, dependencyId: 'prior-position' });
+        order.push(`${record.id}:supplied-position`);
+        const position = supplied.row.data.position;
+        await observe(); observations++;
+        if (mode === 'duplicate') await observe();
+        return BigInt(prior as string) < BigInt(position as string);
+      } });
+      if (mode === 'after-query') await observe();
+      const count = await bindScenarioReceiptQueryCount(frame.call, w.store, { query: result.query });
+      await hook?.(frame.call, frame.session, result);
+      await frame.session.stage({ op: 'create', model: RUN, id: CREATED, data: { account: 'caller', title: count.toString() } }, cause);
+      const row = await frame.session.read(RUN, CREATED); assert.ok(row);
+      const wire = await bindScenarioReceiptModelResult(frame.call, w.store, { returnId: 'child-return', row });
+      selectScenarioReceiptReturn(frame.call, w.store, 'child-return'); return wire;
+    } });
+  return { get executions() { return executions; }, get predicates() { return predicates; }, get observations() { return observations; }, order };
+}
+function positionInput(w: World, observed?: (receipt: Receipt) => void, after?: (call: AdmittedCall, session: Session) => Promise<void>) {
+  return { ...w, ...(observed === undefined ? {} : { observeCommittedReceipt: observed }), execute: async (call: AdmittedCall) => {
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    const result = await invokeScenarioReceiptCall(call, w.store, { site: 'reserve-site', target: CHILD,
+      inputs: { branch: { id: 'branch-a', version: '1' }, turn: { id: 'supplied-turn', version: '1' } } });
+    await after?.(call, session);
+    const row = await session.read(RUN, CREATED); assert.ok(row);
+    assert.deepEqual(result, { id: CREATED });
+    const wire = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row });
+    return finish(call, w, session, wire);
+  } };
+}
+
+test('query-exclusive supplied position preserves candidate order, source distinction and zero empty/short-circuit reads', async () => {
+  for (const domain of [undefined, 'empty', 'false'] as const) {
+    const w = await world({ suppliedPosition: true, ...(domain === undefined ? {} : { domain }) });
+    if (domain !== undefined) w.access.position = false; // Unevaluated supplied scalar grants are not required.
+    const producer = bindPositionChild(w); let receipt: Receipt | undefined;
+    const request = positionInput(w, saved => { receipt = saved; });
+    assert.equal((await invoke(request)).status, 'committed'); assert.ok(receipt);
+    const saved = readScenarioReceiptAssociation(receipt)!.calls![0]!.scenario!, query = saved.queries![0]!;
+    assert.equal(query.candidates.length, domain === 'empty' ? 0 : 2);
+    assert.deepEqual(query.selectedIndices.map(index => query.candidates[index]!.row.id), domain === undefined ? ['turn-a'] : []);
+    const actual = saved.observations.filter(observation => observation.dependencyId === 'supplied-position');
+    assert.equal(actual.length, domain === undefined ? 1 : 0);
+    if (domain === undefined) {
+      assert.equal(actual[0]!.row.id, 'supplied-turn'); assert.equal(actual[0]!.row.version, 1);
+      assert.equal(actual[0]!.row.data.position, '5'); assert.notEqual(actual[0]!.row.id, query.candidates[0]!.row.id);
+      assert.deepEqual(producer.order, ['turn-a:account', 'turn-a:prior-position', 'turn-a:supplied-position', 'turn-d:account']);
+    } else assert.equal(producer.observations, 0);
+    assert.equal((await w.store.load(RUN, CREATED))!.data.title, domain === undefined ? '1' : '0');
+    assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, { id: CREATED });
+    const retained = structuredClone(receipt), before = await w.store.load(RUN, CREATED), revision = await w.store.readRevision();
+    assert.equal((await invoke(request)).status, 'replayed'); assert.equal(producer.executions, 1);
+    assert.deepEqual(receipt, retained); assert.deepEqual(await w.store.load(RUN, CREATED), before); assert.equal(await w.store.readRevision(), revision);
+  }
+});
+
+test('query-exclusive supplied position refuses copied, foreign, wrong occurrence/field/version and closed candidate evidence', async () => {
+  for (const mode of ['copy-row', 'foreign-ref', 'wrong-version', 'wrong-field', 'wrong-dependency', 'copy-call', 'foreign-store',
+    'duplicate', 'missing-left-marker', 'after-query'] as const) {
+    const w = await world({ suppliedPosition: true }); bindPositionChild(w, mode);
+    await assert.rejects(invoke(positionInput(w)), refuses, mode); await unchanged(w);
+  }
+  for (const mode of ['optional-reference', 'unversioned-reference', 'data-role', 'nullable-position', 'wrong-query'] as const) {
+    let w: World | undefined;
+    await assert.rejects(async () => {
+      w = await world({ suppliedPosition: true, transform: original => {
+        const child = original.operations!.find(operation => operation.name === CHILD)!;
+        const index = child.inputs.fields.findIndex(field => field.name === 'turn'), reference = child.inputs.fields[index]!;
+        if (mode === 'optional-reference') child.inputs.fields[index] = { ...reference, required: false };
+        if (mode === 'unversioned-reference') {
+          assert.equal(reference.field.kind, 'ref');
+          if (reference.field.kind === 'ref') child.inputs.fields[index] = { ...reference, field: { ...reference.field, requireVersion: false } };
+        }
+        if (mode === 'data-role' || mode === 'wrong-query') {
+          const returned = child.result!.disclosure!.returns[0]!;
+          Reflect.set(returned.dependencies, '0', { ...returned.dependencies[0]!, ...(mode === 'data-role' ? { role: 'data' } : { queryId: 'foreign-query' }) });
+        }
+        if (mode === 'nullable-position') {
+          const fields = original.models!.find(model => model.name === TURN)!.fields;
+          const index = fields.findIndex(field => field.name === 'position'); fields[index] = { ...fields[index]!, nullable: true };
+        }
+      } });
+      bindPositionChild(w); await invoke(positionInput(w));
+    }, error => error instanceof Error, mode);
+    if (w !== undefined) await unchanged(w);
+  }
+});
+
+test('query-exclusive supplied position first denial and final source/ancestor/Identity loss roll back; saved recovery does not resample', async () => {
+  const denied = await world({ suppliedPosition: true }); denied.access.position = false;
+  const deniedProducer = bindPositionChild(denied);
+  await assert.rejects(invoke(positionInput(denied)), error => error instanceof StateError && error.code === 'forbidden');
+  assert.equal(deniedProducer.predicates, 1); assert.equal(deniedProducer.observations, 0); await unchanged(denied);
+  for (const loss of ['position', 'parent', 'conversation', 'related-member'] as const) {
+    const revoke = async (w: World) => {
+      if (loss === 'position') w.access.position = false;
+      else if (loss === 'parent') w.access.parent = false;
+      else if (loss === 'conversation') w.access.conversation = false;
+      else await w.memberships.removeMembership(w.reader.membership_id);
+    };
+    const failed = await world({ suppliedPosition: true }); bindPositionChild(failed);
+    await assert.rejects(invoke(positionInput(failed, undefined, async () => revoke(failed))), refuses, loss); await unchanged(failed);
+    const w = await world({ suppliedPosition: true }), producer = bindPositionChild(w); let receipt: Receipt | undefined;
+    const request = positionInput(w, saved => { receipt = saved; });
+    await invoke(request); assert.ok(receipt); const retained = structuredClone(receipt), predicates = producer.predicates;
+    await revoke(w);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] }, loss);
+    assert.equal((await invoke(request)).status, 'replayed'); assert.equal(producer.executions, 1); assert.equal(producer.predicates, predicates);
+    assert.deepEqual(receipt, retained);
+  }
+});
+
+test('query-exclusive supplied position saved occurrence tampering and late outer failures refuse without new effects', async () => {
+  const w = await world({ suppliedPosition: true }); bindPositionChild(w); let receipt: Receipt | undefined;
+  await invoke(positionInput(w, saved => { receipt = saved; })); assert.ok(receipt);
+  for (const mode of ['missing', 'foreign-slot', 'wrong-row'] as const) {
+    const altered: Receipt = structuredClone(receipt); assert.equal(altered.outcome.status, 'committed');
+    if (altered.outcome.status !== 'committed') throw new Error('Expected committed receipt');
+    const saved = altered.outcome.scenario!.calls![0]!.scenario!;
+    if (mode === 'missing') Reflect.set(saved.queries![0]!.candidates[0]!, 'dependencies', []);
+    if (mode === 'foreign-slot') Reflect.set(saved.queries![0]!.candidates[1]!, 'dependencies', ['account-control', 'supplied-position']);
+    if (mode === 'wrong-row') Reflect.set(saved.observations[0]!.row, 'id', asId('foreign-turn'));
+    await assert.rejects(projectScenarioReceipt({ ...w, receipt: altered }), refuses, mode);
+  }
+  const failed = await world({ suppliedPosition: true }); bindPositionChild(failed, 'normal', async (_call, session) => {
+    await session.stage({ op: 'update', model: TURN, id: asId('turn-a'), data: { held: '8' } }, cause);
+  });
+  await assert.rejects(invoke(positionInput(failed, undefined, async () => { throw new StateError('rule_failed', 'late outer scalar refusal'); })), refuses);
+  await unchanged(failed); assert.deepEqual(await failed.store.historyFor(TURN, asId('turn-a')), []);
 });
