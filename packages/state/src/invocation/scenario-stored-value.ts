@@ -71,6 +71,8 @@ export interface StoredNominalFieldProfile {
   readonly type: CanTypeId;
   readonly array: boolean;
   readonly nullable: boolean;
+  /** Declared File leaves require a separate receiving authority join, even when empty. */
+  readonly hasFiles: boolean;
 }
 type Bound = { readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonicalModels: readonly CanonicalModelDescriptor[]; readonly valueSchema: NormalizedSchema | undefined };
@@ -78,8 +80,9 @@ const profiles = new WeakMap<StoredNominalFieldProfile, { readonly schema: Norma
   readonly constraint: ReturnType<typeof modelFieldConstraintSchema> }>();
 
 /** Unknown nominals cannot acquire model identity through Values' ref fallback. */
-function checkSchemaClosure(schema: NormalizedSchema, root: string, bound: Bound): void {
+function checkSchemaClosure(schema: NormalizedSchema, root: string, bound: Bound, protectedFiles = false): boolean {
   const visited = new Set<string>(); let nodes = 0;
+  let hasFiles = false;
   const models = new Set(bound.canonicalModels.map(model => model.name as string));
   const inspect = (type: string, depth: number): void => {
     if (++nodes > 20_000 || depth > 32) return invalid('schema exceeds its finite budget.');
@@ -106,12 +109,18 @@ function checkSchemaClosure(schema: NormalizedSchema, root: string, bound: Bound
       if (!models.has(name) || artifact?.name !== name) return invalid('nested nominal lacks its same-load owning declaration.');
       return;
     }
+    if (base.kind === 'file') {
+      if (!protectedFiles) return invalid('nested protected or unsupported value requires its defining join.');
+      hasFiles = true; return;
+    }
     if (!['scalar', 'stringlike', 'enum', 'user'].includes(base.kind)) return invalid('nested protected or unsupported value requires its defining join.');
   };
   inspect(root, 0);
+  return hasFiles;
 }
 
-export function storedNominalField(bound: Bound, model: ModelName, field: string, type: unknown): StoredNominalFieldProfile {
+export function storedNominalField(bound: Bound, model: ModelName, field: string, type: unknown,
+  options?: { readonly protectedFiles?: true }): StoredNominalFieldProfile {
   const nominal = storedNominalType(type), parsed = parseTypeId(nominal);
   if (parsed.base.kind !== 'nominal') return invalid('nominal field required.');
   if (typeof field !== 'string' || field.length === 0 || field.includes('.') ||
@@ -139,9 +148,9 @@ export function storedNominalField(bound: Bound, model: ModelName, field: string
       if (Object.hasOwn(canonical, key) !== Object.hasOwn(authored, key) ||
           Object.hasOwn(canonical, key) && stableStringify(canonical[key]) !== stableStringify(authored[key])) return invalid('owning declarations disagree.');
     }
-    checkSchemaClosure(schema, nominal, bound);
+    const hasFiles = checkSchemaClosure(schema, nominal, bound, options?.protectedFiles === true);
     const constraint = modelFieldConstraintSchema(canonical, schema);
-    const profile = Object.freeze({ type: nominal, array: parsed.array, nullable: parsed.nullable });
+    const profile = Object.freeze({ type: nominal, array: parsed.array, nullable: parsed.nullable, hasFiles });
     profiles.set(profile, { schema, constraint }); return profile;
   } catch (error) { if (error instanceof StateError) throw error; return invalid('invalid owning contract profile or constraints.'); }
 }
@@ -159,4 +168,44 @@ export function storedNominalWire(profile: StoredNominalFieldProfile, wire: unkn
       if (stableStringify(encodeValue(profile.type, checked['value']!)) !== stableStringify(saved)) return invalid('stored contract violates receiving normalization.');
     }
   } catch (error) { if (error instanceof StateError) throw error; return invalid('stored contract violates its owning Values schema or constraints.'); }
+}
+
+/** Ordered declared File wires only. This validates no bytes, receiving origin,
+ * permissions or physical store, and cannot promote ordinary model references. */
+export function storedNominalFileRefs(profile: StoredNominalFieldProfile, wire: unknown): readonly string[] {
+  const owner = profiles.get(profile);
+  if (owner === undefined) return invalid('authentic owning contract profile required.');
+  const saved = data(wire);
+  storedNominalWire(profile, saved);
+  const refs: string[] = [];
+  let nodes = 0;
+  const visit = (type: string, value: unknown, depth: number): void => {
+    if (++nodes > 20_000 || depth > 32) return invalid('File traversal exceeds its finite budget.');
+    const parsed = parseTypeId(type);
+    if (value === null) return;
+    if (parsed.array) {
+      if (!Array.isArray(value)) return invalid('declared File container required.');
+      const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+      for (const item of value) visit(element, item, depth + 1);
+      return;
+    }
+    if (parsed.base.kind === 'file') {
+      // Values has already checked the exact canonical File wire; no raw id or
+      // receipt/model/version shape is accepted by this traversal.
+      refs.push((value as { id: string }).id);
+      return;
+    }
+    if (parsed.base.kind !== 'nominal') return;
+    const name = parsed.base.path, contract = owner.schema.contracts[name];
+    if (contract !== undefined) {
+      for (const [name, field] of Object.entries(contract.fields)) {
+        if (Object.hasOwn(value as object, name)) visit(field.typeId, (value as Record<string, unknown>)[name], depth + 1);
+      }
+      return;
+    }
+    const alias = owner.schema.aliases?.[name];
+    if (alias !== undefined) visit(alias.typeId, value, depth + 1);
+  };
+  visit(profile.type, saved, 0);
+  return Object.freeze(refs);
 }

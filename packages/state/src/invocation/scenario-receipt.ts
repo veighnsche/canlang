@@ -38,7 +38,7 @@ import { checkQueries, checkQueryProjection, disclosureType, checkQueryInventory
 import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 export type { ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, scenarioFileWireRefs, type ScenarioFileFieldProfile } from './scenario-file-assignment.js';
-import { storedNominalType, storedNominalField, storedNominalWire, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
+import { storedNominalType, storedNominalField, storedNominalWire, storedNominalFileRefs, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
 import { storedReferenceField, storedReferenceWire, type StoredReferenceFieldProfile } from './scenario-stored-reference.js';
 import { FenceConflictError } from '../storage/port.js';
 import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences,
@@ -880,7 +880,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       if (!referenceDependencies.has(dep.id)) referenceDependencies.set(dep.id, Object.freeze({ dependency: dep,
         profile: storedReferenceField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type) }));
     } else if (!nominalDependencies.has(dep.id)) {
-      const profile = storedNominalField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type);
+      const profile = storedNominalField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type, { protectedFiles: true });
       nominalDependencies.set(dep.id, Object.freeze({ dependency: dep, profile }));
     }
   }
@@ -1078,7 +1078,8 @@ const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptRef
 export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef, producer: ScenarioReceiptReferenceProducer): void {
   const bound = boundPlans.get(def);
   const modelInputs = frameworkModelInputs.get(def);
-  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
+  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 &&
+      ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles) && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
       !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
       ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) || invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
@@ -1113,6 +1114,18 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if ([...bound.fileDependencies.values()].some(value => {
     const read = readPolicies?.get(value.dependency.model); return read === undefined || !('grants' in read);
   })) return invalid('stored File dependencies require their complete original source field grants.');
+  for (const value of bound.nominalDependencies.values()) if (value.profile.hasFiles) {
+    let model: ModelName | undefined = value.dependency.model;
+    const seen = new Set<ModelName>();
+    while (model !== undefined) {
+      const declaration = bound.artifactModels.get(model), read = readPolicies?.get(model);
+      if (seen.has(model) || declaration === undefined || read === undefined || read.parent !== declaration.parent ||
+          !('grants' in read) && (!policy.has(model) || model === value.dependency.model)) {
+        return invalid('protected stored contracts require their exact complete source and ancestor policies.');
+      }
+      seen.add(model); model = declaration.parent as ModelName | undefined;
+    }
+  }
   if ([...bound.idDependencies.values()].some(dependency => {
     const read = readPolicies?.get(dependency.model); return read === undefined || !('grants' in read);
   })) return invalid('row id dependencies require their complete original source field grants.');
@@ -2776,7 +2789,7 @@ async function observeReferenceAuthority(call: AdmittedCall, store: StoragePort,
  * physical Files producer. No wire/reference shape issues an observation. */
 async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort, owner: ReceiptOwnerSession,
   state: Capture, dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number],
-  row: StoredRow, profile: ScenarioFileFieldProfile, observations: readonly FinalizedFileObservation[]): Promise<{
+  row: StoredRow, profile: ScenarioFileFieldProfile | StoredNominalFieldProfile, observations: readonly FinalizedFileObservation[]): Promise<{
     readonly files: readonly RetainedFinalizedFile[]; readonly revalidate: () => Promise<void>;
   }> {
   const source = referenceProducers.get(call.def as GeneratedOperationDef), producer = fileProducers.get(call.def as GeneratedOperationDef);
@@ -2785,7 +2798,8 @@ async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort
       !('grants' in read) || producer?.app !== call.context.app || owner.callGuards.length >= MAX_ITEMS ||
       owner.storedFileChecks.length >= MAX_ITEMS) return invalid('stored File source requires its installed original grants and receiving Files producer.');
   const receiving = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
-  const wire = dependencyObservedWire(dependency, row), refs = [...new Set(scenarioFileWireRefs(profile, wire))];
+  const fileRefs = (wire: unknown) => 'hasFiles' in profile ? storedNominalFileRefs(profile, wire) : scenarioFileWireRefs(profile, wire);
+  const wire = dependencyObservedWire(dependency, row), refs = [...new Set(fileRefs(wire))];
   if (!Array.isArray(observations) || Object.getPrototypeOf(observations) !== Array.prototype) return invalid('own dense File observation array required.');
   const length = Object.getOwnPropertyDescriptor(observations, 'length');
   if (length === undefined || !('value' in length) || length.value !== refs.length ||
@@ -2823,7 +2837,7 @@ async function observeStoredFileAuthority(call: AdmittedCall, store: StoragePort
     // An id-only/subfield grant must not pass by coinciding with an empty array.
     if (projected.record === null || !projected.grants.some(grant => grant.fields.includes(dependency.field)) ||
         !Object.hasOwn(current.data, dependency.field)) return false;
-    try { scenarioFileWireRefs(profile, current.data[dependency.field]); }
+    try { fileRefs(current.data[dependency.field]); }
     catch { return false; }
     const original = projectSourceRowFields(row, projected.grants, read.secretFields);
     return Object.hasOwn(original.data, dependency.field) && stableStringify(original.data[dependency.field]) === stableStringify(wire);
@@ -3060,11 +3074,11 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     let referenceRevalidate: (() => Promise<void>) | undefined;
     if (id !== undefined) referenceRevalidate = await observeRowIdAuthority(call, store, owner, state, row, observed.model, dependency.id, admitted !== undefined);
     let files: readonly RetainedFinalizedFile[] | undefined;
-    if (file !== undefined) {
+    if (file !== undefined || nominal?.profile.hasFiles === true) {
       if (owner === undefined || input.files === undefined) return invalid('stored File capture requires the actual owner row and genuine File observations.');
-      const captured = await observeStoredFileAuthority(call, store, owner, state, dependency, row, file.profile, input.files);
+      const captured = await observeStoredFileAuthority(call, store, owner, state, dependency, row, file?.profile ?? nominal!.profile, input.files);
       files = captured.files; referenceRevalidate = captured.revalidate;
-    } else if (Object.hasOwn(input, 'files')) return invalid('File facts are only supported for the declared stored File array dependency.');
+    } else if (Object.hasOwn(input, 'files')) return invalid('File facts require the declared stored File or protected contract dependency.');
     if (reference !== undefined) {
       if (owner === undefined) return invalid('source reference capture requires its actual current-stage owner session.');
       if (linkedQuery !== undefined) {
@@ -3443,10 +3457,12 @@ function readSavedScenarioAssociation(receipt: Receipt,
     const dependency = returned.dependencies.find(dep => dep.id === observation['dependencyId']);
     if (dependency === undefined || dependency.model !== observation['model']) return invalid('foreign saved dependency.');
     const row = checkedRow(observation['row']); savedDependencyWire(dependency.type, dependencyObservedWire(dependency, row)); paths(observation['secretFields']);
-    if (dependency.type === 'file[]') {
-      const refs = new Set(savedFileRefs(dependency.type, dependencyObservedWire(dependency, row)));
+    if (dependency.type === 'file[]' || Object.hasOwn(observation, 'files')) {
+      const refs = dependency.type === 'file[]' ? new Set(savedFileRefs(dependency.type, dependencyObservedWire(dependency, row))) : null;
+      if (refs === null) savedNominalWire(dependency.type, dependencyObservedWire(dependency, row));
       const files = list(observation['files']).map(checkRetainedScenarioFile);
-      if (files.length !== refs.size || new Set(files.map(file => file.ref)).size !== files.length || files.some(file => !refs.has(file.ref))) {
+      if (new Set(files.map(file => file.ref)).size !== files.length || refs !== null &&
+          (files.length !== refs.size || files.some(file => !refs.has(file.ref)))) {
         return invalid('saved stored File dependency omitted its exact distinct File census.');
       }
       for (const file of files) {
@@ -3454,7 +3470,7 @@ function readSavedScenarioAssociation(receipt: Receipt,
           file.receiver.team === receipt.identity.principal && receipt.identity.owner === 'app' ? null : receipt.identity.owner);
         if (stableStringify(file.receiver) !== stableStringify(expected)) return invalid('stored File dependency receiver differs from its receipt.');
       }
-    } else if (Object.hasOwn(observation, 'files')) return invalid('foreign File dependency census.');
+    }
   }
   checkSavedLinkedDependencies(returned, observations as DependencyObservation[],
     (value['queries'] ?? []) as ScenarioReceiptQueryObservation[]);
@@ -3587,7 +3603,8 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     call.scenario === undefined ? [] : [{ def: input.registry.get(call.target) as GeneratedOperationDef, association: call.scenario }])]
     .flatMap(saved => saved.association.observations.filter(entry =>
       saved.association.plan.returns.find(returned => returned.id === saved.association.returnId)!.dependencies.some(dep =>
-        dep.id === entry.dependencyId && dep.type === 'file[]')).map(observation => ({
+        dep.id === entry.dependencyId && (dep.type === 'file[]' ||
+          boundPlans.get(saved.def)?.nominalDependencies.get(dep.id)?.profile.hasFiles === true))).map(observation => ({
           def: saved.def, dependency: saved.association.plan.returns.find(returned => returned.id === saved.association.returnId)!.dependencies.find(dep => dep.id === observation.dependencyId)!,
           observation: observation as DependencyObservation,
         })));
@@ -3634,11 +3651,15 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     // source projections already cover original grants and ancestors; the
     // following Identity snapshot and State fence protect those decisions.
     for (const saved of storedFiles) {
-      const bound = boundPlans.get(saved.def), profile = bound?.fileDependencies.get(saved.dependency.id);
+      const bound = boundPlans.get(saved.def), file = bound?.fileDependencies.get(saved.dependency.id),
+        nominal = bound?.nominalDependencies.get(saved.dependency.id), profile = file ?? nominal;
       const current = await input.store.load(saved.observation.model, saved.observation.row.id);
       if (profile === undefined || stableStringify(profile.dependency) !== stableStringify(saved.dependency) || current === null ||
           !sameModelLifetime(saved.observation.row, current) || !Object.hasOwn(current.data, saved.dependency.field)) return { result: null, records: [] };
-      try { scenarioFileWireRefs(profile.profile, current.data[saved.dependency.field]); }
+      try {
+        if (file !== undefined) scenarioFileWireRefs(file.profile, current.data[saved.dependency.field]);
+        else storedNominalFileRefs(nominal!.profile, current.data[saved.dependency.field]);
+      }
       catch { return { result: null, records: [] }; }
     }
     const records: ProjectedRecord[] = [];
@@ -3802,16 +3823,21 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
           !bound.plan.queries?.some(query => query.id === dependency.queryId &&
             stableStringify(query.source) === stableStringify(dependency.source)) ||
           stableStringify(linkedSource.source) !== stableStringify(dependency.source))) return null;
-      const file = bound.fileDependencies.get(dependency.id);
-      if (file !== undefined) {
-        if (stableStringify(file.dependency) !== stableStringify(dependency) || observation.files === undefined) return null;
+      const file = bound.fileDependencies.get(dependency.id), protectedNominal = bound.nominalDependencies.get(dependency.id);
+      if (file !== undefined || protectedNominal?.profile.hasFiles === true) {
+        if (stableStringify((file ?? protectedNominal)!.dependency) !== stableStringify(dependency) || observation.files === undefined) return null;
         const current = await currentSavedRow(observation.model, observation.row), source = referenceProducers.get(consumer), producer = fileProducers.get(consumer);
         const read = source?.readPolicies?.get(observation.model);
         if (current === null || source?.app !== input.app || producer?.app !== input.app || receiver === null || read === undefined ||
             !('grants' in read) || !Object.hasOwn(current.data, dependency.field)) return null;
         try {
-          scenarioFileWireRefs(file.profile, dependencyObservedWire(dependency, observation.row));
-          scenarioFileWireRefs(file.profile, current.data[dependency.field]);
+          const refs = [...new Set(file !== undefined
+            ? scenarioFileWireRefs(file.profile, dependencyObservedWire(dependency, observation.row))
+            : storedNominalFileRefs(protectedNominal!.profile, dependencyObservedWire(dependency, observation.row)))];
+          if (observation.files.length !== refs.length || observation.files.some(fact => !refs.includes(fact.ref)) ||
+              new Set(observation.files.map(fact => fact.ref)).size !== refs.length) return null;
+          if (file !== undefined) scenarioFileWireRefs(file.profile, current.data[dependency.field]);
+          else storedNominalFileRefs(protectedNominal!.profile, current.data[dependency.field]);
         } catch { return null; }
         const projected = await sourceProjection(source, observation.model, current);
         if (projected === null || !projected.grants.some(grant => grant.fields.includes(dependency.field))) return null;
@@ -3839,11 +3865,12 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       }
       const nominal = bound.nominalDependencies.get(dependency.id);
       if (nominal === undefined) {
+        if (observation.files !== undefined) return null;
         const source = querySourceProducer(consumer, observation.model)?.readPolicies?.has(observation.model) ? querySourceProducer(consumer, observation.model) : undefined;
         const projection = await savedProjection(observation.model, observation.row, observation.secretFields, [], [], [], undefined, undefined, source);
         return bound.models.get(observation.model)?.fields.get(dependency.field) === dependency.type ? projection : null;
       }
-      if (stableStringify(nominal.dependency) !== stableStringify(dependency)) return null;
+      if (stableStringify(nominal.dependency) !== stableStringify(dependency) || observation.files !== undefined) return null;
       // This exact dependency field alone may pass the internal authority
       // projection. Changed records and embedded reference identities gain no
       // disclosure or dereference grant from an owning stored contract.
