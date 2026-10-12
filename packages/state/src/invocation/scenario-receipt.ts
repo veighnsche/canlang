@@ -3444,10 +3444,23 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
         querySlots.get(linkedCandidate.slot)?.execution !== linkedQuery || linkedCandidate.dependencies.has(dependency.id))) {
       return invalid('candidate-only observation requires its exact active owner query slot.');
     }
-    // The original supplied Branch is a separate lazy source occurrence from
-    // Run's issued parent. Only its exact admitted row can use this busy port.
-    if (!rowId && linkedQuery !== undefined && reference?.profile.kind === 'parent') {
+    // The supplied Turn.position is a separate source occurrence from the
+    // prior Turn candidate. Keep this required INT CONTROL confined to the
+    // active predicate, after its candidate position read/marker; no generic
+    // scalar or nullable admission port is implied.
+    const suppliedPosition = !rowId && linkedQuery !== undefined && linkedCandidate !== undefined &&
+      dependency.field === 'position' && dependency.type === 'int' && dependency.role === 'control' &&
+      dependency.model === linkedQuery.plan.model && state.bound.models.get(dependency.model)?.fields.get('position') === 'int' &&
+      !state.bound.narrowedDependencies.has(dependency.id) &&
+      !linkedQuery.plan.dependencies.some(item => item.id === dependency.id) &&
+      (linkedCandidate.reads.get('position') ?? 0) > 0 && linkedQuery.plan.dependencies.some(item =>
+        item.field === 'position' && item.type === 'int' && item.role === 'control' && linkedCandidate.dependencies.has(item.id));
+    // The original supplied Branch remains its separate lazy parent source
+    // occurrence. Only an exact admitted row can use either busy port.
+    if (!rowId && linkedQuery !== undefined && (reference?.profile.kind === 'parent' || suppliedPosition)) {
       admitted = call.recordRefs.find(ref => ref.model === observed.model && ref.row === input.row && ref.id === row.id);
+      if (suppliedPosition && (admitted === undefined || admitted.expectedVersion === null || row.version !== admitted.expectedVersion ||
+          !requiredVersionedReferenceInput(call.def as GeneratedOperationDef, admitted.param, observed.model))) admitted = undefined;
     }
     if (owner !== undefined) {
       ownerHealthy(owner);
@@ -3458,10 +3471,10 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
         parent.execution.stage === owner.stage && parent.execution.activeSlot === parent.slot && !parent.execution.complete &&
         candidate?.pendingRead === null && (candidate.reads.get('parent') ?? 0) > 0 &&
         parent.execution.plan.dependencies.some(dep => dep.field === 'parent' && candidate.dependencies.has(dep.id));
-      const activeAdmittedParent = admitted !== undefined && !rowId && reference?.profile.kind === 'parent' &&
+      const activeAdmittedSource = admitted !== undefined && !rowId && (reference?.profile.kind === 'parent' || suppliedPosition) &&
         linkedQuery !== undefined && linkedCandidate !== undefined;
       if (parent !== undefined && (!activeParent || linkedQuery !== undefined && parent.execution !== linkedQuery) ||
-          owner.busy && !activeParent && !activeAdmittedParent && !selectedRead || admitted === undefined &&
+          owner.busy && !activeParent && !activeAdmittedSource && !selectedRead || admitted === undefined &&
           (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model)) {
         return invalid('observation requires the actual current-stage owner row and active parent query slot.');
       }
@@ -3470,6 +3483,15 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     if (id !== undefined && owner === undefined && admitted === undefined) return invalid('current row id requires its actual current-stage owner session.');
     state.pending += 1; acquired = true;
     let referenceRevalidate: (() => Promise<void>) | undefined;
+    if (suppliedPosition && admitted !== undefined) {
+      const current = await owner!.session!.views.final.get(observed.model, row.id);
+      if (current === null || !sameModelLifetime(row, current) ||
+          stableStringify(dependencyObservedWire(dependency, current)) !== stableStringify(dependencyObservedWire(dependency, row))) {
+        throw new StateError('forbidden', 'Query-linked supplied position lifetime changed.');
+      }
+      const authority = await observeModelQuerySourceAuthority(call, store, owner!, state, observed.model, current, ['position'], 1);
+      referenceRevalidate = () => authority.requireFields(['position']);
+    }
     if (id !== undefined) referenceRevalidate = await observeRowIdAuthority(call, store, owner, state, row, observed.model, dependency.id, admitted !== undefined);
     let files: readonly RetainedFinalizedFile[] | undefined;
     if (file !== undefined || nominal?.profile.hasFiles === true) {
