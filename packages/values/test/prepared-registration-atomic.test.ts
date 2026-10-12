@@ -41,7 +41,7 @@ function register(own: PlanOwner, schema: object): string {
 
 describe("failed registration publishes neither plans nor staged defaults", () => {
   for (const path of ["contracts", "operations"] as const) {
-    it(`${path}: genuine Decimal failure preserves prior identity and consumes its sequence`, () => {
+    it(`${path}: unsupported later metadata after a genuine Decimal preserves prior identity and consumes its sequence`, () => {
       const own = owner();
       const priorSchema = normalizeSchema({ contracts: { Prior: { fields: {
         tags: { type: "text[]", default: ["kept"] },
@@ -50,20 +50,29 @@ describe("failed registration publishes neither plans nor staged defaults", () =
       const priorRef = getValidationPlan(own, priorId).contracts["Prior"]!.fields[0]!.defaultRef!;
       const priorDefault = resolvePlanDefault(own, priorRef);
       const fields = {
-        good: { type: "text[]", default: ["staged"] },
-        bad: { type: "decimal", default: "1.25" },
+        good: { type: "decimal", default: "1.250" },
+        bad: { type: "text", default: "later" },
       };
-      const schema = normalizeSchema(path === "contracts"
+      const actual = normalizeSchema(path === "contracts"
         ? { contracts: { C: { fields } } }
         : { operations: { op: { inputs: fields } } });
       const normalizedFields = path === "contracts"
-        ? schema.contracts["C"]!.fields : schema.operations["op"]!.inputs;
-      assert.ok(normalizedFields["bad"]!.default instanceof Decimal);
+        ? actual.contracts["C"]!.fields : actual.operations["op"]!.inputs;
+      assert.ok(normalizedFields["good"]!.default instanceof Decimal);
+      let laterReads = 0;
+      // Only the integrator-private seam substitutes unsupported metadata;
+      // the real normalizer-produced Decimal must already have been staged.
+      const candidateFields = { ...normalizedFields, bad: {
+        ...normalizedFields["bad"]!,
+        get default() { laterReads++; return new Map([["unsupported", "later"]]); },
+      } };
+      const schema = path === "contracts"
+        ? { ...actual, contracts: { C: { ...actual.contracts["C"]!, fields: candidateFields } } }
+        : { ...actual, operations: { op: { ...actual.operations["op"]!, inputs: candidateFields } } };
       recordFactoryProvenance(schema, own.scope.ownerRevision);
-      // Existing carrier defect remains: genuine Decimal instances are not
-      // plain metadata. Atomicity must not repair or re-code that failure.
       error(() => registerValidationPlan(own, profile, schema), "uncopyable-value",
         "plan metadata must be plain data (no class instances)");
+      assert.equal(laterReads, 2, "failure follows the admitted Decimal default");
       const prefix = path === "contracts" ? "contracts.C.fields" : "operations.op.inputs";
       unknownDefault(own, `1:${prefix}.good`);
       unknownDefault(own, `1:${prefix}.bad`);

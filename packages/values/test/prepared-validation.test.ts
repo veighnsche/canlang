@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { normalizeSchema, validateValue, type NormalizedSchema } from "../src/schema.js";
+import { Decimal } from "../src/decimal.js";
 import {
   createPlanOwner,
   PlanError,
@@ -308,6 +309,31 @@ describe("forgery and legacy controls", () => {
 });
 
 describe("default registry identity", () => {
+  it("copies genuine Decimal defaults and bounds with their exact representation and retained lifetime", () => {
+    const registered = registeredPlan({ contracts: { C: { fields: {
+      amount: { type: "decimal", min: "-2.500", max: "3.7500", default: "1.2300" },
+    } } } });
+    const field = registered.plan.contracts["C"]!.fields[0]!;
+    const original = registered.schema.contracts["C"]!.fields["amount"]!;
+    const ref = field.defaultRef!;
+    const value = resolvePlanDefault(registered.own, ref);
+    for (const [copied, source, coefficient, scale] of [
+      [value, original.default, 12300n, 4],
+      [field.valueMin, original.valueMin, -2500n, 3],
+      [field.valueMax, original.valueMax, 37500n, 4],
+    ] as const) {
+      assert.ok(copied instanceof Decimal);
+      assert.notEqual(copied, source);
+      assert.equal(copied.coef, coefficient);
+      assert.equal(copied.scale, scale);
+      assert.ok(Object.isFrozen(copied));
+    }
+    assert.equal(resolvePlanDefault(registered.own, ref), value);
+    releaseValidationPlan(registered.own, registered.id);
+    assertPlanError(() => getValidationPlan(registered.own, registered.id), "unknown-plan");
+    assert.equal(resolvePlanDefault(registered.own, ref), value);
+  });
+
   it("repeated resolution returns the identical frozen object", () => {
     const { plan, own } = registeredPlan(shopDescriptor());
     const ref = plan.contracts["Item"]!.fields[1]!.defaultRef!;
