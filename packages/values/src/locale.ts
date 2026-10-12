@@ -89,8 +89,8 @@ export function resolveVariant(
     }
     available.push({ tag: key, text });
   }
-  const rank = (tag: string): readonly [number, number, string] => [
-    tag === want ? 0 : 1,
+  const rank = (tag: string, range: string): readonly [number, number, string] => [
+    tag === range ? 0 : 1,
     tag === fallback ? 0 : 1,
     tag,
   ];
@@ -111,7 +111,7 @@ export function resolveVariant(
       let bestRank: readonly [number, number, string] | null = null;
       for (const candidate of candidates) {
         if (candidate.tag !== range && !candidate.tag.startsWith(`${range}-`)) continue;
-        const current = rank(candidate.tag);
+        const current = rank(candidate.tag, range);
         if (best === null || bestRank === null || better(current, bestRank)) {
           best = candidate;
           bestRank = current;

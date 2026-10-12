@@ -114,6 +114,10 @@ describe("resolveVariant fallback chains", () => {
   it("prefers the exact tag when en and en-US both match", () => {
     const descriptor = makeMessageDescriptor("Color", { en: "Colour", "en-US": "Color!" });
     assert.deepEqual(resolveVariant(descriptor, "en", "fr", "de"), { tag: "en", text: "Colour" });
+    assert.deepEqual(resolveVariant(descriptor, "en-AU", "en-US", "de"), { tag: "en", text: "Colour" });
+    assert.deepEqual(formatMessage(descriptor, {
+      locale: "en-AU", appDefault: "en-US", sourceLang: "de",
+    }), { text: "Colour", locale: "en" });
   });
 
   it("prefers the app-default tag among prefix matches, then lexical order", () => {

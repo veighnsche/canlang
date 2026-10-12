@@ -74,13 +74,25 @@ export function composeModuleMap<T extends RawModuleMap>(original: T | undefined
   let decoded: DecodedLine[];
   try { decoded = decodeMappings(original.mappings); }
   catch (error) { return { map: original, status: 'invalid', error: error instanceof Error ? error.message : String(error) }; }
-  const sourceIds = Array.isArray(original.sources) ? original.sources.map((_, index) => `can:raw-source:${index}`) : [];
-  const nameIds = Array.isArray(original.names) ? original.names.map((_, index) => `can:raw-name:${index}`) : [];
+  // Raw lookup accepts ordinary array properties at negative indices too.
+  // Give the library dense indices without merging distinct raw identities.
+  const sourceIds: string[] = [], nameIds: string[] = [];
+  const sourceIndices = new Map<number, number>(), nameIndices = new Map<number, number>();
+  const intern = (raw: number, indices: Map<number, number>, ids: string[], prefix: string): number => {
+    const existing = indices.get(raw);
+    if (existing !== undefined) return existing;
+    const index = ids.length;
+    indices.set(raw, index); ids.push(`${prefix}${raw}`);
+    return index;
+  };
   const lineCount = originalJs.split(/\r\n|[\r\n\u2028\u2029]/).length;
   const baseLines = Array.from({ length: Math.max(decoded.length, lineCount) }, (_, index) => effectiveLine(decoded[index] ?? []).map((segment): Segment => {
     if (segment.length === 1 || !Array.isArray(original.sources) || typeof original.sources[segment[1]] !== 'string') return [segment[0]];
-    if (segment.length === 5 && Array.isArray(original.names) && typeof original.names[segment[4]] === 'string') return segment;
-    return [segment[0], segment[1], segment[2], segment[3]];
+    const source = intern(segment[1], sourceIndices, sourceIds, 'can:raw-source:');
+    if (segment.length === 5 && Array.isArray(original.names) && typeof original.names[segment[4]] === 'string') {
+      return [segment[0], source, segment[2], segment[3], intern(segment[4], nameIndices, nameIds, 'can:raw-name:')];
+    }
+    return [segment[0], source, segment[2], segment[3]];
   }));
   const base = { version: 3 as const, sources: sourceIds, names: nameIds, mappings: baseLines };
   const transforms = stagesNewestFirst.map((stage) => ({ version: 3 as const, sources: ['can:previous'], names: [], mappings: stage.mappings }));
