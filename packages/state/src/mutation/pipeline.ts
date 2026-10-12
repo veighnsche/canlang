@@ -1150,8 +1150,10 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
 
   /** Owning field types distinguish user identities from arbitrary objects.
    * All write phases and final net claims use the same canonical key. */
-  const canonicalUnique = (value: unknown, key: string, def: InterimModelDef): string | null => {
-    return canonicalUniqueFieldValue(value, key, def.model, def.fields[key]);
+  const canonicalUnique = (row: StoredRow, key: string, def: InterimModelDef): string | null => {
+    const when = def.uniqueWhen?.[key];
+    if (when !== undefined && !evalPredicateForRow(when, row)) return null;
+    return canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
   };
 
   /**
@@ -1499,13 +1501,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         });
         // Creates skip locks: there is no pre-state to match against.
         if (owner === undefined) await checkRefs(def, hooked, null);
-        for (const key of def.uniqueKeys) {
-          const canonical = canonicalUnique(hooked[key], key, def);
-          if (canonical === null) {
-            continue;
-          }
-          outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
-        }
         const row: StoredRow = {
           id,
           version: 1 as RecordVersion,
@@ -1517,6 +1512,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           parent,
           data: deepFreeze(hooked),
         };
+        for (const key of def.uniqueKeys) {
+          const canonical = canonicalUnique(row, key, def);
+          if (canonical === null) {
+            continue;
+          }
+          outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
+        }
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({ kind: 'insert', model: write.model, row });
@@ -1603,9 +1605,20 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
         if (lockBefore != null) checkLocks(def, lockBefore);
         if (owner === undefined) await checkRefs(def, hooked, before);
+        const row: StoredRow = {
+          id,
+          version: nextVersion(write.model, id, before),
+          created: before.created,
+          updated: now,
+          createdBy: before.createdBy,
+          updatedBy: actor,
+          archivedAt: before.archivedAt,
+          parent: before.parent ?? null,
+          data: deepFreeze(hooked),
+        };
         for (const key of def.uniqueKeys) {
-          const oldCanonical = canonicalUnique(before.data[key], key, def);
-          const newCanonical = canonicalUnique(hooked[key], key, def);
+          const oldCanonical = canonicalUnique(before, key, def);
+          const newCanonical = canonicalUnique(row, key, def);
           if (oldCanonical === newCanonical) {
             continue;
           }
@@ -1621,17 +1634,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             });
           }
         }
-        const row: StoredRow = {
-          id,
-          version: nextVersion(write.model, id, before),
-          created: before.created,
-          updated: now,
-          createdBy: before.createdBy,
-          updatedBy: actor,
-          archivedAt: before.archivedAt,
-          parent: before.parent ?? null,
-          data: deepFreeze(hooked),
-        };
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({
@@ -1731,9 +1733,20 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         // hook-adjusted unique value must move its claim, or the stored row
         // and the unique index diverge.
         if (owner === undefined) await checkRefs(def, hooked, before);
+        const row: StoredRow = {
+          id,
+          version: nextVersion(write.model, id, before),
+          created: before.created,
+          updated: now,
+          createdBy: before.createdBy,
+          updatedBy: actor,
+          archivedAt: now,
+          parent: before.parent ?? null,
+          data: deepFreeze(hooked),
+        };
         for (const key of def.uniqueKeys) {
-          const oldCanonical = canonicalUnique(before.data[key], key, def);
-          const newCanonical = canonicalUnique(hooked[key], key, def);
+          const oldCanonical = canonicalUnique(before, key, def);
+          const newCanonical = canonicalUnique(row, key, def);
           if (oldCanonical === newCanonical) {
             continue;
           }
@@ -1749,17 +1762,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             });
           }
         }
-        const row: StoredRow = {
-          id,
-          version: nextVersion(write.model, id, before),
-          created: before.created,
-          updated: now,
-          createdBy: before.createdBy,
-          updatedBy: actor,
-          archivedAt: now,
-          parent: before.parent ?? null,
-          data: deepFreeze(hooked),
-        };
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({
@@ -1799,10 +1801,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           }
         }
         const committedBefore = firstBefore.get(rowKey) ?? null;
-        const releaseSource = committedBefore === null ? null : committedBefore.data;
-        if (releaseSource !== null) {
+        if (committedBefore !== null) {
           for (const key of def.uniqueKeys) {
-            const canonical = canonicalUnique(releaseSource[key], key, def);
+            const canonical = canonicalUnique(committedBefore, key, def);
             if (canonical === null) {
               continue;
             }
@@ -1909,8 +1910,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         else outWrites.push({ kind: 'update', model, id, expectedVersion: before.version, row: after });
         for (const key of def.uniqueKeys) {
           consumeWork();
-          const previous = before === null ? null : canonicalUnique(before.data[key], key, def);
-          const final = after === null ? null : canonicalUnique(after.data[key], key, def);
+          const previous = before === null ? null : canonicalUnique(before, key, def);
+          const final = after === null ? null : canonicalUnique(after, key, def);
           if (previous === final) continue;
           if (previous !== null) outReleases.push({ model, keyName: key, keyValue: previous });
           if (final !== null) outClaims.push({ model, keyName: key, keyValue: final, recordId: id });
