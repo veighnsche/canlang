@@ -5949,6 +5949,14 @@
         "repair": "Define own enumerable/writable/configurable string properties in both collector writes, matching the server form parser. Preserve normal object prototype, string validation order, duplicate last-wins, default-on, unchecked omission, named-file refusal and downstream schema/name admission; no new field policy.",
         "validation": "Fresh UI emission0 and maintained rendered DOM RED own __proto__ entry absent. Final UI emission0/browser build0/t20b-client21/21 PASS,0fail/cancel/skip. Actual duplicate ordinary/checked checkbox/radio controls retain final own string/descriptor/JSON value while preserving prototype and omission. Existing projection/CSRF/protected targets/upload pinning/idempotency/finalized File/denial controls retained; finite independent source review CLEAR. Unchanged root public types/installed/Chrome/native/mounted source results reused at original scopes.",
         "remaining": "Exact coordinator source intake. Dev original mounted resource/current authority and Compiler source lowering remain separate; all holds/provider-void skip preserved, no push."
+      },
+      "request_quota_abort_cleanup": {
+        "status": "implemented_tested_source_reviewed_CLEAR_local; finite bounded request quota cleanup; broader mounted/source parent unfinished",
+        "source_base": "a5949aa830b5e116fc9efa10e09e087a519c7b9b",
+        "defect": "After detecting oversize, readCappedBody awaited underlying reader cancellation without the original Request.signal bound. A held cancel left quota refusal and body lock pending even after the caller aborted.",
+        "repair": "Attempt cancellation once and race settlement against the existing Request.signal; already-aborted caller skips waiting, registered listener removes in finally. Preserve detected IdentityError limit/message, outer reader lock release and original await behavior without abort. No new timeout/deadline/effect profile/API/Services dependency or physical-cleanup completion claim.",
+        "validation": "Initial Node26 diagnostic is not qualification. Fresh pinned Node24 Interfaces emission0 and maintained real Request/ReadableStream RED observes held cancellation beyond original caller abort. Final Interfaces emission0/HTTP operations26/26 PASS,0fail/cancel/skip; exact limit/message/single cancel/unlocked body while physical cleanup pending, final held promise release/drain retained. Existing actual quota429, CSRF/framing/denial/input validation/raw-form-JSON bytes and reusable-chunk controls preserved; finite independent source review CLEAR. Unchanged root public types/Services/provider/mounted/installed/native host results reused at original scopes.",
+        "remaining": "Exact coordinator source intake. Dev original mounted body/resource/current-authority and Compiler source producer remain separate; all holds/provider-void skip preserved, no push."
       }
     },
     "DEL-D03": {

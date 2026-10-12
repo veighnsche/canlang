@@ -47,7 +47,21 @@ export async function readCappedBody(request: Request, maxBytes: number): Promis
       if (done) break;
       total += value.byteLength;
       if (total > maxBytes) {
-        await reader.cancel().catch(() => undefined);
+        const cancelled = reader.cancel().catch(() => undefined);
+        const signal = request.signal;
+        if (!signal.aborted) {
+          let onAbort!: () => void;
+          const aborted = new Promise<void>(resolve => {
+            onAbort = resolve;
+            signal.addEventListener('abort', onAbort, { once: true });
+          });
+          try {
+            await Promise.race([cancelled, aborted]);
+          } finally {
+            signal.removeEventListener('abort', onAbort);
+          }
+        }
+        // Caller abort bounds the wait; pending physical cleanup cannot replace the detected quota.
         throw new IdentityError('limit', 'Request body too large.');
       }
       // The producer may reuse its buffer on the next read.
