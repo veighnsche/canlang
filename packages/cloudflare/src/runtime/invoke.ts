@@ -14181,7 +14181,14 @@ async function scanDispatchState(
   state: OutboxItemState,
   limit: number,
 ): Promise<{ readonly rows: DispatchExecutionRowData[]; readonly truncated: boolean }> {
-  const found = await store.query(dispatchExecutionByStateQuery(state));
+  // Bounded per-scan window: storage orders by row id (dispatch rows are
+  // keyed by intentId) and returns at most limit+1, so visits stay bounded
+  // before any row is decoded. The exact re-filter/sort/slice below keep the
+  // established sweep order and continuation semantics; truncation is
+  // reported whenever the window overflows (conservative under adapter echo,
+  // never silent).
+  const found = await store.query({ ...dispatchExecutionByStateQuery(state),
+    order: [{ field: 'id', direction: 'asc' }], limit: limit + 1 });
   const rows: DispatchExecutionRowData[] = [];
   const seen = new Set<string>();
   for (const row of found) {
@@ -14193,7 +14200,7 @@ async function scanDispatchState(
     rows.push(data);
   }
   rows.sort((a, b) => (a.intentId < b.intentId ? -1 : a.intentId > b.intentId ? 1 : 0));
-  return { rows: rows.slice(0, limit), truncated: rows.length > limit };
+  return { rows: rows.slice(0, limit), truncated: found.length > limit };
 }
 
 async function commitReconcile(input: {

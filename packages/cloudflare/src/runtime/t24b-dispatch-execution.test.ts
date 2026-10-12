@@ -1288,3 +1288,28 @@ describe("t24b sweep: recover -> plan -> requeue/reconcile/release", () => {
   });
 });
 
+describe("t24b sweep: bounded per-state scans", () => {
+  it("bounds scan visits before materialization and reports truncation truthfully", async () => {
+    const { store: physical } = createTestMemoryStorage();
+    const dispatchVisits: number[] = [];
+    const store: StoragePort = { ...physical,
+      query: async spec => {
+        const rows = await physical.query(spec);
+        if (spec.model === "work.dispatch") dispatchVisits.push(rows.length);
+        return rows;
+      },
+    };
+    const stack = await workerStack(store);
+    const ids = ["obx_a", "obx_b", "obx_c", "obx_d", "obx_e", "obx_f"];
+    await stageIntents(stack, ids.map((intentId, occurrenceIndex) => stageInput({ intentId, occurrenceIndex })));
+    for (const intentId of ids) await exhaustAttempts(stack, intentId, 1);
+    const sweep = await runRecoverySweep({ ...sweepDefaults(stack), limit: 2 });
+    // Six failed rows behind a limit-2 window: the failed scan overflows.
+    assert.equal(sweep.truncated.failed, true);
+    assert.ok(dispatchVisits.length > 0);
+    for (const visited of dispatchVisits) assert.ok(visited <= 3, `scan visited ${visited} rows`);
+    // Stable continuation: the window holds the lowest ids in storage order.
+    assert.deepEqual(sweep.retried.map(act => act.intentId).sort(), ["obx_a", "obx_b"]);
+  });
+});
+
