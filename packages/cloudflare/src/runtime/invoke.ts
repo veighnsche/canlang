@@ -137,7 +137,7 @@ import { bindNativeDispatchMembership, openNativeDispatchMembershipFrame, bindNa
   hasNativeOwnerMembership, openNativeOwnerMembershipFrame, openNativeReadMembershipFrame,
   type NativeMembershipFrame } from './native-membership.js';
 import type { ScenarioReceiptMembershipSite } from '@canlang/state/invocation';
-import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
+import type { CanonicalFileBinding, FileAttachment, FileStagingCensus } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import { createCommittedModelSourceStager, createStandardCompletionSourceCommand } from '@canlang/work';
@@ -2969,6 +2969,51 @@ const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, Readonl
 const nativeScenarioNominalFileProfiles = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
   readonly model: string; readonly field: string; readonly profile: import('@canlang/state').FileReferenceProfile;
 }>>();
+/** Bind only actual same-loaded nominal/alias stored fields. The profile owns
+ * whole-value validation; the host still owns finalization and retention. */
+async function bindFileStagingCensus(loaded: LoadedCanonicalDescriptors,
+  artifact: CompileArtifact): Promise<FileStagingCensus | undefined> {
+  const schema = loaded.valueSchema;
+  if (schema === undefined) {
+    if (artifact.models?.some(model => model.fields.some(field => field.field.kind === 'nominal'))) {
+      throw new Error('Stored nominal fields require their complete owning type and File census.');
+    }
+    return undefined;
+  }
+  const candidates = (artifact.models ?? []).flatMap(model => model.fields.flatMap(field => {
+    if (field.field.kind === 'nominal') {
+      if (field.valueType === undefined || schema === undefined) {
+        throw new Error('Stored nominal fields require their complete owning type and File census.');
+      }
+      return [{ model: model.name as ModelName, field: field.name }];
+    }
+    if (field.field.kind !== 'other' || field.valueType === undefined || schema === undefined) return [];
+    const type = parseTypeId(field.valueType);
+    if (type.base.kind !== 'nominal' ||
+        !Object.hasOwn(schema.contracts, type.base.path) &&
+        !(schema.aliases !== undefined && Object.hasOwn(schema.aliases, type.base.path))) return [];
+    return [{ model: model.name as ModelName, field: field.name }];
+  }));
+  if (candidates.length === 0) return undefined;
+  const state = await loadProducerModule('@canlang/state', 'stored File census');
+  const bind = requireProducerFn(state, 'bindFileReferenceProfile', 'stored File census') as
+    typeof import('@canlang/state/ports/file-reference-profile').bindFileReferenceProfile;
+  const occurrences = requireProducerFn(state, 'fileReferenceOccurrences', 'stored File census') as
+    typeof import('@canlang/state/ports/file-reference-profile').fileReferenceOccurrences;
+  const bound = { canonicalModels: loaded.models,
+    artifactModels: new Map((artifact.models ?? []).map(model => [model.name as ModelName, model])),
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
+    valueSchema: schema };
+  const fields = new Map<string, Map<string, ReturnType<typeof bind>>>();
+  for (const candidate of candidates) {
+    const profile = bind(bound, candidate.model, candidate.field);
+    if (!profile.fileBearing) continue;
+    let model = fields.get(candidate.model);
+    if (model === undefined) { model = new Map(); fields.set(candidate.model, model); }
+    model.set(candidate.field, profile);
+  }
+  return { fields, occurrences };
+}
 async function bindNativeScenarioNominalFiles(loaded: LoadedCanonicalDescriptors, artifact: CompileArtifact): Promise<void> {
   let bindProfile: typeof import('@canlang/state').bindFileReferenceProfile | undefined;
   const bound = { canonicalModels: loaded.models,
@@ -7606,6 +7651,7 @@ async function invokeCanonicalMutation(
     opts: Object.freeze({ asm: opts.asm, artifact: opts.artifact, identity: opts.identity, source: opts.source, store: receiptStore }),
     now: opts.now, ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
   }) : cached;
+  const fileCensus = receiptOnly ? undefined : await bindFileStagingCensus(loaded, opts.artifact);
   const StateError = loaded.producers.errors;
   const invoke = receiptOnly ? loaded.producers.invoke.invokeRetainedReceiptOnly : loaded.producers.invoke.invoke;
   if (invoke === undefined) {
@@ -7711,9 +7757,11 @@ async function invokeCanonicalMutation(
         if (kind !== 'delete') {
           const operation = opts.artifact.operations?.find(entry => entry.name === opts.operation);
           const owningModel = opts.artifact.models?.find(model => `${model.name}.${kind}` === opts.operation);
-          const supplied = operation?.inputs.fields.filter(field => field.field.kind === 'file' &&
+          const supplied = operation?.inputs.fields.filter(field =>
+            (field.field.kind === 'file' || fileCensus?.fields.get(owningModel?.name ?? '')?.has(field.name)) &&
             Object.hasOwn(opts.inputs, field.name) && opts.inputs[field.name] !== undefined &&
-            owningModel?.fields.some(declaration => declaration.name === field.name && declaration.field.kind === 'file')) ?? [];
+            owningModel?.fields.some(declaration => declaration.name === field.name &&
+              (declaration.field.kind === 'file' || fileCensus?.fields.get(owningModel?.name ?? '')?.has(field.name)))) ?? [];
           const assignments = effects.writes.flatMap(effect => {
             if (!isUnknownRecord(effect) || (effect.kind !== 'insert' && effect.kind !== 'update') ||
                 effect.model !== owningModel?.name || !isUnknownRecord(effect.row) || typeof effect.row.id !== 'string') return [];
@@ -7729,6 +7777,7 @@ async function invokeCanonicalMutation(
       }
       const stagedFiles = await stageFileReferences({
         artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
+        ...(fileCensus === undefined ? {} : { census: fileCensus }),
         ...(opts.files === undefined ? {} : { files: opts.files }),
         ...(kind !== 'scenario' || checkedScenario?.descriptor.result?.disclosure === undefined ? {} : {
           prepareObservation: () => {
@@ -7810,6 +7859,7 @@ async function invokeCanonicalMutation(
       artifact: opts.artifact, operation: opts.operation, inputs: opts.inputs,
       result: result.result, attachments, store: opts.store, files: opts.files,
       identity: opts.identity, app: opts.app,
+      ...(fileCensus === undefined ? {} : { census: fileCensus }),
       ...(kind === 'scenario' && checkedScenario?.descriptor.result?.disclosure !== undefined
         ? { stagedOnly: true } : {}),
     });
@@ -9584,7 +9634,9 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
       if (isRequireFailure(error)) throw new loaded.producers.errors('rule_failed', error.message);
       throw error;
     }
+    const fileCensus = await bindFileStagingCensus(loaded, opts.artifact);
     const stagedFiles = await stageFileReferences({ artifact: opts.artifact, effects, store: opts.store, identity, app: opts.app,
+      ...(fileCensus === undefined ? {} : { census: fileCensus }),
       refuse: text => { throw new loaded.producers.errors('validation', text); } });
     return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards,
       { name: 'cohort.owner', evaluate: async () => {
@@ -9954,7 +10006,9 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
           business = { writes: [], history: [], outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
             resolvedDefaults: {}, result: null };
         }
+        const fileCensus = await bindFileStagingCensus(privateLoaded, opts.artifact);
         const files = await stageFileReferences({ artifact: opts.artifact, effects: business, store: opts.store,
+          ...(fileCensus === undefined ? {} : { census: fileCensus }),
           identity, app: opts.app, refuse: text => { throw new Error(text); } });
         commitGuards = [...business.guards ?? [], ...files.guards];
         const status = refusal === undefined ? 'completed' as const : 'failed' as const;
@@ -15830,8 +15884,10 @@ export async function createCanonicalFanoutBody(
       }, call, attempt.occurrenceIds);
       // File attachments require their separate postcommit host lifecycle; this
       // internal child profile refuses them through the owning canonical stager.
+      const fileCensus = await bindFileStagingCensus(loaded, opts.artifact);
       const stagedFiles = await stageFileReferences({
         artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
+        ...(fileCensus === undefined ? {} : { census: fileCensus }),
         refuse: text => { throw new loaded.producers.errors('validation', text); },
       });
       return {

@@ -3,7 +3,31 @@ import type {
   ModelName, RecordId, ResolvedIdentity, RetainedFinalizedFile, StoragePort,
 } from '@canlang/contracts';
 import { decodeValue } from '@canlang/values';
+import type { FileReferenceOccurrence, FileReferenceProfile } from '@canlang/state/ports/file-reference-profile';
 import type { CanonicalExecutionEffects, CanonicalGuardRevalidation } from './invoke.js';
+
+/** Same-loaded State census, bound only to actual stored nominal fields. */
+export interface FileStagingCensus {
+  readonly fields: ReadonlyMap<string, ReadonlyMap<string, FileReferenceProfile>>;
+  readonly occurrences: (profile: FileReferenceProfile, wire: unknown) => readonly FileReferenceOccurrence[];
+}
+
+function fileFields(artifact: CompileArtifact, census: FileStagingCensus | undefined, model: string) {
+  const declared = artifact.models?.find(candidate => candidate.name === model)?.fields ?? [];
+  const profiles = census?.fields.get(model);
+  return declared.filter(field => field.field.kind === 'file' || profiles?.has(field.name));
+}
+
+function fileRefs(field: ReturnType<typeof fileFields>[number], wire: unknown,
+  census: FileStagingCensus | undefined, model: string): readonly string[] {
+  if (field.field.kind === 'file') {
+    const native = decodeValue(`file${field.array === undefined ? '' : '[]'}`, wire);
+    return (Array.isArray(native) ? native : [native]).map(value => (value as { id: string }).id);
+  }
+  const profile = census?.fields.get(model)?.get(field.name);
+  if (profile === undefined) throw new Error('Stored nominal File field lost its owning census.');
+  return census!.occurrences(profile, wire).map(occurrence => occurrence.ref);
+}
 
 /** The host resolves existing finalized storage; File values carry no authority. */
 export interface CanonicalFileBinding {
@@ -48,6 +72,7 @@ export async function stageFileReferences(input: {
   readonly identity: ResolvedIdentity;
   readonly app: string;
   readonly files?: CanonicalFileBinding;
+  readonly census?: FileStagingCensus;
   /** Pin the trusted receiving producer before any actual observation awaits. */
   readonly prepareObservation?: () => void;
   /** Trusted host capture for explicit, checked assignment locators only. */
@@ -72,8 +97,8 @@ export async function stageFileReferences(input: {
           typeof assignment.model !== 'string' || typeof assignment.recordId !== 'string' || typeof assignment.field !== 'string') {
         input.refuse('File assignment intent must name exactly its model, record and field.');
       }
-      const declaration = input.artifact.models?.find(model => model.name === assignment.model)?.fields
-        .find(field => field.name === assignment.field && field.field.kind === 'file');
+      const declaration = fileFields(input.artifact, input.census, assignment.model)
+        .find(field => field.name === assignment.field);
       const targets = input.effects.writes.filter(effect => {
         if (effect === null || typeof effect !== 'object' || !('kind' in effect) || !('model' in effect)) return false;
         const write = effect as DomainWrite;
@@ -91,8 +116,7 @@ export async function stageFileReferences(input: {
     if (write.kind !== 'insert' && write.kind !== 'update') continue;
     const row = write.row;
     if (row === undefined || typeof row.id !== 'string' || row.data === null || typeof row.data !== 'object') continue;
-    const model = input.artifact.models?.find(candidate => candidate.name === write.model);
-    const fields = model?.fields.filter(field => field.field.kind === 'file') ?? [];
+    const fields = fileFields(input.artifact, input.census, write.model);
     if (fields.length === 0) continue;
     const previous = write.kind === 'insert' ? null : await input.store.load(write.model, row.id);
     for (const field of fields) {
@@ -100,10 +124,11 @@ export async function stageFileReferences(input: {
       if (wire === null || wire === undefined) continue;
       if (!assigned.has(assignmentKey(write.model, row.id, field.name)) &&
           JSON.stringify(previous?.data[field.name]) === JSON.stringify(wire)) continue;
-      const native = decodeValue(`file${field.array === undefined ? '' : '[]'}`, wire);
-      const values = Array.isArray(native) ? native : [native];
-      for (const value of values) {
-        const ref = (value as { id: string }).id;
+      const refs = fileRefs(field, wire, input.census, write.model);
+      if (field.field.kind !== 'file' && refs.length !== 0 && input.observeAssignment !== undefined) {
+        input.refuse('Saved nominal File assignment requires genuine State receipt observation.');
+      }
+      for (const ref of refs) {
         if (input.files === undefined || !await input.files.validate(ref, input.identity, input.app)) {
           input.refuse('A file reference must be finalized and owned by the receiving caller.');
         }
@@ -141,6 +166,7 @@ export async function retainCommittedFiles(input: {
   readonly attachments: readonly FileAttachment[];
   /** Checked scenarios retain only their actual validated assignment effects. */
   readonly stagedOnly?: boolean;
+  readonly census?: FileStagingCensus;
   readonly store: StoragePort;
   readonly files: CanonicalFileBinding;
   readonly identity: ResolvedIdentity;
@@ -162,8 +188,7 @@ export async function retainCommittedFiles(input: {
     if (model !== undefined) locators.push({ model: model.name, id: input.result.id });
   }
   for (const locator of locators) {
-    const model = input.artifact.models?.find(candidate => candidate.name === locator.model);
-    const fields = model?.fields.filter(field => field.field.kind === 'file') ?? [];
+    const fields = fileFields(input.artifact, input.census, locator.model);
     if (fields.length === 0) continue;
     const row = await input.store.load(locator.model as import('@canlang/contracts').ModelName,
       locator.id as import('@canlang/contracts').RecordId);
@@ -171,9 +196,8 @@ export async function retainCommittedFiles(input: {
     for (const field of fields) {
       const wire = row.data[field.name];
       if (wire === null || wire === undefined) continue;
-      const native = decodeValue(`file${field.array === undefined ? '' : '[]'}`, wire);
-      for (const value of Array.isArray(native) ? native : [native]) {
-        const attachment = { ref: (value as { id: string }).id, record: `${model!.name}/${row.id}/${field.name}` };
+      for (const ref of fileRefs(field, wire, input.census, locator.model)) {
+        const attachment = { ref, record: `${locator.model}/${row.id}/${field.name}` };
         attachments.set(`${attachment.record}\0${attachment.ref}`, attachment);
       }
     }
