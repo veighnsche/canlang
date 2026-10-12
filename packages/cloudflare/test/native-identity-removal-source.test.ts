@@ -118,6 +118,8 @@ test('original native Identity removal preserves subject, cold SELECT-only recov
       const subject = await identities.createUser({ email: 'subject@native-removal.example.test', password_hash: 'unused', email_verified: true });
       const removerMembership = await identities.createMembership({ team_id: team.team_id, user_id: remover.user_id, is_owner: true, roles: [] });
       const membership = await identities.createMembership({ team_id: team.team_id, user_id: subject.user_id, is_owner: false, roles: [] });
+      const replacementOwner = await identities.createUser({ email: 'replacement-owner@native-removal.example.test', password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
       assert.notEqual(subject.user_id, remover.user_id);
       const token = 'original-removal-credential';
       await identities.createSession({ user_id: remover.user_id, token_sha256: await sha256HexText(token),

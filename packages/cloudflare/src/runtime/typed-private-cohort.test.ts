@@ -187,6 +187,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const user = await storage.identity.createUser({ email: 'private-cohort@example.test', email_verified: true,
       password_hash: 'unused' });
     await storage.identity.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+    const replacementOwner = await storage.identity.createUser({ email: 'replacement-owner@private-cohort.example.test', password_hash: 'unused', email_verified: true });
+    await storage.identity.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
     const token = 'private-cohort-session';
     await storage.identity.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       expires_at: new Date(now + 3600_000).toISOString(), last_team_id: team.team_id });

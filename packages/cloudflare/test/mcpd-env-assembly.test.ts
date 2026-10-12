@@ -44,7 +44,7 @@ import type {
   CompileArtifact,
   StoragePort,
 } from "@canlang/contracts";
-import { buildSessionCookie, sha256HexText, IdentityError, exchangeCode, issueAuthCode, registerClient, createD1IdentityStore } from "@canlang/identity";
+import { buildSessionCookie, deriveCsrfToken, parseSessionCookie, sha256HexText, IdentityError, exchangeCode, issueAuthCode, registerClient, createD1IdentityStore } from "@canlang/identity";
 import { createFrozenClock } from "@canlang/identity/testing";
 import { consumePreSessionToken, mintPreSessionToken, PRESESSION_TTL_MS, ensureIdentitySchema } from "@canlang/identity";
 import type {
@@ -254,10 +254,12 @@ async function mintGrant(
   identityStore: MirrorIdentityStore,
   cookie: string,
 ): Promise<{ token: string; grant_id: string; user_id: string; team_id: string }> {
+  const sessionToken = parseSessionCookie(cookie);
+  expect(sessionToken).not.toBeNull();
   const res = await handleMcpGrant(
     new Request("https://test.invalid/mcp/grant", {
       method: "POST",
-      headers: { "content-type": "application/json", cookie },
+      headers: { "content-type": "application/json", cookie, "x-csrf-token": await deriveCsrfToken(sessionToken!) },
       body: JSON.stringify({ client_id: "mcpd-c-host" }),
     }),
     { identityStore },
@@ -566,6 +568,8 @@ describe("production grant through the assembled worker", () => {
     const { db } = await startD1("mcpd-c-removed");
     const deps = await buildProductionDeps({ DB: db });
     const { cookie, userId, teamId } = await seedSessionTeam(deps.identityStore, "leaver@test.example");
+    const replacementOwner = await deps.identityStore.createUser({ email: 'replacement-owner@mcpd-removed.example.test', password_hash: 'test-hash-opaque', email_verified: true });
+    await deps.identityStore.createMembership({ team_id: teamId, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
     const grant = await mintGrant(deps.identityStore, cookie);
     const artifact = fixtureArtifact();
     const fetch = await assembleProductionMcp({

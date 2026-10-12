@@ -105,6 +105,8 @@ test('genuine native callback history retains failed Work evidence and uses curr
       const member=await identities.createUser({email:'callback-member@example.test',password_hash:'unused',email_verified:true});
       const ownerMembership=await identities.createMembership({team_id:team.team_id,user_id:owner.user_id,is_owner:true,roles:[]});
       const memberMembership=await identities.createMembership({team_id:team.team_id,user_id:member.user_id,is_owner:false,roles:[]});
+      const replacementOwner = await identities.createUser({ email: 'replacement-owner@callback.example.test', password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
       const session=async(userId:string,token:string)=>{
         await identities.createSession({user_id:userId,token_sha256:await sha256HexText(token),
           expires_at:new Date(FIXED_NOW+3600000).toISOString(),last_team_id:team.team_id});

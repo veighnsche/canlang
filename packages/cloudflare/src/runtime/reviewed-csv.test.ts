@@ -40,6 +40,8 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     const team = await identities.createTeam({ timezone: 'UTC' });
     const user = await identities.createUser({ email: 'csv-owner@example.test', password_hash: 'unused', email_verified: true });
     const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const replacementOwner = await identities.createUser({ email: 'replacement-owner@reviewed-csv.example.test', password_hash: 'unused', email_verified: true });
+    await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
     const token = 'native-reviewed-csv-session';
     await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       last_team_id: team.team_id, expires_at: new Date(clock.nowMs() + 7 * 24 * 3600_000).toISOString() });
