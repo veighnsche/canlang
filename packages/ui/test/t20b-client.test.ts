@@ -172,6 +172,25 @@ describe("T20b form collection", () => {
       assert.equal(collected.flat["timezone"], "UTC");
       assert.equal(collected.flat["inputs[title]"], "");
       assert.deepEqual(collected.files, []);
+      element.insertAdjacentHTML("beforeend", '<input name="__proto__" value="first"><input name="__proto__" value="last">');
+      const ordinary = await collectFormValues(element as unknown as { readonly elements: ArrayLike<DomControlLike> });
+      assert.equal(Object.hasOwn(ordinary.flat, "__proto__"), true);
+      assert.equal(ordinary.flat["__proto__"], "last");
+      assert.equal(Object.getPrototypeOf(ordinary.flat), Object.prototype);
+      assert.deepEqual(Object.getOwnPropertyDescriptor(ordinary.flat, "__proto__"), {
+        value: "last", enumerable: true, writable: true, configurable: true,
+      });
+      assert.equal((JSON.parse(JSON.stringify(ordinary.flat)) as Record<string, string>)["__proto__"], "last");
+      element.insertAdjacentHTML("beforeend", '<input type="checkbox" name="__proto__" checked><input type="radio" name="__proto__" value="unchecked-radio">');
+      const checked = await collectFormValues(element as unknown as { readonly elements: ArrayLike<DomControlLike> });
+      assert.equal(Object.hasOwn(checked.flat, "__proto__"), true);
+      assert.equal(checked.flat["__proto__"], "on");
+      element.insertAdjacentHTML("beforeend", '<input type="radio" name="__proto__" value="checked-radio" checked><input type="checkbox" name="__proto__" value="unchecked-checkbox">');
+      const radio = await collectFormValues(element as unknown as { readonly elements: ArrayLike<DomControlLike> });
+      assert.equal(Object.hasOwn(radio.flat, "__proto__"), true);
+      assert.equal(radio.flat["__proto__"], "checked-radio");
+      assert.equal(Object.getPrototypeOf(radio.flat), Object.prototype);
+      assert.equal((JSON.parse(JSON.stringify(radio.flat)) as Record<string, string>)["__proto__"], "checked-radio");
     } finally {
       await page.close();
     }

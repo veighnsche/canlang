@@ -11946,3 +11946,10 @@ Changed MAIN checks all0: {"owning": 1.86, "root": 4.8} seconds; no unchanged na
 Accepted finite TECH-SV03 source component 9c6714f3b48826b8bf8aada9b633f0c255bfb8d6: Preserve exact node/key destinations so prompt/width/height cannot alias or disappear; same key in distinct nodes stays valid and invalid mappings issue zero provider calls. Independent defining source review CLEAR; 15 mapping/submission/installed Images groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 0.8, "root": 4.74} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — retain own named form controls
+
+Accepted finite DEL-B02 source component a5949aa830b5e116fc9efa10e09e087a519c7b9b: Collect __proto__ and other original named controls as own enumerable writable configurable string properties, preserving plain prototype/last-wins/default-on/refusal/opaque File semantics. Independent defining source review CLEAR; 21 rendered form groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 1.67, "root": 4.63} seconds; no unchanged native/installed/engine reruns.
