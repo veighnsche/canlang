@@ -11763,3 +11763,17 @@ and link TECH-SV02; mounted/durable/host qualifications and all holds remain.
 Packagesc58 bounded request/response byte snapshot independently reviewed CLEAR and integrated after deadline. Copy each admitted Uint8Array after existing byte cap and before next read, preserving received raw/form/JSON/text/binary bytes when the producer reuses its buffer. Owning HTTP26+Services lifecycle8=34 meaningful cases reused, including genuine highWaterMark0 Request/Response old-byte corruption, framing/CSRF/cap/refusals/cancellation/locks/timers/final merge. Initial stale-output fixture run is uncredited. Changed normal Interfaces/Services/CF/root checks pass. One shared outcome under DEL-B02 with TECH-SV02 link; broader mounted/current-authority/resource and original immutable control window/durable original-ID reconciliation remain defining Dev/Work outputs. No new API/policy/budget/provider/native/host acceptance or hold release;22/48/26 parent accounting and complete checkpoint unchanged.
 
 Changed MAIN normal checks: Interfaces0 3.29s, Services0 1.16s, Cloudflare0 5.75s, root0 6.45s. Scoped owning34 reused; no unchanged native/host reruns.
+
+2026-10-12 — Own message signature declarations (implemented/tested local
+component). Pattern validation looked up inherited object properties as if they
+were explicitly declared parameters, admitting undeclared constructor/toString
+placeholders until rendering. Require an own signature entry before existing
+usage checks. Source and translation patterns now refuse those absent names;
+explicit constructor binding/rendering and reserved __proto__ behavior remain.
+All60 ICU cases, Values emission and finite independent source review pass;
+frozen current root types and unchanged locale/timezone/native outcomes are
+reused. No parameter-name/profile/renderer change or release-host/hold claim.
+
+Packages452 own message signature binding component independently reviewed CLEAR and integrated LOCAL main after deadline. Object.hasOwn prevents inherited constructor/toString/__proto__ from satisfying missing source or translation bindings before rendering; explicit own constructor and reserved __proto__ policy remain. Owning ICU60/60, zero skips/cancels and existing typed display/exactness/parser/plural/depth/descriptor/freezing/refusals reused. Changed Values emission, owning catalog regeneration, CF/root0 qualify current bytes; unchanged locale39/timezone23/temporal36/native/installed/release-host results reused at their original scope. No name/API/profile/renderer or data-host claim; Dev/L7 exact release runtime/ICU/tzdb/CLDR corpus remains external. V04/source/adoption/native/default/activation/publication holds,22/48/26 parents and complete checkpoint unchanged.
+
+Changed MAIN normal checks: Values0 1.54s, Values catalog0 0.05s, Cloudflare0 7.59s, root0 7.32s. ICU60 reused; no unchanged qualification reruns.
