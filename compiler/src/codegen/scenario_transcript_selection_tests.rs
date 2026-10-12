@@ -174,11 +174,10 @@ fn full_original_query_composition_cannot_borrow_an_isolated_transcript_plan() {
         assert_eq!(text(&db, fact.call), "transcript(branch)");
         assert_eq!(fact.source, facts.source);
     }
-    let ScenarioDisclosure::Declined(decline) = disclosure else {
-        panic!("the original lazy model aggregate still needs its owning consumer");
+    let ScenarioDisclosure::Complete(proof) = disclosure else {
+        panic!("exact repeated-work reuse must finish the original source analysis");
     };
-    assert_eq!(decline.reason, "closure resource bound");
-    assert_ne!(text(&db, decline.node), "branch.Run as run");
+    assert_eq!(proof.returns.len(), 256);
     assert!(queries[0].first.is_none() && queries[0].count.is_none());
     let [control] = queries[0].dependencies.as_slice() else {
         panic!("real aggregate predicate control");

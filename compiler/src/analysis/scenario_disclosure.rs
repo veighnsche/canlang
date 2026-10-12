@@ -64,7 +64,7 @@ pub enum DisclosureIntrinsicKind {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DisclosureIntrinsic {
     pub id: String,
     pub source: DisclosureSource,
@@ -621,6 +621,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
         complete_children: HashSet::new(),
         complete_model_children: HashMap::new(),
         result_model: None,
+        statement_expressions: None,
     };
     let mut out = HashMap::new();
     // Resolve only proven acyclic children. A prior wave can establish a
@@ -955,6 +956,7 @@ pub fn checked_read_decision_sites(
         complete_children: HashSet::new(),
         complete_model_children: HashMap::new(),
         result_model: None,
+        statement_expressions: None,
     };
     let mut sites = Vec::new();
     let mut steps = 0;
@@ -1084,6 +1086,7 @@ pub fn checked_read_predicate_site(
         complete_children: HashSet::new(),
         complete_model_children: HashMap::new(),
         result_model: None,
+        statement_expressions: None,
     };
     let mut calls = Vec::new();
     let mut steps = 0;
@@ -1193,7 +1196,7 @@ type Env = HashMap<Local, ValuePath>;
 
 /// Canonical stored Contract values retain their whole owning-field read.
 /// These are local wire values, never stored record receivers or grants.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ContractValue {
     Singular(SymbolId),
     Array(SymbolId),
@@ -1208,7 +1211,7 @@ struct ContractPredicateAlias {
     projection: Option<DisclosureQueryProjection>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 struct ValuePath {
     reads: Vec<DisclosureDependency>,
     intrinsics: Vec<DisclosureIntrinsic>,
@@ -1237,7 +1240,7 @@ struct ValuePath {
     reference_origin: Option<ReferenceOrigin>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReferenceOrigin {
     Parameter(SymbolId),
     Parent {
@@ -1314,6 +1317,18 @@ struct Flow {
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
 }
 
+/// Reuse completed compiler analysis, never an evaluated application value.
+/// Every lexical value and its ordered provenance participate in equality.
+struct CompletedStatementExpression {
+    node: NodeKey,
+    module: ModuleId,
+    calls: Vec<NodeKey>,
+    authorization: bool,
+    result_model: Option<SymbolId>,
+    env: Env,
+    values: Vec<ValuePath>,
+}
+
 struct Closure<'a> {
     complete_children: HashSet<SymbolId>,
     complete_model_children: HashMap<SymbolId, SymbolId>,
@@ -1332,6 +1347,7 @@ struct Closure<'a> {
     effect_proofs: Vec<DisclosureEffect>,
     effect_visits: usize,
     loop_node: Option<NodeKey>,
+    statement_expressions: Option<Vec<CompletedStatementExpression>>,
 }
 
 impl<'a> Closure<'a> {
@@ -6474,9 +6490,63 @@ impl<'a> Closure<'a> {
         if self.depth >= 64 {
             return Err(self.fail(key, "expression closure depth bound"));
         }
+        // Only top-level straight-line expression analyses share a statement.
+        // Nested statements, derive frames and input-loop scopes stay separate.
+        let reuse = self.depth == 0
+            && self.statement_depth == 1
+            && self.loop_node.is_none()
+            && self.stack.is_empty()
+            && calls.is_empty();
+        if reuse
+            && let Some(completed) = self.statement_expressions.as_ref().and_then(|entries| {
+                entries.iter().find(|entry| {
+                    entry.node == key
+                        && entry.module == module
+                        && entry.calls == calls
+                        && entry.authorization == self.authorization
+                        && entry.result_model == self.result_model
+                        && entry.env == *env
+                })
+            })
+        {
+            return Ok(completed.values.clone());
+        }
+        let bookkeeping = (
+            self.effect_proofs.len(),
+            self.effect_visits,
+            self.loop_node,
+            self.result_model,
+            self.authorization,
+        );
         self.depth += 1;
         let result = self.expr_inner(key, module, env, calls);
         self.depth -= 1;
+        // Expression traversal normally restores these values. Never reuse an
+        // analysis which published an effect or left a changed scope behind.
+        if reuse
+            && bookkeeping
+                == (
+                    self.effect_proofs.len(),
+                    self.effect_visits,
+                    self.loop_node,
+                    self.result_model,
+                    self.authorization,
+                )
+            && self.stack.is_empty()
+            && let Ok(values) = &result
+            && let Some(entries) = self.statement_expressions.as_mut()
+            && entries.len() < 1024
+        {
+            entries.push(CompletedStatementExpression {
+                node: key,
+                module,
+                calls: calls.to_vec(),
+                authorization: self.authorization,
+                result_model: self.result_model,
+                env: env.clone(),
+                values: values.clone(),
+            });
+        }
         result
     }
 
@@ -10879,7 +10949,9 @@ impl<'a> Closure<'a> {
             return Err(self.fail(anchor, "statement closure depth bound"));
         }
         self.statement_depth += 1;
+        let previous_expressions = self.statement_expressions.replace(Vec::new());
         let result = self.statements_inner(effects, module, flows, calls);
+        self.statement_expressions = previous_expressions;
         self.statement_depth -= 1;
         result
     }
@@ -11214,6 +11286,9 @@ impl<'a> Closure<'a> {
         }
         let mut returns = Vec::new();
         for effect in effects {
+            if let Some(entries) = &mut self.statement_expressions {
+                entries.clear();
+            }
             self.steps += 1;
             if self.steps > 16384 {
                 return Err(self.fail(effect.node, "statement closure item bound"));

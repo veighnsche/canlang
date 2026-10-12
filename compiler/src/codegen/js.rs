@@ -1477,6 +1477,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
+    pub query_any: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub transcript_queries:
         Option<&'a BTreeMap<String, super::scenario_receipts::ReceiptDisclosurePlan>>,
@@ -1553,6 +1554,7 @@ fn emit_program_with_sources(
     }
     emitter.native_source_predicates = native_receipts;
     emitter.query_selections = decisions.query_selections;
+    emitter.query_any = decisions.query_any;
     emitter.send_guard_gap = decisions.send_guard_gap;
     if let Some(membership) = decisions.membership {
         emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
@@ -2583,6 +2585,7 @@ pub struct Emitter<'a> {
     native_query_sources: HashMap<SymbolId, NativeQuerySource>,
     /// Independently checked transcript metadata; this grants no capture.
     query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
+    query_any: Option<&'a BTreeMap<String, serde_json::Value>>,
     /// Only the immutable CheckedProgram/fresh-IR producer can populate this.
     prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
@@ -2662,6 +2665,7 @@ impl<'a> Emitter<'a> {
             receipt_calls: Vec::new(),
             native_query_sources: HashMap::new(),
             query_selections: None,
+            query_any: None,
             prepared_query_receipts: std::collections::HashSet::new(),
             query_capture: None,
             membership_calls: HashMap::new(),
@@ -4844,6 +4848,96 @@ impl<'a> Emitter<'a> {
             && query.select_param.is_none()
     }
 
+    /// Only the final admitted query recipe can replace the original scoped
+    /// ANY with its short-circuit producer; no completed query array is made.
+    fn lower_native_any(
+        &mut self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        slots: Option<&[Option<usize>]>,
+        at: Span,
+        result: &ResolvedType,
+    ) -> Option<String> {
+        if !self.receipt_calls.is_empty()
+            || !matches!(target,IrCallTarget::Builtin {id,awaited:false} if id == "any")
+            || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
+            || *result != ResolvedType::Scalar(Scalar::Bool)
+        {
+            return None;
+        }
+        let [domain, predicate] = args else {
+            return None;
+        };
+        let IrExpr::Query(query) = &domain.expr else {
+            return None;
+        };
+        let IrExpr::Lambda { param, body } = &predicate.expr else {
+            return None;
+        };
+        let collection = query.collection_call.as_deref()?;
+        let fact = query.source.as_deref()?;
+        let source = self
+            .query_capture
+            .as_ref()?
+            .queries
+            .iter()
+            .find(|source| {
+                source.node == fact.node
+                    && source.alias == Some(collection.alias)
+                    && source.predicate.is_some()
+            })?
+            .clone();
+        let [dependency] = source.dependencies.as_slice() else {
+            return None;
+        };
+        if collection.builtin != "any"
+            || collection.overload != 0
+            || Span::new(
+                collection.node.file,
+                collection.node.start,
+                collection.node.end,
+            ) != at
+            || collection.query != source.node
+            || collection.model != source.model
+            || collection
+                .predicate
+                .as_ref()
+                .is_none_or(|value| Some(value.node) != source.predicate || value.ty != body.ty)
+            || source.first.is_some()
+            || source.count.is_some()
+            || source.projection.is_some()
+            || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+            || body.ty != predicate.ty
+            || source
+                .predicate
+                .is_none_or(|node| Span::new(node.file, node.start, node.end) != body.span)
+            || query.where_pred.is_some()
+            || query.where_async
+            || query.select.is_some()
+            || query.select_param.is_some()
+            || !query.order.is_empty()
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || query.contract_collection_call.is_some()
+            || query.parent.is_none()
+            || dependency.field_name != "unfinished"
+            || dependency.type_id != "bool"
+            || dependency.role != crate::analysis::scenario_disclosure::DependencyRole::Control
+            || !matches!(&body.expr,IrExpr::Member {base,field} if field == &dependency.field_name && matches!(&base.expr,IrExpr::Name(name) if name == param))
+        {
+            return None;
+        }
+        self.enter_scope();
+        let param = self.bind(param);
+        let predicate = self.lower_expr(body);
+        self.exit_scope();
+        self.stdlib.insert("executeScenarioReceiptAny".into());
+        Some(format!(
+            "(await executeScenarioReceiptAny(c,{},async({param})=>{predicate}))",
+            js_string(&source.id)
+        ))
+    }
+
     /// Lower a call: catalog builtins import from `@canlang/stdlib`
     /// (availability-checked at link time); capability operations import
     /// from their owning package module as `await op(c, ...)`.
@@ -4856,6 +4950,9 @@ impl<'a> Emitter<'a> {
     ) -> String {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
+        }
+        if let Some(call) = self.lower_native_any(target, args, None, span, result) {
+            return call;
         }
         if self.native_first_query(target, args, None, span, result) {
             self.stdlib.insert("firstQuery".into());
@@ -4883,6 +4980,9 @@ impl<'a> Emitter<'a> {
     ) -> String {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
+        }
+        if let Some(call) = self.lower_native_any(target, args, Some(slots), span, result) {
+            return call;
         }
         let native_first = self.native_first_query(target, args, Some(slots), span, result);
         let native_count = self.native_count_query(target, args, Some(slots), span, result);
@@ -10047,6 +10147,12 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(metadata) = self
+                        .query_any
+                        .and_then(|metadata| metadata.get(&item.canonical))
+                    {
+                        members.push(format!("queryAny:{}", descriptor_json(metadata)));
+                    }
                     if let Some(selections) = self
                         .query_selections
                         .and_then(|selections| selections.get(&item.canonical))

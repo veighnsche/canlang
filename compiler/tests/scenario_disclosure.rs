@@ -588,6 +588,36 @@ fn array_paths_retain_the_existing_finite_cartesian_bound() {
 }
 
 #[test]
+fn repeated_analysis_keeps_distinct_lexical_value_provenance() {
+    let source = "app Reuse\nGiven\n Item {optional:int?,value:int}\n policy Item read=members\nWhen\n scenario probe(item:Item,other:Item,a:bool,b:bool) -> int[] by=members\n  require a and b\n  do\n   let first=item.optional ?? other.value\n   let second=other.optional ?? item.value\n   return [first,second]\nThen\n";
+    let (db, program) = checked(&[("reuse.can", source)]);
+    let proof = complete(&program, "Reuse.probe");
+    assert_eq!(proof.returns.len(), 8);
+    origins(&db, proof);
+    for path in &proof.returns {
+        let reads = path
+            .dependencies
+            .iter()
+            .map(|read| {
+                db.get(read.node.file).unwrap().text
+                    [read.node.start as usize..read.node.end as usize]
+                    .trim()
+            })
+            .collect::<HashSet<_>>();
+        assert!(reads.contains("item.optional"));
+        assert!(reads.contains("other.optional"));
+        assert_eq!(
+            reads.contains("other.value"),
+            path.decisions[1].choice == DisclosureChoice::RhsEvaluated
+        );
+        assert_eq!(
+            reads.contains("item.value"),
+            path.decisions[2].choice == DisclosureChoice::RhsEvaluated
+        );
+    }
+}
+
+#[test]
 fn actor_defaults_are_admitted_inputs_without_admitting_body_context_reads() {
     let source = r#"app ActorDefaults
 Given
