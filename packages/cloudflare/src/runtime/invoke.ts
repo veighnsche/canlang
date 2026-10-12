@@ -1336,6 +1336,7 @@ interface StateInvokeProducer {
   readonly bindScenarioReceiptCallProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptCallProducer;
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
+  readonly readScenarioReceiptStoredReferenceRow?: typeof import('@canlang/state/invocation').readScenarioReceiptStoredReferenceRow;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1646,6 +1647,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
         invokeRetainedReceiptOnly: invokeMod['invokeRetainedReceiptOnly'] as NonNullable<StateInvokeProducer['invokeRetainedReceiptOnly']>,
       }),
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
+      ...(typeof scenarioMod['readScenarioReceiptStoredReferenceRow'] !== 'function' ? {} : {
+        readScenarioReceiptStoredReferenceRow: scenarioMod['readScenarioReceiptStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptStoredReferenceRow']>,
+      }),
       ...(typeof scenarioMod['readScenarioReceiptAssociation'] !== 'function' ? {} : {
         readScenarioReceiptAssociation: scenarioMod['readScenarioReceiptAssociation'] as NonNullable<StateInvokeProducer['readScenarioReceiptAssociation']>,
       }),
@@ -6899,6 +6903,55 @@ async function runScenarioExecution(
         }
         const observations = await bound.observeDependency(input, opts.identity, healthy);
         healthy(); return observations;
+      }, async (reference, sourceDependencyId, scalarLeafDependencyId, healthy, captureSource) => {
+        // Original getter binding selects only the observed source; State
+        // derives the actual current target and complete source authority.
+        healthy(); assertCall!(actualCall, receiptStore);
+        const origin = typeof reference === 'object' && reference !== null ? storedReferences.get(reference) : undefined;
+        const dependencies = scenarioDef!.descriptor.result!.disclosure!.returns.flatMap(entry => entry.dependencies);
+        const source = dependencies.find(dep => dep.id === sourceDependencyId), leaf = dependencies.find(dep => dep.id === scalarLeafDependencyId);
+        if (origin === undefined || source === undefined || leaf === undefined || origin.sourceModel !== source.model ||
+            origin.field !== source.field || origin.model !== leaf.model || source.type !== leaf.model) {
+          return refuseRecordBinding('Stored reference promotion requires its exact original native field binding.');
+        }
+        const declaration = opts.artifact.models?.find(model => model.name === origin.sourceModel)?.fields.find(field => field.name === origin.field);
+        const scalar = loaded.models.find(model => model.name === leaf.model)?.fields[leaf.field];
+        const type = parseTypeId(leaf.type);
+        if (declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model || !declaration.required ||
+            declaration.array !== undefined || declaration.nullable === true ||
+            scalar?.valueType !== leaf.type || type.array || type.nullable || type.requiredArray || type.base.kind === 'nominal') {
+          return refuseRecordBinding('Stored reference promotion differs from its required singular declaration and scalar leaf.');
+        }
+        const sourceRow = captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
+        const read = loaded.producers.invoke.readScenarioReceiptStoredReferenceRow;
+        if (read === undefined) return refuseRecordBinding('Stored reference promotion requires its defining current-source authority receiver.');
+        const row = await read(actualCall, receiptStore, { sourceDependencyId, scalarLeafDependencyId, sourceRow });
+        healthy(); assertCall!(actualCall, receiptStore);
+        if (nativeScenarioExecutions.get(actualCall) !== active || row.id !== origin.id || row.archivedAt !== null ||
+            origin.version !== undefined && origin.version !== BigInt(row.version)) {
+          return refuseRecordBinding('Stored reference target differs from its actual current owner lifetime or evaluated version.');
+        }
+        captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
+        // Register only State's actual row, preserving native current-stage semantics.
+        ownerRows.set(stagedKey(origin.model, row.id), row);
+        await ownerNavigation.prepare(origin.model, row);
+        healthy(); assertCall!(actualCall, receiptStore);
+        if (nativeScenarioExecutions.get(actualCall) !== active || ownerRows.get(stagedKey(origin.model, row.id)) !== row) {
+          return refuseRecordBinding('Stored reference owner binding changed during target navigation.');
+        }
+        captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
+        // Navigation awaited after issuance: refresh the complete strict
+        // authority before exposing any scalar. State issues a fresh frozen
+        // row per read; retain the genuine prepared row only if every fact
+        // matches and its original host binding is still current.
+        const current = await read(actualCall, receiptStore, { sourceDependencyId, scalarLeafDependencyId, sourceRow });
+        healthy(); assertCall!(actualCall, receiptStore);
+        if (nativeScenarioExecutions.get(actualCall) !== active || ownerRows.get(stagedKey(origin.model, row.id)) !== row ||
+            stableStringify(current) !== stableStringify(row)) {
+          return refuseRecordBinding('Stored reference target changed after navigation authority refresh.');
+        }
+        captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
+        return recordView(origin.model, row);
       });
   }
   for (const ref of call.recordRefs ?? []) {

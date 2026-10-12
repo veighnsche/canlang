@@ -11907,3 +11907,9 @@ all preparation/default/activation/publication/source/adoption holds remain.
 Coordinator finite source review CLEAR and coherent LOCAL main integration after deadline. Seven actual producer/filesystem build→write→verify cases reused; covered file/cyclic-directory links refuse by path, removal restores verification, excluded tsbuildinfo symlink remains omitted. Unmatched zero-test filter is uncredited; five unchanged stamp controls reused separately. Ordinary capture/root/discovery/hash/bytes/unique inventory preserved. Supported-host/authored/native release,22/48/26 parents, complete checkpoint and all holds remain separate.
 
 Changed MAIN normal checks: Cloudflare0 4.9s, root0 4.78s. No unchanged installed/native/host qualification reruns.
+
+## 2026-10-12 — Refresh required stored-reference authority after host navigation
+
+Source marker precedes private required-reference promotion; scalar evaluation/marker follow. Awaited target navigation could revoke related membership after State issuance, so the exact same strict receiver rechecks complete current authority before native exposure. Preserve original genuinely prepared host row only when reissued genuine row has identical entire canonical facts and original private bindings remain current; structural equality grants no authority. No await follows that recheck. Devd658+0d defining review CLEAR after correction; defective standalone d658 unaccepted. Installed handbound3/3 and State61 reused, no actual generated/invoke/native acceptance. Surgical53-line invoke additions retain main existing paths; copied owner/prefix work excluded. All recipient holds and complete checkpoint remain unchanged.
+
+Changed MAIN normal checks: Cloudflare0 4.72s, root0 4.65s. Owner3/State61 reused; actual native consumer still unqualified.

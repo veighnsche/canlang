@@ -54,8 +54,13 @@ interface QueryFrame {
 export type ScenarioReceiptDependencyObserver = (input: {
   readonly dependencyId: string; readonly model: string; readonly row: StoredRow; readonly field: string;
 }, healthy: () => void) => Promise<readonly FinalizedFileObservation[] | undefined>;
+/** Private host promotion of the original checked stored-reference occurrence. */
+export type ScenarioReceiptStoredReferencePromotion = (reference: unknown, sourceDependencyId: string,
+  scalarLeafDependencyId: string, healthy: () => void,
+  captureSource: (view: object, model: string, field: string, wire: unknown) => StoredRow) => Promise<Record<string, unknown>>;
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
+  readonly promoteStoredReference?: ScenarioReceiptStoredReferencePromotion;
   activeQueryCandidate: object | null;
   readonly queryParents: WeakMap<object, { readonly candidate: object; readonly view: NativeQueryView;
     readonly model: string; readonly dependencyId: string }>;
@@ -65,7 +70,7 @@ interface Frame extends QueryFrame {
   readonly owner: object;
   readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
   readonly sourceViews: WeakMap<object, object>;
-  readonly observedFields: WeakMap<object, Map<string, { readonly model: string; readonly wire: unknown }>>;
+  readonly observedFields: WeakMap<object, Map<string, { readonly model: string; readonly wire: unknown; readonly dependencyId: string }>>;
   readonly invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>;
 }
 interface PublicReadFrame extends QueryFrame {
@@ -163,13 +168,15 @@ export interface ScenarioReceiptFrame {
 export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   store: StoragePort, failure: (error: unknown) => void,
   invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>,
-  queryProducer?: NativeQueryProducer, observeDependency?: ScenarioReceiptDependencyObserver): ScenarioReceiptFrame {
+  queryProducer?: NativeQueryProducer, observeDependency?: ScenarioReceiptDependencyObserver,
+  promoteStoredReference?: ScenarioReceiptStoredReferencePromotion): ScenarioReceiptFrame {
   assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || readFrames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics,
+    ...(promoteStoredReference === undefined ? {} : { promoteStoredReference }),
     ...(observeDependency === undefined ? {} : { observeDependency }), ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
     owner: Object.freeze({}), activeQueryCandidate: null, queryParents: new WeakMap(), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
@@ -336,7 +343,7 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
       // owning grants, Identity, source lifetime and final guards stay in State.
       let fields = frame.observedFields.get(sourceView!);
       if (fields === undefined) { fields = new Map(); frame.observedFields.set(sourceView!, fields); }
-      fields.set(field, Object.freeze({ model, wire: field === 'parent'
+      fields.set(field, Object.freeze({ model, dependencyId, wire: field === 'parent'
         ? row.parent === null || row.parent === undefined ? null : { id: row.parent.id }
         : field === 'id' ? row.id : row.data[field] }));
     } catch (error) { fail(frame, error); }
@@ -426,6 +433,69 @@ export function readScenarioReceiptQueryParent(c: HandlerContext, nativeCandidat
   })();
   void operation.catch(() => {});
   return operation;
+}
+
+/** Compiler emits only its checked original required reference
+ * occurrence; it then evaluates and observes the scalar separately. */
+export function readScenarioReceiptStoredReference(c: HandlerContext, originalReference: unknown,
+  sourceDependencyId: string, scalarLeafDependencyId: string): Promise<Record<string, unknown>> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0 || frame.activeQueryCandidate !== null) {
+      return fail(frame, new StateError('validation', 'Stored reference promotion requires its sequential ordinary source occurrence.'));
+    }
+    frame.pending += 1;
+    try {
+      const returned = resultPlan(frame)?.returns.find(entry =>
+        entry.dependencies.some(dep => dep.id === sourceDependencyId) &&
+        entry.dependencies.some(dep => dep.id === scalarLeafDependencyId));
+      const source = returned?.dependencies.find(dep => dep.id === sourceDependencyId);
+      const leaf = returned?.dependencies.find(dep => dep.id === scalarLeafDependencyId);
+      if (source === undefined || leaf === undefined || source.id === leaf.id || source.type !== leaf.model ||
+          source.queryId !== undefined || leaf.queryId !== undefined ||
+          stableStringify(source.source) !== stableStringify(leaf.source) ||
+          stableStringify(source.source) !== stableStringify(resultPlan(frame)!.source) ||
+          frame.promoteStoredReference === undefined) {
+        return refuse('Stored reference promotion requires its checked reference/scalar pair and installed private producer.');
+      }
+      const healthy = () => {
+        checked(c);
+        if (frame.pending !== 1 || frame.activeQueryCandidate !== null) {
+          return refuse('Stored reference promotion crossed its original ordinary execution.');
+        }
+      };
+      let sourceView: object | undefined, originalSource: StoredRow | undefined;
+      const captureSource = (view: object, model: string, field: string, wire: unknown): StoredRow => {
+        healthy();
+        if (model !== source.model || field !== source.field) return refuse('Stored reference origin differs from its checked source field.');
+        const observed = frame.observedFields.get(frame.sourceViews.get(view) ?? view)?.get(field);
+        if (observed?.dependencyId !== source.id || observed.model !== model || stableStringify(observed.wire) !== stableStringify(wire)) {
+          return refuse('Stored reference promotion requires its successful original field observation.');
+        }
+        const admitted = frame.call.recordRefs.find(reference => {
+          if (reference.model !== model) return false;
+          try { return captureNativeScenarioReceiptReference(view, frame.owner, reference.param) === reference; }
+          catch { return false; }
+        });
+        if (admitted === undefined) return refuse('Stored reference source is not its original admitted native parameter.');
+        const row = captureNativeScenarioReceiptRow(view, frame.owner, model);
+        if (sourceView !== undefined && (sourceView !== view || originalSource !== row)) {
+          return refuse('Stored reference source changed during promotion.');
+        }
+        sourceView = view; originalSource = row; return row;
+      };
+      const value = await frame.promoteStoredReference(originalReference, source.id, leaf.id, healthy, captureSource);
+      healthy();
+      if (sourceView === undefined || originalSource === undefined ||
+          captureNativeScenarioReceiptRow(sourceView, frame.owner, source.model) !== originalSource) {
+        return refuse('Stored reference promotion lost its original current source binding.');
+      }
+      captureNativeScenarioReceiptRow(value, frame.owner, leaf.model);
+      return value;
+    } catch (error) { return fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {}); return operation;
 }
 
 /** Awaited original first(Query) facade. The originating context and exact
