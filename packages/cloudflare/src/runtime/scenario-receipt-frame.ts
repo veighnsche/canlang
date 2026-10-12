@@ -1,7 +1,7 @@
 /** Private framework bridge. Only actual State invoke can open a lifetime.
  * Generated source receives only observer/selection/call facades, never this constructor.
  */
-import type { CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanTypeId, CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall } from '@canlang/state/invocation';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
@@ -12,6 +12,7 @@ import { observeScenarioReceiptDependency as observeStateDependency,
   bindScenarioReceiptQueryCount as bindStateQueryCount,
   observeScenarioReceiptQueryDependency as observeStateQueryDependency,
   bindScenarioReceiptQueryResult as bindStateQueryResult,
+  bindScenarioReceiptQuerySelection as bindStateQuerySelection,
   bindScenarioReceiptModelResult as bindStateModelResult,
   assertScenarioReceiptCallExecution, stableStringify } from '@canlang/state/invocation';
 import { isGeneratedOperationDef, type GeneratedOperationDef } from '@canlang/state/invocation/registry';
@@ -21,9 +22,14 @@ import { encodeValue, parseTypeId } from '@canlang/values';
 import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow,
   bindNativeScenarioReceiptReference, captureNativeScenarioReceiptReference, nativeRecordReference } from './native-records.js';
 
+type QuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
 interface NativeQueryProducer {
   readonly record: (model: string, record: ProjectedRecord, read: (field: string) => void, current: () => ProjectedRecord) => Readonly<Record<string, unknown>>;
   readonly encode: (value: unknown) => unknown;
+  readonly selections?: readonly QuerySelectionMetadata[];
+  readonly encodeSelection?: (type: CanTypeId, value: unknown) => unknown;
+  readonly observeSelectionFiles?: (input: { readonly dependencyId: string; readonly model: string;
+    readonly field: string; readonly wire: unknown }, healthy: () => void) => Promise<readonly FinalizedFileObservation[]>;
   /** Trusted receipt host binds only State's genuine selected owner row. */
   readonly mutableRecord?: (model: string, row: StoredRow, mode?: 'query-parent') => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
@@ -60,6 +66,7 @@ export type ScenarioReceiptStoredReferencePromotion = (reference: unknown, sourc
   captureSource: (view: object, model: string, field: string, wire: unknown) => StoredRow) => Promise<Record<string, unknown>>;
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
+  readonly selectionChecks: Array<() => void>;
   readonly promoteStoredReference?: ScenarioReceiptStoredReferencePromotion;
   activeQueryCandidate: object | null;
   readonly queryParents: WeakMap<object, { readonly candidate: object; readonly view: NativeQueryView;
@@ -175,7 +182,7 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
-  const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics,
+  const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, selectionChecks: [],
     ...(promoteStoredReference === undefined ? {} : { promoteStoredReference }),
     ...(observeDependency === undefined ? {} : { observeDependency }), ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
@@ -239,6 +246,8 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
     assertCompleted() {
       checked(c);
       if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario dependency observations must be awaited before completion.'));
+      try { for (const validate of frame.selectionChecks) validate(); }
+      catch (error) { return fail(frame, error); }
     },
     close() { frame.active = false; },
   });
@@ -684,6 +693,92 @@ export function observeScenarioReceiptQueryDependency(c: HandlerContext, model: 
     view.reads.shift();
     view.dependencies.add(dependencyId);
   } catch (error) { fail(frame, error); }
+}
+
+/** The intermediate eager array consumes its exact original completed query.
+ * Source supplies evaluated messages, never slots, receiving facts or row IDs. */
+export function bindScenarioReceiptQuerySelection<T extends readonly unknown[]>(c: HandlerContext,
+  nativeRows: unknown, messages: T): Promise<T> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0 || frame.activeQueryCandidate !== null) {
+      return fail(frame, new StateError('validation', 'Message selection must follow its completed original query.'));
+    }
+    frame.pending += 1;
+    try {
+      const issued = typeof nativeRows === 'object' && nativeRows !== null ? frame.queryArrays.get(nativeRows) : undefined;
+      const query = issued?.query, result = query?.receiptResult, producer = frame.queryProducer;
+      const metadata = producer?.selections?.find(selection => selection.queryId === query?.plan.id);
+      if (issued === undefined || query === undefined || result === undefined || query.result !== result || query.bound ||
+          query.active !== null || metadata === undefined || !['TextMessage[]', 'std.TextMessage[]'].includes(metadata.type) ||
+          producer?.encodeSelection === undefined || producer.observeSelectionFiles === undefined ||
+          !Array.isArray(messages) || messages.length !== result.rows.length || issued.views.length !== result.rows.length) {
+        return refuse('Message selection requires its exact receipt query array, owning recipe and receiving producer.');
+      }
+      for (const [index, view] of issued.views.entries()) {
+        const binding = frame.queryViews.get(view);
+        if (binding?.query !== query || binding.slot !== result.rows[index]!.slot || binding.reads.length !== 0 ||
+            query.plan.dependencies.some(dependency => dependency.role === 'data' && !binding.dependencies.has(dependency.id))) {
+          return refuse('Message selection omitted its original eager selected DATA observations.');
+        }
+      }
+      // Capture the complete original eager value before the first await. No
+      // selected native getter is evaluated again during physical capture.
+      const encode = () => {
+        if (Object.getPrototypeOf(messages) !== Array.prototype || Reflect.ownKeys(messages).length !== messages.length + 1) {
+          return refuse('Message selection requires its dense own eager array.');
+        }
+        const native = Array.from({ length: messages.length }, (_, index) => {
+          const element = Object.getOwnPropertyDescriptor(messages, String(index));
+          if (element === undefined || !('value' in element) || !element.enumerable || typeof element.value !== 'object' ||
+              element.value === null || Array.isArray(element.value) ||
+              ![Object.prototype, null].includes(Object.getPrototypeOf(element.value))) return refuse('Message selection requires original own contract values.');
+          const fields: Record<string, unknown> = Object.create(null);
+          if (Reflect.ownKeys(element.value).length !== metadata.fields.length) return refuse('Message selection requires its complete owning fields.');
+          for (const field of metadata.fields) {
+            const descriptor = Object.getOwnPropertyDescriptor(element.value, field.name);
+            if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) return refuse('Message selection requires own evaluated fields.');
+            fields[field.name] = descriptor.value;
+          }
+          return fields;
+        });
+        return producer.encodeSelection!(metadata.type, native);
+      };
+      const wire = encode(), fingerprint = stableStringify(wire);
+      const healthy = () => {
+        checked(c);
+        if (frame.pending !== 1 || frame.activeQueryCandidate !== null || query.active !== null || query.result !== result ||
+            query.receiptResult !== result || frame.queryArrays.get(nativeRows as object) !== issued || !query.bound ||
+            stableStringify(encode()) !== fingerprint) return refuse('Message selection crossed its original query/value lifetime.');
+      };
+      query.bound = true;
+      const attachment = metadata.fields.find(field => field.name === 'attachments');
+      const dependency = attachment === undefined ? undefined :
+        resultPlan(frame)?.returns.flatMap(returned => returned.dependencies).find(dependency => dependency.id === attachment?.dependencyId);
+      if (dependency === undefined || dependency.queryId !== query.plan.id || dependency.role !== 'data' ||
+          dependency.model !== query.plan.model || dependency.type !== 'file[]') return refuse('Message selection lacks its owning attachment DATA occurrence.');
+      const rows = [] as Array<{ readonly slot: typeof result.rows[number]['slot']; readonly files: readonly FinalizedFileObservation[] }>;
+      for (const row of result.rows) {
+        healthy();
+        if (!Object.hasOwn(row.record.data, dependency.field)) return refuse('Selected attachment field is unavailable.');
+        const files = await producer.observeSelectionFiles({ dependencyId: dependency.id, model: dependency.model,
+          field: dependency.field, wire: row.record.data[dependency.field] }, healthy);
+        healthy(); rows.push(Object.freeze({ slot: row.slot, files }));
+      }
+      healthy();
+      const captured = await bindStateQuerySelection(frame.call, frame.store, { query: result.query, wire, rows: Object.freeze(rows) });
+      healthy();
+      if (stableStringify(captured) !== fingerprint) return refuse('State selected wire differs from the original eager messages.');
+      frame.selectionChecks.push(() => {
+        checked(c);
+        if (stableStringify(encode()) !== fingerprint) return refuse('Selected messages changed after their original eager binding.');
+      });
+      return messages;
+    } catch (error) { return fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {});
+  return operation;
 }
 
 /** Bind the authored nominal array, including empty, to the exact ordered query
