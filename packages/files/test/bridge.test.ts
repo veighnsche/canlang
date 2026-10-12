@@ -211,6 +211,8 @@ describe('bridge v1', () => {
     assert.equal(createBridgeOrigin('https://user:pass@app.example.test'), null);
     assert.equal(createBridgeOrigin('https://app.example.test/?x=1'), null);
     assert.equal(createBridgeOrigin('https://app.example.test/#f'), null);
+    assert.equal(createBridgeOrigin('https://app.example.test/?'), null);
+    assert.equal(createBridgeOrigin('https://app.example.test/#'), null);
     assert.equal(createBridgeOrigin('not a url'), null);
     assert.equal(createBridgeOrigin(''), null);
     const normalized = createBridgeOrigin('https://app.example.test///');
@@ -218,16 +220,28 @@ describe('bridge v1', () => {
   });
 
   it('generates every destination from the bridge origin', () => {
-    const h = makeHarness();
-    const poisoned = { ...h.upload, urlBase: 'https://other.test' };
-    const created = handleCreateIntent(h.bridge, poisoned, {}, uploadRequest(), BINDING);
-    assert.equal(created.status, 'granted');
-    if (created.status !== 'granted') {
-      return;
+    for (const baseUrl of ['https://app.example.test', 'https://app.example.test/path%3F%23']) {
+      const h = makeHarness();
+      const origin = createBridgeOrigin(`${baseUrl}///`);
+      assert.deepEqual(origin, { baseUrl });
+      assert.ok(origin);
+      const bridge = { ...h.bridge, origin };
+      assert.deepEqual(advertiseFileTransfer(origin), { version: 1, intents: `${baseUrl}/files/intents` });
+      const poisoned = { ...h.upload, urlBase: 'https://other.test' };
+      const created = handleCreateIntent(bridge, poisoned, {}, uploadRequest(), BINDING);
+      assert.equal(created.status, 'granted');
+      if (created.status !== 'granted') {
+        continue;
+      }
+      assert.equal(created.grant.content, `${baseUrl}/files/content/${encodeURIComponent(created.intentId)}`);
+      assert.equal(created.grant.finalize, `${baseUrl}/files/finalize/${encodeURIComponent(created.intentId)}`);
+      for (const destination of [advertiseFileTransfer(origin).intents, created.grant.content, created.grant.finalize]) {
+        const url = new URL(destination);
+        assert.equal(url.origin, 'https://app.example.test');
+        assert.equal(url.search, '');
+        assert.equal(url.hash, '');
+      }
     }
-    assert.ok(created.grant.content.startsWith('https://app.example.test/files/content/'));
-    assert.ok(created.grant.finalize.startsWith('https://app.example.test/files/finalize/'));
-    assert.ok(created.grant.content.includes(created.intentId));
   });
 
   it('direct intent creation fails closed on a non-HTTPS base', () => {

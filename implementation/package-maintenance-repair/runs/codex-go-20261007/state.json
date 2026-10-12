@@ -2889,6 +2889,14 @@
         "validation": "Fresh Files emission0 and maintained malformed-pointer bridge RED granted /a~ instead of invalid-request. Final Files emission0/validation13/13 PASS,0fail/cancel/skip; malformed trailing/invalid escapes leave zero intents, valid ~1/~0/~01 pointers retain exact stored fields and decoded present slots refuse. Existing exact bytes/SHA/MIME/oversize/partial/no-file/nonserializable controls retained; finite independent source review CLEAR. Unchanged root/public types/upload/reopen/retention/SQLite/native/installed results reused at original scopes.",
         "remaining": "Actual mounted R2/concurrent-store serialization and interruption/power-loss qualification remain defining Dev/storage-owner outputs; recipient holds preserved.",
         "coordinator_review": "Independent defining review CLEAR; exact source/control preimages, validation13 reused and changed MAIN Files/root0. No storage/authority policy or native/host acceptance; complete checkpoint and holds unchanged."
+      },
+      "bridge_empty_delimiter_refusal": {
+        "status": "implemented_tested_source_reviewed_CLEAR_local; finite validated bridge URL contract; external host parent unfinished",
+        "source_base": "49d053c1a5f93a493af97119f5192b17d7e7f487",
+        "defect": "createBridgeOrigin promised no query/fragment but URL.search/hash hide empty delimiters. Bare ?/# origins were admitted, causing advertised intents and content/finalize endpoints to append inside a query/fragment.",
+        "repair": "Reject literal query/fragment delimiters in the original base at the existing URL validation stage. Preserve HTTPS/credential checks, trailing-slash normalization, encoded %3F/%23 path data, principal resolution and bridge-origin override of configured destinations. No new sink/host/storage policy.",
+        "validation": "Fresh pinned Node24.19 Files emission0 and maintained origin RED accepted bare? instead of null. Final Files emission0/bridge13/13 PASS,0fail/cancel/skip. Actual advertisement and handleCreateIntent preserve ordinary/encoded base path and exact same-origin query-free/fragment-free destinations despite poisoned configured urlBase; existing auth/team/fallback/finalize controls retained. Finite independent source review CLEAR. Unchanged root/public types/upload/reopen/retention/SQLite/native/installed results reused at recorded scopes.",
+        "remaining": "Exact coordinator source intake; actual R2/mounted concurrent-store serialization and interruption/power-loss qualification remain defining Dev/storage-owner outputs. All holds/provider-void skip preserved; no push."
       }
     },
     "TECH-F02": {

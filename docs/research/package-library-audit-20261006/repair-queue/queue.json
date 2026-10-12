@@ -2426,7 +2426,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Actual deployment/storage/provider host owner; Dev",
-        "accepted_scope": "Finalization/publication/reopen/retention and required offset producer/Interfaces/UI plus finite actual native consumers are implemented/tested/manually reviewed; live external-host/concurrent/power-loss and full parent qualification remain open. Upload pointer escape grammar is reviewed in LOCAL main; malformed escapes refuse before storage/grant, validation13 reused with changed Files/root0. Actual external R2/mounted concurrency/power-loss remains separate.",
+        "accepted_scope": "Finalization/publication/reopen/retention and required offset producer/Interfaces/UI plus finite actual native consumers are implemented/tested/manually reviewed; live external-host/concurrent/power-loss and full parent qualification remain open. Malformed upload JSON Pointer tilde escapes now refuse before intent storage while valid decoded names remain usable; Files emit0/validation13/source review CLEAR locally. External serialization/power-loss remains separate. Empty bridge query/fragment delimiters now refuse at the existing origin gate while encoded path data feeds exact advertised/content/finalize URLs; Files emit0/bridge13/source review CLEAR locally. External host qualification remains separate.",
         "next_action": "Qualify only that declared actual host profile; serial local results cannot replace external concurrency evidence.",
         "done_when": "On that declared actual host, exact range retry and each original publication interruption either recover the same finalized identity or refuse before immutable acceptance; serial outcomes are not credited as external concurrency.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01",
@@ -2441,7 +2441,8 @@
           "defining_owner": "Dev/storage host; Packages existing adapters",
           "next_action": "No second storage algorithm or lane hold; take concrete host release only."
         },
-        "upload_pointer_escape_admission": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01/upload_pointer_escape_admission"
+        "upload_pointer_escape_admission": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01/upload_pointer_escape_admission",
+        "bridge_empty_delimiter_refusal": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01/bridge_empty_delimiter_refusal"
       }
     },
     {
