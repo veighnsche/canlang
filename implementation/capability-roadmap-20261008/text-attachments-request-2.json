@@ -1,0 +1,22 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "goal": "Implement one explicit attachment-capable text-generation installation. Preserve existing no-attachment installations and honestly refuse unsupported MIME types. This is finite controlled-adapter capability, not production model/account/tokenizer or complete application acceptance.",
+    "verified_contract": "Messages have system/user/assistant roles, string content and ordered finalized File references. Repeated references are meaningful and must remain repeated in the transmitted request. Existing synchronous streaming returns a handle; async final-only returns completion. Existing frozen capture validates roles and attachment lists before demanding content, and missing actual tokenizer refuses before content. A run owns one cancellation signal and creation-anchored deadline.",
+    "verified_provider": "Ollama REST /api/chat documents message.images as base64 image bytes. It does not document transmitting arbitrary finalized File identifiers, a URL-fetch grant, or interpreting arbitrary binary Files as text. Installed model must be explicitly selected, allowlisted and qualified for image support; actual tokenizer must count the same frozen multimodal request as transport.",
+    "verified_file_output": "An existing current finalized File reader produces a detached byte snapshot plus retained immutable ref, MIME, size, digest, receiver, provenance, finalization and retention facts together after physical policy/lifetime checks. The host separately owns actual admitted source/whole-field/ancestor/current-Identity checks. Snapshot shape and request identity fields grant no authority.",
+    "requirements": "Sequential first-failure behavior; source/current lifetime validation before sending; exact ordered duplicate images, detached immutable counted/transmitted request, configurable positive file-count/per-file/aggregate byte ceilings, no MIME reinterpretation or silent dropping. Missing tokenizer, wrong ref/source, expired/revoked File, unsupported MIME, excess bytes/tokens and cancel/deadline before transport refuse with zero POST. Original root/caller guards, permission and receipt policy stay with the native host.",
+    "uncertainty": "Choose the smallest complete boundary for asynchronous byte resolution and final current-authority validation. Both alternatives below must preserve identical permissions, cancellation, deadline, capture order, limits, tokenizer identity and real controlled HTTP positive/negative outcomes. No generic File walker, schema carrier or new Files API is needed."
+  },
+  "questions": {
+    "attachment_preparation": {
+      "type": "choice",
+      "instructions": "At this finite declared scope, should provider-owned preparation await the genuine host File reader, or should the host finish private per-request File preparation before launching the adapter? Compare the complete outcomes fairly; C means an actual missing fact.",
+      "criteria": {
+        "A": "Put request-bound asynchronous File reads/current checks into the installed Services provider. Capture roles/ref lists/content at their existing boundary, preserve exact File order and repeats, bound byte work and token count, then send documented base64 images. The original run handle must own preparation cancel/deadline and keep first terminal result. Avoid another host-to-adapter prepared carrier.",
+        "B": "Keep Services preparation synchronous by letting the native host resolve authorized immutable File images first and install their private request reader. The host owns pre-launch cancellation/deadline and exact source association; Services validates bounds/counts actual provider messages and performs the host current check before HTTP. Avoid adapting stream preparation, at the cost of another host preparation lifetime.",
+        "C": "Evidence leaves a concrete requirement unresolved for both. Preserve refusal and identify that fact; generic future formats and deployment credentials alone are not engineering blockers."
+      }
+    }
+  }
+}
