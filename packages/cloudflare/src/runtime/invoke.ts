@@ -3457,6 +3457,9 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
   }
 }
 
+type NativeQuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
+const nativeScenarioQuerySelections = new WeakMap<GeneratedOperationDef, readonly NativeQuerySelectionMetadata[]>();
+
 /** Query authority comes from the checked source module and actual same-load
  * viewer policy. A claimed descriptor cannot opt into a provisional host read. */
 async function bindNativeScenarioQueries(asm: AssembledModules, artifact: CompileArtifact,
@@ -3467,7 +3470,36 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
   for (const value of loaded.registry.values()) {
     const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
     if (def === undefined || !plan?.queries?.length) continue;
-    const needsSourcePolicy = plan.queries.some(query => {
+    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
+      entry.module === plan.source.module);
+    if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario query lacks its exact owning callable.');
+    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const where = `Scenario query ${JSON.stringify(def.name)}`;
+    const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
+    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
+    if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
+    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
+    const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
+    const rawSelections = isUnknownRecord(operation) ? readMetadataMember(operation, 'querySelections', where)?.value : undefined;
+    const selections = rawSelections === undefined ? [] : nativeCallArray(rawSelections, 3).map(value => {
+      const selection = localPolicyObject(value, ['queryId', 'type', 'fields']);
+      if (Object.keys(selection).length !== 3 || typeof selection.queryId !== 'string' ||
+          !['TextMessage[]', 'std.TextMessage[]'].includes(String(selection.type))) {
+        throw new AssemblyCorrespondenceError('Message selection lacks its original checked query and complete array type.');
+      }
+      const fields = nativeCallArray(selection.fields, 3).map(value => {
+        const field = localPolicyObject(value, ['name', 'dependencyId']);
+        if (Object.keys(field).length !== 2 || typeof field.name !== 'string' || typeof field.dependencyId !== 'string') {
+          throw new AssemblyCorrespondenceError('Message selection lacks its original DATA field correspondence.');
+        }
+        return { name: field.name, dependencyId: field.dependencyId };
+      });
+      return captureDispatchPreclaimData({ queryId: selection.queryId, type: selection.type as CanTypeId, fields }) as NativeQuerySelectionMetadata;
+    });
+    if (selections.length !== 0 && (!isUnknownRecord(operation) || readMetadataMember(operation, 'handler', where)?.value !== def.name)) {
+      throw new AssemblyCorrespondenceError('Message selection differs from its actual installed operation.');
+    }
+    const needsSourcePolicy = selections.length !== 0 || plan.queries.some(query => {
       const visited = new Set<ModelName>();
       let model: ModelName | undefined = query.model;
       while (model !== undefined && !visited.has(model)) {
@@ -3477,27 +3509,17 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       }
       return false;
     });
-    // Source-only preloads cannot bind actor-dependent or ancestor rules.
-    // The fresh invocation registry supplies their original current context.
+    // Eager selections need whole original source grants even without row rules.
     if (needsSourcePolicy && context === undefined) continue;
     const bind = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
-    if (bind === undefined) {
-      throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer.');
-    }
-    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
-      entry.module === plan.source.module);
-    if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario query lacks its exact owning callable.');
-    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
-    const where = `Scenario query ${JSON.stringify(def.name)}`;
-    const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', where)?.value : undefined;
-    const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', where)?.value : undefined;
-    if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
+    if (bind === undefined) throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer.');
     const readPolicies = needsSourcePolicy ? new Map<ModelName, import('@canlang/state/query').ViewerSourceReadPolicy>() : undefined;
     if (readPolicies !== undefined) for (const query of plan.queries) {
       for (const [model, policy] of sourceReads!.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
     }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
-      ...(readPolicies === undefined ? {} : { readPolicies }) });
+      ...(readPolicies === undefined ? {} : { readPolicies }), ...(selections.length === 0 ? {} : { selections }) });
+    if (selections.length !== 0) nativeScenarioQuerySelections.set(def, Object.freeze(selections));
   }
 }
 
@@ -3565,7 +3587,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // authority; the invocation-local registry binds their genuine context.
     if (context === undefined && ((nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
-        (plan.queries?.length ?? 0) !== 0 && loaded.models.some(model => model.name === def.descriptor.result?.type))) continue;
+        loaded.models.some(model => model.name === def.descriptor.result?.type))) continue;
     if (context === undefined ? !plan.returns.some(entry => entry.dependencies.some(dependency => {
       const parsed = parseTypeId(dependency.type);
       const modelName = parsed.base.kind === 'nominal' ? parsed.base.path : undefined;
@@ -4965,11 +4987,14 @@ async function createContainmentNavigation(input: {
         ...(input.fence === undefined ? {} : { fence: input.fence }),
       }, async (result, _allowed, presence) => {
         if (result.revision !== input.revision) throw new StateError('conflict', 'State changed during parent navigation.');
-        if (result.record === null) throw new StateError('not_found', 'Parent record not found.');
-        if (presence === null) throw new StateError('validation', 'Authorized source projection lacks its same-load field presence.');
         await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
+        if (result.record === null) return null;
+        if (presence === null) throw new StateError('validation', 'Authorized source projection lacks its same-load field presence.');
         return { record: result.record, presence };
       });
+      // A normal denied projection must leave State's borrowed observation healthy.
+      // Defer unavailable-parent access outside that lease, like other navigation.
+      if (visible === null) throw new StateError('not_found', 'Parent record not found.');
       const projected = freezeScenarioSnapshot(structuredClone(visible.record)) as ProjectedRecord;
       sourcePresence.set(projected, new Set(visible.presence.fields));
       return projected;
@@ -6953,6 +6978,22 @@ async function runScenarioExecution(
           }
           return recordView(model, row);
         },
+        ...(nativeScenarioQuerySelections.get(actualCall.def as GeneratedOperationDef) === undefined ? {} : {
+          selections: nativeScenarioQuerySelections.get(actualCall.def as GeneratedOperationDef)!,
+          encodeSelection: (type: CanTypeId, value: unknown) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
+          observeSelectionFiles: async (input: { readonly dependencyId: string; readonly model: string; readonly field: string;
+            readonly wire: unknown }, healthy: () => void): Promise<readonly FinalizedFileObservation[]> => {
+            healthy();
+            const bound = nativeScenarioFiles.get(actualCall.def as GeneratedOperationDef);
+            if (bound === undefined || bound.files !== opts.files || bound.app !== actualCall.context.app || bound.app !== opts.app) {
+              return refuseRecordBinding('Selected messages require their original receiving Files port and app.');
+            }
+            const observations = await bound.observeWire(input, opts.identity, healthy);
+            healthy();
+            if (observations === undefined) return refuseRecordBinding('Selected messages lost their original attachment field census.');
+            return observations;
+          },
+        }),
         encode: value => scenarioResult(call, loaded, value),
       }, async (input, healthy) => {
         healthy();
@@ -7229,6 +7270,8 @@ const nativeScenarioFiles = new WeakMap<GeneratedOperationDef, {
   readonly observeDependency: (input: { readonly dependencyId: string; readonly model: string;
     readonly row: StoredRow; readonly field: string }, identity: ResolvedIdentity, healthy: () => void) =>
     Promise<readonly FinalizedFileObservation[] | undefined>;
+  readonly observeWire: (input: { readonly dependencyId: string; readonly model: string; readonly field: string;
+    readonly wire: unknown }, identity: ResolvedIdentity, healthy: () => void) => Promise<readonly FinalizedFileObservation[] | undefined>;
 }>();
 
 /** Install the genuine receiving-file callback before the checked root executes.
@@ -7253,7 +7296,9 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
   const storedIds = new Set([...(nativeScenarioStoredFileSlots.get(def)?.values() ?? [])]
     .flatMap(site => site.fileInputs.map(slot => slot.dependencyId)));
   const nominalProfiles = nativeScenarioNominalFileProfiles.get(def);
-  if (storedIds.size === 0 && (nominalProfiles?.size ?? 0) === 0 && !def.descriptor.inputs.some(field => 'valueType' in field && field.valueType !== undefined &&
+  const selectedIds = new Set((nativeScenarioQuerySelections.get(def) ?? []).flatMap(selection =>
+    selection.fields.filter(field => field.name === 'attachments').map(field => field.dependencyId)));
+  if (storedIds.size === 0 && selectedIds.size === 0 && (nominalProfiles?.size ?? 0) === 0 && !def.descriptor.inputs.some(field => 'valueType' in field && field.valueType !== undefined &&
       /^file(?:\[\])?\??$/.test(field.valueType))) return;
   const files = opts.files;
   const existing = nativeScenarioFiles.get(def);
@@ -7305,14 +7350,14 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
   const fileProfiles = new Map<string, { readonly model: string; readonly field: string;
     readonly profile: import('@canlang/state').FileReferenceProfile }>(nominalProfiles);
   let occurrences: typeof import('@canlang/state').fileReferenceOccurrences | undefined;
-  if (storedIds.size !== 0 || fileProfiles.size !== 0) {
+  if (storedIds.size !== 0 || selectedIds.size !== 0 || fileProfiles.size !== 0) {
     const state = await loadProducerModule('@canlang/state', 'stored File CALL census');
     const bindProfile = requireProducerFn(state, 'bindFileReferenceProfile', 'stored File CALL census') as
       typeof import('@canlang/state').bindFileReferenceProfile;
     occurrences = requireProducerFn(state, 'fileReferenceOccurrences', 'stored File CALL census') as
       typeof import('@canlang/state').fileReferenceOccurrences;
     for (const returned of plan.returns) for (const dependency of returned.dependencies) {
-      if (!storedIds.has(dependency.id) || fileProfiles.has(dependency.id)) continue;
+      if ((!storedIds.has(dependency.id) && !selectedIds.has(dependency.id)) || fileProfiles.has(dependency.id)) continue;
       const profile = bindProfile({ canonicalModels: loaded.models,
         artifactModels: new Map((opts.artifact.models ?? []).map(model => [model.name as ModelName, model])),
         ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
@@ -7322,20 +7367,20 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
       }
       fileProfiles.set(dependency.id, { model: dependency.model, field: dependency.field, profile });
     }
-    if ([...storedIds].some(id => !fileProfiles.has(id))) throw new AssemblyCorrespondenceError('Stored File call lost an original dependency census.');
+    if ([...storedIds, ...selectedIds].some(id => !fileProfiles.has(id))) throw new AssemblyCorrespondenceError('Stored File call lost an original dependency census.');
   }
   let originalObserve: CanonicalFileBinding['observe'];
-  const observeDependency = async (input: { readonly dependencyId: string; readonly model: string;
-    readonly row: StoredRow; readonly field: string }, identity: ResolvedIdentity, healthy: () => void):
+  const observeWire = async (input: { readonly dependencyId: string; readonly model: string;
+    readonly wire: unknown; readonly field: string }, identity: ResolvedIdentity, healthy: () => void):
     Promise<readonly FinalizedFileObservation[] | undefined> => {
     healthy();
     const source = fileProfiles.get(input.dependencyId);
     if (source === undefined) return undefined;
-    if (source.model !== input.model || source.field !== input.field || !Object.hasOwn(input.row.data, input.field)) {
+    if (source.model !== input.model || source.field !== input.field) {
       throw new AssemblyCorrespondenceError('Stored File observation differs from its original source field.');
     }
     await verifyCheckedAssembly(opts.asm, opts.artifact); healthy();
-    const census = occurrences!(source.profile, input.row.data[input.field]);
+    const census = occurrences!(source.profile, input.wire);
     if (storedIds.has(input.dependencyId) && census.length > 8) throw new loaded.producers.errors('validation', 'Stored File call exceeds its original finite array profile.');
     const refs = [...new Set(census.map(occurrence => occurrence.ref))];
     prepareObservation();
@@ -7361,6 +7406,14 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
     // the ordered whole wire separately from this distinct physical census.
     return Object.freeze(observations);
   };
+  const observeDependency = (input: { readonly dependencyId: string; readonly model: string;
+    readonly row: StoredRow; readonly field: string }, identity: ResolvedIdentity, healthy: () => void) => {
+    healthy();
+    if (!fileProfiles.has(input.dependencyId)) return Promise.resolve(undefined);
+    if (!Object.hasOwn(input.row.data, input.field)) throw new AssemblyCorrespondenceError('Stored File observation lost its original source field.');
+    return observeWire({ dependencyId: input.dependencyId, model: input.model, field: input.field,
+      wire: input.row.data[input.field] }, identity, healthy);
+  };
   // Census loading awaited: do not replace a concurrently installed producer.
   const ready = nativeScenarioFiles.get(def);
   if (ready !== undefined) {
@@ -7368,7 +7421,7 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
     return;
   }
   bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, revalidate: currentFile }));
-  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate: currentFile, prepareObservation, observeDependency }));
+  nativeScenarioFiles.set(def, Object.freeze({ files, app, revalidate: currentFile, prepareObservation, observeDependency, observeWire }));
 }
 
 /** Opaque source ordinals belong to the actual admitted operation. A cohort
