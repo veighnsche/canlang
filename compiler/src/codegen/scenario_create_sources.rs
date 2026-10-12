@@ -1037,6 +1037,12 @@ impl SourceExpressions<'_> {
         else {
             return None;
         };
+        // The ordinary lane admits only an authenticated original derive
+        // whose authored body performs no membership read; sealed or
+        // unauthenticated derives refuse here and keep their strict path.
+        if self.authenticated_derive_membership(target) != Some(false) {
+            return None;
+        }
         if actual.ty != *result {
             return None;
         }
@@ -1076,24 +1082,92 @@ impl SourceExpressions<'_> {
     /// catalog membership read. Such derives are the authorization machinery
     /// itself; their calls keep the strict authorization correspondence and
     /// never fall back to ordinary derive matching.
-    fn authorization_shaped(&self, actual: &TypedExpr) -> bool {
-        fn contains_membership(expr: &TypedExpr, depth: usize) -> bool {
-            if depth > 32 {
-                return false;
+    /// Authenticate the original derive declaration in its defining source
+    /// and report whether its authored body performs the catalog membership
+    /// read. Lane selection consumes only this original evidence: a supplied
+    /// IR body is never consulted, so deleting membership from mutable IR
+    /// cannot reclassify a sealed derive as ordinary. `None` means the
+    /// original declaration could not be authenticated at all.
+    fn authenticated_derive_membership(&self, target: &str) -> Option<bool> {
+        let item = self.ir.items.iter().find(|item| item.canonical == target)?;
+        let IrItemKind::DeriveFn { params, .. } = &item.kind else {
+            return None;
+        };
+        let defining = self.ir.modules.get(item.module.0 as usize)?;
+        if defining.id != item.module
+            || item.canonical != format!("{}.{}", defining.name, item.name)
+        {
+            return None;
+        }
+        let defining_file = self.db.get(defining.file)?;
+        let defining_text = defining_file.text.as_str();
+        let defining_tree;
+        let mut defining_nodes: HashMap<NodeKey, &SyntaxNode> =
+            self.nodes.iter().map(|(key, node)| (*key, *node)).collect();
+        if defining.file != self.original.node.file {
+            let (tree, diagnostics) = crate::syntax::parse(self.db, defining.file);
+            if !diagnostics.is_empty() {
+                return None;
             }
-            match &expr.expr {
-                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
-                    matches!(target, IrCallTarget::Builtin { id, .. } if id == "active_member")
-                        || args.iter().any(|arg| contains_membership(arg, depth + 1))
-                }
-                IrExpr::Member { base, .. } => contains_membership(base, depth + 1),
-                IrExpr::Binary { left, right, .. } => {
-                    contains_membership(left, depth + 1) || contains_membership(right, depth + 1)
-                }
-                IrExpr::Unary { operand, .. } => contains_membership(operand, depth + 1),
-                _ => false,
+            defining_tree = tree;
+            let mut pending = vec![&defining_tree];
+            while let Some(node) = pending.pop() {
+                defining_nodes.insert(NodeKey::of(node), node);
+                pending.extend(node.children.iter());
             }
         }
+        let declarations: Vec<_> = defining_nodes
+            .values()
+            .filter(|node| {
+                node.kind == SyntaxKind::Derive
+                    && node.span.file == item.span.file
+                    && node.span.start <= item.span.start
+                    && node.span.end >= item.span.end
+            })
+            .collect();
+        let [declaration] = declarations.as_slice() else {
+            return None;
+        };
+        let declaration_path = declaration
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)?;
+        if declaration_path.span != item.span
+            || single_name(declaration_path, defining_text)? != item.name
+        {
+            return None;
+        }
+        let authored_params = declaration
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::Parameter)
+            .count();
+        if authored_params != params.len() {
+            return None;
+        }
+        let mut pending: Vec<&SyntaxNode> = declaration.children.iter().collect();
+        let mut membership = false;
+        while let Some(node) = pending.pop() {
+            if node.kind == SyntaxKind::Call
+                && expressions(node)
+                    .first()
+                    .and_then(|head| source_path(head, defining_text))
+                    .is_some_and(|name| name == "active_member")
+            {
+                membership = true;
+            }
+            pending.extend(node.children.iter());
+        }
+        Some(membership)
+    }
+
+    /// The sealed authorization shape: the authenticated original derive
+    /// performs the catalog membership read. Such derives are the
+    /// authorization machinery itself; their calls keep the strict
+    /// authorization correspondence and never fall back to ordinary derive
+    /// matching. Unauthenticated declarations are treated as sealed, so a
+    /// missing original proof refuses rather than falling back.
+    fn authorization_shaped(&self, actual: &TypedExpr) -> bool {
         let target = match &actual.expr {
             IrExpr::Call {
                 target: IrCallTarget::DeriveFn(target),
@@ -1103,18 +1177,9 @@ impl SourceExpressions<'_> {
                 target: IrCallTarget::DeriveFn(target),
                 ..
             } => target,
-            _ => return false,
+            _ => return true,
         };
-        let Some(item) = self.ir.items.iter().find(|item| &item.canonical == target) else {
-            return false;
-        };
-        let IrItemKind::DeriveFn {
-            expr: Some(body), ..
-        } = &item.kind
-        else {
-            return false;
-        };
-        contains_membership(body, 0)
+        self.authenticated_derive_membership(target).unwrap_or(true)
     }
 
     fn authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
@@ -2429,4 +2494,119 @@ fn duration(text: &str) -> Option<i128> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::{ResolvedType, Scalar, check_program};
+    use crate::source::Span;
+    use super::super::ir::IrStmt;
+
+    const SOURCE: &str = include_str!("../../tests/fixtures/native-authorization-can-use.can");
+
+    fn fixture() -> (SourceDb, IrProgram) {
+        let mut db = SourceDb::new();
+        let file = db.add("authorization.can".into(), SOURCE.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let catalog_path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: &root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, ir)
+    }
+
+    fn authorization_guard(ir: &IrProgram) -> (TypedExpr, crate::source::Span) {
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "AuthorizationCanUse.ask")
+            .unwrap();
+        let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+            panic!("scenario")
+        };
+        let [IrStmt::Require { cond, .. }] = guards.as_slice() else {
+            panic!("one leading require")
+        };
+        (cond.clone(), cond.span)
+    }
+
+    fn create_fact<'a>(ir: &'a IrProgram) -> &'a CheckedScenarioCreate {
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "AuthorizationCanUse.ask")
+            .unwrap();
+        ir.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap()
+    }
+
+    fn node_at(db: &SourceDb, span: crate::source::Span) -> NodeKey {
+        let (tree, diagnostics) = crate::syntax::parse(db, span.file);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let mut pending = vec![&tree];
+        while let Some(node) = pending.pop() {
+            if node.span == span {
+                return NodeKey::of(node);
+            }
+            pending.extend(node.children.iter());
+        }
+        panic!("guard source node")
+    }
+
+    #[test]
+    fn body_only_membership_deletion_refuses_at_create_source_boundary() {
+        let (db, ir) = fixture();
+        let (cond, span) = authorization_guard(&ir);
+        let node = node_at(&db, span);
+        let original = create_fact(&ir).clone();
+        assert!(
+            checked_create_expression(&ir, &original, &cond, node, &db).is_some(),
+            "original authorization call keeps create-source correspondence"
+        );
+        // Body-only deletion: the mutable IR callee body loses its
+        // membership read while the checked call, result type and span
+        // stay identical. Lane selection authenticates the original
+        // declaration, so the sealed lane refuses; ordinary derive
+        // matching must never admit this call.
+        let mut changed = ir.clone();
+        let derive = changed
+            .items
+            .iter()
+            .find(|item| item.canonical == "AuthorizationCanUse.can_use")
+            .unwrap()
+            .id;
+        let IrItemKind::DeriveFn { expr, .. } = &mut changed.items[derive.0 as usize].kind
+        else {
+            panic!("derive")
+        };
+        let body = expr.as_mut().unwrap();
+        assert_eq!(body.ty, ResolvedType::Scalar(Scalar::Bool));
+        body.expr = IrExpr::Bool(true);
+        let (cond, span) = authorization_guard(&changed);
+        let node = node_at(&db, span);
+        assert!(
+            checked_create_expression(&changed, &original, &cond, node, &db).is_none(),
+            "body-only membership deletion must refuse"
+        );
+    }
 }
