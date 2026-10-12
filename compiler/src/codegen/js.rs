@@ -1652,6 +1652,16 @@ fn emit_program_with_sources(
     if native_receipts {
         let models = emitter.collect_models();
         for (index, item) in ir.items.iter().enumerate() {
+            if super::scenario_receipts::has_original_transcript_source(ir, SymbolId(index as u32))
+            {
+                emitter.diags.push(Diagnostic::error(
+                    "E6008",
+                    "transcript needs released native query and stored-message correspondence"
+                        .into(),
+                    item.span,
+                ));
+                continue;
+            }
             if let Some(recipe) = super::scenario_receipts::collect_native_scenario_receipt(
                 ir,
                 item,
@@ -1697,7 +1707,13 @@ fn emit_program_with_sources(
             }
         }
         if let Some(query_receipts) = query_receipts {
-            for item in &ir.items {
+            for (index, item) in ir.items.iter().enumerate() {
+                if super::scenario_receipts::has_original_transcript_source(
+                    ir,
+                    SymbolId(index as u32),
+                ) {
+                    continue;
+                }
                 if let Some(recipe) = query_receipts.get(&item.canonical)
                     && ir
                         .scenario_disclosures

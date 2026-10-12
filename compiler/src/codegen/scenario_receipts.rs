@@ -317,6 +317,19 @@ pub(super) fn has_original_images_source(
     })
 }
 
+/// Original transcript attribution is source evidence only. Its native query
+/// and stored-message consumer must be released before a recipe can be emitted.
+pub(super) fn has_original_transcript_source(
+    ir: &IrProgram,
+    scenario: crate::analysis::SymbolId,
+) -> bool {
+    ir.scenario_disclosures
+        .get(&scenario)
+        .and_then(|disclosure| disclosure.source_facts())
+        .and_then(|facts| facts.transcripts.as_deref())
+        .is_some_and(|transcripts| !transcripts.is_empty())
+}
+
 pub(super) fn checked_created_model_result(
     ir: &IrProgram,
     item: &IrItem,
@@ -464,6 +477,9 @@ pub(super) fn collect_native_scenario_receipt(
     value_types: Option<&JsValueTypes>,
     sources: NativeReceiptSources<'_>,
 ) -> Option<NativeScenarioReceipt> {
+    if has_original_transcript_source(ir, item.id) {
+        return None;
+    }
     let NativeReceiptSources {
         db,
         send_guards,

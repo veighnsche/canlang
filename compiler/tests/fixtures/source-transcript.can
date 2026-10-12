@@ -1,0 +1,33 @@
+## Test-authored scalar consumer of the original Chat transcript and message concat; source only, no native authority.
+app SourceTranscript
+use std {TextMessage}
+Given
+ Profile { name:text trim, provider_key:text, policy_revision:text, system_prompt:text max=8192, input_tokens:int=8192 min=1 max=32768, output_tokens:int=2048 min=1 max=8192, duration:duration=120s, active:bool=true } label="Model profile"@{nl="Modelprofiel"}
+ export Conversation { title:text trim max=200, account:user server=actor, active:bool=true } label="Conversation"@{nl="Gesprek"}
+ export Branch in Conversation { title:text trim max=200, profile:Profile, prefix:TextMessage[] max=120, origin:Turn? } label="Branch"@{nl="Vertakking"}
+ export Turn in Branch { position:int min=1, role:TextMessage.role label={text="Speaker"@{nl="Spreker"},values={user="You"@{nl="Jij"},assistant="Assistant"@{nl="Assistent"}}}, content:text max=65536, attachments:file[] max=8, run:Run } label="Message"@{nl="Bericht"}
+ Run in Branch {title:text}
+ export derive can_use(person:user?,conversation:Conversation):bool = person!=null and active_member(person,team) and conversation.account==person and conversation.active
+ export derive transcript(branch:Branch):TextMessage[] = branch.prefix+(branch.Turn as turn order=turn.position select TextMessage {role=turn.role,content=turn.content,attachments=turn.attachments})
+ policy Profile read=members
+ policy Conversation read=members and row.account==actor
+ policy Branch read=can_use(actor,row.parent)
+ ## Recovery exposes only the owning member's live containment link.
+ policy Branch read=members and row.parent.account==actor fields=parent
+ policy Turn read=can_use(actor,row.parent.parent)
+ policy Run read=members
+ invariant Profile: row.duration>=1s and row.duration<=10m
+ invariant Turn: row.role in [user,assistant]
+ unique Turn fields=position
+ unique Turn fields=run,role
+ lock Profile fields=name,provider_key,policy_revision,system_prompt,input_tokens,output_tokens,duration
+ lock Conversation fields=account
+ lock Branch fields=profile,prefix,origin
+ lock Turn fields=position,role,content,attachments,run
+When
+ scenario compose(branch:Branch,prompt:TextMessage.content,attachments:file[]=[]) by=members -> int
+  require count(transcript(branch))<120
+  do
+   let messages=[TextMessage {role=system,content=branch.profile.system_prompt,attachments=[]}]+transcript(branch)+[TextMessage {role=user,content=prompt,attachments}]
+   return count(messages)
+Then

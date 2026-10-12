@@ -1040,6 +1040,64 @@ impl SemanticJoin<'_> {
                 if a != b || !known_type_equal(x, y) {
                     return None;
                 }
+                // Supplied slots do not visit defaults. The exact transcript
+                // projection still consumes its original required Branch
+                // formal, so seal that declaration independently of the body.
+                if let Some(fact) = self
+                    .program
+                    .scenario_disclosures()
+                    .values()
+                    .filter_map(|value| value.source_facts())
+                    .filter_map(|source| source.transcripts.as_ref())
+                    .flatten()
+                    .find(|fact| fact.derive == item.id)
+                {
+                    if b.as_slice() != [fact.formal] {
+                        return None;
+                    }
+                    let current = self.actual.items.get(fact.formal.0 as usize)?;
+                    let original = self.expected.items.get(fact.formal.0 as usize)?;
+                    let (
+                        IrItemKind::Param {
+                            owner: current_owner,
+                            index: current_index,
+                            ty: current_ty,
+                            default: None,
+                            default_node: None,
+                            default_copy_source: None,
+                            ..
+                        },
+                        IrItemKind::Param {
+                            owner: original_owner,
+                            index: original_index,
+                            ty: original_ty,
+                            default: None,
+                            default_node: None,
+                            default_copy_source: None,
+                            ..
+                        },
+                    ) = (&current.kind, &original.kind)
+                    else {
+                        return None;
+                    };
+                    if current.id != fact.formal
+                        || original.id != fact.formal
+                        || current.module != original.module
+                        || current.module != item.module
+                        || current.span != original.span
+                        || current.canonical != original.canonical
+                        || current.name != original.name
+                        || *current_owner != item.id
+                        || current_owner != original_owner
+                        || *current_index != 0
+                        || current_index != original_index
+                        || !known_type_equal(current_ty, original_ty)
+                        || !matches!(current_ty,IrType::Known(ResolvedType::Record {symbol,stored:true})
+                            if *symbol==fact.branch)
+                    {
+                        return None;
+                    }
+                }
                 self.expression(ae, be, d)?;
                 if let Some(slots) = slots {
                     if slots.len() != b.len() {
