@@ -44,7 +44,7 @@ test("browser-print: live GET per call with declared view + bounds; HTML preserv
   const second = await fetchPrintView({
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
-      return stubResponse(200, "<!DOCTYPE html><html><body><table></table></body></html>", " TeXt/HTML ; charset=utf-8");
+      return stubResponse(200.5, "<!DOCTYPE html><html><body><table></table></body></html>", " TeXt/HTML ; charset=utf-8");
     },
     printBase: BASE,
     view: VIEW,
@@ -111,6 +111,14 @@ test("browser-print: non-HTML answers and error JSON digest explicitly", async (
   assert.equal(denied.ok, false);
   if (denied.ok) return;
   assert.equal(denied.error.code, "forbidden");
+  const unordered = await fetchPrintView({
+    fetchImpl: async () => stubResponse(NaN, "<html>not a successful status</html>"),
+    printBase: BASE,
+    view: VIEW,
+  });
+  assert.deepEqual(unordered, {
+    ok: false, error: { code: "transport", message: "Print request failed (status NaN)." },
+  });
   const transport = await fetchPrintView({
     fetchImpl: async () => {
       throw new Error("down");
