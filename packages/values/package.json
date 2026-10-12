@@ -59,6 +59,10 @@
       "types": "./dist/bindings/owned-input.d.ts",
       "default": "./dist/bindings/owned-input.js"
     },
+    "./bindings/serving-validation": {
+      "types": "./dist/bindings/serving-validation.d.ts",
+      "default": "./dist/bindings/serving-validation.js"
+    },
     "./bindings/plans": {
       "types": "./dist/bindings/plans.d.ts",
       "default": "./dist/bindings/plans.js"

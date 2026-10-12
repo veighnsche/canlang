@@ -31,6 +31,7 @@ import type {
 } from "../schema.js";
 import type { NormalizedType } from "../types.js";
 import { Decimal } from "../decimal.js";
+import { normalizeSchema, type SchemaDescriptor } from "../internal/schema-core.js";
 
 // ---------------------------------------------------------------------------
 // Errors.
@@ -138,6 +139,8 @@ export function createPlanOwner(scope: OwnerScope): PlanOwner {
 interface FactoryProvenance {
   readonly factory: "normalizeSchema";
   readonly ownerRevision: string;
+  /** Production registration binds the actual owner, not equal revision text. */
+  readonly owner?: PlanOwner;
 }
 
 const FACTORY_PROVENANCE = new WeakMap<object, FactoryProvenance>();
@@ -158,6 +161,9 @@ export function recordFactoryProvenance(schema: object, ownerRevision: string): 
   if (typeof ownerRevision !== "string" || ownerRevision.length === 0) {
     throw new PlanError("malformed-schema", "factory provenance requires a non-empty owner revision");
   }
+  if (FACTORY_PROVENANCE.get(schema)?.owner !== undefined) {
+    throw new PlanError("foreign-owner", "an owner-bound factory output cannot be reassigned by the private hook");
+  }
   const candidate = schema as { readonly kind?: unknown };
   if (candidate.kind !== "normalized-schema") {
     throw new PlanError("malformed-schema", "factory provenance requires a normalized schema output");
@@ -167,6 +173,21 @@ export function recordFactoryProvenance(schema: object, ownerRevision: string): 
 
 function provenanceOf(schema: object): FactoryProvenance | undefined {
   return FACTORY_PROVENANCE.get(schema);
+}
+
+/** Trusted host factory seam. The host must separately prove its installed
+ * descriptor/source revision; this function confers no application authority.
+ * Normalize completely before recording the exact output for this owner.
+ * Failed normalization/registration publishes no plan or partial defaults.
+ * The private legacy test hook above cannot substitute for this association. */
+export function registerFactoryValidationPlan(
+  owner: PlanOwner, profileVersion: string, descriptor: SchemaDescriptor,
+): Readonly<{ schema: NormalizedSchema; id: PlanId }> {
+  const state = ownerStateOf(owner, "registerFactoryValidationPlan");
+  const schema = normalizeSchema(descriptor);
+  FACTORY_PROVENANCE.set(schema, { factory: "normalizeSchema", ownerRevision: state.scope.ownerRevision, owner });
+  const id = registerValidationPlan(owner, profileVersion, schema);
+  return Object.freeze({ schema, id });
 }
 
 // ---------------------------------------------------------------------------
@@ -423,6 +444,9 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
   }
   if (provenance.ownerRevision !== state.scope.ownerRevision) {
     throw new PlanError("stale-scope", "schema provenance revision does not match the owner scope");
+  }
+  if (provenance.owner !== undefined && provenance.owner !== owner) {
+    throw new PlanError("foreign-owner", "schema factory belongs to a different plan owner");
   }
   const candidate = schema as Partial<NormalizedSchema>;
   if (

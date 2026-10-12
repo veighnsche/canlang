@@ -1497,7 +1497,11 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
   const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
     "../runtime/mcp-registry.js", "runtime/mcp-registry.ts", "createArtifactCatalog",
   );
-  const catalog = createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs);
+  const createPreparedCatalog = await loadSiblingFn<typeof import('../runtime/prepared-validation.js').createPreparedValidationCatalog>(
+    '../runtime/prepared-validation.js', 'runtime/prepared-validation.ts', 'createPreparedValidationCatalog',
+  );
+  const catalog = await createPreparedCatalog(ctx.artifact, ctx.asm,
+    createArtifactCatalog(ctx.artifact, ctx.http?.derivedInputs), ctx.app.appId);
   const now = ctx.now;
   const unjoined = (family: string): never => {
     throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the operation/CSV routes)`);

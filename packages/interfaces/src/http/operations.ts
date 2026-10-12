@@ -62,7 +62,12 @@ import {
 } from './context.js';
 import { formBindingFor, renderFormError, wantsHtmlRerender } from './formErrors.js';
 import { isPartialRequest } from './fragments.js';
-import { FORM_BODY_MAX_BYTES, parseJsonBody, readCappedBody } from './limits.js';
+import { FORM_BODY_MAX_BYTES, JSON_BODY_MAX_BYTES, readCappedBody } from './limits.js';
+import { OwnedInputError, parseOwnedJsonBody, readOwnedJson } from '@canlang/values/bindings/owned-input';
+import { assertSourceValidationCurrent, assertSourceValidationStable, closeSourceValidationCatalog, runSourceHttpPlan } from './prepared-validation.js';
+export { createSourceValidationCatalog } from './prepared-validation.js';
+/** Same installed/bundled owner codec used by the verified source adapter. */
+export { encodeServingLiteral } from '@canlang/values/bindings/serving-validation';
 import { buildPresentationContext } from './presentation.js';
 import { handleInputChoiceRequest } from './input-choices.js';
 
@@ -307,7 +312,14 @@ export async function handleOperationRequest(
     let body: unknown;
     let nativeForm: Record<string, string> | null = null;
     if (mediaType === JSON_CONTENT_TYPE) {
-      body = await parseJsonBody(request);
+      try {
+        body = readOwnedJson(await parseOwnedJsonBody(request, readCappedBody, JSON_BODY_MAX_BYTES)).value;
+      } catch (error) {
+        if (error instanceof OwnedInputError && error.code === 'validation') {
+          throw new IdentityError('validation', error.message);
+        }
+        throw error;
+      }
     } else if (mediaType === FORM_CONTENT_TYPE) {
       const form = await readOperationForm(request);
       if (Object.hasOwn(form, 'inputs')) {
@@ -437,7 +449,8 @@ export async function handleOperationRequest(
       }
       businessInputs = restored;
     }
-    const closedError = checkClosedInputs(businessInputs, shape);
+    const prepared = await runSourceHttpPlan(deps.catalog, operation, businessInputs);
+    const closedError = prepared === undefined ? checkClosedInputs(businessInputs, shape) : prepared.ok ? null : prepared.error;
     if (closedError !== null) {
       return denyOrRerender(deps, request, operation, closedError, seen, authed);
     }
@@ -445,7 +458,7 @@ export async function handleOperationRequest(
     // to its derived declaration (delivery binds to nothing — submitted
     // receipts fail here when framing admits them). Catalogs without the
     // derived channel keep framing-only behavior.
-    if (derived !== null) {
+    if (derived !== null && prepared === undefined) {
       const boundError = checkBoundArguments(derived, businessInputs);
       if (boundError !== null) {
         return denyOrRerender(deps, request, operation, boundError, seen, authed);
@@ -461,7 +474,9 @@ export async function handleOperationRequest(
       tokenHash: await sha256HexText(sessionToken),
       now: new Date(deps.clock.nowMs()).toISOString(),
     });
+    await assertSourceValidationCurrent(deps.catalog, operation);
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
+    assertSourceValidationStable(deps.catalog, operation);
     const outcome = retainedBinding || retainedScenario
       ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
       : await deps.invoker.invokeMutation(envelope, identity);
@@ -486,6 +501,8 @@ export async function handleOperationRequest(
     }
     const { status, body } = toHttpResponse(error);
     return jsonErrorResponse(body, status);
+  } finally {
+    closeSourceValidationCatalog(deps.catalog);
   }
 }
 
