@@ -25,6 +25,7 @@ import type {
 import { fixedClock } from '../src/ports.js';
 import type {
   ModelChatInput,
+  ModelMessage,
   ModelRunSnapshot,
   TextRequest,
 } from '@canlang/contracts';
@@ -130,6 +131,66 @@ function textInstallation(
 }
 
 describe('models: installed std text generation', () => {
+  it('captures the installed role once for the counted and transmitted frozen history', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      let roleReads = 0, contentReads = 0;
+      const message: TextRequest['messages'][number] = {
+        get role() { return ++roleReads === 1 ? 'user' : 'assistant'; },
+        get content() { assert.equal(this, message); contentReads++; return 'Hello'; },
+        attachments: [],
+      };
+      let counted: FrozenChatRequest | undefined;
+      const installed = makeAdapter(server.url).installTextGeneration(textInstallation({
+        countInputTokens: request => { counted = request; return 12; },
+      }));
+      const completion = await installed.text.generate(textInput({ messages: [message] }), { deliveryId: 'text_capture' });
+      assert.equal(completion.status, 'succeeded');
+      assert.equal(roleReads, 1);
+      assert.equal(contentReads, 1);
+      assert.ok(counted && Object.isFrozen(counted.messages) && Object.isFrozen(counted.messages[0]));
+      assert.deepEqual(counted.messages, [{ role: 'user', content: 'Hello' }]);
+      const wire = JSON.parse(server.requests[0]!.bodyText);
+      assert.deepEqual(wire.messages, counted.messages);
+      assert.equal(server.requests.length, 1);
+    });
+  });
+
+  it('preserves installed role, attachment and tokenizer refusal before content demand', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      const adapter = makeAdapter(server.url);
+      const missingTokenizer = adapter.installTextGeneration(textInstallation({ countInputTokens: undefined }));
+      const failure = new Error('original message getter failure');
+      let contentReads = 0;
+      const message: TextRequest['messages'][number] = {
+        role: 'user', attachments: [],
+        get content(): string { contentReads++; throw failure; },
+      };
+      await assert.rejects(missingTokenizer.text.generate(textInput({ messages: [message] }), { deliveryId: 'text_capture' }), /requires a deployment-owned actual tokenizer/);
+      assert.equal(contentReads, 0);
+      await assert.rejects(missingTokenizer.text.generate(textInput({ messages: [{
+        role: 'user', attachments: ['file_1'],
+        get content(): string { contentReads++; throw failure; },
+      }] }), { deliveryId: 'text_capture' }), /supported roles and no attachments/);
+      assert.equal(contentReads, 0);
+      const roleFailure: TextRequest['messages'][number] = {
+        get role(): 'user' { throw failure; },
+        get attachments(): [] { throw new Error('attachments must follow role'); },
+        get content(): string { throw new Error('content must follow role'); },
+      };
+      await assert.rejects(missingTokenizer.text.generate(textInput({ messages: [roleFailure] }), { deliveryId: 'text_capture' }), err => err === failure);
+      const attachmentFailure: TextRequest['messages'][number] = {
+        role: 'user',
+        get attachments(): [] { throw failure; },
+        get content(): string { throw new Error('content must follow attachments'); },
+      };
+      await assert.rejects(missingTokenizer.text.generate(textInput({ messages: [attachmentFailure] }), { deliveryId: 'text_capture' }), err => err === failure);
+      const installed = adapter.installTextGeneration(textInstallation());
+      await assert.rejects(installed.text.generate(textInput({ messages: [message] }), { deliveryId: 'text_capture' }), err => err === failure);
+      assert.equal(contentReads, 1);
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
   it('derives identity and ceilings from the same adapter and sends the counted frozen request', async () => {
     await withServer({ kind: 'final', body: finalBody() }, async (server) => {
       const adapter = makeAdapter(server.url, { maxOutputTokens: 128, timeoutMs: 2000 });
@@ -313,6 +374,30 @@ describe('models: installed std text generation', () => {
 });
 
 describe('models: final-only generation', () => {
+  it('captures validated message values before later content getters can change them', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      const first: ModelMessage = { role: 'user', content: 'Hello' };
+      let contentReads = 0;
+      const second: ModelMessage = {
+        role: 'assistant',
+        get content() {
+          assert.equal(this, second);
+          contentReads++;
+          first.role = 'system'; first.content = 'Changed after validation';
+          return 'Follow-up';
+        },
+      };
+      const completion = await makeAdapter(server.url).generate(inputFor({ messages: [first, second] }), { deliveryId: 'chat_capture' });
+      assert.equal(completion.status, 'succeeded');
+      assert.equal(contentReads, 1);
+      assert.equal(server.requests.length, 1);
+      const wire = JSON.parse(server.requests[0]!.bodyText);
+      assert.deepEqual(wire.messages, [{ role: 'user', content: 'Hello' }, { role: 'assistant', content: 'Follow-up' }]);
+      assert.equal(wire.model, MODEL);
+      assert.deepEqual(wire.options, { num_predict: 64 });
+    });
+  });
+
   it('accepts a valid final reply with usage', async () => {
     await withServer({ kind: 'final', body: finalBody() }, async (server) => {
       const adapter = makeAdapter(server.url);

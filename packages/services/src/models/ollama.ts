@@ -174,18 +174,22 @@ export function buildFrozenChatRequest(
   if (!Array.isArray(messages) || messages.length === 0) {
     throw new ModelValidationError('Chat messages must be a non-empty array');
   }
+  const capturedMessages: ModelMessage[] = [];
   for (const message of messages) {
     if (typeof message !== 'object' || message === null) {
       throw new ModelValidationError('Chat messages must be objects');
     }
-    if (!CHAT_ROLES.has(message.role)) {
+    const role = message.role;
+    if (!CHAT_ROLES.has(role)) {
       throw new ModelValidationError(
         'Chat message role must be system, user, assistant or tool',
       );
     }
-    if (typeof message.content !== 'string') {
+    const content = message.content;
+    if (typeof content !== 'string') {
       throw new ModelValidationError('Chat message content must be a string');
     }
+    capturedMessages.push({ role, content });
   }
   if (!Number.isInteger(maxTokens) || maxTokens <= 0) {
     throw new ModelValidationError('Chat maxTokens must be a positive integer');
@@ -199,9 +203,7 @@ export function buildFrozenChatRequest(
     deliveryId: ctx.deliveryId,
     model,
     messages: Object.freeze(
-      messages.map((message) =>
-        Object.freeze({ role: message.role, content: message.content }),
-      ),
+      capturedMessages.map((message) => Object.freeze(message)),
     ),
     maxTokens,
     createdAt: ctx.createdAt,
@@ -834,24 +836,31 @@ export class OllamaChatAdapter implements ModelChatPort {
       ) {
         throw new ModelValidationError('Text duration exceeds or does not fit the installation');
       }
-      if (!Array.isArray(input.messages) || input.messages.length === 0) {
+      const messages = input.messages;
+      if (!Array.isArray(messages) || messages.length === 0) {
         throw new ModelValidationError('Text messages must be a non-empty array');
       }
-      for (const message of input.messages) {
-        if (
-          typeof message !== 'object' || message === null ||
-          !['system', 'user', 'assistant'].includes(message.role) ||
-          !Array.isArray(message.attachments) || message.attachments.length !== 0
-        ) {
+      const capturedMessages: ModelMessage[] = [];
+      for (const message of messages) {
+        if (typeof message !== 'object' || message === null) {
           throw new ModelValidationError('Text messages require supported roles and no attachments');
         }
+        const role = message.role;
+        if (!['system', 'user', 'assistant'].includes(role)) {
+          throw new ModelValidationError('Text messages require supported roles and no attachments');
+        }
+        const attachments = message.attachments;
+        if (!Array.isArray(attachments) || attachments.length !== 0) {
+          throw new ModelValidationError('Text messages require supported roles and no attachments');
+        }
+        capturedMessages.push({ role, get content() { return message.content; } });
       }
       if (countInputTokens === undefined) {
         throw new ModelValidationError('Installed text generation requires a deployment-owned actual tokenizer');
       }
       const request = this.frozen({
         model,
-        messages: input.messages,
+        messages: capturedMessages,
         maxTokens: input.max_output_tokens,
       }, deliveryId);
       let inputTokens: number;
