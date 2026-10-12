@@ -53,12 +53,18 @@ pub(super) fn collect_transcript_query_source(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<ReceiptDisclosurePlan> {
-    ir.scenario_disclosures
-        .get(&owner.id)?
-        .source_facts()?
+    let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    if !source
         .transcripts
         .as_deref()
-        .filter(|facts| !facts.is_empty())?;
+        .is_some_and(|facts| !facts.is_empty())
+        && !source
+            .inline_selections
+            .as_deref()
+            .is_some_and(|facts| !facts.is_empty())
+    {
+        return None;
+    }
     checked_query_plan(program, ir, owner, db, catalog, entry_module)
 }
 
@@ -72,28 +78,19 @@ pub(super) fn serialize_transcript_selections(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<serde_json::Value> {
-    let facts = ir
-        .scenario_disclosures
-        .get(&owner.id)?
-        .source_facts()?
-        .transcripts
-        .as_deref()
-        .filter(|facts| !facts.is_empty())?;
+    let source = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+    let transcripts = source.transcripts.as_deref()?;
+    let inline = source.inline_selections.as_deref()?;
+    if transcripts.is_empty() && inline.is_empty() {
+        return None;
+    }
     checked_query_plan(program, ir, owner, db, catalog, entry_module)?;
-    Some(serde_json::Value::Array(
-        facts
-            .iter()
-            .map(|fact| {
-                serde_json::json!({
-                    "queryId": fact.id,
-                    "type": "TextMessage[]",
-                    "fields": fact.fields.iter().zip(&fact.dependencies).map(|(field, dependency)| {
-                        serde_json::json!({"name": field.name, "dependencyId": dependency.id})
-                    }).collect::<Vec<_>>()
-                })
-            })
-            .collect(),
-    ))
+    let metadata=transcripts.iter().map(|fact|(&fact.id,&fact.fields,&fact.dependencies))
+        .chain(inline.iter().map(|fact|(&fact.query.id,&fact.fields,&fact.dependencies)))
+        .map(|(id,fields,dependencies)|serde_json::json!({"queryId":id,"type":"TextMessage[]",
+            "fields":fields.iter().zip(dependencies).map(|(field,dependency)|serde_json::json!({"name":field.name,"dependencyId":dependency.id})).collect::<Vec<_>>()
+        })).collect();
+    Some(serde_json::Value::Array(metadata))
 }
 
 /// The literal existential selector belongs to its original checked collection
@@ -561,6 +558,13 @@ fn checked_query_plan_full(
         }
         return checked_transcript_query_plan(program, ir, owner, db, catalog, entry_module);
     }
+    if source
+        .inline_selections
+        .as_deref()
+        .is_some_and(|facts| !facts.is_empty())
+    {
+        return checked_inline_selection_query_plan(program, ir, owner, db, catalog, entry_module);
+    }
     if queries.is_empty() || queries.len() > 3 {
         return None;
     }
@@ -830,6 +834,208 @@ fn checked_query_plan_full(
 /// The two original eager transcript invocations have separate query and
 /// DATA identities even though they evaluate the same declared helper body.
 /// This transports source correspondence only; the native receiver is separate.
+/// The one original inline WHERE-bound TextMessage query uses existing State
+/// query/selection transport; it never invents a local Contract or helper call.
+fn checked_inline_selection_query_plan(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    super::scenario_decisions::collect_decision_sources(program, ir, owner, db, catalog)?;
+    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    same_scenario_semantics(program, ir, &fresh, owner)?;
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [fact] = source.inline_selections.as_deref()? else {
+        return None;
+    };
+    let [query] = source.queries.as_deref()? else {
+        return None;
+    };
+    let original_source = program
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    if source.inline_selections != original_source.inline_selections
+        || query != &fact.query
+        || !source.transcripts.as_deref()?.is_empty()
+        || fact.query.influences.len() != 4
+        || fact.query.first.is_some()
+        || fact.query.count.is_some()
+        || fact.query.projection.is_some()
+    {
+        return None;
+    }
+    let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let parent = nominal(program, ir, fact.parent.parent)?;
+    let model = nominal(program, ir, query.model)?;
+    if !matches!(&model.kind,IrItemKind::Model{owner:super::ir::IrOwner::ChildOf(id),..} if *id==parent.id)
+        || fact.parent.child != fact.parent_dependency.model
+        || fact.parent_dependency.field_name != "parent"
+        || fact.parent_dependency.type_id != parent.canonical
+        || fact.parent_dependency.query_id.is_some()
+        || fact.parent_dependency.role != DependencyRole::Data
+        || fact.parent_dependency.node != fact.parent.node
+        || fact.query.source != source.source
+        || fact.dependencies.len() != 3
+        || fact.fields.len() != 3
+        || fact.bound_dependency.role != DependencyRole::Control
+        || fact.bound_dependency.query_id.as_deref() != Some(query.id.as_str())
+        || fact.bound_dependency.node != fact.bound_node
+        || fact.bound_dependency.type_id != "int"
+    {
+        return None;
+    }
+    let mut ids = HashSet::new();
+    for read in &query.dependencies {
+        if read.id.is_empty()
+            || !ids.insert(read.id.as_str())
+            || read.model != query.model
+            || read.source != query.source
+        {
+            return None;
+        }
+        if field_type(program, ir, read.field, query.model)? != &read.ty {
+            return None;
+        }
+    }
+    for ((field, read), name) in
+        fact.fields
+            .iter()
+            .zip(&fact.dependencies)
+            .zip(["role", "content", "attachments"])
+    {
+        if field.name != name
+            || field.source_field != read.field
+            || field.value_node != read.node
+            || read.role != DependencyRole::Data
+            || read.query_id.as_deref() != Some(query.id.as_str())
+            || read.source != query.source
+            || read.model != query.model
+            || read.ty != field.ty
+            || !query.dependencies.iter().any(|candidate| {
+                candidate.role == DependencyRole::Data
+                    && candidate.field == read.field
+                    && candidate.ty == read.ty
+                    && candidate.id != read.id
+            })
+        {
+            return None;
+        }
+    }
+    let source_origin = origin(&source.source, entry);
+    let query = ReceiptQuery {
+        id: query.id.clone(),
+        source: source_origin.clone(),
+        model: model.canonical.clone(),
+        parent: Some(ReceiptQueryParent {
+            source: source_origin.clone(),
+            model: parent.canonical.clone(),
+            origin: ReceiptQueryParentOrigin::StoredReference {
+                dependency_id: fact.parent_dependency.id.clone(),
+            },
+        }),
+        order: query
+            .order
+            .iter()
+            .map(|order| ReceiptQueryOrder {
+                field: order.field_name.clone(),
+                direction: if order.descending { "desc" } else { "asc" }.into(),
+            })
+            .collect(),
+        limit: None,
+        archived: "exclude".into(),
+        dependencies: fact
+            .query
+            .dependencies
+            .iter()
+            .map(|read| ReceiptQueryDependency {
+                id: read.id.clone(),
+                source: origin(&read.source, entry),
+                role: match read.role {
+                    DependencyRole::Data => ReceiptRole::Data,
+                    DependencyRole::Control => ReceiptRole::Control,
+                },
+                field: read.field_name.clone(),
+                type_id: read.type_id.clone(),
+            })
+            .collect(),
+    };
+    let mut returns = Vec::new();
+    for returned in &checked.returns {
+        if returned.influences != fact.query.influences || returned.source != source.source {
+            return None;
+        }
+        for required in fact
+            .dependencies
+            .iter()
+            .chain([&fact.bound_dependency, &fact.parent_dependency])
+        {
+            if !returned.dependencies.iter().any(|read| read == required) {
+                return None;
+            }
+        }
+        let mut influences = Vec::new();
+        for influence in &returned.influences {
+            let kind = match influence.kind {
+                InfluenceKind::QueryExistence => "query-existence",
+                InfluenceKind::QueryCardinality => "query-cardinality",
+                InfluenceKind::QueryMembership => "query-membership",
+                InfluenceKind::QueryOrder => "query-order",
+                InfluenceKind::AbsentReference => return None,
+            };
+            influences.push(ReceiptInfluence {
+                id: influence.id.clone(),
+                query_id: influence.query_id.clone(),
+                kind: kind.into(),
+            });
+        }
+        let intrinsics=returned.intrinsics.iter().map(|read|Some(ReceiptIntrinsic{id:read.id.clone(),source:origin(&read.source,entry),
+            role:match read.role {DependencyRole::Data=>ReceiptRole::Data,DependencyRole::Control=>ReceiptRole::Control},type_id:read.type_id.clone(),
+            kind:match &read.kind {
+                crate::analysis::scenario_disclosure::DisclosureIntrinsicKind::OperationId=>NativeIntrinsicKind::OperationId,
+                crate::analysis::scenario_disclosure::DisclosureIntrinsicKind::AdmittedInput{parameter_name,..}=>NativeIntrinsicKind::AdmittedInput{parameter:parameter_name.clone()},
+                crate::analysis::scenario_disclosure::DisclosureIntrinsicKind::AdmittedReferenceVersion{parameter_name,model_name,..}=>NativeIntrinsicKind::AdmittedReferenceVersion{parameter:parameter_name.clone(),model:model_name.clone()},
+            }})).collect::<Option<Vec<_>>>()?;
+        returns.push(ReceiptReturn {
+            id: returned.id.clone(),
+            source: origin(&returned.source, entry),
+            influences,
+            dependencies: returned
+                .dependencies
+                .iter()
+                .map(|read| ReceiptDependency {
+                    id: read.id.clone(),
+                    source: origin(&read.source, entry),
+                    role: match read.role {
+                        DependencyRole::Data => ReceiptRole::Data,
+                        DependencyRole::Control => ReceiptRole::Control,
+                    },
+                    model: read.model_name.clone(),
+                    field: read.field_name.clone(),
+                    type_id: read.type_id.clone(),
+                    query_id: read.query_id.clone(),
+                })
+                .collect(),
+            intrinsics,
+            projection: None,
+        });
+    }
+    Some(ReceiptDisclosurePlan {
+        version: 1,
+        source: source_origin,
+        queries: vec![query],
+        returns,
+    })
+}
+
 fn checked_transcript_query_plan(
     program: &CheckedProgram,
     ir: &IrProgram,
@@ -1770,6 +1976,172 @@ mod any_source_tests {
                 )
                 .is_none(),
                 "{mode}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod inline_selection_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    #[test]
+    fn original_regenerate_inline_selection_consumers_preserve_source_and_refuse_unprepared_plans()
+    {
+        let mut db = SourceDb::new();
+        let file = db.add(
+            "CanChat.can".into(),
+            include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
+        );
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = root.join("target/profile-native-catalog.json");
+        let (catalog, errors) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(errors.is_empty(), "{errors:?}");
+        let (program, errors) = crate::analysis::check_program(&db, &[file], catalog.as_ref());
+        assert!(errors.is_empty(), "{errors:?}");
+        let (ir, errors) = super::super::ir::build(&program, &db, catalog.as_ref());
+        assert!(errors.is_empty(), "{errors:?}");
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "chat.regenerate")
+            .unwrap();
+        let proof = &ir.scenario_disclosures[&owner.id];
+        let source = proof
+            .source_facts()
+            .expect("original source facts survive the separate guard/native dependency");
+        assert!(source.transcripts.as_deref().unwrap().is_empty());
+        let [fact] = source.inline_selections.as_deref().unwrap() else {
+            panic!("one original inline query");
+        };
+        let original = source
+            .creates
+            .as_deref()
+            .unwrap()
+            .iter()
+            .find(|created| {
+                created.model
+                    == ir
+                        .items
+                        .iter()
+                        .find(|item| item.canonical == "chat.Branch")
+                        .unwrap()
+                        .id
+            })
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            panic!("original body");
+        };
+        let value = effects
+            .iter()
+            .find_map(|stmt| match stmt {
+                IrStmt::Let { value, span, .. }
+                    if *span
+                        == Span::new(
+                            fact.statement.file,
+                            fact.statement.start,
+                            fact.statement.end,
+                        ) =>
+                {
+                    Some(value)
+                }
+                _ => None,
+            })
+            .unwrap();
+        super::super::scenario_create_sources::checked_create_expression(
+            &ir, original, value, fact.value, &db,
+        )
+        .expect("owning prefix expression uses actual inline selection");
+        for mode in [
+            "predicate-alias",
+            "candidate-field",
+            "bound-field",
+            "select-alias",
+            "selection-type",
+        ] {
+            let mut changed = value.clone();
+            let IrExpr::Binary { right, .. } = &mut changed.expr else {
+                panic!("prefix");
+            };
+            let IrExpr::Query(query) = &mut right.expr else {
+                panic!("original query");
+            };
+            if mode == "select-alias" {
+                query.select_param = Some("turn".into());
+            } else if mode == "selection-type" {
+                query.select.as_mut().unwrap().ty =
+                    ResolvedType::Scalar(crate::analysis::Scalar::Text);
+            } else {
+                let IrExpr::Binary { left, right, .. } =
+                    &mut query.where_pred.as_mut().unwrap().expr
+                else {
+                    panic!("predicate");
+                };
+                match mode {
+                    "predicate-alias" => {
+                        let IrExpr::Member { base, .. } = &mut left.expr else {
+                            panic!("candidate");
+                        };
+                        base.expr = IrExpr::Name("turn".into());
+                    }
+                    "candidate-field" => {
+                        let IrExpr::Member { field, .. } = &mut left.expr else {
+                            panic!("candidate");
+                        };
+                        *field = "role".into();
+                    }
+                    "bound-field" => {
+                        let IrExpr::Member { field, .. } = &mut right.expr else {
+                            panic!("bound");
+                        };
+                        *field = "role".into();
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            assert!(
+                super::super::scenario_create_sources::checked_create_expression(
+                    &ir, original, &changed, fact.value, &db
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
+        let module = super::super::js::module_path("chat");
+        let ScenarioDisclosure::Complete(_) = proof else {
+            assert!(
+                checked_query_plan(&program, &ir, owner, &db, catalog.as_ref(), &module).is_none(),
+                "declined guard cannot publish a prepared plan"
+            );
+            return;
+        };
+        let plan = checked_query_plan(&program, &ir, owner, &db, catalog.as_ref(), &module)
+            .expect("original sealed inline query plan");
+        assert_eq!(plan.queries.len(), 1);
+        assert_eq!(plan.queries[0].id, fact.query.id);
+        assert_eq!(plan.queries[0].dependencies.len(), 5);
+        assert!(
+            matches!(&plan.queries[0].parent.as_ref().unwrap().origin,ReceiptQueryParentOrigin::StoredReference{dependency_id} if dependency_id==&fact.parent_dependency.id)
+        );
+        let metadata =
+            serialize_transcript_selections(&program, &ir, owner, &db, catalog.as_ref(), &module)
+                .unwrap();
+        assert_eq!(metadata[0]["queryId"], fact.query.id);
+        assert_eq!(metadata[0]["type"], "TextMessage[]");
+        assert_eq!(metadata[0]["fields"].as_array().unwrap().len(), 3);
+        for returned in &plan.returns {
+            assert_eq!(returned.influences.len(), 4);
+            assert!(
+                returned
+                    .dependencies
+                    .iter()
+                    .any(|read| read.id == fact.bound_dependency.id
+                        && read.query_id.as_deref() == Some(fact.query.id.as_str()))
             );
         }
     }

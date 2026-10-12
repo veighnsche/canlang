@@ -371,6 +371,8 @@ pub struct CheckedScenarioSource {
     pub queries: Option<Vec<DisclosureQuery>>,
     /// Original transcript invocations and eager row projections, source only.
     pub(crate) transcripts: Option<Vec<CheckedTranscriptSource>>,
+    /// Exact original WHERE-bound inline TextMessage selection; no query/File grant.
+    pub(crate) inline_selections: Option<Vec<CheckedInlineSelectionSource>>,
     /// Private owning stored-field/Contract snapshots and two-parent Model
     /// source operands. File declarations here grant no receipt admission.
     pub(crate) stored_contracts: Option<Vec<CheckedStoredContractSchema>>,
@@ -413,6 +415,34 @@ pub(crate) struct CheckedTranscriptSource {
     /// DATA observations carried by consuming Returns and selection metadata.
     pub query_dependencies: Vec<DisclosureDependency>,
     pub influences: Vec<DisclosureInfluence>,
+}
+
+/// The original regenerate prefix query is not the WHERE-free transcript helper.
+/// All selected keys use the catalog identity; only real stored source fields have IDs.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckedInlineSelectionSource {
+    pub query: DisclosureQuery,
+    pub checked: CheckedQuery,
+    pub statement: NodeKey,
+    pub value: NodeKey,
+    pub parameter: SymbolId,
+    pub argument: NodeKey,
+    pub parent: DisclosureQueryParentEdge,
+    pub prefix_parent: DisclosureQueryParentEdge,
+    pub parent_dependency: DisclosureDependency,
+    pub prefix: SymbolId,
+    pub prefix_node: NodeKey,
+    pub prefix_max: NodeKey,
+    pub bound_node: NodeKey,
+    pub bound_field: SymbolId,
+    pub bound_dependency: DisclosureDependency,
+    pub order_dependency: DisclosureDependency,
+    pub predicate_dependency: DisclosureDependency,
+    pub select: NodeKey,
+    pub ty: ResolvedType,
+    pub fields: Vec<CheckedTranscriptField>,
+    pub dependencies: Vec<DisclosureDependency>,
+    pub expression_types: Option<Vec<(NodeKey, ResolvedType)>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2514,8 +2544,625 @@ impl<'a> Closure<'a> {
             decision_sites: self.checked_decision_sites(scenario),
             queries: self.checked_query_sources(scenario),
             transcripts: self.checked_transcript_sources(scenario),
+            inline_selections: self.checked_inline_selection_sources(scenario),
             stored_contracts: self.checked_stored_contracts(scenario),
         })
+    }
+
+    /// Retain only the original direct prefix+WHERE/ORDER/SELECT Let. This
+    /// source inventory survives unrelated closure declines without granting execution.
+    fn checked_inline_selection_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedInlineSelectionSource>> {
+        let mut out = Vec::new();
+        for statement in &scenario.effects {
+            if statement.verb != EffectVerb::Let {
+                continue;
+            }
+            let Some(value) = statement.value else {
+                continue;
+            };
+            let Some((_, selected)) = self.query_binary(value, "+") else {
+                continue;
+            };
+            let Some(query) = self.query_group(selected) else {
+                continue;
+            };
+            if self.nodes.get(&query)?.kind != SyntaxKind::Query
+                || !self
+                    .types
+                    .node_types
+                    .get(&query)
+                    .is_some_and(transcript_message_array)
+            {
+                continue;
+            }
+            if out.len() >= 200 {
+                return None;
+            }
+            out.push(self.checked_inline_selection_source(scenario, statement)?);
+        }
+        Some(out)
+    }
+
+    fn checked_inline_selection_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        statement: &Effect,
+    ) -> Option<CheckedInlineSelectionSource> {
+        if scenario.read
+            || scenario.on.is_some()
+            || statement.verb != EffectVerb::Let
+            || !statement.then_effects.is_empty()
+            || !statement.else_effects.is_empty()
+            || !statement.match_arms.is_empty()
+            || statement.when.is_some()
+        {
+            return None;
+        }
+        let value = statement.value?;
+        let let_node = self.nodes.get(&statement.node)?;
+        let values: Vec<_> = let_node
+            .children
+            .iter()
+            .filter(|part| expression(part.kind))
+            .map(NodeKey::of)
+            .collect();
+        let names: Vec<_> = let_node
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::Name)
+            .map(|part| self.word(part))
+            .collect::<Option<Vec<_>>>()?;
+        if let_node.kind != SyntaxKind::Let
+            || values != [value]
+            || names != ["let", "prefix"]
+            || statement.binding.as_deref() != Some("prefix")
+        {
+            return None;
+        }
+        let (prefix_node, selected) = self.query_binary(value, "+")?;
+        let query_node = self.query_group(selected)?;
+        let checked = self.types.checked_queries.get(&query_node)?;
+        let [alias, predicate, order, select] = checked.clauses.as_slice() else {
+            return None;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return None;
+        };
+        let [predicate_node] = predicate.expressions.as_slice() else {
+            return None;
+        };
+        let [order_node] = order.expressions.as_slice() else {
+            return None;
+        };
+        let [select_node] = select.expressions.as_slice() else {
+            return None;
+        };
+        let ty = self.types.node_types.get(&value)?;
+        let query_syntax = self.nodes.get(&query_node)?;
+        let clauses: Vec<_> = query_syntax
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::QueryClause)
+            .map(NodeKey::of)
+            .collect();
+        let domains: Vec<_> = query_syntax
+            .children
+            .iter()
+            .filter(|part| expression(part.kind))
+            .map(NodeKey::of)
+            .collect();
+        if query_syntax.kind != SyntaxKind::Query
+            || checked.node != query_node
+            || checked.projection.is_some()
+            || name != "prior"
+            || !alias.expressions.is_empty()
+            || predicate.kind != CheckedQueryClauseKind::Where
+            || order.kind != CheckedQueryClauseKind::Order
+            || select.kind != CheckedQueryClauseKind::Select
+            || clauses != [alias.node, predicate.node, order.node, select.node]
+            || domains != [checked.domain]
+            || checked.result != *ty
+            || self.types.node_types.get(&query_node) != Some(ty)
+            || self.types.node_types.get(&selected) != Some(ty)
+            || self.types.node_types.get(&prefix_node) != Some(ty)
+            || !matches!(ty, ResolvedType::Array {element,ordered:true,nonempty:false}
+                if checked_standard_nominal_name(element)==Some("TextMessage"))
+        {
+            return None;
+        }
+        // Clauses retain their actual original expression anchors and spelling.
+        for (clause, keyword, expressions) in [
+            (alias, "as", vec![]),
+            (predicate, "where", vec![*predicate_node]),
+            (order, "order", vec![*order_node]),
+            (select, "select", vec![*select_node]),
+        ] {
+            let node = self.nodes.get(&clause.node)?;
+            if node.kind != SyntaxKind::QueryClause
+                || node
+                    .children
+                    .iter()
+                    .find(|part| part.kind == SyntaxKind::Name)
+                    .and_then(|part| self.word(part))
+                    != Some(keyword)
+                || node
+                    .children
+                    .iter()
+                    .filter(|part| expression(part.kind))
+                    .map(NodeKey::of)
+                    .collect::<Vec<_>>()
+                    != expressions
+                || (keyword == "as"
+                    && node
+                        .children
+                        .iter()
+                        .filter(|part| part.kind == SyntaxKind::Name)
+                        .map(|part| self.word(part))
+                        .collect::<Option<Vec<_>>>()?
+                        != ["as", name.as_str()])
+            {
+                return None;
+            }
+        }
+        let (domain_parent, child_name) = self.count_member(checked.domain)?;
+        let (argument, parent_name) = self.count_member(domain_parent)?;
+        let parameter = self.query_parameter(scenario, argument)?;
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.symbol_types.get(&parameter)?
+        else {
+            return None;
+        };
+        let model = *model;
+        let turn = self.checked_created_model(model, scenario.module)?;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let parent =
+            self.checked_count_parent_edge(domain_parent, argument, model, scenario.module)?;
+        let branch = self.checked_created_model(parent.parent, scenario.module)?;
+        let array = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }),
+            ordered: true,
+            nonempty: false,
+        };
+        if owner.name != "Turn"
+            || child_name != owner.name
+            || parent_name != "parent"
+            || self.resolve.symbols.get(parent.parent.0 as usize)?.name != "Branch"
+            || checked.domain_type != array
+            || self.types.node_types.get(&checked.domain) != Some(&array)
+            || self.checked_call_parent_path(domain_parent, parameter, 0)
+                != Some((parent.parent, 1))
+            || branch.fields.iter().any(|field| field.name == child_name)
+        {
+            return None;
+        }
+        let actual = scenario
+            .params
+            .iter()
+            .find(|actual| actual.param == parameter)?;
+        let actual_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        if !matches!(actual_symbol.kind,SymbolKind::Param {owner,type_node,..}
+            if owner==scenario.scenario && type_node==actual.type_node)
+            || actual_symbol.module != scenario.module
+            || !self.checked_created_field_type(
+                actual.type_node,
+                scenario.module,
+                &ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                },
+                0,
+            )
+        {
+            return None;
+        }
+        let (prefix_receiver, prefix_name) = self.count_member(prefix_node)?;
+        let (prefix_argument, prefix_parent_name) = self.count_member(prefix_receiver)?;
+        let prefix_parent = self.checked_count_parent_edge(
+            prefix_receiver,
+            prefix_argument,
+            model,
+            scenario.module,
+        )?;
+        let prefix = branch.fields.iter().find(|field| field.name == "prefix")?;
+        let prefix_data = branch
+            .declaration
+            .fields
+            .iter()
+            .find(|field| field.field == prefix.field)?;
+        let prefix_max = prefix_data
+            .modifiers
+            .iter()
+            .find(|modifier| modifier.name == "max")?
+            .value?;
+        if prefix_name != "prefix"
+            || prefix_parent_name != "parent"
+            || self.query_parameter(scenario, prefix_argument) != Some(parameter)
+            || prefix_parent.parent != parent.parent
+            || prefix.ty != *ty
+            || prefix_data.required_array
+            || prefix_data.default.is_some()
+            || prefix_data.server.is_some()
+            || self.nodes.get(&prefix_max)?.kind != SyntaxKind::Literal
+            || self.word(self.nodes.get(&prefix_max)?) != Some("120")
+            || self.types.node_types.get(&prefix_max) != Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return None;
+        }
+        let (candidate_node, bound_node) = self.query_binary(*predicate_node, "<")?;
+        let candidate = self.query_member(candidate_node, alias.node, model)?;
+        let position = self.query_member(*order_node, alias.node, model)?;
+        let (bound_receiver, bound_name) = self.count_member(bound_node)?;
+        if self.query_member_name(candidate_node, alias.node, model) != Some("position")
+            || self.query_member_name(*order_node, alias.node, model) != Some("position")
+            || candidate != position
+            || bound_name != "position"
+            || self.query_parameter(scenario, bound_receiver) != Some(parameter)
+            || self.types.node_types.get(&bound_receiver) != self.types.symbol_types.get(&parameter)
+            || self.types.symbol_types.get(&position) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || [candidate_node, bound_node, *order_node]
+                .iter()
+                .any(|node| {
+                    self.types.node_types.get(node) != Some(&ResolvedType::Scalar(Scalar::Int))
+                })
+            || self.types.node_types.get(predicate_node)
+                != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        let constructor = self.nodes.get(select_node)?;
+        let head = constructor
+            .children
+            .iter()
+            .find(|part| expression(part.kind))?;
+        let imported = self.word(head)?;
+        let ResolvedType::Array { element, .. } = ty else {
+            return None;
+        };
+        if constructor.kind != SyntaxKind::Construct
+            || checked_standard_nominal_name(element) != Some("TextMessage")
+            || self.types.node_types.get(select_node) != Some(element.as_ref())
+            || !matches!(
+                self.resolve.node_typeref.get(&NodeKey::of(head)),
+                Some(TypeRef::External)
+            )
+            || !matches!(self.resolve.module_scopes.get(scenario.module.0 as usize)?.prod.get(imported),
+                Some(ScopedName::External {provider,name}) if provider=="std" && name=="TextMessage")
+        {
+            return None;
+        }
+        let object = constructor
+            .children
+            .iter()
+            .find(|part| part.kind == SyntaxKind::Object)?;
+        let entries: Vec<_> = object
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::ObjectEntry)
+            .collect();
+        let schema = checked_text_schema_fields(element, Some("TextMessage"))?;
+        if entries.len() != 3 || schema.len() != 3 {
+            return None;
+        }
+        let mut fields = Vec::new();
+        for (entry, (expected, expected_ty)) in entries.iter().zip(schema) {
+            let key = entry.children.first()?;
+            let mut values = entry.children.iter().filter(|part| expression(part.kind));
+            let value_node = NodeKey::of(values.next()?);
+            let source_field = self.query_member(value_node, alias.node, model)?;
+            let field = turn
+                .fields
+                .iter()
+                .find(|field| field.field == source_field)?;
+            let declaration = turn
+                .declaration
+                .fields
+                .iter()
+                .find(|field| field.field == source_field)?;
+            if key.kind != SyntaxKind::Name
+                || self.word(key)? != expected
+                || values.next().is_some()
+                || self.query_member_name(value_node, alias.node, model) != Some(expected.as_str())
+                || field.ty != *expected_ty
+                || self.types.node_types.get(&value_node) != Some(expected_ty)
+                || declaration.default.is_some()
+                || declaration.server.is_some()
+                || declaration.required_array
+            {
+                return None;
+            }
+            if expected == "attachments" {
+                let maximum = declaration
+                    .modifiers
+                    .iter()
+                    .find(|modifier| modifier.name == "max")?
+                    .value?;
+                if self.word(self.nodes.get(&maximum)?) != Some("8")
+                    || self.types.node_types.get(&maximum)
+                        != Some(&ResolvedType::Scalar(Scalar::Int))
+                {
+                    return None;
+                }
+            }
+            fields.push(CheckedTranscriptField {
+                name: expected.clone(),
+                key_node: NodeKey::of(key),
+                value_node,
+                source_field,
+                ty: expected_ty.clone(),
+            });
+        }
+        let returned = scenario.effects.last()?;
+        if returned.verb != EffectVerb::Return {
+            return None;
+        }
+        let source = self.source(scenario.module, query_node).ok()?;
+        let id = self.opaque("inline-selection-query", query_node, "").ok()?;
+        let ordinary = |node: NodeKey, field: SymbolId, role: DependencyRole| {
+            let declaration = self.resolve.symbols.get(field.0 as usize)?;
+            let ty = self.types.symbol_types.get(&field)?;
+            Some(DisclosureDependency {
+                id: self
+                    .opaque(
+                        if role == DependencyRole::Data {
+                            "read-data"
+                        } else {
+                            "read-control"
+                        },
+                        node,
+                        "",
+                    )
+                    .ok()?,
+                source: self.source(scenario.module, node).ok()?,
+                node,
+                calls: Vec::new(),
+                role,
+                model,
+                field,
+                model_name: owner.canonical.clone(),
+                field_name: declaration.name.clone(),
+                ty: ty.clone(),
+                type_id: checked_stored_contract_type_id(ty, None, self.resolve, 0)?,
+                query_id: Some(id.clone()),
+            })
+        };
+        let predicate_dependency = ordinary(candidate_node, position, DependencyRole::Control)?;
+        let bound_dependency = ordinary(bound_node, position, DependencyRole::Control)?;
+        let order_dependency = ordinary(*order_node, position, DependencyRole::Control)?;
+        let dependencies = fields
+            .iter()
+            .map(|field| ordinary(field.value_node, field.source_field, DependencyRole::Data))
+            .collect::<Option<Vec<_>>>()?;
+        let query_dependencies = std::iter::once(&predicate_dependency)
+            .chain(std::iter::once(&order_dependency))
+            .chain(&dependencies)
+            .map(|dependency| {
+                let mut query = dependency.clone();
+                query.id = self
+                    .opaque(
+                        if query.role == DependencyRole::Data {
+                            "query-data"
+                        } else {
+                            "query-control"
+                        },
+                        query.node,
+                        &id,
+                    )
+                    .ok()?;
+                query.query_id = None;
+                Some(query)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let parent_dependency = DisclosureDependency {
+            id: self.opaque("read-data", parent.node, "").ok()?,
+            source: source.clone(),
+            node: parent.node,
+            calls: Vec::new(),
+            role: DependencyRole::Data,
+            model,
+            field: model,
+            model_name: owner.canonical.clone(),
+            field_name: "parent".into(),
+            ty: ResolvedType::Record {
+                symbol: parent.parent,
+                stored: true,
+            },
+            type_id: self
+                .resolve
+                .symbols
+                .get(parent.parent.0 as usize)?
+                .canonical
+                .clone(),
+            query_id: None,
+        };
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", query_node, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node: query_node,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(CheckedInlineSelectionSource {
+            query: DisclosureQuery {
+                id,
+                source,
+                node: query_node,
+                domain: checked.domain,
+                model,
+                model_name: owner.canonical.clone(),
+                alias: Some(alias.node),
+                predicate: Some(*predicate_node),
+                inputs: vec![(argument, parameter)],
+                dependencies: query_dependencies,
+                order: vec![DisclosureQueryOrder {
+                    field: Some(position),
+                    field_name: "position".into(),
+                    descending: false,
+                    node: *order_node,
+                }],
+                limit: None,
+                archived: false,
+                cardinality_guard: None,
+                return_node: returned.node,
+                projection: None,
+                first: None,
+                count: None,
+                influences,
+            },
+            checked: checked.clone(),
+            statement: statement.node,
+            value,
+            parameter,
+            argument,
+            parent,
+            prefix_parent,
+            parent_dependency,
+            prefix: prefix.field,
+            prefix_node,
+            prefix_max,
+            bound_node,
+            bound_field: position,
+            bound_dependency,
+            order_dependency,
+            predicate_dependency,
+            select: *select_node,
+            ty: ty.clone(),
+            fields,
+            dependencies,
+            expression_types: Some(
+                self.checked_create_expression_types(statement.node, scenario.module)?,
+            ),
+        })
+    }
+
+    fn inline_selection_at(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+    ) -> Option<CheckedInlineSelectionSource> {
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Query
+            && self.count_member(key).map(|(_, name)| name) != Some("prefix")
+        {
+            return None;
+        }
+        self.effects
+            .scenarios
+            .values()
+            .filter(|scenario| {
+                scenario.module == module
+                    && scenario.node.file == key.file
+                    && scenario.node.start <= key.start
+                    && key.end <= scenario.node.end
+            })
+            .find_map(|scenario| {
+                self.checked_inline_selection_sources(scenario)?
+                    .into_iter()
+                    .find(|fact| fact.query.node == key || fact.prefix_node == key)
+            })
+    }
+
+    /// Abstract source evaluation only. Bound reads stay at their original
+    /// per-candidate WHERE site; this does not hoist runtime reads or select rows.
+    fn inline_selection_value(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        let fact = self
+            .inline_selection_at(key, module)
+            .ok_or_else(|| self.fail(key, "inline selection needs exact original source"))?;
+        if !calls.is_empty()
+            || self.statement_depth != 1
+            || self.loop_node.is_some()
+            || !env
+                .get(&Local::Symbol(fact.parameter))
+                .is_some_and(|input| {
+                    input.record == Some(fact.parent.child)
+                        && input.reference_origin
+                            == Some(ReferenceOrigin::Parameter(fact.parameter))
+                })
+        {
+            return Err(self.fail(key, "inline selection needs original required Turn input"));
+        }
+        let edge = if key == fact.prefix_node {
+            &fact.prefix_parent
+        } else {
+            &fact.parent
+        };
+        let mut values = self.expr(edge.node, module, env, calls)?;
+        if values.len() != 1
+            || !values.iter().all(|value| {
+                value.record == Some(edge.parent)
+                    && value.reference_origin
+                        == Some(ReferenceOrigin::Parent {
+                            parameter: fact.parameter,
+                            model: edge.parent,
+                            depth: 1,
+                        })
+            })
+        {
+            return Err(self.fail(key, "inline selection parent source lineage"));
+        }
+        let value = &mut values[0];
+        value.record = None;
+        value.reference = None;
+        value.reference_origin = None;
+        if key == fact.prefix_node {
+            value.reads.push(DisclosureDependency {
+                id: self.opaque("read-data", key, "")?,
+                source: fact.query.source.clone(),
+                node: key,
+                calls: Vec::new(),
+                role: DependencyRole::Data,
+                model: edge.parent,
+                field: fact.prefix,
+                model_name: self.resolve.symbols[edge.parent.0 as usize]
+                    .canonical
+                    .clone(),
+                field_name: "prefix".into(),
+                ty: fact.ty,
+                type_id: "TextMessage[]".into(),
+                query_id: None,
+            });
+            value.observed.push((key, Vec::new()));
+        } else {
+            if !value.reads.contains(&fact.parent_dependency) {
+                return Err(self.fail(key, "inline selection exact domain parent read"));
+            }
+            // Preserve source operand order: WHERE(candidate,bound), ORDER, SELECT.
+            for dependency in std::iter::once(fact.predicate_dependency)
+                .chain(std::iter::once(fact.bound_dependency))
+                .chain(std::iter::once(fact.order_dependency))
+                .chain(fact.dependencies)
+            {
+                value.observed.push((dependency.node, Vec::new()));
+                value.reads.push(dependency);
+            }
+            value.influences = fact.query.influences;
+        }
+        Ok(values)
     }
 
     fn checked_transcript_sources(
@@ -3695,6 +4342,7 @@ impl<'a> Closure<'a> {
         };
         let mut pending = Vec::new();
         let current_revision = self.checked_current_revision_source(scenario);
+        let inline_selections = self.checked_inline_selection_sources(scenario)?;
         if let Some(fact) = &current_revision {
             pending.push((fact.revision, true));
         }
@@ -3830,6 +4478,9 @@ impl<'a> Closure<'a> {
                     && self.reference_operand_type_id(ty).is_none()
                     && !result_type(ty)
                     && !file_array
+                    && !inline_selections
+                        .iter()
+                        .any(|fact| id == fact.parent.parent && *field == fact.prefix)
                     && !current_revision
                         .as_ref()
                         .is_some_and(|fact| id == fact.template && *field == fact.field)
@@ -3947,16 +4598,23 @@ impl<'a> Closure<'a> {
                     }
                 }
                 let constraints = self.types.value_constraints.get(field).cloned();
-                let mut declared = checked_stored_contract_type_id(
-                    ty,
-                    if self.reference_operand_type_id(ty).is_some() {
-                        None
-                    } else {
-                        constraints.as_ref().and_then(|value| value.alias)
-                    },
-                    self.resolve,
-                    0,
-                )?;
+                let mut declared = if inline_selections
+                    .iter()
+                    .any(|fact| id == fact.parent.parent && *field == fact.prefix && *ty == fact.ty)
+                {
+                    "TextMessage[]".into()
+                } else {
+                    checked_stored_contract_type_id(
+                        ty,
+                        if self.reference_operand_type_id(ty).is_some() {
+                            None
+                        } else {
+                            constraints.as_ref().and_then(|value| value.alias)
+                        },
+                        self.resolve,
+                        0,
+                    )?
+                };
                 if data.required_array {
                     declared.push('!');
                 }
@@ -4308,6 +4966,11 @@ impl<'a> Closure<'a> {
         if !scenario.read {
             let mut first = self.checked_count_query_sources(scenario)?;
             first.extend(self.checked_any_query_sources(scenario)?);
+            first.extend(
+                self.checked_inline_selection_sources(scenario)?
+                    .into_iter()
+                    .map(|fact| fact.query),
+            );
             for binding in &scenario.effects {
                 let Some(value) = binding.value.and_then(|key| self.query_group(key)) else {
                     continue;
@@ -6774,6 +7437,9 @@ impl<'a> Closure<'a> {
             SyntaxKind::Binary => self.expr_binary(key, module, env, calls, node, children),
             SyntaxKind::Member => self.expr_member(key, module, env, calls, node, children),
             SyntaxKind::Call => self.call(key, module, env, calls),
+            SyntaxKind::Query if self.inline_selection_at(key, module).is_some() => {
+                self.inline_selection_value(key, module, env, calls)
+            }
             SyntaxKind::Query => Err(self.influence(
                 key,
                 module,
@@ -6798,6 +7464,12 @@ impl<'a> Closure<'a> {
         node: &SyntaxNode,
         children: Vec<&SyntaxNode>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if self
+            .inline_selection_at(key, module)
+            .is_some_and(|fact| fact.prefix_node == key)
+        {
+            return self.inline_selection_value(key, module, env, calls);
+        }
         if let Some(values) = self.current_revision_member(key, module, env, calls)? {
             return Ok(values);
         }
@@ -7779,12 +8451,23 @@ impl<'a> Closure<'a> {
             })
             || self.types.node_types.get(&parent) != self.types.symbol_types.get(&formal.param)
         { return None; }
-        let (receiver, field) = self.count_member(parent)?;
+        // Retain the original required parameter across exactly one or two
+        // authored containment edges; neither an alias nor a declared field
+        // named parent can stand in for the checked ChildOf lineage.
+        let mut receiver = parent;
+        let mut hops = 0;
+        while let Some((base, field)) = self.count_member(receiver) {
+            if field != "parent" || hops == 2 {
+                return None;
+            }
+            receiver = base;
+            hops += 1;
+        }
         let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
             return None;
         };
-        if field != "parent"
-            || self.checked_call_parent_path(parent, *parameter, 0) != Some((model, 1))
+        if !matches!(hops, 1 | 2)
+            || self.checked_call_parent_path(parent, *parameter, 0) != Some((model, hops))
         {
             return None;
         }
@@ -8478,7 +9161,7 @@ impl<'a> Closure<'a> {
                     let Some(ReferenceOrigin::Parent {
                         parameter,
                         model: actual,
-                        depth: 1,
+                        depth,
                     }) = value.reference_origin
                     else {
                         return Err(self.fail(
@@ -8486,21 +9169,48 @@ impl<'a> Closure<'a> {
                             "authorization needs its original required parent reference",
                         ));
                     };
-                    let [read] = value.reads.as_slice() else {
-                        return Err(self.fail(parent, "authorization parent observation mismatch"));
-                    };
-                    if actual != model || value.record != Some(model)
-                        || self.checked_call_parent_path(parent,parameter,0) != Some((model,1))
+                    if !matches!(depth, 1 | 2) || actual != model || value.record != Some(model)
+                        || self.checked_call_parent_path(parent,parameter,0) != Some((model,depth))
                         || !env.get(&Local::Symbol(parameter)).is_some_and(|input| {
                             matches!(input.reference_origin,Some(ReferenceOrigin::Parameter(original)) if original == parameter)
-                        })
-                        || read.node != parent || read.field != read.model || read.field_name != "parent"
-                        || read.ty != (ResolvedType::Record {symbol:model,stored:true})
-                        || read.role != DependencyRole::Data || !read.calls.is_empty() || read.query_id.is_some()
-                        || read.source != self.source(module,parent)?
+                        }) || value.reads.len()!=usize::from(depth)
                         || !value.intrinsics.is_empty() || !value.decisions.is_empty()
-                    {
-                        return Err(self.fail(parent,"authorization parent observation mismatch"));
+                    { return Err(self.fail(parent,"authorization parent observation mismatch")); }
+                    let mut edges = Vec::new();
+                    let mut edge = parent;
+                    for _ in 0..depth {
+                        let (base, field) = self.count_member(edge).ok_or_else(|| {
+                            self.fail(parent, "authorization parent edge missing")
+                        })?;
+                        if field != "parent" {
+                            return Err(self.fail(parent, "authorization parent edge mismatch"));
+                        }
+                        edges.push((edge, base));
+                        edge = base;
+                    }
+                    edges.reverse();
+                    for (read, (node, base)) in value.reads.iter().zip(edges) {
+                        let Some(ResolvedType::Record {
+                            symbol: child,
+                            stored: true,
+                        }) = self.types.node_types.get(&base)
+                        else {
+                            return Err(self.fail(parent, "authorization parent receiver mismatch"));
+                        };
+                        if read.node != node
+                            || read.field != *child
+                            || read.model != *child
+                            || read.field_name != "parent"
+                            || self.types.node_types.get(&node) != Some(&read.ty)
+                            || read.role != DependencyRole::Data
+                            || !read.calls.is_empty()
+                            || read.query_id.is_some()
+                            || read.source != self.source(module, node)?
+                        {
+                            return Err(
+                                self.fail(parent, "authorization parent observation mismatch")
+                            );
+                        }
                     }
                     // Consumption into this exact formal retains the source
                     // parent read. It neither admits a new parameter nor leaves
@@ -13024,5 +13734,190 @@ mod tests {
                 .count(),
             1
         );
+    }
+    #[test]
+    fn original_regenerate_authorization_seals_both_parent_hops() {
+        use super::super::catalog::{CatalogRequest, load_catalog};
+        let source = include_str!("../../tests/fixtures/original-a850/CanChat.can");
+        let mut db = SourceDb::new();
+        let file = db.add("CanChat.can".into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: crate::source::Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = super::super::check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (tree, diagnostics) = crate::syntax::parse(&db, file);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let trees = [(file, tree)];
+        let mut diagnostics = Vec::new();
+        let resolve =
+            super::super::resolve::resolve_program(&db, &trees, Some(&catalog), &mut diagnostics);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(
+            resolve
+                .symbols
+                .iter()
+                .map(|symbol| (symbol.id, &symbol.canonical, symbol.span))
+                .collect::<Vec<_>>(),
+            program
+                .symbols
+                .iter()
+                .map(|symbol| (symbol.id, &symbol.canonical, symbol.span))
+                .collect::<Vec<_>>()
+        );
+        let owner = resolve.by_canonical["chat.regenerate"];
+        let derive = resolve.by_canonical["chat.can_use"];
+        let scenario = &program.effects.scenarios[&owner];
+        let (call, selected) = program
+            .types
+            .selected_calls
+            .iter()
+            .find(|(key, call)| {
+                scenario.node.start <= key.start
+                    && key.end <= scenario.node.end
+                    && matches!(call.target, SelectedCallTarget::DeriveFn(id) if id == derive)
+                    && call.arguments.len() == 2
+                    && &source[call.arguments[1].start as usize..call.arguments[1].end as usize]
+                        == "turn.parent.parent"
+            })
+            .unwrap();
+        let call = *call;
+        let actor = selected.arguments[0];
+        let parent = selected.arguments[1];
+        let intermediate = program
+            .types
+            .node_types
+            .keys()
+            .find(|key| {
+                key.file == parent.file
+                    && key.start == parent.start
+                    && key.end < parent.end
+                    && key.kind == SyntaxKind::Member as u8
+                    && &source[key.start as usize..key.end as usize] == "turn.parent"
+            })
+            .copied()
+            .unwrap();
+        let body = program.effects.derives[&derive].expr.unwrap();
+        let mut nodes = HashMap::new();
+        let mut pending = vec![&trees[0].1];
+        while let Some(node) = pending.pop() {
+            nodes.insert(NodeKey::of(node), node);
+            pending.extend(node.children.iter());
+        }
+        let check = |types: &TypeTable, resolved: &ResolveTables, effects: &EffectTables| {
+            let cx = Closure {
+                catalog: Some(&catalog),
+                db: &db,
+                resolve: resolved,
+                types,
+                effects,
+                nodes: nodes.clone(),
+                stack: HashSet::new(),
+                steps: 0,
+                depth: 0,
+                statement_depth: 0,
+                authorization: false,
+                effect_proofs: Vec::new(),
+                effect_visits: 0,
+                loop_node: None,
+                complete_children: HashSet::new(),
+                complete_model_children: HashMap::new(),
+                result_model: None,
+                statement_expressions: None,
+            };
+            cx.checked_authorization_derive(call, scenario.module)
+        };
+        let (actual_derive, model, actual_parent, _) =
+            check(&program.types, &resolve, &program.effects)
+                .expect("original two-hop authorization");
+        assert_eq!(actual_derive, derive);
+        assert_eq!(actual_parent, parent);
+        assert_eq!(
+            program.types.node_types[&parent],
+            ResolvedType::Record {
+                symbol: model,
+                stored: true
+            }
+        );
+        let proof = &program.scenario_disclosures()[&owner];
+        let facts = proof.source_facts().unwrap();
+        assert!(
+            facts
+                .expression_types
+                .as_deref()
+                .unwrap()
+                .iter()
+                .any(|(at, ty)| *at == body && *ty == ResolvedType::Scalar(Scalar::Bool))
+        );
+        if let ScenarioDisclosure::Declined(decline) = proof {
+            assert_ne!(
+                decline.node, actor,
+                "this finite source unit must advance past actor; the inline prefix remains independent"
+            );
+        }
+        for mode in [
+            "actor",
+            "intermediate-type",
+            "slots",
+            "default",
+            "shadow-parent",
+        ] {
+            let mut types = program.types.clone();
+            let mut resolved = resolve.clone();
+            let mut effects = program.effects.clone();
+            match mode {
+                "actor" => {
+                    types
+                        .node_types
+                        .insert(actor, ResolvedType::Scalar(Scalar::Text));
+                }
+                "intermediate-type" => {
+                    types
+                        .node_types
+                        .insert(intermediate, types.node_types[&parent].clone());
+                }
+                "slots" => types
+                    .selected_calls
+                    .get_mut(&call)
+                    .unwrap()
+                    .slots
+                    .swap(0, 1),
+                "default" => {
+                    effects
+                        .scenarios
+                        .get_mut(&owner)
+                        .unwrap()
+                        .params
+                        .iter_mut()
+                        .find(|parameter| {
+                            resolved.symbols[parameter.param.0 as usize].name == "turn"
+                        })
+                        .unwrap()
+                        .default = Some(actor);
+                }
+                "shadow-parent" => {
+                    resolved
+                        .symbols
+                        .iter_mut()
+                        .find(|symbol| symbol.canonical == "chat.Turn.run")
+                        .unwrap()
+                        .name = "parent".into();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                check(&types, &resolved, &effects).is_none(),
+                "{mode} cannot borrow original containment authority"
+            );
+        }
     }
 }
