@@ -126,3 +126,46 @@ test('genuine installed HTTP plans preserve canonical defaults/errors and refuse
       assert.deepEqual(await readFile(source), originalSource);
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
+
+test('installed serving refuses a stale derived catalog before any effect',
+  { timeout: 120000 }, async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'can-serving-stale-catalog-'));
+    try {
+      const source = join(root, 'packages/cloudflare/test/fixtures/typed-operation-forms.can');
+      const compiler = join(root, 'compiler/target/debug/can');
+      const artifact = JSON.parse(execFileSync(compiler, ['compile', '--format=json', source], { encoding: 'utf8' })) as CompileArtifact;
+      const { assembleModules } = await load('@canlang/cloudflare/runtime/modules') as typeof import('../src/runtime/modules.js');
+      const { assembleWorker } = await nodeImport(pathToFileURL(join(root, 'packages/cloudflare/dist/worker/assembly.js')).href) as typeof import('../src/worker/assembly.js');
+      const { catalogFromArtifactOperations, handleOperationRequest } = await load('@canlang/interfaces/http/operations') as typeof import('@canlang/interfaces/http/operations');
+      const { handlePageRequest } = await load('@canlang/interfaces') as typeof import('@canlang/interfaces');
+      const { createTestDeps, testRequest } = await load('@canlang/interfaces/testing') as typeof import('@canlang/interfaces/testing');
+      const { createTestMemoryStorage } = await load('@canlang/state/storage/memory') as typeof import('@canlang/state/storage/memory');
+      const { deriveCsrfToken, sha256HexText } = await load('@canlang/identity') as typeof import('@canlang/identity');
+      const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: join(dir, 'modules'),
+        stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
+      const base = catalogFromArtifactOperations(artifact);
+      const deps = await createTestDeps();
+      const session = await deps.deps.identity.store.findSessionByTokenHash(await sha256HexText(deps.identity.sessionToken));
+      assert.ok(session);
+      await deps.deps.identity.store.setSessionTeam(session.session_id, deps.identity.teamId);
+      const csrf = await deriveCsrfToken(deps.identity.sessionToken);
+      const store = createTestMemoryStorage().store;
+      // Shape-valid but stale: flipping one derived required flag keeps the
+      // baked-inputs shape check green while breaking equality with the
+      // checked owning operation, so the prepared loader must refuse.
+      const stale = Object.fromEntries((artifact.operations ?? []).map(op => [op.name, base.derivedFor(op.name)!])) as Record<string, DerivedOperationInputs>;
+      const first = (stale['TypedOperationForms.Entry.create']!.inputs as Array<{ required: boolean }>)[0]!;
+      first.required = !first.required;
+      const worker = await assembleWorker(artifact, asm, { store, identityStore: deps.deps.identity.store,
+        http: { derivedInputs: stale, createPageHandler: http => request => handlePageRequest(http as Parameters<typeof handlePageRequest>[0], request),
+          createOperationHandler: http => (request, operation) =>
+          handleOperationRequest(http as Parameters<typeof handleOperationRequest>[0], request, operation) } }, { active: true });
+      const before = await store.readRevision();
+      const refused = await worker.fetch(testRequest('/api/operations/TypedOperationForms.Entry.create', {
+        method: 'POST', cookie: deps.identity.cookie, headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ operation_id: operationId(), inputs: { label: 'must refuse stale catalog' } }),
+      }));
+      assert.notEqual(refused.status, 200);
+      assert.equal(await store.readRevision(), before);
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
