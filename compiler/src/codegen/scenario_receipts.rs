@@ -255,6 +255,71 @@ pub(super) struct NativeScenarioReceipt {
     pub decision_keys: HashMap<NativeSite, String>,
     pub calls: HashMap<NativeSite, String>,
     pub returns: Vec<NativeReturn>,
+    /// Private original occurrence join, never a transported recipe field.
+    pub current_revision: Option<NativeCurrentRevision>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct NativeCurrentRevision {
+    pub template: String,
+    pub revision: String,
+    pub parameter: String,
+    pub published_source: Span,
+    pub published: Span,
+    pub retained_source: Span,
+    pub digest_control: Span,
+    pub digest_data: Span,
+    pub outputs: Span,
+    pub duration: Span,
+    pub published_source_id: String,
+    pub published_id: String,
+    pub retained_control_id: String,
+    pub retained_data_id: String,
+    pub digest_control_id: String,
+    pub digest_data_id: String,
+    pub outputs_id: String,
+    pub duration_id: String,
+}
+
+impl NativeCurrentRevision {
+    fn from_sites(
+        sites: &super::scenario_current_revision::CurrentRevisionSites<'_>,
+    ) -> Option<Self> {
+        if !matches!(sites.revision_statement, IrStmt::Let { value, .. }
+            if std::ptr::eq(value, sites.revision_read.value))
+            || sites.active.as_ref().is_some_and(|active| {
+                active.value.span.end > sites.presence.span.start
+                    || active.dependency.role != DependencyRole::Control
+                    || active.dependency.node.end > sites.presence_read.control.node.start
+            })
+            || sites.presence.span.start > sites.presence_read.value.span.start
+            || sites.presence.span.end < sites.presence_read.value.span.end
+            || sites.digest_presence.span.start > sites.digest_control.value.span.start
+            || sites.digest_presence.span.end < sites.digest_control.value.span.end
+        {
+            return None;
+        }
+        Some(Self {
+            template: sites.template.canonical.clone(),
+            revision: sites.revision.canonical.clone(),
+            parameter: sites.parameter.name.clone(),
+            published_source: sites.published_read.value.span,
+            published: sites.published.value.span,
+            retained_source: sites.revision_read.value.span,
+            digest_control: sites.digest_control.value.span,
+            digest_data: sites.digest_data.value.span,
+            outputs: sites.outputs.value.span,
+            duration: sites.duration.value.span,
+            published_source_id: sites.published_read.control.id.clone(),
+            published_id: sites.published.dependency.id.clone(),
+            retained_control_id: sites.revision_read.control.id.clone(),
+            retained_data_id: sites.revision_read.data?.id.clone(),
+            digest_control_id: sites.digest_control.dependency.id.clone(),
+            digest_data_id: sites.digest_data.dependency.id.clone(),
+            outputs_id: sites.outputs.dependency.id.clone(),
+            duration_id: sites.duration.dependency.id.clone(),
+        })
+    }
 }
 
 /// Nongrant checked result provenance. The owning receipt collector still
@@ -657,8 +722,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             }
         }
     }
-    let profile_descriptors =
-        (!profile_scalar_pairs.is_empty()).then(|| super::js::Emitter::new(ir).collect_models());
+    let current_sites =
+        db.and_then(|db| super::scenario_current_revision::checked_current_revision(ir, item, db));
+    if current_sites.is_some() && feasibility.is_none() {
+        return None;
+    }
+    let current_revision = match current_sites.as_ref() {
+        Some(current) => Some(NativeCurrentRevision::from_sites(current)?),
+        None => None,
+    };
+    let profile_descriptors = if current_sites.is_some() {
+        Some(super::js::Emitter::source_models(ir, db?)?)
+    } else {
+        (!profile_scalar_pairs.is_empty()).then(|| super::js::Emitter::new(ir).collect_models())
+    };
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -672,6 +749,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         decision_keys: HashMap::new(),
         calls: sites.calls.clone(),
         returns: Vec::new(),
+        current_revision,
     };
     let mut source_origins = HashMap::new();
     source_origins.insert(
@@ -869,6 +947,24 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             }
             let source_dependency_id =
                 profile_scalar_pair.map(|(reference, _)| reference.id.clone());
+            let current_reference = current_sites.as_ref().is_some_and(|current| {
+                [
+                    current.presence_read.control,
+                    current.published_read.control,
+                    current.revision_read.control,
+                    current
+                        .revision_read
+                        .data
+                        .expect("checked original Let DATA"),
+                ]
+                .contains(&dependency)
+            });
+            let current_published = current_sites
+                .as_ref()
+                .is_some_and(|current| current.published.dependency == dependency);
+            let current_digest_data = current_sites
+                .as_ref()
+                .is_some_and(|current| current.digest_data.dependency == dependency);
             let (base, field, transition) = if is_transition {
                 if !dependency.calls.is_empty() || dependency.role != DependencyRole::Control {
                     return None;
@@ -903,11 +999,12 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 (base.as_ref(), field, None)
             };
             if field != &dependency.field_name
-                || base.ty
-                    != (ResolvedType::Record {
-                        symbol: dependency.model,
-                        stored: true,
-                    })
+                || !current_published
+                    && base.ty
+                        != (ResolvedType::Record {
+                            symbol: dependency.model,
+                            stored: true,
+                        })
             {
                 return None;
             }
@@ -1009,7 +1106,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     || !fields.contains(&stored.id)
                     || owner.canonical != dependency.model_name
                     || stored.name != dependency.field_name
-                    || ty != &dependency.ty
+                    || ty != &dependency.ty && !current_reference && !current_digest_data
                 {
                     return None;
                 }
@@ -1059,7 +1156,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         if reference.ty != base.ty || scalar.model != dependency.model {
                             return None;
                         }
-                    } else {
+                    } else if !current_published {
                         let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
                         if parent.id != dependency.model {
                             return None;
@@ -1083,7 +1180,27 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     checked_transcript_selected_member(ir, item, fact, expression, db?)?;
                 }
                 let reference_type = reference_operand_type_id(ir, ty);
-                if let Some(reference_type) = reference_type {
+                if current_reference || current_digest_data {
+                    if transition.is_some() || !dependency.calls.is_empty() {
+                        return None;
+                    }
+                    let mut expected_models = profile_descriptors
+                        .as_ref()?
+                        .iter()
+                        .filter(|model| model.name == owner.canonical);
+                    let expected = expected_models.next()?;
+                    if expected_models.next().is_some()
+                        || serde_json::to_value(expected).ok()?
+                            != serde_json::to_value(descriptors[0]).ok()?
+                        || !declared[0].nullable
+                        || declared[0].server_only
+                        || declared[0].array_required.is_some()
+                        || declared[0].machine.is_some()
+                    {
+                        return None;
+                    }
+                    dependency.type_id.clone()
+                } else if let Some(reference_type) = reference_type {
                     if transition.is_some() || !dependency.calls.is_empty() {
                         return None;
                     }

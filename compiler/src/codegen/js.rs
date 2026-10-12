@@ -1477,6 +1477,7 @@ pub fn emit_program_with_native_source_receipts(
 /// Complete query receipts. Source inventories alone cannot activate capture.
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
+    pub local_policies: Option<&'a LocalPolicies>,
     pub query_any: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub transcript_queries:
@@ -1650,7 +1651,10 @@ fn emit_program_with_sources(
         0,
         0,
     ));
-    let local_policies = collect_local_policies(ir, &module_path(&entry_name));
+    let local_policies = decisions
+        .local_policies
+        .cloned()
+        .or_else(|| collect_local_policies(ir, &module_path(&entry_name)));
     if let Some(queries) = queries {
         for item in &ir.items {
             let Some(plan) = queries.get(&item.canonical) else {
@@ -2608,6 +2612,8 @@ pub struct Emitter<'a> {
     native_call_sites: HashMap<SymbolId, Vec<super::scenario_calls::StaticScenarioCall>>,
     receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
+    current_revision_binding: Option<String>,
+    current_policy_rule: Option<super::model_policy_profile::CurrentRevisionRuleProfile>,
     receipt_calls: Vec<Span>,
     native_query_sources: HashMap<SymbolId, NativeQuerySource>,
     /// Independently checked transcript metadata; this grants no capture.
@@ -2689,6 +2695,8 @@ impl<'a> Emitter<'a> {
             native_call_sites: HashMap::new(),
             receipt_call_sites: Vec::new(),
             receipt_capture: None,
+            current_revision_binding: None,
+            current_policy_rule: None,
             receipt_calls: Vec::new(),
             native_query_sources: HashMap::new(),
             query_selections: None,
@@ -4087,6 +4095,144 @@ impl<'a> Emitter<'a> {
         Some(selection)
     }
 
+    fn lower_current_policy_member(&mut self, expr: &TypedExpr) -> Option<String> {
+        use super::model_policy_profile::CurrentRevisionRuleKind;
+        let profile = self.current_policy_rule.as_ref()?;
+        let CurrentRevisionRuleKind::Template { revision, .. } = profile.kind else {
+            return None;
+        };
+        let IrExpr::Member { base, field } = &expr.expr else {
+            return None;
+        };
+        if !matches!(field.as_str(), "parent" | "published") {
+            return None;
+        }
+        let IrExpr::Member {
+            base: row,
+            field: current,
+        } = &base.expr
+        else {
+            return None;
+        };
+        if current != "current"
+            || !matches!(&row.expr, IrExpr::Name(name) if name == "row")
+            || row.ty
+                != (ResolvedType::Record {
+                    symbol: profile.origin.model,
+                    stored: true,
+                })
+            || base.ty
+                != ResolvedType::Nullable(Box::new(ResolvedType::Record {
+                    symbol: revision,
+                    stored: true,
+                }))
+        {
+            return None;
+        }
+        let source = self.lower_expr(base);
+        Some(format!(
+            "(await $readCurrent({source}))[{}]",
+            js_string(field)
+        ))
+    }
+
+    fn lower_current_revision_expr(&mut self, expr: &TypedExpr) -> Option<String> {
+        if !self.receipt_calls.is_empty() {
+            return None;
+        }
+        let current = self.receipt_capture.as_ref()?.current_revision.clone()?;
+        if let IrExpr::Name(name) = &expr.expr
+            && self.current_revision_binding.as_deref() == Some(self.reference(name).as_str())
+        {
+            return Some("$receiptCurrentView".into());
+        }
+        let IrExpr::Member { base, field } = &expr.expr else {
+            return None;
+        };
+        if expr.span == current.published {
+            let IrExpr::Member {
+                base: source,
+                field: source_field,
+            } = &base.expr
+            else {
+                return None;
+            };
+            if field != "published"
+                || source_field != "current"
+                || base.span != current.published_source
+                || !matches!(&source.expr, IrExpr::Name(name) if name == &current.parameter)
+            {
+                return None;
+            }
+            let source = self.lower_expr(source);
+            self.stdlib
+                .insert("observeScenarioReceiptDependency".into());
+            self.stdlib
+                .insert("readScenarioReceiptNullableStoredReference".into());
+            return Some(format!(
+                "(await (async($receiptSource)=>{{const $receiptReference=($receiptSource[\"current\"]??null);await observeScenarioReceiptDependency(c,{},$receiptSource,\"current\",{});const $receiptRow=await readScenarioReceiptNullableStoredReference(c,$receiptSource,$receiptReference,{},{});const $receiptValue=$receiptRow[\"published\"];await observeScenarioReceiptDependency(c,{},$receiptRow,\"published\",{});return $receiptValue;}})({source}))",
+                js_string(&current.template),
+                js_string(&current.published_source_id),
+                js_string(&current.published_source_id),
+                js_string(&current.published_id),
+                js_string(&current.revision),
+                js_string(&current.published_id),
+            ));
+        }
+        let (expected_field, dependency, promote, source_data) =
+            if expr.span == current.digest_control {
+                ("digest", &current.digest_control_id, true, false)
+            } else if expr.span == current.digest_data {
+                ("digest", &current.digest_data_id, false, true)
+            } else if expr.span == current.outputs {
+                ("outputs", &current.outputs_id, false, false)
+            } else if expr.span == current.duration {
+                ("duration", &current.duration_id, false, false)
+            } else {
+                return None;
+            };
+        let IrExpr::Name(name) = &base.expr else {
+            return None;
+        };
+        let binding = self.current_revision_binding.as_ref()?.clone();
+        if field != expected_field || self.reference(name) != binding {
+            return None;
+        }
+        self.stdlib
+            .insert("observeScenarioReceiptDependency".into());
+        let prefix = if promote {
+            self.stdlib
+                .insert("readScenarioReceiptNullableStoredReference".into());
+            format!(
+                "if($receiptCurrentView===undefined){{$receiptCurrentView=await readScenarioReceiptNullableStoredReference(c,$receiptCurrentSource,{binding},{},{});}}",
+                js_string(&current.retained_control_id),
+                js_string(&current.digest_control_id)
+            )
+        } else {
+            "if($receiptCurrentView===undefined){throw new Error('Original current view was not promoted at its digest guard');}".into()
+        };
+        let source_data = if source_data {
+            format!(
+                "if(!$receiptCurrentData){{await observeScenarioReceiptDependency(c,{},$receiptCurrentSource,\"current\",{});$receiptCurrentData=true;}}",
+                js_string(&current.template),
+                js_string(&current.retained_data_id)
+            )
+        } else {
+            String::new()
+        };
+        let getter = if expr.ty.nullable_inner().is_some() {
+            format!("($receiptCurrentView[{}]??null)", js_string(field))
+        } else {
+            format!("$receiptCurrentView[{}]", js_string(field))
+        };
+        Some(format!(
+            "(await (async()=>{{{prefix}{source_data}const $receiptValue={getter};await observeScenarioReceiptDependency(c,{},$receiptCurrentView,{},{});return $receiptValue;}})())",
+            js_string(&current.revision),
+            js_string(field),
+            js_string(dependency)
+        ))
+    }
+
     pub fn lower_expr(&mut self, expr: &TypedExpr) -> String {
         let span = expr.span;
         let forbidden = match &expr.expr {
@@ -4107,6 +4253,12 @@ impl<'a> Emitter<'a> {
             && args.iter().any(|arg| self.expr_formatted(arg))
         {
             return self.formatted_refusal("formatted formatting argument", span);
+        }
+        if let Some(lowered) = self.lower_current_policy_member(expr) {
+            return lowered;
+        }
+        if let Some(lowered) = self.lower_current_revision_expr(expr) {
+            return lowered;
         }
         if let IrExpr::Member { base, field } = &expr.expr
             && let Some(dependency) = self.query_capture.as_ref().and_then(|source| {
@@ -6357,6 +6509,45 @@ impl<'a> Emitter<'a> {
         }
         match stmt {
             IrStmt::Let { name, value, span } => {
+                let current = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|recipe| recipe.current_revision.as_ref())
+                    .filter(|current| {
+                        self.receipt_calls.is_empty() && current.retained_source == value.span
+                    })
+                    .cloned();
+                if let Some(current) = current {
+                    let IrExpr::Member { base, field } = &value.expr else {
+                        return vec![(
+                            format!(
+                                "{pad}throw new Error('Original current Let getter is missing');"
+                            ),
+                            *span,
+                        )];
+                    };
+                    if field != "current" {
+                        return vec![(
+                            format!(
+                                "{pad}throw new Error('Original current Let field is missing');"
+                            ),
+                            *span,
+                        )];
+                    }
+                    let source = self.lower_expr(base);
+                    let emitted = self.bind(name);
+                    self.current_revision_binding = Some(emitted.clone());
+                    self.stdlib
+                        .insert("observeScenarioReceiptDependency".into());
+                    return vec![(
+                        format!(
+                            "{pad}const $receiptCurrentSource={source};const {emitted}=($receiptCurrentSource[\"current\"]??null);await observeScenarioReceiptDependency(c,{},$receiptCurrentSource,\"current\",{});let $receiptCurrentView;let $receiptCurrentData=false;",
+                            js_string(&current.template),
+                            js_string(&current.retained_control_id)
+                        ),
+                        *span,
+                    )];
+                }
                 let formatted = self.expr_formatted(value);
                 let value_text = self.lower_expr(value);
                 let emitted = self.bind(name);
@@ -12071,6 +12262,19 @@ impl<'a> Emitter<'a> {
     /// Called from artifact assembly (JSON envelope only): the runtime
     /// keeps reading the richer `appDefinition.models` member, so models
     /// — unlike operations — are not embedded in `canApp()`.
+    pub(super) fn source_models(
+        ir: &'a IrProgram,
+        db: &crate::source::SourceDb,
+    ) -> Option<Vec<JsModel>> {
+        let mut emitter = Self::new(ir);
+        if ir.committed_sources.has_standard_value_inventory_fact() {
+            emitter.value_types = Some(emitter.collect_standard_value_inventory(db)?);
+        } else if ir.committed_sources.requires_standard_value_inventory(ir) {
+            return None;
+        }
+        Some(emitter.collect_models())
+    }
+
     pub fn collect_models(&self) -> Vec<JsModel> {
         let mut models = Vec::new();
         for item in &self.ir.items {
@@ -12642,11 +12846,24 @@ impl<'a> Emitter<'a> {
         let module = &plan.descriptors[0].module;
         let mut entries = Vec::new();
         for binding in &plan.bindings {
+            if binding.current_revision.as_ref().is_some_and(|profile| {
+                profile.origin.model != binding.model || profile.origin.kind != binding.kind
+            }) {
+                self.unsupported(
+                    "current model rule",
+                    "original owning predicate binding is missing",
+                    span,
+                );
+                continue;
+            }
+            let previous_rule = self.current_policy_rule.take();
+            self.current_policy_rule = binding.current_revision.clone();
             let predicate = binding
                 .predicate
                 .as_ref()
                 .map(|predicate| self.lower_rule_fn(predicate))
                 .unwrap_or_else(|| "(c,row)=>true".to_string());
+            self.current_policy_rule = previous_rule;
             let kind = match binding.kind {
                 crate::codegen::ir::IrModelRuleKind::Invariant => "invariant",
                 crate::codegen::ir::IrModelRuleKind::Lock => "lock",
@@ -12658,6 +12875,23 @@ impl<'a> Emitter<'a> {
                 js_string(&binding.owner_package),
                 js_string(&self.ir.item(binding.model).canonical),
                 js_string(kind)
+            ));
+        }
+        for binding in &plan.dependency_bindings {
+            let model = &self.ir.item(binding.model).canonical;
+            let changed = &self.ir.item(binding.changed_model).canonical;
+            let select = format!(
+                "(_views,change)=>{{if(change.model!=={}){{throw new Error('Original current dependency changed model differs');}}const before=change.before;const after=change.after;const row=after??before;if(row===null||row.id!==change.id||row.parent===undefined||row.parent===null||row.parent.model!=={}||typeof row.parent.id!==\"string\"||row.parent.id===\"\"||before!==null&&after!==null&&(before.id!==after.id||before.parent===undefined||before.parent===null||before.parent.model!==after.parent.model||before.parent.id!==after.parent.id)){{throw new Error('Original current dependency lost its immutable owning parent');}}return[{{model:{},id:row.parent.id}}];}}",
+                js_string(changed),
+                js_string(model),
+                js_string(model)
+            );
+            entries.push(format!(
+                "{{id:{},module:{},ownerPackage:{},model:{},kind:\"dependency\",select:{select}}}",
+                js_string(&binding.id),
+                js_string(module),
+                js_string(&binding.owner_package),
+                js_string(model)
             ));
         }
         for binding in &plan.hook_bindings {
@@ -12681,7 +12915,14 @@ impl<'a> Emitter<'a> {
     /// awaits.
     fn lower_rule_fn(&mut self, body: &TypedExpr) -> String {
         let body_text = self.lower_business_expr(body, "formatted business rule");
-        if expr_uses_async(body) {
+        if self.current_policy_rule.as_ref().is_some_and(|profile| {
+            matches!(
+                profile.kind,
+                super::model_policy_profile::CurrentRevisionRuleKind::Template { .. }
+            )
+        }) {
+            format!("async(c,row,$readCurrent)=>{body_text}")
+        } else if expr_uses_async(body) {
             format!("async(c,row)=>{body_text}")
         } else {
             format!("(c,row)=>{body_text}")
@@ -13052,6 +13293,7 @@ impl<'a> Emitter<'a> {
                         continue;
                     }
                     self.receipt_calls.clear();
+                    self.current_revision_binding = None;
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
                     // Source inventories remain useful for declined scenarios,
                     // but only a published, whole-owner receipt can enter the
@@ -13145,6 +13387,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.receipt_capture = None;
+                    self.current_revision_binding = None;
                     self.query_capture = None;
                     self.receipt_call_sites.clear();
                     self.receipt_calls.clear();

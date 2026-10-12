@@ -12278,3 +12278,30 @@ Coordinator finite source intake: State nominal File-assignment receiver indepen
 Implemented and locally tested for generated CRUD: a model with no authored read policy has an original empty read-grant inventory and no generated `.read` operation. The Cloudflare source adapter accepts that exact empty inventory during saved-outcome projection, while still requiring a checked read for every nonempty source grant and checked model/ancestor correspondence. State then withholds all record fields; the mutation and its saved replay succeed without exposing stored secret or ordinary fields. The joined Compiler, installed Cloudflare, State, Identity, D1 and public HTTP case passes, including an explicit secret-grant refusal, current membership revocation, no-read durable write and no-repeat replay. Independent critical review remains due; this does not release any native preparation, default, activation or publication hold.
 
 Coordinator finite source/control intake: TECH-S02 joined generatedCompiler/installedCF/State/Identity/D1/publicHTTP projection independently critical definingCLEAR and actualMAIN qualified. Only original verifiedEMPTY readgrant inventory permits absence of .read; checkedmodel/ancestor/source identity remain, missing/nonemptygrants retaincheckedread requirement, empty grants add nofieldauthority. Explicitrandom_secret sourcegrantE4010 refuses; authorizedlabel-onlycreate/read/replay remainuseful, hiddenordinary+secret neverwire, currentrevocation/reactivation/no repeatedcommit. Genuine no-read durablemutation and safe replay yield emptypublicrecords. Owner1/1 8.96s reused separately; MAIN changed checks [{"check": "CF", "exit": 0, "seconds": 5.08}, {"check": "root", "exit": 0, "seconds": 4.99}, {"check": "MAIN joined HTTP", "exit": 0, "seconds": 9.34}]. Originalselecteddecisivepositive/negative/donewhen satisfied atthisHTTPprojection scope, no fullJ2/app/platform/provider/hold release. PriorOWN0c sourceprereq intake only, rootalreadyhasoriginalFirst/modelPolicy/query source companions; no duplicateFirst native rerun. Existing currentselectedsnapshot34/48/remaining14 reflectsoriginalcriteriaonly; complete824/fullplans/allrecipientholds unchanged.
+
+
+2026-10-12 — original nullable current and owning policy emission (implemented/tested; runtime unfinished)
+Keep each original getter and its exact checked observation; promote only at the
+actual required leaf and defer the once-Let DATA observation to its first DATA
+use. Preserve complete declared nullable/nominal/delivery types while exporting
+the surviving original Return. Authenticate every extended owner rule/type/lock
+against the original checked source and fresh IR; use the existing dependency
+selector ABI for the changed Revision's immutable Template parent, maxTargets1.
+The Template predicate alone uses a private third async readCurrent callback at
+its original parent/published member positions. This keeps the chosen owner view
+and failure/short-circuit order without a second host predicate interpreter or
+public storage access. Genuine Dev native qualification remains separate.
+
+
+2026-10-12 — original current guard census (implemented/tested; native retry pending)
+Retain the authentic Template.active Bool CONTROL immediately preceding the
+source-checked current presence/published pair. Both original Let CONTROL and
+DATA remain distinct, yielding ten roles. Source descriptors preserve original
+node order; captured observations preserve actual evaluation order, so Let DATA
+occurs after the digest guard at its first DATA use. Existing State joins by ID
+and verifies preceding controls; descriptor-index equality would reject this
+authentic source order. No generic guard-retention or runtime cap change.
+
+
+
+Coordinator source join: Corrected current337 source/native producer and actual verified unique-key/nullable consumer source join independently definingCLEAR in LOCALmain. Compiler543+f322+837+c6 exact13paths preserveoriginal2240SHA4da/fouranalysisReturns/nativeoriginal79d0/complete10dependencies/source-fresh-executable/schema/formal/role-order seals, originalTemplate.active CONTROL/sameLet CONTROL+DATA/runtimeDATAafterdigestCONTROL, fullnullable/nominalDelivery5rules/max1parent/lazyprivate3arg reader86 andactive-beforepresence. Ownercurrent4/7.98 pluspolicy2/14mutants/classifier3/focusedemitter1/.11 strictlib5.92/strictf3229.25/fmt results reused. Devfinale42→c9→9b→c3 surgicalinvoke/control/fixture validatesSAMEverifiedentry singularmodelunique declaration exactownkeys/supportedscalar-orUser/canonicaltype/nonsecret/nooverlap; where/array/File/nominal/secret/unknownmembers refuse. Exactbuiltin bool-int-duration nullable scalar declaration tags corrected, explicittext/nullable owningtypes/SAMEgetter/stage/currentauthority retained. Realcompiledtextpositive/conditionalnegative/File-negative ownercontrol reused. No nativefixture/copiedCompilerintake; rootnormalchecks [{"check": "locked offline CLI", "exit": 0, "seconds": 17.27}, {"check": "CF", "exit": 0, "seconds": 7.98}, {"check": "root", "exit": 0, "seconds": 8.07}]. OriginalDevcurrentnative1/1 FAIL159.0s/159.04s withawaitedcleanup atfinalarchivedTemplate ancestorprojection after2Runs/CRUD/numberunique/physicalFiles/receipt-replay/currentauthority partialpasses; allfailure/source/assertions retained, no currentnative/application acceptance. Stateowner nowresumed for exactancestor-denial withholding; Devfailed-onlyretry afterqualifiedrelease. Sourceconsumer safetyhold resolved only atcomponent scope. MinimalpreviouslypendingR03reviewretirement nowgraftedwithsubstantivesource, selected35/48; remainingindexfourlanes correctedwithoutnewplan/ledger/taskIDs/forecast. Complete824/fullplans/allpreciseholds unchanged.

@@ -49,6 +49,7 @@ pub mod model_policy_profile;
 mod read_predicates;
 pub mod scenario_calls;
 mod scenario_create_sources;
+mod scenario_current_revision;
 mod scenario_feasibility;
 pub mod scenario_queries;
 mod scenario_receipts;
@@ -246,6 +247,16 @@ pub fn emit(
         .options
         .native_scenario_receipts
         .then(|| send_guards::prepare(program, &ir, sources.db, sources.catalog));
+    let policy_module = js::pick_entrypoint(&ir)
+        .map(|entry| js::module_path(&ir.module(entry).name))
+        .unwrap_or_else(|| js::module_path("index"));
+    let local_policies = model_policies::collect_checked_policies(
+        program,
+        &ir,
+        sources.db,
+        sources.catalog,
+        &policy_module,
+    );
     let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
@@ -253,6 +264,7 @@ pub fn emit(
         &query_sources,
         &query_receipts,
         js::EmitDecisionSources {
+            local_policies: local_policies.as_ref(),
             query_any: Some(&query_any),
             query_selections: Some(&query_selections),
             transcript_queries: Some(&transcript_queries),

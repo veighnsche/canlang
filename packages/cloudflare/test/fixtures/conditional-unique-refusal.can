@@ -1,0 +1,9 @@
+## Original conditional unique declaration without a model-policy descriptor.
+app ConditionalRefusal
+Given
+ Item {code:text,active:bool}
+ policy Item read=members
+ unique Item fields=code where=row.active
+When
+ crud Item by=members fields=code,active
+Then

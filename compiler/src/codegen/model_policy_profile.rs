@@ -1,5 +1,8 @@
 //! Conservative stored-field dependencies for the first native local-rule scope.
-use super::ir::{IrBinOp, IrExpr, IrItemKind, IrProgram, IrStmt, IrType, IrUnOp, TypedExpr};
+use super::ir::{
+    IrBinOp, IrExpr, IrItemKind, IrModelRuleKind, IrModelRuleOrigin, IrOwner, IrProgram, IrRuleFn,
+    IrStmt, IrType, IrUnOp, TypedExpr,
+};
 use crate::analysis::{
     resolve::{CrudOp, ModuleId, SymbolId},
     types::{ResolvedType, Scalar},
@@ -419,6 +422,331 @@ pub fn local_rule_fields(
     let mut fields = Vec::new();
     visit(program, model, predicate, &mut fields, false)?;
     Some(fields)
+}
+
+/// The two original current-Revision rules, classified without publishing a
+/// policy descriptor. In particular, Template's referenced Revision requires
+/// an original/fresh source join and an owning reverse affected-row selector;
+/// it must never enter `local_rule_fields` with an empty dependency certificate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CurrentRevisionRuleProfile {
+    pub origin: IrModelRuleOrigin,
+    pub kind: CurrentRevisionRuleKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CurrentRevisionRuleKind {
+    Template {
+        duration: SymbolId,
+        current: SymbolId,
+        revision: SymbolId,
+        published: SymbolId,
+    },
+    Revision {
+        duration: SymbolId,
+        published: SymbolId,
+        digest: SymbolId,
+    },
+}
+
+/// Additional lock targets only for the source-sealed original Revision rule.
+/// This helper alone never authorizes a descriptor or a structural value type.
+pub(crate) fn current_revision_lock_target(
+    program: &IrProgram,
+    profile: &CurrentRevisionRuleProfile,
+    field: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+) -> bool {
+    let CurrentRevisionRuleKind::Revision { digest, .. } = profile.kind else {
+        return false;
+    };
+    if policy_field(program, profile.origin.model, name, ty) != Some(field) {
+        return false;
+    }
+    match (name, ty) {
+        ("digest", ResolvedType::Nullable(inner)) => {
+            field == digest && inner.as_ref() == &ResolvedType::Scalar(Scalar::Text)
+        }
+        ("definition", _) => {
+            crate::analysis::types::checked_standard_nominal_name(ty) == Some("WorkflowDefinition")
+        }
+        ("validation", ResolvedType::Nullable(inner)) => {
+            matches!(inner.as_ref(), ResolvedType::StdDelivery { capability: "std.ImagesV1", op }
+            if crate::analysis::catalog::std_operation("std.ImagesV1", "validate") == Some(*op))
+        }
+        _ => false,
+    }
+}
+
+/// Preserve the actual typed lazy tree and owning identities of the original
+/// Template/Revision invariants. This is a nongrant classifier over checked IR,
+/// not a source seal, executable policy binding, or native activation claim.
+pub fn current_revision_rule_profile(
+    program: &IrProgram,
+    rule: &IrRuleFn,
+) -> Option<CurrentRevisionRuleProfile> {
+    let origin = rule.origin.as_ref()?;
+    let model = policy_model(program, origin.model)?;
+    let IrItemKind::Model { invariants, .. } = &model.kind else {
+        return None;
+    };
+    if origin.kind != IrModelRuleKind::Invariant
+        || origin.module != model.module
+        || origin.registry_id != rule.id
+        || origin.span != rule.span
+        || origin.node.file != rule.span.file
+        || origin.node.start != rule.span.start
+        || origin.node.end != rule.span.end
+        || origin.node.kind != crate::syntax::SyntaxKind::Invariant as u8
+        || !invariants.contains(&rule.id)
+        || rule.span.file != model.span.file
+        || !contains_span(rule.span, rule.pred.span)
+        || program
+            .invariants
+            .iter()
+            .filter(|candidate| {
+                candidate.id == rule.id
+                    && candidate
+                        .origin
+                        .as_ref()
+                        .is_some_and(|value| value.model == model.id)
+            })
+            .count()
+            != 1
+        || !program
+            .invariants
+            .iter()
+            .any(|candidate| std::ptr::eq(candidate, rule))
+    {
+        return None;
+    }
+    let (bounds, relation) = policy_binary(&rule.pred, IrBinOp::And)?;
+    let duration = original_duration_bounds(program, model.id, bounds)?;
+    let kind = match model.name.as_str() {
+        "Template" => {
+            let (absent, present) = policy_binary(relation, IrBinOp::Or)?;
+            let (presence, null) = policy_binary(absent, IrBinOp::Eq)?;
+            if !matches!(null.expr, IrExpr::Null) || null.ty != ResolvedType::Null {
+                return None;
+            }
+            let IrExpr::Member { field, .. } = &presence.expr else {
+                return None;
+            };
+            if field != "current" {
+                return None;
+            }
+            let ResolvedType::Nullable(inner) = &presence.ty else {
+                return None;
+            };
+            let ResolvedType::Record {
+                symbol: revision,
+                stored: true,
+            } = inner.as_ref()
+            else {
+                return None;
+            };
+            let revision_model = policy_model(program, *revision)?;
+            if revision_model.name != "Revision"
+                || revision_model.module != model.module
+                || !matches!(revision_model.kind, IrItemKind::Model { owner: IrOwner::ChildOf(parent), .. } if parent == model.id)
+            {
+                return None;
+            }
+            let current = policy_field(program, model.id, "current", &presence.ty)?;
+            policy_row_member(presence, model.id, "current", &presence.ty)?;
+            let (same_parent, published_read) = policy_binary(present, IrBinOp::And)?;
+            let (parent, owning_row) = policy_binary(same_parent, IrBinOp::Eq)?;
+            policy_row(owning_row, model.id)?;
+            let IrExpr::Member {
+                base: selected,
+                field,
+            } = &parent.expr
+            else {
+                return None;
+            };
+            if field != "parent" || parent.ty != owning_row.ty {
+                return None;
+            }
+            // The owning checker retains the nullable declaration type on
+            // these two original getter occurrences. The exact OR false arm
+            // permits required parent/published results; do not invent a
+            // different receiver type or admit general nullable traversal.
+            policy_row_member(selected, model.id, "current", &presence.ty)?;
+            let published = policy_field(
+                program,
+                *revision,
+                "published",
+                &ResolvedType::Scalar(Scalar::Bool),
+            )?;
+            let IrExpr::Member {
+                base: selected,
+                field,
+            } = &published_read.expr
+            else {
+                return None;
+            };
+            if field != "published" || published_read.ty != ResolvedType::Scalar(Scalar::Bool) {
+                return None;
+            }
+            policy_row_member(selected, model.id, "current", &presence.ty)?;
+            CurrentRevisionRuleKind::Template {
+                duration,
+                current,
+                revision: *revision,
+                published,
+            }
+        }
+        "Revision" => {
+            let IrItemKind::Model {
+                owner: IrOwner::ChildOf(template),
+                ..
+            } = &model.kind
+            else {
+                return None;
+            };
+            let parent = policy_model(program, *template)?;
+            if parent.name != "Template" || parent.module != model.module {
+                return None;
+            }
+            let (unpublished, nonnull_digest) = policy_binary(relation, IrBinOp::Or)?;
+            let IrExpr::Unary {
+                op: IrUnOp::Not,
+                operand,
+            } = &unpublished.expr
+            else {
+                return None;
+            };
+            if unpublished.ty != ResolvedType::Scalar(Scalar::Bool)
+                || !contains_span(unpublished.span, operand.span)
+            {
+                return None;
+            }
+            let bool_ty = ResolvedType::Scalar(Scalar::Bool);
+            let published = policy_field(program, model.id, "published", &bool_ty)?;
+            policy_row_member(operand, model.id, "published", &bool_ty)?;
+            let (digest_read, null) = policy_binary(nonnull_digest, IrBinOp::Ne)?;
+            if !matches!(null.expr, IrExpr::Null) || null.ty != ResolvedType::Null {
+                return None;
+            }
+            let text_ty = ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text)));
+            let digest = policy_field(program, model.id, "digest", &text_ty)?;
+            policy_row_member(digest_read, model.id, "digest", &text_ty)?;
+            CurrentRevisionRuleKind::Revision {
+                duration,
+                published,
+                digest,
+            }
+        }
+        _ => return None,
+    };
+    Some(CurrentRevisionRuleProfile {
+        origin: origin.clone(),
+        kind,
+    })
+}
+
+fn contains_span(parent: crate::source::Span, child: crate::source::Span) -> bool {
+    parent.file == child.file && parent.start <= child.start && child.end <= parent.end
+}
+
+fn policy_model(program: &IrProgram, id: SymbolId) -> Option<&super::ir::IrItem> {
+    let model = program.items.get(id.0 as usize)?;
+    let module = program.modules.get(model.module.0 as usize)?;
+    (model.id == id
+        && module.id == model.module
+        && model.span.file == module.file
+        && contains_span(module.span, model.span)
+        && model.canonical == format!("{}.{}", module.name, model.name)
+        && matches!(model.kind, IrItemKind::Model { .. }))
+    .then_some(model)
+}
+
+fn policy_field(
+    program: &IrProgram,
+    model: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+) -> Option<SymbolId> {
+    let owner = policy_model(program, model)?;
+    let IrItemKind::Model { fields, .. } = &owner.kind else {
+        return None;
+    };
+    let mut matching = fields.iter().filter_map(|id| {
+        program
+            .items
+            .get(id.0 as usize)
+            .filter(|field| field.id == *id && field.name == name)
+    });
+    let field = matching.next()?;
+    let module = program.modules.get(owner.module.0 as usize)?;
+    if matching.next().is_some()
+        || field.module != owner.module
+        || field.span.file != module.file
+        || !contains_span(module.span, field.span)
+        || field.canonical != format!("{}.{}", owner.canonical, name)
+        || !matches!(&field.kind, IrItemKind::Field { owner: own, ty: IrType::Known(actual), required_array: false,
+            server: None, modifiers, .. } if *own == model && actual == ty && !modifiers.machine)
+    {
+        return None;
+    }
+    Some(field.id)
+}
+
+fn policy_row(expr: &TypedExpr, model: SymbolId) -> Option<()> {
+    (matches!(&expr.expr, IrExpr::Name(name) if name == "row")
+        && expr.ty
+            == (ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }))
+    .then_some(())
+}
+
+fn policy_row_member(
+    expr: &TypedExpr,
+    model: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+) -> Option<()> {
+    let IrExpr::Member { base, field } = &expr.expr else {
+        return None;
+    };
+    if field != name || &expr.ty != ty || !contains_span(expr.span, base.span) {
+        return None;
+    }
+    policy_row(base, model)
+}
+
+fn policy_binary(expr: &TypedExpr, expected: IrBinOp) -> Option<(&TypedExpr, &TypedExpr)> {
+    let IrExpr::Binary { op, left, right } = &expr.expr else {
+        return None;
+    };
+    (*op == expected
+        && expr.ty == ResolvedType::Scalar(Scalar::Bool)
+        && contains_span(expr.span, left.span)
+        && contains_span(expr.span, right.span)
+        && left.span.end <= right.span.start)
+        .then_some((left, right))
+}
+
+fn original_duration_bounds(
+    program: &IrProgram,
+    model: SymbolId,
+    expr: &TypedExpr,
+) -> Option<SymbolId> {
+    let (lower, upper) = policy_binary(expr, IrBinOp::And)?;
+    let ty = ResolvedType::Scalar(Scalar::Duration);
+    let field = policy_field(program, model, "duration", &ty)?;
+    for (expression, op, millis) in [(lower, IrBinOp::Ge, 1_000), (upper, IrBinOp::Le, 900_000)] {
+        let (read, literal) = policy_binary(expression, op)?;
+        policy_row_member(read, model, "duration", &ty)?;
+        if literal.ty != ty || !matches!(literal.expr, IrExpr::DurationMs(value) if value == millis)
+        {
+            return None;
+        }
+    }
+    Some(field)
 }
 
 fn local_type(program: &IrProgram, model: SymbolId, ty: &ResolvedType) -> bool {

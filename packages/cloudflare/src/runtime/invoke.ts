@@ -2409,6 +2409,20 @@ function assertServableModelRules(where: string, metadata: unknown, verifiedOwne
       throw new Error(`${where} cannot activate: canonical model ${kind} execution is not supported yet.`);
     }
   }
+  // A conditional key omitted from artifact.uniqueKeys cannot be installed
+  // as an unconditional key or silently dropped. State's predicate engine
+  // becomes authority only after the original declaring rule is joined.
+  const uniques = readMetadataMember(metadata, 'uniques', where)?.value;
+  if (uniques === undefined) return;
+  for (const unique of readMetadataArray(uniques, where, 'uniques')) {
+    if (!isUnknownRecord(unique) ||
+        Object.getPrototypeOf(unique) !== Object.prototype && Object.getPrototypeOf(unique) !== null) {
+      throw new Error(`${where}: malformed owning unique declaration.`);
+    }
+    if (readMetadataMember(unique, 'where', where) !== undefined) {
+      throw new Error(`${where}: conditional unique cannot activate without its source-verified owning predicate.`);
+    }
+  }
 }
 
 /**
@@ -2588,6 +2602,88 @@ function canonicalModelName(model: unknown, index: number): ModelName {
     );
   }
   return model["name"] as ModelName;
+}
+
+/** Join singular source `unique Model fields=field` before State builds its table.
+ * Artifact `uniqueKeys` intentionally contains only field modifiers; the
+ * entry module's verified appDefinition owns model-level declarations. */
+async function joinOwningUnconditionalUniques(
+  asm: AssembledModules, artifact: CompileArtifact,
+  models: ReadonlyArray<CanonicalModelDescriptor>,
+  secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>,
+): Promise<ReadonlyArray<CanonicalModelDescriptor>> {
+  if (!claimsEmittedSourceProperty(artifact, 'uniques')) return models;
+  await verifyCheckedAssembly(asm, artifact);
+  const entry = artifact.modules[0];
+  if (entry === undefined || typeof entry.path !== 'string') {
+    throw new AssemblyCorrespondenceError('Model uniqueness lacks its original entry module.');
+  }
+  const imported = await importVerifiedAssemblyModule(asm, entry.path, artifact);
+  const where = 'Owning model uniqueness';
+  const definition = readMetadataMember(imported as object, 'appDefinition', where)?.value;
+  const declarations = isUnknownRecord(definition)
+    ? readMetadataMember(definition, 'models', where)?.value : undefined;
+  if (!isUnknownRecord(declarations) ||
+      Object.getPrototypeOf(declarations) !== Object.prototype && Object.getPrototypeOf(declarations) !== null) {
+    throw new AssemblyCorrespondenceError(`${where} lacks its original models declaration.`);
+  }
+  const additions = new Map<ModelName, string[]>();
+  for (const name of Object.keys(declarations)) {
+    const source = readMetadataMember(declarations, name, where)?.value;
+    if (!isUnknownRecord(source)) throw new AssemblyCorrespondenceError(`${where}: malformed model ${JSON.stringify(name)}.`);
+    const declared = readMetadataMember(source, 'uniques', where)?.value;
+    if (declared === undefined) continue;
+    const canonical = models.filter(model => model.name === name);
+    const original = (artifact.models ?? []).filter(model => model.name === name);
+    if (canonical.length !== 1 || original.length !== 1) {
+      throw new AssemblyCorrespondenceError(`${where}: model ${JSON.stringify(name)} lacks one original canonical association.`);
+    }
+    const keys: string[] = [];
+    for (const unique of readMetadataArray(declared, where, 'uniques')) {
+      if (!isUnknownRecord(unique) ||
+          Object.getPrototypeOf(unique) !== Object.prototype && Object.getPrototypeOf(unique) !== null) {
+        throw new AssemblyCorrespondenceError(`${where}: malformed unique declaration on ${JSON.stringify(name)}.`);
+      }
+      const members = Reflect.ownKeys(unique);
+      if (members.some(member => member !== 'fields' && member !== 'where') ||
+          !members.includes('fields') ||
+          !Object.getOwnPropertyDescriptor(unique, 'fields')?.enumerable) {
+        throw new AssemblyCorrespondenceError(`${where}: unexpected unique declaration member on ${JSON.stringify(name)}.`);
+      }
+      if (readMetadataMember(unique, 'where', where) !== undefined) {
+        throw new AssemblyCorrespondenceError(`${where}: conditional unique cannot activate without its source-verified owning predicate.`);
+      }
+      const fields = readMetadataStrings(readMetadataMember(unique, 'fields', where)?.value, where, 'unique fields');
+      if (fields.length !== 1) {
+        throw new AssemblyCorrespondenceError(`${where}: composite unique is unsupported on ${JSON.stringify(name)}.`);
+      }
+      const field = fields[0]!;
+      const originalField = original[0]!.fields.filter(candidate => candidate.name === field);
+      const canonicalField = canonical[0]!.fields[field];
+      const sourceField = originalField[0];
+      const inferredScalar = sourceField === undefined ? undefined : ({
+        integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
+        boolean: 'bool', date: 'date', duration: 'duration', user: 'user',
+      } as Readonly<Record<string, string>>)[sourceField.field.kind];
+      const scalarType = sourceField?.valueType ?? inferredScalar;
+      if (!Object.hasOwn(canonical[0]!.fields, field) ||
+          originalField.length !== 1 || canonicalField === undefined ||
+          sourceField === undefined || !['string', 'integer', 'decimal', 'money', 'datetime', 'boolean', 'date', 'duration', 'user'].includes(sourceField.field.kind) ||
+          sourceField.array !== undefined || canonicalField.array !== undefined ||
+          (sourceField.field.kind === 'string' && sourceField.valueType === undefined) ||
+          scalarType === undefined || scalarType !== canonicalField.valueType ||
+          secretFields.get(canonical[0]!.name)?.has(field) !== false ||
+          keys.includes(field) || canonical[0]!.uniqueKeys?.includes(field)) {
+        throw new AssemblyCorrespondenceError(`${where}: unique field ${JSON.stringify(name + '.' + field)} lacks one original association.`);
+      }
+      keys.push(field);
+    }
+    if (keys.length > 0) additions.set(canonical[0]!.name, keys);
+  }
+  return models.map(model => {
+    const keys = additions.get(model.name);
+    return keys === undefined ? model : { ...model, uniqueKeys: [...(model.uniqueKeys ?? []), ...keys] };
+  });
 }
 
 /**
@@ -3995,6 +4091,7 @@ async function loadCanonicalDescriptorsInternal(
     assertDroppedDeliveryEnvelopes(producers, artifact);
     loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
   }
+  loaded = { ...loaded, models: await joinOwningUnconditionalUniques(asm, artifact, loaded.models, loaded.secretFields) };
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
     refs: loaded.refs,
     serverInits: loaded.serverInits,
@@ -7260,10 +7357,18 @@ async function runScenarioExecution(
         const declaration = sources?.[0], canonicalSource = loaded.models.find(model => model.name === source.model)?.fields[source.field];
         const leaves = opts.artifact.models?.find(model => model.name === leaf.model)?.fields.filter(field => field.name === leaf.field);
         const scalarDeclaration = leaves?.[0], canonicalScalar = loaded.models.find(model => model.name === leaf.model)?.fields[leaf.field];
+        // Artifact scalar tags carry these three exact builtins without a
+        // valueType member. Text/nullable/nominal leaves still require their
+        // explicit source type ID; never infer those from a wire value.
+        const scalarDeclaredType = scalarDeclaration?.valueType ?? (
+          scalarDeclaration?.field.kind === 'boolean' ? 'bool' :
+          scalarDeclaration?.field.kind === 'integer' ? 'int' :
+          scalarDeclaration?.field.kind === 'duration' ? 'duration' : undefined);
         if (sources?.length !== 1 || declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model ||
             declaration.nullable !== true || declaration.array !== undefined || canonicalSource === undefined || canonicalSource.nullable !== true ||
             canonicalSource.array !== undefined || declaration.valueType === undefined || canonicalSource.valueType !== declaration.valueType ||
-            leaves?.length !== 1 || scalarDeclaration?.valueType === undefined || canonicalScalar === undefined || canonicalScalar.valueType !== scalarDeclaration.valueType ||
+            leaves?.length !== 1 || scalarDeclaration === undefined || scalarDeclaredType === undefined || canonicalScalar === undefined ||
+            canonicalScalar.valueType !== scalarDeclaredType ||
             scalarDeclaration.array !== undefined || canonicalScalar.array !== undefined) {
           return refuseRecordBinding('Nullable promotion requires its exact owning nullable reference and scalar declarations.');
         }
@@ -7292,8 +7397,8 @@ async function runScenarioExecution(
           return dependency.role === 'data' && controls.length === 1;
         };
         if (source.type !== declaration.valueType && !narrowed(source, declaration.valueType) ||
-            leaf.type !== scalarDeclaration.valueType && !(leaf.type === 'text' && scalarDeclaration.field.kind === 'string' &&
-              scalarDeclaration.nullable === true && canonicalScalar.nullable === true && narrowed(leaf, scalarDeclaration.valueType))) {
+            leaf.type !== scalarDeclaredType && !(leaf.type === 'text' && scalarDeclaration.field.kind === 'string' &&
+              scalarDeclaration.nullable === true && canonicalScalar.nullable === true && narrowed(leaf, scalarDeclaredType))) {
           return refuseRecordBinding('Nullable promotion lacks its original CONTROL and owning narrowed declaration correspondence.');
         }
         const origin = reference !== null && typeof reference === 'object' ? storedReferences.get(reference) : undefined;
