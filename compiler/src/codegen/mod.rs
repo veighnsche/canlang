@@ -156,6 +156,7 @@ pub fn emit(
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
     let mut query_sources = std::collections::BTreeMap::new();
     let mut query_receipts = std::collections::BTreeMap::new();
+    let mut transcript_queries = std::collections::BTreeMap::new();
     let mut query_selections = std::collections::BTreeMap::new();
     if sources.options.native_scenario_receipts {
         // Query source correspondence is independent of permission/capture
@@ -172,6 +173,22 @@ pub fn emit(
                     &entry_module,
                 ) {
                     query_selections.insert(item.canonical.clone(), selections);
+                }
+                if let Some(plan) = scenario_queries::collect_transcript_query_source(
+                    program,
+                    &ir,
+                    item,
+                    sources.db,
+                    sources.catalog,
+                    &entry_module,
+                ) {
+                    query_sources.insert(
+                        item.canonical.clone(),
+                        serde_json::to_value(&plan)
+                            .expect("checked transcript query JSON invariant"),
+                    );
+                    transcript_queries.insert(item.canonical.clone(), plan);
+                    continue;
                 }
                 if let Some(recipe) = scenario_queries::collect_complete_query_receipt(
                     program,
@@ -220,6 +237,7 @@ pub fn emit(
         &query_receipts,
         js::EmitDecisionSources {
             query_selections: Some(&query_selections),
+            transcript_queries: Some(&transcript_queries),
             membership: membership.as_ref(),
             read_predicates: read_predicates.as_ref(),
             send_guards: send_guards.as_ref().and_then(|guards| guards.as_ref().ok()),

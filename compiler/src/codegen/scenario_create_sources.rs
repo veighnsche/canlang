@@ -629,6 +629,122 @@ struct SourceExpressions<'a> {
 }
 
 impl SourceExpressions<'_> {
+    fn transcript_source(
+        &self,
+    ) -> Option<&crate::analysis::scenario_disclosure::CheckedScenarioSource> {
+        let mut owners = self.ir.items.iter().filter(|owner| {
+            self.ir
+                .scenario_disclosures
+                .get(&owner.id)
+                .and_then(|value| value.source_facts())
+                .is_some_and(|source| {
+                    source.source == self.original.source
+                        && source.creates.as_deref().is_some_and(|creates| {
+                            creates
+                                .iter()
+                                .any(|created| created.node == self.original.node)
+                        })
+                })
+        });
+        let owner = owners.next()?;
+        if owners.next().is_some() {
+            return None;
+        }
+        super::scenario_calls::checked_source(self.ir, owner, self.db)
+    }
+
+    fn transcript_call(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
+        let source = self.transcript_source()?;
+        let fact = source
+            .transcripts
+            .as_deref()?
+            .iter()
+            .find(|fact| fact.call == key)?;
+        let (target, args, slots) = match &actual.expr {
+            IrExpr::Call { target, args } => (target, args, None),
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => (target, args, Some(slots)),
+            _ => return None,
+        };
+        let callee = self.ir.items.get(fact.derive.0 as usize)?;
+        let IrItemKind::DeriveFn {
+            params,
+            result: IrType::Known(result),
+            expr: Some(body),
+        } = &callee.kind
+        else {
+            return None;
+        };
+        let [argument] = args.as_slice() else {
+            return None;
+        };
+        let parameter = self.ir.items.get(fact.parameter.0 as usize)?;
+        let formal = self.ir.items.get(fact.formal.0 as usize)?;
+        if !matches!(target, IrCallTarget::DeriveFn(name) if name == &callee.canonical)
+            || params.as_slice() != [fact.formal]
+            || result != &fact.ty
+            || actual.ty != fact.ty
+            || body.span != span(fact.body)
+            || body.ty != fact.ty
+            || !matches!(&argument.expr, IrExpr::Name(name) if name == &parameter.name)
+            || argument.span != span(fact.argument)
+            || !matches!(&parameter.kind, IrItemKind::Param { owner, ty: IrType::Known(ty), default: None, .. }
+                if *owner == source.scenario && ty == &argument.ty && *ty == ResolvedType::Record { symbol: fact.branch, stored: true })
+            || !matches!(&formal.kind, IrItemKind::Param { owner, index: 0, ty: IrType::Known(ty), default: None, .. }
+                if *owner == fact.derive && ty == &argument.ty)
+            || slots.is_some_and(|slots| slots.as_slice() != [Some(0)])
+            || source_path(expressions(self.nodes.get(&key)?).first()?, self.text)? != "transcript"
+        {
+            return None;
+        }
+        self.expression(argument, fact.argument, depth + 1)?;
+        self.expression(body, fact.body, depth + 1)
+    }
+
+    fn transcript_query(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
+        let source = self.transcript_source()?;
+        let fact = source
+            .transcripts
+            .as_deref()?
+            .iter()
+            .find(|fact| fact.query.node == key)?;
+        let IrExpr::Query(query) = &actual.expr else {
+            return None;
+        };
+        let parent = query.parent.as_ref()?;
+        let selected = query.select.as_ref()?;
+        let model = self.ir.items.get(fact.model.0 as usize)?;
+        let formal = self.ir.items.get(fact.formal.0 as usize)?;
+        let domain = self.nodes.get(&fact.query.domain)?;
+        let receivers = expressions(domain);
+        let [receiver] = receivers.as_slice() else {
+            return None;
+        };
+        if actual.ty != fact.ty
+            || query.source.as_deref() != Some(&fact.query)
+            || !matches!(&query.domain, super::ir::IrQueryDomain::Model(name) if name == &model.canonical)
+            || !matches!(&parent.expr, IrExpr::Name(name) if name == &formal.name)
+            || query.select_param.as_deref() != Some("turn")
+            || query.where_pred.is_some()
+            || query.where_async
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || query.collection_call.is_some()
+            || query.contract_collection_call.is_some()
+            || query.order.len() != 1
+            || query.order[0].field != "position"
+            || query.order[0].descending
+            || selected.span != span(fact.select)
+        {
+            return None;
+        }
+        self.expression(parent, NodeKey::of(receiver), depth + 1)?;
+        self.expression(selected, fact.select, depth + 1)
+    }
+
     fn word(&self, key: NodeKey) -> Option<&str> {
         let node = self.nodes.get(&key)?;
         (node.kind == SyntaxKind::NameRef)
@@ -1100,6 +1216,91 @@ impl SourceExpressions<'_> {
         Some(())
     }
 
+    fn trim_guard(
+        &self,
+        actual: &TypedExpr,
+        node: &SyntaxNode,
+        args: &[TypedExpr],
+        slots: Option<&[Option<usize>]>,
+        depth: usize,
+    ) -> Option<()> {
+        use crate::analysis::scenario_disclosure::{
+            CheckedDecisionCallTarget, CheckedDecisionStage,
+        };
+        let source = self.transcript_source()?;
+        let key = NodeKey::of(node);
+        let mut calls = source
+            .decision_sites
+            .as_deref()?
+            .iter()
+            .filter(|site| {
+                site.owner == source.scenario && site.stage == CheckedDecisionStage::LeadingRequire
+            })
+            .flat_map(|site| &site.calls)
+            .filter(|call| call.node == key);
+        let original = calls.next()?;
+        let [argument] = args else {
+            return None;
+        };
+        let [(argument_node, argument_type)] = original.arguments.as_slice() else {
+            return None;
+        };
+        if calls.next().is_some()
+            || original.source != self.original.source
+            || !matches!(&original.target,CheckedDecisionCallTarget::Builtin {id,overload:0} if id == "trim")
+            || !original.chain.is_empty()
+            || !original.defaults.is_empty()
+            || original.slots.as_slice() != [Some(0)]
+            || slots.is_some_and(|slots| slots != [Some(0)])
+            || actual.ty != ResolvedType::Scalar(Scalar::Text)
+            || *argument_type != ResolvedType::Scalar(Scalar::Text)
+            || argument.ty != *argument_type
+            || source_path(expressions(node).first()?, self.text)? != "trim"
+        {
+            return None;
+        }
+        let mut authored = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument);
+        let value = expressions(authored.next()?);
+        let [value] = value.as_slice() else {
+            return None;
+        };
+        if authored.next().is_some()
+            || NodeKey::of(value) != *argument_node
+            || value.kind != SyntaxKind::NameRef
+        {
+            return None;
+        }
+        let name = single_name(value, self.text)?;
+        let owner = self.ir.items.get(source.scenario.0 as usize)?;
+        let mut parameters = source
+            .parameters
+            .iter()
+            .enumerate()
+            .filter(|(_, parameter)| {
+                self.ir
+                    .items
+                    .get(parameter.parameter.0 as usize)
+                    .is_some_and(|item| item.name == name)
+            });
+        let (index, original_parameter) = parameters.next()?;
+        let parameter = self.ir.items.get(original_parameter.parameter.0 as usize)?;
+        if parameters.next().is_some()
+            || parameter.id != original_parameter.parameter
+            || parameter.module != owner.module
+            || parameter.canonical != format!("{}.{}", owner.canonical, name)
+            || original_parameter.ty != *argument_type
+            || original_parameter.default.is_some()
+            || !matches!(&parameter.kind,IrItemKind::Param {owner: actual_owner,index: actual_index,ty:IrType::Known(ty),default:None,default_node:None,default_copy_source:None,..}
+                if *actual_owner == source.scenario && *actual_index == index && ty == argument_type)
+        {
+            return None;
+        }
+        self.expression(argument, *argument_node, depth + 1)
+    }
+
     fn expression(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         if depth > 64 {
             return None;
@@ -1145,6 +1346,29 @@ impl SourceExpressions<'_> {
         };
         let primitive = |scalar| actual.ty == ResolvedType::Scalar(scalar);
         let matched = match (&actual.expr, node.kind) {
+            (IrExpr::Query(_), SyntaxKind::Query) if self.operands => {
+                self.transcript_query(actual, NodeKey::of(node), depth)?;
+                true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::DeriveFn(_),
+                    ..
+                }
+                | IrExpr::BoundCall {
+                    target: IrCallTarget::DeriveFn(_),
+                    ..
+                },
+                SyntaxKind::Call,
+            ) if self.operands
+                && crate::analysis::types::checked_standard_nominal_name(match &actual.ty {
+                    ResolvedType::Array { element, .. } => element,
+                    ty => ty,
+                }) == Some("TextMessage") =>
+            {
+                self.transcript_call(actual, NodeKey::of(node), depth)?;
+                true
+            }
             (IrExpr::Int(value), SyntaxKind::Literal) => {
                 primitive(Scalar::Int)
                     && token(SyntaxKind::Integer)?.parse::<i128>().ok()? == *value
@@ -1449,7 +1673,28 @@ impl SourceExpressions<'_> {
             }
             (
                 IrExpr::Call {
-                    target: IrCallTarget::Builtin { id, .. },
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "trim" && primitive(Scalar::Text) => {
+                self.trim_guard(actual, node, args, None, depth)?;
+                true
+            }
+            (
+                IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                    slots,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "trim" && primitive(Scalar::Text) => {
+                self.trim_guard(actual, node, args, Some(slots), depth)?;
+                true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: false },
                     args,
                 },
                 SyntaxKind::Call,
@@ -1486,10 +1731,29 @@ impl SourceExpressions<'_> {
             (
                 IrExpr::BoundCall {
                     target: IrCallTarget::Builtin { id, awaited: false },
-                    ..
+                    args,
+                    slots,
                 },
                 SyntaxKind::Call,
             ) if self.operands && id == "count" && primitive(Scalar::Int) => {
+                if let [argument] = args.as_slice()
+                    && !matches!(argument.expr, IrExpr::Query(_))
+                    && slots.as_slice() == [Some(0)]
+                {
+                    if source_path(children.first()?, self.text)? != "count" {
+                        return None;
+                    }
+                    let argument_node = node
+                        .children
+                        .iter()
+                        .find(|node| node.kind == SyntaxKind::Argument)?;
+                    let values = expressions(argument_node);
+                    let [value] = values.as_slice() else {
+                        return None;
+                    };
+                    self.expression(argument, NodeKey::of(value), depth + 1)?;
+                    return Some(());
+                }
                 super::scenario_receipts::checked_count_query_ir(
                     self.ir,
                     self.original,

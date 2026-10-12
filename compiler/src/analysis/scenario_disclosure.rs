@@ -3732,6 +3732,9 @@ impl<'a> Closure<'a> {
                 pending.push((edge.parent, true));
             }
         }
+        for query in self.checked_any_query_sources(scenario)? {
+            pending.push((query.model, true));
+        }
         for transcript in self
             .checked_transcript_sources(scenario)
             .unwrap_or_default()
@@ -4263,6 +4266,7 @@ impl<'a> Closure<'a> {
     ) -> Option<Vec<DisclosureQuery>> {
         if !scenario.read {
             let mut first = self.checked_count_query_sources(scenario)?;
+            first.extend(self.checked_any_query_sources(scenario)?);
             for binding in &scenario.effects {
                 let Some(value) = binding.value.and_then(|key| self.query_group(key)) else {
                     continue;
@@ -4549,6 +4553,337 @@ impl<'a> Closure<'a> {
             count: None,
             influences,
         }])
+    }
+
+    /// The original leading unfinished-Run check has an external predicate.
+    /// Its candidate reads stay query-owned, never a fabricated where clause
+    /// or one parent decision shared across repeated candidate evaluations.
+    fn checked_any_query_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<DisclosureQuery>> {
+        if scenario.read || scenario.on.is_some() || self.catalog.is_none() {
+            return Some(Vec::new());
+        }
+        let mut queries = Vec::new();
+        let mut visits = 0usize;
+        for guard in &scenario.guards {
+            let mut pending = vec![*self.nodes.get(&guard.node)?];
+            while let Some(node) = pending.pop() {
+                visits += 1;
+                if visits > 16384 {
+                    return None;
+                }
+                pending.extend(node.children.iter().rev());
+                if node.kind != SyntaxKind::Call {
+                    continue;
+                }
+                let call = NodeKey::of(node);
+                let Some(selected) = self.types.selected_calls.get(&call) else {
+                    continue;
+                };
+                if !matches!(&selected.target,SelectedCallTarget::Builtin {id,..} if id=="any") {
+                    continue;
+                }
+                let domain = *selected.arguments.get(selected.slots.first().copied()??)?;
+                let domain = self.query_group(domain)?;
+                // Supplied value arrays retain their existing pure closure.
+                // This finite inventory is solely a true stored model query.
+                if self.nodes.get(&domain)?.kind != SyntaxKind::Query
+                    || !matches!(self.types.node_types.get(&domain),
+                        Some(ResolvedType::Array {element,..})
+                        if matches!(element.as_ref(),ResolvedType::Record {stored:true,..}))
+                {
+                    continue;
+                }
+                queries.push(self.checked_any_query_source(scenario, guard, call)?);
+                if queries.len() > 1 {
+                    return None;
+                }
+            }
+        }
+        Some(queries)
+    }
+
+    fn checked_any_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        guard: &Effect,
+        call: NodeKey,
+    ) -> Option<DisclosureQuery> {
+        let selected = self.types.selected_calls.get(&call)?;
+        let SelectedCallTarget::Builtin {
+            id: builtin,
+            overload,
+        } = &selected.target
+        else {
+            return None;
+        };
+        let [supplied, predicate] = selected.arguments.as_slice() else {
+            return None;
+        };
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let catalog = self.catalog?;
+        let signature = catalog.overloads(builtin)?.get(*overload)?;
+        let [domain_input, predicate_input] = signature.params.as_slice() else {
+            return None;
+        };
+        let condition = guard.cond?;
+        let unary = self.nodes.get(&self.query_group(condition)?)?;
+        let unary_values: Vec<_> = unary
+            .children
+            .iter()
+            .filter(|part| expression(part.kind))
+            .map(NodeKey::of)
+            .collect();
+        let unary_words: Vec<_> = unary
+            .children
+            .iter()
+            .filter(|part| matches!(part.kind, SyntaxKind::Name | SyntaxKind::Punct))
+            .map(|part| self.word(part))
+            .collect::<Option<Vec<_>>>()?;
+        let call_node = self.nodes.get(&call)?;
+        let target = call_node
+            .children
+            .iter()
+            .find(|part| expression(part.kind))?;
+        let arguments: Vec<_> = call_node
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::Argument)
+            .map(|part| {
+                let mut values = part.children.iter().filter(|value| expression(value.kind));
+                let value = NodeKey::of(values.next()?);
+                values.next().is_none().then_some(value)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let by = scenario.by?;
+        if builtin != "any"
+            || catalog.effects(builtin) != Some(Effects::Pure)
+            || domain_input.name != "domain"
+            || domain_input.ty != SigType::Collection(Box::new(SigType::Any))
+            || domain_input.alias.is_none()
+            || domain_input.in_scope.is_some()
+            || predicate_input.name != "predicate"
+            || predicate_input.ty != SigType::Named("bool".into())
+            || predicate_input.alias.is_some()
+            || predicate_input.in_scope != domain_input.alias
+            || signature.result != SigType::Named("bool".into())
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || self.types.node_types.get(&call) != Some(&boolean)
+            || self.types.node_types.get(predicate) != Some(&boolean)
+            || self.types.node_types.get(&condition) != Some(&boolean)
+            || guard.verb != EffectVerb::Require
+            || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
+            || unary.kind != SyntaxKind::Unary
+            || unary_words != ["not"]
+            || unary_values.len() != 1
+            || self.query_group(unary_values[0])? != call
+            || call_node.kind != SyntaxKind::Call
+            || arguments != selected.arguments
+            || target.kind != SyntaxKind::NameRef
+            || self.word(target)? != "any"
+            || !matches!(self.query_binding(NodeKey::of(target)),Some(Binding::Builtin {id}) if id=="any")
+            || scenario.read
+            || scenario.on.is_some()
+            || scenario.cohort.is_some()
+            || !matches!(self.query_binding(by), Some(Binding::Predicate))
+            || self
+                .db
+                .get(by.file)?
+                .text
+                .get(by.start as usize..by.end as usize)?
+                .trim()
+                != "members"
+            || guard.node.file != scenario.node.file
+            || call.file != guard.node.file
+            || guard.node.start < scenario.node.start
+            || guard.node.end > scenario.node.end
+            || call.start < guard.node.start
+            || call.end > guard.node.end
+        {
+            return None;
+        }
+        let node = self.query_group(*supplied)?;
+        let query = self.types.checked_queries.get(&node)?;
+        let fact = self.types.checked_collection_calls.get(&call)?;
+        let [alias] = query.clauses.as_slice() else {
+            return None;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return None;
+        };
+        let model = fact.model;
+        let owner = self.checked_count_model(model, scenario.module)?;
+        let (receiver, collection) = self.count_member(query.domain)?;
+        let parameter = self.query_parameter(scenario, receiver)?;
+        let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let parent_owner = self.checked_count_model(parent, scenario.module)?;
+        let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        let SymbolKind::Param {
+            owner: parameter_owner,
+            index,
+            type_node,
+        } = parameter_symbol.kind
+        else {
+            return None;
+        };
+        let parameter_data = scenario.params.get(index)?;
+        let array = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            }),
+            ordered: true,
+            nonempty: false,
+        };
+        let authored = self.nodes.get(&node)?;
+        let domains: Vec<_> = authored
+            .children
+            .iter()
+            .filter(|part| expression(part.kind))
+            .map(NodeKey::of)
+            .collect();
+        let clauses: Vec<_> = authored
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::QueryClause)
+            .map(NodeKey::of)
+            .collect();
+        let alias_words: Vec<_> = self
+            .nodes
+            .get(&alias.node)?
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::Name)
+            .map(|part| self.word(part))
+            .collect::<Option<Vec<_>>>()?;
+        let predicate_node = self.query_group(*predicate)?;
+        let field = self.query_member(predicate_node, alias.node, model)?;
+        if fact.node != call
+            || fact.builtin != "any"
+            || fact.overload != *overload
+            || fact.query != node
+            || fact.alias != alias.node
+            || fact
+                .predicate
+                .as_ref()
+                .is_none_or(|actual| actual.node != *predicate || actual.ty != boolean)
+            || authored.kind != SyntaxKind::Query
+            || query.node != node
+            || query.projection.is_some()
+            || query.domain_type != array
+            || query.result != array
+            || self.types.node_types.get(&node) != Some(&array)
+            || self.types.node_types.get(supplied) != Some(&array)
+            || self.types.node_types.get(&query.domain) != Some(&array)
+            || domains != [query.domain]
+            || clauses != [alias.node]
+            || !alias.expressions.is_empty()
+            || name != "run"
+            || alias_words != ["as", "run"]
+            || owner.name != "Run"
+            || parent_owner.name != "Branch"
+            || collection != owner.name
+            || hops != 0
+            || !self.original_reference_parameter(receiver, parameter)
+            || self.model_has_field(parent, collection)
+            || !matches!(owner.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(actual),..} if actual==parent)
+            || self.effects.models.get(&model)?.owner != ModelOwner::ChildOf(parent)
+            || parameter_owner != scenario.scenario
+            || parameter_symbol.module != scenario.module
+            || parameter_symbol.id != parameter
+            || parameter_data.param != parameter
+            || parameter_data.type_node != type_node
+            || parameter_data.default.is_some()
+            || self.word(self.nodes.get(&receiver)?)? != parameter_symbol.name
+            || self.query_member_name(predicate_node, alias.node, model) != Some("unfinished")
+            || self.types.node_types.get(&predicate_node) != Some(&boolean)
+            || self.types.symbol_types.get(&field) != Some(&boolean)
+        {
+            return None;
+        }
+        let source = self.source(scenario.module, node).ok()?;
+        let sites = self.checked_decision_sites(scenario)?;
+        let mut matching = sites.iter().filter(|site| {
+            site.owner == scenario.scenario
+                && site.statement == guard.node
+                && site.node == condition
+                && site.stage == CheckedDecisionStage::LeadingRequire
+                && site.source == source
+        });
+        let site = matching.next()?;
+        let mut original_calls = site.calls.iter().filter(|original| original.node == call);
+        let original = original_calls.next()?;
+        if matching.next().is_some()
+            || original_calls.next().is_some()
+            || original.module != scenario.module
+            || original.source != source
+            || original.target
+                != (CheckedDecisionCallTarget::Builtin {
+                    id: "any".into(),
+                    overload: *overload,
+                })
+            || original.arguments != vec![(*supplied, array), (*predicate, boolean)]
+            || original.slots != selected.slots
+            || !original.defaults.is_empty()
+            || !original.chain.is_empty()
+        {
+            return None;
+        }
+        let returned = scenario.effects.last()?;
+        if returned.verb != EffectVerb::Return {
+            return None;
+        }
+        let id = self.opaque("query", node, "").ok()?;
+        let dependencies = vec![self.query_dependency(
+            predicate_node,
+            scenario.module,
+            model,
+            field,
+            DependencyRole::Control,
+            &id,
+        )?];
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", node, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(DisclosureQuery {
+            id,
+            source,
+            node,
+            domain: query.domain,
+            model,
+            model_name: owner.canonical.clone(),
+            alias: Some(alias.node),
+            predicate: Some(*predicate),
+            inputs: vec![(receiver, parameter)],
+            dependencies,
+            order: Vec::new(),
+            limit: None,
+            archived: false,
+            cardinality_guard: None,
+            return_node: returned.node,
+            projection: None,
+            first: None,
+            count: None,
+            influences,
+        })
     }
 
     /// Retain original model counts independently from executable disclosure.
@@ -7451,6 +7786,123 @@ impl<'a> Closure<'a> {
         Some((id, model, parent, membership))
     }
 
+    /// These original leading guards consume an admitted value's text or
+    /// cardinality only. They supply no stored-row or File authority.
+    fn checked_pure_input_guard(&self, key: NodeKey, module: ModuleId) -> Option<NodeKey> {
+        if !self.authorization || self.statement_depth != 1 || self.loop_node.is_some() {
+            return None;
+        }
+        let selected = self.types.selected_calls.get(&key)?;
+        let SelectedCallTarget::Builtin { id, overload: 0 } = &selected.target else {
+            return None;
+        };
+        if !matches!(id.as_str(), "trim" | "count") || selected.slots.as_slice() != [Some(0)] {
+            return None;
+        }
+        let [argument] = selected.arguments.as_slice() else {
+            return None;
+        };
+        let catalog = self.catalog?;
+        let signature = catalog.overloads(id)?.first()?;
+        let [input] = signature.params.as_slice() else {
+            return None;
+        };
+        let (name, input_type, result) = if id == "trim" {
+            ("value", SigType::StringLike, Scalar::Text)
+        } else {
+            (
+                "domain",
+                SigType::Collection(Box::new(SigType::Any)),
+                Scalar::Int,
+            )
+        };
+        if catalog.effects(id) != Some(Effects::Pure)
+            || input.name != name
+            || input.ty != input_type
+            || input.alias.is_some()
+            || input.in_scope.is_some()
+            || signature.result != SigType::Named(result.as_str().into())
+            || self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(result))
+        {
+            return None;
+        }
+        let node = self.nodes.get(&key)?;
+        let head = node.children.iter().find(|child| expression(child.kind))?;
+        let mut authored = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument);
+        let source_argument = authored.next()?;
+        let mut values = source_argument
+            .children
+            .iter()
+            .filter(|child| expression(child.kind));
+        if node.kind != SyntaxKind::Call
+            || authored.next().is_some()
+            || NodeKey::of(values.next()?) != *argument
+            || values.next().is_some()
+            || !matches!(self.query_binding(NodeKey::of(head)),Some(Binding::Builtin {id: actual}) if actual == id)
+            || self.word(head)? != id
+        {
+            return None;
+        }
+        let operand = self.nodes.get(argument)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(*argument) else {
+            return None;
+        };
+        let symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        let SymbolKind::Param {
+            owner,
+            index,
+            type_node,
+        } = symbol.kind
+        else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.get(&owner)?;
+        let declaration = scenario.params.get(index)?;
+        let by = scenario.by?;
+        if operand.kind != SyntaxKind::NameRef
+            || self.word(operand)? != symbol.name
+            || symbol.id != *parameter
+            || symbol.module != module
+            || scenario.module != module
+            || scenario.read
+            || scenario.on.is_some()
+            || scenario.cohort.is_some()
+            || declaration.param != *parameter
+            || declaration.type_node != type_node
+            || !matches!(self.query_binding(by), Some(Binding::Predicate))
+            || self
+                .db
+                .get(by.file)?
+                .text
+                .get(by.start as usize..by.end as usize)?
+                .trim()
+                != "members"
+            || !scenario.guards.iter().any(|guard| {
+                guard.verb == EffectVerb::Require
+                    && guard.node.file == key.file
+                    && guard.node.start <= key.start
+                    && key.end <= guard.node.end
+            })
+            || self.types.node_types.get(argument) != self.types.symbol_types.get(parameter)
+            || self.source(module, key).is_err()
+        {
+            return None;
+        }
+        if id == "trim" {
+            if declaration.default.is_some()
+                || self.types.node_types.get(argument) != Some(&ResolvedType::Scalar(Scalar::Text))
+            {
+                return None;
+            }
+        } else if !self.explicit_file_array_call_parameter(declaration) {
+            return None;
+        }
+        Some(*argument)
+    }
+
     fn call(
         &mut self,
         key: NodeKey,
@@ -7464,6 +7916,71 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing checked call selection"))?
             .clone();
+        if calls.is_empty()
+            && let Some(argument) = self.checked_pure_input_guard(key, module)
+        {
+            return Ok(self
+                .expr(argument, module, env, calls)?
+                .into_iter()
+                .map(|value| ValuePath {
+                    reads: value.reads,
+                    intrinsics: value.intrinsics,
+                    observed: value.observed,
+                    decisions: value.decisions,
+                    influences: value.influences,
+                    ..ValuePath::default()
+                })
+                .collect());
+        }
+        if calls.is_empty()
+            && self.authorization
+            && self.statement_depth == 1
+            && self.loop_node.is_none()
+            && matches!(&selected.target,SelectedCallTarget::Builtin {id,..} if id=="any")
+        {
+            let original = self.effects.scenarios.values().find_map(|scenario| {
+                (scenario.module == module).then_some(())?;
+                let actual = self.types.checked_collection_calls.get(&key)?;
+                self.checked_any_query_sources(scenario)?
+                    .into_iter()
+                    .find(|query| {
+                        actual.node == key
+                            && actual.builtin == "any"
+                            && actual.query == query.node
+                            && Some(actual.alias) == query.alias
+                            && actual.predicate.as_ref().map(|predicate| predicate.node)
+                                == query.predicate
+                    })
+            });
+            if let Some(query) = original {
+                let [(receiver, parameter)] = query.inputs.as_slice() else {
+                    return Err(self.fail(key, "any needs its original required parent"));
+                };
+                let Some(ResolvedType::Record {
+                    symbol: parent,
+                    stored: true,
+                }) = self.types.symbol_types.get(parameter)
+                else {
+                    return Err(self.fail(key, "any needs its original parent type"));
+                };
+                if !self.original_reference_parameter(*receiver, *parameter)
+                    || !env.get(&Local::Symbol(*parameter)).is_some_and(|value| {
+                        value.record == Some(*parent)
+                            && matches!(value.reference_origin,
+                                Some(ReferenceOrigin::Parameter(original)) if original==*parameter)
+                    })
+                {
+                    return Err(self.fail(key, "any needs its original required parent lineage"));
+                }
+                return Ok(vec![ValuePath {
+                    // The external predicate is lazy and may run zero or many
+                    // times. Its real CONTROL read is retained by the query,
+                    // rather than becoming a parent scalar/root decision.
+                    influences: query.influences,
+                    ..ValuePath::default()
+                }]);
+            }
+        }
         if calls.is_empty()
             && self.statement_depth == 1
             && self.loop_node.is_none()

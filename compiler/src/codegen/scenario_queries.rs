@@ -43,6 +43,25 @@ pub fn serialize_query_sources(
     .ok()
 }
 
+/// Retain the authenticated transcript plan for the native collector. The
+/// source plan alone still cannot admit capture or a created-model result.
+pub(super) fn collect_transcript_query_source(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<ReceiptDisclosurePlan> {
+    ir.scenario_disclosures
+        .get(&owner.id)?
+        .source_facts()?
+        .transcripts
+        .as_deref()
+        .filter(|facts| !facts.is_empty())?;
+    checked_query_plan(program, ir, owner, db, catalog, entry_module)
+}
+
 /// Literal intermediate selection metadata, authenticated through the same
 /// source query path. This does not bind a result or activate native capture.
 pub(super) fn serialize_transcript_selections(

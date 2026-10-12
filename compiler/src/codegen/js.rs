@@ -1478,6 +1478,8 @@ pub fn emit_program_with_native_source_receipts(
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
     pub query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
+    pub transcript_queries:
+        Option<&'a BTreeMap<String, super::scenario_receipts::ReceiptDisclosurePlan>>,
     pub membership: Option<&'a super::membership::MembershipSources>,
     pub read_predicates: Option<&'a super::read_predicates::PreparedReadPredicates>,
     pub send_guards: Option<&'a super::send_guards::PreparedSendGuards>,
@@ -1628,16 +1630,25 @@ fn emit_program_with_sources(
             let Some(plan) = queries.get(&item.canonical) else {
                 continue;
             };
-            let Some(checked_queries) = ir
+            let Some(source) = ir
                 .scenario_disclosures
                 .get(&item.id)
                 .and_then(|fact| fact.source_facts())
-                .and_then(|source| source.queries.as_ref())
-                .filter(|queries| !queries.is_empty() && queries.len() <= 3)
+            else {
+                continue;
+            };
+            let Some(checked_queries) = source
+                .queries
+                .as_ref()
+                .filter(|queries| queries.len() <= 3)
                 .cloned()
             else {
                 continue;
             };
+            let transcripts = source.transcripts.clone().unwrap_or_default();
+            if checked_queries.is_empty() && transcripts.is_empty() {
+                continue;
+            }
             let Some(return_id) = plan["returns"][0]["id"].as_str() else {
                 continue;
             };
@@ -1645,6 +1656,7 @@ fn emit_program_with_sources(
                 item.id,
                 NativeQuerySource {
                     queries: checked_queries,
+                    transcripts,
                     return_id: return_id.into(),
                     plan: plan.clone(),
                 },
@@ -1654,16 +1666,6 @@ fn emit_program_with_sources(
     if native_receipts {
         let models = emitter.collect_models();
         for (index, item) in ir.items.iter().enumerate() {
-            if super::scenario_receipts::has_original_transcript_source(ir, SymbolId(index as u32))
-            {
-                emitter.diags.push(Diagnostic::error(
-                    "E6008",
-                    "transcript needs released native query and stored-message correspondence"
-                        .into(),
-                    item.span,
-                ));
-                continue;
-            }
             if let Some(recipe) = super::scenario_receipts::collect_native_scenario_receipt(
                 ir,
                 item,
@@ -1675,10 +1677,21 @@ fn emit_program_with_sources(
                     send_guards: emitter.send_guards,
                     query_plan: query_receipts
                         .and_then(|recipes| recipes.get(&item.canonical))
-                        .map(|recipe| &recipe.plan),
+                        .map(|recipe| &recipe.plan)
+                        .or_else(|| decisions.transcript_queries?.get(&item.canonical)),
                 },
             ) {
                 emitter.native_receipts.insert(item.id, recipe);
+            } else if super::scenario_receipts::has_original_transcript_source(
+                ir,
+                SymbolId(index as u32),
+            ) {
+                emitter.diags.push(Diagnostic::error(
+                    "E6008",
+                    "transcript needs released native query and stored-message correspondence"
+                        .into(),
+                    item.span,
+                ));
             } else if super::scenario_receipts::has_original_guarded_send(
                 ir,
                 SymbolId(index as u32),
@@ -2590,6 +2603,7 @@ struct OriginalUiRow {
 #[derive(Clone)]
 struct NativeQuerySource {
     queries: Vec<crate::analysis::scenario_disclosure::DisclosureQuery>,
+    transcripts: Vec<crate::analysis::scenario_disclosure::CheckedTranscriptSource>,
     return_id: String,
     plan: serde_json::Value,
 }
@@ -2682,7 +2696,7 @@ impl<'a> Emitter<'a> {
     /// Selected sends and stored receipts publish their complete owning value
     /// closure only against the original checked source/import/declaration census.
     /// The inventory describes values; it grants no provider or File authority.
-    fn collect_standard_value_inventory(
+    pub(super) fn collect_standard_value_inventory(
         &mut self,
         db: &crate::source::SourceDb,
     ) -> Option<JsValueTypes> {
@@ -4069,11 +4083,22 @@ impl<'a> Emitter<'a> {
                     .queries
                     .iter()
                     .flat_map(|query| &query.dependencies)
+                    .chain(
+                        source
+                            .transcripts
+                            .iter()
+                            .flat_map(|fact| &fact.query_dependencies),
+                    )
                     .find(|dependency| {
                         dependency.node.file == span.file
                             && dependency.node.start == span.start
                             && dependency.node.end == span.end
                             && dependency.field_name == *field
+                            && dependency
+                                .calls
+                                .iter()
+                                .map(|call| Span::new(call.file, call.start, call.end))
+                                .eq(self.receipt_calls.iter().copied())
                     })
                     .cloned()
             })
@@ -5811,6 +5836,39 @@ impl<'a> Emitter<'a> {
     /// grants apply before filters and projection.
     fn lower_query(&mut self, query: &crate::codegen::ir::IrQuery, span: Span) -> String {
         if let Some(capture) = self.query_capture.clone() {
+            if let Some(transcript) = capture.transcripts.iter().find(|fact| {
+                query
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.node == fact.query.node)
+                    && self.receipt_calls.as_slice()
+                        == [Span::new(fact.call.file, fact.call.start, fact.call.end)]
+            }) {
+                let (Some(projection), Some(param)) =
+                    (query.select.as_ref(), query.select_param.as_ref())
+                else {
+                    self.unsupported(
+                        "transcript selection",
+                        "original checked projection and alias are required",
+                        span,
+                    );
+                    return self.throw_expr("unsupported transcript selection");
+                };
+                self.enter_scope();
+                let param = self.bind(param);
+                let body = self.lower_expr(projection);
+                self.exit_scope();
+                self.stdlib.insert("executeScenarioReceiptQuery".into());
+                self.stdlib
+                    .insert("bindScenarioReceiptQuerySelection".into());
+                // The engine owns position ordering. Read the actual selected
+                // views in that order, retaining the whole eager array before
+                // the owning receiver binds it; a failure stops the next row.
+                return format!(
+                    "(await (async()=>{{const $querySelected=await executeScenarioReceiptQuery(c,{},async()=>true);const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({body}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
+                    js_string(&transcript.id)
+                );
+            }
             for source in &capture.queries {
                 let original_scan = query
                     .source
