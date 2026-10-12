@@ -1209,6 +1209,8 @@ struct ValuePath {
     influences: Vec<DisclosureInfluence>,
     /// Original first call and Let; never a copied/foreign record receiver.
     first_query: Option<(NodeKey, NodeKey)>,
+    /// Only the original guarded current Let can own this stored Revision.
+    current_revision: Option<NodeKey>,
     record: Option<SymbolId>,
     model_result: Option<DisclosureModelResult>,
     reference: Option<DisclosureIntrinsicKind>,
@@ -1240,6 +1242,24 @@ enum ReferenceOrigin {
         model: SymbolId,
         field: SymbolId,
     },
+}
+
+/// Original successful Template.current guard and its one lexical Revision.
+/// This is source lineage, never a nullable row facade or runtime admission.
+#[derive(Debug, Clone)]
+struct CurrentRevisionSource {
+    parameter: SymbolId,
+    template: SymbolId,
+    field: SymbolId,
+    revision: SymbolId,
+    presence: NodeKey,
+    presence_read: NodeKey,
+    published: NodeKey,
+    published_read: NodeKey,
+    binding: NodeKey,
+    value: NodeKey,
+    digest_presence: NodeKey,
+    digest_read: NodeKey,
 }
 
 impl ValuePath {
@@ -1389,9 +1409,447 @@ impl<'a> Closure<'a> {
         ))
     }
 
-    /// The original Chat reference is a required stored field of its actual
-    /// required Branch input. A copied value or another reference is not a
-    /// receiver for the bounded Profile scalar producer.
+    /// The original successful presence/published guard narrows exactly one
+    /// required Template.current into its original lexical Revision binding.
+    fn checked_current_revision_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<CurrentRevisionSource> {
+        if scenario.read
+            || scenario.on.is_some()
+            || scenario.module.0 as usize >= self.resolve.modules.len()
+        {
+            return None;
+        }
+        let mut candidates = scenario
+            .effects
+            .iter()
+            .enumerate()
+            .filter_map(|(index, binding)| {
+                if binding.verb != EffectVerb::Let || binding.binding.as_deref() != Some("revision")
+                {
+                    return None;
+                }
+                let value = self.query_group(binding.value?)?;
+                let (receiver, name) = self.count_member(value)?;
+                if name != "current" {
+                    return None;
+                }
+                let parameter = self.query_parameter(scenario, receiver)?;
+                let ResolvedType::Record {
+                    symbol: template,
+                    stored: true,
+                } = self.types.symbol_types.get(&parameter)?
+                else {
+                    return None;
+                };
+                Some((index, binding, value, parameter, *template))
+            });
+        let (index, binding, value, parameter, template) = candidates.next()?;
+        if candidates.next().is_some()
+            || scenario.effects[..index]
+                .iter()
+                .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+        {
+            return None;
+        }
+        let template_definition = self.checked_created_model(template, scenario.module)?;
+        let template_symbol = self.resolve.symbols.get(template.0 as usize)?;
+        let field = template_definition
+            .fields
+            .iter()
+            .find(|field| field.name == "current")?;
+        let current_data = template_definition
+            .declaration
+            .fields
+            .iter()
+            .find(|data| data.field == field.field)?;
+        let ResolvedType::Nullable(inner) = &field.ty else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: revision,
+            stored: true,
+        } = inner.as_ref()
+        else {
+            return None;
+        };
+        let revision = *revision;
+        let revision_definition = self.checked_created_model(revision, scenario.module)?;
+        let revision_symbol = self.resolve.symbols.get(revision.0 as usize)?;
+        let parameter_data = scenario
+            .params
+            .iter()
+            .find(|data| data.param == parameter)?;
+        let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        let text = &self.db.get(scenario.node.file)?.text;
+        if template_symbol.name != "Template"
+            || revision_symbol.name != "Revision"
+            || !matches!(revision_symbol.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(parent),..} if parent==template)
+            || revision_definition.declaration.owner != ModelOwner::ChildOf(template)
+            || current_data.default.is_some()
+            || current_data.server.is_some()
+            || current_data.required_array
+            || self.types.field_reuse_sources.contains_key(&field.field)
+            || text
+                .get(current_data.type_node.start as usize..current_data.type_node.end as usize)?
+                .trim()
+                != "Revision?"
+            || text
+                .get(
+                    parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
+                )?
+                .trim()
+                != "Template"
+            || !matches!(parameter_symbol.kind,SymbolKind::Param {owner,type_node,..} if owner==scenario.scenario && type_node==parameter_data.type_node)
+            || parameter_symbol.module != scenario.module
+            || self.nodes.get(&binding.node)?.kind != SyntaxKind::Let
+            || self.types.node_types.get(&value) != Some(inner.as_ref())
+        {
+            return None;
+        }
+        let is_current = |node: NodeKey, ty: &ResolvedType| {
+            self.count_member(node).is_some_and(|(base,name)| {
+                name=="current" && matches!(self.query_binding(base),Some(Binding::Symbol(id)) if *id==parameter)
+                    && self.types.node_types.get(&base)==Some(&ResolvedType::Record {symbol:template,stored:true})
+                    && self.types.node_types.get(&node)==Some(ty)
+            })
+        };
+        if !is_current(value, inner) {
+            return None;
+        }
+        let mut leading = None;
+        for guard in &scenario.guards {
+            if guard.verb != EffectVerb::Require {
+                return None;
+            }
+            let cond = guard.cond?;
+            let mut pending = vec![cond];
+            let mut operands = Vec::new();
+            while let Some(node) = pending.pop() {
+                if operands.len() + pending.len() > 200 {
+                    return None;
+                }
+                if let Some((left, right)) = self.query_binary(node, "and") {
+                    pending.extend([right, left]);
+                } else {
+                    operands.push(self.query_group(node)?);
+                }
+            }
+            for pair in operands.windows(2) {
+                let Some((read, null)) = self.query_binary(pair[0], "!=") else {
+                    continue;
+                };
+                let Some((published_read, name)) = self.count_member(pair[1]) else {
+                    continue;
+                };
+                if is_current(read, &field.ty)
+                    && self.nodes.get(&null)?.kind == SyntaxKind::Literal
+                    && self.word(self.nodes.get(&null)?) == Some("null")
+                    && self.types.node_types.get(&null) == Some(&ResolvedType::Null)
+                    && name == "published"
+                    && is_current(published_read, inner)
+                    && self.types.node_types.get(&pair[0])
+                        == Some(&ResolvedType::Scalar(Scalar::Bool))
+                    && self.types.node_types.get(&pair[1])
+                        == Some(&ResolvedType::Scalar(Scalar::Bool))
+                    && guard.node.end <= binding.node.start
+                {
+                    if leading.is_some() {
+                        return None;
+                    }
+                    leading = Some((pair[0], read, pair[1], published_read));
+                }
+            }
+        }
+        let (presence, presence_read, published, published_read) = leading?;
+        let published_field = revision_definition
+            .fields
+            .iter()
+            .find(|field| field.name == "published")?;
+        if published_field.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        let digest_field = revision_definition
+            .fields
+            .iter()
+            .find(|field| field.name == "digest")?;
+        if digest_field.ty != ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text))) {
+            return None;
+        }
+        let mut digest_presence = None;
+        for effect in &scenario.effects[index + 1..] {
+            if !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require) {
+                break;
+            }
+            if effect.verb != EffectVerb::Require {
+                continue;
+            }
+            let Some((read, null)) = effect.cond.and_then(|cond| self.query_binary(cond, "!="))
+            else {
+                continue;
+            };
+            let Some((base, name)) = self.count_member(read) else {
+                continue;
+            };
+            if name == "digest"
+                && matches!(self.query_binding(base),Some(Binding::Let {node}) if *node==binding.node)
+                && self.types.node_types.get(&base) == Some(inner.as_ref())
+                && self.types.node_types.get(&read) == Some(&digest_field.ty)
+                && self.types.node_types.get(&null) == Some(&ResolvedType::Null)
+                && self.nodes.get(&null)?.kind == SyntaxKind::Literal
+                && self.word(self.nodes.get(&null)?) == Some("null")
+                && self.types.node_types.get(&effect.cond?)
+                    == Some(&ResolvedType::Scalar(Scalar::Bool))
+            {
+                digest_presence = Some((self.query_group(effect.cond?)?, read));
+                break;
+            }
+        }
+        let (digest_presence, digest_read) = digest_presence?;
+        Some(CurrentRevisionSource {
+            parameter,
+            template,
+            field: field.field,
+            revision,
+            presence,
+            presence_read,
+            published,
+            published_read,
+            binding: binding.node,
+            value,
+            digest_presence,
+            digest_read,
+        })
+    }
+
+    fn current_revision_at(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<CurrentRevisionSource> {
+        let mut owners = self.effects.scenarios.values().filter(|scenario| {
+            scenario.module == module
+                && scenario.node.file == node.file
+                && scenario.node.start <= node.start
+                && node.end <= scenario.node.end
+        });
+        let owner = owners.next()?;
+        if owners.next().is_some() {
+            return None;
+        }
+        self.checked_current_revision_source(owner)
+    }
+
+    fn checked_current_revision_leaf(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<(CurrentRevisionSource, SymbolId)> {
+        let fact = self.current_revision_at(node, module)?;
+        let (receiver, name) = self.count_member(node)?;
+        if node != fact.published
+            && !matches!(self.query_binding(receiver),Some(Binding::Let {node}) if *node==fact.binding)
+        {
+            return None;
+        }
+        if node == fact.published && receiver != fact.published_read {
+            return None;
+        }
+        if self.types.node_types.get(&receiver)
+            != Some(&ResolvedType::Record {
+                symbol: fact.revision,
+                stored: true,
+            })
+        {
+            return None;
+        }
+        let declared = match name {
+            "published" => ResolvedType::Scalar(Scalar::Bool),
+            "digest" => ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text))),
+            "outputs" => ResolvedType::Scalar(Scalar::Int),
+            "duration" => ResolvedType::Scalar(Scalar::Duration),
+            _ => return None,
+        };
+        let definition = self.checked_created_model(fact.revision, module)?;
+        let field = definition.fields.iter().find(|field| field.name == name)?;
+        let data = definition
+            .declaration
+            .fields
+            .iter()
+            .find(|data| data.field == field.field)?;
+        let source = &self.db.get(data.type_node.file)?.text;
+        let spelling = match name {
+            "published" => "bool",
+            "digest" => "text?",
+            "outputs" => "int",
+            "duration" => "duration",
+            _ => return None,
+        };
+        if field.ty != declared
+            || data.server.is_some()
+            || source
+                .get(data.type_node.start as usize..data.type_node.end as usize)?
+                .trim()
+                != spelling
+            || self.types.field_reuse_sources.contains_key(&field.field)
+            || !matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field {owner,..} if owner==fact.revision)
+        {
+            return None;
+        }
+        let actual = self.types.node_types.get(&node)?;
+        if actual != &declared
+            && !(name == "digest"
+                && actual == &ResolvedType::Scalar(Scalar::Text)
+                && fact.digest_presence.end <= node.start)
+        {
+            return None;
+        }
+        Some((fact, field.field))
+    }
+
+    fn current_revision_control(
+        &self,
+        dependency: &DisclosureDependency,
+        module: ModuleId,
+    ) -> bool {
+        if !dependency.calls.is_empty() || dependency.query_id.is_some() {
+            return false;
+        }
+        self.current_revision_at(dependency.node, module)
+            .is_some_and(|fact| {
+                dependency.model == fact.template
+                    && dependency.field == fact.field
+                    && [fact.presence_read, fact.published_read, fact.value]
+                        .contains(&dependency.node)
+                    || self
+                        .checked_current_revision_leaf(dependency.node, module)
+                        .is_some_and(|(fact, field)| {
+                            dependency.model == fact.revision
+                                && dependency.field == field
+                                && [fact.published, fact.digest_read].contains(&dependency.node)
+                        })
+            })
+    }
+
+    fn current_revision_member(
+        &mut self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Option<Vec<ValuePath>>, DisclosureDecline> {
+        if !calls.is_empty() || self.statement_depth != 1 || self.loop_node.is_some() {
+            return Ok(None);
+        }
+        let Some(fact) = self.current_revision_at(key, module) else {
+            return Ok(None);
+        };
+        if [fact.presence_read, fact.published_read, fact.value].contains(&key) {
+            if !env.get(&Local::Symbol(fact.parameter)).is_some_and(|value| {
+                value.record==Some(fact.template) && matches!(value.reference_origin,Some(ReferenceOrigin::Parameter(parameter)) if parameter==fact.parameter)
+            }) {return Err(self.fail(key,"current Revision needs its original required Template"));}
+            let ty = self
+                .types
+                .node_types
+                .get(&key)
+                .ok_or_else(|| self.fail(key, "missing checked current Revision occurrence"))?
+                .clone();
+            let owner = self
+                .resolve
+                .symbols
+                .get(fact.template.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing current Revision source owner"))?;
+            let target = self
+                .resolve
+                .symbols
+                .get(fact.revision.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing current Revision target"))?;
+            let nullable = matches!(ty, ResolvedType::Nullable(_));
+            return Ok(Some(vec![ValuePath {
+                reads: vec![DisclosureDependency {
+                    id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                    source: self.source(module, key)?,
+                    node: key,
+                    calls: Vec::new(),
+                    role: DependencyRole::Data,
+                    model: fact.template,
+                    field: fact.field,
+                    model_name: owner.canonical.clone(),
+                    field_name: "current".into(),
+                    ty,
+                    type_id: format!("{}{}", target.canonical, if nullable { "?" } else { "" }),
+                    query_id: None,
+                }],
+                observed: vec![(key, Vec::new())],
+                record: Some(fact.revision),
+                current_revision: Some(fact.binding),
+                reference_origin: Some(ReferenceOrigin::Field {
+                    parameter: fact.parameter,
+                    model: fact.template,
+                    field: fact.field,
+                }),
+                ..ValuePath::default()
+            }]));
+        }
+        let Some((fact, field)) = self.checked_current_revision_leaf(key, module) else {
+            return Ok(None);
+        };
+        let (base, _) = self
+            .count_member(key)
+            .ok_or_else(|| self.fail(key, "missing current Revision member"))?;
+        let mut values = self.expr(base, module, env, calls)?;
+        let declaration = self
+            .resolve
+            .symbols
+            .get(field.0 as usize)
+            .ok_or_else(|| self.fail(key, "missing current Revision field"))?;
+        let model = self
+            .resolve
+            .symbols
+            .get(fact.revision.0 as usize)
+            .ok_or_else(|| self.fail(key, "missing current Revision model"))?;
+        let ty = self
+            .types
+            .node_types
+            .get(&key)
+            .ok_or_else(|| self.fail(key, "missing current Revision leaf type"))?
+            .clone();
+        let type_id = self.field_type_id(key, field, &ty)?;
+        for value in &mut values {
+            if value.current_revision != Some(fact.binding)
+                || value.record != Some(fact.revision)
+                || !matches!(value.reference_origin,Some(ReferenceOrigin::Field {parameter,model,field}) if parameter==fact.parameter && model==fact.template && field==fact.field)
+            {
+                return Err(self.fail(
+                    key,
+                    "current Revision leaf needs its exact original receiver",
+                ));
+            }
+            value.reads.push(DisclosureDependency {
+                id: self.opaque("read-data", key, &self.call_stamp(calls)?)?,
+                source: self.source(module, key)?,
+                node: key,
+                calls: Vec::new(),
+                role: DependencyRole::Data,
+                model: fact.revision,
+                field,
+                model_name: model.canonical.clone(),
+                field_name: declaration.name.clone(),
+                ty: ty.clone(),
+                type_id: type_id.clone(),
+                query_id: None,
+            });
+            value.observed.push((key, Vec::new()));
+            value.record = None;
+            value.reference = None;
+            value.reference_origin = None;
+            value.current_revision = None;
+        }
+        Ok(Some(values))
+    }
+
+    /// The original required Branch.profile feeds only its owning scalars.
     fn checked_profile_reference(
         &self,
         node: NodeKey,
@@ -3142,6 +3600,10 @@ impl<'a> Closure<'a> {
                 .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. }))
         };
         let mut pending = Vec::new();
+        let current_revision = self.checked_current_revision_source(scenario);
+        if let Some(fact) = &current_revision {
+            pending.push((fact.revision, true));
+        }
         for parameter in &scenario.params {
             let Some(ResolvedType::Record { symbol, .. }) =
                 self.types.symbol_types.get(&parameter.param)
@@ -3265,6 +3727,9 @@ impl<'a> Closure<'a> {
                     && self.reference_operand_type_id(ty).is_none()
                     && !result_type(ty)
                     && !file_array
+                    && !current_revision
+                        .as_ref()
+                        .is_some_and(|fact| id == fact.template && *field == fact.field)
                 {
                     continue;
                 }
@@ -5687,6 +6152,9 @@ impl<'a> Closure<'a> {
                                 || value
                                     .first_query
                                     .is_none_or(|(_, original)| original == *node)
+                                    && value
+                                        .current_revision
+                                        .is_none_or(|original| original == *node)
                         })
                         .map(|p| vec![p])
                         .ok_or_else(|| self.fail(key, "unaccounted immutable binding")),
@@ -5804,6 +6272,9 @@ impl<'a> Closure<'a> {
         node: &SyntaxNode,
         children: Vec<&SyntaxNode>,
     ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        if let Some(values) = self.current_revision_member(key, module, env, calls)? {
+            return Ok(values);
+        }
         let ty = self
             .types
             .node_types
@@ -5856,6 +6327,12 @@ impl<'a> Closure<'a> {
         }
         let mut values = self.expr(base_key, module, env, calls)?;
         for value in &mut values {
+            if value.current_revision.is_some() {
+                return Err(self.fail(
+                    key,
+                    "current Revision needs its exact original scalar member",
+                ));
+            }
             if let Some(origin) = value.contract_value {
                 let ContractValue::Singular(contract) = origin else {
                     return Err(self.fail(key, "canonical wire is not a record receiver"));
@@ -6397,7 +6874,12 @@ impl<'a> Closure<'a> {
                     .get(n.span.start as usize..n.span.end as usize)
             })
             .ok_or_else(|| self.fail(key, "missing checked operator"))?;
-        let first_null_check = op == "!=" && calls.is_empty()
+        let current_null_check = op == "!="
+            && calls.is_empty()
+            && self
+                .current_revision_at(key, module)
+                .is_some_and(|fact| fact.presence == key);
+        let first_null_check = current_null_check || op == "!=" && calls.is_empty()
             && [(children[0], children[1]), (children[1], children[0])].iter().any(|(value, null)| {
                 let key = NodeKey::of(value);
                 self.types.node_types.get(&NodeKey::of(null)) == Some(&ResolvedType::Null)
@@ -6422,12 +6904,14 @@ impl<'a> Closure<'a> {
             ));
         }
         let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
-        if left.iter().any(|value| {
-            matches!(
-                value.reference_origin,
-                Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
-            )
-        }) {
+        if !current_null_check
+            && left.iter().any(|value| {
+                matches!(
+                    value.reference_origin,
+                    Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
+                )
+            })
+        {
             return Err(self.fail(
                 key,
                 "stored reference operand needs direct child or count consumer",
@@ -6486,6 +6970,12 @@ impl<'a> Closure<'a> {
                 ));
             }
             let mut values = self.product(key, &left, &right)?;
+            if current_null_check {
+                for value in &mut values {
+                    value.reference_origin = None;
+                    value.current_revision = None;
+                }
+            }
             if op == "+"
                 && self
                     .types
@@ -6578,6 +7068,7 @@ impl<'a> Closure<'a> {
                 merged.contract_value = None;
                 merged.transcript_messages = None;
                 merged.transcript_count = false;
+                merged.current_revision = None;
                 out.push(merged);
             }
         }
@@ -7926,6 +8417,15 @@ impl<'a> Closure<'a> {
                 "Profile reference needs its direct original scalar member",
             ));
         }
+        if let Some(binding) = value.current_revision
+            && (!calls.is_empty()
+                || !matches!(self.query_binding(key),Some(Binding::Let {node}) if *node==binding)
+                || !self.current_revision_at(key, module).is_some_and(|fact| {
+                    fact.binding == binding && value.record == Some(fact.revision)
+                }))
+        {
+            return Err(self.fail(key, "current Revision needs its original lexical binding"));
+        }
         if let Some((parameter, parameter_name, scalar)) = value.input.take() {
             let intrinsic = self.intrinsic(
                 key,
@@ -8048,6 +8548,12 @@ impl<'a> Closure<'a> {
                 .is_some_and(|(_, binding)| local != Local::Let(binding))
         {
             return Err(self.fail(key, "copied first query row binding"));
+        }
+        if value
+            .current_revision
+            .is_some_and(|binding| local != Local::Let(binding))
+        {
+            return Err(self.fail(key, "copied current Revision binding"));
         }
         Ok(vec![self.input_value(key, module, calls, value)?])
     }
@@ -8259,12 +8765,11 @@ impl<'a> Closure<'a> {
         env: &Env,
         calls: &[NodeKey],
     ) -> Result<(SymbolId, Vec<ValuePath>), DisclosureDecline> {
-        let fail = || {
-            self.fail(
-                effect.node,
-                "checked bound scenario create profile required",
-            )
-        };
+        let decline = self.fail(
+            effect.node,
+            "checked bound scenario create profile required",
+        );
+        let fail = || decline.clone();
         let checked = self
             .checked_create_source(effect, module)
             .ok_or_else(fail)?;
@@ -8304,6 +8809,36 @@ impl<'a> Closure<'a> {
             let mut next = Vec::new();
             for path in paths {
                 for value in &alternatives {
+                    if let Some(binding) = value.current_revision {
+                        let fact = self
+                            .current_revision_at(input.value_node, module)
+                            .ok_or_else(fail)?;
+                        let owner = self
+                            .resolve
+                            .symbols
+                            .get(model.0 as usize)
+                            .ok_or_else(fail)?;
+                        let field = input
+                            .field
+                            .and_then(|field| self.resolve.symbols.get(field.0 as usize))
+                            .ok_or_else(fail)?;
+                        if fact.binding != binding
+                            || owner.name != "Run"
+                            || input.name != "revision"
+                            || !matches!(field.kind,SymbolKind::Field {owner,..} if owner==model)
+                            || !matches!(self.query_binding(input.value_node),Some(Binding::Let {node}) if *node==binding)
+                            || input.ty
+                                != (ResolvedType::Record {
+                                    symbol: fact.revision,
+                                    stored: true,
+                                })
+                        {
+                            return Err(self.fail(
+                                input.value_node,
+                                "current Revision needs its exact Run.revision Create input",
+                            ));
+                        }
+                    }
                     let value = self.input_value(input.value_node, module, calls, value.clone())?;
                     let mut joined = path.clone();
                     joined.join(&value);
@@ -10116,7 +10651,13 @@ impl<'a> Closure<'a> {
                                 Some(
                                     ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. }
                                 )
-                            ) {
+                            ) && !evaluated.current_revision.is_some_and(|binding| {
+                                binding == effect.node
+                                    && self.current_revision_at(value, module).is_some_and(|fact| {
+                                        fact.binding == effect.node
+                                            && self.query_group(value) == Some(fact.value)
+                                    })
+                            }) {
                                 return Err(
                                     self.fail(value, "stored reference operand cannot be copied")
                                 );
@@ -10178,6 +10719,7 @@ impl<'a> Closure<'a> {
                                         .iter()
                                         .filter(|dependency| {
                                             self.reference_operand_type_id(&dependency.ty).is_some()
+                                                || self.current_revision_control(dependency, module)
                                                 || dependency.field_name == "active"
                                                     && self
                                                         .checked_profile_scalar(
@@ -10207,6 +10749,7 @@ impl<'a> Closure<'a> {
                                         if self.resolve.symbols.get(symbol.0 as usize)
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
                                         || self.reference_operand_type_id(&dependency.ty).is_some()
+                                        || self.current_revision_control(dependency,module)
                                         || dependency.field_name == "active" && self.checked_profile_scalar(dependency.node,module).is_some_and(|(_,_,_,profile,field)| {
                                             dependency.model == profile && dependency.field == field && dependency.calls.is_empty()
                                         })
