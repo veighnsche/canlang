@@ -506,3 +506,68 @@ fn same_span_first_query_source_ir_facts_and_prepared_declaration_mutants_refuse
         );
     }
 }
+
+const MEMBERSHIP_SOURCE: &str = "app AuthorizationCanUse\nGiven\n Conversation {title:text trim max=200,account:user server=actor,active:bool=true}\n Branch in Conversation {title:text trim max=200}\n Budget {account:user,active:bool,running:int=0,parallel:int=1}\n Run in Branch {unfinished:bool=true}\n export derive can_use(person:user?,conversation:Conversation):bool = person!=null and active_member(person,team) and conversation.account==person and conversation.active\n policy Conversation read=members and row.account==actor\n policy Branch read=can_use(actor,row.parent)\n policy Branch read=members and row.parent.account==actor fields=parent\n policy Run read=members\n policy Budget read=members\nWhen\n crud Budget by=members fields=account,active,running,parallel\n scenario ask(branch:Branch) by=members -> Run\n  require can_use(actor,branch.parent)\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and budget.active\n   create Run {parent=branch,unfinished=true} as run\n   return run\nThen\n";
+
+fn membership_fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+    let mut db = SourceDb::new();
+    let file = db.add("membership-first.can".into(), MEMBERSHIP_SOURCE.into());
+    let path = native_owner_root().join("packages/cloudflare/dist/native-catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    (db, program, ir, catalog)
+}
+
+#[test]
+fn membership_derive_body_only_mutation_refuses_first_receipt() {
+    let (db, program, ir, catalog) = membership_fixture();
+    let owner = item(&ir, "AuthorizationCanUse.ask").id;
+    let entry = "$can$m$test.mjs";
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &ir,
+            &ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            entry
+        )
+        .is_some(),
+        "original membership derive keeps its first-query receipt"
+    );
+    // Body-only deletion: the mutable IR callee body loses its membership
+    // read while the checked call, result type and span stay identical.
+    // Lane selection authenticates the original declaration in its defining
+    // source, so the sealed authorization lane is kept and the mutant
+    // refuses; it must never fall back to ordinary derive matching.
+    let mut changed = ir.clone();
+    let derive = item(&changed, "AuthorizationCanUse.can_use").id;
+    let IrItemKind::DeriveFn { expr, .. } = &mut changed.items[derive.0 as usize].kind else {
+        panic!("derive")
+    };
+    let body = expr.as_mut().unwrap();
+    assert_eq!(body.ty, ResolvedType::Scalar(Scalar::Bool));
+    body.expr = IrExpr::Bool(true);
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &changed,
+            &changed.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            entry
+        )
+        .is_none(),
+        "body-only membership deletion must refuse"
+    );
+}
