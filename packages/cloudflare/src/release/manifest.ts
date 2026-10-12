@@ -5,7 +5,7 @@
  * hashes every emitted file with sha256, and returns the sorted manifest.
  * `writeDistManifest` persists it as `dist-manifest.json` at the repo
  * root; `verifyDistManifest` re-hashes and fails loud naming every
- * changed/missing/added file, including false recorded byte counts.
+ * changed/missing/added file, including duplicate claims and false byte counts.
  * Rebuild twice -> byte-identical manifest.
  *
  * Composite `*.tsbuildinfo` files are EXCLUDED (they carry timestamps by
@@ -33,9 +33,9 @@ export interface DistManifestFile {
 
 export interface DistManifest {
   release: string;
-  /** Dist roots scanned, repo-root-relative, sorted. */
+  /** Dist roots scanned, repo-root-relative, unique and sorted. */
   roots: string[];
-  /** Covered files, sorted by path. */
+  /** Covered files, one per path, sorted by path. */
   files: DistManifestFile[];
 }
 
@@ -69,7 +69,7 @@ function walk(distAbs: string, distRel: string, out: DistManifestFile[]): void {
  * when a listed root is absent (a skipped root must never read as clean).
  */
 export function buildDistManifest(repoRoot: string, distDirs: readonly string[]): DistManifest {
-  const roots = [...distDirs].sort();
+  const roots = [...new Set(distDirs)].sort();
   const files: DistManifestFile[] = [];
   for (const root of roots) {
     const abs = join(repoRoot, root);
@@ -80,8 +80,16 @@ export function buildDistManifest(repoRoot: string, distDirs: readonly string[])
     }
     walk(abs, root.split("/").join(posix.sep), files);
   }
-  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return { release: RELEASE_VERSION, roots, files };
+  const unique = new Map<string, DistManifestFile>();
+  for (const file of files) {
+    const previous = unique.get(file.path);
+    if (previous !== undefined && (previous.sha256 !== file.sha256 || previous.bytes !== file.bytes)) {
+      throw new Error(`dist manifest: conflicting captures for ${file.path}`);
+    }
+    unique.set(file.path, file);
+  }
+  const sorted = [...unique.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return { release: RELEASE_VERSION, roots, files: sorted };
 }
 
 /** Write the manifest to `<repoRoot>/dist-manifest.json`; returns the path. */
@@ -109,7 +117,7 @@ function loadManifest(path: string): DistManifest {
 /**
  * Re-hash the recorded roots and compare against the recorded manifest.
  * Throws ONE error listing EVERY mismatch (changed bytes, missing file,
- * unexpected file, release drift); passes silently on agreement.
+ * unexpected file, duplicate claim, release drift); passes silently on agreement.
  */
 export function verifyDistManifest(repoRoot: string, manifestPath?: string): void {
   const path = manifestPath ?? join(repoRoot, DIST_MANIFEST_NAME);
@@ -119,7 +127,11 @@ export function verifyDistManifest(repoRoot: string, manifestPath?: string): voi
     problems.push(`release: manifest pins ${expected.release}, tree stamps ${RELEASE_VERSION}`);
   }
   const actual = buildDistManifest(repoRoot, expected.roots);
-  const want = new Map(expected.files.map((file) => [file.path, file]));
+  const want = new Map<string, DistManifestFile>();
+  for (const file of expected.files) {
+    if (want.has(file.path)) problems.push(`duplicate: ${file.path}`);
+    else want.set(file.path, file);
+  }
   const got = new Map(actual.files.map((file) => [file.path, file]));
   for (const [filePath, expectedFile] of [...want].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const actualFile = got.get(filePath);
