@@ -12093,3 +12093,8 @@ Changed MAIN State/DO0 4.29s, MAIN CF0 4.89s, MAIN root0 4.62s. No whole applica
 ### 2026-10-12 — integrate original three-query native consumer checkpoint
 
 Independently reviewed the three defining Dev selector/fixture paths CLEAR and integrated coherent source/control evidence only. Surgical162ead3f leaves newer main invoke/query/SEND/model behavior intact, exact final test blob386378a with original source SHAe0ecc830 and existing finite7200000ms bound. Five Compiler copies and whole worker invoke excluded. Worker3513165ms/3513.98s fully cleaned result remains separate; actual MAIN native must qualify before acceptance. Owning installed selector1/1 309.703ms and previous failure evidence reused, MAIN CF0 4.58s, MAIN root0 6.32s. Freeze actual primary source/dist/CLI/catalog through native capture and awaited cleanup, no whole-plan/checkpoint/hold advance.
+
+
+### 2026-10-12 — accept actual main original three-query control
+
+Independently reviewed defining selector/fixture is now qualified MAIN1/1 PASS3475679ms/3476.85s process with zero skips and complete awaited cleanup/current frozen source/output closure. Preserve all four original cases, complete source/ancestor/full Identity, current+saved guard/receipt-history/readback/replay/terminal once/whole rollback/resources. Worker3513165ms/3513.98s is separate, historical failure controls retained. Source sha e0ecc830 and declared finite7200000ms allowance/assertions/Office180/A7 unchanged. Existing CF/root checks reused, no unchanged native reruns or full plan/deadline/hold credit. Primary reservation released after actual cleanup.
