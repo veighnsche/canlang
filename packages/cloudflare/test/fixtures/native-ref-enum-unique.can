@@ -1,0 +1,16 @@
+app NativeCompositeUnique
+use std {TextMessage}
+Given
+ Branch {title:text}
+ Run in Branch {title:text}
+ Turn in Branch {run:Run,role:TextMessage.role,position:int}
+ policy Branch read=members
+ policy Run read=members
+ policy Turn read=members
+ unique Turn fields=position
+ unique Turn fields=run,role
+When
+ crud Branch by=members fields=title
+ crud Run by=members fields=title
+ crud Turn by=members fields=run,role,position
+Then

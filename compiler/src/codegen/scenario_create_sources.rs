@@ -1078,11 +1078,50 @@ impl SourceExpressions<'_> {
         let IrItemKind::Scenario { guards, .. } = &owner.kind else {
             return None;
         };
+        let defining = self.ir.modules.get(item.module.0 as usize)?;
+        let defining_file = self.db.get(defining.file)?;
+        let defining_text = defining_file.text.as_str();
+        let defining_source = DisclosureSource {
+            path: defining_file.path.clone(),
+            sha256: defining_file.sha256.clone(),
+            module: defining.name.clone(),
+        };
+        source(self.ir, &defining_source, item.span, self.db)?;
+        let imported = item.module != owner.module;
+        if defining.id != item.module
+            || item.canonical != format!("{}.{}", defining.name, item.name)
+            || imported && !item.exported
+        {
+            return None;
+        }
+        if imported {
+            reference_name(self.ir, owner, derive, "can_use", self.db)?;
+        }
+        // A separate source owns imported formals/body. Keep the caller nodes
+        // for real argument occurrences and parse the defining file when needed.
+        let defining_tree = if defining.file != self.original.node.file {
+            let (tree, diagnostics) = crate::syntax::parse(self.db, defining.file);
+            if !diagnostics.is_empty() {
+                return None;
+            }
+            Some(tree)
+        } else {
+            None
+        };
+        let mut defining_nodes: HashMap<_, _> =
+            self.nodes.iter().map(|(key, node)| (*key, *node)).collect();
+        if let Some(tree) = &defining_tree {
+            let mut pending = vec![tree];
+            while let Some(node) = pending.pop() {
+                defining_nodes.insert(NodeKey::of(node), node);
+                pending.extend(node.children.iter());
+            }
+        }
         if sites.next().is_some() || outer_calls.next().is_some()
             || !guards.iter().any(|statement|
                 matches!(statement, super::ir::IrStmt::Require {span:at, ..} if *at == span(site.statement)))
             || item.id != derive || item.canonical != *target || item.name != "can_use"
-            || item.module != owner.module || outer.module != owner.module
+            || outer.module != owner.module
             || outer.source != self.original.source || !outer.defaults.is_empty()
             || outer.slots.as_slice() != [Some(0),Some(1)]
             || slots.is_some_and(|slots| slots != outer.slots.as_slice())
@@ -1097,8 +1136,124 @@ impl SourceExpressions<'_> {
         {
             return None;
         }
-        let (branch, conversation) =
-            super::scenario_receipts::checked_parent_reference(self.ir, owner, parent, self.db)?;
+        let conversation = if imported {
+            let IrItemKind::Scenario {
+                params: caller_params,
+                read: false,
+                trusted: false,
+                event_source: None,
+                hook: None,
+                cohort: None,
+                ..
+            } = &owner.kind
+            else {
+                return None;
+            };
+            let IrExpr::Name(binding) = &parent.expr else {
+                return None;
+            };
+            let ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            } = &parent.ty
+            else {
+                return None;
+            };
+            let mut parameters = facts.parameters.iter().enumerate().filter(|(_, fact)| {
+                self.ir
+                    .items
+                    .get(fact.parameter.0 as usize)
+                    .is_some_and(|item| item.name == *binding)
+            });
+            let (position, parameter_fact) = parameters.next()?;
+            let parameter = self.ir.items.get(parameter_fact.parameter.0 as usize)?;
+            let IrItemKind::Param {
+                owner: parameter_owner,
+                index,
+                ty: IrType::Known(declared),
+                default: Some(IrDefault::Literal(literal)),
+                default_node: Some(default),
+                default_copy_source: None,
+                array_bounds: None,
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            let expected = ResolvedType::Nullable(Box::new(parent.ty.clone()));
+            let authored = self.nodes.get(&parameter_fact.node)?;
+            let authored_name = authored
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Name)?;
+            let authored_type = authored
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::NullableType)?;
+            let argument = self.nodes.get(&outer.arguments[1].0)?;
+            if parameters.next().is_some()
+                || *parameter_owner != owner.id
+                || *index != position
+                || caller_params.get(position) != Some(&parameter.id)
+                || parameter.module != owner.module
+                || parameter.canonical != format!("{}.{}", owner.canonical, binding)
+                || parameter_fact.parameter != parameter.id
+                || parameter_fact.ty != expected
+                || declared != &expected
+                || NodeKey::of(authored_type) != parameter_fact.type_node
+                || parameter_fact.default != Some(*default)
+                || parameter_fact.constraints.is_some()
+                || authored.kind != SyntaxKind::Parameter
+                || parameter.span != authored_name.span
+                || authored_name.token()?.text(self.text) != binding
+                || argument.kind != SyntaxKind::NameRef
+                || single_name(argument, self.text)? != binding
+                || parent.span != argument.span
+                || parent.ty != outer.arguments[1].1
+                || literal.ty != ResolvedType::Null
+                || !matches!(literal.expr, IrExpr::Null)
+            {
+                return None;
+            }
+            self.expression(literal, *default, depth + 1)?;
+            let mut schemas = facts
+                .stored_contracts
+                .as_deref()?
+                .iter()
+                .filter(|schema| schema.model && schema.id == *model);
+            let conversation = schemas.next()?;
+            let model_item = self.ir.items.get(model.0 as usize)?;
+            if schemas.next().is_some()
+                || conversation.module != item.module
+                || conversation.source != defining_source
+                || !model_item.exported
+                || self
+                    .text
+                    .get(authored_type.span.start as usize..authored_type.span.end as usize)?
+                    != format!("{}?", model_item.name)
+            {
+                return None;
+            }
+            reference_name(self.ir, owner, *model, &model_item.name, self.db)?;
+            super::scenario_receipts::match_stored_contract_schema(self.ir, conversation, self.db)?;
+            conversation
+        } else {
+            let (branch, conversation) = super::scenario_receipts::checked_parent_reference(
+                self.ir, owner, parent, self.db,
+            )?;
+            let IrExpr::Member { base, field } = &parent.expr else {
+                return None;
+            };
+            if field != "parent"
+                || !(matches!(base.expr, IrExpr::Name(_))
+                    || matches!(&base.expr, IrExpr::Member { base: required, field }
+                        if field == "parent" && matches!(required.expr, IrExpr::Name(_))))
+                || branch.parent != Some(conversation.id)
+            {
+                return None;
+            }
+            conversation
+        };
         // Require prunes scalar authorization reads from the result recipe;
         // the helper still consumes these exact original field declarations.
         for (name, ty) in [("account", Scalar::User), ("active", Scalar::Bool)] {
@@ -1110,28 +1265,19 @@ impl SourceExpressions<'_> {
             if fields.next().is_some()
                 || field.owner != conversation.id
                 || field.ty != ResolvedType::Scalar(ty)
-                || field.source != self.original.source
+                || field.source != defining_source
                 || !conversation.field_order.contains(&field.id)
             {
                 return None;
             }
             super::scenario_receipts::match_stored_contract_field(self.ir, field, self.db)?;
         }
-        let IrExpr::Member { base, field } = &parent.expr else {
-            return None;
-        };
-        if field != "parent"
-            || !(matches!(base.expr, IrExpr::Name(_))
-                || matches!(&base.expr, IrExpr::Member { base: required, field }
-                    if field == "parent" && matches!(required.expr, IrExpr::Name(_))))
-            || branch.parent != Some(conversation.id)
-            || !matches!(&actor.expr,IrExpr::Member {base,field}
-                if field == "actor" && matches!(&base.expr,IrExpr::Name(name) if name == "c"))
+        if !matches!(&actor.expr,IrExpr::Member {base,field}
+            if field == "actor" && matches!(&base.expr,IrExpr::Name(name) if name == "c"))
         {
             return None;
         }
-        let declarations: Vec<_> = self
-            .nodes
+        let declarations: Vec<_> = defining_nodes
             .values()
             .filter(|node| {
                 node.kind == SyntaxKind::Derive
@@ -1158,8 +1304,8 @@ impl SourceExpressions<'_> {
         // Resolver owns the complete Path span, including its attached trivia;
         // the single Name token independently retains the declared spelling.
         if declaration_path.span != item.span
-            || single_name(declaration_path, self.text)? != item.name
-            || name.token()?.text(self.text) != item.name
+            || single_name(declaration_path, defining_text)? != item.name
+            || name.token()?.text(defining_text) != item.name
         {
             return None;
         }
@@ -1213,10 +1359,8 @@ impl SourceExpressions<'_> {
                 || parameter.name != spelling
                 || parameter.span != name.span
                 || ty != &expected
-                || name.token()?.text(self.text) != spelling
-                || self
-                    .text
-                    .get(type_node.span.start as usize..type_node.span.end as usize)?
+                || name.token()?.text(defining_text) != spelling
+                || defining_text.get(type_node.span.start as usize..type_node.span.end as usize)?
                     != type_spelling
             {
                 return None;
@@ -1233,7 +1377,7 @@ impl SourceExpressions<'_> {
             || frame.module != owner.module
             || frame.source != self.original.source
             || membership.module != item.module
-            || membership.source != self.original.source
+            || membership.source != defining_source
         {
             return None;
         }
@@ -1304,15 +1448,15 @@ impl SourceExpressions<'_> {
             ir: self.ir,
             db: self.db,
             original: self.original,
-            nodes: self.nodes,
-            text: self.text,
+            nodes: &defining_nodes,
+            text: defining_text,
             operands: true,
             membership_call: Some(membership),
         }
         .expression(
             body,
             NodeKey::of(
-                self.nodes
+                defining_nodes
                     .values()
                     .find(|node| node.span == body.span && node.kind == SyntaxKind::Binary)?,
             ),

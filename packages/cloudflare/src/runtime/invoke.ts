@@ -1383,11 +1383,13 @@ interface StateCrudProducer {
 
 /** Structural view of the state model-table module (T16a builder). */
 interface StateModelsProducer {
+  readonly getUniqueGroupProfile?: (def: unknown, key: string) => unknown;
   buildModelTableFromCanonical(
     models: ReadonlyArray<unknown>,
     opts: {
       readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
       readonly uniqueWhen?: ReadonlyMap<ModelName, Readonly<Record<string, QueryPredicate>>>;
+      readonly uniqueGroups?: ReadonlyMap<ModelName, ReadonlyArray<ReadonlyArray<string>>>;
       /**
        * C2 production joins (mirror of `CanonicalModelTableOptions`):
        * the loader's engine-local channels, forwarded verbatim. Every
@@ -1716,7 +1718,12 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
         generatedCrudExecuteOwnerSession: crudMod['generatedCrudExecuteOwnerSession'] as NonNullable<StateCrudProducer['generatedCrudExecuteOwnerSession']>,
       }),
     },
-    models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
+    models: {
+      buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"],
+      ...(typeof modelsMod['getUniqueGroupProfile'] !== 'function' ? {} : {
+        getUniqueGroupProfile: modelsMod['getUniqueGroupProfile'] as NonNullable<StateModelsProducer['getUniqueGroupProfile']>,
+      }),
+    },
     errors: StateError as unknown as StateErrorsProducer,
     transact: {
       createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"],
@@ -2614,12 +2621,16 @@ async function joinOwningUnconditionalUniques(
   asm: AssembledModules, artifact: CompileArtifact,
   models: ReadonlyArray<CanonicalModelDescriptor>,
   secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>,
+  refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>,
+  valueSchema?: NormalizedSchema,
 ): Promise<{ readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   readonly uniqueWhen: ReadonlyMap<ModelName, Readonly<Record<string, QueryPredicate>>>;
+  readonly uniqueGroups: ReadonlyMap<ModelName, ReadonlyArray<ReadonlyArray<string>>>;
   readonly verifiedConditions: WeakSet<object> }> {
   const uniqueWhen = new Map<ModelName, Record<string, QueryPredicate>>();
+  const uniqueGroups = new Map<ModelName, ReadonlyArray<ReadonlyArray<string>>>();
   const verifiedConditions = new WeakSet<object>();
-  if (!claimsEmittedSourceProperty(artifact, 'uniques')) return {models, uniqueWhen, verifiedConditions};
+  if (!claimsEmittedSourceProperty(artifact, 'uniques')) return {models, uniqueWhen, uniqueGroups, verifiedConditions};
   await verifyCheckedAssembly(asm, artifact);
   const entry = artifact.modules[0];
   if (entry === undefined || typeof entry.path !== 'string') {
@@ -2677,9 +2688,9 @@ async function joinOwningUnconditionalUniques(
   const ordinals = new Set<number>(), registries = new Set<string>();
   const modelNames = Object.keys(declarations);
   for (const name of Object.keys(declarations)) {
-    const source = readMetadataMember(declarations, name, where)?.value;
-    if (!isUnknownRecord(source)) throw new AssemblyCorrespondenceError(`${where}: malformed model ${JSON.stringify(name)}.`);
-    const declared = readMetadataMember(source, 'uniques', where)?.value;
+    const modelDeclaration = readMetadataMember(declarations, name, where)?.value;
+    if (!isUnknownRecord(modelDeclaration)) throw new AssemblyCorrespondenceError(`${where}: malformed model ${JSON.stringify(name)}.`);
+    const declared = readMetadataMember(modelDeclaration, 'uniques', where)?.value;
     if (declared === undefined) continue;
     const canonical = models.filter(model => model.name === name);
     const original = (artifact.models ?? []).filter(model => model.name === name);
@@ -2687,7 +2698,9 @@ async function joinOwningUnconditionalUniques(
       throw new AssemblyCorrespondenceError(`${where}: model ${JSON.stringify(name)} lacks one original canonical association.`);
     }
     const keys: string[] = [], predicates: Record<string, QueryPredicate> = Object.create(null);
-    for (const [index, unique] of readMetadataArray(declared, where, 'uniques').entries()) {
+    const groups: ReadonlyArray<string>[] = [];
+    const uniques = readMetadataArray(declared, where, 'uniques');
+    for (const [index, unique] of uniques.entries()) {
       if (!isUnknownRecord(unique) ||
           Object.getPrototypeOf(unique) !== Object.prototype && Object.getPrototypeOf(unique) !== null) {
         throw new AssemblyCorrespondenceError(`${where}: malformed unique declaration on ${JSON.stringify(name)}.`);
@@ -2695,9 +2708,62 @@ async function joinOwningUnconditionalUniques(
       const conditional = readMetadataMember(unique, 'where', where) !== undefined;
       exact(unique, conditional ? ['fields', 'where', 'wherePredicate', 'ordinal', 'source', 'declaredAt'] : ['fields'],
         `unique declaration on ${JSON.stringify(name)}`);
-      const fields = readMetadataStrings(readMetadataMember(unique, 'fields', where)?.value, where, 'unique fields');
+      const rawFields = readMetadataMember(unique, 'fields', where)?.value;
+      if (!Array.isArray(rawFields) || Reflect.ownKeys(rawFields).length !== rawFields.length + 1) {
+        throw new AssemblyCorrespondenceError(`${where}: malformed unique fields declaration.`);
+      }
+      const fields = readMetadataStrings(rawFields, where, 'unique fields');
       if (fields.length !== 1) {
-        throw new AssemblyCorrespondenceError(`${where}: composite unique is unsupported on ${JSON.stringify(name)}.`);
+        // The verified owning module already declares the unconditional pair.
+        // Its optional rule-origin census supplies no additional execution
+        // authority and is absent in the complete original CanChat cohort.
+        const owner = name.slice(0, name.lastIndexOf('.'));
+        const sourceRef = original[0]!.fields.filter(field => field.name === fields[0]);
+        const sourceEnum = original[0]!.fields.filter(field => field.name === fields[1]);
+        const canonicalRef = canonical[0]!.fields[fields[0] ?? ''];
+        const canonicalEnum = canonical[0]!.fields[fields[1] ?? ''];
+        const ref = sourceRef[0], role = sourceEnum[0];
+        const refModel = ref?.field.kind === 'ref' ? ref.field.model : undefined;
+        const declaredFields = readMetadataMember(modelDeclaration, 'fields', where)?.value;
+        const declaredRef = isUnknownRecord(declaredFields)
+          ? readMetadataMember(declaredFields, fields[0] ?? '', where)?.value : undefined;
+        const declaredRole = isUnknownRecord(declaredFields)
+          ? readMetadataMember(declaredFields, fields[1] ?? '', where)?.value : undefined;
+        const declaredRefType = isUnknownRecord(declaredRef)
+          ? readMetadataMember(declaredRef, 'type', where)?.value : undefined;
+        const declaredRoleType = isUnknownRecord(declaredRole)
+          ? readMetadataMember(declaredRole, 'type', where)?.value : undefined;
+        const declaredCases = isUnknownRecord(declaredRole)
+          ? readMetadataMember(declaredRole, 'cases', where)?.value : undefined;
+        const association = (refs.get(name) ?? []).filter(candidate => candidate.field === fields[0]);
+        const validField = (field: typeof ref, canonicalField: typeof canonicalRef): boolean => {
+          if (field === undefined || canonicalField === undefined || field.required !== true ||
+              canonicalField.required !== true || field.nullable === true || field.array !== undefined ||
+              canonicalField.array !== undefined || field.valueType === undefined ||
+              field.valueType !== canonicalField.valueType || secretFields.get(canonical[0]!.name)?.has(field.name) !== false) return false;
+          const type = parseTypeId(field.valueType);
+          return !type.nullable && !type.array && !type.requiredArray;
+        };
+        const roleType = role?.valueType === undefined ? undefined : parseTypeId(role.valueType);
+        const cases = roleType?.base.kind === 'enum' ? roleType.base.cases :
+          roleType?.base.kind === 'nominal' ? valueSchema?.enums[roleType.base.path]?.cases : undefined;
+        if (conditional || fields.length !== 2 || fields[0] === fields[1] ||
+            fields.some(field => field.includes(',') || field.includes('.')) ||
+            owner === '' || !name.startsWith(`${owner}.`) ||
+            !isUnknownRecord(packages) || readMetadataMember(packages, owner, where) === undefined ||
+            sourceRef.length !== 1 || sourceEnum.length !== 1 || !validField(ref, canonicalRef) || !validField(role, canonicalEnum) ||
+            ref?.field.kind !== 'ref' || role?.field.kind !== 'enum' ||
+            declaredRefType !== refModel || declaredRoleType !== 'enum' ||
+            stableStringify(declaredCases) !== stableStringify(role.field.values) ||
+            association.length !== 1 || association[0]!.model !== refModel ||
+            ref.valueType !== refModel || refModel === undefined || !refModel.startsWith(`${owner}.`) ||
+            models.filter(model => model.name === refModel).length !== 1 || cases === undefined ||
+            stableStringify(cases) !== stableStringify(role.field.values) ||
+            groups.some(group => stableStringify(group) === stableStringify(fields))) {
+          throw new AssemblyCorrespondenceError(`${where}: composite unique lacks its original ordered ref/enum source association on ${JSON.stringify(name)}.`);
+        }
+        groups.push(Object.freeze([...fields]));
+        continue;
       }
       const field = fields[0]!;
       const originalField = original[0]!.fields.filter(candidate => candidate.name === field);
@@ -2767,13 +2833,14 @@ async function joinOwningUnconditionalUniques(
       verifiedConditions.add(unique);
     }
     if (keys.length > 0) additions.set(canonical[0]!.name, keys);
+    if (groups.length > 0) uniqueGroups.set(canonical[0]!.name, Object.freeze(groups));
     if (Object.keys(predicates).length > 0) uniqueWhen.set(canonical[0]!.name, predicates);
   }
   const joined = models.map(model => {
     const keys = additions.get(model.name);
     return keys === undefined ? model : { ...model, uniqueKeys: [...(model.uniqueKeys ?? []), ...keys] };
   });
-  return {models: joined, uniqueWhen, verifiedConditions};
+  return {models: joined, uniqueWhen, uniqueGroups, verifiedConditions};
 }
 
 /**
@@ -4181,16 +4248,28 @@ async function loadCanonicalDescriptorsInternal(
     assertDroppedDeliveryEnvelopes(producers, artifact);
     loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
   }
-  const owningUniques = await joinOwningUnconditionalUniques(asm, artifact, loaded.models, loaded.secretFields);
+  const owningUniques = await joinOwningUnconditionalUniques(asm, artifact, loaded.models, loaded.secretFields,
+    loaded.refs, loaded.valueSchema);
   loaded = { ...loaded, models: owningUniques.models };
+  if (owningUniques.uniqueGroups.size > 0 && producers.models.getUniqueGroupProfile === undefined) {
+    throw new AssemblyCorrespondenceError('Installed State producer lacks checked composite unique groups.');
+  }
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
     uniqueWhen: owningUniques.uniqueWhen,
+    uniqueGroups: owningUniques.uniqueGroups,
     refs: loaded.refs,
     serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields,
     containment: loaded.containment,
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
   });
+  for (const [model, groups] of owningUniques.uniqueGroups) for (const group of groups) {
+    const def = (table as ModelTable).get(model);
+    const profile = producers.models.getUniqueGroupProfile!(def, group.join(','));
+    if (def === undefined || !isUnknownRecord(profile) || stableStringify(profile['fields']) !== stableStringify(group)) {
+      throw new AssemblyCorrespondenceError('Installed State table lost its checked composite unique group.');
+    }
+  }
   // T17b: transcribe the read policy over the LOADED models (validated
   // names + declared fields — never the raw artifact). Ruled models are
   // omitted from the table (fail-closed even under a missed check) and

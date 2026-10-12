@@ -4,7 +4,7 @@
 
 Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. The human requested all remaining work be reevaluated and each existing worker receive its own prioritized list. This section replaces historical next/pending/source-lease instructions. [status.json](status.json) retains **58/67 references accepted at scope; nine remaining**. C01–C24 below are shared work labels, not additional canonical tasks. No active/unmerged release is accepted by this planning edit. Apply [finite execution](../../AGENTS.md#finite-execution).
 
-**First deliverable:** original765 full CanChat executable producer is CLOSED; Dev owns its authentic runtime qualification. Optional Conversation/null/default/imported can_use7caf and same-first/Let/dominating Require SEND-stage8a source criteria are independently CLEAR and integrated at source scope. Continue the actual optional SourceExpressions/default/provided receiving consumer and any concrete original producer defect; skip only absent outputs. No old full-artifact/common-gate reopen, source pruning or native acceptance from metadata.58/67/nine and exact holds remain.
+**First deliverable:** original765 full CanChat executable producer is CLOSED; Dev owns its authentic runtime qualification. Optional Conversation/null/default/imported can_use7caf and same-first/Let/dominating Require SEND-stage8a source criteria are independently CLEAR and integrated at source scope. Optional SourceExpressions df57 source consumer is now closed; continue actual full-original artifact/optional receiving and demonstrated fresh-analysis producer defects; skip only absent outputs. No old full-artifact/common-gate reopen, source pruning or native acceptance from metadata.58/67/nine and exact holds remain.
 
 ### Nine canonical references
 
@@ -5158,3 +5158,28 @@ row/current authority and TextGeneration preclaim receiving; State tuple engine
 remains its distinct defining leaf. No native caller/runtime pass is claimed.
 
 Coordinator finite defining reviews CLEAR for7caf/8a; twelve exact reviewed source/control paths integrated with the owning State/Dev joins. Changed MAIN CLI0/20.51s; owning source/refusal/strict results reused. Three optional-input JEV calls actually succeeded under direct human approval; earlier rejection notes are historical. No original Chat/Creative runtime or full-plan credit.
+
+**Optional Conversation consumer, 2026-10-12 (unfinished native).**
+7caf optional-input source and 8a first-row SEND marker are independently
+reviewed/source-accepted in main828814; reuse their closed source checks.
+The next consumer joins the original creative.generate direct narrowed input
+with the genuine exported, unbound chat.can_use and Conversation imports.
+Caller parameter/default/argument/leading Require retain caller source/frame;
+helper formals/body/membership and account/active fields retain their defining
+CST/text/module/source. The existing stored-contract inventory now roots only
+its already sealed nullable model input. Literal null/default paths issue no
+row observation; local one/two-parent cases retain their prior contract.
+The owning source inventory unit passes1/.12s. Actual unchanged original
+borrowed-IR consumer plus twelve altered call/declaration/default/import controls
+passes1/141.11s; all four affected authorization source/actual CLI/verified factory/
+installed State controls pass4/.93s against this worker's retained catalog/SDK.
+The first owning SDK capture lacked its named catalog path and correctly refused;
+use the existing profile-native catalog, without reconstructing its declarations.
+Bounded read-only review is CLEAR; strict all-target Clippy0/9.80s,fmt/diff0. No full Creative artifact,
+optional-input current authority or genuine native caller acceptance is claimed.
+State tuple/scoped uniqueness and Dev Text preclaim source repairs are released
+via coordinator; their genuine CanChat runtime receiving remains Dev-owned.
+Continue the next demonstrated original source leaf after this unit;58/67/nine,
+C14/BDD3, C23/Task22/OUTBOX and local publication holds remain unchanged.
+
+Coordinator defining review CLEAR and source/component intake; actual changed MAIN CLI0/11.54s. The owning authorization test uses root() SDK and genuine normal Cloudflare dist/native-catalog.json emitter output instead of an unproduced scratch target path. Read-only original worker scratch versus primary normal output metadata/entries were equal; corrected affected4/4 genuine source/CLI/verified-factory/installed State checks PASS1.08s (11.00s process), zero ignored. Original twofile positive+12mutants141.11s/inventory .12/strict9.80 reused. Full Creative artifact and optional native current authority remain unqualified.
