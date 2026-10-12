@@ -172,6 +172,31 @@ test('allows only registered canonical fixture reads from exact consumers', t =>
   ]);
 });
 
+test('registers only the exact composed owner-policy Compiler input', t => {
+  const source = target => `
+    import { readFile } from 'node:fs/promises';
+    import { join, resolve } from 'node:path';
+    import { fileURLToPath } from 'node:url';
+    const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+    await readFile(join(root, '${target}'), 'utf8');
+  `;
+  const f = fixture(t, { packageConsumers: { cloudflare: {
+    'test/composed-owner-policy.test.ts': source('compiler/tests/model_rule_origins.rs'),
+  } } });
+  const accepted = f.check();
+  assert.deepEqual(accepted.errors, []);
+  assert.deepEqual(accepted.registered.map(({ consumer, target }) => ({ consumer, target })), [{
+    consumer: 'packages/cloudflare/test/composed-owner-policy.test.ts', target: 'compiler/tests/model_rule_origins.rs',
+  }]);
+  f.write('packages/cloudflare/test/composed-owner-policy.test.ts',
+    source('compiler/tests/another.rs') + "import '../../a/src/index.js';\n");
+  f.write('packages/cloudflare/test/other.test.ts', source('compiler/tests/model_rule_origins.rs'));
+  const refused = f.check();
+  assert.equal(refused.errors.filter(error => error.code === 'cross-package-path').length, 2);
+  assert.equal(refused.errors.filter(error => error.code === 'cross-package-import').length, 1);
+  assert.deepEqual(refused.registered, []);
+});
+
 test('rejects other fixture reads and cross-package source imports from exact consumers', t => {
   const f = fixture(t, { packageConsumers: { cloudflare: {
     'test/compiler-check.integration.test.ts': `

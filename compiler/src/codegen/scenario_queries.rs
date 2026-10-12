@@ -2019,6 +2019,54 @@ mod inline_selection_tests {
         let [fact] = source.inline_selections.as_deref().unwrap() else {
             panic!("one original inline query");
         };
+        let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+            panic!("original guards");
+        };
+        let mut pending = guards
+            .iter()
+            .filter_map(|stmt| match stmt {
+                IrStmt::Require { cond, .. } => Some(cond),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let mut unfinished = None;
+        while let Some(expr) = pending.pop() {
+            match &expr.expr {
+                IrExpr::Unary { operand, .. } => {
+                    pending.push(operand);
+                }
+                IrExpr::Binary { left, right, .. } => {
+                    pending.extend([left.as_ref(), right.as_ref()])
+                }
+                IrExpr::Member { base, field }
+                    if field == "unfinished"
+                        && matches!(&base.expr,IrExpr::Member{field,..} if field=="run") =>
+                {
+                    unfinished = Some(expr)
+                }
+                _ => {}
+            }
+        }
+        let unfinished = unfinished.expect("actual original Run guard");
+        let pairs = super::super::scenario_receipts::checked_profile_scalar_pairs(
+            &ir, owner, unfinished, &db,
+        )
+        .expect("actual sealed Run reference/Bool consumer");
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].0.field_name, "run");
+        assert_eq!(pairs[0].1.field_name, "unfinished");
+        assert_eq!(pairs[0].0.role, DependencyRole::Control);
+        assert_eq!(pairs[0].1.role, DependencyRole::Control);
+        assert!(
+            super::super::scenario_receipts::checked_profile_scalar_pairs(
+                &ir,
+                owner,
+                &unfinished.clone(),
+                &db
+            )
+            .is_none(),
+            "copied expression lacks exact borrowed occurrence"
+        );
         let original = source
             .creates
             .as_deref()
@@ -2113,13 +2161,10 @@ mod inline_selection_tests {
             );
         }
         let module = super::super::js::module_path("chat");
-        let ScenarioDisclosure::Complete(_) = proof else {
-            assert!(
-                checked_query_plan(&program, &ir, owner, &db, catalog.as_ref(), &module).is_none(),
-                "declined guard cannot publish a prepared plan"
-            );
-            return;
-        };
+        assert!(
+            matches!(proof, ScenarioDisclosure::Complete(_)),
+            "original full regenerate source must be complete"
+        );
         let plan = checked_query_plan(&program, &ir, owner, &db, catalog.as_ref(), &module)
             .expect("original sealed inline query plan");
         assert_eq!(plan.queries.len(), 1);

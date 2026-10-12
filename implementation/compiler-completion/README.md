@@ -5037,3 +5037,19 @@ Final changed source/consumer strictalltargets0/2.23s,fmts/diff0; source/plan
 stage is explicitly unfinished, not full original artifact acceptance.
 
 Coordinator source intake: Independent defining review CLEAR for exact Compiler4a seven source/control preimages. Authentic can_use actor/two-hop authorization retains both original containment observations; private inline WHERE-bound TextMessage facts seal original alias, bound, ordered nominal projection, stored field census, distinct ordinary/query CONTROL-DATA IDs and parent stored-reference DTO against fresh source/type/IR and alias consumers. Ownership, clauses, aliases, types and stale spelling corruption refuse. Owning two-hop1/4.39s, inventory positive1/.30s and mutation1, actual consumer1/4.91s with five refusals, strictalltargets0/2.23s/fmt/diff reused. Implemented source checkpoint is explicitly unfinished: preceding original Turn.run→Run.unfinished stored-reference Bool guard still blocks full original artifact; source caps, guards, evaluation order and native authority remain unchanged. State child570 and supplied position4741 components are already released, Dev private/native adoption remains distinct. Main changed checks [{"check": "locked offline CLI", "exit": 0, "seconds": 22.52}, {"check": "State/DO", "exit": 0, "seconds": 6.37}, {"check": "Work", "exit": 0, "seconds": 2.6}, {"check": "root", "exit": 0, "seconds": 9.77}, {"check": "actual shared boundary", "exit": 1, "seconds": 6.29}]. No original native/browser rerun, no full artifact/application/plan/count/hold acceptance; complete824 remains unchanged.
+
+**Original Run guard/source plan, 2026-10-12 (unfinished native CALL).**
+The actual preceding not turn.run.unfinished now uses its owning nonnullable
+stored Run reference and Bool field, separate CONTROL IDs and original source/
+lineage/required-parameter/leading-NOT seals. Original guard/source/refusal1/
+5.59s passes with eight nullable/type/default/server/binding/parent/name negatives.
+Untouched full CanChat regenerate source is now Complete; exact prefix expression
+plus five IR corruptions, authenticated query plan/selection metadata and actual
+borrowed native reference/Bool pair including copied-expression refusal pass
+1/6.04s. Existing Profile plural CONTROL/DATA roles and stored-reference ABI
+remain. Full native receipt/CALL emission still requires its inline collector
+and actual child SEND + per-candidate scalar receiving joins; no complete
+original artifact or execution is claimed. Continue those ready consumers.
+Changed source/actual pair/complete plan strictalltargets0/8.48s,fmts/diff0.
+
+Coordinator original Run guard source intake: Independent defining review CLEAR for Compiler78 required Run-reference/Bool source checkpoint after reviewed4a. Four exact source preimages. Pair requires original required Turn parameter, owning singular Run field, exact leading not unfinished occurrence, full declarations and distinct ordered CONTROL IDs. Consumer requires actual borrowed IR expression; copied/foreign/nullable-defaulted/mistyped/corrupted bindings refuse. Source1/5.59s with eight mutants and complete original source/query plan+actual pair1/6.04s with five IR corruptions/copied-expression refusal, strictalltargets0/8.48s/fmt/diff reused. Original regenerate source is Complete at this finite source stage; native inline collector, eager selection, child CALL/SEND and genuine original execution remain unfinished, with original caps/guards/effects/evaluation order/holds preserved. Main changed checks [{"check": "locked offline CLI", "exit": 0, "seconds": 8.86}, {"check": "actual primary boundary", "exit": 0, "seconds": 3.52}]. StateDO6.37/Work2.60/root9.77 from unchanged414 scope reused; no extra source/behavior test run. Full plans/counts/holds and complete824 unchanged.

@@ -2077,6 +2077,225 @@ impl<'a> Closure<'a> {
         Some((parameter, branch, reference_field, profile, field.id))
     }
 
+    /// The original leading unfinished guard consumes one required Turn.run
+    /// and the genuine owning Run Bool. This is not Contract or generic row
+    /// traversal, and it never admits a copied/defaulted/nullable receiver.
+    fn checked_run_reference(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let (receiver, name) = self.count_member(node)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
+            return None;
+        };
+        let parameter = *parameter;
+        let (turn, depth) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let declaration = self.resolve.symbols.get(turn.0 as usize)?;
+        let SymbolKind::Model {
+            fields,
+            owner: turn_parent,
+            ..
+        } = &declaration.kind
+        else {
+            return None;
+        };
+        let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        let SymbolKind::Param {
+            owner: scenario, ..
+        } = parameter_symbol.kind
+        else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.get(&scenario)?;
+        let parameter_data = scenario
+            .params
+            .iter()
+            .find(|param| param.param == parameter)?;
+        let mut fields = fields
+            .iter()
+            .filter_map(|field| self.resolve.symbols.get(field.0 as usize))
+            .filter(|field| field.name == name);
+        let field = fields.next()?;
+        let ResolvedType::Record {
+            symbol: run,
+            stored: true,
+        } = self.types.symbol_types.get(&field.id)?
+        else {
+            return None;
+        };
+        let run = *run;
+        let target = self.resolve.symbols.get(run.0 as usize)?;
+        let SymbolKind::Model {
+            owner: run_parent, ..
+        } = &target.kind
+        else {
+            return None;
+        };
+        let data = self
+            .effects
+            .models
+            .get(&turn)?
+            .fields
+            .iter()
+            .find(|data| data.field == field.id)?;
+        let by = scenario.by?;
+        let text = &self.db.get(node.file)?.text;
+        if name != "run"
+            || depth != 0
+            || fields.next().is_some()
+            || declaration.name != "Turn"
+            || target.name != "Run"
+            || !matches!((turn_parent, run_parent), (ModelOwner::ChildOf(left), ModelOwner::ChildOf(right)) if left == right)
+            || declaration.module != module
+            || target.module != module
+            || parameter_symbol.module != module
+            || scenario.module != module
+            || scenario.read
+            || scenario.on.is_some()
+            || scenario.cohort.is_some()
+            || !matches!(self.query_binding(by), Some(Binding::Predicate))
+            || self
+                .db
+                .get(by.file)?
+                .text
+                .get(by.start as usize..by.end as usize)?
+                .trim()
+                != "members"
+            || node.file != scenario.node.file
+            || node.start < scenario.node.start
+            || node.end > scenario.node.end
+            || !matches!(field.kind, SymbolKind::Field {owner,..} if owner == turn)
+            || field.module != module
+            || data.default.is_some()
+            || data.server.is_some()
+            || data.required_array
+            || self.types.field_reuse_sources.contains_key(&field.id)
+            || self.types.node_types.get(&node) != self.types.symbol_types.get(&field.id)
+            || text
+                .get(data.type_node.start as usize..data.type_node.end as usize)?
+                .trim()
+                != "Run"
+            || text
+                .get(
+                    parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
+                )?
+                .trim()
+                != "Turn"
+            || self.checked_created_model(turn, module).is_none()
+            || self.checked_created_model(run, module).is_none()
+        {
+            return None;
+        }
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        // Find the real leading Require operand, not an arbitrary occurrence
+        // with a matching span inside a default, helper, or do statement.
+        let mut matched = false;
+        let mut visited = 0usize;
+        for guard in &scenario.guards {
+            let condition = guard.cond?;
+            if guard.verb != EffectVerb::Require
+                || self.nodes.get(&guard.node)?.kind != SyntaxKind::Require
+                || self.types.node_types.get(&condition) != Some(&boolean)
+            {
+                return None;
+            }
+            let mut pending = vec![*self.nodes.get(&condition)?];
+            while let Some(candidate) = pending.pop() {
+                visited += 1;
+                if visited > 16384 {
+                    return None;
+                }
+                if candidate.kind == SyntaxKind::Unary {
+                    let operands: Vec<_> = candidate
+                        .children
+                        .iter()
+                        .filter(|child| expression(child.kind))
+                        .collect();
+                    let words: Vec<_> = candidate
+                        .children
+                        .iter()
+                        .filter(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                        .map(|child| self.word(child))
+                        .collect::<Option<Vec<_>>>()?;
+                    if let [leaf] = operands.as_slice()
+                        && self.count_member(NodeKey::of(leaf)) == Some((node, "unfinished"))
+                    {
+                        if matched
+                            || words != ["not"]
+                            || self.types.node_types.get(&NodeKey::of(candidate)) != Some(&boolean)
+                            || self.types.node_types.get(&NodeKey::of(leaf)) != Some(&boolean)
+                        {
+                            return None;
+                        }
+                        matched = true;
+                    }
+                }
+                pending.extend(candidate.children.iter());
+            }
+        }
+        matched.then_some((parameter, turn, field.id, run))
+    }
+
+    fn checked_run_unfinished(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let (reference, name) = self.count_member(node)?;
+        let (parameter, turn, reference_field, run) =
+            self.checked_run_reference(reference, module)?;
+        let SymbolKind::Model { fields, .. } = &self.resolve.symbols.get(run.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let mut fields = fields
+            .iter()
+            .filter_map(|field| self.resolve.symbols.get(field.0 as usize))
+            .filter(|field| field.name == name);
+        let field = fields.next()?;
+        let SymbolKind::Field { owner, type_node } = field.kind else {
+            return None;
+        };
+        let data = self
+            .effects
+            .models
+            .get(&run)?
+            .fields
+            .iter()
+            .find(|data| data.field == field.id)?;
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        if name != "unfinished"
+            || fields.next().is_some()
+            || owner != run
+            || type_node != data.type_node
+            || field.module != module
+            || self.types.symbol_types.get(&field.id) != Some(&boolean)
+            || self.types.node_types.get(&node) != Some(&boolean)
+            || self.types.field_reuse_sources.contains_key(&field.id)
+            || self
+                .db
+                .get(type_node.file)?
+                .text
+                .get(type_node.start as usize..type_node.end as usize)?
+                .trim()
+                != "bool"
+        {
+            return None;
+        }
+        Some((parameter, turn, reference_field, run, field.id))
+    }
+
+    fn run_unfinished_control(&self, read: &DisclosureDependency, module: ModuleId) -> bool {
+        read.calls.is_empty()
+            && read.query_id.is_none()
+            && read.field_name == "unfinished"
+            && read.ty == ResolvedType::Scalar(Scalar::Bool)
+            && self
+                .checked_run_unfinished(read.node, module)
+                .is_some_and(|(_, _, _, run, field)| read.model == run && read.field == field)
+    }
+
     /// A stored reference array must genuinely reuse the exact child Scope
     /// field, with the same inherited literal range and no receiving skew.
     fn reference_field_bounds(&self, field: SymbolId, parameter: SymbolId) -> bool {
@@ -4381,8 +4600,8 @@ impl<'a> Closure<'a> {
                 pending.push((query.model, true));
             }
         }
-        // Only an actual original Profile reference occurrence adds this model
-        // to the source census. No reference traversal or runtime view is issued.
+        // Only an actual original Profile or unfinished-guard reference adds
+        // its target census. No runtime view is issued.
         let mut expressions: Vec<_> = scenario
             .guards
             .iter()
@@ -4399,8 +4618,9 @@ impl<'a> Closure<'a> {
                 continue;
             }
             if node.kind == SyntaxKind::Member
-                && let Some((_, _, _, profile)) =
-                    self.checked_profile_reference(NodeKey::of(node), scenario.module)
+                && let Some((_, _, _, profile)) = self
+                    .checked_profile_reference(NodeKey::of(node), scenario.module)
+                    .or_else(|| self.checked_run_reference(NodeKey::of(node), scenario.module))
             {
                 pending.push((profile, true));
             }
@@ -7815,10 +8035,17 @@ impl<'a> Closure<'a> {
             if field_ty != ty || field.module != owner.module {
                 return Err(self.fail(key, "stored field schema identity mismatch"));
             }
-            let profile_reference = self.checked_profile_reference(key, module);
-            let profile_scalar = self.checked_profile_scalar(key, module);
+            let profile_reference = self
+                .checked_profile_reference(key, module)
+                .or_else(|| self.checked_run_reference(key, module));
+            let profile_scalar = self
+                .checked_profile_scalar(key, module)
+                .or_else(|| self.checked_run_unfinished(key, module));
             if matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
-                && self.checked_profile_reference(base_key, module).is_some()
+                && self
+                    .checked_profile_reference(base_key, module)
+                    .or_else(|| self.checked_run_reference(base_key, module))
+                    .is_some()
                 && profile_scalar.is_none()
             {
                 return Err(self.fail(key, "Profile scalar declaration source correspondence"));
@@ -7839,7 +8066,11 @@ impl<'a> Closure<'a> {
                                     symbol: profile,
                                     stored: true,
                                 })
-                            && read.field_name == "profile"
+                            && self
+                                .resolve
+                                .symbols
+                                .get(reference.0 as usize)
+                                .is_some_and(|field| read.field_name == field.name)
                             && read.calls.is_empty()
                             && read.query_id.is_none()
                     })
@@ -9837,7 +10068,10 @@ impl<'a> Closure<'a> {
             && matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
             && self
                 .query_group(key)
-                .and_then(|key| self.checked_profile_reference(key, module))
+                .and_then(|key| {
+                    self.checked_profile_reference(key, module)
+                        .or_else(|| self.checked_run_reference(key, module))
+                })
                 .is_some()
         {
             return Err(self.fail(
@@ -12153,6 +12387,7 @@ impl<'a> Closure<'a> {
                                         .filter(|dependency| {
                                             self.reference_operand_type_id(&dependency.ty).is_some()
                                                 || self.current_revision_control(dependency, module)
+                                                || self.run_unfinished_control(dependency, module)
                                                 || dependency.field_name == "active"
                                                     && self
                                                         .checked_profile_scalar(
@@ -12183,6 +12418,7 @@ impl<'a> Closure<'a> {
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
                                         || self.reference_operand_type_id(&dependency.ty).is_some()
                                         || self.current_revision_control(dependency,module)
+                                        || self.run_unfinished_control(dependency,module)
                                         || dependency.field_name == "active" && self.checked_profile_scalar(dependency.node,module).is_some_and(|(_,_,_,profile,field)| {
                                             dependency.model == profile && dependency.field == field && dependency.calls.is_empty()
                                         })
@@ -13862,6 +14098,262 @@ mod tests {
             assert_ne!(
                 decline.node, actor,
                 "this finite source unit must advance past actor; the inline prefix remains independent"
+            );
+        }
+        // The next original guard must consume the genuine Run model,
+        // rather than trying to reinterpret Turn.run as a Contract.
+        let unfinished = program
+            .types
+            .node_types
+            .keys()
+            .find(|key| {
+                key.file == scenario.node.file
+                    && scenario.node.start <= key.start
+                    && key.end <= scenario.node.end
+                    && key.kind == SyntaxKind::Member as u8
+                    && source[key.start as usize..key.end as usize].trim() == "turn.run.unfinished"
+            })
+            .copied()
+            .unwrap();
+        let reference = nodes[&unfinished]
+            .children
+            .iter()
+            .find(|node| expression(node.kind))
+            .map(NodeKey::of)
+            .unwrap();
+        let receiver = nodes[&reference]
+            .children
+            .iter()
+            .find(|node| expression(node.kind))
+            .map(NodeKey::of)
+            .unwrap();
+        let unary = nodes
+            .values()
+            .find(|node| {
+                node.kind == SyntaxKind::Unary
+                    && node
+                        .children
+                        .iter()
+                        .any(|child| NodeKey::of(child) == unfinished)
+            })
+            .map(|node| NodeKey::of(node))
+            .unwrap();
+        let Some(Binding::Symbol(parameter)) = resolve.node_binding.get(&receiver) else {
+            panic!("original Turn parameter");
+        };
+        let parameter = *parameter;
+        let turn = resolve.by_canonical["chat.Turn"];
+        let run = resolve.by_canonical["chat.Run"];
+        let reference_field = resolve.by_canonical["chat.Turn.run"];
+        let scalar_field = resolve.by_canonical["chat.Run.unfinished"];
+        fn make_run_cx<'a>(
+            catalog: &'a Catalog,
+            db: &'a SourceDb,
+            nodes: &HashMap<NodeKey, &'a SyntaxNode>,
+            types: &'a TypeTable,
+            resolved: &'a ResolveTables,
+            effects: &'a EffectTables,
+        ) -> Closure<'a> {
+            Closure {
+                catalog: Some(catalog),
+                db,
+                resolve: resolved,
+                types,
+                effects,
+                nodes: nodes.clone(),
+                stack: HashSet::new(),
+                steps: 0,
+                depth: 0,
+                statement_depth: 0,
+                authorization: false,
+                effect_proofs: Vec::new(),
+                effect_visits: 0,
+                loop_node: None,
+                complete_children: HashSet::new(),
+                complete_model_children: HashMap::new(),
+                result_model: None,
+                statement_expressions: None,
+            }
+        }
+        let mut run_cx = make_run_cx(
+            &catalog,
+            &db,
+            &nodes,
+            &program.types,
+            &resolve,
+            &program.effects,
+        );
+        assert_eq!(
+            run_cx.checked_run_reference(reference, scenario.module),
+            Some((parameter, turn, reference_field, run))
+        );
+        assert_eq!(
+            run_cx.checked_run_unfinished(unfinished, scenario.module),
+            Some((parameter, turn, reference_field, run, scalar_field))
+        );
+        let mut env = Env::new();
+        env.insert(
+            Local::Symbol(parameter),
+            ValuePath {
+                record: Some(turn),
+                reference_origin: Some(ReferenceOrigin::Parameter(parameter)),
+                reference: Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter,
+                    parameter_name: "turn".into(),
+                    model: turn,
+                    model_name: "chat.Turn".into(),
+                }),
+                ..ValuePath::default()
+            },
+        );
+        let values = run_cx
+            .authorization_expr(unary, scenario.module, &env, &[])
+            .unwrap();
+        assert_eq!(values.len(), 1);
+        let controlled = run_cx.control(values.into_iter().next().unwrap()).unwrap();
+        assert_eq!(controlled.reads.len(), 2);
+        let reference_read = &controlled.reads[0];
+        let scalar_read = &controlled.reads[1];
+        assert_eq!(
+            (
+                reference_read.node,
+                reference_read.model,
+                reference_read.field,
+                reference_read.field_name.as_str()
+            ),
+            (reference, turn, reference_field, "run")
+        );
+        assert_eq!(
+            (
+                scalar_read.node,
+                scalar_read.model,
+                scalar_read.field,
+                scalar_read.field_name.as_str()
+            ),
+            (unfinished, run, scalar_field, "unfinished")
+        );
+        assert_ne!(reference_read.id, scalar_read.id);
+        assert_eq!(
+            reference_read.ty,
+            ResolvedType::Record {
+                symbol: run,
+                stored: true
+            }
+        );
+        assert_eq!(scalar_read.ty, ResolvedType::Scalar(Scalar::Bool));
+        assert!(
+            controlled
+                .reads
+                .iter()
+                .all(|read| read.role == DependencyRole::Control
+                    && read.calls.is_empty()
+                    && read.query_id.is_none()
+                    && read.source == facts.source)
+        );
+        assert!(
+            facts
+                .stored_contracts
+                .as_deref()
+                .unwrap()
+                .iter()
+                .any(|schema| schema.id == run && schema.model)
+        );
+        if let ScenarioDisclosure::Declined(decline) = proof {
+            assert_ne!(
+                decline.node, reference,
+                "the original unfinished guard must advance past Turn.run"
+            );
+            assert_ne!(
+                decline.node, unfinished,
+                "the original unfinished scalar must retain both controls"
+            );
+        }
+        for mode in [
+            "run-field-type",
+            "leaf-type",
+            "default-field",
+            "server-field",
+            "default-param",
+            "foreign-binding",
+            "foreign-parent",
+            "field-name",
+        ] {
+            let mut types = program.types.clone();
+            let mut resolved = resolve.clone();
+            let mut effects = program.effects.clone();
+            match mode {
+                "run-field-type" => {
+                    let ty = types.symbol_types[&reference_field].clone();
+                    types
+                        .symbol_types
+                        .insert(reference_field, ResolvedType::Nullable(Box::new(ty)));
+                }
+                "leaf-type" => {
+                    types
+                        .symbol_types
+                        .insert(scalar_field, ResolvedType::Scalar(Scalar::Text));
+                }
+                "default-field" => {
+                    effects
+                        .models
+                        .get_mut(&turn)
+                        .unwrap()
+                        .fields
+                        .iter_mut()
+                        .find(|field| field.field == reference_field)
+                        .unwrap()
+                        .default = Some(receiver)
+                }
+                "server-field" => {
+                    effects
+                        .models
+                        .get_mut(&turn)
+                        .unwrap()
+                        .fields
+                        .iter_mut()
+                        .find(|field| field.field == reference_field)
+                        .unwrap()
+                        .server = Some(receiver)
+                }
+                "default-param" => {
+                    effects
+                        .scenarios
+                        .get_mut(&owner)
+                        .unwrap()
+                        .params
+                        .iter_mut()
+                        .find(|value| value.param == parameter)
+                        .unwrap()
+                        .default = Some(receiver)
+                }
+                "foreign-binding" => {
+                    resolved.node_binding.insert(
+                        receiver,
+                        Binding::Symbol(
+                            program.effects.scenarios[&resolve.by_canonical["chat.ask"]]
+                                .params
+                                .iter()
+                                .find(|param| {
+                                    resolve.symbols[param.param.0 as usize].name == "branch"
+                                })
+                                .unwrap()
+                                .param,
+                        ),
+                    );
+                }
+                "foreign-parent" => {
+                    effects.models.get_mut(&run).unwrap().owner = ModelOwner::Team;
+                }
+                "field-name" => {
+                    resolved.symbols[scalar_field.0 as usize].name = "stop_requested".into();
+                }
+                _ => unreachable!(),
+            }
+            let cx = make_run_cx(&catalog, &db, &nodes, &types, &resolved, &effects);
+            assert!(
+                cx.checked_run_unfinished(unfinished, scenario.module)
+                    .is_none(),
+                "{mode} cannot borrow the original Run guard"
             );
         }
         for mode in [

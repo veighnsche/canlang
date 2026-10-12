@@ -4991,8 +4991,8 @@ pub(super) fn checked_profile_scalar_pair<'a>(
     Some(*pair)
 }
 
-/// Borrow all original role pairs of the same required Profile getter. A Let
-/// consumed by both a guard and the created result retains both real reads.
+/// Borrow the exact required Profile pairs or the leading Turn.run unfinished
+/// guard pair. A Profile Let consumed by guard and result retains both roles.
 /// This correspondence neither promotes a reference nor emits a recipe.
 pub(super) fn checked_profile_scalar_pairs<'a>(
     ir: &'a IrProgram,
@@ -5042,12 +5042,20 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     let IrExpr::Name(binding) = &receiver.expr else {
         return None;
     };
-    let expected = match scalar_name.as_str() {
-        "active" => Scalar::Bool,
-        "system_prompt" | "provider_key" | "policy_revision" => Scalar::Text,
-        "input_tokens" | "output_tokens" => Scalar::Int,
-        "duration" => Scalar::Duration,
-        _ => return None,
+    let run_guard = field == "run" && scalar_name == "unfinished";
+    let (source_name, target_name, reference_name, expected) = if run_guard {
+        ("Turn", "Run", "run", Scalar::Bool)
+    } else if field == "profile" {
+        let expected = match scalar_name.as_str() {
+            "active" => Scalar::Bool,
+            "system_prompt" | "provider_key" | "policy_revision" => Scalar::Text,
+            "input_tokens" | "output_tokens" => Scalar::Int,
+            "duration" => Scalar::Duration,
+            _ => return None,
+        };
+        ("Branch", "Profile", "profile", expected)
+    } else {
+        return None;
     };
     let ResolvedType::Record {
         symbol: branch_id,
@@ -5063,7 +5071,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     else {
         return None;
     };
-    if field != "profile"
+    if field != reference_name
         || leaf.ty != ResolvedType::Scalar(expected)
         || proof.scenario != owner.id
         || proof.node != source.node
@@ -5126,8 +5134,8 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     let profile = unique_schema(profile_id)?;
     let branch_item = ir.items.get(branch_id.0 as usize)?;
     let profile_item = ir.items.get(profile_id.0 as usize)?;
-    if branch_item.name != "Branch"
-        || profile_item.name != "Profile"
+    if branch_item.name != source_name
+        || profile_item.name != target_name
         || branch.module != owner.module
         || profile.module != owner.module
         || branch.source != source.source
@@ -5143,7 +5151,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     let mut references = branch
         .fields
         .iter()
-        .filter(|candidate| candidate.name == "profile");
+        .filter(|candidate| candidate.name == reference_name);
     let reference_field = references.next()?;
     let mut scalars = profile
         .fields
@@ -5223,7 +5231,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
                     ..original_parameter.type_node.end as usize,
             )?
             .trim()
-            != "Branch"
+            != source_name
     {
         return None;
     }
@@ -5271,7 +5279,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         || authored_field.token()?.text(text) != scalar_name
         || dot.token()?.text(text) != "."
         || reference_dot.token()?.text(text) != "."
-        || authored_reference_field.token()?.text(text) != "profile"
+        || authored_reference_field.token()?.text(text) != reference_name
         || images_source_name(authored_receiver, text)? != binding
     {
         return None;
@@ -5303,6 +5311,66 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         }
         DependencyRole::Data
     };
+    if run_guard {
+        if role != DependencyRole::Control
+            || branch.parent.is_none()
+            || branch.parent != profile.parent
+        {
+            return None;
+        }
+        // The second exact scope is only the original leading NOT guard.
+        // Both the borrowed executable operand and original typed CST must
+        // own the same Unary occurrence; a copied read gains no permission.
+        let mut pending: Vec<_> = guards
+            .iter()
+            .filter_map(|statement| {
+                if let IrStmt::Require { cond, .. } = statement {
+                    Some(cond)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let mut unary = None;
+        while let Some(value) = pending.pop() {
+            match &value.expr {
+                IrExpr::Unary { op, operand } => {
+                    if std::ptr::eq(operand.as_ref(), leaf) {
+                        if unary.is_some()
+                            || *op != super::ir::IrUnOp::Not
+                            || value.ty != ResolvedType::Scalar(Scalar::Bool)
+                        {
+                            return None;
+                        }
+                        unary = Some(value);
+                    }
+                    pending.push(operand);
+                }
+                IrExpr::Binary { left, right, .. } => {
+                    pending.extend([left.as_ref(), right.as_ref()])
+                }
+                _ => {}
+            }
+        }
+        let unary = unary?;
+        let unary_key = key(unary, SyntaxKind::Unary);
+        let mut typed = census.iter().filter(|(at, _)| *at == unary_key);
+        if typed.next()?.1 != unary.ty || typed.next().is_some() {
+            return None;
+        }
+        let authored_unary = checked_effect_node(ir, owner, unary_key, db)?;
+        let parts: Vec<_> = authored_unary
+            .children
+            .iter()
+            .filter(|node| node.kind != SyntaxKind::Trivia)
+            .collect();
+        let [operator, operand] = parts.as_slice() else {
+            return None;
+        };
+        if operator.token()?.text(text) != "not" || NodeKey::of(operand) != leaf_key {
+            return None;
+        }
+    }
     let multiple_roles = role == DependencyRole::Data
         && checked_scenario_query_influences(source)
             .is_some_and(|influences| influences.len() == 24);
@@ -5376,7 +5444,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
                 || reference_read.model != branch.id
                 || reference_read.field != reference_field.id
                 || reference_read.model_name != branch.canonical
-                || reference_read.field_name != "profile"
+                || reference_read.field_name != reference_name
                 || reference_read.ty != reference.ty
                 || reference_read.type_id != profile.canonical
                 || scalar_read.model != profile.id
