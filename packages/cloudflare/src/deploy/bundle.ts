@@ -151,6 +151,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "opaque-file-staging.js",
   "sourcemap.js",
   "mcp-registry.js",
+  "prepared-validation.js",
   "env-assembly.js",
   "page-preferences.js",
   "auth-rate-limiter.js",
@@ -1065,7 +1066,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
   try {
     writeFileSync(
       entryFile,
-      `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+      `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
       `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
       `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
