@@ -1343,6 +1343,7 @@ interface StateInvokeProducer {
   readonly invokeScenarioReceiptCall?: typeof import('@canlang/state/invocation').invokeScenarioReceiptCall;
   readonly assertScenarioReceiptCallExecution?: typeof import('@canlang/state/invocation').assertScenarioReceiptCallExecution;
   readonly readScenarioReceiptStoredReferenceRow?: typeof import('@canlang/state/invocation').readScenarioReceiptStoredReferenceRow;
+  readonly readScenarioReceiptNullableStoredReferenceRow?: typeof import('@canlang/state/invocation').readScenarioReceiptNullableStoredReferenceRow;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1655,6 +1656,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
       ...(typeof scenarioMod['readScenarioReceiptStoredReferenceRow'] !== 'function' ? {} : {
         readScenarioReceiptStoredReferenceRow: scenarioMod['readScenarioReceiptStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptStoredReferenceRow']>,
+      }),
+      ...(typeof scenarioMod['readScenarioReceiptNullableStoredReferenceRow'] !== 'function' ? {} : {
+        readScenarioReceiptNullableStoredReferenceRow: scenarioMod['readScenarioReceiptNullableStoredReferenceRow'] as NonNullable<StateInvokeProducer['readScenarioReceiptNullableStoredReferenceRow']>,
       }),
       ...(typeof scenarioMod['readScenarioReceiptAssociation'] !== 'function' ? {} : {
         readScenarioReceiptAssociation: scenarioMod['readScenarioReceiptAssociation'] as NonNullable<StateInvokeProducer['readScenarioReceiptAssociation']>,
@@ -5872,7 +5876,8 @@ async function runScenarioExecution(
     const record: Record<string, unknown> = {};
     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
       enumerable: true, get: () => {
-        const wire = current()?.data[field];
+        const sourceRow = current();
+        const wire = sourceRow?.data[field];
         const value = nativeRecordField(loaded, modelName, field, wire);
         const declaration = opts.artifact.models?.find(candidate => candidate.name === modelName)?.fields
           .find(candidate => candidate.name === field);
@@ -5886,6 +5891,15 @@ async function runScenarioExecution(
                 ...(reference.version === undefined ? {} : { version: reference.version }) }));
             }
           }
+        }
+        if (ownerSession !== undefined && scenarioReceiptFrame !== undefined && target !== undefined &&
+            loaded.models.some(candidate => candidate.name === target) &&
+            declaration?.nullable === true && declaration.array === undefined &&
+            (value === null || isRecordRef(value))) {
+          if (sourceRow === null || sourceRow === undefined) {
+            return refuseRecordBinding('Nullable getter requires its actual current owner row.');
+          }
+          scenarioReceiptFrame.bindNullableStoredReferenceGetter(record, modelName, field, sourceRow, wire, value);
         }
         return value;
       },
@@ -7052,6 +7066,103 @@ async function runScenarioExecution(
           return refuseRecordBinding('Stored reference target changed after navigation authority refresh.');
         }
         captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
+        return recordView(origin.model, row);
+      }, async (sourceView, reference, sourceDependencyId, scalarLeafDependencyId, healthy, captureSource) => {
+        // Nullable absence belongs to an actual source getter; only State's
+        // separate nullable port can disclose null or its current target row.
+        healthy(); assertCall!(actualCall, receiptStore);
+        const returned = scenarioDef!.descriptor.result!.disclosure!.returns.find(entry =>
+          entry.dependencies.some(dependency => dependency.id === sourceDependencyId) &&
+          entry.dependencies.some(dependency => dependency.id === scalarLeafDependencyId));
+        const source = returned?.dependencies.find(dependency => dependency.id === sourceDependencyId);
+        const leaf = returned?.dependencies.find(dependency => dependency.id === scalarLeafDependencyId);
+        if (source === undefined || leaf === undefined || source.queryId !== undefined || leaf.queryId !== undefined ||
+            stableStringify(source.source) !== stableStringify(leaf.source)) {
+          return refuseRecordBinding('Nullable promotion requires its exact original source and scalar pair.');
+        }
+        const sources = opts.artifact.models?.find(model => model.name === source.model)?.fields.filter(field => field.name === source.field);
+        const declaration = sources?.[0], canonicalSource = loaded.models.find(model => model.name === source.model)?.fields[source.field];
+        const leaves = opts.artifact.models?.find(model => model.name === leaf.model)?.fields.filter(field => field.name === leaf.field);
+        const scalarDeclaration = leaves?.[0], canonicalScalar = loaded.models.find(model => model.name === leaf.model)?.fields[leaf.field];
+        if (sources?.length !== 1 || declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model ||
+            declaration.nullable !== true || declaration.array !== undefined || canonicalSource === undefined || canonicalSource.nullable !== true ||
+            canonicalSource.array !== undefined || declaration.valueType === undefined || canonicalSource.valueType !== declaration.valueType ||
+            leaves?.length !== 1 || scalarDeclaration?.valueType === undefined || canonicalScalar === undefined || canonicalScalar.valueType !== scalarDeclaration.valueType ||
+            scalarDeclaration.array !== undefined || canonicalScalar.array !== undefined) {
+          return refuseRecordBinding('Nullable promotion requires its exact owning nullable reference and scalar declarations.');
+        }
+        const declaredSource = parseTypeId(declaration.valueType), actualSource = parseTypeId(source.type), scalarType = parseTypeId(leaf.type);
+        if (!declaredSource.nullable || declaredSource.array || declaredSource.requiredArray || declaredSource.base.kind !== 'nominal' ||
+            declaredSource.base.path !== leaf.model || actualSource.base.kind !== 'nominal' || actualSource.base.path !== leaf.model ||
+            actualSource.array || actualSource.requiredArray || scalarType.array || scalarType.requiredArray || scalarType.base.kind === 'nominal') {
+          return refuseRecordBinding('Nullable promotion requires its genuine singular model source and scalar leaf types.');
+        }
+        // This checks owning type/source correspondence only. State38 accepts
+        // an actual required reference CONTROL over its nullable declaration;
+        // narrowed DATA keeps its released prior same-row CONTROL requirement.
+        const narrowed = (dependency: NonNullable<typeof source>, owningType: CanTypeId): boolean => {
+          const declared = parseTypeId(owningType), actual = parseTypeId(dependency.type);
+          if (!declared.nullable || actual.nullable || declared.array || actual.array ||
+              declared.requiredArray || actual.requiredArray || printTypeId(declared) !== owningType ||
+              printTypeId(actual) !== dependency.type || stableStringify(declared.base) !== stableStringify(actual.base)) return false;
+          if (dependency === source && dependency.role === 'control') {
+            // The ordinary State marker authenticates this actual nonnull
+            // occurrence. Do not manufacture a preceding nullable marker.
+            return actual.base.kind === 'nominal' && actual.base.path === leaf.model;
+          }
+          const controls = returned!.dependencies.filter(control => control.role === 'control' && control.id !== dependency.id &&
+            control.queryId === undefined && control.model === dependency.model && control.field === dependency.field &&
+            control.type === owningType && stableStringify(control.source) === stableStringify(dependency.source));
+          return dependency.role === 'data' && controls.length === 1;
+        };
+        if (source.type !== declaration.valueType && !narrowed(source, declaration.valueType) ||
+            leaf.type !== scalarDeclaration.valueType && !(leaf.type === 'text' && scalarDeclaration.field.kind === 'string' &&
+              scalarDeclaration.nullable === true && canonicalScalar.nullable === true && narrowed(leaf, scalarDeclaration.valueType))) {
+          return refuseRecordBinding('Nullable promotion lacks its original CONTROL and owning narrowed declaration correspondence.');
+        }
+        const origin = reference !== null && typeof reference === 'object' ? storedReferences.get(reference) : undefined;
+        if (reference !== null && (!isRecordRef(reference) || origin === undefined || origin.sourceView !== sourceView ||
+            origin.sourceModel !== source.model || origin.field !== source.field || origin.model !== leaf.model)) {
+          return refuseRecordBinding('Nullable promotion requires its original evaluated native reference.');
+        }
+        const wire = reference === null ? null : origin!.wire;
+        const sourceRow = captureSource(sourceView, source.model, source.field, wire);
+        const read = loaded.producers.invoke.readScenarioReceiptNullableStoredReferenceRow;
+        if (read === undefined) return refuseRecordBinding('Nullable promotion requires its literal installed State receiver.');
+        const row = await read(actualCall, receiptStore, { sourceDependencyId, scalarLeafDependencyId, sourceRow });
+        healthy(); assertCall!(actualCall, receiptStore);
+        captureSource(sourceView, source.model, source.field, wire);
+        if (nativeScenarioExecutions.get(actualCall) !== active) return refuseRecordBinding('Nullable promotion lost its original native call.');
+        if (row === null) {
+          if (reference !== null) return refuseRecordBinding('A nonnull nullable getter cannot become absent.');
+          return null;
+        }
+        if (reference === null || origin === undefined || row.id !== origin.id || row.archivedAt !== null ||
+            origin.version !== undefined && origin.version !== BigInt(row.version)) {
+          return refuseRecordBinding('Nullable target differs from its evaluated current owner lifetime or version.');
+        }
+        ownerRows.set(stagedKey(origin.model, row.id), row);
+        await ownerNavigation.prepare(origin.model, row);
+        // Reading the target's parent may refresh this source's native cache
+        // with another genuine row from the same stage. Keep the exact row
+        // whose getter and State marker were issued; changed contents refuse.
+        const sourceKey = stagedKey(source.model, sourceRow.id);
+        if (stableStringify(ownerRows.get(sourceKey)) !== stableStringify(sourceRow)) {
+          return refuseRecordBinding('Nullable source changed during target navigation.');
+        }
+        ownerRows.set(sourceKey, sourceRow);
+        healthy(); assertCall!(actualCall, receiptStore);
+        captureSource(sourceView, source.model, source.field, wire);
+        if (nativeScenarioExecutions.get(actualCall) !== active || ownerRows.get(stagedKey(origin.model, row.id)) !== row) {
+          return refuseRecordBinding('Nullable native target changed during navigation preparation.');
+        }
+        const refreshed = await read(actualCall, receiptStore, { sourceDependencyId, scalarLeafDependencyId, sourceRow });
+        healthy(); assertCall!(actualCall, receiptStore);
+        captureSource(sourceView, source.model, source.field, wire);
+        if (refreshed === null || nativeScenarioExecutions.get(actualCall) !== active ||
+            ownerRows.get(stagedKey(origin.model, row.id)) !== row || stableStringify(refreshed) !== stableStringify(row)) {
+          return refuseRecordBinding('Nullable target lost its complete authority after navigation.');
+        }
         return recordView(origin.model, row);
       });
   }
