@@ -169,6 +169,46 @@ test('gallery ignores late fetch blob and decode results after new activation cl
       assert.equal(scope.original.hasAttribute('hidden'), true);
     } finally { await scope.close(); }
   }
+  for (const stage of ['fetch', 'blob', 'decode'] as const) {
+    for (const contextChange of ['owner', 'navigation'] as const) {
+      const fetched = deferred<ImageResponse>(), bytes = deferred<Blob>(), decoded = deferred<void>();
+      const requests: ImageFetchInit[] = [];
+      const scope = world(async (_url, init) => {
+        requests.push(init);
+        if (requests.length !== 1) return response();
+        return stage === 'fetch' ? fetched.promise : { ...response(), blob: () => bytes.promise };
+      });
+      if (stage === 'decode') scope.setDecode(() => decoded.promise);
+      try {
+        scope.buttons[0]!.click(); await settle();
+        if (stage === 'decode') { bytes.resolve(await response().blob()); await settle(); }
+        assert.equal(requests.length, 1);
+        const originalContext = scope.client.contextKey();
+        if (contextChange === 'owner') scope.window.document.body.setAttribute('data-can-context', 'different-owner');
+        else scope.window.history.pushState(null, '', '/mount/other?team=different');
+        assert.notEqual(scope.client.contextKey(), originalContext);
+        assert.equal(scope.root.isConnected, true);
+        if (stage === 'fetch') fetched.resolve(response());
+        else if (stage === 'blob') bytes.resolve(await response().blob());
+        else decoded.resolve();
+        await settle();
+        assert.equal(requests[0]!.signal.aborted, true, `${stage}/${contextChange} releases the earlier request`);
+        assert.equal(scope.created.length, stage === 'decode' ? 1 : 0);
+        assert.deepEqual(scope.revoked, scope.created);
+        assert.equal(scope.image.hasAttribute('hidden'), true);
+        assert.equal(scope.image.getAttribute('src'), null);
+        assert.equal(scope.image.getAttribute('alt'), '');
+        assert.equal(scope.original.hasAttribute('hidden'), true);
+        assert.equal(scope.original.getAttribute('href'), null);
+        scope.buttons[0]!.click(); await settle(); assert.equal(requests.length, 1);
+        scope.setDecode(async () => {}); scope.client.rescan();
+        scope.buttons[0]!.click(); await settle();
+        assert.equal(requests.length, 2); assert.equal(requests[1]!.signal.aborted, false);
+        assert.equal(scope.image.hasAttribute('hidden'), false);
+        assert.equal(scope.original.getAttribute('href'), 'https://can.test/mount/original/one');
+      } finally { await scope.close(); }
+    }
+  }
   for (const ending of ['stop', 'disconnect'] as const) {
     const blob = deferred<Blob>(); let signal: AbortSignal | undefined;
     const v = world(async (_url, init) => { signal = init.signal; return { ...response(), blob: () => blob.promise }; });

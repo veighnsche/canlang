@@ -11974,3 +11974,10 @@ Changed MAIN checks all0: {"owning_reused": 1.06, "catalog": 0.18, "root": 4.88}
 Accepted finite TECH-F01 source component ebf985817caca6d12fb1fc2bb3c5ad4abc9c3b19: No-query/no-fragment BridgeOrigin refuses bare ?/# at the same validation stage; encoded %3F/%23 path and original principal/destination order remain valid. Independent defining source review CLEAR; 13 bridge groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 0.73, "root": 4.75} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — bind gallery previews to browser context
+
+Accepted finite DEL-B01 source component e0bd2809bf72df19e25e4ae38b76139d0536f3b0: Capture existing BrowserClient context at bind and compare at all current checks; old-context fetch/blob/decode cannot paint, owned requests/URLs clean up and fresh context may rebind. Independent defining source review CLEAR; six held gallery/context groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 1.63, "root": 4.93} seconds; no unchanged native/installed/engine reruns.
