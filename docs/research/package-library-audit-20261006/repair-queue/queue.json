@@ -3723,7 +3723,7 @@
         "disposition": "open-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Coordinator finite source acceptance; Dev; Capability/State",
-        "accepted_scope": "Retain accepted source order, checked CRUD/plain scenario replay and signed recovery. Defining full-table/app/session/team/source/issued15min review proof plus fresh per-row authority adapter/UI transport implemented/component-tested and finite independent source review CLEAR; independent coordinator source review and LOCAL main integration complete; original native workflow remains open. Finite safe_transport_failures independently reviewed/tested and integrated LOCAL main; original parent remains unfinished.",
+        "accepted_scope": "Retain accepted source order, checked CRUD/plain scenario replay and signed recovery. Defining full-table/app/session/team/source/issued15min review proof plus fresh per-row authority adapter/UI transport implemented/component-tested and finite independent source review CLEAR; independent coordinator source review and LOCAL main integration complete; original native workflow remains open. Finite CSV transport error disclosure/exception-formatting defect repaired/tested/source-reviewed locally: fixed phase messages without inspecting arbitrary throws;8affected transport cases pass. Broader mounted proof/authority remains separate. UI selected numeric-index aliases now refuse before typed selection publication instead of silently collapsing; UI emit/browser0/selection3/source review CLEAR locally. Existing missing-key order/spelling/replay/sorted output retained; mounted proof/authority remains separate.",
         "next_action": "Connect the existing proof/token and per-row adapter at the original host; reuse accepted source order, replay and proof component checks.",
         "done_when": "Actual mounted review commits exactly frozen selected inputs and context, rejects tamper/foreign/expired review before effects and preserves invalid/duplicate/unselected/partial/unknown outcomes and original row order.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02",
@@ -3738,7 +3738,8 @@
           "defining_owner": "Packages CSV; Dev/Capability for original host/fence",
           "next_action": "Reuse three selected-alias controls; wait only exact original Dev/Capability output for the remaining parent."
         },
-        "safe_transport_failures": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02/safe_transport_failures"
+        "safe_transport_failures": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02/safe_transport_failures",
+        "selected_index_alias_refusal": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02/selected_index_alias_refusal"
       }
     },
     {

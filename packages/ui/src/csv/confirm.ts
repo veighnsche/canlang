@@ -225,6 +225,12 @@ export function collectCommitSelections(
         error: { code: "validation", message: `Row ${String(index)} is missing its replay key.` },
       };
     }
+    if (selected.has(index)) {
+      return {
+        ok: false,
+        error: { code: "validation", message: "Duplicate row index in commit batch." },
+      };
+    }
     selected.set(index, operationId);
   }
   for (const key of Object.keys(flat)) {

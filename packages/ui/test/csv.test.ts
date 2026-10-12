@@ -544,6 +544,15 @@ describe("csv selection collection", () => {
       }),
       { ok: false, error: { code: "validation", message: "Duplicate operation_id in commit batch." } },
     );
+    for (const indexes of [["0", "00"], ["00", "0"]]) {
+      const flat: Record<string, string> = {};
+      for (const index of indexes) flat[`rows[${index}].selected`] = "on";
+      flat["rows[0].operation_id"] = "id-0";
+      assert.deepEqual(collectCommitSelections(flat), {
+        ok: false,
+        error: { code: "validation", message: "Duplicate row index in commit batch." },
+      });
+    }
   });
 
   it("throws on host misuse (non-map, unsafe indexes)", () => {
