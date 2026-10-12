@@ -5596,6 +5596,13 @@ async function loadLocalOwnerPolicyControl(input: {
       for (const map of [declarations, policyModels, definitionPolicyModels]) {
         for (const model of Object.keys(map)) {
           const metadata = localPolicyObject(localPolicyMember(map, model));
+          if (map === declarations) {
+            const uniques = localPolicyMember(metadata, 'uniques');
+            if (uniques !== undefined && localPolicyArray(uniques).some(unique =>
+              Object.hasOwn(localPolicyObject(unique), 'where'))) {
+              throw new Error('Conditional unique source requires checked native adoption before owner-policy activation.');
+            }
+          }
           const hasRules = ['invariants', 'locks'].some(member => {
             const ids = localPolicyMember(metadata, member);
             return ids !== undefined && localPolicyStrings(ids).length > 0;
@@ -5615,7 +5622,11 @@ async function loadLocalOwnerPolicyControl(input: {
           if (rules.some(rule => !rule.id.startsWith(prefix))) throw new Error('Owner rule identity lacks its canonical package prefix.');
           const ids = rules.map(rule => rule.id.slice(prefix.length));
           const localModel = descriptor.model.slice(prefix.length);
-          if (ids.some((id, index) => id !== `${localModel}.${kind === 'invariant' ? 'require' : 'lock'}.${index + 1}`)) {
+          // Compiler qualifies a model's registry prefix only when its local
+          // name collides in the complete owning model declaration census.
+          const registryModel = input.loaded.models.some(model => model.name !== descriptor.model &&
+            model.name.slice(model.name.lastIndexOf('.') + 1) === localModel) ? descriptor.model : localModel;
+          if (ids.some((id, index) => id !== `${registryModel}.${kind === 'invariant' ? 'require' : 'lock'}.${index + 1}`)) {
             throw new Error('Owner rule identity disagrees with the Compiler local registry convention.');
           }
           for (const metadata of [declaration, policyModel, definitionPolicyModel]) {
