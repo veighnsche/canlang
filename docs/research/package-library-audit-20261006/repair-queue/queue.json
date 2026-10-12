@@ -603,32 +603,33 @@
       },
       "current_execution": {
         "disposition": "partial-selected-packet",
-        "next_work": "implement-or-qualify-selected-consumer",
+        "next_work": "consume-exact-finite-input",
         "owner": "Compiler/serving producer; Values owning registration seam",
-        "accepted_scope": "Independently accepted owned JSON correction committed d4b041fb; genuine factory/default joins open Ordinary TS genuine normalized Date defaults now copy numeric leaves into detached frozen stable default records; Values emit0/24 plan+atomic controls/source review CLEAR at private provenance seam scope. Actual serving association/Decimal/native held scopes remain separate.",
-        "next_action": "Commit Decimal unit. Exact remaining serving descriptor/source-owner/revision association belongs defining serving producer; factory WeakSet identity and artifact version do not supply it.",
+        "accepted_scope": "Independently accepted owned JSON correction committed d4b041fb; genuine factory/default joins open Ordinary TS genuine normalized Date defaults now copy numeric leaves into detached frozen stable default records; Values emit0/24 plan+atomic controls/source review CLEAR at private provenance seam scope. Actual serving association/Decimal/native held scopes remain separate. Ordinary genuine Decimal defaults/bounds now copy exact coefficient/scale into detached frozen owning instances;25 ordinary plan/atomic cases pass and root finite source review CLEAR. Serving association remains separate. Coordinator independent source review CLEAR/main-intaken, normal Values/owningcatalog/CF/root0; source component only, real serving association unfinished.",
+        "next_action": "Consume defining serving producer exact association; no new Decimal carrier or whole Compiler prerequisite.",
         "done_when": "Actual serving registration preserves decimal/default identity and rejects forged schemas, mutation and partial registration under the existing recipes.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V03",
         "packages_execution": {
-          "lane": "local-ready",
-          "remaining_outcome": "Commit Decimal unit. Exact remaining serving descriptor/source-owner/revision association belongs defining serving producer; factory WeakSet identity and artifact version do not supply it.",
-          "required_input": "Commit Decimal unit. Exact remaining serving descriptor/source-owner/revision association belongs defining serving producer; factory WeakSet identity and artifact version do not supply it.",
+          "lane": "owner-output",
+          "remaining_outcome": "Actual production descriptor/source-owner/revision association only; ordinary Date/Decimal default copy and registry lifetime closed.",
+          "required_input": "Actual production descriptor/source-owner/revision association, selected by defining serving producer. Private recordFactoryProvenance hook and factory WeakSet identity do not confer production source authority. Native preparation/default/activation/publication holds unchanged.",
           "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
           "finish_condition": "Decimal coefficient/scale/-0/default identity and lifetime hold; forgery/mutation/partial admission refuse.",
           "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
-          "priority": 16,
+          "priority": 15,
           "defining_owner": "Packages Values codec; serving descriptor owner",
-          "next_action": "Commit Decimal unit. Exact remaining serving descriptor/source-owner/revision association belongs defining serving producer; factory WeakSet identity and artifact version do not supply it."
+          "next_action": "Consume defining serving producer exact association; no new Decimal carrier or whole Compiler prerequisite."
         },
         "plain_date_default_copy": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V03/plain_date_default_copy",
         "actual_code_reassessment": {
           "date": "2026-10-12",
-          "disposition": "local-ready",
+          "disposition": "missing-contract",
           "defining_owner": "Packages Values codec; serving descriptor owner",
-          "actual_code_and_retained_result": "Genuine normalized Decimal rejected by metadata copier; independent local fix preserves bigint coefficient/scale and frozen detached default/bounds/lifetime,25 ordinary plan/atomic controls pass. Production recordFactoryProvenance/createPlanOwner/registerValidationPlan association has only definitions/private tests; prepared-owner-prerequisite declares no chosen authority/API.",
-          "remaining_finite_action_or_input": "Commit Decimal unit. Exact remaining serving descriptor/source-owner/revision association belongs defining serving producer; factory WeakSet identity and artifact version do not supply it.",
+          "actual_code_and_retained_result": "Owning Decimal exact default/bounds representation and lifetime source component is now reviewed/tested in LOCALmain, owner25 results reused. Actual original serving descriptor/source-owner/revision association remains absent.",
+          "remaining_finite_action_or_input": "Serving owner supplies exact association only; no Decimal commit/recheck task.",
           "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
-        }
+        },
+        "decimal_default_copy": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V03/decimal_default_copy"
       }
     },
     {
@@ -8665,18 +8666,17 @@
     "source": "Single current view in each existing packet current_execution.packages_execution; original recipes and canonical references remain authoritative.",
     "authorization": "Human requested immediate reevaluation of every remaining task and an individual prioritized list/instruction for each existing LOCAL worker. No new task IDs, ownership transfer, hold release or remote work.",
     "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
-    "accounting": "32/48 selected packets finished;8 partial,7 open/blocked,1 held. Of22 rechecked entries:9 satisfied,8 ready,5 exact contract/host inputs. Two distinct held entries and retired C02 consumer retain their existing accounting.",
+    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining current view:7local-ready,6exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Reuse nine satisfied selected scopes; implement/qualify eight ready entries; skip five exact contract/host dependencies and two human-held entries. DEL-C02 closed public-browser consumer retained separately. No provider-void or new obligations.",
-    "completion": "32/48 selected packets finished;8 partial,7 open/blocked,1 held. Of22 rechecked entries:9 satisfied,8 ready,5 exact contract/host inputs. Two distinct held entries and retired C02 consumer retain their existing accounting.",
+    "dispatch": "Reuse nine satisfied selected scopes and closed Decimal component; finish seven remaining ready entries, skip six exact contract/host inputs and two precise holds. No source-only parent/native inference or unchanged rerun.",
+    "completion": "32/48 selected packets finished;8partial7open1held. Remaining current view:7local-ready,6exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "Exact V03 serving association after local Decimal fix; S03 app/mixed physical owner placement; S04 visited-work/continuation/refusal; F01 multiple-owner/power-loss host contract; F02 supported non-Identity provider correspondence. V05 exact release-host result Dev/L7. Former D04 namespace and accepted durable/browser lifecycle blockers removed.",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation.",
     "packages_dispatch_order": [
       "TECH-I01",
-      "TECH-V03",
       "DEL-R01",
       "DEL-B02",
       "DEL-B01",
@@ -8703,8 +8703,8 @@
       "DEL-D05"
     ],
     "lane_counts": {
-      "local_ready": 8,
-      "exact_owner_output": 5,
+      "local_ready": 7,
+      "exact_owner_output": 6,
       "human_held": 2,
       "remaining_packets": 16,
       "closed_consumer": 1

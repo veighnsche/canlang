@@ -30,6 +30,7 @@ import type {
   NormalizedSchema,
 } from "../schema.js";
 import type { NormalizedType } from "../types.js";
+import { Decimal } from "../decimal.js";
 
 // ---------------------------------------------------------------------------
 // Errors.
@@ -174,8 +175,9 @@ function provenanceOf(schema: object): FactoryProvenance | undefined {
 
 /**
  * Deep-copy a plan metadata value and freeze the copy. Plain data only
- * (primitives, bigint, arrays, plain objects); symbols pass through by
- * identity; anything else (class instances, Maps, functions-as-values)
+ * (primitives, bigint, owning Decimal values, arrays, plain objects);
+ * symbols pass through by identity; anything else (other class instances,
+ * Maps, functions-as-values)
  * fails closed — a plan must never alias caller-owned exotic state.
  * `__proto__` keys are defined, never assigned.
  */
@@ -190,6 +192,9 @@ function copyFrozenValue(value: unknown): CanValue {
     value === undefined
   ) {
     return value as CanValue;
+  }
+  if (value instanceof Decimal) {
+    return new Decimal(value.coef, value.scale);
   }
   if (Array.isArray(value)) {
     const out: unknown[] = value.map(copyFrozenValue);
