@@ -9945,7 +9945,7 @@ impl<'a> Closure<'a> {
                 // explicit operands. Catalog defaults are not source defaults.
                 if !matches!(
                     id.as_str(),
-                    "date" | "datetime" | "money" | "abs" | "round" | "min" | "max"
+                    "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim"
                 ) || selected.slots.iter().any(Option::is_none)
                 {
                     return Err(self.fail(key, "unsupported builtin closure"));
