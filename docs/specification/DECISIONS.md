@@ -12002,3 +12002,10 @@ Changed MAIN checks all0: {"owning": 0.83, "root": 5.15} seconds; no unchanged n
 Accepted Statec98b81ed after independent defining review CLEAR. Keep required promotion strict; distinct nullable port preserves authentic absence without target loading. Only prior same-row/call/stage source CONTROL may narrow original required Model/Text DATA, with unchanged original source/ancestor/Identity/lifetime/saved association. Recheck State revision after final coherent SDK await before private issuance.107 owning outcomes reused, including actual final-await conflict/zero exposure. Current337 generated consumer and Dev genuine nullable facade/native authority remain unfinished; no shape/context/grant fabrication or recipient hold release.
 
 Changed MAIN checks all0: {"StateDO": 4.09, "CF": 4.27, "root": 4.53} seconds.
+
+
+### 2026-10-12 — connect original nominal prefix File observations
+
+Accepted Dev14c+ecb host component after independent defining review CLEAR. Apply only exact invoke additions and new installed caller control, preserving newer required Profile/query/source/SEND paths; copied already accepted Statec0 excluded. Declaration-bound nominal File profile traverses owning fields, but actual invocation-local grants and genuine installed Files observations confer authority. Ordered duplicate/empty prefix observations, rejected malformed/absent/expired/in-flight revoked cases and cleanup/resource guards reused. Stored File CALL limit8 stays original; no new prefix limit or full compiled transcript/native authority.
+
+Changed MAIN checks all0: {"CF": 4.17, "root": 4.51} seconds.
