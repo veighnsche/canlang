@@ -113,6 +113,20 @@ fn original_current_presence_published_digest_and_same_run_reference_have_real_t
         proof
             .returns
             .iter()
+            .map(|path| path.id.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "a514f06e72d460ed6ddefc226d9f51be7907ce1c2ee0393d5f90ad7614e366ff",
+            "70af48801b2fe1f13f28c9c4b8762466e13ecaddab07ae7fa69c32dc357b4837",
+            "998791f4b82d91cc8b381a940f827dfc876f5f1963f89eac9ad6b80653a7f5dd",
+            "79d0c5b24994f46af0206a4d6076165d075c65e6e63272c97ce6f2f47d5d08dd",
+        ],
+        "analysis reuse preserves every accepted conservative Return identity"
+    );
+    assert_eq!(
+        proof
+            .returns
+            .iter()
             .map(|path| &path.id)
             .collect::<HashSet<_>>()
             .len(),

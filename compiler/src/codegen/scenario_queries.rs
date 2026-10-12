@@ -96,6 +96,216 @@ pub(super) fn serialize_transcript_selections(
     ))
 }
 
+/// The literal existential selector belongs to its original checked collection
+/// call. Publishing it does not admit the scenario or a native query lifetime.
+pub(super) fn serialize_query_any(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+    entry_module: &str,
+) -> Option<serde_json::Value> {
+    use super::ir::{IrCallTarget, IrOwner, IrUnOp};
+    use crate::analysis::Scalar;
+    program.validate_cohort(db, catalog).ok()?;
+    if entry_module.is_empty() {
+        return None;
+    }
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let original = program
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    if source.queries != original.queries
+        || source.source != original.source
+        || source.node != original.node
+    {
+        return None;
+    }
+    let (fresh, diagnostics) = super::ir::build(program, db, catalog);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    same_scenario_semantics(program, ir, &fresh, owner)?;
+    same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
+    let IrItemKind::Scenario {
+        guards,
+        read: false,
+        trusted: false,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let boolean = ResolvedType::Scalar(Scalar::Bool);
+    let mut metadata = Vec::new();
+    for q in source
+        .queries
+        .as_deref()?
+        .iter()
+        .filter(|q| q.first.is_none() && q.count.is_none() && q.projection.is_none())
+    {
+        let mut calls = program
+            .types
+            .checked_collection_calls
+            .values()
+            .filter(|call| call.builtin == "any" && call.query == q.node);
+        let collection = calls.next()?;
+        if calls.next().is_some() {
+            return None;
+        }
+        let selected = program.types.selected_calls.get(&collection.node)?;
+        let predicate_node = collection.predicate.as_ref()?.node;
+        let mut actual_calls = guards.iter().filter_map(|guard| {
+            let IrStmt::Require { cond, .. } = guard else {
+                return None;
+            };
+            let IrExpr::Unary {
+                op: IrUnOp::Not,
+                operand,
+            } = &cond.expr
+            else {
+                return None;
+            };
+            same_span(collection.node, operand.span).then_some(operand.as_ref())
+        });
+        let call = actual_calls.next()?;
+        let (target, args, slots) = match &call.expr {
+            IrExpr::Call { target, args } => (target, args, None),
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } => (target, args, Some(slots.as_slice())),
+            _ => return None,
+        };
+        let [domain, predicate] = args.as_slice() else {
+            return None;
+        };
+        let IrExpr::Query(query) = &domain.expr else {
+            return None;
+        };
+        let IrExpr::Lambda { param, body } = &predicate.expr else {
+            return None;
+        };
+        let checked = query.source.as_deref()?;
+        let [alias] = checked.clauses.as_slice() else {
+            return None;
+        };
+        let crate::analysis::types::CheckedQueryClauseKind::As { name: alias_name } = &alias.kind
+        else {
+            return None;
+        };
+        let model = nominal(program, ir, q.model)?;
+        let [(parent_node, parameter_id)] = q.inputs.as_slice() else {
+            return None;
+        };
+        let parameter = nominal(program, ir, *parameter_id)?;
+        let IrItemKind::Param {
+            owner: parameter_owner,
+            ty:
+                IrType::Known(ResolvedType::Record {
+                    symbol: parent_id,
+                    stored: true,
+                }),
+            default: None,
+            ..
+        } = &parameter.kind
+        else {
+            return None;
+        };
+        let parent = nominal(program, ir, *parent_id)?;
+        let [dependency] = q.dependencies.as_slice() else {
+            return None;
+        };
+        let array = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record {
+                symbol: q.model,
+                stored: true,
+            }),
+            ordered: true,
+            nonempty: false,
+        };
+        if actual_calls.next().is_some()
+            || q.id.is_empty()
+            || q.source != source.source
+            || q.alias != Some(collection.alias)
+            || q.predicate != Some(predicate_node)
+            || collection.overload != 0
+            || collection.model != q.model
+            || !matches!(&selected.target,SelectedCallTarget::Builtin {id,overload:0} if id == "any")
+            || selected.arguments.len() != 2
+            || selected.arguments[0] != q.node
+            || selected.arguments[1] != predicate_node
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || !matches!(target,IrCallTarget::Builtin {id,awaited:false} if id == "any")
+            || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
+            || call.ty != boolean
+            || predicate.ty != boolean
+            || body.ty != boolean
+            || !same_span(predicate_node, body.span)
+            || param != alias_name
+            || alias.node != collection.alias
+            || !matches!(&body.expr,IrExpr::Member {base,field} if field == "unfinished" && matches!(&base.expr,IrExpr::Name(name) if name == param))
+            || checked.node != q.node
+            || checked.domain != q.domain
+            || program.types.checked_queries.get(&q.node) != Some(checked)
+            || checked.domain_type != array
+            || checked.result != array
+            || domain.ty != array
+            || query.collection_call.as_deref() != Some(collection)
+            || query.contract_collection_call.is_some()
+            || query.where_pred.is_some()
+            || query.where_async
+            || query.select.is_some()
+            || query.select_param.is_some()
+            || !query.order.is_empty()
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || q.limit.is_some()
+            || q.archived
+            || !q.order.is_empty()
+            || q.cardinality_guard.is_some()
+            || *parameter_owner != owner.id
+            || !matches!(&model.kind,IrItemKind::Model {owner: IrOwner::ChildOf(id),..} if id == parent_id)
+            || !matches!(&query.domain,IrQueryDomain::Model(name) if name == &model.canonical)
+            || query.parent.as_ref().is_none_or(|value| {
+                !same_span(*parent_node, value.span)
+                    || !matches!(&value.expr,IrExpr::Name(name) if name == &parameter.name)
+            })
+            || dependency.id.is_empty()
+            || dependency.role != DependencyRole::Control
+            || dependency.field_name != "unfinished"
+            || dependency.model != model.id
+            || dependency.model_name != model.canonical
+            || dependency.node != predicate_node
+            || dependency.ty != boolean
+            || dependency.type_id != "bool"
+            || dependency.source != q.source
+            || !dependency.calls.is_empty()
+            || dependency.query_id.is_some()
+            || field_type(program, ir, dependency.field, model.id)? != &boolean
+        {
+            return None;
+        }
+        for id in [model.id, parent.id] {
+            let schema = source
+                .stored_contracts
+                .as_deref()?
+                .iter()
+                .find(|schema| schema.id == id && schema.model)?;
+            super::scenario_receipts::match_stored_contract_schema(ir, schema, db)?;
+            for field in &schema.fields {
+                super::scenario_receipts::match_stored_contract_field(ir, field, db)?;
+            }
+        }
+        metadata.push(serde_json::json!({"queryId":q.id,"dependencyId":dependency.id}));
+    }
+    (!metadata.is_empty()).then_some(serde_json::Value::Array(metadata))
+}
+
 /// Whole checked query closure for the released public-read/private-child
 /// dispatch. Only this immutable source/fresh executable producer can prepare
 /// the nominal query receipt; a source inventory alone remains nongrant.
@@ -1233,4 +1443,239 @@ fn field_type<'a>(
     };
     let original = program.types.symbol_types.get(&id)?;
     (owner == *original_owner && owner == *actual_owner && original == ty).then_some(original)
+}
+
+#[cfg(test)]
+mod any_source_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::{Scalar, check_program};
+    use crate::codegen::ir::{IrCallTarget, IrUnOp, TypedExpr};
+    use std::path::Path;
+
+    fn any_call_mut(ir: &mut IrProgram, owner: SymbolId) -> &mut TypedExpr {
+        let IrItemKind::Scenario { guards, .. } = &mut ir.items[owner.0 as usize].kind else {
+            panic!("original ask")
+        };
+        guards.iter_mut().find_map(|guard| {
+            let IrStmt::Require { cond, .. } = guard else { return None; };
+            let IrExpr::Unary { op: IrUnOp::Not, operand } = &mut cond.expr else { return None; };
+            matches!(&operand.expr,IrExpr::Call {target:IrCallTarget::Builtin {id,..},..} | IrExpr::BoundCall {target:IrCallTarget::Builtin {id,..},..} if id == "any").then_some(operand.as_mut())
+        }).expect("actual not ANY leading guard")
+    }
+
+    #[test]
+    fn unchanged_original_any_metadata_is_authentic_and_mutants_keep_native_refusal() {
+        // One actual checked cohort/setup is reused for the positive and its
+        // same-span mutants. Each serializer owns its fresh correspondence.
+        let mut db = SourceDb::new();
+        let chat = db.add(
+            "CanChat.can".into(),
+            include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
+        );
+        let creative = db.add(
+            "CanCreative.can".into(),
+            include_str!("../../tests/fixtures/original-a850/CanCreative.can").into(),
+        );
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = root.join("target/profile-native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(chat, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[chat, creative], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "chat.ask")
+            .unwrap();
+        let ScenarioDisclosure::Complete(proof) = &ir.scenario_disclosures[&owner.id] else {
+            panic!(
+                "exact analysis reuse completes unchanged original source: {:?}",
+                ir.scenario_disclosures[&owner.id]
+            );
+        };
+        assert_eq!(
+            proof.returns.len(),
+            256,
+            "conservative source paths are retained"
+        );
+        let facts = ir.scenario_disclosures[&owner.id].source_facts().unwrap();
+        let queries = facts.queries.as_deref().unwrap();
+        assert_eq!(queries.len(), 4);
+        assert_eq!(facts.transcripts.as_deref().unwrap().len(), 2);
+        let query = queries
+            .iter()
+            .find(|query| {
+                query.first.is_none() && query.count.is_none() && query.projection.is_none()
+            })
+            .unwrap();
+        let [dependency] = query.dependencies.as_slice() else {
+            panic!("one actual unfinished control")
+        };
+        assert_eq!(dependency.role, DependencyRole::Control);
+        assert_eq!(dependency.field_name, "unfinished");
+        assert_eq!(dependency.model_name, "chat.Run");
+        assert_eq!(dependency.ty, ResolvedType::Scalar(Scalar::Bool));
+        assert_eq!(
+            ir.items[dependency.field.0 as usize].canonical,
+            "chat.Run.unfinished"
+        );
+        assert!(dependency.calls.is_empty() && dependency.query_id.is_none());
+        let entry = super::super::js::pick_entrypoint(&ir).unwrap();
+        let module = super::super::js::module_path(&ir.module(entry).name);
+        let metadata = serialize_query_any(&program, &ir, owner, &db, Some(&catalog), &module)
+            .expect("actual original ANY metadata");
+        assert_eq!(
+            metadata,
+            serde_json::json!([{"queryId":query.id,"dependencyId":dependency.id}])
+        );
+        assert_eq!(
+            program.scenario_disclosures()[&owner.id]
+                .source_facts()
+                .unwrap()
+                .queries
+                .as_deref(),
+            Some(queries)
+        );
+        let metadata_by_owner =
+            std::collections::BTreeMap::from([(owner.canonical.clone(), metadata.clone())]);
+        let native = super::super::js::emit_program_with_query_sources(
+            &ir,
+            true,
+            &db,
+            &std::collections::BTreeMap::new(),
+            &std::collections::BTreeMap::new(),
+            super::super::js::EmitDecisionSources {
+                query_any: Some(&metadata_by_owner),
+                ..Default::default()
+            },
+        );
+        let emitted = std::iter::once(&native.entry)
+            .chain(native.packages.iter())
+            .map(|module| module.js.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(emitted.contains(&format!("queryAny:{}", metadata)));
+        assert!(
+            !emitted.contains("executeScenarioReceiptAny"),
+            "literal metadata alone grants no native lowering"
+        );
+        assert!(
+            native
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008")
+        );
+        assert!(
+            native
+                .operations
+                .iter()
+                .find(|operation| operation.name == "chat.ask")
+                .unwrap()
+                .disclosure
+                .is_none()
+        );
+        for mode in [
+            "predicate-field",
+            "awaited",
+            "slots",
+            "parent",
+            "field-schema",
+            "proof-id",
+            "proof-loss",
+        ] {
+            let mut changed = ir.clone();
+            if mode == "field-schema" {
+                let IrItemKind::Field { ty, .. } =
+                    &mut changed.items[dependency.field.0 as usize].kind
+                else {
+                    panic!("Run unfinished")
+                };
+                *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+            } else if matches!(mode, "proof-id" | "proof-loss") {
+                let disclosure = changed.scenario_disclosures.get_mut(&owner.id).unwrap();
+                let proof = match disclosure {
+                    ScenarioDisclosure::Complete(value) => &mut value.source_facts,
+                    ScenarioDisclosure::Declined(value) => &mut value.source_facts,
+                };
+                if mode == "proof-loss" {
+                    *proof = None;
+                } else {
+                    let queries = proof.as_mut().unwrap().queries.as_mut().unwrap();
+                    let other = queries
+                        .iter()
+                        .find(|candidate| candidate.id != query.id)
+                        .unwrap()
+                        .id
+                        .clone();
+                    queries
+                        .iter_mut()
+                        .find(|candidate| candidate.id == query.id)
+                        .unwrap()
+                        .id = other;
+                }
+            } else {
+                let call = any_call_mut(&mut changed, owner.id);
+                if mode == "slots" {
+                    let (target, args) = match &call.expr {
+                        IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                            (target.clone(), args.clone())
+                        }
+                        _ => panic!("ANY"),
+                    };
+                    call.expr = IrExpr::BoundCall {
+                        target,
+                        args,
+                        slots: vec![Some(1), Some(0)],
+                    };
+                } else {
+                    let (target, args) = match &mut call.expr {
+                        IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                            (target, args)
+                        }
+                        _ => panic!("ANY"),
+                    };
+                    if mode == "awaited" {
+                        let IrCallTarget::Builtin { awaited, .. } = target else {
+                            panic!("ANY builtin")
+                        };
+                        *awaited = true;
+                    } else if mode == "predicate-field" {
+                        let IrExpr::Lambda { body, .. } = &mut args[1].expr else {
+                            panic!("external predicate")
+                        };
+                        let IrExpr::Member { field, .. } = &mut body.expr else {
+                            panic!("unfinished")
+                        };
+                        *field = "stop_requested".into();
+                    } else {
+                        let IrExpr::Query(query) = &mut args[0].expr else {
+                            panic!("original contained domain")
+                        };
+                        query.parent.as_mut().unwrap().expr = IrExpr::Name("allowance".into());
+                    }
+                }
+            }
+            assert!(
+                serialize_query_any(
+                    &program,
+                    &changed,
+                    &changed.items[owner.id.0 as usize],
+                    &db,
+                    Some(&catalog),
+                    &module
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
+    }
 }

@@ -158,12 +158,23 @@ pub fn emit(
     let mut query_receipts = std::collections::BTreeMap::new();
     let mut transcript_queries = std::collections::BTreeMap::new();
     let mut query_selections = std::collections::BTreeMap::new();
+    let mut query_any = std::collections::BTreeMap::new();
     if sources.options.native_scenario_receipts {
         // Query source correspondence is independent of permission/capture
         // admission. Unsupported scenarios keep their disclosure refusal.
         if let Some(entry) = js::pick_entrypoint(&ir) {
             let entry_module = js::module_path(&ir.module(entry).name);
             for item in &ir.items {
+                if let Some(metadata) = scenario_queries::serialize_query_any(
+                    program,
+                    &ir,
+                    item,
+                    sources.db,
+                    sources.catalog,
+                    &entry_module,
+                ) {
+                    query_any.insert(item.canonical.clone(), metadata);
+                }
                 if let Some(selections) = scenario_queries::serialize_transcript_selections(
                     program,
                     &ir,
@@ -236,6 +247,7 @@ pub fn emit(
         &query_sources,
         &query_receipts,
         js::EmitDecisionSources {
+            query_any: Some(&query_any),
             query_selections: Some(&query_selections),
             transcript_queries: Some(&transcript_queries),
             membership: membership.as_ref(),

@@ -1429,12 +1429,12 @@ fn original_chat_transcript_decision_serializes_only_the_sealed_text_message_arr
         .iter()
         .find(|item| item.canonical == "chat.Branch")
         .unwrap();
-    // Decision correspondence is independently useful while the original
-    // query/SEND workflow still lacks complete disclosure and native acceptance.
-    assert!(matches!(
-        lowered.scenario_disclosures[&owner.id],
-        ScenarioDisclosure::Declined(_)
-    ));
+    // Decision correspondence remains independently checked after repeated
+    // analysis is reused; source completion supplies no native acceptance.
+    let ScenarioDisclosure::Complete(proof) = &lowered.scenario_disclosures[&owner.id] else {
+        panic!("original source analysis must finish");
+    };
+    assert_eq!(proof.returns.len(), 256);
     let text = |node: NodeKey| {
         let input = db.get(node.file).unwrap();
         input.text[node.start as usize..node.end as usize]
