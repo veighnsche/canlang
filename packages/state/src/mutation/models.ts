@@ -26,7 +26,7 @@ import type {
 } from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
 import { checkFieldMachine } from '../internal/machine.js';
-import { validatePredicateShape } from '../policy/grants.js';
+import { collectPredicateFields, isMetadataPath, validatePredicateShape } from '../policy/grants.js';
 
 /** Hook operations, by caller intent (`remove` covers the archive path too). */
 export type InterimHookOp = 'create' | 'update' | 'remove';
@@ -294,6 +294,9 @@ export interface InterimModelDef {
   readonly fields: Record<string, InterimFieldDef>;
   readonly refs: ReadonlyArray<InterimRefDef>;
   readonly uniqueKeys: ReadonlyArray<string>;
+  /** Optional owning row conditions for these indexed fields. Omitted keys
+   * retain unconditional uniqueness; this data is not source authority. */
+  readonly uniqueWhen?: Readonly<Record<string, QueryPredicate>>;
   readonly deleteMode: DeleteMode;
   readonly hooks: ReadonlyArray<InterimHook>;
   readonly invariants: ReadonlyArray<InterimInvariant>;
@@ -556,6 +559,62 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
       }
       seenKeys.add(key);
     }
+    let uniqueWhen: Record<string, QueryPredicate> | undefined;
+    if (def.uniqueWhen !== undefined) {
+      const raw = def.uniqueWhen;
+      if (typeof raw !== 'object' || raw === null || Array.isArray(raw) ||
+          ![Object.prototype, null].includes(Object.getPrototypeOf(raw))) {
+        throw new Error(`Invalid conditional unique on model ${JSON.stringify(model)}: conditions must be an own data object.`);
+      }
+      uniqueWhen = Object.create(null) as Record<string, QueryPredicate>;
+      for (const key of Reflect.ownKeys(raw)) {
+        const descriptor = Object.getOwnPropertyDescriptor(raw, key);
+        if (typeof key !== 'string' || isMetadataPath(key) || !seenKeys.has(key) || descriptor === undefined ||
+            !descriptor.enumerable || !('value' in descriptor) || def.fields[key]?.array !== undefined || refFields.has(key)) {
+          throw new Error(`Invalid conditional unique on model ${JSON.stringify(model)}: condition must name its declared scalar unique field.`);
+        }
+        try {
+          // Inspect descriptors before cloning: structuredClone otherwise invokes
+          // nested getters before the predicate's data shape can be refused.
+          const data = [descriptor.value];
+          const seen = new Set<object>();
+          while (data.length > 0) {
+            const value: unknown = data.pop();
+            if (typeof value !== 'object' || value === null || seen.has(value)) continue;
+            seen.add(value);
+            if (![Object.prototype, Array.prototype, null].includes(Object.getPrototypeOf(value))) {
+              throw new Error('Condition must contain only plain predicate data.');
+            }
+            for (const property of Object.values(Object.getOwnPropertyDescriptors(value))) {
+              if (!('value' in property)) throw new Error('Condition must not contain accessors.');
+              data.push(property.value);
+            }
+          }
+          const when: QueryPredicate = structuredClone(descriptor.value);
+          validatePredicateShape(when);
+          if (collectPredicateFields(when).some(field => isMetadataPath(field) || !Object.hasOwn(def.fields, field) ||
+              def.fields[field]?.array !== undefined || refFields.has(field))) {
+            throw new Error('Condition must read only declared local scalar fields.');
+          }
+          const pending = [when];
+          while (pending.length > 0) {
+            const predicate = pending.pop()!;
+            if (predicate.op === 'and' || predicate.op === 'or') pending.push(...predicate.args);
+            else if (predicate.op === 'not') pending.push(predicate.arg);
+            else {
+              const type = def.fields[predicate.field]?.valueType;
+              if (type !== 'bool' || (predicate.op !== 'eq' && predicate.op !== 'ne') ||
+                  typeof predicate.value !== 'boolean') {
+                throw new Error('Conditional unique requires declared stored bool conditions.');
+              }
+            }
+          }
+          uniqueWhen[key] = deepFreeze(when);
+        } catch (error) {
+          throw new Error(`Invalid conditional unique ${JSON.stringify(key)} on model ${JSON.stringify(model)}: ${String(error)}`);
+        }
+      }
+    }
     if (def.deleteMode !== 'archive' && def.deleteMode !== 'remove' && def.deleteMode !== 'none') {
       throw new Error(
         `Invalid deleteMode on model ${JSON.stringify(model)}: ${JSON.stringify(def.deleteMode)}.`,
@@ -710,6 +769,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         fields: deepFreeze(fields),
         refs: deepFreeze(refs),
         uniqueKeys: Object.freeze(uniqueKeys),
+        ...(uniqueWhen === undefined ? {} : { uniqueWhen: Object.freeze(uniqueWhen) }),
         deleteMode: def.deleteMode,
         hooks: Object.freeze(
           def.hooks.map((hook) =>
@@ -773,6 +833,9 @@ function checkContainmentAcyclic(table: Map<ModelName, InterimModelDef>): void {
 
 /** Engine-local attachments for canonical-derived model tables (T04b owns the rest). */
 export interface CanonicalModelTableOptions extends ModelTableOptions {
+  /** Checked owning single-field conditional constraints, supplied by their
+   * defining source adapter. They cannot weaken declared unconditional keys. */
+  readonly uniqueWhen?: ReadonlyMap<ModelName, Readonly<Record<string, QueryPredicate>>>;
   /**
    * Reference paths per model, derived by the descriptor loader from the
    * artifact's singular top-level `ref` field tags. Models without an entry
@@ -832,6 +895,9 @@ export function buildModelTableFromCanonical(
 ): ModelTable {
   const defs: InterimModelDef[] = [];
   const modelNames = new Set(models.map(model => model.name as string));
+  if (opts.uniqueWhen !== undefined) for (const model of opts.uniqueWhen.keys()) {
+    if (!modelNames.has(model)) throw new Error(`Conditional unique names unknown model ${JSON.stringify(model)}.`);
+  }
   for (const model of models) {
     const fields: Record<string, InterimFieldDef> = {};
     for (const [name, field] of Object.entries(model.fields)) {
@@ -887,11 +953,16 @@ export function buildModelTableFromCanonical(
       }
     }
     const containment = opts.containment?.get(model.name);
+    const uniqueWhen = opts.uniqueWhen?.get(model.name);
+    if (uniqueWhen !== undefined && Object.keys(uniqueWhen).some(key => uniqueKeys.includes(key))) {
+      throw new Error(`Conditional unique cannot weaken an unconditional key on model ${JSON.stringify(model.name)}.`);
+    }
     defs.push({
       model: model.name,
       fields,
       refs: [...(opts.refs?.get(model.name) ?? [])],
-      uniqueKeys: [...uniqueKeys],
+      uniqueKeys: [...uniqueKeys, ...Object.keys(uniqueWhen ?? {})],
+      ...(uniqueWhen === undefined ? {} : { uniqueWhen }),
       deleteMode: model.deleteMode,
       hooks: [],
       invariants: [],
