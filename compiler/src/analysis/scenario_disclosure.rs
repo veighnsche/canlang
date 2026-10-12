@@ -401,6 +401,8 @@ pub(crate) struct CheckedTranscriptSource {
     pub alias: NodeKey,
     pub order: SymbolId,
     pub order_node: NodeKey,
+    /// Original query ordering is separate from eager selected DATA fields.
+    pub order_dependency: DisclosureDependency,
     pub select: NodeKey,
     pub ty: ResolvedType,
     pub fields: Vec<CheckedTranscriptField>,
@@ -2842,6 +2844,20 @@ impl<'a> Closure<'a> {
         let id = self
             .opaque("transcript-query", query_node, &call_stamp)
             .ok()?;
+        let order_dependency = DisclosureDependency {
+            id: self.opaque("read-control", *order_node, &call_stamp).ok()?,
+            source: self.source(scenario.module, *order_node).ok()?,
+            node: *order_node,
+            calls: calls.clone(),
+            role: DependencyRole::Control,
+            model,
+            field: position,
+            model_name: model_symbol.canonical.clone(),
+            field_name: "position".into(),
+            ty: ResolvedType::Scalar(Scalar::Int),
+            type_id: "int".into(),
+            query_id: None,
+        };
         let dependencies = fields
             .iter()
             .map(|field| {
@@ -2903,6 +2919,7 @@ impl<'a> Closure<'a> {
             alias: alias.node,
             order: position,
             order_node: *order_node,
+            order_dependency,
             select: *select_node,
             ty: result_ty.clone(),
             fields,

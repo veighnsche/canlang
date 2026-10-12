@@ -71,6 +71,37 @@ fn checked_transcript_source<'a>(
         .find(|fact| fact.call == call)
 }
 
+fn query_plan(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Option<serde_json::Value> {
+    super::super::scenario_queries::serialize_query_sources(
+        program,
+        ir,
+        owner(ir),
+        db,
+        catalog,
+        &super::super::js::module_path("SourceTranscript"),
+    )
+}
+fn selections(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &SourceDb,
+    catalog: Option<&Catalog>,
+) -> Option<serde_json::Value> {
+    super::super::scenario_queries::serialize_transcript_selections(
+        program,
+        ir,
+        owner(ir),
+        db,
+        catalog,
+        &super::super::js::module_path("SourceTranscript"),
+    )
+}
+
 #[test]
 fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_ids() {
     assert_eq!(sha256_hex(SOURCE.as_bytes()), HASH);
@@ -95,6 +126,37 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
     };
     assert_eq!(returned.influences.len(), 8);
     let mut ids = HashSet::new();
+    let plan =
+        query_plan(&program, &ir, &db, Some(&catalog)).expect("real checked query source plan");
+    let queries = plan["queries"].as_array().unwrap();
+    assert_eq!(queries.len(), 2);
+    let metadata =
+        selections(&program, &ir, &db, Some(&catalog)).expect("genuine selection metadata");
+    let metadata = metadata.as_array().unwrap();
+    assert_eq!(metadata.len(), 2);
+    for returned in plan["returns"].as_array().unwrap() {
+        let influences = returned["influences"].as_array().unwrap();
+        assert_eq!(influences.len(), 8);
+        for (index, group) in influences.as_chunks::<4>().0.iter().enumerate() {
+            assert_eq!(
+                group
+                    .iter()
+                    .map(|influence| influence["kind"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                [
+                    "query-existence",
+                    "query-cardinality",
+                    "query-membership",
+                    "query-order"
+                ]
+            );
+            assert!(
+                group
+                    .iter()
+                    .all(|influence| influence["queryId"] == queries[index]["id"])
+            );
+        }
+    }
     for (index, fact) in facts.iter().enumerate() {
         let original =
             checked_transcript_source(&program, &ir, owner(&ir), fact.call, &db, Some(&catalog))
@@ -108,6 +170,60 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
         assert_eq!(fact.slots, [Some(0)]);
         assert_eq!(fact.dependencies.len(), 3);
         assert_eq!(fact.fields.len(), 3);
+        let query = &queries[index];
+        assert_eq!(query["id"], fact.id);
+        assert_eq!(query["model"], "SourceTranscript.Turn");
+        assert_eq!(query["source"]["sha256"], HASH);
+        assert_eq!(
+            query["order"],
+            serde_json::json!([{"field":"position","direction":"asc"}])
+        );
+        assert_eq!(query["parent"]["model"], "SourceTranscript.Branch");
+        assert_eq!(
+            query["parent"]["origin"],
+            serde_json::json!({"kind":"admitted-reference","parameter":"branch"})
+        );
+        let controls = query["dependencies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|read| read["role"] == "control")
+            .collect::<Vec<_>>();
+        let [position] = controls.as_slice() else {
+            panic!("one original position CONTROL")
+        };
+        assert_eq!(position["field"], "position");
+        assert_eq!(position["type"], "int");
+        assert_eq!(position["source"], query["source"]);
+        assert_eq!(position["id"], fact.order_dependency.id);
+        assert!(ids.insert(position["id"].as_str().unwrap()));
+        assert_eq!(text(&db, fact.order_node), "turn.position");
+        assert_eq!(
+            program.types.symbol_types[&fact.order],
+            ResolvedType::Scalar(Scalar::Int)
+        );
+        assert_eq!(fact.order_dependency.field, fact.order);
+        assert_eq!(fact.order_dependency.node, fact.order_node);
+        assert_eq!(fact.order_dependency.ty, ResolvedType::Scalar(Scalar::Int));
+        assert_eq!(fact.order_dependency.role, DependencyRole::Control);
+        assert_eq!(fact.order_dependency.calls, [fact.call]);
+        assert!(
+            !returned
+                .dependencies
+                .iter()
+                .any(|read| read.id == fact.order_dependency.id),
+            "query position control stays query-owned"
+        );
+        assert_eq!(metadata[index]["queryId"], fact.id);
+        assert_eq!(metadata[index]["type"], "TextMessage[]");
+        assert_eq!(metadata[index]["fields"].as_array().unwrap().len(), 3);
+        let data = query["dependencies"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|read| read["role"] == "data")
+            .collect::<Vec<_>>();
+        assert_eq!(data.len(), 3);
         for ((field, dependency), name) in
             fact.fields
                 .iter()
@@ -120,7 +236,7 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
                 .find(|item| item.canonical == format!("SourceTranscript.Turn.{name}"))
                 .unwrap();
             assert!(
-                ids.insert(&dependency.id),
+                ids.insert(dependency.id.as_str()),
                 "each caller owns distinct original read IDs"
             );
             assert_eq!(field.name, name);
@@ -148,6 +264,34 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
             if name == "content" {
                 assert_eq!(dependency.type_id, "text");
             }
+            let field_index = ["role", "content", "attachments"]
+                .iter()
+                .position(|field| *field == name)
+                .unwrap();
+            assert_eq!(data[field_index]["id"], dependency.id);
+            assert_eq!(data[field_index]["field"], dependency.field_name);
+            assert_eq!(data[field_index]["type"], dependency.type_id);
+            for emitted_return in plan["returns"].as_array().unwrap() {
+                let original = emitted_return["dependencies"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|read| read["id"] == dependency.id)
+                    .expect("every consuming Return has original DATA ID");
+                assert_eq!(original["role"], "data");
+                assert_eq!(original["queryId"], fact.id);
+                assert_eq!(original["model"], "SourceTranscript.Turn");
+                assert_eq!(original["field"], dependency.field_name);
+            }
+        }
+        for (field, dependency) in metadata[index]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(&fact.dependencies)
+        {
+            assert_eq!(field["name"], dependency.field_name);
+            assert_eq!(field["dependencyId"], dependency.id);
         }
         assert_eq!(fact.influences.len(), 4);
         let group = &returned.influences[index * 4..index * 4 + 4];
@@ -167,7 +311,11 @@ fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_id
             "the actual leading count and later concat/count carry these same query influences"
         );
     }
-    assert_eq!(ids.len(), 6);
+    assert_eq!(
+        ids.len(),
+        8,
+        "six selection IDs plus each caller's position CONTROL"
+    );
 }
 
 #[test]
@@ -185,6 +333,8 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
     assert!(
         checked_transcript_source(&program, &ir, owner(&ir), call, &db, Some(&catalog)).is_some()
     );
+    assert!(query_plan(&program, &ir, &db, Some(&catalog)).is_some());
+    assert!(selections(&program, &ir, &db, Some(&catalog)).is_some());
     for mode in [
         "source",
         "field",
@@ -195,6 +345,10 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
         "caller",
         "query-id",
         "source-schema",
+        "order-control",
+        "query-order",
+        "selection-type",
+        "return-data",
     ] {
         let mut changed = ir.clone();
         if mode == "source-schema" {
@@ -208,6 +362,45 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
                 panic!("genuine stored File[] field")
             };
             *ty = IrType::Known(ResolvedType::Scalar(Scalar::File));
+        } else if mode == "query-order" {
+            let helper = changed
+                .items
+                .iter()
+                .find(|item| item.canonical == "SourceTranscript.transcript")
+                .unwrap()
+                .id;
+            let IrItemKind::DeriveFn {
+                expr: Some(body), ..
+            } = &mut changed.items[helper.0 as usize].kind
+            else {
+                panic!("owning transcript helper")
+            };
+            let IrExpr::Binary { right, .. } = &mut body.expr else {
+                panic!("prefix and query")
+            };
+            let IrExpr::Query(query) = &mut right.expr else {
+                panic!("original Turn query")
+            };
+            query.order[0].descending = true;
+        } else if mode == "return-data" {
+            let ScenarioDisclosure::Complete(proof) =
+                changed.scenario_disclosures.get_mut(&owner_id).unwrap()
+            else {
+                panic!("Complete")
+            };
+            let data_id = proof
+                .source_facts
+                .as_ref()
+                .unwrap()
+                .transcripts
+                .as_ref()
+                .unwrap()[0]
+                .dependencies[2]
+                .id
+                .clone();
+            proof.returns[0]
+                .dependencies
+                .retain(|read| read.id != data_id);
         } else {
             let ScenarioDisclosure::Complete(proof) =
                 changed.scenario_disclosures.get_mut(&owner_id).unwrap()
@@ -233,20 +426,38 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
                 "id" => fact.dependencies[0].id = fact.dependencies[1].id.clone(),
                 "caller" => fact.dependencies[0].calls = vec![other_call],
                 "query-id" => fact.id = other_id,
+                "order-control" => fact.order_dependency.role = DependencyRole::Data,
+                "selection-type" => {
+                    fact.ty = ResolvedType::Array {
+                        element: Box::new(ResolvedType::Scalar(Scalar::Text)),
+                        ordered: true,
+                        nonempty: false,
+                    }
+                }
                 _ => unreachable!(),
             }
         }
+        if mode != "return-data" {
+            assert!(
+                checked_transcript_source(
+                    &program,
+                    &changed,
+                    owner(&changed),
+                    call,
+                    &db,
+                    Some(&catalog)
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
         assert!(
-            checked_transcript_source(
-                &program,
-                &changed,
-                owner(&changed),
-                call,
-                &db,
-                Some(&catalog)
-            )
-            .is_none(),
-            "{mode}"
+            query_plan(&program, &changed, &db, Some(&catalog)).is_none(),
+            "query plan {mode}"
+        );
+        assert!(
+            selections(&program, &changed, &db, Some(&catalog)).is_none(),
+            "selection metadata {mode}"
         );
     }
     let mut stale = SourceDb::new();
@@ -259,6 +470,8 @@ fn altered_selection_source_field_type_role_order_id_or_caller_loses_source_corr
             .is_none(),
         "stale owning field source"
     );
+    assert!(query_plan(&program, &ir, &stale, Some(&catalog)).is_none());
+    assert!(selections(&program, &ir, &stale, Some(&catalog)).is_none());
     assert!(
         checked_transcript_source(&program, &ir, owner(&ir), call, &db, None).is_none(),
         "no genuine standard schema catalog"
@@ -296,7 +509,7 @@ fn additional_selection_ids_do_not_publish_a_native_stored_message_receiver() {
     }
     let mut result = DiagnosticResult::new("transcript-selection", "1.0", 1);
     result.add_sources(&db);
-    let (_, diagnostics) = emit(
+    let (artifact, diagnostics) = emit(
         &program,
         &EmitSources {
             db: &db,
@@ -314,5 +527,34 @@ fn additional_selection_ids_do_not_publish_a_native_stored_message_receiver() {
             .any(|diagnostic| diagnostic.code == "E6008"
                 && diagnostic.message.contains("transcript")),
         "{diagnostics:?}"
+    );
+    let metadata =
+        selections(&program, &ir, &db, Some(&catalog)).expect("actual producer metadata");
+    let module = artifact
+        .modules
+        .iter()
+        .find(|module| module.path == super::super::js::module_path("SourceTranscript"))
+        .unwrap();
+    let definition = module
+        .js
+        .lines()
+        .find(|line| line.starts_with("export const appDefinition="))
+        .unwrap();
+    let name = serde_json::to_string(OWNER).unwrap();
+    let declaration = &definition[definition
+        .find(&format!("{name}:{{handler:{name},"))
+        .expect("actual owning operation declaration")..];
+    assert!(
+        declaration.contains(&format!(
+            "querySelections:{}",
+            serde_json::to_string(&metadata).unwrap()
+        )),
+        "the actual checked emission carries its authenticated selection array"
+    );
+    assert_eq!(definition.matches("querySelections:").count(), 1);
+    let raw = super::super::js::emit_program_with_native_source_receipts(&ir, true, &db);
+    assert!(
+        !raw.entry.js.contains("querySelections:"),
+        "raw source inventory does not manufacture prepared operation metadata"
     );
 }
