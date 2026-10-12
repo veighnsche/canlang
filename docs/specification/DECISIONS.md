@@ -11819,3 +11819,17 @@ are reused at their scope; original mounted/source qualification and holds remai
 Packagesf547 generated upload input snapshot independently reviewed CLEAR and integrated LOCAL main after deadline. Existing validation captures field/name/type/size/bytes once in original short-circuit order, detaches admitted bytes before intent/PUT await and gives transport a separate copy. Actual intent→PUT→finalize→canonical mutation preserves original [1,2,3] against caller [9,9,9] mutation and exact original SHA/finalized opaque File wire. Owning t20b-client21/21 zero skips/cancels reused, preserving duplicates/derivation order/declared size/destinations/CSRF/refusals and safe error behavior. Changed MAIN UI normal emission/browser build and root0; unchanged installed/native/mounted results remain at their recorded producer closure, not attributed to this new source. Dev actual mounted upload/resource/current-authority and Compiler source lowering remain separate. No new carrier/profile/default/activation/publication/hold/provider-void or full application claim;22/48/26 and complete checkpoint unchanged.
 
 Changed MAIN normal checks: UI/browser0 1.88s, root0 4.69s. Owning21 reused; no unchanged native/mounted reruns.
+
+2026-10-12 — Supplementary-digit grouping widths (implemented/tested local
+component). Count Unicode codepoints in Intl integer probe runs rather than
+UTF16 units; mathematical supplementary digits must not double grouping widths
+when exact number rendering emits Latin digits. Keep existing primary/secondary
+group selection, separators/minus/decimal and bigint/decimal scale/sign behavior.
+Direct rendering and selected formatMessage first reproduce 1,234567, then return
+1,234,567. All99 ICU/locale cases, Values emission and finite independent source
+review pass on local Node24.19; unchanged types/timezone/native outcomes are reused
+at their scope. Dev/L7 release runtime/data corpus and all holds remain separate.
+
+Packagesf954 supplementary-digit grouping width component independently reviewed CLEAR and integrated LOCAL main after deadline. Count Unicode codepoints in existing Intl integer probe runs without an intermediate array, so mathematical supplementary digits do not double group widths when exact output uses Latin digits. Actual direct renderMessage and selected descriptor formatMessage preserve original 1,234,567 and selected locale. Owning ICU60+locale39=99 distinct zero skips/cancels reused, retaining exact bigint/decimal scale/sign/-0, Intl separators/minus/decimal, Indic secondary groups/parser/binding/fallback/refusals. Changed MAIN Values emission and owning catalog regeneration, CF/root0. No cache/API/profile/localized-digit policy, release-host corpus or native acceptance claim. Dev/L7 exact release runtime/ICU/tzdb/CLDR original corpus remains separate; V04/source/adoption/native/default/activation/publication/provider-void holds and22/48/26/complete checkpoint unchanged.
+
+Changed MAIN normal checks: Values0 1.59s, Values catalog0 0.04s, Cloudflare0 4.32s, root0 4.43s. Owning99 reused; no unchanged native/installed/host qualification reruns.

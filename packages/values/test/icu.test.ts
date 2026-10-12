@@ -349,8 +349,9 @@ describe("exactness without Number routing", () => {
     assert.equal(renderMessage("{n,number}", neg, "en"), "-2.5");
   });
 
-  it("applies Indic secondary grouping from Intl parts", () => {
+  it("counts digits for primary and secondary grouping from Intl parts", () => {
     assert.equal(renderMessage("{n,number}", { n: intParam(12345678n) }, "en-IN"), "1,23,45,678");
+    assert.equal(renderMessage("{n,number}", { n: intParam(1234567n) }, "en-u-nu-mathbold"), "1,234,567");
   });
 
   it("selects decimal plurals by value with round-trip safety", () => {

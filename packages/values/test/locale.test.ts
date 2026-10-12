@@ -236,6 +236,12 @@ describe("formatMessage renders under the selected locale", () => {
   it("renders the exact requested variant", () => {
     const out = formatMessage(withCount(1n), { locale: "nl", appDefault: "en" });
     assert.deepEqual(out, { text: "1 taak", locale: "nl" });
+    const descriptor = makeMessageDescriptor("{n,number}", {
+      "en-u-nu-mathbold": "{n,number}",
+    }, { n: intParam(1234567n) });
+    assert.deepEqual(formatMessage(descriptor, {
+      locale: "en-u-nu-mathbold", appDefault: "en",
+    }), { text: "1,234,567", locale: "en-u-nu-mathbold" });
   });
 
   it("selects plural rules from the variant locale (Russian few)", () => {

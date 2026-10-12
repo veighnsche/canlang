@@ -1060,7 +1060,10 @@ function numberSymbols(locale: string): NumberSymbols {
   let run = 0;
   for (const part of probe) {
     if (part.type === "integer") {
-      run += part.value.length;
+      for (let index = 0; index < part.value.length;) {
+        run += 1;
+        index += (part.value.codePointAt(index) as number) > 0xffff ? 2 : 1;
+      }
     } else if (part.type === "group") {
       group = part.value;
       runLengths.push(run);
