@@ -12045,3 +12045,10 @@ Changed MAIN root noEmit0 6.85s; no unchanged package emission/test rerun.
 Accepted Compiler292726cb after independent defining source/metadata review CLEAR. Derive actual two query plans/position controls and operation.querySelections whole-array TextMessage[] field mapping from the authenticated original caller/helper source and matching ordinary Return DATA. Preserve admitted Branch scoping/ascending order/archive exclusion/eager calls/eight influences and complete original/fresh Return/IR/Turn seals. Shape cannot grant rows/Files; native emitter remains E6008 until genuine Dev receiver. Owning3/.17s+332 affected/strict/fmt reused, no broader native/application/hold acceptance. Existing State receiver suffices without new row API. Dev own frozen26b capture remains untouched.
 
 Changed MAIN locked/offline CLI0 15.45s.
+
+
+### 2026-10-12 — retain declared CSV public API host boundary
+
+Accepted finite scope clarification from existing DEL-C02 positive recipe and UI preview.ts270: Dev row13 is genuine installed public UI/FormData/fetch across the same mounted canonical CSV review/commit, with original consent/signed context/selected inputs/current authority/replay and cleanup. Host-owned binding is explicit; no new automatic button/.canwidget/controller producer requirement or Packages release gate. This does not enlarge library/native/backend scopes or release preparation/default/publication holds. Real Chromium crossing qualifies the known DOM/FormData/fetch risk when disjoint/frozen inputs and exact resource isolation are respected.
+
+Corrected direct Dev Profile20d timing: test10323ms/file10325ms (10.33s tests/11.05s Vitest), owned cleanup10287ms; prior10329ms relay was approximate and supplies no separate result. Failure is still pre-D1 canonical model-policy activation, runtime business assertions never reached. Original06e source/duration invariant/seven locks and current captured inputs remain intact. ThreeQuery002 cases0–2 now complete census/receipt/exact replay; guarded provider/tail/current/normal cleanup still running, full outcome unqualified. No unchanged checks or source edits follow a timing correction.
