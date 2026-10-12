@@ -17,6 +17,13 @@ describe("diffReportValues", () => {
     expect(diffReportValues("o", {}, { b: true })).toEqual([
       { observation: "o.b", expected: null, actual: true },
     ]);
+    const own = { ["__proto__"]: {} };
+    expect(diffReportValues("o", own, {})).toEqual([
+      { observation: "o.__proto__", expected: {}, actual: null },
+    ]);
+    expect(diffReportValues("o", {}, own)).toEqual([
+      { observation: "o.__proto__", expected: null, actual: {} },
+    ]);
   });
 
   it("never equates a missing key with an explicit null", () => {

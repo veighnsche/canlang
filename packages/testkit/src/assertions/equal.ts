@@ -57,11 +57,11 @@ function compareAtPath(
       // Presence is significant: a missing key never equals an explicit null.
       // (The `?? null` below only satisfies the index signature; when the
       // key is present the value is never undefined.)
-      if (!(key in expected) || !(key in actual)) {
+      if (!Object.hasOwn(expected, key) || !Object.hasOwn(actual, key)) {
         mismatches.push({
           observation: `${path}.${key}`,
-          expected: key in expected ? diagnosticValue(expected[key]) : null,
-          actual: key in actual ? diagnosticValue(actual[key]) : null,
+          expected: Object.hasOwn(expected, key) ? diagnosticValue(expected[key]) : null,
+          actual: Object.hasOwn(actual, key) ? diagnosticValue(actual[key]) : null,
         });
         continue;
       }

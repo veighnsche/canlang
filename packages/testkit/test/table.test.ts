@@ -85,9 +85,14 @@ describe("runTable classification", () => {
   });
 
   it("fails mismatches, wrong codes, leaked writes, and surprises", async () => {
+    const scopes: MemoryScope[] = [];
     const result = await runTable({
       operation: "Todo.update",
-      createScope: async () => new MemoryScope(),
+      createScope: async () => {
+        const scope = new MemoryScope();
+        scopes.push(scope);
+        return scope;
+      },
       rows: [
         row({
           rowIndex: 0,
@@ -118,9 +123,18 @@ describe("runTable classification", () => {
           rowIndex: 4,
           expected: { error: "forbidden" },
         }),
+        row({
+          rowIndex: 5,
+          invoke: async (scope) => {
+            scope.state.set("__proto__", {});
+            return { ok: false, error: "forbidden" };
+          },
+          expected: { error: "forbidden" },
+        }),
       ],
     });
     expect(result.rows.map((entry) => entry.outcome)).toEqual([
+      "failed",
       "failed",
       "failed",
       "failed",
@@ -131,6 +145,8 @@ describe("runTable classification", () => {
       { observation: "record.done", expected: true, actual: false },
     ]);
     expect(result.rows[2]?.rejection?.sideEffectsAbsent).toBe(false);
+    expect(result.rows[5]?.rejection?.sideEffectsAbsent).toBe(false);
+    expect(scopes[5]?.disposed).toBe(true);
   });
 
   it("reports unsupported paths as unsupported", async () => {

@@ -12160,3 +12160,8 @@ Independent defining review CLEAR for ffebca22 nine-path source/control unit. Ex
 ### 2026-10-12 — refuse unordered Print and export statuses
 
 Reviewed960 four defining UI source/control paths preserve original comparisons and append Number.isNaN at the existing post-body/cancellation refusal. Public numeric injected NaN cannot produce successful HTML/inline CSV; original trusted error digestion and admitted200.5 fractions remain. Owner4/4 277.813958ms/maintainedRED2 and source review CLEAR reused; MAIN UI/browser0 2.06s, MAIN root0 4.93s. Actual Dev mounted resources/current authority and Compiler source lowering remain unfinished,23/48/full plans/complete824/precise holds unchanged. Actual Cap capture realpaths showed only own CLI/catalog/.can, no PRIMARY UI output overlap; its later exit10 released own freeze, no shared input mutated or native capture rerun.
+
+
+### 2026-10-12 — distinguish own and absent report keys
+
+Reviewed485 three defining Testkit source/control paths replace inherited presence tests with Object.hasOwn in the existing comparator and diagnostics. Own __proto__:{} never equals absent inherited content; real rejected-write table case reports sideEffectsAbsent:false and disposes its MemoryScope. Object.is/array/path/sort/error/disposal behavior unchanged. Owner11/11 177ms/maintainedRED2/source review CLEAR reused, changed MAIN Testkit0 0.86s; no tests of testing framework or duplicate oracle/installed/native/proof work. Original Compiler checked-channel and Dev materializer/current-source/native criteria remain their defining outputs,23of48/25remaining/58of67/33stages/complete824 and all precise holds unchanged.
