@@ -2934,6 +2934,38 @@ const nativeScenarioStoredFileSlots = new WeakMap<GeneratedOperationDef, Readonl
   readonly target: GeneratedOperationDef;
   readonly fileInputs: NonNullable<ScenarioReceiptCallSite['fileInputs']>;
 }>>();
+// Declared protected nominal fields use State's same-load complete File census.
+// This private inventory selects traversal and owning source policies, never reads.
+const nativeScenarioNominalFileProfiles = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, {
+  readonly model: string; readonly field: string; readonly profile: import('@canlang/state').FileReferenceProfile;
+}>>();
+async function bindNativeScenarioNominalFiles(loaded: LoadedCanonicalDescriptors, artifact: CompileArtifact): Promise<void> {
+  let bindProfile: typeof import('@canlang/state').bindFileReferenceProfile | undefined;
+  const bound = { canonicalModels: loaded.models,
+    artifactModels: new Map((artifact.models ?? []).map(model => [model.name as ModelName, model])),
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) };
+  for (const value of loaded.registry.values()) {
+    const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
+    if (def === undefined || plan === undefined) continue;
+    const profiles = new Map<string, { readonly model: string; readonly field: string;
+      readonly profile: import('@canlang/state').FileReferenceProfile }>();
+    for (const returned of plan.returns) for (const dependency of returned.dependencies) {
+      const parsed = parseTypeId(dependency.type);
+      if (parsed.base.kind !== 'nominal' || loaded.valueSchema === undefined ||
+          !Object.hasOwn(loaded.valueSchema.contracts, parsed.base.path) || profiles.has(dependency.id)) continue;
+      if (bindProfile === undefined) {
+        const state = await loadProducerModule('@canlang/state', 'stored nominal File census');
+        bindProfile = requireProducerFn(state, 'bindFileReferenceProfile', 'stored nominal File census') as
+          typeof import('@canlang/state').bindFileReferenceProfile;
+      }
+      const profile = bindProfile(bound, dependency.model, dependency.field);
+      if (profile.type !== dependency.type) throw new AssemblyCorrespondenceError('Stored nominal dependency differs from its complete owning field type.');
+      if (profile.fileBearing) profiles.set(dependency.id, Object.freeze({ model: dependency.model, field: dependency.field, profile }));
+    }
+    if (profiles.size !== 0) nativeScenarioNominalFileProfiles.set(def, profiles);
+  }
+}
 function nativeScenarioStoredFileNames(parent: GeneratedOperationDef, target: GeneratedOperationDef): ReadonlySet<string> {
   return new Set([...(nativeScenarioStoredFileSlots.get(parent)?.values() ?? [])]
     .filter(site => site.target === target).flatMap(site => site.fileInputs.map(slot => slot.name)));
@@ -3461,7 +3493,8 @@ function nativeScenarioModelConsumers(loaded: LoadedCanonicalDescriptors, def: G
     for (const dependency of returned.dependencies) {
       add(dependency.type);
       // Reserved row metadata still consumes its original owning read policy.
-      if ((dependency.field === 'id' && dependency.type === 'text') || dependency.type === 'file[]') add(dependency.model, true);
+      if ((dependency.field === 'id' && dependency.type === 'text') || dependency.type === 'file[]' ||
+          nativeScenarioNominalFileProfiles.get(def)?.has(dependency.id) === true) add(dependency.model, true);
     }
   }
   for (const guard of nativeSourceSendGuards.get(def)?.values() ?? []) {
@@ -3504,7 +3537,7 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     // These profiles require full source grants from the actual invocation.
     // Source-only preloads check declarations without installing partial
     // authority; the invocation-local registry binds their genuine context.
-    if (context === undefined && (plan.returns.some(returned =>
+    if (context === undefined && ((nativeScenarioNominalFileProfiles.get(def)?.size ?? 0) !== 0 || plan.returns.some(returned =>
         returned.dependencies.some(dependency => dependency.type === 'file[]')) ||
         (plan.queries?.length ?? 0) !== 0 && loaded.models.some(model => model.name === def.descriptor.result?.type))) continue;
     if (context === undefined ? !plan.returns.some(entry => entry.dependencies.some(dependency => {
@@ -3954,6 +3987,7 @@ async function loadCanonicalDescriptorsInternal(
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
+  await bindNativeScenarioNominalFiles(canonical, artifact);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   for (const [owner, sites] of canonical.membershipSources) {
@@ -7192,7 +7226,8 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
   // same receiving producer. Unrelated scalar receipts need no File port.
   const storedIds = new Set([...(nativeScenarioStoredFileSlots.get(def)?.values() ?? [])]
     .flatMap(site => site.fileInputs.map(slot => slot.dependencyId)));
-  if (storedIds.size === 0 && !def.descriptor.inputs.some(field => 'valueType' in field && field.valueType !== undefined &&
+  const nominalProfiles = nativeScenarioNominalFileProfiles.get(def);
+  if (storedIds.size === 0 && (nominalProfiles?.size ?? 0) === 0 && !def.descriptor.inputs.some(field => 'valueType' in field && field.valueType !== undefined &&
       /^file(?:\[\])?\??$/.test(field.valueType))) return;
   const files = opts.files;
   const existing = nativeScenarioFiles.get(def);
@@ -7242,9 +7277,9 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
   // The owning State census validates the complete canonical field and its
   // real stored constraints. It provides traversal only, never row authority.
   const fileProfiles = new Map<string, { readonly model: string; readonly field: string;
-    readonly profile: import('@canlang/state').FileReferenceProfile }>();
+    readonly profile: import('@canlang/state').FileReferenceProfile }>(nominalProfiles);
   let occurrences: typeof import('@canlang/state').fileReferenceOccurrences | undefined;
-  if (storedIds.size !== 0) {
+  if (storedIds.size !== 0 || fileProfiles.size !== 0) {
     const state = await loadProducerModule('@canlang/state', 'stored File CALL census');
     const bindProfile = requireProducerFn(state, 'bindFileReferenceProfile', 'stored File CALL census') as
       typeof import('@canlang/state').bindFileReferenceProfile;
@@ -7261,7 +7296,7 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
       }
       fileProfiles.set(dependency.id, { model: dependency.model, field: dependency.field, profile });
     }
-    if (fileProfiles.size !== storedIds.size) throw new AssemblyCorrespondenceError('Stored File call lost an original dependency census.');
+    if ([...storedIds].some(id => !fileProfiles.has(id))) throw new AssemblyCorrespondenceError('Stored File call lost an original dependency census.');
   }
   let originalObserve: CanonicalFileBinding['observe'];
   const observeDependency = async (input: { readonly dependencyId: string; readonly model: string;
@@ -7275,7 +7310,7 @@ async function bindNativeScenarioFileDefinition(loaded: LoadedCanonicalDescripto
     }
     await verifyCheckedAssembly(opts.asm, opts.artifact); healthy();
     const census = occurrences!(source.profile, input.row.data[input.field]);
-    if (census.length > 8) throw new loaded.producers.errors('validation', 'Stored File call exceeds its original finite array profile.');
+    if (storedIds.has(input.dependencyId) && census.length > 8) throw new loaded.producers.errors('validation', 'Stored File call exceeds its original finite array profile.');
     const refs = [...new Set(census.map(occurrence => occurrence.ref))];
     prepareObservation();
     const observe = files.observe;
