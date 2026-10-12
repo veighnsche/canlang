@@ -1,5 +1,5 @@
-import { execFile } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFile, spawnSync } from "node:child_process";
+import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +9,7 @@ import { runPreparedDeploy } from "../src/preparation/host.js";
 
 const directDeploy = vi.hoisted(() => ({
   elapsedMs: 0, bunAdvanceMs: [] as number[], expireAfterWrite: "", expireFailedCleanup: false, wranglerAdvanceMs: 0, wranglerOptions: null as unknown,
+  beforeWrite: null as ((path: string) => void) | null, physicalWriteFailure: undefined as unknown,
   bunCalls: 0, bunTimeoutAt: 0, bunStages: [] as Array<{ entry: string; output: string; options: unknown }>, wranglerCalls: 0, wranglerFailure: "", failPath: "", failure: new Error("second sidecar write sentinel"),
 }));
 vi.mock("node:fs", async original => {
@@ -20,7 +21,10 @@ vi.mock("node:fs", async original => {
     return result;
   }, writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
     if (String(args[0]) === directDeploy.failPath) throw directDeploy.failure;
-    const result = actual.writeFileSync(...args);
+    directDeploy.beforeWrite?.(String(args[0]));
+    let result: ReturnType<typeof actual.writeFileSync>;
+    try { result = actual.writeFileSync(...args); }
+    catch (error) { directDeploy.physicalWriteFailure = error; throw error; }
     if (String(args[0]) === directDeploy.expireAfterWrite) directDeploy.elapsedMs = 10_000;
     return result;
   } };
@@ -239,6 +243,8 @@ describe("confirmed direct deploy output ownership", () => {
   };
   afterEach(() => {
     vi.restoreAllMocks();
+    directDeploy.beforeWrite = null;
+    directDeploy.physicalWriteFailure = undefined;
     directDeploy.elapsedMs = directDeploy.wranglerAdvanceMs = 0;
     directDeploy.bunAdvanceMs = [];
     directDeploy.expireAfterWrite = "";
@@ -275,6 +281,85 @@ describe("confirmed direct deploy output ownership", () => {
     for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
     expect(directDeploy.wranglerCalls).toBe(0);
   });
+  it("refuses a real child directory-to-symlink replacement before consumed publication preflight", async () => {
+    const { dir, artifact } = prepare();
+    const prior = `${dir}-before-replacement`; roots.push(prior);
+    const outside = realpathSync(mkdtempSync(join(tmpdir(), "can-deploy-replaced-outside-"))); roots.push(outside);
+    const sentinel = join(outside, "sentinel"); writeFileSync(sentinel, "outside unchanged");
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const owned = createLocalCommandLifetime("deploy", 60_000);
+    let replaced = false;
+    const lifetime = { ...owned, checkpoint(stage: string) {
+      if (stage === "deploy publication preflight") {
+        expect(replaced).toBe(false);
+        const child = spawnSync(process.execPath, ["-e", `
+          const fs = require("node:fs");
+          const [source, prior, outside] = JSON.parse(process.argv[1]);
+          fs.renameSync(source, prior);
+          fs.symlinkSync(outside, source, "dir");
+        `, JSON.stringify([dir, prior, outside])], { encoding: "utf8", stdio: "pipe" });
+        expect(child.error).toBeUndefined(); expect(child.status).toBe(0); expect(child.signal).toBeNull();
+        expect(child.stderr).toBe("");
+        replaced = true;
+        expect(lstatSync(dir).isSymbolicLink()).toBe(true);
+      }
+      owned.checkpoint(stage);
+    } };
+    let primary: unknown;
+    try { await runPreparedDeploy(artifact, "prod", false, true, lifetime); }
+    catch (error) { primary = error; }
+    finally { owned.dispose(); }
+    expect(replaced, JSON.stringify({ stdout: stdout.mock.calls, stderr: stderr.mock.calls, primary: String(primary) })).toBe(true);
+    expect(primary).toBeInstanceOf(Error); expect(String(primary)).toMatch(/refusing output symlink/);
+    expect(owned.signal.aborted).toBe(false);
+    expect(directDeploy.wranglerCalls).toBe(0); expect(stdout.mock.calls).toEqual([]);
+    expect(readFileSync(sentinel, "utf8")).toBe("outside unchanged");
+    for (const name of ["teamtasks.deploy-plan.json", "teamtasks.wrangler.toml", "teamtasks.deploy"]) {
+      expect(existsSync(join(outside, name))).toBe(false);
+      expect(existsSync(join(prior, name))).toBe(false);
+    }
+    expect(existsSync(join(prior, "teamtasks.artifact.json"))).toBe(true);
+    expect(directDeploy.bunCalls).toBe(2);
+    for (const stage of directDeploy.bunStages) expect(existsSync(dirname(stage.entry))).toBe(false);
+    // The consumed preflight detects this actual replacement. No atomic
+    // check-to-write, absolute process-tree, or remote-effect claim follows.
+  });
+
+  it("preserves a real second-sidecar filesystem failure and reports retained partial outputs without apply", async () => {
+    const { dir, artifact } = prepare();
+    const plan = join(dir, "teamtasks.deploy-plan.json"), toml = join(dir, "teamtasks.wrangler.toml");
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    let interrupted = false;
+    directDeploy.beforeWrite = path => {
+      if (path !== toml) return;
+      expect(interrupted).toBe(false);
+      const child = spawnSync(process.execPath, ["-e", `
+        const fs = require("node:fs");
+        const target = JSON.parse(process.argv[1]);
+        fs.mkdirSync(target);
+      `, JSON.stringify(toml)], { encoding: "utf8", stdio: "pipe" });
+      expect(child.error).toBeUndefined(); expect(child.status).toBe(0); expect(child.signal).toBeNull();
+      expect(child.stderr).toBe(""); interrupted = true;
+    };
+    let primary: unknown;
+    try { await runPreparedDeploy(artifact, "prod", false, true); } catch (error) { primary = error; }
+    expect(interrupted, JSON.stringify({ stdout: stdout.mock.calls, stderr: stderr.mock.calls, primary: String(primary) })).toBe(true);
+    expect(primary).toBe(directDeploy.physicalWriteFailure);
+    expect(primary).toBeInstanceOf(Error); expect(primary).toMatchObject({ code: "EISDIR" });
+    expect(directDeploy.wranglerCalls).toBe(0); expect(stdout.mock.calls).toEqual([]);
+    expect(stderr.mock.calls.map(call => String(call[0])).join("")).toContain("earlier outputs may remain; no apply was attempted");
+    expect(JSON.parse(readFileSync(plan, "utf8"))).toBeTypeOf("object");
+    expect(readFileSync(plan, "utf8")).toContain("db-123");
+    expect(existsSync(join(dir, "teamtasks.deploy", "bundle.json"))).toBe(true);
+    expect(lstatSync(toml).isDirectory()).toBe(true);
+    expect(existsSync(join(dir, "teamtasks.artifact.json"))).toBe(true);
+    for (const stage of directDeploy.bunStages) expect(existsSync(dirname(stage.entry))).toBe(false);
+    // Generated scratch is owner-cleaned; known published files and the
+    // caller-owned root remain. The test owns their final removal.
+  });
+
   it("writes real bundle and sidecar bytes with only mocked Bun and Wrangler", async () => {
     const { dir, artifact } = prepare();
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);

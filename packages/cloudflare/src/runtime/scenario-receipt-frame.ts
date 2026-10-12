@@ -64,10 +64,28 @@ export type ScenarioReceiptDependencyObserver = (input: {
 export type ScenarioReceiptStoredReferencePromotion = (reference: unknown, sourceDependencyId: string,
   scalarLeafDependencyId: string, healthy: () => void,
   captureSource: (view: object, model: string, field: string, wire: unknown) => StoredRow) => Promise<Record<string, unknown>>;
+/** Separate nullable source bridge; the original getter view survives even for null. */
+export type ScenarioReceiptNullableStoredReferencePromotion = (sourceView: object, reference: unknown,
+  sourceDependencyId: string, scalarLeafDependencyId: string, healthy: () => void,
+  captureSource: (view: object, model: string, field: string, wire: unknown) => StoredRow) => Promise<Record<string, unknown> | null>;
+interface NullableStoredReferenceGetter {
+  readonly sourceView: object;
+  readonly model: string;
+  readonly field: string;
+  readonly row: StoredRow;
+  readonly wire: unknown;
+  readonly evaluated: unknown;
+  markedDependencyId?: string;
+  completedSourceControlId?: string;
+  narrowedDataDependencyId?: string;
+  consumed: boolean;
+}
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
   readonly selectionChecks: Array<() => void>;
   readonly promoteStoredReference?: ScenarioReceiptStoredReferencePromotion;
+  readonly promoteNullableStoredReference?: ScenarioReceiptNullableStoredReferencePromotion;
+  readonly nullableStoredReferenceGetters: WeakMap<object, Map<string, NullableStoredReferenceGetter>>;
   activeQueryCandidate: object | null;
   readonly queryParents: WeakMap<object, { readonly candidate: object; readonly view: NativeQueryView;
     readonly model: string; readonly dependencyId: string }>;
@@ -77,7 +95,8 @@ interface Frame extends QueryFrame {
   readonly owner: object;
   readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
   readonly sourceViews: WeakMap<object, object>;
-  readonly observedFields: WeakMap<object, Map<string, { readonly model: string; readonly wire: unknown; readonly dependencyId: string }>>;
+  readonly observedFields: WeakMap<object, Map<string, { readonly model: string; readonly wire: unknown; readonly dependencyId: string;
+    readonly nullableGetter?: NullableStoredReferenceGetter }>>;
   readonly invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>;
 }
 interface PublicReadFrame extends QueryFrame {
@@ -161,6 +180,8 @@ function checked(c: HandlerContext): Frame {
 }
 export interface ScenarioReceiptFrame {
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
+  bindNullableStoredReferenceGetter(view: object, model: string, field: string, row: StoredRow,
+    wire: unknown, evaluated: unknown): void;
   bindNavigationReference(reference: object, view: object, model: string): void;
   bindAdmittedReference(view: object, reference: object): void;
   prepareReference(view: unknown, model: string): { readonly id: string; readonly version: string };
@@ -176,7 +197,8 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   store: StoragePort, failure: (error: unknown) => void,
   invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>,
   queryProducer?: NativeQueryProducer, observeDependency?: ScenarioReceiptDependencyObserver,
-  promoteStoredReference?: ScenarioReceiptStoredReferencePromotion): ScenarioReceiptFrame {
+  promoteStoredReference?: ScenarioReceiptStoredReferencePromotion,
+  promoteNullableStoredReference?: ScenarioReceiptNullableStoredReferencePromotion): ScenarioReceiptFrame {
   assertScenarioReceiptCallExecution(call, store);
   if (frames.has(c) || readFrames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
@@ -184,12 +206,31 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, selectionChecks: [],
     ...(promoteStoredReference === undefined ? {} : { promoteStoredReference }),
+    ...(promoteNullableStoredReference === undefined ? {} : { promoteNullableStoredReference }),
+    nullableStoredReferenceGetters: new WeakMap(),
     ...(observeDependency === undefined ? {} : { observeDependency }), ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
     owner: Object.freeze({}), activeQueryCandidate: null, queryParents: new WeakMap(), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
+    bindNullableStoredReferenceGetter(view: object, model: string, field: string, row: StoredRow,
+      wire: unknown, evaluated: unknown) {
+      // Recording an actual host getter grants no authority. Its successful
+      // State marker and subsequent bridge must join this exact event later.
+      if (frame.failed) throw frame.error;
+      if (!frame.active) return fail(frame, new StateError('validation', 'Nullable getter requires its active native frame.'));
+      try {
+        const sourceView = frame.sourceViews.get(view) ?? view;
+        if (captureNativeScenarioReceiptRow(sourceView, frame.owner, model) !== row ||
+            !Object.hasOwn(row.data, field) || row.data[field] !== wire) {
+          return refuse('Nullable getter requires its original current owner row and declared wire.');
+        }
+        let fields = frame.nullableStoredReferenceGetters.get(sourceView);
+        if (fields === undefined) { fields = new Map(); frame.nullableStoredReferenceGetters.set(sourceView, fields); }
+        fields.set(field, { sourceView, model, field, row, wire, evaluated, consumed: false });
+      } catch (error) { return fail(frame, error); }
+    },
     assertObservedReference(view: object, model: string, field: string, wire: unknown) {
       checked(c);
       const observed = frame.observedFields.get(frame.sourceViews.get(view) ?? view)?.get(field);
@@ -283,6 +324,7 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
     const frame = checked(c);
     const sourceView = typeof nativeRow === 'object' && nativeRow !== null
       ? frame.sourceViews.get(nativeRow) ?? nativeRow : undefined;
+    const nullableGetter = sourceView === undefined ? undefined : frame.nullableStoredReferenceGetters.get(sourceView)?.get(field);
     const parent = sourceView === undefined ? undefined : frame.queryParents.get(sourceView);
     const dependency = resultPlan(frame)?.returns.flatMap(entry => entry.dependencies)
       .find(entry => entry.id === dependencyId);
@@ -323,6 +365,19 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
     try {
       healthy();
       let row = captureNativeScenarioReceiptRow(nativeRow, frame.owner, model);
+      // A later DATA occurrence may use the same once-evaluated Let after its
+      // original CONTROL promotion has fully succeeded. State still validates
+      // every required CONTROL, source row, owner stage and current authority.
+      const retainedPromotionData = nullableGetter !== undefined && nullableGetter.consumed &&
+        nullableGetter.markedDependencyId !== undefined &&
+        nullableGetter.completedSourceControlId === nullableGetter.markedDependencyId &&
+        nullableGetter.narrowedDataDependencyId === undefined &&
+        dependency?.role === 'data' && dependency.model === model && dependency.field === field;
+      if (nullableGetter !== undefined && (nullableGetter.model !== model || nullableGetter.field !== field ||
+          nullableGetter.row !== row || !retainedPromotionData &&
+          (nullableGetter.consumed || nullableGetter.markedDependencyId !== undefined))) {
+        return refuse('Nullable source marker requires its original unmarked getter event.');
+      }
       if (parent === undefined && dependency?.queryId !== undefined) {
         // Parameter admission and mutable owner reads deliberately have different
         // pointers. Only the existing private original-parameter binding joins
@@ -347,12 +402,20 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
       await observeStateDependency(frame.call, frame.store,
         { dependencyId, model: model as ModelName, row, field, ...(files === undefined ? {} : { files }) });
       healthy();
+      if (nullableGetter !== undefined) {
+        if (frame.nullableStoredReferenceGetters.get(sourceView!)?.get(field) !== nullableGetter ||
+            captureNativeScenarioReceiptRow(sourceView, frame.owner, model) !== nullableGetter.row) {
+          return refuse('Nullable source getter changed during its original marker.');
+        }
+        if (retainedPromotionData) nullableGetter.narrowedDataDependencyId = dependencyId;
+        else nullableGetter.markedDependencyId = dependencyId;
+      }
       // This private cache records only actual successful State observation.
       // Native hydration must match the exact evaluated field's canonical wire;
       // owning grants, Identity, source lifetime and final guards stay in State.
       let fields = frame.observedFields.get(sourceView!);
       if (fields === undefined) { fields = new Map(); frame.observedFields.set(sourceView!, fields); }
-      fields.set(field, Object.freeze({ model, dependencyId, wire: field === 'parent'
+      fields.set(field, Object.freeze({ model, dependencyId, ...(nullableGetter === undefined ? {} : { nullableGetter }), wire: field === 'parent'
         ? row.parent === null || row.parent === undefined ? null : { id: row.parent.id }
         : field === 'id' ? row.id : row.data[field] }));
     } catch (error) { fail(frame, error); }
@@ -500,6 +563,85 @@ export function readScenarioReceiptStoredReference(c: HandlerContext, originalRe
         return refuse('Stored reference promotion lost its original current source binding.');
       }
       captureNativeScenarioReceiptRow(value, frame.owner, leaf.model);
+      return value;
+    } catch (error) { return fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
+  void operation.catch(() => {}); return operation;
+}
+
+/** Separate nullable bridge over one original getter and successful source marker. */
+export function readScenarioReceiptNullableStoredReference(c: HandlerContext, originalSourceView: unknown,
+  originalReference: unknown, sourceDependencyId: string,
+  scalarLeafDependencyId: string): Promise<Record<string, unknown> | null> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0 || frame.activeQueryCandidate !== null) {
+      return fail(frame, new StateError('validation', 'Nullable promotion requires its sequential ordinary source occurrence.'));
+    }
+    frame.pending += 1;
+    try {
+      const sourceView = typeof originalSourceView === 'object' && originalSourceView !== null
+        ? frame.sourceViews.get(originalSourceView) ?? originalSourceView : undefined;
+      const returned = resultPlan(frame)?.returns.find(entry =>
+        entry.dependencies.some(dep => dep.id === sourceDependencyId) &&
+        entry.dependencies.some(dep => dep.id === scalarLeafDependencyId));
+      const source = returned?.dependencies.find(dep => dep.id === sourceDependencyId);
+      const leaf = returned?.dependencies.find(dep => dep.id === scalarLeafDependencyId);
+      const getter = sourceView === undefined || source === undefined ? undefined
+        : frame.nullableStoredReferenceGetters.get(sourceView)?.get(source.field);
+      const observed = sourceView === undefined || source === undefined ? undefined
+        : frame.observedFields.get(sourceView)?.get(source.field);
+      if (sourceView === undefined || source === undefined || leaf === undefined || source.id === leaf.id ||
+          source.queryId !== undefined || leaf.queryId !== undefined ||
+          stableStringify(source.source) !== stableStringify(leaf.source) ||
+          stableStringify(source.source) !== stableStringify(resultPlan(frame)!.source) ||
+          getter === undefined || getter.consumed || getter.sourceView !== sourceView || getter.model !== source.model ||
+          getter.evaluated !== originalReference || getter.markedDependencyId !== source.id ||
+          observed === undefined || observed.nullableGetter !== getter || observed.dependencyId !== source.id || observed.model !== source.model ||
+          stableStringify(observed.wire) !== stableStringify(getter.wire) || frame.promoteNullableStoredReference === undefined) {
+        return refuse('Nullable promotion requires its original getter, exact successful marker and installed source bridge.');
+      }
+      const type = parseTypeId(source.type);
+      if (type.base.kind !== 'nominal' || type.base.path !== leaf.model || type.array || type.requiredArray) {
+        return refuse('Nullable promotion requires its original singular model source and scalar pair.');
+      }
+      const admitted = frame.call.recordRefs.find(reference => {
+        if (reference.model !== source.model) return false;
+        try { return captureNativeScenarioReceiptReference(sourceView, frame.owner, reference.param) === reference; }
+        catch { return false; }
+      });
+      if (admitted === undefined) return refuse('Nullable source must retain its original admitted native parameter.');
+      getter.consumed = true;
+      const healthy = () => {
+        checked(c);
+        if (frame.pending !== 1 || frame.activeQueryCandidate !== null ||
+            frame.nullableStoredReferenceGetters.get(sourceView)?.get(source.field) !== getter ||
+            frame.observedFields.get(sourceView)?.get(source.field)?.nullableGetter !== getter ||
+            captureNativeScenarioReceiptRow(sourceView, frame.owner, source.model) !== getter.row ||
+            captureNativeScenarioReceiptReference(sourceView, frame.owner, admitted.param) !== admitted) {
+          return refuse('Nullable promotion crossed its original getter, source row or frame.');
+        }
+      };
+      const captureSource = (view: object, model: string, field: string, wire: unknown): StoredRow => {
+        healthy();
+        if (view !== sourceView || model !== source.model || field !== source.field ||
+            stableStringify(wire) !== stableStringify(getter.wire)) {
+          return refuse('Nullable promotion differs from its actual original source getter.');
+        }
+        return getter.row;
+      };
+      healthy();
+      const value = await frame.promoteNullableStoredReference(sourceView, originalReference, source.id, leaf.id, healthy, captureSource);
+      healthy();
+      if (value === null) {
+        if (originalReference !== null) return refuse('A nonnull original getter cannot become nullable absence.');
+        if (source.role === 'control') getter.completedSourceControlId = source.id;
+        return null;
+      }
+      if (originalReference === null) return refuse('An original null getter cannot issue a target view.');
+      captureNativeScenarioReceiptRow(value, frame.owner, leaf.model);
+      if (source.role === 'control') getter.completedSourceControlId = source.id;
       return value;
     } catch (error) { return fail(frame, error); }
     finally { frame.pending -= 1; }
