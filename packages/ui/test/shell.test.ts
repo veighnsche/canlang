@@ -921,10 +921,10 @@ describe("renderLogin", () => {
       assert.equal(form?.getAttribute("action"), "/sign-in");
       const csrf = form?.querySelector(`input[type='hidden'][name='${CSRF_FIELD}']`);
       assert.equal(csrf?.getAttribute("value"), "csrf-123");
-      const username = form?.querySelector("input[name='username']");
+      const username = form?.querySelector("input[name='email']");
       assert.ok(username !== null);
       assert.equal(username?.getAttribute("id"), "can-login-username");
-      assert.equal(username?.getAttribute("type"), "text");
+      assert.equal(username?.getAttribute("type"), "email");
       assert.equal(username?.getAttribute("autocomplete"), "username");
       const password = form?.querySelector("input[name='password']");
       assert.ok(password !== null);
@@ -1016,7 +1016,7 @@ describe("renderLogin", () => {
     const html = await renderLogin(makeLogin({ action: "/mount/auth/login?mode=password" }));
     assert.ok(html.includes('<form method="POST" action="/mount/auth/login?mode=password">'));
     assert.ok(html.includes('name="_csrf" value="csrf-123"'));
-    assert.ok(html.includes('name="username"'));
+    assert.ok(html.includes('name="email"'));
     assert.ok(html.includes('name="password"'));
   });
 
@@ -1048,7 +1048,7 @@ describe("renderLogin", () => {
     );
     assert.match(html, /<html lang="nl"/);
     assert.match(html, /<h1 class="card-title">KanApp<\/h1>/);
-    assert.match(html, />Gebruikersnaam<\/label>/);
+    assert.match(html, />E-mail<\/label>/);
     assert.match(html, />Wachtwoord<\/label>/);
     assert.match(html, /<button type="submit" class="btn btn-primary">Aanmelden<\/button>/);
     assert.match(html, /<p>Aanmelden mislukt<\/p><p>Onjuiste gegevens<\/p>/);
@@ -1062,7 +1062,7 @@ describe("focus behavior", () => {
   it("marks the login username input autofocus", async () => {
     const html = await renderLogin(makeLogin());
     assert.ok(
-      html.includes('name="username" type="text" autocomplete="username" required autofocus'),
+      html.includes('name="email" type="email" autocomplete="username" required autofocus'),
       "username input carries autofocus",
     );
     const page = await loadHtml(html);

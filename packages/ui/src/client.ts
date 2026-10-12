@@ -717,22 +717,48 @@ export async function submitGeneratedForm(
   } catch (error) {
     throw projectionError(error);
   }
+  return submitMutationRequest(input.derived.operation, input.flat, action, inputs, fetchImpl, input.fragment, input.denialFormat);
+}
+
+/** Submit the canonical delete card using its existing native URL-encoded fields. */
+export async function submitDeleteForm(input: {
+  readonly operation: string;
+  readonly flat: Record<string, string>;
+  readonly action: string;
+  readonly fetchImpl: SubmitFetch;
+}): Promise<GeneratedSubmitResult> {
+  const id = input.flat['inputs[record][id]'];
+  const version = input.flat['inputs[record][version]'];
+  if (typeof input.operation !== 'string' || input.operation === '' ||
+      typeof id !== 'string' || id === '' || typeof version !== 'string' || version === '' ||
+      !input.flat['operation_id'] || !input.flat[CSRF_FIELD]) {
+    throw new GeneratedSubmitError('usage', 'Delete form request metadata is unavailable.', false);
+  }
+  return submitMutationRequest(input.operation, input.flat, operationPostPath(input.action),
+    undefined, input.fetchImpl, false, 'json');
+}
+
+async function submitMutationRequest(operation: string, flat: Record<string, string>, action: string,
+  inputs: ClosedInputs | undefined, fetchImpl: SubmitFetch, fragment: boolean, denialFormat: 'html' | 'json' | undefined,
+): Promise<GeneratedSubmitResult> {
+  const operationId = flat['operation_id']!;
+  const csrf = flat[CSRF_FIELD]!;
   const envelope: MutationEnvelope & { readonly form_binding?: string } = {
-    operation: input.derived.operation,
+    operation,
     operation_id: operationId,
-    inputs,
-    ...(input.flat[SOURCE_FORM_BINDING_FIELD] === undefined ? {} : {
-      [SOURCE_FORM_BINDING_FIELD]: input.flat[SOURCE_FORM_BINDING_FIELD],
+    inputs: inputs ?? {},
+    ...(flat[SOURCE_FORM_BINDING_FIELD] === undefined ? {} : {
+      [SOURCE_FORM_BINDING_FIELD]: flat[SOURCE_FORM_BINDING_FIELD],
     }),
   };
   let response: SubmitFetchResponse;
   try {
     const headers: Record<string, string> = {
-      "content-type": "application/json",
+      "content-type": inputs === undefined ? "application/x-www-form-urlencoded" : "application/json",
       [CSRF_HEADER]: csrf,
-      accept: input.denialFormat === "json" ? "application/json" : SUBMIT_ACCEPT,
+      accept: denialFormat === "json" ? "application/json" : SUBMIT_ACCEPT,
     };
-    if (input.fragment) {
+    if (fragment) {
       headers["HX-Request"] = "true";
     }
     response = await fetchImpl(action, {
@@ -740,10 +766,10 @@ export async function submitGeneratedForm(
       mode: "same-origin",
       redirect: "error",
       headers,
-      body: JSON.stringify(envelope),
+      body: inputs === undefined ? new URLSearchParams(flat).toString() : JSON.stringify(envelope),
     });
   } catch (error) {
-    throw transportError("submit", input.derived.operation, error);
+    throw transportError("submit", operation, error);
   }
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
   const body = await response.text();
@@ -751,17 +777,17 @@ export async function submitGeneratedForm(
     if (!contentType.includes("application/json")) {
       throw new GeneratedSubmitError(
         "contract",
-        `submit for ${JSON.stringify(input.derived.operation)} answered success without its JSON result`,
+        `submit for ${JSON.stringify(operation)} answered success without its JSON result`,
         false,
       );
     }
-    return { kind: "committed", result: checkedMutationResult(body, input.derived.operation) };
+    return { kind: "committed", result: checkedMutationResult(body, operation) };
   }
   if (contentType.includes("text/html")) {
-    if (input.denialFormat === "json") {
+    if (denialFormat === "json") {
       throw new GeneratedSubmitError(
         "contract",
-        `submit for ${JSON.stringify(input.derived.operation)} answered an HTML denial instead of JSON`,
+        `submit for ${JSON.stringify(operation)} answered an HTML denial instead of JSON`,
         false,
       );
     }
@@ -769,12 +795,12 @@ export async function submitGeneratedForm(
       kind: "rerender",
       html: body,
       status: response.status,
-      fragment: input.fragment,
+      fragment,
     };
   }
   return {
     kind: "denied",
-    error: checkedBusinessError(body, response.status, input.derived.operation),
+    error: checkedBusinessError(body, response.status, operation),
     status: response.status,
   };
 }

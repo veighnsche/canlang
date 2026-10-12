@@ -52,7 +52,7 @@ import { bindGallery } from "./gallery.js";
 import type { ImageFetch, ImageFetchInit } from "./gallery.js";
 import { PollRegion, submitFetchPollFetch } from "./polling.js";
 import type { VisibilityLike } from "./polling.js";
-import { GeneratedSubmitError, submitGeneratedForm } from "../client.js";
+import { GeneratedSubmitError, submitGeneratedForm, submitDeleteForm } from "../client.js";
 import type { DomControlLike, GeneratedSubmitResult, SubmitFetch, SubmitFetchInit } from "../client.js";
 import type { DerivedOperationInputs, FormMode } from "@canlang/contracts";
 import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX } from "@canlang/contracts";
@@ -119,6 +119,8 @@ export interface ClientInternals {
   readonly visibility: VisibilityLike;
   readonly onGeneratedFormResult?: BrowserClientOptions["onGeneratedFormResult"];
   readonly onGeneratedFormError?: BrowserClientOptions["onGeneratedFormError"];
+  /** Invalidate a pending default page read before a newer mutation starts. */
+  readonly onGeneratedFormStart?: () => void;
 }
 
 /** Per-component binder: bind behavior under `root`, return an unbind. */
@@ -164,7 +166,7 @@ export interface BrowserClientOptions {
    * stops the poll rather than painting an error or a different context.
    */
   readonly deliverPollResponse?: (region: ElementLike, body: string, status: number) => boolean | void;
-  /** The host can observe outcomes; source error feedback retains the form DOM. */
+  /** The host observes outcomes; confirmed commits also refresh the current main partial. */
   readonly onGeneratedFormResult?: (form: ElementLike, result: GeneratedSubmitResult) => void;
   readonly onGeneratedFormError?: (form: ElementLike, error: unknown) => void;
 }
@@ -288,12 +290,12 @@ function compatibleNode(current: DomNode, next: DomNode): boolean {
   return true;
 }
 
-function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false): void {
+function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false, settledForm?: ElementLike): void {
   if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return; }
   const tag = current.tagName?.toLowerCase();
   // Exact metadata includes the comparison-only binding identity. Keeping the
   // occurrence retains its nonce/token/CSRF/version set and submit lifecycle.
-  const keepForm = generatedForm || (tag === 'form' && current.getAttribute?.('data-can-generated-form') != null);
+  const keepForm = current !== (settledForm as unknown) && (generatedForm || (tag === 'form' && current.getAttribute?.('data-can-generated-form') != null));
   if (keepForm && current.getAttribute?.('data-can-form-feedback') != null) return;
   const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
   const keepInput = editable && (document.activeElement === current as unknown as ElementLike ||
@@ -303,7 +305,7 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   const selected = tag === 'select'
     ? [...(keepInput ? current : next).querySelectorAll?.('option') ?? []].filter((option) => option.selected).map((option) => option.value) : null;
   const attributes = new Map([...next.attributes ?? []].map((attribute) => [attribute.name, attribute.value]));
-  if (keepForm) {
+  if (keepForm || (tag === 'form' && current === (settledForm as unknown))) {
     for (const name of tag === 'form' ? ['aria-busy', 'data-can-submit-state'] :
       tag === 'input' && current.getAttribute?.('type') === 'hidden' ? ['value'] : []) {
       const retained = current.getAttribute?.(name);
@@ -336,7 +338,7 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
     }
     else {
       if (matched !== anchor) current.insertBefore(matched, anchor);
-      morphNode(matched, child, document, keepForm);
+      morphNode(matched, child, document, keepForm, settledForm);
     }
   }
   while (current.childNodes.length > desired.length) {
@@ -353,8 +355,8 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   }
 }
 
-/** Accept one same-context main partial; never paint login/full-document/error HTML. */
-export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number): boolean {
+/** Accept one same-context main partial; a settled form may adopt fresh request authority. */
+export function applyPollResponse(document: DocumentLike, region: ElementLike, body: string, status: number, settledForm?: ElementLike): boolean {
   if (status === 403) {
     // The admitted denial withdraws old actions; its body supplies no markup or
     // authority. Removing forms also detaches pending submission callbacks.
@@ -373,7 +375,7 @@ export function applyPollResponse(document: DocumentLike, region: ElementLike, b
   if (significant.length !== 1 || incoming?.tagName?.toLowerCase() !== 'main' || incoming.getAttribute?.('id') !== region.getAttribute('id') ||
       incoming.getAttribute?.('data-can-context') !== region.getAttribute('data-can-context') ||
       incoming.getAttribute?.('data-can-poll-context') !== region.getAttribute('data-can-poll-context') || incoming.querySelector?.('script') !== null) return false;
-  morphNode(region as unknown as DomNode, incoming, document);
+  morphNode(region as unknown as DomNode, incoming, document, false, settledForm);
   return true;
 }
 
@@ -668,6 +670,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     event.preventDefault();
     event.stopPropagation?.();
     if (pending || !alive()) return;
+    internals.onGeneratedFormStart?.();
     feedback(null, '');
     pending = true;
     previousBusy = form.getAttribute('aria-busy');
@@ -675,14 +678,19 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     form.setAttribute('data-can-submit-state', 'pending');
     void (async () => {
       try {
-        const metadata = JSON.parse(form.getAttribute('data-can-generated-form') ?? '') as {
+        const deleteMetadata = form.getAttribute('data-can-delete-form');
+        const deletion = deleteMetadata === null ? null : JSON.parse(deleteMetadata) as { operation?: unknown };
+        if (deletion !== null && (typeof deletion.operation !== 'string' || deletion.operation === '')) {
+          throw new GeneratedSubmitError('usage', 'Delete form submit metadata is unavailable.', false);
+        }
+        const metadata = deletion !== null ? null : JSON.parse(form.getAttribute('data-can-generated-form') ?? '') as {
           derived?: DerivedOperationInputs; mode?: FormMode; renderedInputs?: readonly string[];
         } | null;
-        if (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
+        if (deletion === null && (metadata?.derived === undefined || typeof metadata.derived.operation !== 'string' ||
             !Array.isArray(metadata.derived.inputs) ||
             !['create', 'update', 'scenario'].includes(metadata.mode ?? '') ||
             (metadata.renderedInputs !== undefined && (!Array.isArray(metadata.renderedInputs) ||
-              metadata.renderedInputs.some(name => typeof name !== 'string')))) {
+              metadata.renderedInputs.some(name => typeof name !== 'string'))))) {
           throw new GeneratedSubmitError('usage', 'Form submit metadata is unavailable.', false);
         }
         const FormData = internals.windowRef.FormData;
@@ -717,15 +725,17 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
           submitter.setAttribute('disabled', '');
           submitter.setAttribute('aria-disabled', 'true');
         }
-        const result = await submitGeneratedForm({
-          derived: metadata.derived, mode: metadata.mode!, flat,
-          ...(metadata.renderedInputs === undefined ? {} : { renderedInputs: metadata.renderedInputs }),
-          action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json',
-          fetchImpl: (url, init) => {
-            if (!alive()) throw new GeneratedSubmitError('transport', 'Form submit owner is no longer active.', false);
-            return internals.fetchImpl(url, { ...init, signal: controller.signal });
-          },
-        });
+        const fetchImpl: SubmitFetch = (url, init) => {
+          if (!alive()) throw new GeneratedSubmitError('transport', 'Form submit owner is no longer active.', false);
+          return internals.fetchImpl(url, { ...init, signal: controller.signal });
+        };
+        const result = deletion !== null
+          ? await submitDeleteForm({ operation: deletion.operation as string, flat, action: form.getAttribute('action') ?? '', fetchImpl })
+          : await submitGeneratedForm({
+              derived: metadata!.derived!, mode: metadata!.mode!, flat,
+              ...(metadata!.renderedInputs === undefined ? {} : { renderedInputs: metadata!.renderedInputs }),
+              action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json', fetchImpl,
+            });
         if (alive()) {
           form.setAttribute('data-can-submit-state', result.kind);
           if (result.kind === 'denied') {
@@ -919,7 +929,7 @@ registerBinder("gallery", bindGallery);
 const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["poll-region", "[data-can-poll]"],
   ["guarded-form", "form[data-can-guard]"],
-  ["generated-form", "form[data-can-generated-form]"],
+  ["generated-form", "form[data-can-generated-form], form[data-can-delete-form]"],
   ["once-action", "[data-can-once]"],
   ["split-collection", "[data-can-split]"],
   ["gallery", "[data-can-gallery]"],
@@ -942,9 +952,9 @@ function releaseClientResources(releases: readonly (() => void)[]): void {
  * Start the browser client against an explicit document/window/fetch.
  * Idempotent per document: starting twice (e.g. a twice-executed
  * script tag) returns the same live client instead of double-binding.
- * A stopped client is terminal: start again for a fresh client. The
- * client never fetches on its own — only armed regions poll, and
- * only their declared URLs.
+ * A stopped client is terminal: start again for a fresh client.
+ * Confirmed generated-form commits refresh the current main partial.
+ * Other reads belong to armed polls.
  */
 export function startBrowserClient(options: BrowserClientOptions): BrowserClient {
   const document = options.window.document;
@@ -952,13 +962,51 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
   if (live !== undefined) {
     return live;
   }
+  let refresh: AbortController | null = null;
+  const cancelRefresh = () => { refresh?.abort(); refresh = null; };
+  const refreshCommittedPage = (form: ElementLike, result: GeneratedSubmitResult): void => {
+    if (result.kind !== 'committed') return;
+    const region = document.getElementById('can-main');
+    const location = options.window.location;
+    const path = location.pathname;
+    if (region === null || (region as unknown as DomNode).contains?.(form) !== true ||
+        path === undefined || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return;
+    cancelRefresh();
+    const controller = new AbortController();
+    refresh = controller;
+    const context = client.contextKey();
+    const current = () => !stopped && refresh === controller && !controller.signal.aborted &&
+      region.isConnected && document.getElementById('can-main') === region && client.contextKey() === context &&
+      document.body?.getAttribute('data-can-logged-out') !== 'true' && region.getAttribute('data-can-logged-out') !== 'true';
+    // Existing poll reads must not paint a state captured before this commit.
+    client.rescan(true);
+    void (async () => {
+      try {
+        const response = await options.fetchImpl(path + (location.search ?? ''), {
+          method: 'GET', headers: { 'HX-Request': 'true', Accept: 'text/html' }, signal: controller.signal,
+          mode: 'same-origin', redirect: 'error',
+        });
+        if (!current()) return;
+        const body = response.status === 403 ? '' : await response.text();
+        if (!current()) return;
+        client.rescan(true);
+        if (applyPollResponse(document, region, body, response.status, form)) client.rescan();
+        else if (response.status === 403) client.rescan(true);
+      } catch { /* A failed read cannot change the confirmed mutation or discard its draft. */ }
+      finally { if (refresh === controller) refresh = null; }
+    })();
+  };
   const internals: ClientInternals = {
     fetchImpl: options.fetchImpl,
     ...(options.imageFetch === undefined ? {} : { imageFetch: options.imageFetch }),
     windowRef: options.window,
     document,
     visibility: options.visibility ?? document,
-    ...(options.onGeneratedFormResult === undefined ? {} : { onGeneratedFormResult: options.onGeneratedFormResult }),
+    onGeneratedFormResult: (form, result) => {
+      refreshCommittedPage(form, result);
+      options.onGeneratedFormResult?.(form, result);
+    },
+    onGeneratedFormStart: cancelRefresh,
     ...(options.onGeneratedFormError === undefined ? {} : { onGeneratedFormError: options.onGeneratedFormError }),
     ...(options.deliverPollResponse === undefined
       ? {}
@@ -1003,7 +1051,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           continue;
         }
         for (const element of document.querySelectorAll(selector)) {
-          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('action') ?? ''}`;
+          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}`;
           const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
           const old = bound[oldIndex];
           if (old !== undefined && old.signature === signature) continue;
@@ -1019,7 +1067,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
             (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')) ||
             (entry.binder === 'guarded-form' && !entry.element.hasAttribute('data-can-guard')) ||
             (entry.binder === 'once-action' && !entry.element.hasAttribute('data-can-once')) ||
-            (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form')) ||
+            (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form') && !entry.element.hasAttribute('data-can-delete-form')) ||
             (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
             (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')))) {
           bound.splice(index, 1);
@@ -1032,6 +1080,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         return;
       }
       stopped = true;
+      cancelRefresh();
       if (LIVE_CLIENTS.get(document as object) === client) LIVE_CLIENTS.delete(document as object);
       const swapHook = releaseSwapHook;
       releaseSwapHook = null;

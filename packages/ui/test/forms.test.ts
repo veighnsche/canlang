@@ -973,7 +973,7 @@ describe("deleteRecord", () => {
     assert.ok(html.includes('<section class="card bg-base-100 shadow">'));
     assert.ok(html.includes('<h2 class="card-title">Buy milk</h2>'));
     assert.ok(html.includes("<p>This cannot be undone.</p>"));
-    assert.ok(html.includes('<form action="/delete" method="post">'));
+    assert.ok(html.includes('<form action="/delete" method="post" data-can-delete-form='));
     assert.ok(html.includes('<input type="hidden" name="operation" value="TeamTasks.Todo.delete">'));
     assert.ok(html.includes('<input type="hidden" name="operation_id" value="op-del-1">'));
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));

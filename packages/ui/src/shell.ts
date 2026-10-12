@@ -46,7 +46,7 @@ const CHROME = {
   signOut: message("Sign out", { nl: "Afmelden" }),
   signIn: message("Sign in", { nl: "Aanmelden" }),
   close: message("Close", { nl: "Sluiten" }),
-  loginUsername: message("Username", { nl: "Gebruikersnaam" }),
+  loginUsername: message("Email", { nl: "E-mail" }),
   loginPassword: message("Password", { nl: "Wachtwoord" }),
   loginSubmit: message("Sign in", { nl: "Aanmelden" }),
   loginErrorHeading: message("Sign-in failed", { nl: "Aanmelden mislukt" }),
@@ -357,7 +357,7 @@ export async function renderLogin(props: LoginProps): Promise<string> {
     `<html lang="${escapeAttr(locale)}" dir="${escapeAttr(direction)}" data-theme="${escapeAttr(theme)}">` +
     `<head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
-    `<title>${escapeHtml(brand)}</title></head>` +
+    `<title>${escapeHtml(brand)}</title><link rel="stylesheet" href="/assets/browser/can-style.css"></head>` +
     `<body class="density-${escapeAttr(context.theme.density)}">` +
     `<main class="hero"><div class="hero-content">` +
     `<section class="card bg-base-100 shadow"><div class="card-body">` +
@@ -367,7 +367,7 @@ export async function renderLogin(props: LoginProps): Promise<string> {
     `<input type="hidden" name="${csrfField}" value="${csrfToken}">` +
     preSession +
     `<fieldset><label for="${usernameId}" class="label">${usernameLabel}</label>` +
-    `<input id="${usernameId}" name="username" type="text" autocomplete="username" required autofocus class="input"></fieldset>` +
+    `<input id="${usernameId}" name="email" type="email" autocomplete="username" required autofocus class="input"></fieldset>` +
     `<fieldset><label for="${passwordId}" class="label">${passwordLabel}</label>` +
     `<input id="${passwordId}" name="password" type="password" autocomplete="current-password" required class="input"></fieldset>` +
     `<input type="hidden" name="next" value="${next}">` +

@@ -48,6 +48,7 @@ import {
 } from './context.js';
 import { buildBusinessError, fromUnknown, httpStatusFor } from '../errors/envelope.js';
 import { logInternalError } from '../errors/logging.js';
+import { wantsBrowserAuth } from './browser-auth.js';
 import { isPartialRequest } from './fragments.js';
 import { readCappedBody } from './limits.js';
 import { buildPageSourceContext, buildPresentationContext } from './presentation.js';
@@ -340,7 +341,7 @@ function cappedHtmlResponse(
  * Render one page request. GET/HEAD only; see the module doc for the
  * full dispatch/admission/discovery/render flow and error mapping.
  */
-export async function handlePageRequest(deps: PageHttpDeps, request: Request): Promise<Response> {
+async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Promise<Response> {
   const url = new URL(request.url);
   const identityStore = deps.identity.store, identityClock = deps.clock;
   const capturedCookie = request.headers.get('cookie');
@@ -560,4 +561,24 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     try { await closeScope?.(); }
     catch (err) { return internalResponse(deps, err, pathname); }
   }
+}
+
+
+/** Browser recovery runs only after the owning page refusal and read-scope cleanup. */
+export async function handlePageRequest(deps: PageHttpDeps, request: Request): Promise<Response> {
+  const response = await handlePageRequestCore(deps, request);
+  if (request.method.toUpperCase() !== 'GET' || response.status !== 403 ||
+      isPartialRequest(request) || !wantsBrowserAuth(request)) return response;
+  let target: string | undefined;
+  try {
+    const { identity } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+    if (identity.actor === null) target = SIGN_IN_PATH;
+    else if (identity.team === null) target = SWITCH_TEAM_PATH;
+  } catch (err) {
+    // Only rejected credentials are recoverable; store failures preserve the safe refusal.
+    if (err instanceof IdentityError && err.code === 'forbidden') target = SIGN_IN_PATH;
+  }
+  return target === undefined ? response : new Response(null, { status: 303, headers: {
+    location: target, 'cache-control': 'no-store', vary: 'Accept',
+  } });
 }

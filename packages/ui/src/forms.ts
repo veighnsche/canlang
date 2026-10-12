@@ -1039,12 +1039,13 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
     `<section class="card bg-base-100 shadow"><div class="card-body">` +
     `<h2 class="card-title">${heading}</h2>` +
     `<p>${copy}</p>` +
-    `<form action="${escapeAttr(postTo)}" method="post">` +
+    `<form action="${escapeAttr(postTo)}" method="post" data-can-delete-form="${escapeAttr(JSON.stringify({ operation: props.operation }))}">` +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
     hidden("timezone", props.timeZone ?? "UTC") +
     recordHiddens(props.record) +
+    '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>' +
     `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
     `</form></div></section>`
   );
