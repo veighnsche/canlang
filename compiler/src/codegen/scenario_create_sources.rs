@@ -1997,6 +1997,79 @@ impl SourceExpressions<'_> {
             }
             (
                 IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                },
+                SyntaxKind::Call,
+            ) if self.operands
+                && matches!(
+                    id.as_str(),
+                    "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim"
+                ) =>
+            {
+                // Settled pure scalar builtins consume their explicit operands
+                // exactly as authored; correspondence is the callee name plus
+                // each argument expression, in order.
+                if source_path(children.first()?, self.text)? != id.as_str() {
+                    return None;
+                }
+                let arguments: Vec<_> = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Argument)
+                    .collect();
+                if arguments.len() != args.len() {
+                    return None;
+                }
+                for (argument, value) in arguments.iter().zip(args.iter()) {
+                    let values = expressions(argument);
+                    let [source_value] = values.as_slice() else {
+                        return None;
+                    };
+                    self.expression(value, NodeKey::of(source_value), depth + 1)?;
+                }
+                true
+            }
+            (
+                IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                    slots,
+                },
+                SyntaxKind::Call,
+            ) if self.operands
+                && matches!(
+                    id.as_str(),
+                    "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim"
+                )
+                && slots.len() == args.len()
+                && slots
+                    .iter()
+                    .enumerate()
+                    .all(|(index, slot)| *slot == Some(index)) =>
+            {
+                if source_path(children.first()?, self.text)? != id.as_str() {
+                    return None;
+                }
+                let arguments: Vec<_> = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Argument)
+                    .collect();
+                if arguments.len() != args.len() {
+                    return None;
+                }
+                for (argument, value) in arguments.iter().zip(args.iter()) {
+                    let values = expressions(argument);
+                    let [source_value] = values.as_slice() else {
+                        return None;
+                    };
+                    self.expression(value, NodeKey::of(source_value), depth + 1)?;
+                }
+                true
+            }
+            (
+                IrExpr::Call {
                     target: IrCallTarget::DeriveFn(_),
                     ..
                 }
