@@ -14183,12 +14183,18 @@ async function scanDispatchState(
 ): Promise<{ readonly rows: DispatchExecutionRowData[]; readonly truncated: boolean }> {
   // Bounded per-scan window: storage orders by row id (dispatch rows are
   // keyed by intentId) and returns at most limit+1, so visits stay bounded
-  // before any row is decoded. The exact re-filter/sort/slice below keep the
-  // established sweep order and continuation semantics; truncation is
+  // before any row is decoded. Backend order is preserved exactly:
+  // re-sorting here in UTF-16 would promote the durable binary id order
   // reported whenever the window overflows (conservative under adapter echo,
   // never silent).
   const found = await store.query({ ...dispatchExecutionByStateQuery(state),
     order: [{ field: 'id', direction: 'asc' }], limit: limit + 1 });
+  // Refuse an oversized window before decoding anything: adapters may echo
+  // beyond the requested limit, and decoding is materialization.
+  if (found.length > limit + 1) {
+    throw new Error(
+      `t24b: dispatch ${state} scan returned ${found.length} rows, exceeding the bounded window ${limit + 1}`);
+  }
   const rows: DispatchExecutionRowData[] = [];
   const seen = new Set<string>();
   for (const row of found) {
@@ -14199,7 +14205,6 @@ async function scanDispatchState(
     seen.add(data.intentId);
     rows.push(data);
   }
-  rows.sort((a, b) => (a.intentId < b.intentId ? -1 : a.intentId > b.intentId ? 1 : 0));
   return { rows: rows.slice(0, limit), truncated: found.length > limit };
 }
 
