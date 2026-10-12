@@ -158,98 +158,87 @@ pub fn emit(
         return (empty_artifact(sources.db), vec![diagnostic]);
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
-    let feasibility = sources
+    let needs_source_context = sources.options.native_scenario_receipts
+        || program.types.selected_calls.values().any(|call| {
+            matches!(
+                &call.target, crate::analysis::types::SelectedCallTarget::Builtin { id, .. }
+                    if id == "active_member"
+            )
+        });
+    let source_preparation = needs_source_context.then(|| {
+        scenario_decisions::FreshSourceContext::prepare(program, &ir, sources.db, sources.catalog)
+    });
+    let source_context = source_preparation
+        .as_ref()
+        .and_then(|result| result.as_ref().ok());
+    let query_preparation = sources
         .options
         .native_scenario_receipts
-        .then(|| scenario_feasibility::prepare(program, &ir, sources.db, sources.catalog))
+        .then(|| source_context.map(scenario_queries::PreparedQuerySources::from_context))
         .flatten();
+    let feasibility = query_preparation
+        .as_ref()
+        .and_then(|prepared| prepared.returns());
     let mut query_sources = std::collections::BTreeMap::new();
     let mut query_receipts = std::collections::BTreeMap::new();
     let mut transcript_queries = std::collections::BTreeMap::new();
     let mut query_selections = std::collections::BTreeMap::new();
     let mut query_any = std::collections::BTreeMap::new();
-    if sources.options.native_scenario_receipts {
-        // Query source correspondence is independent of permission/capture
-        // admission. Unsupported scenarios keep their disclosure refusal.
-        if let Some(entry) = js::pick_entrypoint(&ir) {
-            let entry_module = js::module_path(&ir.module(entry).name);
-            for item in &ir.items {
-                if let Some(metadata) = scenario_queries::serialize_query_any(
-                    program,
-                    &ir,
-                    item,
-                    sources.db,
-                    sources.catalog,
-                    &entry_module,
-                ) {
-                    query_any.insert(item.canonical.clone(), metadata);
-                }
-                if let Some(selections) = scenario_queries::serialize_transcript_selections(
-                    program,
-                    &ir,
-                    item,
-                    sources.db,
-                    sources.catalog,
-                    &entry_module,
-                ) {
-                    query_selections.insert(item.canonical.clone(), selections);
-                }
-                if let Some(plan) = scenario_queries::collect_transcript_query_source(
-                    program,
-                    &ir,
-                    item,
-                    sources.db,
-                    sources.catalog,
-                    &entry_module,
-                ) {
+    if let Some(prepared) = query_preparation.as_ref()
+        && let Some(entry) = js::pick_entrypoint(&ir)
+    {
+        let entry_module = js::module_path(&ir.module(entry).name);
+        for item in &ir.items {
+            let collected = prepared.collect_owner(item, &entry_module);
+            if let Some(metadata) = collected.any {
+                query_any.insert(item.canonical.clone(), metadata);
+            }
+            if let Some(selections) = collected.selections {
+                query_selections.insert(item.canonical.clone(), selections);
+            }
+            match collected.plan {
+                Some(scenario_queries::CollectedQueryPlan::Transcript(plan)) => {
                     query_sources.insert(
                         item.canonical.clone(),
                         serde_json::to_value(&plan)
                             .expect("checked transcript query JSON invariant"),
                     );
                     transcript_queries.insert(item.canonical.clone(), plan);
-                    continue;
                 }
-                if let Some(recipe) = scenario_queries::collect_complete_query_receipt(
-                    program,
-                    &ir,
-                    item,
-                    sources.db,
-                    sources.catalog,
-                    &entry_module,
-                ) {
+                Some(scenario_queries::CollectedQueryPlan::Receipt(recipe)) => {
                     query_sources.insert(
                         item.canonical.clone(),
                         serde_json::to_value(&recipe.plan)
                             .expect("checked query recipe JSON invariant"),
                     );
-                    query_receipts.insert(item.canonical.clone(), recipe);
-                    continue;
+                    query_receipts.insert(item.canonical.clone(), *recipe);
                 }
-                if let Some(plan) = scenario_queries::serialize_query_sources(
-                    program,
-                    &ir,
-                    item,
-                    sources.db,
-                    sources.catalog,
-                    &entry_module,
-                ) {
-                    query_sources.insert(item.canonical.clone(), plan);
+                Some(scenario_queries::CollectedQueryPlan::Source(plan)) => {
+                    query_sources.insert(
+                        item.canonical.clone(),
+                        serde_json::to_value(plan).expect("checked query source JSON invariant"),
+                    );
                 }
+                None => {}
             }
         }
     }
-    let membership = membership::prepare(program, &ir, sources.db, sources.catalog);
+    let membership = source_context.and_then(membership::prepare_with_context);
     let mailbox_events = mailbox_events::prepare(program, &ir, sources.db, sources.catalog);
     let read_predicates = sources
         .options
         .native_scenario_receipts
-        .then(|| read_predicates::prepare(program, &ir, sources.db, sources.catalog))
+        .then(|| source_context.and_then(read_predicates::prepare_with_context))
         .flatten();
-    let send_guards = sources
-        .options
-        .native_scenario_receipts
-        .then(|| send_guards::prepare(program, &ir, sources.db, sources.catalog));
+    let send_guards = sources.options.native_scenario_receipts.then(|| {
+        match source_preparation
+            .as_ref()
+            .expect("native source preparation was attempted")
+        {
+            Ok(context) => send_guards::prepare_with_context(context),
+            Err(error) => Err(send_guards::source_preparation_gap(*error)),
+        }
+    });
     let policy_module = js::pick_entrypoint(&ir)
         .map(|entry| js::module_path(&ir.module(entry).name))
         .unwrap_or_else(|| js::module_path("index"));
@@ -293,7 +282,7 @@ pub fn emit(
                 .as_ref()
                 .and_then(|guards| guards.as_ref().err()),
         },
-        feasibility.as_ref(),
+        feasibility,
     );
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {

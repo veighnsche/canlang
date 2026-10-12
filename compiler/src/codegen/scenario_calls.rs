@@ -2260,7 +2260,10 @@ mod prepared_child_tests {
             include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
         );
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let path = root.join("target/profile-native-catalog.json");
+        let path = root
+            .parent()
+            .unwrap()
+            .join("packages/cloudflare/dist/native-catalog.json");
         let (catalog, diagnostics) = load_catalog(&CatalogRequest {
             flag: Some(&path),
             env: None,

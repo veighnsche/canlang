@@ -3,15 +3,17 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+#[cfg(test)]
+use crate::analysis::CheckedProgram;
+#[cfg(test)]
 use crate::analysis::catalog::Catalog;
 use crate::analysis::resolve::SymbolKind;
 use crate::analysis::types::CheckedQueryClauseKind;
-use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, check_program, kids};
-use crate::diagnostic::Severity;
+use crate::analysis::{NodeKey, ResolvedType, Scalar, kids};
 use crate::source::{SourceDb, Span};
-use crate::syntax::{self, SyntaxKind};
+use crate::syntax::SyntaxKind;
 
-use super::ir::{self, IrExpr, IrProgram};
+use super::ir::{IrExpr, IrProgram};
 
 /// Only original checked source can construct this inventory. Every IR field
 /// is sealed before a consumer receives the immutable predicate map.
@@ -79,16 +81,28 @@ fn same_source_inventories(actual: &IrProgram, fresh: &IrProgram, db: &SourceDb)
         && format!("{:?}", actual.callback_grants) == format!("{:?}", fresh.callback_grants)
 }
 
+#[cfg(test)]
 pub(super) fn prepare(
     program: &CheckedProgram,
     ir: &IrProgram,
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Option<PreparedReadPredicates> {
-    program.validate_cohort(db, catalog).ok()?;
-    let (original, diagnostics) = check_program(db, program.checked_files(), catalog);
-    if diagnostics.iter().any(|d| d.severity == Severity::Error)
-        || original.types.node_types != program.types.node_types
+    let context =
+        super::scenario_decisions::FreshSourceContext::prepare(program, ir, db, catalog).ok()?;
+    prepare_with_context(&context)
+}
+
+pub(super) fn prepare_with_context(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Option<PreparedReadPredicates> {
+    let program = context.program();
+    let ir = context.ir();
+    let db = context.db();
+    let original = context.original();
+    let fresh = context.fresh();
+    let trees = context.trees();
+    if original.types.node_types != program.types.node_types
         || original.types.symbol_types != program.types.symbol_types
         || original.types.symbol_results != program.types.symbol_results
         || original.types.checked_queries != program.types.checked_queries
@@ -101,25 +115,15 @@ pub(super) fn prepare(
     {
         return None;
     }
-    let (fresh, diagnostics) = ir::build(&original, db, catalog);
-    if diagnostics.iter().any(|d| d.severity == Severity::Error)
-        || execution_closure(ir) != execution_closure(&fresh)
+    if execution_closure(ir) != execution_closure(fresh)
         || ir.value_constraints != fresh.value_constraints
         || !same_map(&ir.scenario_disclosures, &fresh.scenario_disclosures)
-        || !same_source_inventories(ir, &fresh, db)
+        || !same_source_inventories(ir, fresh, db)
     {
         return None;
     }
-    let mut trees = Vec::new();
-    for &file in original.checked_files() {
-        let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
-        if diagnostics.iter().any(|d| d.severity == Severity::Error) {
-            return None;
-        }
-        trees.push(tree);
-    }
     let mut nodes = HashMap::new();
-    for tree in &trees {
+    for (_, tree) in trees {
         for node in tree.descendants() {
             if nodes.len() >= 200000 {
                 return None;
@@ -247,8 +251,10 @@ fn contains(outer: Span, inner: Span) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::super::ir;
     use super::*;
     use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::check_program;
 
     const SOURCE: &str = "app ReadPredicates\nGiven\n role reviewer\n Person {account:user,enabled:bool}\n policy Person read=members\nWhen\nThen\n page /people title=\"People\"\n  list Person as person where person.enabled\n   text row.account\n  list Person as person where reviewer(person.account)\n   text row.account\n";
 
@@ -272,6 +278,21 @@ mod tests {
         let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         (db, catalog, program, ir)
+    }
+
+    #[test]
+    fn shared_source_context_keeps_standalone_predicates() {
+        let (db, catalog, program, ir) = checked();
+        let context = super::super::scenario_decisions::FreshSourceContext::prepare(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+        )
+        .unwrap();
+        let shared = prepare_with_context(&context).unwrap();
+        let standalone = prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+        assert_eq!(shared.predicates(&ir), standalone.predicates(&ir));
     }
 
     #[test]

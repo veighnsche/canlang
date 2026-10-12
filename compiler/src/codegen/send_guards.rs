@@ -1,17 +1,15 @@
 //! Private original SEND predicate preparation; no execution authority.
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+#[cfg(test)]
 use crate::analysis::catalog::Catalog;
 use crate::analysis::resolve::{self, Binding, SymbolId, SymbolKind};
-use crate::analysis::{
-    CheckedProgram, NodeKey, ResolvedType, Scalar, check_program, kids, name_text,
-};
-use crate::diagnostic::Severity;
+use crate::analysis::{CheckedProgram, NodeKey, ResolvedType, Scalar, kids, name_text};
 use crate::source::{SourceDb, Span};
-use crate::syntax::{self, SyntaxKind, SyntaxNode};
+use crate::syntax::{SyntaxKind, SyntaxNode};
 
-use super::ir::{self, IrBinOp, IrExpr, IrItemKind, IrProgram, IrQueryDomain, IrStmt, TypedExpr};
-use super::scenario_decisions::{serial_type, serialize_decision_sources};
+use super::ir::{IrBinOp, IrExpr, IrItemKind, IrProgram, IrQueryDomain, IrStmt, TypedExpr};
+use super::scenario_decisions::serial_type;
 
 #[derive(Debug)]
 pub(super) struct SendGuardGap {
@@ -99,22 +97,42 @@ fn execution_closure(ir: &IrProgram) -> String {
     )
 }
 
+#[cfg(test)]
 pub(super) fn prepare(
     program: &CheckedProgram,
     ir: &IrProgram,
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Result<PreparedSendGuards, SendGuardGap> {
-    program
-        .validate_cohort(db, catalog)
-        .map_err(|_| gap("checked source cohort mismatch", None))?;
-    let (original, diagnostics) = check_program(db, program.checked_files(), catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
-    {
-        return Err(gap("original SEND source no longer checks", None));
+    let context = super::scenario_decisions::FreshSourceContext::prepare(program, ir, db, catalog)
+        .map_err(source_preparation_gap)?;
+    prepare_with_context(&context)
+}
+
+pub(super) fn source_preparation_gap(
+    error: super::scenario_decisions::SourcePreparationGap,
+) -> SendGuardGap {
+    use super::scenario_decisions::SourcePreparationGap;
+    match error {
+        SourcePreparationGap::Cohort => gap("checked source cohort mismatch", None),
+        SourcePreparationGap::Analysis => gap("original SEND source no longer checks", None),
+        SourcePreparationGap::Ir => gap("original whole IR execution closure mismatch", None),
+        SourcePreparationGap::MissingSource => gap("missing original source", None),
+        SourcePreparationGap::Cst(span) => gap("original SEND CST is invalid", Some(span)),
+        SourcePreparationGap::Resolution => gap("original SEND lexical resolution failed", None),
     }
+}
+
+pub(super) fn prepare_with_context(
+    context: &super::scenario_decisions::FreshSourceContext<'_>,
+) -> Result<PreparedSendGuards, SendGuardGap> {
+    let program = context.program();
+    let ir = context.ir();
+    let db = context.db();
+    let original = context.original();
+    let fresh = context.fresh();
+    let trees = context.trees();
+    let resolved = context.resolved();
     if original.types.node_types != program.types.node_types
         || original.types.symbol_types != program.types.symbol_types
     {
@@ -123,40 +141,13 @@ pub(super) fn prepare(
             None,
         ));
     }
-    let (fresh, diagnostics) = ir::build(&original, db, catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
-        || execution_closure(ir) != execution_closure(&fresh)
+    if execution_closure(ir) != execution_closure(fresh)
         || ir.value_constraints != fresh.value_constraints
     {
         return Err(gap("original whole IR execution closure mismatch", None));
     }
-    let mut trees = Vec::new();
-    for &file in original.checked_files() {
-        let source = db
-            .get(file)
-            .ok_or_else(|| gap("missing original source", None))?;
-        let (tree, diagnostics) = syntax::parse_source(file, &source.text);
-        if diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.severity == Severity::Error)
-        {
-            return Err(gap("original SEND CST is invalid", Some(tree.span)));
-        }
-        trees.push((file, tree));
-    }
-    let mut diagnostics = Vec::new();
-    let resolved = resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
-        .map_err(|_| gap("original SEND lexical resolution failed", None))?;
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error)
-    {
-        return Err(gap("original SEND lexical resolution failed", None));
-    }
     let mut nodes = HashMap::new();
-    for (_, tree) in &trees {
+    for (_, tree) in trees {
         for node in tree.descendants() {
             if nodes.len() >= 200000 {
                 return Err(gap("SEND source census capacity exceeded", Some(node.span)));
@@ -181,13 +172,15 @@ pub(super) fn prepare(
         if sends.is_empty() {
             continue;
         }
-        let sites =
-            serialize_decision_sources(&original, ir, owner, db, catalog).ok_or_else(|| {
-                gap(
-                    "complete original SEND decision correspondence unavailable",
-                    Some(owner.span),
-                )
-            })?;
+        let sites = super::scenario_decisions::serialize_original_decision_sources_with_context(
+            context, owner,
+        )
+        .ok_or_else(|| {
+            gap(
+                "complete original SEND decision correspondence unavailable",
+                Some(owner.span),
+            )
+        })?;
         let sites = sites
             .iter()
             .filter(|site| site.stage == "send-dispatch")
@@ -256,10 +249,10 @@ pub(super) fn prepare(
                 .ok_or_else(|| gap("missing original SEND predicate CST", Some(*span)))?;
             let inputs = free_inputs(
                 FreeInputSource {
-                    program: &original,
+                    program: original,
                     ir,
                     db,
-                    resolved: &resolved,
+                    resolved,
                     nodes: &nodes,
                     owner: owner.id,
                 },
@@ -1145,9 +1138,12 @@ fn input_type(
 
 #[cfg(test)]
 mod tests {
+    use super::super::ir;
     use super::*;
     use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::check_program;
     use crate::analysis::resolve::SymbolKind;
+    use crate::syntax;
 
     const SOURCE: &str = r#"app SendSources
 use std {TextGenerationV1 as LLM} from=deployment.llm
@@ -1277,7 +1273,10 @@ Then
         let mut db = SourceDb::new();
         let file = db.add("CanChat.can".into(), CHAT.into());
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let path = root.join("target/profile-native-catalog.json");
+        let path = root
+            .parent()
+            .unwrap()
+            .join("packages/cloudflare/dist/native-catalog.json");
         let (catalog, errors) = load_catalog(&CatalogRequest {
             flag: Some(&path),
             env: None,
