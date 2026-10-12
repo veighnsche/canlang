@@ -5092,3 +5092,23 @@ native setup1/.94s all pass.58/67/nine and exact recipient/publication holds
 remain unchanged.
 
 Coordinator full-original producer source integration: Independent defining source review CLEAR for Compiler765 full-original executable producer, exact five source preimages after4a/78. Inline receipt+JS preserve actual stored parent observation, per-candidate supplied position read, query-only candidate/order controls and eager ordered TextMessage projection. Child SEND requires exact private native receipt matching emitted child disclosure; raw collection refuses it. Every intermediate Branch→CALL Return retains SAME actual Run provenance. Owning unchanged full CanChat CLI native-scenario-receipts exits0 with2modules/18operations/6models/3pages/5examples and original SHA8eb79dd397aa801d97692aa195e24ad9ee29977b4e102e7cbc35e21c9fdd0ad3; this is WORKER producer evidence, not a main native execution result. Original source hash remains exact in primary. Nativecollector+six corruptplans1/20.20s, source2/1.96s/reference5/.31/default3/.34/native setup1/.94/strictalltargets8.70/fmt/diff reused. Main changed CLI {"check": "changed locked offline CLI", "exit": 0, "seconds": 12.72}. Original artifact blocker is retired at producer scope; genuine Dev runtime caller/private receiving Files/child SEND/position/whole rollback/replay/current authority and cleanup remain unfinished. Original source-path/cap/guard/effect/evaluation order and recipient holds preserved; no new carrier/profile/pruning/chosen-operation artifact or full-plan acceptance.
+
+**Accepted caller producer / next Creative leaf, 2026-10-12.**
+76535f1b is independently CLEAR and intaken main3ee5d981 at full original
+executable producer scope. Stop/reuse its CLI and controls; Dev owns genuine
+native caller/fence/rollback/replay/current-authority/cleanup. The affected
+first-query source target passed three unchanged cases and exposed one stale
+expectation that accepted chat.ask was Declined. Corrected original-only case
+passes1/9.38s, retaining all256 conservative Returns and four ordinary selectors;
+Creative remains separately Declined. No unchanged native/full CLI rerun.
+Next actual unchanged creative.generate source decline is11967..11985,
+conversation==null in its leading lazy optional Conversation?=null guard.
+Compiler owns the finite source correction. Existing canonical input/null/ref
+admission is under investigation; State/Dev define actual receiving authority.
+Three public-fact JEV requests are saved in nullable-input-jev.json. Automatic
+approval review rejected the new external payload as outside the earlier exact
+approvals; this consultation awaits human approval. Skip dependent design work
+while completing independent affected validation; no new presence intrinsic or
+guessed row authority is implemented. Existing holds and58/67/nine remain.
+
+Coordinator focused source control intake: Manual finite defining review CLEAR: the original first-query owning source control retains both actual First selector assertions, replaces stale chat.ask Declined expectation with accepted Complete/all256 conservative Returns/four ordinary source selectors, and keeps original Creative separately Declined. No source pruning/production or native authority edit. Changed original-only owning case1/9.38s and three unchanged target cases/fmt/diff reused, no redundant root source/CLI/native test run. Original full CanChat producer765 remains closed at source/executable scope; Dev real caller/private Files/child SEND/position/current-authority/rollback/replay/cleanup remains unfinished. Next original Creative source leaf is optional Conversation?=null guard11967–11985; exact State/Dev input contract consultation is pending. Root read three saved JEV payloads as public design facts only, no requests sent; supplied exact human broad Canlang-source consultation authorization/payload evidence for at most one SAME-body/endpoint justified retry if not already attempted. Preserve automatic-review denial/no bypass/pending exact approval if restriction remains; no generic human architecture gate or source/activation/hold release.

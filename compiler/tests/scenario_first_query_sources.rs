@@ -189,7 +189,7 @@ fn bounded_original_first_retains_selected_reads_and_created_return_influences()
 }
 
 #[test]
-fn byte_exact_original_first_queries_keep_source_inventory_without_whole_body_credit() {
+fn byte_exact_original_first_queries_preserve_closed_chat_and_declined_creative_scopes() {
     let sources = [
         (
             "CanChat.can",
@@ -203,12 +203,14 @@ fn byte_exact_original_first_queries_keep_source_inventory_without_whole_body_cr
     let (db, program) = checked(&sources);
     assert_first(&db, &program, "chat.ask", "chat.Allowance");
     assert_first(&db, &program, "creative.generate", "creative.Budget");
-    // Queries in the transcript/header and other reference/observation leaves
-    // are separate source closure requirements; this inventory is nongrant.
-    assert!(matches!(
-        disclosure(&program, "chat.ask"),
-        ScenarioDisclosure::Declined(_)
-    ));
+    // The original six-query Chat source criterion is closed. Its complete
+    // conservative proof remains distinct from the original Creative closure.
+    let ScenarioDisclosure::Complete(chat) = disclosure(&program, "chat.ask") else {
+        panic!("accepted original Chat source closure");
+    };
+    assert_eq!(chat.returns.len(), 256);
+    let source = chat.source_facts.as_deref().unwrap();
+    assert_eq!(source.queries.as_deref().unwrap().len(), 4);
     assert!(matches!(
         disclosure(&program, "creative.generate"),
         ScenarioDisclosure::Declined(_)
