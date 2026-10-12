@@ -4,7 +4,8 @@
  *
  * The consumer READS the contract; it never re-implements the server:
  * `submitExportRequest` POSTs the caller-declared operation/columns/limit
- * as JSON with the CSRF header (session cookie travels via the host
+ * as JSON with the CSRF header, using a rooted local action and
+ * same-origin/no-redirect transport (session cookie travels via the host
  * fetch binding), and the inline CSV returns byte-exact — server
  * formula neutralization and quoting pass through untouched (this
  * module never strips or re-protects cells).
@@ -34,7 +35,7 @@
  */
 import { CSRF_FIELD } from "@canlang/contracts";
 import type { SubmitFetch, SubmitFetchResponse } from "../client.js";
-import { escapeAttr, escapeHtml, safeHref } from "../escape.js";
+import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "../escape.js";
 import { assertRegionId } from "../htmx.js";
 import { digestBusinessError } from "../internal/business-errors.js";
 
@@ -261,9 +262,11 @@ function cancelledError(): ExportBusinessError {
  * signal follows the same result contract and requests transport abort.
  */
 export async function submitExportRequest(input: SubmitExportInput): Promise<SubmitExportResult> {
-  if (typeof input.action !== "string" || input.action === "") {
+  const rawAction = input.action;
+  if (typeof rawAction !== "string" || rawAction === "") {
     throw new Error("submitExportRequest needs a non-empty action");
   }
+  const action = operationPostPath(rawAction);
   if (typeof input.csrf !== "string" || input.csrf === "") {
     throw new Error("submitExportRequest needs the CSRF token");
   }
@@ -275,8 +278,10 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
   }
   let response: SubmitFetchResponse;
   try {
-    response = await input.fetchImpl(input.action, {
+    response = await input.fetchImpl(action, {
       method: "POST",
+      mode: "same-origin",
+      redirect: "error",
       headers: { "content-type": "application/json", [EXPORT_CSRF_HEADER]: input.csrf },
       ...(input.signal === undefined ? {} : { signal: input.signal }),
       body: JSON.stringify({
@@ -402,13 +407,16 @@ function renderResult(status: ExportPanelStatus): string {
 /**
  * Render the export panel: declared-operation form (caller-supplied
  * operations + action, stable wiring ids) plus the result region.
- * Dynamic strings escape; descriptor hrefs pass `safeHref`.
+ * The action uses the protected POST policy; dynamic strings escape and
+ * descriptor hrefs pass `safeHref`.
  */
 export function renderExportPanel(props: ExportPanelProps): string {
   assertRegionId(props.regionId);
-  if (typeof props.action !== "string" || props.action === "") {
+  const rawAction = props.action;
+  if (typeof rawAction !== "string" || rawAction === "") {
     throw new Error("renderExportPanel needs a non-empty action");
   }
+  const action = operationPostPath(rawAction);
   if (typeof props.csrf !== "string" || props.csrf === "") {
     throw new Error("renderExportPanel needs the CSRF token");
   }
@@ -417,7 +425,7 @@ export function renderExportPanel(props: ExportPanelProps): string {
     .join("");
   const result = props.status === undefined ? "" : renderResult(props.status);
   return (
-    `<section id="${escapeAttr(props.regionId)}" data-export-action="${escapeAttr(props.action)}">` +
+    `<section id="${escapeAttr(props.regionId)}" data-export-action="${escapeAttr(action)}">` +
     `<form data-export-form>` +
     `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.csrf)}">` +
     `<label>Operation<select data-export-operation>${options}</select></label>` +
