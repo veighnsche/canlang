@@ -646,6 +646,185 @@ pub fn current_revision_rule_profile(
     })
 }
 
+/// Exact additional original Chat invariants. This is consumed only after the
+/// complete owning source/model/field/rule tables match a fresh checked build.
+/// Nullable arithmetic and borrowed catalog enums do not enter the raw local
+/// predicate classifier through this helper.
+pub(crate) fn checked_chat_invariant_fields(
+    program: &IrProgram,
+    rule: &IrRuleFn,
+) -> Option<Vec<SymbolId>> {
+    let origin = rule.origin.as_ref()?;
+    let model = policy_model(program, origin.model)?;
+    let IrItemKind::Model { invariants, .. } = &model.kind else {
+        return None;
+    };
+    if origin.kind != IrModelRuleKind::Invariant
+        || origin.module != model.module
+        || origin.registry_id != rule.id
+        || origin.span != rule.span
+        || origin.node.file != rule.span.file
+        || origin.node.start != rule.span.start
+        || origin.node.end != rule.span.end
+        || origin.node.kind != crate::syntax::SyntaxKind::Invariant as u8
+        || !invariants.contains(&rule.id)
+        || rule.span.file != model.span.file
+        || !contains_span(rule.span, rule.pred.span)
+        || program
+            .invariants
+            .iter()
+            .filter(|candidate| {
+                candidate.id == rule.id
+                    && candidate
+                        .origin
+                        .as_ref()
+                        .is_some_and(|value| value.model == model.id)
+            })
+            .count()
+            != 1
+        || !program
+            .invariants
+            .iter()
+            .any(|candidate| std::ptr::eq(candidate, rule))
+    {
+        return None;
+    }
+    match model.name.as_str() {
+        "Turn" => {
+            let (read, allowed) = policy_binary(&rule.pred, IrBinOp::In)?;
+            if !chat_role_type(&read.ty) {
+                return None;
+            }
+            let role = policy_field(program, model.id, "role", &read.ty)?;
+            policy_row_member(read, model.id, "role", &read.ty)?;
+            let IrExpr::Array(items) = &allowed.expr else {
+                return None;
+            };
+            if !matches!(&allowed.ty, ResolvedType::Array { element, ordered: true, nonempty: true }
+                if element.as_ref() == &read.ty)
+                || items.len() != 2
+            {
+                return None;
+            }
+            for (item, name) in items.iter().zip(["user", "assistant"]) {
+                if item.ty != read.ty
+                    || !contains_span(allowed.span, item.span)
+                    || !matches!(&item.expr, IrExpr::Text(value) if value == name)
+                {
+                    return None;
+                }
+            }
+            if items[0].span.end > items[1].span.start {
+                return None;
+            }
+            Some(vec![role])
+        }
+        "Run" => {
+            let (absent, within_reservation) = policy_binary(&rule.pred, IrBinOp::Or)?;
+            let (nullable_read, null) = policy_binary(absent, IrBinOp::Eq)?;
+            let nullable_int = ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Int)));
+            let int = ResolvedType::Scalar(Scalar::Int);
+            let used = policy_field(program, model.id, "used", &nullable_int)?;
+            let reserved = policy_field(program, model.id, "reserved", &int)?;
+            policy_row_member(nullable_read, model.id, "used", &nullable_int)?;
+            if null.ty != ResolvedType::Null || !matches!(null.expr, IrExpr::Null) {
+                return None;
+            }
+            let (present_read, limit) = policy_binary(within_reservation, IrBinOp::Le)?;
+            // The checker narrows this exact second occurrence only in the
+            // false arm of the original owning used==null expression.
+            policy_row_member(present_read, model.id, "used", &int)?;
+            policy_row_member(limit, model.id, "reserved", &int)?;
+            Some(vec![used, reserved])
+        }
+        _ => None,
+    }
+}
+
+fn chat_role_type(ty: &ResolvedType) -> bool {
+    crate::analysis::catalog::nominal_schema("TextMessage")
+        .and_then(|schema| schema.fields.iter().find(|(name, _)| *name == "role"))
+        .and_then(|(_, declared)| crate::analysis::types::std_schema_type(declared))
+        .as_ref()
+        == Some(ty)
+}
+
+fn chat_model_reference(
+    program: &IrProgram,
+    owner: SymbolId,
+    ty: &ResolvedType,
+    target_name: &str,
+) -> bool {
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = ty
+    else {
+        return false;
+    };
+    let Some(owner) = policy_model(program, owner) else {
+        return false;
+    };
+    let Some(target) = policy_model(program, *symbol) else {
+        return false;
+    };
+    target.module == owner.module && target.name == target_name
+}
+
+/// A lock compares the original StoredRow.data value in State; it does not
+/// execute equality over decoded references, Files, nominal objects or receipts.
+/// These additional owning fields qualify only under the complete source seal,
+/// never through local_stored_field_type or a generic structural value fallback.
+pub(crate) fn checked_chat_lock_target(
+    program: &IrProgram,
+    model: SymbolId,
+    field: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+) -> bool {
+    let Some(owner) = policy_model(program, model) else {
+        return false;
+    };
+    if policy_field(program, model, name, ty) != Some(field) {
+        return false;
+    }
+    match (owner.name.as_str(), name, ty) {
+        ("Branch", "profile", _) => chat_model_reference(program, model, ty, "Profile"),
+        (
+            "Branch",
+            "prefix",
+            ResolvedType::Array {
+                element,
+                ordered: true,
+                nonempty: false,
+            },
+        ) => crate::analysis::types::checked_standard_nominal_name(element) == Some("TextMessage"),
+        ("Branch", "origin", ResolvedType::Nullable(inner)) => {
+            chat_model_reference(program, model, inner, "Turn")
+        }
+        ("Turn", "role", _) => chat_role_type(ty),
+        (
+            "Turn",
+            "attachments",
+            ResolvedType::Array {
+                element,
+                ordered: true,
+                nonempty: false,
+            },
+        ) => element.as_ref() == &ResolvedType::Scalar(Scalar::File),
+        ("Turn", "run", _) => chat_model_reference(program, model, ty, "Run"),
+        ("Run", "allowance", _) => chat_model_reference(program, model, ty, "Allowance"),
+        ("Run", "request_value", _) => {
+            crate::analysis::types::checked_standard_nominal_name(ty) == Some("TextRequest")
+        }
+        ("Run", "request", ResolvedType::Nullable(inner)) => {
+            matches!(inner.as_ref(), ResolvedType::StdDelivery { capability: "std.TextGenerationV1", op }
+                if crate::analysis::catalog::std_operation("std.TextGenerationV1", "generate") == Some(*op))
+        }
+        _ => false,
+    }
+}
+
 fn contains_span(parent: crate::source::Span, child: crate::source::Span) -> bool {
     parent.file == child.file && parent.start <= child.start && child.end <= parent.end
 }

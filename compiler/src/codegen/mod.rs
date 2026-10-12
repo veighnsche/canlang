@@ -43,6 +43,7 @@ pub mod bdd;
 mod defaults;
 pub mod ir;
 pub mod js;
+mod mailbox_events;
 mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
@@ -239,6 +240,7 @@ pub fn emit(
         }
     }
     let membership = membership::prepare(program, &ir, sources.db, sources.catalog);
+    let mailbox_events = mailbox_events::prepare(program, &ir, sources.db, sources.catalog);
     let read_predicates = sources
         .options
         .native_scenario_receipts
@@ -284,6 +286,7 @@ pub fn emit(
             query_selections: Some(&query_selections),
             transcript_queries: Some(&transcript_queries),
             membership: membership.as_ref(),
+            mailbox_events: mailbox_events.as_ref(),
             read_predicates: read_predicates.as_ref(),
             send_guards: send_guards.as_ref().and_then(|guards| guards.as_ref().ok()),
             send_guard_gap: send_guards

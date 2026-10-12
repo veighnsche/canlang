@@ -677,16 +677,50 @@ fn standard_completion_projection_refuses_partial_skewed_raw_or_unknown_sources(
                 && diagnostic.message.contains("standardCompletions"))
     );
     assert!(!raw.entry.js.contains("standardCompletions:"));
-    let (db, ir, _catalog) = build(
-        "app MissingClosure\nuse std {ImagesV1 as Images} from=deployment.images\nGiven\nWhen\n scenario inspected on=Images.inspect.completed\n  do let result=event.result\nThen\n",
+    let (db, mut ir, _catalog) = build(
+        "app CheckedInspection\nuse std {ImagesV1 as Images} from=deployment.images\nGiven\nWhen\n scenario inspected on=Images.inspect.completed\n  do let result=event.result\nThen\n",
     );
+    // WorkflowInspection now has its released canonical nominal closure.
+    // That owning result is distinct from an unknown edited result identity.
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .value_types
+            .as_ref()
+            .unwrap()
+            .contracts
+            .iter()
+            .any(|contract| contract.name == "WorkflowInspection")
+    );
+    assert!(
+        output
+            .value_types
+            .as_ref()
+            .unwrap()
+            .contracts
+            .iter()
+            .any(|contract| contract.name == "WorkflowField")
+    );
+    let handler = ir
+        .items
+        .iter_mut()
+        .find(|item| item.canonical == "CheckedInspection.inspected")
+        .unwrap();
+    let IrItemKind::Scenario {
+        event_source: Some(IrEventSource::StandardCompleted { result_type, .. }),
+        ..
+    } = &mut handler.kind
+    else {
+        unreachable!()
+    };
+    *result_type = "UnreleasedWorkflowInspection".into();
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
     assert!(
         output
             .diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"
-                && diagnostic.message.contains("unresolved nominal closure")),
+            .any(|diagnostic| diagnostic.code == "E6008"),
         "{:?}",
         output.diagnostics
     );

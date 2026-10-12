@@ -4,9 +4,9 @@ use crate::analysis::resolve::{CrudOp, SymbolId};
 use crate::analysis::{CheckedProgram, catalog::Catalog};
 use crate::codegen::ir::{self, IrItemKind, IrModelRuleKind, IrProgram, IrType, TypedExpr};
 use crate::codegen::model_policy_profile::{
-    CurrentRevisionRuleKind, CurrentRevisionRuleProfile, current_revision_lock_target,
-    current_revision_rule_profile, local_hook_supported, local_rule_fields,
-    local_stored_field_type,
+    CurrentRevisionRuleKind, CurrentRevisionRuleProfile, checked_chat_invariant_fields,
+    checked_chat_lock_target, current_revision_lock_target, current_revision_rule_profile,
+    local_hook_supported, local_rule_fields, local_stored_field_type,
 };
 use crate::diagnostic::Severity;
 use crate::source::SourceDb;
@@ -99,7 +99,7 @@ pub(crate) fn collect_local_policies(
     ir: &IrProgram,
     emitted_module: &str,
 ) -> Option<LocalPolicies> {
-    collect_policies(ir, emitted_module, None)
+    collect_policies(ir, emitted_module, None, None)
 }
 
 /// Source-backed intake for the original current-Revision policy closure.
@@ -117,9 +117,6 @@ pub(crate) fn collect_checked_policies(
     if super::js::module_path(&ir.module(entry).name) != emitted_module {
         return None;
     }
-    if let Some(existing) = collect_local_policies(ir, emitted_module) {
-        return Some(existing);
-    }
     let (fresh, diagnostics) = ir::build(program, db, catalog);
     if diagnostics
         .iter()
@@ -127,6 +124,9 @@ pub(crate) fn collect_checked_policies(
         || !source::matches(program, ir, &fresh)
     {
         return None;
+    }
+    if let Some(existing) = collect_local_policies(ir, emitted_module) {
+        return Some(existing);
     }
     let profiles = ir
         .invariants
@@ -148,13 +148,15 @@ pub(crate) fn collect_checked_policies(
             return None;
         }
     }
-    collect_policies(ir, emitted_module, Some(&profiles))
+    let chat_fields = source::checked_chat_field_annotations(program, ir, db);
+    collect_policies(ir, emitted_module, Some(&profiles), Some(&chat_fields))
 }
 
 fn collect_policies(
     ir: &IrProgram,
     emitted_module: &str,
     checked_profiles: Option<&[CurrentRevisionRuleProfile]>,
+    checked_chat_fields: Option<&std::collections::HashSet<SymbolId>>,
 ) -> Option<LocalPolicies> {
     let mut checked_hooks = Vec::new();
     let mut operations = std::collections::HashSet::new();
@@ -211,7 +213,15 @@ fn collect_policies(
                 .and_then(|profiles| profiles.iter().find(|profile| &profile.origin == origin))
                 .cloned();
             if current_revision.is_none() {
-                local_rule_fields(ir, model.id, &rule.pred)?;
+                local_rule_fields(ir, model.id, &rule.pred).or_else(|| {
+                    checked_profiles
+                        .and_then(|_| checked_chat_invariant_fields(ir, rule))
+                        .filter(|fields| {
+                            checked_chat_fields.is_some_and(|checked| {
+                                fields.iter().all(|field| checked.contains(field))
+                            })
+                        })
+                })?;
             }
             let id = format!("{owner_package}.{}", origin.registry_id);
             let mut dependencies = Vec::new();
@@ -264,8 +274,10 @@ fn collect_policies(
                     item.name == *field
                         && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model.id &&
                             (local_stored_field_type(ir, model.id, ty) || checked_profiles.is_some_and(|profiles|
-                                profiles.iter().any(|profile| profile.origin.model == model.id
-                                    && current_revision_lock_target(ir, profile, item.id, field, ty)))))
+                                (checked_chat_fields.is_some_and(|checked| checked.contains(&item.id))
+                                    && checked_chat_lock_target(ir, model.id, item.id, field, ty))
+                                    || profiles.iter().any(|profile| profile.origin.model == model.id
+                                        && current_revision_lock_target(ir, profile, item.id, field, ty)))))
                 })
                 })
             {
@@ -544,5 +556,158 @@ mod tests {
             collect_checked_policies(&program, &missing, &db, Some(&catalog), MODULE).is_none(),
             "mandatory companion omitted"
         );
+    }
+
+    #[test]
+    fn whole_original_chat_policies_preserve_all_rules_and_refuse_corrupt_closure() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let source = include_str!("../../tests/fixtures/original-a850/CanChat.can");
+        let mut db = SourceDb::new();
+        let file = db.add("CanChat.can".into(), source.into());
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (original, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let module = super::super::js::module_path(&original.modules[0].name);
+        let policies = collect_checked_policies(&program, &original, &db, Some(&catalog), &module)
+            .expect("all four invariants and six locks from the original owning Chat source");
+        assert_eq!(policies.descriptors.len(), 6);
+        assert_eq!(policies.bindings.len(), 10);
+        assert_eq!(
+            policies
+                .bindings
+                .iter()
+                .filter(|b| b.kind == IrModelRuleKind::Invariant)
+                .count(),
+            4
+        );
+        assert!(policies.dependency_bindings.is_empty());
+        assert!(policies.hook_bindings.is_empty());
+        assert!(policies.descriptors.iter().flat_map(|d| &d.rules).all(
+            |r| !matches!(r, ModelRule::Invariant { dependencies, .. } if !dependencies.is_empty())
+        ));
+        assert!(collect_local_policies(&original, &module).is_none());
+        let field = |name: &str| {
+            original
+                .items
+                .iter()
+                .find(|i| i.canonical == format!("chat.{name}"))
+                .unwrap()
+                .id
+        };
+        for mutation in [
+            "role-schema",
+            "message-schema",
+            "request-schema",
+            "delivery-target",
+            "nullable-used",
+            "origin",
+            "ordinal",
+            "predicate",
+            "lock-order",
+            "lock-omit",
+            "missing-invariant",
+            "missing-lock",
+            "field-owner",
+            "import",
+            "field-source",
+        ] {
+            let mut ir = original.clone();
+            match mutation {
+                "role-schema" | "message-schema" | "request-schema" | "delivery-target"
+                | "nullable-used" => {
+                    let name = match mutation {
+                        "role-schema" => "Turn.role",
+                        "message-schema" => "Branch.prefix",
+                        "request-schema" => "Run.request_value",
+                        "delivery-target" => "Run.request",
+                        _ => "Run.used",
+                    };
+                    let IrItemKind::Field { ty, .. } = &mut ir.items[field(name).0 as usize].kind
+                    else {
+                        unreachable!()
+                    };
+                    *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                }
+                "origin" => {
+                    ir.invariants[0].origin.as_mut().unwrap().module =
+                        crate::analysis::ModuleId(u32::MAX)
+                }
+                "ordinal" => ir.invariants[0].origin.as_mut().unwrap().ordinal += 1,
+                "predicate" => {
+                    let IrExpr::Binary { op, .. } = &mut ir.invariants[0].pred.expr else {
+                        unreachable!()
+                    };
+                    *op = IrBinOp::Eq;
+                }
+                "lock-order" => ir.locks[0].fields.swap(0, 1),
+                "lock-omit" => {
+                    ir.locks[0].fields.pop();
+                }
+                "missing-invariant" => {
+                    ir.invariants.pop();
+                }
+                "missing-lock" => {
+                    ir.locks.pop();
+                }
+                "field-owner" => {
+                    ir.items[field("Turn.role").0 as usize].module =
+                        crate::analysis::ModuleId(u32::MAX)
+                }
+                "import" => ir
+                    .modules
+                    .iter_mut()
+                    .find(|m| m.name == "chat")
+                    .unwrap()
+                    .imports
+                    .clear(),
+                "field-source" => ir.items[field("Turn.role").0 as usize].span.start += 1,
+                _ => unreachable!(),
+            }
+            assert!(
+                collect_checked_policies(&program, &ir, &db, Some(&catalog), &module).is_none(),
+                "{mutation}"
+            );
+        }
+        let mut stripped = original.clone();
+        stripped
+            .invariants
+            .retain(|rule| rule.id == "Profile.require.1");
+        stripped.locks.retain(|rule| rule.id == "Profile.lock.1");
+        for item in &mut stripped.items {
+            if let IrItemKind::Model {
+                invariants, locks, ..
+            } = &mut item.kind
+            {
+                invariants.retain(|id| id == "Profile.require.1");
+                locks.retain(|id| id == "Profile.lock.1");
+            }
+        }
+        assert!(collect_local_policies(&stripped, &module).is_some());
+        assert!(
+            collect_checked_policies(&program, &stripped, &db, Some(&catalog), &module).is_none(),
+            "coherent rule withdrawal cannot publish a partial original policy set"
+        );
+        let mut stale = SourceDb::new();
+        stale.add(
+            "CanChat.can".into(),
+            source.replace("row.used<=row.reserved", "row.used>=row.reserved"),
+        );
+        assert!(
+            collect_checked_policies(&program, &original, &stale, Some(&catalog), &module)
+                .is_none()
+        );
+        assert!(collect_checked_policies(&program, &original, &db, None, &module).is_none());
     }
 }

@@ -185,8 +185,8 @@ export async function records(context,model,options){{
  host.events.push('records');await Promise.resolve();
  return context.employees.filter(record=>record.teamId===context.team.id && options.where(record));
 }}
-export async function active_member(person,team){{
- const host=globalThis.enumHost;assert.equal(team,host.context.team);
+export async function active_member(context,person,team){{
+ const host=globalThis.enumHost;assert.equal(context,host.context);assert.equal(team,host.context.team);
  host.events.push('active_member');await Promise.resolve();
  const active=host.context.activeMembers.includes(person.id);
  host.afterMembershipRead?.(person,team,active);
