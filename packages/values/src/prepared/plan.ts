@@ -184,6 +184,7 @@ function copyFrozenValue(value: unknown): CanValue {
     value === null ||
     typeof value === "string" ||
     typeof value === "boolean" ||
+    typeof value === "number" ||
     typeof value === "bigint" ||
     typeof value === "symbol" ||
     value === undefined

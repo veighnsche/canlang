@@ -331,6 +331,14 @@
       "remaining_prerequisite": {
         "prerequisite": "Genuine defining descriptor/owner/revision registration and complete scalar/default/lifetime serving joins.",
         "owner": "Values plus exact compiler/consumer producer owner"
+      },
+      "plain_date_default_copy": {
+        "status": "implemented_tested_source_reviewed_CLEAR_local; finite ordinary TS plain-data default copy; serving/source association parent unfinished",
+        "source_base": "a8b522a1046fb13084368bbecb80cf2b49273770",
+        "defect": "copyFrozenValue promised plain primitive metadata but omitted number. Genuine normalizeSchema date defaults carry numeric year/month/day, so ordinary TS registration failed with uncopyable-value before issuing their plan/default ref.",
+        "repair": "Pass immutable numeric primitives through the existing plain-data copy branch. Preserve detached frozen records, exact leaves, class/Decimal refusal, staged publication, owner/ref isolation and retained-default release semantics; no new class/carrier/profile/API or codec/backend/source association.",
+        "validation": "Fresh Values emission0 and maintained genuine normalizeSchema->existing integrator-private provenance seam->register RED rejects date default as number values. Final Values emission0/24 affected ordinary TS plan/default/forgery/owner/lifetime/atomic registration cases PASS,0fail/cancel/skip; exact detached frozen {kind:date,year:2026,month:10,day:4}, repeated default identity, released-plan refusal and retained default identity verified. Existing genuine Decimal/reserved/getter failures publish no partial plan/defaults; finite independent source review CLEAR. Unchanged public types/codec/native handle/owned-input/installed/serving results reused only at original scopes.",
+        "remaining": "Exact coordinator source intake; normal Values emit and existing catalog regeneration before future native captures. Genuine serving descriptor/source-owner/revision association and Decimal carrier remain missing defining outputs; V04/native preparation/source/adoption/default/activation/publication holds preserved. No provider-void/push."
       }
     },
     "TECH-V04": {

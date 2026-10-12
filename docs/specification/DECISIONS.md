@@ -11960,3 +11960,10 @@ Changed MAIN checks all0: {"owning": 1.67, "root": 4.63} seconds; no unchanged n
 Accepted finite DEL-B02 source component a8b522a1046fb13084368bbecb80cf2b49273770: Cancel once and race pending quota cleanup against the same Request signal, retaining original quota error, releaseLock and eventual physical cleanup; no new timeout or dependency. Independent defining source review CLEAR; 26 HTTP operation groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 1.6, "root": 4.56} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — retain numeric date default leaves
+
+Accepted finite TECH-V03 source component 49d053c1a5f93a493af97119f5192b17d7e7f487: Pass numeric metadata primitives through detached frozen default copying; genuine Date registration remains valid while Decimal class/forgery/owner/lifetime/partial publication refusals stay strict. Independent defining source review CLEAR; 24 prepared default/provenance groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning_reused": 1.06, "catalog": 0.18, "root": 4.88} seconds; no unchanged native/installed/engine reruns.

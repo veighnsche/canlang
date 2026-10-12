@@ -315,6 +315,18 @@ describe("default registry identity", () => {
     const second = resolvePlanDefault(own, ref);
     assert.equal(first, second);
     assert.deepEqual(first, 3n);
+    const dated = registeredPlan({ contracts: { C: { fields: {
+      day: { type: "date", default: "2026-10-04" },
+    } } } });
+    const dateRef = dated.plan.contracts["C"]!.fields[0]!.defaultRef!;
+    const dateDefault = resolvePlanDefault(dated.own, dateRef);
+    assert.deepEqual(dateDefault, { kind: "date", year: 2026, month: 10, day: 4 });
+    assert.notEqual(dateDefault, dated.schema.contracts["C"]!.fields["day"]!.default);
+    assert.ok(Object.isFrozen(dateDefault));
+    assert.equal(resolvePlanDefault(dated.own, dateRef), dateDefault);
+    releaseValidationPlan(dated.own, dated.id);
+    assertPlanError(() => getValidationPlan(dated.own, dated.id), "unknown-plan");
+    assert.equal(resolvePlanDefault(dated.own, dateRef), dateDefault);
   });
 
   it("forged or unknown default refs are rejected", () => {
