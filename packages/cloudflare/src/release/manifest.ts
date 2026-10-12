@@ -50,6 +50,9 @@ function walk(distAbs: string, distRel: string, out: DistManifestFile[]): void {
   for (const entry of entries) {
     const abs = join(distAbs, entry.name);
     const rel = posix.join(distRel, entry.name);
+    if (entry.isSymbolicLink() && isCovered(entry.name)) {
+      throw new Error(`dist manifest: covered path is a symbolic link: ${rel}`);
+    }
     if (entry.isDirectory()) {
       walk(abs, rel, out);
     } else if (entry.isFile() && isCovered(entry.name)) {
