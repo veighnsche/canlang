@@ -610,7 +610,7 @@ fn full_original_query_composition_keeps_six_queries_and_the_original_native_ret
         .expect("the original owning operation is present in the real artifact");
     assert_eq!(
         serde_json::to_value(&emitted_operation.disclosure).unwrap(),
-        serde_json::to_value(&Some(&recipe.plan)).unwrap()
+        serde_json::to_value(Some(&recipe.plan)).unwrap()
     );
     let scratch = tempfile::tempdir().unwrap();
     for (_, file) in db.iter() {

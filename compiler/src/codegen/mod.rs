@@ -46,6 +46,7 @@ pub mod js;
 mod membership;
 pub mod model_policies;
 pub mod model_policy_profile;
+pub mod model_unique_conditions;
 mod read_predicates;
 pub mod scenario_calls;
 mod scenario_create_sources;
@@ -257,6 +258,12 @@ pub fn emit(
         sources.catalog,
         &policy_module,
     );
+    let unique_conditions = model_unique_conditions::collect_checked_unique_conditions(
+        program,
+        &ir,
+        sources.db,
+        sources.catalog,
+    );
     let js_out = js::emit_program_with_feasible_query_sources(
         &ir,
         sources.options.native_scenario_receipts,
@@ -265,6 +272,7 @@ pub fn emit(
         &query_receipts,
         js::EmitDecisionSources {
             local_policies: local_policies.as_ref(),
+            unique_conditions: unique_conditions.as_deref(),
             query_any: Some(&query_any),
             query_selections: Some(&query_selections),
             transcript_queries: Some(&transcript_queries),
