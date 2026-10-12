@@ -658,3 +658,25 @@ console.log('Byte-exact Images CLI/schema/source/verified factory once-order; na
     );
     eprint!("{}", String::from_utf8_lossy(&run.stdout));
 }
+
+#[test]
+fn cli_builtin_call_in_body_keeps_first_query_receipt() {
+    let scratch = tempfile::tempdir().unwrap();
+    let source_path = scratch.path().join("first-query-builtin-call.can");
+    let source = "app T3\nGiven\n Budget {account:user,active:bool,running:int=0,parallel:int=1}\n Run {budget:Budget,label:text}\n policy Budget read=members\n policy Run read=members\nWhen\n crud Budget by=members fields=account,active,running,parallel\n crud Run by=members fields=budget,label\n scenario pick(label:text=\"x\") -> Run by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and budget.active\n   let note=trim(label)\n   create Run {budget,label=note} as run\n   return run\nThen\n";
+    std::fs::write(&source_path, source.as_bytes()).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--native-scenario-receipts", "--format=json", "--catalog"])
+        .arg(native_catalog())
+        .arg(&source_path)
+        .current_dir(root())
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "builtin call beside first() must keep native receipt: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
