@@ -611,11 +611,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V03",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Genuine descriptor-to-source-owner/revision and scalar/default/lifetime serving registration.",
-          "required_input": "Defining producer supplies actual descriptor/source-owner/revision association and complete scalar/default carrier/lifetime seam. No production association is currently established; accepted owned-JSON/atomic registration corrections are inputs.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Actual serving preserves decimal coefficient/scale/negative-zero/default identity and release semantics; forged schemas, mutation and partial registration refuse.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish actual production descriptor/source-owner/revision association and complete scalar-default lifetime seam. Ordinary TS/default/Date49 source criteria are closed.",
+          "required_input": "Actual production association output is still absent; existing prepared Values/source codecs are available.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Decimal coefficient/scale/-0/default identity and lifetime hold; forgery/mutation/partial admission refuse.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 15,
+          "defining_owner": "Compiler/serving descriptor owner; Packages codec",
+          "next_action": "Defining owner selects the smallest association; no generic human architecture gate or new Decimal carrier."
         }
       }
     },
@@ -819,11 +822,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V04",
         "packages_execution": {
           "lane": "human-held",
-          "remaining_outcome": "Selected int/ASCII bounded codec, owning ordered SchemaError, original CSV int consumer and installed resource/lifetime qualification.",
-          "required_input": "Explicit release of the recipient-specific selected codec source/adoption hold. Accepted raw25/bootstrap7/hygiene remain closed; wider Unicode/money/prepared-plan criteria remain separate.",
-          "release_condition": "Human explicitly lifts only the named recipient-specific hold.",
-          "finish_condition": "After release, preserve signed64/range/leading-zero/negative-zero and format-before-bound/error ordering; domain/size/ABI/startup/asset failures refuse without fallback at the claimed host scope.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Preserve exact selected int/ASCII codec/source-adoption hold.",
+          "required_input": "Exact original human release required; raw25/bootstrap7 outputs remain accepted.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "After release preserve int64/leading zero/-0/form-before-bound/error order/domain ABI/startup at the original scope.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 25,
+          "defining_owner": "Human selected source/adoption release; Values/Rust/Interfaces/Dev thereafter",
+          "next_action": "Skip held implementation; no consultation-based release."
         }
       }
     },
@@ -960,12 +966,15 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original timezone/calendar/display corpus at exact declared release runtime and ICU/tzdb/CLDR identity; finite local year-range boundary criterion implemented/tested.",
-          "required_input": "Dev/L7 exact release runtime artifact/build and loaded data identity with original corpus qualification. Local internal probe/era boundary source and accepted raw-key retention are implemented and remain credited.",
-          "release_condition": "Exact finite release-host/data owner output is released; no V04 source/adoption or native hold release.",
-          "finish_condition": "Existing original corpus qualifies the declared runtime/data tuple; held/unselected/native hosts stay unqualified. Local boundary result alone does not claim that tuple.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately.",
-          "implemented_scope": "Shared existing Gregorian signed-year reconstruction and Intl era decoding repair; public bounds/probe/fold/gap/cache unchanged. Values emit0, timezone23/23, temporal36/36, independent source review CLEAR."
+          "remaining_outcome": "Qualify exact original release runtime/ICU/tzdb/CLDR corpus tuple. Local grouping/locale/timezone components are closed.",
+          "required_input": "Actual declared release runtime/data tuple is external; no fabricated data or V04 release.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Original corpus passes at that exact runtime/data revision with ordinary negative assertions.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "implemented_scope": "Shared existing Gregorian signed-year reconstruction and Intl era decoding repair; public bounds/probe/fold/gap/cache unchanged. Values emit0, timezone23/23, temporal36/36, independent source review CLEAR.",
+          "priority": 21,
+          "defining_owner": "Dev/L7 release runtime/data",
+          "next_action": "Skip missing tuple; no unchanged local math/cache rerun."
         },
         "timezone_public_range_boundary": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05/timezone_public_range_boundary",
         "locale_current_range_priority": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05/locale_current_range_priority",
@@ -1353,12 +1362,15 @@
         "contained_query_parent_contract": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02/contained_query_parent_contract",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original count/first and first-success/read/replay disclosure with genuine parent/row/query influence and current authority.",
-          "required_input": "Compiler exact original candidate-exclusive dependency queryId correspondence; Capability/State authentic completed/consumed candidate association across capture/final/saved checks; Dev original owner/stage/store and selected ask75 caller. Contracts parent ABI b553 and candidate-only optional existing query fact are implemented; no producer-parent completion prerequisite.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Original selected generated HTTP/query/replay caller keeps useful authorized fields and saved semantics, hides secrets and hidden ordinary fields, and revalidates saved parent/ancestors/full Identity even for an empty child domain without repeating effects.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately.",
-          "implemented_scope": "Existing contained-parent and retained witness ABI; callback forwarding; optional queryId on existing return ordinary dependency, legacy omission/intrinsics mandatory. Contracts/root/focused ABI checks pass; runtime authority remains with owners."
+          "remaining_outcome": "Finish remaining original HTTP/read/replay source-policy, secrecy and lifetime consumers. Shape and first/count/ancestor/combined mechanisms are already accepted at their finite scopes.",
+          "required_input": "Contracts374 queryId, corrected State d579/69f3, actual main first/count/ancestor/combined are available. Need exact unqualified original caller/source consumer, not a whole plan.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Original/current-saved source, ancestors, full Identity and empty-domain authority remain; denied/changed inputs produce no effects.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "implemented_scope": "Existing contained-parent and retained witness ABI; callback forwarding; optional queryId on existing return ordinary dependency, legacy omission/intrinsics mandatory. Contracts/root/focused ABI checks pass; runtime authority remains with owners.",
+          "priority": 4,
+          "defining_owner": "Capability State; Compiler source; Dev original consumers",
+          "next_action": "Consume a concrete released remaining caller; skip absent caller qualification."
         },
         "candidate_dependency_query_contract": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02/candidate_dependency_query_contract"
       }
@@ -1487,11 +1499,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S03",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Actual app/mixed-root/page/MCP routes select the genuine resolved owner store.",
-          "required_input": "Exact actual host owner-to-store binding and original app/mixed/page/MCP route consumer beyond the accepted team-owner D1 profile.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Selected real routes read/write only the resolved owner, preserve explicit public exceptions and refuse unknown/mixed binding before effects.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish required mixed app-root/page/MCP owner routing beyond the qualified team D1 profile.",
+          "required_input": "Actual defining app/model-to-physical-store assignment remains required from Capability/Dev; existing prepared routing is an input.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Own-store and stated public exceptions work; unknown/mixed ownership refuses before effects without cross-owner fallback.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 10,
+          "defining_owner": "Capability/Dev actual owner assignment",
+          "next_action": "Resolve the named assignment only when its original consumer is ready."
         }
       }
     },
@@ -1639,11 +1654,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W02",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original source-app/app-root owner enumeration reaches the selected T26 lifecycle consumer.",
-          "required_input": "Exact original source-app/app-root enumeration and selected authority/receipt/notification consumer output; shared resource profile comes from TECH-S04-query only where needed.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Selected caller preserves terminal-prefix progress, fresh-B effects, same-child atomic checkpoint, retained membership and truthful unknown read failure.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish original app-root enumeration/T26 lifecycle consumer with exact source/current authority/notification.",
+          "required_input": "Existing enumeration components available; exact original native owner/lifecycle output and S04 profile only where used remain.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Terminal prefix, fresh B, same child checkpoint and retained member facts survive; unknown remains truthful.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 12,
+          "defining_owner": "Capability Work; Dev lifecycle",
+          "next_action": "Consume the finite released lifecycle, not completion of Work."
         }
       }
     },
@@ -1934,11 +1952,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-W03",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original durable recovery sweep consumes the released synchronous planRecoveryScan native family.",
-          "required_input": "Existing runRecoverySweep binds createRecoveryPlanner with explicit startup backend and genuine producer-owned compiled module; released6e6f669bd producer is available.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Selected whole-call family preserves demand/order/throw/f64/presence and single-owner conditional staging/commit without duplicate effects or fallback.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Consume existing runRecoverySweep/createRecoveryPlanner through the explicit startup backend and genuine native producer.",
+          "required_input": "Native producer6e6f669bd and existing planner are available; original durable startup consumer remains.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Demand order, throw/f64 presence, one owner conditional staged commit and duplicate no-effects hold without fallback.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 13,
+          "defining_owner": "Dev durable recovery sweep",
+          "next_action": "Request only the missing concrete startup consumer."
         }
       }
     },
@@ -2089,11 +2110,14 @@
         "atomic_recovery": "Defining optional atomic same-Identity recovery implemented and focused-tested locally. Store reads admission clock after hash;5 guarded native SQL statements consume exact proof last. Single winner, rollback every phase, reopened all facts, unrelated verification preserved, uncertain acknowledgement/spent retry and unsupported refusal proved. Identity/root types0,27 affected controls pass/reused; finite source review CLEAR. Coordinator intake and Dev selected original native recovery/final authority remain separate; no broader J2/hold release. Coordinator independent source review CLEAR and finite library component integrated LOCAL main after deadline; unchanged owning27 reused, actual changed main Identity/CF/root emission0. Original Dev native recovery/final effect timing remains unfinished.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original membership-removal and final State-authority consumers use completed Identity producers; selected atomic recovery consumer is now accepted.",
-          "required_input": "Dev: stable namespace/operation/principal and original removal ingress/handler. Compiler: checked original removed-subject/source lowering. Capability/Dev: exact database placement and final mutation-authority fence for the selected State consumer. Original real-D1 recovery host mirror/test and MAIN1/1 are accepted12e/55f; no repeat recovery gate.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Actual selected authoritative store has one contender winner, loser cannot mint, selected crash/reopen/replay and revocation phases preserve original policy and receiving authority; original final State authority is established at its actual mutation boundary.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish only remaining original J2/complete routing or final-writer placement. Internal removal, signed ingress and recovery finite native scopes are closed.",
+          "required_input": "2ada/8a reader and signed verifier, actual main signed/internal/recovery outputs available. Need exact remaining original durable namespace/principal/receiving consumer.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Trusted original cause/remover/null receiving actor and complete routing/final current fence hold through cold retry/replay.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 7,
+          "defining_owner": "Dev Identity/routing; Capability final authority; Compiler original event",
+          "next_action": "Do not rerun accepted removal/recovery; consume the missing named original consumer."
         },
         "account_link_query_composition": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I01/account_link_query_composition"
       }
@@ -2255,11 +2279,14 @@
         "accepted_scope": "Installed grant cap/sessionCSRF, atomic one-use Memory/SQL/actualD1 and browser-cookie/Origin source-security/installedD1 scopes critically reviewed and accepted. Original browser/effect consumers remain Dev-owned. Existing no-fragment redirect rule now rejects bare # before persistence in reviewed LOCAL main; encoded %23 data/exact matching preserved, oauth13 reused, changed Identity/root0. Mounted timing remains separate.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original mounted cookie helpers and revocation timing consume the accepted one-use/browser-origin producers.",
-          "required_input": "Dev: genuine descriptor presession cookie jar and separate Set-Cookie transport, suspended-body revocation and after-entry outcome observations. Atomic consume and installed cap/CSRF/Origin components are already accepted.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Binding/Origin/CSRF/body-cap refusals and one-use effects remain intact; suspended-body and after-entry results report only actually observed policy guarantees.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish original mounted cookie descriptor, pre-session binding, separate Set-Cookie and suspended-body revocation timing. OAuth/account link source criteria are closed.",
+          "required_input": "Existing CSRF/Origin/caps/one-use and corrected OAuth/account links available; actual mounted/current pre-entry/post-entry consumer required.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Bindings and authority remain current, one-use/rejection boundaries are truthful, and suspended bodies clean up.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 8,
+          "defining_owner": "Dev mounted Identity/HTTP",
+          "next_action": "Skip only the missing mount tuple; no new auth protocol."
         },
         "account_link_query_composition": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I01/account_link_query_composition",
         "oauth_empty_fragment_refusal": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I02/oauth_empty_fragment_refusal"
@@ -2404,11 +2431,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Declared live R2/mounted concurrent-store serialization and interruption/power-loss publication behavior.",
-          "required_input": "Actual host owner provides the precise concurrent serialization/publication recovery contract and genuine host qualifier. Required offsets, native/UI inputs and serial FS/SQLite finalization/reopen are already released.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Exact range retry and each original publication interruption recover the same finalized identity or refuse before immutable acceptance on the declared host.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Qualify genuine mounted R2, concurrent serialization/publication interruption/power loss. Bridge delimiter ebf is closed locally and queued integration.",
+          "required_input": "Actual host contract and mounted R2/power-loss witness remain external; FS/SQLite/native/UI scoped evidence is available.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Same final identity and immutable bytes survive; malformed/partial/foreign/refused writes never publish.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 22,
+          "defining_owner": "Dev/storage host; Packages existing adapters",
+          "next_action": "No second storage algorithm or lane hold; take concrete host release only."
         },
         "upload_pointer_escape_admission": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01/upload_pointer_escape_admission"
       }
@@ -2609,11 +2639,14 @@
         "identity_ingress_verifier": "Consume defining Devcf33 host profile through released createIdentityRemovalIngressVerifier six-field API; exact raw signature/closed duplicate-free JSON/header/key/age/original SELECT-only correspondence and final lifetime checks implemented, emission/root0 and six new scoped groups PASS with unchanged five reused after fixture correction. Dev owns actual trusted binding/key/receiver callbacks/private original-envelope association, durable raw-digest/source/complete routing/idempotency/current authority/final fence and original signed native control. No activation or broader provider/File acceptance. Coordinator independent strict-authenticity and async/lifetime source reviews CLEAR; finite library criterion accepted in LOCAL main, Dev durable/native consumer unfinished.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Complete non-Identity opaque File/provider/guard/source/receipt correspondence through original capture, census and durable reopen/migration.",
-          "required_input": "Capability: complete historical type/default/origin/guard/generation-profile matching, typed File traversal and same-fence persistence/census. Compiler: original typed source/input/result/void declarations. Dev: genuine original receiving/lifetime/source/host bindings for the selected nonvoid consumers. Accepted deletion and signed Identity ingress are inputs.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Each original selected nonvoid workflow preserves complete source/type/path/current File authority across reopen/migration and refuses retired/missing/foreign/replayed evidence; fresh verified provider events finalize once. Accepted deletion/Identity profiles are not rerun.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish original non-Identity opaque File/provider, guard, source, receiving, lifetime and reopen/migration joins; retain typed defaults/declarations.",
+          "required_input": "Accepted File page/gallery/Images/retirement/signed Identity and Generation matcher are available. Missing exact remaining request/source/revision/receiving/provider output has its defining owner.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Empty, retired, missing, foreign and replay refusals preserve full source authority; genuine receiving finalization occurs once.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 5,
+          "defining_owner": "Capability historical File/Generation; Compiler; Dev receiving",
+          "next_action": "Integrate only an exact newly released assigned consumer; no second inventory or retirement algorithm."
         }
       }
     },
@@ -2894,12 +2927,15 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02",
         "safe_explanation": "Packages fixed closed provider explanation mapping implemented and focused-tested:5 existing safe literal outcomes retained, arbitrary/modified/wrongcategory message generic across mail send/reconcile/model/media, statuses/identity/partial evidence unchanged. Services emit0/12 affected real loopback/helper groups PASS; finite independent source review CLEAR. JEV3 advice all choose closedmapping conf1; no general free-text safety/host acceptance claim. Coordinator direct defining source/test review CLEAR and finite component integrated LOCAL main after deadline; owning12 affected groups reused and changed main Services/CF/root0. This library criterion is closed.",
         "packages_execution": {
-          "lane": "owner-output",
-          "remaining_outcome": "Immutable control creation/deadline bounds the complete original observation and truthful original-ID reconciliation.",
-          "required_input": "Work/Dev: persist original creation anchor once, apply existing maxDurationMs to the complete await/durable progress wait and retain late outcome/resource/lifetime evidence. Safe provider explanations8450554a and media IDs62a0a87e0 are available.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Retry cannot renew the deadline or overwrite late success; original-ID outcome remains succeeded/failed/unknown truthfully with secrecy and cancellation uncertainty preserved.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "lane": "local-ready",
+          "remaining_outcome": "Make unknown-loader typed-page validation inspect every position instead of Array.every skipping absent positions. Remaining parent needs immutable creation anchor, existing maxDuration and durable truthful original-ID reconciliation.",
+          "required_input": "Existing pagination.ts/pagination.test.ts demonstrate sparse positions; accepted cancellation/error components are inputs. Actual durable deadline/observation output belongs to Work/Dev.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Sparse absent positions refuse; ordinary typed pages and error order remain. Durable consumer never renews the original deadline or overwrites a later terminal observation.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 1,
+          "defining_owner": "Packages Services; Capability Work/Dev durable consumers",
+          "next_action": "Fix the demonstrated sparse-page gap after CSV; do not reopen cancellation."
         },
         "buffered_body_limit_cleanup": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02/buffered_body_limit_cleanup",
         "buffered_body_byte_snapshot": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/buffered_body_byte_snapshot",
@@ -3028,11 +3064,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV03",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original generated/durable media closure uses the same captured own-JSON graph/digest and stable retry identity.",
-          "required_input": "Exact original media closure consumes accepted90909dfad producer; only its corresponding actual File upload/bridge and host profile outputs are needed.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Original caller preserves graph/digest/substitution/retry identities and refusal before effects for the recorded unsupported graph domain.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish original generated media graph/digest/stable retry through actual upload/host/durable closure. Mapping collision source unit9c is reviewed, queued local intake, not a reopened criterion.",
+          "required_input": "90909dfad graph and exact actual upload/receiving host output; queued9c source results preserve their own scope.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Original wire/hash/freezing/jobs/retry remain and invalid mapping produces zero provider requests.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 14,
+          "defining_owner": "Dev/L7 media/Files; Packages mapping only concrete gap",
+          "next_action": "Take exact host release; no new graph vocabulary/profile."
         }
       }
     },
@@ -3535,11 +3574,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C01",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original installed/generated-browser/durable CSV honors the implemented maximum-work and memory refusal profile.",
-          "required_input": "Coordinator: manual acceptance/integration of the existing owning-tested csv_resource_profile unit. Dev: actual selected CSV host consumes that same checked profile and qualifies the original resource refusal.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Original caller preserves blank/default/int64/normalized duplicate semantics and refuses hostile schemas/resource excess before allocation at the claimed host scope.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Qualify original host resource limits beyond already accepted library/native maximum-review scopes.",
+          "required_input": "CSV resource profile and safe transport/int64/default/duplicate source outputs are available; original mounted/durable tuple remains.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Blank/default/int64/duplicate and normalized host caps refuse in original order before allocation/effects.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 17,
+          "defining_owner": "Dev original CSV browser/durable resource consumer",
+          "next_action": "Skip only that host output; source intake is not a new implementation gate."
         }
       }
     },
@@ -3684,11 +3726,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original mounted preview/form/commit authenticates frozen CSV review and current per-row mutation authority.",
-          "required_input": "Coordinator: acceptance/integration of existing review_integrity_binding. Dev: genuine host-key SourceFormBindings.csvReview, required consent.review_token transport and original mounted consumer. Capability: canonical final mutation authority/fence.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Mounted commit uses exactly the frozen table/app/session/team/source/expiry context, refuses tamper/foreign/expired proof before effects and preserves invalid/duplicate/unselected/partial/unknown outcomes plus revoked-prefix behavior; no unsigned fallback.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Numeric selected-row alias refusal6a2 is implemented/tested and independently source-reviewed, queued coordinator intake. Host consent/review/final current per-row authority remains.",
+          "required_input": "Existing confirm.ts/csv.test.ts demonstrate aliases; Dev host-key/source-form consent and Capability final current fence are separate original outputs.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Aliases cannot silently collapse selection; valid exact selection preserves original review/digest/order/refusals. Original installed host rejects tampering, expiry, revoked or unselected rows without fallback.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 3,
+          "defining_owner": "Packages CSV; Dev/Capability for original host/fence",
+          "next_action": "Reuse three selected-alias controls; wait only exact original Dev/Capability output for the remaining parent."
         },
         "safe_transport_failures": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02/safe_transport_failures"
       }
@@ -3945,11 +3990,14 @@
         "prepared_action": "ActionProps optionally reuses existing FormProps checked derivation/source identities, existing formOpenTag/binder/mode/projection/CSRF/nonce/lifecycle, safe pre-effect metadata/companion/sealed-handle refusal. Node24 owning emits/browser/root0,12 UI scopes+1 genuine Interfaces derivation/signing/restoration join pass/reused. No new transport/guard/event/marker. Coordinator defining review CLEAR and finite LOCAL main intake after deadline; owning scoped results reused. Accepted source criterion closed, original consumers/parent criteria and all exact holds remain separate.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original plain action supplies genuine prepared metadata and satisfies its installed/browser completion lifecycle.",
-          "required_input": "Compiler: original caller metadata emission using existing ActionProps/FormProps association. Dev: genuine original installed/browser submission, settlement and stale-result/cancellation consumer. Sealed browser actions separately require an actual issuer/source contract.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Original action acquires/disposes once, awaits settlement/cancellation and suppresses stale results after body-await context changes. MCP-only sealed-action refusal remains until its exact issuer/source output exists.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Gallery context fix e0bd is implemented/tested and independently source-reviewed, queued coordinator intake. Do not reopen it. Original emitted .can action/sealed browser issuer and actual mounted current-authority consumer remain.",
+          "required_input": "Existing gallery.ts/browser-gallery.test.ts and BrowserClient.contextKey are available; no external input for this fix. Original action emission still needs Compiler, sealed issuer and mounted native consumer need Dev.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "A retained binder cannot fetch or paint an earlier-context protected preview after context changes; held completions expose nothing and release owned URLs. Then consume only a newly released original action producer.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 2,
+          "defining_owner": "Packages UI; Compiler/Dev for original emitted action",
+          "next_action": "Reuse six held-stage/context controls; wait only exact original Compiler/Dev output for the remaining parent."
         }
       }
     },
@@ -4137,12 +4185,15 @@
         "required_file_catalog": "Shared required File[] consumer repair implemented/tested: exact file[]! marker, separate create/update slot presence, full+legacy MCP File wrappers and whole owning codec. Interfaces emit0; four affected existing controls pass, corrected new consumer1/1 pass; actual public CF catalog accepts required CRUD profiles/mismatch refusal1/1. Defining finite review CLEAR. Reuse unchanged checks; Dev original compiled native/page retry remains external. Single outcome recorded at existing DEL-B02 state required_file_catalog; full parent/holds unchanged.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original mounted auth/files/export/print/resource and URL-lifetime journey consumes accepted bridges; finite local immutable asset registration implemented/tested.",
-          "required_input": "Dev exact trusted deploymentBase/read-current-authority/cleanup/resource-lifetime mounted consumer; Compiler original app_url/breadcrumb/field/File-text/drawer/gallery lowering. Local asset key/byte/MIME/cache capture is implemented and needs no foreign producer.",
-          "release_condition": "Exact named mounted/source owner output is released at finite scope; library snapshot result remains credited.",
-          "finish_condition": "Original mounted journey meets its recorded useful resource/security/lifetime controls; no parent acceptance from the finite GET/HEAD library result.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately.",
-          "implemented_scope": "Capture getters once and copy bytes before later getters; exact validated MIME/cache retained. Actual browser-assets7/7 and owning Interfaces emit0; no source/host authority inferred."
+          "remaining_outcome": "Finish only original unmet mounted auth/Files export/print URI lifetime and declared page/mount consumers. Scoped assets/CSV targets/File page/gallery are closed.",
+          "required_input": "Released purpose resolver/protected routes/current credentials and existing source lowerings are available; actual remaining mounted/authenticated consumer required.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Trusted deployment base, complete current authority and cleanup survive; GET/HEAD does not grant parent completion.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "implemented_scope": "Capture getters once and copy bytes before later getters; exact validated MIME/cache retained. Actual browser-assets7/7 and owning Interfaces emit0; no source/host authority inferred.",
+          "priority": 16,
+          "defining_owner": "Compiler UI lowering; Dev mounted export/resource consumer",
+          "next_action": "Keep exact emitted action/browser issuer separate; reuse accepted native pages."
         },
         "asset_registration_snapshot": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/asset_registration_snapshot",
         "export_protected_target": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/export_protected_target",
@@ -4313,11 +4364,14 @@
         "bun_stage_outcome": "Implemented/tested/reviewed in local main: each original Bun build stage30s/SIGKILL/1MiB capture, actual installed deterministic three-stage1/1 and mocked-child real-writer10/10, no publication/apply on first/second-stage timeout. Stop this finite criterion; command-wide policy, concurrent replacement/broader interruption and precise preparation hold remain.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Original sequential publication handles selected concurrent path replacement and physical interruption truthfully.",
-          "required_input": "Defining actual writer/caller supplies the exact concurrent replacement/interruption criterion and control. Cooperative command budget, run URL, scratch containment/cleanup and primary-error components are accepted6cb9e4ea.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Selected controls preserve containment, cleanup, original errors and truthful partial-write/uncertain-apply outcomes.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish original concurrent path replacement and physical interruption qualification. Cooperative budgets/scratch/run URL/failure components are closed.",
+          "required_input": "6cb9e4ea resources and command outputs available; actual concurrent writer/interruption host witness required.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Containment, cleanup, primary error and partial/uncertain writes remain truthful; no absolute process-tree or remote rollback claim.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 18,
+          "defining_owner": "Dev actual writer/interruption",
+          "next_action": "Do authorized local qualification only; deployment/preparation holds stay exact."
         }
       }
     },
@@ -4469,11 +4523,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D04",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Actual emitted namespace and graph/source-map diagnostics correspond without reserved-path collisions.",
-          "required_input": "Compiler: exact disjoint emitted namespace including worker/main.js and bundle.json. Dev: matching current graph/maps and original installed diagnostic consumer at the declared lexer/map host.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Installed diagnostic identifies the original coordinate; collisions/invalid loadability refuse before publication and retained error/tie/order behavior holds.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish exact disjoint emitted worker/main.js and bundle.json namespace plus original current graph/map diagnostics.",
+          "required_input": "Raw negative map unit8f7 available; exact emitted namespace and original installed consumer required.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Coordinates, collisions, loadability and first-tie order preserve source before publication.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 19,
+          "defining_owner": "Compiler emitted namespace; Dev installed maps",
+          "next_action": "Consume the named emitter output; no raw map rerun."
         },
         "raw_negative_map_identities": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D04/raw_negative_map_identities"
       }
@@ -4730,11 +4787,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D05",
         "packages_execution": {
           "lane": "human-held",
-          "remaining_outcome": "Original native-preparation aggregate resource/protocol/reviewed-byte/keyset gates.",
-          "required_input": "Explicit release of P03-P11/D05/Q10/EX12-13 preparation hold; no automatic activation/default/publication or TS retry.",
-          "release_condition": "Human explicitly lifts only the named recipient-specific hold.",
-          "finish_condition": "Original valid/invalid wire, budgets, exact reviewed byte/keyset and partial-effect/cleanup behavior meet their declared scope; no completion while held.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Preserve native preparation/default/activation/publication restrictions for P03–P11/D05/Q10/EX12–13.",
+          "required_input": "Exact recipient/action human release required.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "After release actual wire budgets/reviewed bytes/key set/partial cleanup satisfy original recipes.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 26,
+          "defining_owner": "Human recipient-specific preparation release; Packages/Dev thereafter",
+          "next_action": "No default/activation/publication or TS retry while held."
         }
       }
     },
@@ -4930,12 +4990,15 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Remaining actual supported-host and original authored/native release qualification; local Node22 declaration/runtime criterion implemented and tested.",
-          "required_input": "Dev/L7 exact remaining supported-host/original authored outputs; local minimum-engine source/qualifier criterion is accepted, no coordinator intake wait remains.",
-          "release_condition": "Exact remaining owner output is released; no whole-owner completion requirement or native preparation hold release.",
-          "finish_condition": "Node22.0.0 executes the matching genuine installed declaration and runtime consumers, including missing/corrupt/restored declaration controls, real Work serving, bundle/assets/Wasm/workerd assertions and producer refusals. Record exact engine/host scope; other hosts, authored/native workflows and held preparation stay separate.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately.",
-          "implemented_scope": "Node22 CLI/CI profile3fa259b45 and actual isolated declaration177/13; genuine runtime253modules PASS after shared Work dispatch/Files bridge mapping and exact gate comparisons. Source/private identity/security/refusals preserved."
+          "remaining_outcome": "Qualify only remaining originally required supported host/authored/native installed tuples. Local Mac Node22 and affected Node24 isolated criteria are closed.",
+          "required_input": "547/main6a11 genuine Work/Files mapping, actual253-module installed results and declarations177/13 are available; exact remaining host/runtime output is Dev/L7.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Actual installed producer, runtime, missing/corrupt/restored, Work, bundle/WASM/assets/workerd assertions pass at the named engine/host.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "implemented_scope": "Node22 CLI/CI profile3fa259b45 and actual isolated declaration177/13; genuine runtime253modules PASS after shared Work dispatch/Files bridge mapping and exact gate comparisons. Source/private identity/security/refusals preserved.",
+          "priority": 6,
+          "defining_owner": "Packages common gates; Dev/L7 supported-host consumer",
+          "next_action": "Repair an actual new common failure only; no unchanged installed restart."
         },
         "dist_inventory_byte_correspondence": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/dist_inventory_byte_correspondence",
         "workspace_version_input_completeness": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/workspace_version_input_completeness",
@@ -5123,11 +5186,14 @@
         "decimal_money_oracle_sharing": "Existing EC04 unchanged half-even string oracle shared test-only across original Decimal/Money consumers. Seeds/vectors/literal coefscaleerrors and independent oracle roles unchanged. Values/final root0,4 affected seeded consumers PASS40.501583ms, independent source review CLEAR. Zero production savings/adoption claimed; finite criterion closed locally. Coordinator defining review CLEAR and finite LOCAL main intake after deadline; owning scoped results reused. Accepted source criterion closed, original consumers/parent criteria and all exact holds remain separate.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Remaining original selector-channel consumer and conditional oracle/loader/type/installed cleanup gates.",
-          "required_input": "Compiler: channels from checked lexical identities and original generated-to-Testkit/native observation. Dev: channel forwarding/input-only materialization. Each remaining original conditional cleanup needs its own exact retained oracle/loader/type/installed negative output, not a new framework.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Original comparator/cleanup errors are observable and conditional deletion preserves reconstructible independent donor/source plus genuine substrate controls.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Connect remaining original generated Testkit/native lexical channels and forward/input-only materialization.",
+          "required_input": "Actual checked source/selector output required for the named caller; existing oracle/loader negatives are available.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Independent donor/substrate/errors and exact cleanup hold; no new testing framework.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 20,
+          "defining_owner": "Compiler checked channels; Dev/Testkit consumer",
+          "next_action": "Qualify only the released original caller."
         }
       }
     },
@@ -5250,11 +5316,14 @@
         "contained_query_parent_contract": "Shared defining ABI is counted once under TECH-S02: implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S02/contained_query_parent_contract. Original count/first replay consumers remain unfinished with their named owners.",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Remaining original source/legacy/query/secrecy/row-lifetime replay consumers, linked to the shared TECH-S02 contract.",
-          "required_input": "Capability/Compiler: exact original query/return dependency, secrecy and saved-row lifetime correspondence; Dev: affected original installed/browser/durable/native consumer. Checked CRUD/plain and signed singular-versioned-ref recovery are already accepted.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Matching retained receipts replay useful saved semantics under current authority with zero repeated effects; unseen expired IDs, changed inputs and revoked secret access refuse. Ordinary expired leases remain refused.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish remaining original source/legacy/query/secrecy/lifetime installed browser/durable replay consumer. Plain CRUD and signed-reference recovery scopes are closed.",
+          "required_input": "TECH-S02 exact finite outputs are available; need its remaining original consumer at the declared scope.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Saved values retain original semantics, current authority and secrets; expired/changed inputs refuse and replay causes no effects.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 9,
+          "defining_owner": "Capability/Dev; shared TECH-S02 output counted once",
+          "next_action": "Link shared output once; no duplicate replay implementation."
         }
       }
     },
@@ -5499,11 +5568,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/VERIFY-TV01",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Missing genuine consumer provenance for the existing selected native reader/observation gate.",
-          "required_input": "Exact original runner and consumer source/output identity for the remaining sampled native/installed scope; accepted discovery/parity and93-case registered observer results are inputs.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Owning runner honestly discovers/excludes original tests; omitted cases, stale output and changed observations refuse current qualification. Unsampled/native lifecycle scope stays unqualified.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Finish originally sampled native/installed consumer provenance, with unsampled tuples explicitly unqualified.",
+          "required_input": "Discovery/parity/registered93 observer components available; exact sampled original consumer missing.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Omitted/stale/changed observations refuse and genuine sampled producer/consumer provenance is retained.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 23,
+          "defining_owner": "Identity/Values/Work runners and integrators",
+          "next_action": "Reuse discovery; qualify one actual missing sampled scope."
         }
       }
     },
@@ -6145,11 +6217,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-S04-query",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Actual query/full-scan/recovery work has the selected visited-row budget, continuation and refusal policy.",
-          "required_input": "Defining driver: exact budget/continuation/refusal profile and actual D1/DO/Work implementation; retained per-call viewer and fence/projection/admission components are inputs.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Selected driver preserves order/continuation/fence and first failure with no partial published progress; tiny returned limits cannot conceal unbounded visited work.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Define/consume the original selected visited-row work budget, continuation and refusal profile.",
+          "required_input": "Exact named driver/D1/DO/Work producer output is needed; a tiny return limit is not that output.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Order/fence/first failure and truthful partial progress hold; no partial published result.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 11,
+          "defining_owner": "Capability Work/driver; Packages only concrete shared gap",
+          "next_action": "Skip absent driver output and keep ready library fixes moving."
         }
       },
       "owner_dependency": {
@@ -7375,11 +7450,14 @@
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/FINAL-R03",
         "packages_execution": {
           "lane": "owner-output",
-          "remaining_outcome": "Final selected cross-package caller/host failure/rollback review over genuinely released outputs.",
-          "required_input": "Only missing selected installed/durable/source-correspondence inputs from their defining owners; component handoffs do not wait for final aggregation.",
-          "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
-          "finish_condition": "Existing selected invariants hold on matching actual callers/hosts; final aggregation honestly excludes held/prototype/missing inputs and never blocks independent ready repairs.",
-          "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
+          "remaining_outcome": "Close original critical caller/host failure and rollback review on actual remaining released inputs.",
+          "required_input": "Missing selected actual source/consumer outputs only; accepted independent reviews are reusable.",
+          "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
+          "finish_condition": "Finite released scope reviewed and required checks accepted, with held/external remainder explicit.",
+          "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
+          "priority": 24,
+          "defining_owner": "Coordinator/independent defining reviewer",
+          "next_action": "No final aggregation barrier, review of reviews or proof packet."
         }
       }
     }
@@ -8382,27 +8460,29 @@
     "packet_fields": "status, readiness, execution_authorized, owner_lease and delegation retain their historical planning/lease stage. Use each existing packet current_execution for current disposition; do not interpret a proposed file or model allocation as an active writer."
   },
   "current_execution": {
-    "stage": "2026-10-12 actual-code re-evaluation of the existing remaining Packages execution list",
-    "source": "Each existing packets[id].current_execution.packages_execution is the single current remaining-work entry; packet_state and completion_snapshot retain scoped evidence/accounting.",
-    "authorization": "Human explicitly requested an entirely new list from all remaining Packages work. Replaces execution dispatch only; canonical scope/acceptance, foreign ownership, recipient holds, LOCAL execution and no-push instruction remain.",
+    "stage": "2026-10-12 human-requested full four-lane reassessment",
+    "source": "Single current view in each existing packet current_execution.packages_execution; original recipes and canonical references remain authoritative.",
+    "authorization": "Human requested immediate reevaluation of every remaining task and an individual prioritized list/instruction for each existing LOCAL worker. No new task IDs, ownership transfer, hold release or remote work.",
     "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
     "accounting": "Current snapshot is22 finished selected packets,15 partial,10 open/blocked,1 human-held=48 after selected original bounded cohort acceptance. Separate from333 canonical identities and wider parent closure.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Actual-code reevaluation completed ten independent library criteria and one finite shared boundary-input correction: release byte-inventory correspondence, complete workspace-version inputs, unique release path inventory, immutable asset getter capture, protected browser export targets, safe CSV transport failures, bounded buffered body-limit cleanup, timezone range-edge reconstruction, exact-current-range locale priority, raw negative map identities through edits, and exact First fixture checkout input. Their source/affected controls are implemented/tested; continue only next genuine ready source/consumer/shared failure, keeping foreign mounted/source/release-host outputs and precise holds separate. Accepted components stay closed. Buffered byte snapshot finite source criterion is accepted in LOCAL main, linked once for DEL-B02/TECH-SV02; original mounted/durable owner outputs remain. Own message signature criterion is accepted in LOCAL main; actual release runtime/data tuple retains its owner. Account link query composition finite source criterion is accepted once in LOCAL main, linked TECH-I01/TECH-I02; mounted/source authority remains defining owner work. Generated upload input byte correspondence finite source criterion is accepted in LOCAL main; exact mounted/source outputs retain owners. Supplementary-digit grouping width finite source criterion is accepted in LOCAL main; exact release runtime/data qualification retains its owner.",
+    "dispatch": "First TECH-SV02 sparse typed-page validation. Gallery e0bd and selected aliases6a2 have since coherently released, tested and passed defining source review; coordinator intake is pending, not a new worker implementation. These were demonstrated defects in existing paths. Source criteria already closed and queued for coordinator intake do not become worker recap tasks. All other leaves consume exact defining outputs, skipping only the missing leaf.",
     "completion": "Keep22/48 complete selected-packet accounting unchanged. Closing minimum-engine or another finite component does not close its broader parent. Source acceptance, original consumer qualification and actual host/human release stay distinct.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "V03 actual descriptor/source-owner/revision association; S03 actual app/mixed owner-store binding; S04 visited-work/continuation/refusal profile; D03 actual concurrent-writer interruption scope; D04 emitted namespace/maps; F01 actual external-host serialization/power-loss contract. Each belongs to the named entry owner; no global decision barrier.",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation.",
-    "packages_dispatch_order": [],
+    "packages_dispatch_order": [
+      "TECH-SV02"
+    ],
     "remaining_execution_order": [
-      "DEL-R01",
+      "TECH-SV02",
+      "DEL-B01",
+      "DEL-C02",
       "TECH-S02",
       "TECH-F02",
-      "DEL-B01",
-      "DEL-C01",
-      "DEL-C02",
+      "DEL-R01",
       "TECH-I01",
       "TECH-I02",
       "REPLAY-IP07",
@@ -8410,23 +8490,23 @@
       "TECH-S04-query",
       "TECH-W02",
       "TECH-W03",
-      "TECH-SV02",
       "TECH-SV03",
       "TECH-V03",
-      "TECH-V05",
-      "TECH-F01",
       "DEL-B02",
+      "DEL-C01",
       "DEL-D03",
       "DEL-D04",
       "DEL-E02",
+      "TECH-V05",
+      "TECH-F01",
       "VERIFY-TV01",
       "FINAL-R03",
       "TECH-V04",
       "DEL-D05"
     ],
     "lane_counts": {
-      "local_ready": 0,
-      "exact_owner_output": 24,
+      "local_ready": 1,
+      "exact_owner_output": 23,
       "human_held": 2,
       "remaining_packets": 26
     },
