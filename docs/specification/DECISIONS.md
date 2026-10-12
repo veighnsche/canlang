@@ -12088,3 +12088,8 @@ Compiler's skipped presence layouts are correct: only E/E can pass Require and r
 Coordinator independently reviewed the four defining State source/control paths CLEAR and integrated only the common narrowed-reference CONTROL component.22 direct/93 unchanged owner results retained, no unchanged qualification rerun. Required API and actual DATA counterpart constraints stay strict; full337 native relationship and exact JEV transmission release remain unfinished. Former worker capture has completed/cleaned; no input reservation from it persists. Original canonical task/parent counts and complete filetree checkpoint unchanged.
 
 Changed MAIN State/DO0 4.29s, MAIN CF0 4.89s, MAIN root0 4.62s. No whole application/native acceptance inferred.
+
+
+### 2026-10-12 — integrate original three-query native consumer checkpoint
+
+Independently reviewed the three defining Dev selector/fixture paths CLEAR and integrated coherent source/control evidence only. Surgical162ead3f leaves newer main invoke/query/SEND/model behavior intact, exact final test blob386378a with original source SHAe0ecc830 and existing finite7200000ms bound. Five Compiler copies and whole worker invoke excluded. Worker3513165ms/3513.98s fully cleaned result remains separate; actual MAIN native must qualify before acceptance. Owning installed selector1/1 309.703ms and previous failure evidence reused, MAIN CF0 4.58s, MAIN root0 6.32s. Freeze actual primary source/dist/CLI/catalog through native capture and awaited cleanup, no whole-plan/checkpoint/hold advance.
