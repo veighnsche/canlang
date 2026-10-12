@@ -45,13 +45,13 @@ fn interleaved_rules_keep_declaring_module_target_and_global_order() {
         (
             "Office",
             "Office.Item",
-            "Item.lock.1",
+            "Office.Item.lock.1",
             "lock Item fields=title",
         ),
         (
             "Office",
             "Office.Item",
-            "Item.require.1",
+            "Office.Item.require.1",
             "invariant Item: row.qty>=0",
         ),
         (
@@ -63,19 +63,19 @@ fn interleaved_rules_keep_declaring_module_target_and_global_order() {
         (
             "Office",
             "Office.Item",
-            "Item.require.2",
+            "Office.Item.require.2",
             "invariant Item: row.qty<=100",
         ),
         (
             "Warehouse",
             "Warehouse.Item",
-            "Item.require.1",
+            "Warehouse.Item.require.1",
             "invariant Item: row.qty>=0",
         ),
         (
             "Warehouse",
             "Warehouse.Item",
-            "Item.lock.1",
+            "Warehouse.Item.lock.1",
             "lock Item fields=title",
         ),
     ];
@@ -128,7 +128,7 @@ fn interleaved_rules_keep_declaring_module_target_and_global_order() {
     let unique = program
         .invariants
         .iter()
-        .filter(|rule| rule.id == "Item.unique.1")
+        .filter(|rule| rule.id == "Office.Item.unique.1")
         .collect::<Vec<_>>();
     assert_eq!(unique.len(), 1);
     assert!(
