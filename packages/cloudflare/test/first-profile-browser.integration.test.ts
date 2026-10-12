@@ -1,12 +1,15 @@
-/** Actual whole native HelpOffice + owned installed Chromium cancellation; no declaration-only fixture. */
+/** Actual HelpOffice cancellation and authenticated public export/Print through installed Chromium. */
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
+import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import type { D1Database } from '@cloudflare/workers-types';
+import type { ListQueryResult } from '@canlang/contracts';
+import type { ChromiumProducer } from '@canlang/contracts/browser/chromium';
 import { it } from 'vitest';
 import type { FirstProfileBrowserInput } from '../src/dev/first-profile-browser.js';
 import type { LocalPreviewWithActors } from '../src/dev/preview-builder.js';
@@ -146,3 +149,131 @@ it('cancels the genuine whole HelpOffice browser consumer after authenticated De
     assert.equal(await captureIsCurrent(capture), true, 'owning native/browser inputs must stay current through cleanup');
   }
 }, 120_000);
+
+it('runs public inline CSV and Print through real authenticated HTTP in installed Chromium', async () => {
+  const require = createRequire(join(project, 'package.json'));
+  const nativeImport = compileFunction('return import(url)', ['url'], {
+    importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  });
+  const native = (specifier: string) => nativeImport(pathToFileURL(require.resolve(specifier)).href);
+  const interfaces = await native('@canlang/interfaces') as typeof import('@canlang/interfaces');
+  const testing = await native('@canlang/interfaces/testing') as typeof import('@canlang/interfaces/testing');
+  const distribution = await native('@canlang/interfaces/distribution') as typeof import('@canlang/interfaces/distribution');
+  const identity = await native('@canlang/identity') as typeof import('@canlang/identity');
+  const exportHandler = await nativeImport(new URL('http/export.js', distribution.distribution.modules).href) as {
+    handleExportRequest: (deps: typeof t.deps, request: Request) => Promise<Response>;
+  };
+  const printHandler = await nativeImport(new URL('http/print.js', distribution.distribution.modules).href) as {
+    handlePrintRequest: (deps: typeof t.deps, renderedViews: typeof views, request: Request) => Promise<Response>;
+  };
+  const operation = 'Billing.Invoice.list';
+  const columns = [{ field: 'customer', label: 'Customer', type: 'text' }, { field: 'total', label: 'Total', type: 'money' }];
+  const rows: ListQueryResult = { columns, rows: [
+    { id: 'inv-1', version: '3', fields: { customer: 'c-1', total: '100' } },
+    { id: 'inv-2', fields: { customer: 'c-2', total: '250' } },
+  ] };
+  const views = { views: () => [{ name: 'invoice-register', title: 'Invoice register', operation,
+    columns: [{ field: 'customer', label: 'Customer' }, { field: 'total', label: 'Total' }] }] };
+  const t = await testing.createTestDeps({ reads: { [operation]: () => ({ result: rows }) } });
+  const csrf = await identity.deriveCsrfToken(t.identity.sessionToken);
+  const deps = t.deps;
+  const http = interfaces.createHttpHandler(deps, {
+    operations: (request, op) => interfaces.handleOperationRequest(deps, request, op),
+    auth: request => interfaces.handleAuthRequest(deps, request),
+    uploads: () => Promise.resolve(new Response('unused', { status: 500 })),
+    ingress: () => Promise.resolve(new Response('unused', { status: 500 })),
+    oauth: () => Promise.resolve(new Response('unused', { status: 500 })),
+    csv: request => interfaces.handleCsvRequest(deps, request),
+    exports: request => exportHandler.handleExportRequest(deps, request),
+    print: request => printHandler.handlePrintRequest(deps, views, request),
+  });
+  const chromiumEntry = require.resolve('@canlang/testkit/browser/chromium');
+  const producer = await nativeImport(pathToFileURL(chromiumEntry).href) as ChromiumProducer;
+  const availability = await producer.chromiumAvailability();
+  assert.equal(availability.available, true, 'installed Chromium producer and executable are required');
+  const uiRequire = createRequire(join(project, 'packages/ui/package.json'));
+  const esbuild = uiRequire('esbuild') as { build(options: object): Promise<{ outputFiles?: Array<{ path: string; contents: Uint8Array }> }> };
+  const modules = await esbuild.build({ entryPoints: {
+    export: uiRequire.resolve('@canlang/ui/browser/export'),
+    print: uiRequire.resolve('@canlang/ui/browser/print'),
+  }, outdir: '/virtual/can-export-print', bundle: true, platform: 'browser', format: 'esm',
+  packages: 'bundle', write: false });
+  const assets = new Map(modules.outputFiles?.map(file => [file.path.split('/').at(-1), file.contents]));
+  assert.ok(assets.get('export.js') && assets.get('print.js'), 'real public UI modules must bundle for Chromium');
+  const server = createServer(async (incoming, outgoing) => {
+    try {
+      const path = new URL(incoming.url ?? '/', 'http://127.0.0.1').pathname;
+      const asset = assets.get(path.slice('/ui/'.length));
+      if (path.startsWith('/ui/') && asset) {
+        outgoing.writeHead(200, { 'content-type': 'text/javascript;charset=utf-8' }); outgoing.end(asset); return;
+      }
+      if (path === '/') {
+        outgoing.writeHead(200, { 'content-type': 'text/html;charset=utf-8' }); outgoing.end('<!doctype html><title>Export and Print</title>'); return;
+      }
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of incoming) chunks.push(chunk as Uint8Array);
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        if (typeof value === 'string') headers.set(name, value);
+        else if (Array.isArray(value)) for (const item of value) headers.append(name, item);
+      }
+      const response = await http(new Request(`http://127.0.0.1${incoming.url}`, {
+        method: incoming.method ?? 'GET', headers,
+        ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
+      }));
+      outgoing.writeHead(response.status, Object.fromEntries(response.headers));
+      outgoing.end(Buffer.from(await response.arrayBuffer()));
+    } catch (error) {
+      outgoing.writeHead(500); outgoing.end(String(error));
+    }
+  });
+  let lease: Awaited<ReturnType<ChromiumProducer['acquireChromium']>> | undefined;
+  try {
+    await new Promise<void>(resolveListen => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address(); assert.ok(address && typeof address !== 'string');
+    const base = `http://127.0.0.1:${address.port}`;
+    lease = await producer.acquireChromium();
+    assert.deepEqual(lease.identity, availability.identity);
+    const context = await lease.browser.newContext();
+    await context.addCookies([{ name: 'can_session', value: t.identity.sessionToken, url: base }]);
+    const page = await context.newPage();
+    await page.goto(base);
+    const live = await page.evaluate(async ({ csrf, operation }) => {
+      const load = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<unknown>;
+      const exportModule = await load('/ui/export.js') as typeof import('@canlang/ui/browser/export');
+      const printModule = await load('/ui/print.js') as typeof import('@canlang/ui/browser/print');
+      const exported = await exportModule.submitExportRequest({ fetchImpl: (url, init) => fetch(url, init), action: '/api/exports', csrf, operation });
+      if (!exported.ok) return { exported, print: null, saved: null };
+      const saves: Array<{ filename: string; text: string; mime: string }> = [];
+      exportModule.downloadInlineCsv({ save: (filename, text, mime) => { saves.push({ filename, text, mime }); } }, exported.outcome, Date.now());
+      const print = await printModule.fetchPrintView({ fetchImpl: (url, init) => fetch(url, init), printBase: '/print', view: 'invoice-register' });
+      return { exported, print, saved: saves[0] ?? null };
+    }, { csrf, operation });
+    assert.equal(live.exported.ok, true, JSON.stringify(live.exported));
+    const csv = 'id,version,customer,total\ninv-1,3,c-1,100\ninv-2,,c-2,250\n';
+    assert.equal(live.exported.ok && live.exported.outcome.csv, csv);
+    assert.deepEqual(live.saved && { text: live.saved.text, mime: live.saved.mime },
+      { text: csv, mime: 'text/csv;charset=utf-8' });
+    assert.equal(live.print?.ok, true);
+    assert.match(live.print?.ok ? live.print.html : '', /<title>Invoice register<\/title>/);
+    assert.match(live.print?.ok ? live.print.html : '', /<td>c-1<\/td>/);
+    assert.equal(t.invoker.reads.length, 2);
+    await identity.revokeSessionByToken(deps.identity.store, { token: t.identity.sessionToken });
+    const denied = await page.evaluate(async ({ csrf, operation }) => {
+      const load = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<unknown>;
+      const exportModule = await load('/ui/export.js') as typeof import('@canlang/ui/browser/export');
+      const printModule = await load('/ui/print.js') as typeof import('@canlang/ui/browser/print');
+      return {
+        exported: await exportModule.submitExportRequest({ fetchImpl: (url, init) => fetch(url, init), action: '/api/exports', csrf, operation }),
+        print: await printModule.fetchPrintView({ fetchImpl: (url, init) => fetch(url, init), printBase: '/print', view: 'invoice-register' }),
+      };
+    }, { csrf, operation });
+    assert.equal(denied.exported.ok ? '' : denied.exported.error.code, 'forbidden');
+    assert.equal(denied.print.ok ? '' : denied.print.error.code, 'forbidden');
+    assert.equal(t.invoker.reads.length, 2, 'revoked browser requests may not reach a read');
+    await context.close(); assert.equal(lease.browser.contexts().length, 0);
+  } finally {
+    try { await lease?.close(); }
+    finally { await new Promise<void>((resolveClose, rejectClose) => server.close(error => error ? rejectClose(error) : resolveClose())); }
+  }
+}, 60_000);

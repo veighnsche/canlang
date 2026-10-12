@@ -4299,10 +4299,10 @@
       },
       "current_execution": {
         "disposition": "partial-selected-packet",
-        "next_work": "implement-or-qualify-selected-consumer",
+        "next_work": "consume-exact-finite-input",
         "owner": "Dev mounted host/resource consumer; Compiler presentation lowering",
         "accepted_scope": "Independently accepted immutable asset-table correction committed61e49955; parent mounted/browser/export/print gates open Asset registration now captures validated key/bytes/MIME/cache once and pins bytes before later getters; owning emit and real GET/HEAD7/7 pass locally. Finite export protected-target gap now repaired/tested/source-reviewed locally: rooted-local render/submit targets and same-origin/no-redirect POST preserve exact CSV/CSRF and completion/cancellation behavior;9owning cases pass. Shared bounded body chunk snapshot repaired/tested/source-reviewed locally: received request and provider-response bytes survive producer buffer reuse; HTTP26/Services8 pass. One outcome linked to TECH-SV02; broader mounted/durable qualifiers separate. Generated upload metadata/bytes are now captured once before awaits and isolated from transport; UI emit/browser0 and21 owning client cases pass locally. Broader mounted/source qualification remains separate. DOM named-control collection now retains own __proto__ strings with ordinary last-wins/checked omission and normal prototype; UI emit/browser0/client21/source review CLEAR locally. Downstream admission/mounted/source qualification remains separate. Request quota cancellation now uses its original caller signal to stop waiting while preserving limit429/lock cleanup and without-abort behavior; Interfaces emit0/HTTP26/source review CLEAR on pinned Node24. Physical/mounted qualification remains separate. Gallery retained bindings now gate activation and late fetch/blob/decode by the existing BrowserClient context; original abort/URL cleanup and fresh rescan retained, UI emit/browser0/gallery6/source review CLEAR locally. One shared outcome under DEL-B01; mounted/source/native authority qualification remains separate. Print consumer now requires exact HTML media essence instead of substring admission; UI emit/browser0/Print4/independent source review CLEAR locally. Valid mixed-case parameterized HTML/live GET/status/cancellation/sandbox retained; mounted/source qualification remains separate. Print/export numeric status admission now refuses NaN through existing post-body/cancellation error paths, retaining fractional200.5 compatibility. Reviewed960 source/control unit is LOCAL main component-accepted; owner4/4 cases277.813958ms reused and changed normal UI/browser/root0, actual mounted/source/parent gates separate.",
-        "next_action": "Qualify same real authenticated inline APIs in Chromium. Large-output descriptor download/status lifetime backend in UI export remains a separately absent Dev output; no new presenter/controller.",
+        "next_action": "Consume only exact Dev backend/compiled source output for original remaining scope; reuse accepted inline browser result.",
         "done_when": "Original mounted browser journey serves real assets, upload retry/finalized progress and authorized download/print, rejects tainted or expired/revoked/missing resources and does not report body-read failure as success.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02",
         "page_read_forwarding": "Defining exact bound-query scope hook and same frozen admitted preference context are implemented/directly checked; Contracts/Interfaces emissions and43 owning HTTP controls pass. Dev owns worker/assembly source forwarding and original Office private association/native WHERE consumer; Capability/State source-parent same-observation output remains separate.",
@@ -4315,16 +4315,16 @@
         "page_scope_completion": "Optional actualscope.close captured with receiver and awaited once in common owning finally after full/partial/HEAD completion or failure; cleanup rejection sanitized and host close hidden/forged source stripped. Contracts/Interfaces emits0,3 affected lifecycle controls plus actual public Files->HTTP->UI1/1 pass, finite source review CLEAR. Dev binds native private cleanup; prior File/HTTP/UI checks reused. Trusted third createReadScope argument resolveCaller now re-resolves captured original browser credentials from current store/clock, terminal before/after awaits and hidden from source/rendering. Interfaces emit0 and3 current controls pass; Dev actual physical snapshot/current-authority forwarding remains. Ten local CF direct scope fixture calls now pass the required original-token/current-store resolver; CF owning emit and root typecheck0. Seven foreign native adaptations are now implemented as the exact main8aeb22c4 source patch: five original callback callthroughs and two original-token/current-store/clock resolutions. One temporary changed root closure has six unrelated missing retained producer diagnostics, so combined reviewed-main type qualification remains coordinator-owned; unchanged runtime/security checks reused. Coordinator defining review CLEAR and exact8ef/1cb current-caller adaptations integrated with retained producers; changed actual Cloudflare/root emission0. Finite arity criterion closed, owning3 credential controls reused. Actual native page authorization and physical snapshot forwarding remain Dev-owned and unfinished.",
         "required_file_catalog": "Shared required File[] consumer repair implemented/tested: exact file[]! marker, separate create/update slot presence, full+legacy MCP File wrappers and whole owning codec. Interfaces emit0; four affected existing controls pass, corrected new consumer1/1 pass; actual public CF catalog accepts required CRUD profiles/mismatch refusal1/1. Defining finite review CLEAR. Reuse unchanged checks; Dev original compiled native/page retry remains external. Single outcome recorded at existing DEL-B02 state required_file_catalog; full parent/holds unchanged.",
         "packages_execution": {
-          "lane": "local-ready",
-          "remaining_outcome": "Qualify same real authenticated inline APIs in Chromium. Large-output descriptor download/status lifetime backend in UI export remains a separately absent Dev output; no new presenter/controller.",
-          "required_input": "Qualify same real authenticated inline APIs in Chromium. Large-output descriptor download/status lifetime backend in UI export remains a separately absent Dev output; no new presenter/controller.",
+          "lane": "owner-output",
+          "remaining_outcome": "Original large-output durable descriptor/download/status lifetime and compiled-app/mounted File qualification only; inline public browser profile closed.",
+          "required_input": "Dev actual durable descriptor/read/status/download backend and exact original compiled mounted File source, when claimed. Current library inline producer+Chromium consumer is complete.",
           "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
           "finish_condition": "Original trusted configured-base/current authority/cancellation/resource lifecycle at declared mounted profile; no parent completion from GET/HEAD.",
           "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
           "implemented_scope": "Capture getters once and copy bytes before later getters; exact validated MIME/cache retained. Actual browser-assets7/7 and owning Interfaces emit0; no source/host authority inferred.",
           "priority": 1,
           "defining_owner": "Packages public browser consumer; Dev large-output backend",
-          "next_action": "Qualify same real authenticated inline APIs in Chromium. Large-output descriptor download/status lifetime backend in UI export remains a separately absent Dev output; no new presenter/controller."
+          "next_action": "Consume only exact Dev backend/compiled source output for original remaining scope; reuse accepted inline browser result."
         },
         "asset_registration_snapshot": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/asset_registration_snapshot",
         "export_protected_target": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/export_protected_target",
@@ -4336,12 +4336,13 @@
         "print_export_unordered_status_refusal": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/print_export_unordered_status_refusal",
         "actual_code_reassessment": {
           "date": "2026-10-12",
-          "disposition": "local-ready",
+          "disposition": "missing-contract",
           "defining_owner": "Packages public browser consumer; Dev large-output backend",
-          "actual_code_and_retained_result": "Real public UI export/print plus Interfaces authenticated handler join exists in export-join.test.ts; Node wire/component results accepted. Physical Chromium public API inline CSV/HTML crossing not retained.",
-          "remaining_finite_action_or_input": "Qualify same real authenticated inline APIs in Chromium. Large-output descriptor download/status lifetime backend in UI export remains a separately absent Dev output; no new presenter/controller.",
+          "actual_code_and_retained_result": "Installed Testkit Chromium executes emitted @canlang/ui/browser/export and /print modules against genuine Interfaces createHttpHandler, export/print handlers and live session cookie/CSRF. Byte-exact inline CSV + real Print HTML + revoked forbidden/no extra reads + awaited browser/server cleanup; selected case1/1, CF emit0, package boundaries13 packages/1021 files/1651 expressions/0 violations, finite root source review CLEAR. Only inline public library profile; compiled app and large-output descriptor host remain open. Coordinator defining source review CLEAR/local main-intaken at recorded component scope; owning meaningful results reused.",
+          "remaining_finite_action_or_input": "Dev actual durable descriptor/read/status/download backend and exact original compiled mounted File source, when claimed. Current library inline producer+Chromium consumer is complete.",
           "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
-        }
+        },
+        "authenticated_public_chromium_inline": "Installed Testkit Chromium executes emitted @canlang/ui/browser/export and /print modules against genuine Interfaces createHttpHandler, export/print handlers and live session cookie/CSRF. Byte-exact inline CSV + real Print HTML + revoked forbidden/no extra reads + awaited browser/server cleanup; selected case1/1, CF emit0, package boundaries13 packages/1021 files/1651 expressions/0 violations, finite root source review CLEAR. Only inline public library profile; compiled app and large-output descriptor host remain open."
       }
     },
     {
@@ -5135,23 +5136,23 @@
       },
       "current_execution": {
         "disposition": "open-selected-packet",
-        "next_work": "implement-or-qualify-selected-consumer",
+        "next_work": "consume-exact-finite-input",
         "owner": "Packages shared installed gates; other release/host consumers retain their owners",
         "accepted_scope": "Finite staged runtime/asset/public consumer prerequisites accepted. Explicit minimum-engine invocation3fa259b45 source-reviewed/integrated; actual Node22.0.0 declarations177/13 and locally repaired genuine installed runtime253modules PASS on macOS ARM. Local source/qualifier scope independently reviewed CLEAR and accepted in LOCAL main; owning Node22.0.0/default Node24.19.0 isolated runtime results retained at their actual closures; complete release/dependency/supported-host/authored/native qualification remains open. Finite dist-manifest digest+byte count correspondence independently reviewed/tested and integrated LOCAL main; broader host/release criteria remain. Workspace version-input completeness173 is independently reviewed/tested and integrated LOCAL main, broader release criteria unfinished. Unique artifact-path inventoryd77 is independently reviewed/tested and integrated LOCAL main, broader release criteria unfinished. Finite first_fixture_checkout_input independently reviewed/tested and integrated LOCAL main; original parent remains unfinished. Complete covered-file inventory now refuses file/cyclic directory symlinks by exact path in reviewed LOCAL main; manifest7 reused, changed CF/root0. Existing tsbuildinfo exclusion and broader host/authored/native/held release scopes remain separate.",
-        "next_action": "Qualify only actually unqualified original installed entry with genuine isolated tarballs on an available declared engine. Other OS/held native inventory separate.",
+        "next_action": "Reuse local installed CLI/SDK and Node22 Worker/type/asset results. Consume only exact foreign host/authoring output when released.",
         "done_when": "Each declared selected entry runs its genuine installed dependency closure and supported-host controls with current provenance; stale self-consistent artifacts cannot claim current release. Native preparation remains excluded while held.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01",
         "packages_execution": {
-          "lane": "local-ready",
-          "remaining_outcome": "Qualify only actually unqualified original installed entry with genuine isolated tarballs on an available declared engine. Other OS/held native inventory separate.",
-          "required_input": "Qualify only actually unqualified original installed entry with genuine isolated tarballs on an available declared engine. Other OS/held native inventory separate.",
+          "lane": "owner-output",
+          "remaining_outcome": "Other supported release hosts and original authored/native workflows only; local Node24 installed CLI and stateless SDK scopes closed.",
+          "required_input": "Dev/L7 release-host qualification and original authored/native consumer. No local CLI/SDK source gap or new runner gate.",
           "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
           "finish_condition": "Actual installed producer, runtime, missing/corrupt/restored, Work, bundle/WASM/assets/workerd assertions pass at the named engine/host.",
           "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
           "implemented_scope": "Node22 CLI/CI profile3fa259b45 and actual isolated declaration177/13; genuine runtime253modules PASS after shared Work dispatch/Files bridge mapping and exact gate comparisons. Source/private identity/security/refusals preserved.",
           "priority": 7,
           "defining_owner": "Packages installed public entry consumer",
-          "next_action": "Qualify only actually unqualified original installed entry with genuine isolated tarballs on an available declared engine. Other OS/held native inventory separate."
+          "next_action": "Reuse local installed CLI/SDK and Node22 Worker/type/asset results. Consume only exact foreign host/authoring output when released."
         },
         "dist_inventory_byte_correspondence": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/dist_inventory_byte_correspondence",
         "workspace_version_input_completeness": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/workspace_version_input_completeness",
@@ -5160,12 +5161,13 @@
         "dist_inventory_symlink_refusal": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/dist_inventory_symlink_refusal",
         "actual_code_reassessment": {
           "date": "2026-10-12",
-          "disposition": "local-ready",
+          "disposition": "missing-contract",
           "defining_owner": "Packages installed public entry consumer",
-          "actual_code_and_retained_result": "Existing Node22/24 Worker/types/assets253 modules+177types/13 declarations already qualified. Original stateless SDK initialize/result/cancellation and dist-only CLI entry have existing sources/runners.",
-          "remaining_finite_action_or_input": "Qualify only actually unqualified original installed entry with genuine isolated tarballs on an available declared engine. Other OS/held native inventory separate.",
+          "actual_code_and_retained_result": "Fresh isolated eleven-owner tarball install/144 deps on Mac Node24.19.0; checkout read denied. Dist-only can-dev CLI help/4 refusals5/5 and real installed Interfaces MCP SDK initialize/list/call/auth/cancel scope pass. Emitted, packed and installed entry bytes equal. Cancel notification202 does not retroactively stop already entered tool; result returns after release. Existing Node22.0.0 installed Worker/types/assets controls remain accepted and unchanged. Other host/authoring/native release gates unqualified. Coordinator defining source review CLEAR/local main-intaken at recorded component scope; owning meaningful results reused.",
+          "remaining_finite_action_or_input": "Dev/L7 release-host qualification and original authored/native consumer. No local CLI/SDK source gap or new runner gate.",
           "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
-        }
+        },
+        "installed_cli_sdk_local": "Fresh isolated eleven-owner tarball install/144 deps on Mac Node24.19.0; checkout read denied. Dist-only can-dev CLI help/4 refusals5/5 and real installed Interfaces MCP SDK initialize/list/call/auth/cancel scope pass. Emitted, packed and installed entry bytes equal. Cancel notification202 does not retroactively stop already entered tool; result returns after release. Existing Node22.0.0 installed Worker/types/assets controls remain accepted and unchanged. Other host/authoring/native release gates unqualified."
       }
     },
     {
@@ -8666,19 +8668,17 @@
     "source": "Single current view in each existing packet current_execution.packages_execution; original recipes and canonical references remain authoritative.",
     "authorization": "Human requested immediate reevaluation of every remaining task and an individual prioritized list/instruction for each existing LOCAL worker. No new task IDs, ownership transfer, hold release or remote work.",
     "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
-    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining current view:7local-ready,6exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
+    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining view:5local-ready,8exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Reuse nine satisfied selected scopes and closed Decimal component; finish seven remaining ready entries, skip six exact contract/host inputs and two precise holds. No source-only parent/native inference or unchanged rerun.",
-    "completion": "32/48 selected packets finished;8partial7open1held. Remaining current view:7local-ready,6exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
+    "dispatch": "Reuse nine satisfied selected scopes; implement/qualify five still-ready entries. Current B02 inline Chromium and R01 local installed CLI/SDK components are qualified and their distinct Dev/host parent inputs remain. Eight exact contract/host inputs and two human-held entries retain original scope; DEL-C02 closed consumer separate. No provider-void/new obligations.",
+    "completion": "32/48 selected packets finished;8partial7open1held. Remaining view:5local-ready,8exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "Exact V03 serving association after local Decimal fix; S03 app/mixed physical owner placement; S04 visited-work/continuation/refusal; F01 multiple-owner/power-loss host contract; F02 supported non-Identity provider correspondence. V05 exact release-host result Dev/L7. Former D04 namespace and accepted durable/browser lifecycle blockers removed.",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation.",
     "packages_dispatch_order": [
       "TECH-I01",
-      "DEL-R01",
-      "DEL-B02",
       "DEL-B01",
       "DEL-C01",
       "TECH-S02",
@@ -8703,8 +8703,8 @@
       "DEL-D05"
     ],
     "lane_counts": {
-      "local_ready": 7,
-      "exact_owner_output": 6,
+      "local_ready": 5,
+      "exact_owner_output": 8,
       "human_held": 2,
       "remaining_packets": 16,
       "closed_consumer": 1
