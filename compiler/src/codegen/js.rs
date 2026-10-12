@@ -4219,6 +4219,29 @@ impl<'a> Emitter<'a> {
             } else {
                 self.lower_expr(base)
             };
+            let receiver = if dependencies
+                .iter()
+                .any(|read| read.source_dependency_id.is_some())
+            {
+                let [scalar] = dependencies.as_slice() else {
+                    return self.throw_expr("Original stored scalar pair is ambiguous");
+                };
+                let Some(source_id) = &scalar.source_dependency_id else {
+                    return self.throw_expr("Original stored scalar source is missing");
+                };
+                self.stdlib
+                    .insert("readScenarioReceiptStoredReference".into());
+                // Recursive lowering has already read the original reference
+                // once and awaited its source marker. Promote that same value
+                // before the one scalar getter and awaited marker below.
+                format!(
+                    "(await readScenarioReceiptStoredReference(c,{receiver},{},{}))",
+                    js_string(source_id),
+                    js_string(&scalar.id)
+                )
+            } else {
+                receiver
+            };
             let field_key = js_string(field);
             let value = if expr.ty.nullable_inner().is_some() {
                 format!("($receiptRow[{field_key}]??null)")

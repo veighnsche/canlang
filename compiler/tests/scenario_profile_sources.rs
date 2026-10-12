@@ -13,11 +13,9 @@ use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js};
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, SourceId, Span, sha256_hex};
 use canlang_compiler::syntax::{self, SyntaxKind, SyntaxNode};
-use serde_json::Value;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
-    process::Command,
 };
 
 const SOURCE: &str = include_str!("fixtures/source-profile-scalars.can");
@@ -554,7 +552,7 @@ fn original_required_profile_source_binding_types_schema_and_defaults_cannot_be_
 }
 
 #[test]
-fn source_complete_profile_does_not_fabricate_the_missing_native_field_facade() {
+fn source_complete_profile_emits_with_original_source_and_keeps_no_source_refusal() {
     let (db, program, ir, catalog) = checked(SOURCE, "profile.can");
     complete(&program, OWNER);
     let mut result = DiagnosticResult::new("profile-source", "1.0", 1);
@@ -571,59 +569,35 @@ fn source_complete_profile_does_not_fabricate_the_missing_native_field_facade() 
             },
         },
     );
-    assert!(
-        diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"),
-        "missing real stored-reference facade: {diagnostics:?}"
-    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let raw = js::emit_program_with_native_source_receipts(&ir, true, &db);
-    assert!(
-        raw.diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "E6008"),
-        "{:?}",
-        raw.diagnostics
-    );
+    assert!(raw.diagnostics.is_empty(), "{:?}", raw.diagnostics);
     assert!(
         raw.operations
             .iter()
             .find(|operation| operation.name == OWNER)
             .unwrap()
             .disclosure
-            .is_none()
+            .is_some()
     );
-    let scratch = tempfile::tempdir().unwrap();
-    let path = scratch.path().join("profile.can");
-    std::fs::write(&path, SOURCE).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args([
-            "compile",
-            "--native-scenario-receipts",
-            "--format=json",
-            "--catalog",
-        ])
-        .arg(native_owner().join("packages/cloudflare/dist/native-catalog.json"))
-        .arg(&path)
-        .current_dir(root())
-        .env_remove("CAN_CATALOG")
-        .output()
-        .unwrap();
+    // The installed CLI/descriptor/facade join is exercised by the owning
+    // native_profile_scalars target; raw emission still needs original source.
+    let unprepared = js::emit_program_with_native_receipts(&ir, true);
     assert!(
-        !output.status.success(),
-        "missing native facade cannot publish artifact"
-    );
-    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(
-        report["diagnostics"]
-            .as_array()
-            .unwrap()
+        unprepared
+            .diagnostics
             .iter()
-            .any(|diagnostic| diagnostic["code"] == "E6008"),
-        "{report}"
+            .any(|diagnostic| diagnostic.code == "E6008"),
+        "{:?}",
+        unprepared.diagnostics
     );
     assert!(
-        report.get("modules").is_none(),
-        "refused CLI output is diagnostics, not a native artifact"
+        unprepared
+            .operations
+            .iter()
+            .find(|operation| operation.name == OWNER)
+            .unwrap()
+            .disclosure
+            .is_none()
     );
 }

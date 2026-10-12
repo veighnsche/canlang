@@ -172,6 +172,9 @@ pub(super) struct NativeDependency {
     pub id: String,
     pub model: String,
     pub field: String,
+    /// Original observed reference paired with this scalar read; private
+    /// lowering input, never part of the transported disclosure plan.
+    pub source_dependency_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -219,6 +222,12 @@ pub(super) fn has_original_created_model_result(
     ir: &IrProgram,
     scenario: crate::analysis::SymbolId,
 ) -> bool {
+    if ir
+        .committed_sources
+        .requires_native_model_result(scenario.0 as usize)
+    {
+        return true;
+    }
     let Some(disclosure) = ir.scenario_disclosures.get(&scenario) else {
         return false;
     };
@@ -548,6 +557,35 @@ pub(super) fn collect_native_scenario_receipt(
         checked_native_first_query_plan(ir, item, checked, query_plan, entry_module, db)?;
     let sites = Sites::collect(ir, item, send_guards, db)?;
     match_effect_proofs(ir, item, models, checked, &sites, db, send_guards)?;
+    let mut profile_scalar_pairs = HashMap::new();
+    let mut profile_source_pairs = HashMap::new();
+    if created_model.is_some()
+        && let Some(db) = db
+    {
+        for (site, expressions) in &sites.members {
+            let [expression] = expressions.as_slice() else {
+                continue;
+            };
+            let Some(pair) = checked_profile_scalar_pair(ir, item, expression, db) else {
+                continue;
+            };
+            let IrExpr::Member { base, .. } = &expression.expr else {
+                return None;
+            };
+            let source_site = checked_site(pair.0.node, &pair.0.calls)?;
+            let [source_expression] = sites.members.get(&source_site)?.as_slice() else {
+                return None;
+            };
+            if !std::ptr::eq(*source_expression, base.as_ref())
+                || profile_scalar_pairs.insert(site.clone(), pair).is_some()
+                || profile_source_pairs.insert(source_site, pair).is_some()
+            {
+                return None;
+            }
+        }
+    }
+    let profile_descriptors =
+        (!profile_scalar_pairs.is_empty()).then(|| super::js::Emitter::new(ir).collect_models());
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -749,6 +787,15 @@ pub(super) fn collect_native_scenario_receipt(
                 return None;
             }
             let site = checked_site(dependency.node, &dependency.calls)?;
+            let profile_scalar_pair = profile_scalar_pairs.get(&site).copied();
+            let profile_source_pair = profile_source_pairs.get(&site).copied();
+            if profile_scalar_pair.is_some_and(|(_, scalar)| scalar != dependency)
+                || profile_source_pair.is_some_and(|(reference, _)| reference != dependency)
+            {
+                return None;
+            }
+            let source_dependency_id =
+                profile_scalar_pair.map(|(reference, _)| reference.id.clone());
             let (base, field, transition) = if is_transition {
                 if !dependency.calls.is_empty() || dependency.role != DependencyRole::Control {
                     return None;
@@ -884,10 +931,42 @@ pub(super) fn collect_native_scenario_receipt(
                 if declared.len() != 1 {
                     return None;
                 }
-                if !matches!(base.expr, IrExpr::Name(_)) {
-                    let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
-                    if parent.id != dependency.model {
+                if profile_scalar_pair.is_some() {
+                    let mut expected_models = profile_descriptors
+                        .as_ref()?
+                        .iter()
+                        .filter(|model| model.name == owner.canonical);
+                    let expected_model = expected_models.next()?;
+                    let mut expected_fields = expected_model
+                        .fields
+                        .iter()
+                        .filter(|field| field.name == stored.name);
+                    let expected = expected_fields.next()?;
+                    if expected_models.next().is_some()
+                        || expected_fields.next().is_some()
+                        || serde_json::to_value(expected_model).ok()?
+                            != serde_json::to_value(descriptors[0]).ok()?
+                        || declared[0].nullable
+                        || declared[0].server_only
+                        || declared[0].array_required.is_some()
+                        || declared[0].machine.is_some()
+                        || !matches!(&stored.kind, IrItemKind::Field { server: None, .. })
+                        || serde_json::to_value(expected).ok()?
+                            != serde_json::to_value(declared[0]).ok()?
+                    {
                         return None;
+                    }
+                }
+                if !matches!(base.expr, IrExpr::Name(_)) {
+                    if let Some((reference, scalar)) = profile_scalar_pair {
+                        if reference.ty != base.ty || scalar.model != dependency.model {
+                            return None;
+                        }
+                    } else {
+                        let (_, parent) = checked_parent_reference(ir, item, base, db?)?;
+                        if parent.id != dependency.model {
+                            return None;
+                        }
                     }
                 } else if checked
                     .source_facts
@@ -908,7 +987,20 @@ pub(super) fn collect_native_scenario_receipt(
                         return None;
                     }
                     let expression = sites.members.get(&site)?.first()?;
-                    let original = stored_reference_operand(ir, item, expression, db?)?;
+                    let original = if let Some((reference, _)) = profile_source_pair {
+                        checked
+                            .source_facts
+                            .as_deref()?
+                            .stored_contracts
+                            .as_deref()?
+                            .iter()
+                            .find(|schema| schema.id == reference.model && schema.model)?
+                            .fields
+                            .iter()
+                            .find(|field| field.id == reference.field)?
+                    } else {
+                        stored_reference_operand(ir, item, expression, db?)?
+                    };
                     if original.id != stored.id
                         || reference_type != dependency.type_id
                         || !stored_reference_descriptor_matches(ir, original, declared[0])
@@ -1029,11 +1121,16 @@ pub(super) fn collect_native_scenario_receipt(
                 }
             }
             let observed = recipe.dependencies.entry(site).or_default();
-            if !observed.iter().any(|read| read.id == dependency.id) {
+            if let Some(previous) = observed.iter().find(|read| read.id == dependency.id) {
+                if previous.source_dependency_id != source_dependency_id {
+                    return None;
+                }
+            } else {
                 observed.push(NativeDependency {
                     id: dependency.id.clone(),
                     model: dependency.model_name.clone(),
                     field: dependency.field_name.clone(),
+                    source_dependency_id,
                 });
             }
             plan_return.dependencies.push(ReceiptDependency {
@@ -3991,6 +4088,378 @@ pub(super) fn stored_file_array_descriptor_matches(
         && serde_json::to_value(expected)
             .ok()
             .is_some_and(|expected| serde_json::to_value(descriptor).ok() == Some(expected))
+}
+
+/// Borrow the two original reads of a required Branch.profile scalar. This
+/// source correspondence neither promotes a native reference nor emits a recipe.
+pub(super) fn checked_profile_scalar_pair<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    leaf: &TypedExpr,
+    db: &SourceDb,
+) -> Option<(
+    &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+    &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+)> {
+    use crate::analysis::NodeKey;
+    if !std::ptr::eq(ir.items.get(owner.id.0 as usize)?, owner) {
+        return None;
+    }
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        params,
+        read: false,
+        trusted: false,
+        event_source: None,
+        hook: None,
+        cohort: None,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: reference,
+        field: scalar_name,
+    } = &leaf.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member {
+        base: receiver,
+        field,
+    } = &reference.expr
+    else {
+        return None;
+    };
+    let IrExpr::Name(binding) = &receiver.expr else {
+        return None;
+    };
+    let expected = match scalar_name.as_str() {
+        "active" => Scalar::Bool,
+        "system_prompt" | "provider_key" | "policy_revision" => Scalar::Text,
+        "input_tokens" | "output_tokens" => Scalar::Int,
+        "duration" => Scalar::Duration,
+        _ => return None,
+    };
+    let ResolvedType::Record {
+        symbol: branch_id,
+        stored: true,
+    } = receiver.ty
+    else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: profile_id,
+        stored: true,
+    } = reference.ty
+    else {
+        return None;
+    };
+    if field != "profile"
+        || leaf.ty != ResolvedType::Scalar(expected)
+        || proof.scenario != owner.id
+        || proof.node != source.node
+        || proof.source != source.source
+        || proof.returns.is_empty()
+        || proof.returns.len() > 200
+    {
+        return None;
+    }
+    // This consumer takes the actual owning IR occurrence, not a detached
+    // expression copy carrying otherwise identical source spans and types.
+    let IrItemKind::Scenario {
+        guards, effects, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let mut expressions = Vec::new();
+    for statement in guards.iter().chain(effects) {
+        match statement {
+            IrStmt::Require { cond, .. } => expressions.push(cond),
+            IrStmt::Let { value, .. } => expressions.push(value),
+            IrStmt::Create { input, .. } => expressions.push(input),
+            _ => {}
+        }
+    }
+    let mut visited = 0usize;
+    let mut occurrences = 0usize;
+    while let Some(expression) = expressions.pop() {
+        visited += 1;
+        if visited > 16384 {
+            return None;
+        }
+        if std::ptr::eq(expression, leaf) {
+            occurrences += 1;
+        }
+        match &expression.expr {
+            IrExpr::Member { base, .. } => expressions.push(base),
+            IrExpr::Binary { left, right, .. } => {
+                expressions.extend([left.as_ref(), right.as_ref()])
+            }
+            IrExpr::Unary { operand, .. } => expressions.push(operand),
+            IrExpr::Array(values) => expressions.extend(values),
+            IrExpr::Object(entries) => expressions.extend(entries.iter().map(|(_, value)| value)),
+            IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => expressions.extend(args),
+            _ => {}
+        }
+    }
+    if occurrences != 1 {
+        return None;
+    }
+    let inventory = source.stored_contracts.as_deref()?;
+    let unique_schema = |id| {
+        let mut candidates = inventory
+            .iter()
+            .filter(|schema| schema.id == id && schema.model);
+        let schema = candidates.next()?;
+        candidates.next().is_none().then_some(schema)
+    };
+    let branch = unique_schema(branch_id)?;
+    let profile = unique_schema(profile_id)?;
+    let branch_item = ir.items.get(branch_id.0 as usize)?;
+    let profile_item = ir.items.get(profile_id.0 as usize)?;
+    if branch_item.name != "Branch"
+        || profile_item.name != "Profile"
+        || branch.module != owner.module
+        || profile.module != owner.module
+        || branch.source != source.source
+        || profile.source != source.source
+    {
+        return None;
+    }
+    match_stored_contract_schema(ir, branch, db)?;
+    match_stored_contract_schema(ir, profile, db)?;
+    for field in &profile.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    let mut references = branch
+        .fields
+        .iter()
+        .filter(|candidate| candidate.name == "profile");
+    let reference_field = references.next()?;
+    let mut scalars = profile
+        .fields
+        .iter()
+        .filter(|candidate| candidate.name == *scalar_name);
+    let scalar_field = scalars.next()?;
+    if references.next().is_some()
+        || scalars.next().is_some()
+        || reference_field.owner != branch.id
+        || reference_field.ty != reference.ty
+        || scalar_field.owner != profile.id
+        || scalar_field.ty != leaf.ty
+        || reference_field.reuse.is_some()
+        || scalar_field.reuse.is_some()
+        || reference_field.source != source.source
+        || scalar_field.source != source.source
+        || ir.items.get(reference_field.id.0 as usize)?.module != owner.module
+        || ir.items.get(scalar_field.id.0 as usize)?.module != owner.module
+        || !branch.field_order.contains(&reference_field.id)
+        || !profile.field_order.contains(&scalar_field.id)
+    {
+        return None;
+    }
+    let IrItemKind::Field {
+        default: None,
+        server: None,
+        modifiers,
+        ..
+    } = &ir.items.get(reference_field.id.0 as usize)?.kind
+    else {
+        return None;
+    };
+    if modifiers.machine || reference_field.required_array {
+        return None;
+    }
+    match_stored_contract_field(ir, reference_field, db)?;
+    let mut parameters = params.iter().enumerate().filter_map(|(position, id)| {
+        let parameter = ir.items.get(id.0 as usize)?;
+        (parameter.name == *binding).then_some((position, parameter))
+    });
+    let (position, parameter) = parameters.next()?;
+    let original_parameter = source.parameters.get(position)?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty: IrType::Known(ty),
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let authored_parameter = checked_effect_node(ir, owner, original_parameter.node, db)?;
+    let parameter_name = authored_parameter
+        .children
+        .iter()
+        .find(|node| node.kind == SyntaxKind::Name)?;
+    let text = &db.get(source.node.file)?.text;
+    if parameters.next().is_some()
+        || *parameter_owner != owner.id
+        || *index != position
+        || parameter.id != original_parameter.parameter
+        || parameter.module != owner.module
+        || parameter.canonical != format!("{}.{}", owner.canonical, binding)
+        || parameter.span != parameter_name.span
+        || parameter_name.token()?.text(text) != binding
+        || ty != &receiver.ty
+        || original_parameter.ty != receiver.ty
+        || original_parameter.default.is_some()
+        || original_parameter.constraints.is_some()
+        || text
+            .get(
+                original_parameter.type_node.start as usize
+                    ..original_parameter.type_node.end as usize,
+            )?
+            .trim()
+            != "Branch"
+    {
+        return None;
+    }
+    let key = |value: &TypedExpr, kind| NodeKey {
+        file: value.span.file,
+        start: value.span.start,
+        end: value.span.end,
+        kind: kind as u8,
+    };
+    let reference_key = key(reference, SyntaxKind::Member);
+    let leaf_key = key(leaf, SyntaxKind::Member);
+    let receiver_key = key(receiver, SyntaxKind::NameRef);
+    let census = source.expression_types.as_deref()?;
+    for (node, ty) in [
+        (reference_key, &reference.ty),
+        (leaf_key, &leaf.ty),
+        (receiver_key, &receiver.ty),
+    ] {
+        let mut typed = census.iter().filter(|(at, _)| *at == node);
+        if typed.next()?.1 != *ty || typed.next().is_some() {
+            return None;
+        }
+    }
+    let authored_leaf = checked_effect_node(ir, owner, leaf_key, db)?;
+    let leaf_parts: Vec<_> = authored_leaf
+        .children
+        .iter()
+        .filter(|node| node.kind != SyntaxKind::Trivia)
+        .collect();
+    let [authored_reference, dot, authored_field] = leaf_parts.as_slice() else {
+        return None;
+    };
+    let reference_parts: Vec<_> = authored_reference
+        .children
+        .iter()
+        .filter(|node| node.kind != SyntaxKind::Trivia)
+        .collect();
+    let [authored_receiver, reference_dot, authored_reference_field] = reference_parts.as_slice()
+    else {
+        return None;
+    };
+    if NodeKey::of(authored_reference) != reference_key
+        || NodeKey::of(authored_receiver) != receiver_key
+        || authored_field.kind != SyntaxKind::Name
+        || authored_field.token()?.text(text) != scalar_name
+        || dot.token()?.text(text) != "."
+        || reference_dot.token()?.text(text) != "."
+        || authored_reference_field.token()?.text(text) != "profile"
+        || images_source_name(authored_receiver, text)? != binding
+    {
+        return None;
+    }
+    let scenario = checked_effect_node(ir, owner, source.node, db)?;
+    let contains = |node: &crate::syntax::SyntaxNode| {
+        node.span.file == leaf.span.file
+            && node.span.start <= leaf.span.start
+            && leaf.span.end <= node.span.end
+    };
+    let role = if scenario
+        .children
+        .iter()
+        .any(|node| node.kind == SyntaxKind::Require && contains(node))
+    {
+        DependencyRole::Control
+    } else {
+        let mut blocks = scenario
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::DoBlock);
+        let block = blocks.next()?;
+        if blocks.next().is_some()
+            || !block.children.iter().any(|node| {
+                matches!(node.kind, SyntaxKind::Let | SyntaxKind::Create) && contains(node)
+            })
+        {
+            return None;
+        }
+        DependencyRole::Data
+    };
+    let mut result = None;
+    for returned in &proof.returns {
+        if returned.source != source.source {
+            return None;
+        }
+        let references: Vec<_> = returned
+            .dependencies
+            .iter()
+            .enumerate()
+            .filter(|(_, read)| read.node == reference_key)
+            .collect();
+        let leaves: Vec<_> = returned
+            .dependencies
+            .iter()
+            .enumerate()
+            .filter(|(_, read)| read.node == leaf_key)
+            .collect();
+        if references.is_empty() && leaves.is_empty() {
+            continue;
+        }
+        let [(source_index, reference_read)] = references.as_slice() else {
+            return None;
+        };
+        let [(leaf_index, scalar_read)] = leaves.as_slice() else {
+            return None;
+        };
+        if source_index >= leaf_index
+            || reference_read.id.is_empty()
+            || scalar_read.id.is_empty()
+            || reference_read.id == scalar_read.id
+            || reference_read.source != source.source
+            || scalar_read.source != source.source
+            || !reference_read.calls.is_empty()
+            || !scalar_read.calls.is_empty()
+            || reference_read.query_id.is_some()
+            || scalar_read.query_id.is_some()
+            || reference_read.role != role
+            || scalar_read.role != role
+            || reference_read.model != branch.id
+            || reference_read.field != reference_field.id
+            || reference_read.model_name != branch.canonical
+            || reference_read.field_name != "profile"
+            || reference_read.ty != reference.ty
+            || reference_read.type_id != profile.canonical
+            || scalar_read.model != profile.id
+            || scalar_read.field != scalar_field.id
+            || scalar_read.model_name != profile.canonical
+            || scalar_read.field_name != *scalar_name
+            || scalar_read.ty != leaf.ty
+            || scalar_read.type_id != expected.as_str()
+        {
+            return None;
+        }
+        let pair = (*reference_read, *scalar_read);
+        if result.is_some_and(|previous| previous != pair) {
+            return None;
+        }
+        result = Some(pair);
+    }
+    result
 }
 
 pub(super) fn stored_reference_operand<'a>(
@@ -7184,3 +7653,7 @@ fn source_matches(ir: &IrProgram, source: &DisclosureSource, span: Span) -> bool
 #[cfg(test)]
 #[path = "scenario_text_request_tests.rs"]
 mod text_request_tests;
+
+#[cfg(test)]
+#[path = "scenario_profile_pair_tests.rs"]
+mod profile_pair_tests;
