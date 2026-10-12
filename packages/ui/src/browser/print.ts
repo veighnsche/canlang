@@ -91,7 +91,7 @@ export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrint
   if (input.signal?.aborted) {
     return { ok: false, error: cancelledError() };
   }
-  if (response.status < 200 || response.status >= 300) {
+  if (response.status < 200 || response.status >= 300 || Number.isNaN(response.status)) {
     let parsed: unknown = null;
     try {
       parsed = JSON.parse(body);

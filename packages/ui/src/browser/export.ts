@@ -314,7 +314,7 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
   if (input.controller?.cancelled || input.signal?.aborted) {
     return { ok: false, error: cancelledError() };
   }
-  if (response.status < 200 || response.status >= 300) {
+  if (response.status < 200 || response.status >= 300 || Number.isNaN(response.status)) {
     return {
       ok: false,
       error: digestExportError(parsed) ?? transportError(`Export request failed (status ${String(response.status)}).`),

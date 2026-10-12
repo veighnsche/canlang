@@ -110,6 +110,13 @@ test("browser-export: authenticated request preserves the inline CSV byte-exact"
   if (!result.ok) return;
   assert.equal(result.outcome.csv, INLINE.csv);
   assert.equal(deriveExportStatus(result.outcome, Date.parse("2026-10-06T12:00:00.000Z")), "inline-complete");
+  const fractional = await submitExportRequest({
+    fetchImpl: async () => stubResponse(200.5, JSON.stringify(INLINE)),
+    action: ACTION,
+    csrf: CSRF,
+    operation: OPERATION,
+  });
+  assert.deepEqual(fractional, result);
 });
 
 test("browser-export: protected targets refuse before rendering or sending the CSRF token", async () => {
@@ -267,6 +274,15 @@ test("browser-export: errors digest safely; transport and contract faults stay e
   assert.equal(garbled.ok, false);
   if (garbled.ok) return;
   assert.equal(garbled.error.code, "transport");
+  const unordered = await submitExportRequest({
+    fetchImpl: async () => stubResponse(NaN, JSON.stringify(INLINE)),
+    action: ACTION,
+    csrf: CSRF,
+    operation: OPERATION,
+  });
+  assert.deepEqual(unordered, {
+    ok: false, error: { code: "transport", message: "Export request failed (status NaN)." },
+  });
   /* Parsed-but-malformed success bodies throw (contract violation, host-fatal). */
   await assert.rejects(
     submitExportRequest({
