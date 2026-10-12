@@ -61,6 +61,8 @@ export interface SystemCommandContext {
   readonly operation: string;
   readonly load: StoragePort['load'];
   readonly query: StoragePort['query'];
+  /** Existing owning query-key order; no store or mutation capability. */
+  readonly cohortIdOrder?: StoragePort['cohortIdOrder'];
 }
 
 /** Actual registry-issued staging capability, separate from caller context. */
@@ -285,6 +287,7 @@ function issueSystemContext(ctx: SystemRunContext, store: StoragePort, revision:
   };
   const stageContext: SystemCommandContext = Object.freeze<SystemCommandContext>({
     actor: ctx.actor, now: ctx.now, operation: ctx.operation,
+    cohortIdOrder: store.cohortIdOrder ?? 'utf16',
     load: (model, id) => read(() => store.load(model, id)),
     query: (spec) => read(() => store.query(spec)),
   });

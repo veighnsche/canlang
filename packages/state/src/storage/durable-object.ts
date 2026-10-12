@@ -27,6 +27,7 @@ import {
   toStoredRow,
   compilePredicate,
   compileOrder,
+  recoveryRecordTable,
   checkLimit,
   checkSchedulesLimit,
   checkStagedRowsLimit,
@@ -915,7 +916,7 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
     async query(spec: QuerySpec): Promise<ReadonlyArray<StoredRow>> {
       assertBinding();
       const bindings: unknown[] = [spec.model as string];
-      let sql = `SELECT ${RECORD_COLUMNS} FROM records WHERE model = ?`;
+      let sql = `SELECT ${RECORD_COLUMNS} FROM ${recoveryRecordTable(spec)} WHERE model = ?`;
       if (spec.parent !== undefined) {
         // S5: parent_* columns carry the linkage StoredRow.parent persists, so
         // this filter scopes positively; NULL-parent rows never match it.

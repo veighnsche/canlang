@@ -242,6 +242,18 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
   };
   for (const emitted of artifact.modules.slice(1)) {
     const imported = await importVerifiedAssemblyModule(asm, emitted.path, artifact);
+    // Composed apps include verified constant-only package facades. They
+    // carry no writer/handler declarations; all actual callables remain in
+    // their artifact-selected defining module. Never skip a missing actual
+    // callable census or invoke an accessor as declaration metadata.
+    if (Object.getOwnPropertyDescriptor(imported, 'appDefinition') === undefined) {
+      if (artifact.callables.some(callable => callable.module === emitted.path &&
+          (callable.kind === 'operation' || callable.kind === 'handler'))) {
+        throw new Error('File retirement callable module lacks its own appDefinition data.');
+      }
+      await verifyCurrent();
+      continue;
+    }
     captureInvocations(emitted.path, data(imported, 'appDefinition'));
     await verifyCurrent();
   }

@@ -103,11 +103,17 @@ function fakeCtx(store: Map<string, StoredRow>): SystemCommandContext {
     operation: 'test.t24a',
     load: async (model: ModelName, id: RecordId) =>
       store.get(`${model}\0${id}`) ?? null,
-    // Deliberately unfiltered: stages must re-filter exactly.
-    query: async (spec: QuerySpec) =>
-      [...store.entries()]
-        .filter(([key]) => key.startsWith(`${spec.model}\0`))
-        .map(([, row]) => row),
+    // Legacy stages remain unfiltered; recovery's bounded reader contract
+    // must preserve its state/id window instead of manufacturing a full scan.
+    query: async (spec: QuerySpec) => {
+      const rows = [...store.entries()].filter(([key]) => key.startsWith(`${spec.model}\0`)).map(([, row]) => row);
+      if (spec.limit === undefined || spec.where?.op !== 'and') return rows;
+      const state = spec.where.args[0], after = spec.where.args[1];
+      if (state?.op !== 'eq' || state.field !== 'state') return rows;
+      return rows.filter(row => row.data['state'] === state.value &&
+        (after?.op !== 'gt' || row.id > String(after.value)))
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).slice(0, spec.limit);
+    },
   };
 }
 

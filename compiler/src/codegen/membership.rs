@@ -112,6 +112,8 @@ pub(super) fn prepare(
     if !diagnostics.is_empty() || closure(&fresh) != closure(ir) {
         return None;
     }
+    let read_sources =
+        super::scenario_decisions::ReadDecisionSources::prepare(program, ir, db, Some(catalog))?;
     let mut sites = BTreeMap::new();
     for item in &ir.items {
         if let Some(source) = super::scenario_decisions::serialize_decision_sources(
@@ -128,13 +130,8 @@ pub(super) fn prepare(
         }
     }
     for rule in ir.read_rules.iter().chain(&ir.callback_read_rules) {
-        if let Some(source) = super::scenario_decisions::serialize_read_decision_sources(
-            program,
-            ir,
-            rule,
-            db,
-            Some(catalog),
-        ) && source.iter().any(|site| site.calls.iter().any(|call| {
+        if let Some(source) = read_sources.serialize_rule(rule)
+            && source.iter().any(|site| site.calls.iter().any(|call| {
                 matches!(&call.target, super::scenario_decisions::SerialDecisionTarget::Builtin { id, .. }
                     if id == "active_member")
             })) {
@@ -146,9 +143,7 @@ pub(super) fn prepare(
     }
     let mut pages = BTreeMap::<String, Vec<_>>::new();
     let mut predicates = HashMap::new();
-    for site in
-        super::scenario_decisions::serialize_read_predicate_sources(program, ir, db, Some(catalog))?
-    {
+    for site in read_sources.serialize_predicates()? {
         let file = db.iter().find(|(_, file)| file.path == site.source.path)?.0;
         let identity = serde_json::json!({
             "source":site.source,"owner":site.owner,"node":site.node,"statement":site.statement,

@@ -56,6 +56,7 @@ export const SCHEMA_STATEMENTS: ReadonlyArray<string> = [
   'CREATE TABLE IF NOT EXISTS migration_failures(migration_id TEXT PRIMARY KEY, leg TEXT NOT NULL, prior_phase TEXT NOT NULL, staged_cursor TEXT NULL, publish_cursor TEXT NULL, error TEXT NOT NULL, at INTEGER NOT NULL, revision INTEGER NOT NULL)',
   'CREATE INDEX IF NOT EXISTS idx_migration_outcomes_migration ON migration_outcomes(migration_id)',
   'CREATE INDEX IF NOT EXISTS idx_records_owner_model ON records(owner, model)',
+  "CREATE INDEX IF NOT EXISTS idx_records_recovery ON records(model, json_extract(data, '$.state'), archived_at, id)",
   'CREATE INDEX IF NOT EXISTS idx_history_model_record ON history(model, record_id)',
   'CREATE INDEX IF NOT EXISTS idx_history_model_record_order ON history(model, record_id, version, seq)',
   'CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status)',

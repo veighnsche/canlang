@@ -1440,6 +1440,85 @@ pub fn serialize_decision_sources(
     serialize_sites(program, ir, db, sites, None)
 }
 
+/// Fresh original source inputs shared only during one immutable membership
+/// preparation. Construction and fields stay private to this checked producer;
+/// standalone serializers build their own genuine context on every call.
+pub(super) struct ReadDecisionSources<'a> {
+    program: &'a CheckedProgram,
+    ir: &'a IrProgram,
+    db: &'a SourceDb,
+    catalog: Option<&'a Catalog>,
+    original: CheckedProgram,
+    fresh: IrProgram,
+    trees: Vec<(crate::source::SourceId, SyntaxNode)>,
+    resolved: crate::analysis::resolve::ResolveTables,
+}
+
+impl<'a> ReadDecisionSources<'a> {
+    pub(super) fn prepare(
+        program: &'a CheckedProgram,
+        ir: &'a IrProgram,
+        db: &'a SourceDb,
+        catalog: Option<&'a Catalog>,
+    ) -> Option<Self> {
+        program.validate_cohort(db, catalog).ok()?;
+        let (original, diagnostics) =
+            crate::analysis::check_program(db, program.checked_files(), catalog);
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        {
+            return None;
+        }
+        let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        {
+            return None;
+        }
+        let mut trees = Vec::new();
+        for &file in original.checked_files() {
+            let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
+            if diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+            {
+                return None;
+            }
+            trees.push((file, tree));
+        }
+        let mut diagnostics = Vec::new();
+        let resolved =
+            crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
+                .ok()?;
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        {
+            return None;
+        }
+        Some(Self {
+            program,
+            ir,
+            db,
+            catalog,
+            original,
+            fresh,
+            trees,
+            resolved,
+        })
+    }
+
+    pub(super) fn serialize_rule(&self, rule: &IrRuleFn) -> Option<Vec<SerialDecisionSite>> {
+        serialize_read_rule(self, rule)
+    }
+
+    pub(super) fn serialize_predicates(&self) -> Option<Vec<SerialDecisionSite>> {
+        serialize_read_predicates(self)
+    }
+}
+
 /// Original policy source correspondence for a registered ordinary or protected
 /// read rule. Source metadata supplies no policy or execution authority.
 pub fn serialize_read_decision_sources(
@@ -1449,15 +1528,21 @@ pub fn serialize_read_decision_sources(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Option<Vec<SerialDecisionSite>> {
-    program.validate_cohort(db, catalog).ok()?;
-    let (original, diagnostics) =
-        crate::analysis::check_program(db, program.checked_files(), catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-    {
-        return None;
-    }
+    ReadDecisionSources::prepare(program, ir, db, catalog)?.serialize_rule(rule)
+}
+
+fn serialize_read_rule(
+    sources: &ReadDecisionSources<'_>,
+    rule: &IrRuleFn,
+) -> Option<Vec<SerialDecisionSite>> {
+    let program = sources.program;
+    let ir = sources.ir;
+    let db = sources.db;
+    let catalog = sources.catalog;
+    let original = &sources.original;
+    let fresh = &sources.fresh;
+    let trees = &sources.trees;
+    let resolved = &sources.resolved;
     let mut matches = Vec::new();
     for (model, data) in &original.effects.models {
         let symbol = original.symbols.get(model.0 as usize)?;
@@ -1468,7 +1553,7 @@ pub fn serialize_read_decision_sources(
                     && rule.id
                         == format!(
                             "{}.{kind}.{}",
-                            super::ir::model_rule_prefix(&original, symbol),
+                            super::ir::model_rule_prefix(original, symbol),
                             ordinal + 1
                         )
                 {
@@ -1507,13 +1592,6 @@ pub fn serialize_read_decision_sources(
     {
         return None;
     }
-    let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-    {
-        return None;
-    }
     let expected_rules = if *callback {
         &fresh.callback_read_rules
     } else {
@@ -1537,46 +1615,25 @@ pub fn serialize_read_decision_sources(
         return None;
     }
     let mut semantics = SemanticJoin {
-        program: &original,
+        program: original,
         actual: ir,
-        expected: &fresh,
+        expected: fresh,
         nodes: 0,
         stack: HashSet::new(),
     };
     semantics.expression(&rule.pred, &expected.pred, 0)?;
     semantics.expression(&actual.pred, &expected.pred, 0)?;
-    let mut trees = Vec::new();
-    for &file in original.checked_files() {
-        let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
-        if diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-        {
-            return None;
-        }
-        trees.push((file, tree));
-    }
-    let mut diagnostics = Vec::new();
-    let resolved =
-        crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
-            .ok()?;
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-    {
-        return None;
-    }
     let sites = crate::analysis::scenario_disclosure::checked_read_decision_sites(
         db,
-        &trees,
-        &resolved,
+        trees,
+        resolved,
         &original.types,
         &original.effects,
         *model,
         *ordinal,
     )?;
     let mut consumer = Consumer {
-        program: &original,
+        program: original,
         ir,
         db,
         catalog,
@@ -1584,7 +1641,7 @@ pub fn serialize_read_decision_sources(
         steps: 0,
         count: 0,
     };
-    for (_, tree) in &trees {
+    for (_, tree) in trees {
         consumer.index(tree)?;
     }
     consumer.steps = 0;
@@ -1621,12 +1678,12 @@ pub fn serialize_read_decision_sources(
         }
     }
     let module = original.modules.get(symbol.module.0 as usize)?;
-    let owner = if super::ir::model_rule_prefix(&original, symbol) == symbol.canonical {
+    let owner = if super::ir::model_rule_prefix(original, symbol) == symbol.canonical {
         rule.id.clone()
     } else {
         format!("{}.{}", module.name, rule.id)
     };
-    serialize_sites(&original, ir, db, sites, Some(&owner))
+    serialize_sites(original, ir, db, sites, Some(&owner))
 }
 
 /// Named-page stored-model collection predicates at their original query sites.
@@ -1638,47 +1695,23 @@ pub fn serialize_read_predicate_sources(
     db: &SourceDb,
     catalog: Option<&Catalog>,
 ) -> Option<Vec<SerialDecisionSite>> {
-    program.validate_cohort(db, catalog).ok()?;
-    let (original, diagnostics) =
-        crate::analysis::check_program(db, program.checked_files(), catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-    {
-        return None;
-    }
-    let (fresh, diagnostics) = super::ir::build(&original, db, catalog);
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-        || ir.modules.len() != fresh.modules.len()
-    {
-        return None;
-    }
-    let mut trees = Vec::new();
-    for &file in original.checked_files() {
-        let (tree, diagnostics) = syntax::parse_source(file, &db.get(file)?.text);
-        if diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-        {
-            return None;
-        }
-        trees.push((file, tree));
-    }
-    let mut diagnostics = Vec::new();
-    let resolved =
-        crate::analysis::resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics)
-            .ok()?;
-    if diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
-    {
+    ReadDecisionSources::prepare(program, ir, db, catalog)?.serialize_predicates()
+}
+
+fn serialize_read_predicates(sources: &ReadDecisionSources<'_>) -> Option<Vec<SerialDecisionSite>> {
+    let ir = sources.ir;
+    let db = sources.db;
+    let catalog = sources.catalog;
+    let original = &sources.original;
+    let fresh = &sources.fresh;
+    let trees = &sources.trees;
+    let resolved = &sources.resolved;
+    if ir.modules.len() != fresh.modules.len() {
         return None;
     }
     let mut nodes = HashMap::new();
     let mut consumer = Consumer {
-        program: &original,
+        program: original,
         ir,
         db,
         catalog,
@@ -1686,7 +1719,7 @@ pub fn serialize_read_predicate_sources(
         steps: 0,
         count: 0,
     };
-    for (_, tree) in &trees {
+    for (_, tree) in trees {
         consumer.index(tree)?;
         for node in tree.descendants() {
             if nodes.len() >= 200000 {
@@ -1697,9 +1730,9 @@ pub fn serialize_read_predicate_sources(
     }
     consumer.steps = 0;
     let mut join = SemanticJoin {
-        program: &original,
+        program: original,
         actual: ir,
-        expected: &fresh,
+        expected: fresh,
         nodes: 0,
         stack: HashSet::new(),
     };
@@ -1770,8 +1803,8 @@ pub fn serialize_read_predicate_sources(
                     .find(|child| child.kind == SyntaxKind::Query)?;
                 let site = crate::analysis::scenario_disclosure::checked_read_predicate_site(
                     db,
-                    &trees,
-                    &resolved,
+                    trees,
+                    resolved,
                     &original.types,
                     &original.effects,
                     module.id,
@@ -1793,13 +1826,7 @@ pub fn serialize_read_predicate_sources(
                 if output.len() >= 200 || call_count > 200 {
                     return None;
                 }
-                output.extend(serialize_sites(
-                    &original,
-                    ir,
-                    db,
-                    vec![site],
-                    Some(&owner),
-                )?);
+                output.extend(serialize_sites(original, ir, db, vec![site], Some(&owner))?);
             }
         }
     }
