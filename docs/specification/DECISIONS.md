@@ -12679,3 +12679,13 @@ Existing filetree coverage and defining owner/target allocations cover all11 cha
 ## 2026-10-12 — Dev recovery-planner bounded scan (pos3, coordinator-serial)
 
 **Implemented/tested.** `scanDispatchState` now queries per state with storage `order id asc, limit+1` (dispatch rows are keyed by intentId) so visits stay bounded before any row is decoded; the exact state re-filter, first-sighting dedupe, intentId sort and slice are unchanged, and truncation reports whenever the storage window overflows (conservative under adapter echo, never silent). Planner fence/continuation/failure API untouched; decode failures still propagate all-or-nothing with no partial publish. New sweep test pins ≤limit+1 visits per scan, truthful truncation and lowest-id window stability. t24b-dispatch-execution26/26 pass from rebuilt dist. Filetree coverage unchanged (same-file change under existing ownership); complete checkpoint retained. No push, deployment or publication.
+
+
+## 2026-10-12 — standalone todo example
+
+Implemented `examples/Todo.can` as a single `Todos` app using existing member-only CRUD, a trimmed nonempty title, default-open status, shared cards/forms/list presentation and All/Open/Done preferences. Creation exposes only the title; editing exposes title and completion. Keep the pre-existing root `tasks.can` unchanged. Inline examples cover completion, stale-version conflict and public-user refusal. `compiler/target/debug/can check examples/Todo.can` exits 0. This verifies source checking; browser behavior and inline example execution were not run. No language or runtime change is proposed.
+
+
+## 2026-10-12 — todo local browser preview
+
+Ran `examples/Todo.can` in a separate development daemon using the existing embedding runtime-directory option, preserving the root Tasks session. The actual authenticated page probe initially returned HTTP 400: cursor pagination requires a stable data-only filter identity for the preference-dependent predicate. Removed the optional pagination child from this small example; retained views, search, CRUD and member policy. The final captured check reports valid, zero diagnostics and preview ready at revision r2. Opened the protected loopback preview in the in-app browser, signed in with a generated local member and selected its team; the actual Todos page displays its task form, All/Open/Done controls, search and empty list. CRUD interactions and inline example execution were not run. Filtered cursor pagination remains an existing runtime/compiler integration gap; no runtime change or deployment was made.
