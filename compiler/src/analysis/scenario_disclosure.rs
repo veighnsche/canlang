@@ -1343,6 +1343,157 @@ impl<'a> Closure<'a> {
         ))
     }
 
+    /// The original Chat reference is a required stored field of its actual
+    /// required Branch input. A copied value or another reference is not a
+    /// receiver for the bounded Profile scalar producer.
+    fn checked_profile_reference(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let (receiver, name) = self.count_member(node)?;
+        let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
+            return None;
+        };
+        let parameter = *parameter;
+        let (branch, depth) = self.checked_call_parent_path(receiver, parameter, 0)?;
+        let declaration = self.resolve.symbols.get(branch.0 as usize)?;
+        let SymbolKind::Model { fields, .. } = &declaration.kind else {
+            return None;
+        };
+        let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+        let SymbolKind::Param {
+            owner: scenario, ..
+        } = parameter_symbol.kind
+        else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.get(&scenario)?;
+        let parameter_data = scenario
+            .params
+            .iter()
+            .find(|param| param.param == parameter)?;
+        let field = fields
+            .iter()
+            .filter_map(|field| self.resolve.symbols.get(field.0 as usize))
+            .find(|field| field.name == name)?;
+        let ResolvedType::Record {
+            symbol: profile,
+            stored: true,
+        } = self.types.symbol_types.get(&field.id)?
+        else {
+            return None;
+        };
+        let profile = *profile;
+        let target = self.resolve.symbols.get(profile.0 as usize)?;
+        let data = self
+            .effects
+            .models
+            .get(&branch)?
+            .fields
+            .iter()
+            .find(|data| data.field == field.id)?;
+        let text = &self.db.get(node.file)?.text;
+        if name != "profile"
+            || depth != 0
+            || declaration.name != "Branch"
+            || target.name != "Profile"
+            || declaration.module != module
+            || target.module != module
+            || parameter_symbol.module != module
+            || scenario.module != module
+            || scenario.read
+            || scenario.on.is_some()
+            || node.file != scenario.node.file
+            || node.start < scenario.node.start
+            || node.end > scenario.node.end
+            || !matches!(field.kind,SymbolKind::Field {owner,..} if owner == branch)
+            || field.module != module
+            || data.default.is_some()
+            || data.server.is_some()
+            || data.required_array
+            || self.types.field_reuse_sources.contains_key(&field.id)
+            || self.types.node_types.get(&node) != self.types.symbol_types.get(&field.id)
+            || text
+                .get(data.type_node.start as usize..data.type_node.end as usize)?
+                .trim()
+                != "Profile"
+            || text
+                .get(
+                    parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
+                )?
+                .trim()
+                != "Branch"
+            || self.checked_created_model(branch, module).is_none()
+            || self.checked_created_model(profile, module).is_none()
+        {
+            return None;
+        }
+        Some((parameter, branch, field.id, profile))
+    }
+
+    fn checked_profile_scalar(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, SymbolId, SymbolId, SymbolId)> {
+        let (reference, name) = self.count_member(node)?;
+        let (parameter, branch, reference_field, profile) =
+            self.checked_profile_reference(reference, module)?;
+        let expected = match name {
+            "active" => Scalar::Bool,
+            "system_prompt" | "provider_key" | "policy_revision" => Scalar::Text,
+            "input_tokens" | "output_tokens" => Scalar::Int,
+            "duration" => Scalar::Duration,
+            _ => return None,
+        };
+        let declaration = self.resolve.symbols.get(profile.0 as usize)?;
+        let SymbolKind::Model { fields, .. } = &declaration.kind else {
+            return None;
+        };
+        let field = fields
+            .iter()
+            .filter_map(|field| self.resolve.symbols.get(field.0 as usize))
+            .find(|field| field.name == name)?;
+        let SymbolKind::Field {
+            owner: field_owner,
+            type_node,
+        } = field.kind
+        else {
+            return None;
+        };
+        let data = self
+            .effects
+            .models
+            .get(&profile)?
+            .fields
+            .iter()
+            .find(|data| data.field == field.id)?;
+        let authored = self.nodes.get(&data.node)?;
+        let source = self.db.get(data.type_node.file)?;
+        let ty = ResolvedType::Scalar(expected);
+        if field_owner != profile
+            || type_node != data.type_node
+            || authored.kind != SyntaxKind::Field
+            || !authored
+                .children
+                .iter()
+                .any(|child| NodeKey::of(child) == data.type_node)
+            || source
+                .text
+                .get(data.type_node.start as usize..data.type_node.end as usize)?
+                .trim()
+                != expected.as_str()
+            || field.module != module
+            || self.types.symbol_types.get(&field.id) != Some(&ty)
+            || self.types.node_types.get(&node) != Some(&ty)
+            || self.types.field_reuse_sources.contains_key(&field.id)
+        {
+            return None;
+        }
+        Some((parameter, branch, reference_field, profile, field.id))
+    }
+
     /// A stored reference array must genuinely reuse the exact child Scope
     /// field, with the same inherited literal range and no receiving skew.
     fn reference_field_bounds(&self, field: SymbolId, parameter: SymbolId) -> bool {
@@ -2554,6 +2705,31 @@ impl<'a> Closure<'a> {
             {
                 pending.push((query.model, true));
             }
+        }
+        // Only an actual original Profile reference occurrence adds this model
+        // to the source census. No reference traversal or runtime view is issued.
+        let mut expressions: Vec<_> = scenario
+            .guards
+            .iter()
+            .chain(&scenario.effects)
+            .filter_map(|statement| self.nodes.get(&statement.node).copied())
+            .collect();
+        let mut visited = 0usize;
+        while let Some(node) = expressions.pop() {
+            visited += 1;
+            if visited > 16384 {
+                return None;
+            }
+            if node.kind == SyntaxKind::Examples {
+                continue;
+            }
+            if node.kind == SyntaxKind::Member
+                && let Some((_, _, _, profile)) =
+                    self.checked_profile_reference(NodeKey::of(node), scenario.module)
+            {
+                pending.push((profile, true));
+            }
+            expressions.extend(node.children.iter());
         }
         for query in self.checked_count_query_sources(scenario)? {
             pending.push((query.model, true));
@@ -5493,6 +5669,44 @@ impl<'a> Closure<'a> {
             if field_ty != ty || field.module != owner.module {
                 return Err(self.fail(key, "stored field schema identity mismatch"));
             }
+            let profile_reference = self.checked_profile_reference(key, module);
+            let profile_scalar = self.checked_profile_scalar(key, module);
+            if matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
+                && self.checked_profile_reference(base_key, module).is_some()
+                && profile_scalar.is_none()
+            {
+                return Err(self.fail(key, "Profile scalar declaration source correspondence"));
+            }
+            if let Some((parameter, branch, reference, profile, scalar)) = profile_scalar {
+                if !calls.is_empty()
+                    || self.loop_node.is_some()
+                    || model != profile
+                    || field.id != scalar
+                    || !matches!(value.reference_origin,Some(ReferenceOrigin::Field {parameter:actual,model:source,field})
+                        if actual == parameter && source == branch && field == reference)
+                    || !value.reads.iter().any(|read| {
+                        read.node == base_key
+                            && read.model == branch
+                            && read.field == reference
+                            && read.ty
+                                == (ResolvedType::Record {
+                                    symbol: profile,
+                                    stored: true,
+                                })
+                            && read.field_name == "profile"
+                            && read.calls.is_empty()
+                            && read.query_id.is_none()
+                    })
+                {
+                    return Err(self.fail(
+                        key,
+                        "Profile scalar needs its original stored reference receiver",
+                    ));
+                }
+                // This scalar consumes exactly its original stored receiver.
+                // The separate owning reference read remains in provenance.
+                value.reference_origin = None;
+            }
             let parent_origin = match value.reference_origin {
                 Some(ReferenceOrigin::Parent {
                     parameter,
@@ -5517,7 +5731,28 @@ impl<'a> Closure<'a> {
                     "parent edge needs direct required Model reference field",
                 ));
             }
-            let type_id = if let Some(parameter) = parent_origin {
+            let type_id = if let Some((parameter, branch, reference, profile)) = profile_reference {
+                if !calls.is_empty() || self.loop_node.is_some() || model != branch || field.id != reference
+                    || !matches!(value.reference_origin,Some(ReferenceOrigin::Parameter(actual)) if actual == parameter)
+                    || !env.get(&Local::Symbol(parameter)).is_some_and(|input| {
+                        matches!(input.reference_origin,Some(ReferenceOrigin::Parameter(actual)) if actual == parameter)
+                    })
+                {
+                    return Err(self.fail(key,"Profile reference needs its original required Branch input"));
+                }
+                value.reference_origin = Some(ReferenceOrigin::Field {
+                    parameter,
+                    model: branch,
+                    field: reference,
+                });
+                self.reference_operand_type_id(&ResolvedType::Record {
+                    symbol: profile,
+                    stored: true,
+                })
+                .ok_or_else(|| {
+                    self.fail(key, "Profile reference lacks its owning model declaration")
+                })?
+            } else if let Some(parameter) = parent_origin {
                 let declaration = self
                     .effects
                     .models
@@ -5609,7 +5844,7 @@ impl<'a> Closure<'a> {
                 type_id,
             });
             value.observed.push((key, calls.to_vec()));
-            value.record = None;
+            value.record = profile_reference.map(|(_, _, _, profile)| profile);
             value.reference = None;
         }
         Ok(values)
@@ -7024,6 +7259,18 @@ impl<'a> Closure<'a> {
         calls: &[NodeKey],
         mut value: ValuePath,
     ) -> Result<ValuePath, DisclosureDecline> {
+        if value.record.is_some()
+            && matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
+            && self
+                .query_group(key)
+                .and_then(|key| self.checked_profile_reference(key, module))
+                .is_some()
+        {
+            return Err(self.fail(
+                key,
+                "Profile reference needs its direct original scalar member",
+            ));
+        }
         if let Some((parameter, parameter_name, scalar)) = value.input.take() {
             let intrinsic = self.intrinsic(
                 key,
@@ -9267,6 +9514,17 @@ impl<'a> Closure<'a> {
                                         .iter()
                                         .filter(|dependency| {
                                             self.reference_operand_type_id(&dependency.ty).is_some()
+                                                || dependency.field_name == "active"
+                                                    && self
+                                                        .checked_profile_scalar(
+                                                            dependency.node,
+                                                            module,
+                                                        )
+                                                        .is_some_and(|(_, _, _, profile, field)| {
+                                                            dependency.model == profile
+                                                                && dependency.field == field
+                                                                && dependency.calls.is_empty()
+                                                        })
                                         })
                                         .cloned()
                                         .collect(),
@@ -9285,6 +9543,9 @@ impl<'a> Closure<'a> {
                                         if self.resolve.symbols.get(symbol.0 as usize)
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
                                         || self.reference_operand_type_id(&dependency.ty).is_some()
+                                        || dependency.field_name == "active" && self.checked_profile_scalar(dependency.node,module).is_some_and(|(_,_,_,profile,field)| {
+                                            dependency.model == profile && dependency.field == field && dependency.calls.is_empty()
+                                        })
                                         || !value.influences.is_empty()
                                 }).cloned().collect(),
                                 ..ValuePath::default()
