@@ -1,0 +1,16 @@
+# Track the team's work.
+app Tasks
+Given
+ export Todo { title:text trim, done:bool=false }
+ policy Todo read=members
+When
+ crud Todo by=members fields=title,done
+Then
+ page / title="Tasks"
+  form Todo.create fields=title,done display=inline
+   input title
+   checkbox done
+  list Todo
+   text row.title,row.done
+   edit fields=title,done
+   delete

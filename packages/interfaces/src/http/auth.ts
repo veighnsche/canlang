@@ -1,12 +1,11 @@
 /**
- * JSON auth endpoints over the real @canlang/identity stack (S4).
+ * Auth endpoints over the real @canlang/identity stack (S4).
  *
- * Interim page contract (pending L5 screens): form GET routes return JSON
- * descriptors `{form, fields, postTo, csrfField}` describing the form
- * the future page will render; team discovery returns a bounded list.
- * These are not pages and do not consume tokens. Only the login GET mutates
- * state (one throttled pre-session row per call); every other GET, including team discovery,
- * is side-effect-free.
+ * Explicit HTML clients receive login/team-selection screens and native POST
+ * redirects. Default and JSON clients retain descriptors and JSON outcomes.
+ * Login GET mints one throttled browser-bound pre-session token; team
+ * discovery and team-picker GETs are side-effect-free and bounded.
+ * Registration, verification and recovery retain their JSON contracts.
  *
  * Method/path matrix: only the documented method+subpath pairs dispatch;
  * every other combination (unknown `/auth/*` subpath, wrong method) is
@@ -27,6 +26,7 @@
  * MUST tell the caller the address is taken, else legitimate users cannot
  * proceed — unlike sign-in and recovery, which stay oracle-free.
  */
+import { browserAuthResponse, renderBrowserLogin, renderBrowserTeams, wantsBrowserAuth } from './browser-auth.js';
 import { CSRF_FIELD, PRESESSION_FIELD, TEAM_FIELD } from '@canlang/contracts';
 import type { BusinessError } from '@canlang/contracts';
 import {
@@ -65,14 +65,14 @@ import {
   retryAfterMsOf,
 } from './limits.js';
 
-/** One interim descriptor field: name, coarse input type, required flag. */
+/** One descriptor field: name, coarse input type, required flag. */
 export interface AuthFormField {
   readonly name: string;
   readonly type: string;
   readonly required: boolean;
 }
 
-/** Interim GET descriptor for one auth form (pending L5 screens). */
+/** JSON GET descriptor for one auth form. */
 export interface AuthFormDescriptor {
   readonly form: string;
   readonly fields: readonly AuthFormField[];
@@ -187,10 +187,15 @@ async function handleVerifyPost(deps: AuthHttpDeps, request: Request): Promise<R
   return jsonOk({ ok: true });
 }
 
-async function handleLoginDescriptor(deps: AuthHttpDeps, request: Request): Promise<Response> {
+async function handleLoginDescriptor(deps: AuthHttpDeps, request: Request, failureStatus?: number): Promise<Response> {
   const limited = await withRateLimit(deps, LOGIN_DESCRIPTOR_THROTTLE, request);
   if (limited !== null) return limited;
   const { token } = await mintPreSessionToken(deps.identity.store, { clock: deps.identity.clock });
+  if (wantsBrowserAuth(request)) {
+    const response = await renderBrowserLogin(deps, request, token, failureStatus);
+    response.headers.set('set-cookie', buildPreSessionCookie(token, { secure: deps.secureCookies }));
+    return response;
+  }
   return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token }, { 'cache-control': 'no-store',
     'set-cookie': buildPreSessionCookie(token, { secure: deps.secureCookies }) });
 }
@@ -384,27 +389,43 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
         ['/auth/login', '/auth/logout', '/auth/select-team', '/auth/select-team/clear'].includes(pathname))) {
       assertTrustedAuthOrigin(request, deps.authOrigin);
     }
-    if (method === 'GET' && pathname === '/auth/login') return await handleLoginDescriptor(deps, request);
+    if (method === 'GET' && pathname === '/auth/login') {
+      return browserAuthResponse(request, await handleLoginDescriptor(deps, request), '/auth/login', false);
+    }
     if (method === 'GET' && pathname === '/auth/register') return jsonOk(REGISTER_DESCRIPTOR());
     // Side-effect-free: the token query only pre-selects the form; the POST consumes it.
     if (method === 'GET' && pathname === '/auth/verify') return jsonOk(VERIFY_DESCRIPTOR());
     if (method === 'GET' && pathname === '/auth/recover') return jsonOk(RECOVER_DESCRIPTOR());
-    if (method === 'GET' && pathname === '/auth/select-team') return jsonOk(SELECT_TEAM_DESCRIPTOR());
+    if (method === 'GET' && pathname === '/auth/select-team') {
+      return wantsBrowserAuth(request) ? await renderBrowserTeams(deps, request) : jsonOk(SELECT_TEAM_DESCRIPTOR());
+    }
     if (method === 'GET' && pathname === '/auth/teams') return await handleTeams(deps, request);
     if (method === 'POST' && pathname === '/auth/register') return await handleRegister(deps, request);
     if (method === 'POST' && pathname === '/auth/verify') return await handleVerifyPost(deps, request);
-    if (method === 'POST' && pathname === '/auth/login') return await handleLogin(deps, request);
-    if (method === 'POST' && pathname === '/auth/logout') return await handleLogout(deps, request);
+    if (method === 'POST' && pathname === '/auth/login') {
+      const response = await handleLogin(deps, request);
+      if (wantsBrowserAuth(request) && response.status !== 200 && response.status !== 429) {
+        return browserAuthResponse(request, await handleLoginDescriptor(deps, request, response.status), '/auth/login', false);
+      }
+      return browserAuthResponse(request, response, '/auth/select-team');
+    }
+    if (method === 'POST' && pathname === '/auth/logout') {
+      return browserAuthResponse(request, await handleLogout(deps, request), '/auth/login');
+    }
     if (method === 'POST' && pathname === '/auth/recover') return await handleRecoverPost(deps, request);
     if (method === 'POST' && pathname === '/auth/recover/confirm') {
       return await handleRecoverConfirm(deps, request);
     }
-    if (method === 'POST' && pathname === '/auth/select-team') return await handleSelectTeam(deps, request);
+    if (method === 'POST' && pathname === '/auth/select-team') {
+      return browserAuthResponse(request, await handleSelectTeam(deps, request), '/');
+    }
     if (method === 'POST' && pathname === '/auth/select-team/clear') {
       return await handleSelectTeamClear(deps, request);
     }
     return deny(deps, buildBusinessError('not_found', 'Unknown auth route.'), pathname);
   } catch (err) {
-    return authFailureResponse(deps, err, pathname);
+    const response = authFailureResponse(deps, err, pathname);
+    return ['/auth/login', '/auth/select-team', '/auth/logout'].includes(pathname)
+      ? browserAuthResponse(request, response, '/auth/login') : response;
   }
 }

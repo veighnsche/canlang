@@ -1,5 +1,33 @@
 # Canlang language design decisions
 
+## 2026-10-12 — standalone browser sign-in and confirmed-form refresh
+
+**Accepted implementation decision.** The owner requested a working standalone
+CanLang getting-started app. Use the existing `checkbox` control for boolean
+fields; keep widget semantics and application permissions unchanged.
+
+Explicit HTML requests use the existing Identity login/token, membership,
+CSRF, origin and rate-limit handlers with native browser forms and fixed
+internal redirects. Public login presentation uses an anonymous identity so
+expired sessions cannot prevent signing in again. The shared page handler
+recovers full HTML navigation after authorization refuses an anonymous or
+unselected caller; selected-team denials, JSON clients, HEAD and partial reads
+retain their refusal. UI owns the email login field; no account authority is
+inferred by presentation.
+
+Confirmed generated-form commits refresh the current authorized main partial
+through the existing guarded morph. Preserve drafts and observers, replace only
+the completed form's request identity, and reject stale/context-changing reads.
+Archive forms keep their existing native encoding and backend version/CSRF
+admission, with an explicit UI-owned marker for client handling. Errors and
+uncertain outcomes do not trigger another mutation or discard drafts.
+
+The website Tasks example and local browser journey cover sign-in, team
+selection, create, update, completion and archive. This is local application
+verification, separate from production deployment or package publication.
+Compiler rejection of incompatible `input` field types remains a separate
+proposal; it is not selected by this browser repair.
+
 ## 2026-10-11 — finite execution of the four existing plans
 
 **Accepted planning decision.** The human requested all remaining work in the
