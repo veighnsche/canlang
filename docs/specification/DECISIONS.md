@@ -11988,3 +11988,10 @@ Changed MAIN checks all0: {"owning": 1.63, "root": 4.93} seconds; no unchanged n
 Accepted finite DEL-C02 source component 6a2c92da8882aa617257d0ad3205f386510b96b5: After existing canonical replay-key validation, reject selected numeric aliases mapping to the same row before insertion; preserve permitted spelling, safe integers and sorted output. Independent defining source review CLEAR; three selected-alias groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 2.21, "root": 7.27} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — return exactly validated provider pages
+
+Accepted finite TECH-SV02 source component e90dea189ba3751baf5edef7f9abae6ee8ce429b: Capture items/initial length, validate each position and capture/validate/return cursor once; sparse positions and changing cursor getters cannot bypass the existing unknown-loader validator. Preserve original first false/throw and same item array. Independent defining source review CLEAR; five provider pagination groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 0.83, "root": 5.15} seconds; no unchanged native/installed/engine reruns.
