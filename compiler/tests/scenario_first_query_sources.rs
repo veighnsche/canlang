@@ -272,3 +272,71 @@ fn different_query_shapes_and_copied_selected_row_are_not_admitted() {
             .is_none_or(Vec::is_empty)
     );
 }
+
+#[test]
+fn unprepared_original_query_first_refuses_both_call_forms_without_facade_import() {
+    use canlang_compiler::codegen::ir::{self, IrExpr, IrItemKind, IrStmt};
+    let mut db = SourceDb::new();
+    let file = db.add("first-refusal.can".into(), BOUNDED.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (original, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for bound in [false, true] {
+        let mut ir = original.clone();
+        let owner = ir
+            .items
+            .iter_mut()
+            .find(|item| item.name == "generate")
+            .unwrap();
+        let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+            panic!("scenario");
+        };
+        let IrStmt::Let { value, .. } = &mut effects[0] else {
+            panic!("original first binding");
+        };
+        let (target, args) = match &value.expr {
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                (target.clone(), args.clone())
+            }
+            _ => panic!("original first call"),
+        };
+        value.expr = if bound {
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots: vec![Some(0)],
+            }
+        } else {
+            IrExpr::Call { target, args }
+        };
+        // The raw source receiver has no independently prepared native query.
+        // Neither spelling can become an ordinary array builtin or a grant.
+        let output =
+            canlang_compiler::codegen::js::emit_program_with_native_source_receipts(&ir, true, &db);
+        assert_eq!(
+            output
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code == "E6008"
+                    && diagnostic.message.contains("first query"))
+                .count(),
+            1
+        );
+        assert!(!output.stdlib_imports.iter().any(|name| name == "first"));
+        assert!(
+            output
+                .entry
+                .js
+                .contains("first query lacks its checked native source")
+        );
+    }
+}

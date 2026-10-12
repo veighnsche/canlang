@@ -3167,6 +3167,11 @@ impl<'a> Emitter<'a> {
 
     fn model_value_type(&self, ty: &IrType) -> Option<String> {
         if let IrType::Known(resolved) = ty {
+            // The exact stored Bool declaration is consumed by the source-owned
+            // lazy ANY binder; a legacy tag alone cannot certify that profile.
+            if *resolved == ResolvedType::Scalar(Scalar::Bool) {
+                return Some("bool".into());
+            }
             fn reference_type(ir: &IrProgram, ty: &ResolvedType) -> Option<String> {
                 match ty {
                     ResolvedType::Record {
@@ -4909,6 +4914,30 @@ impl<'a> Emitter<'a> {
             && !query.order[0].descending
     }
 
+    /// A query first without the checked native recipe cannot use the pure
+    /// array builtin. Keep the original refusal without an invalid facade import.
+    fn unprepared_first_query(
+        &mut self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        span: Span,
+    ) -> Option<String> {
+        if self.native_source_predicates
+            && matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
+            && args
+                .iter()
+                .any(|argument| matches!(argument.expr, IrExpr::Query(_)))
+        {
+            self.unsupported(
+                "first query",
+                "original native query correspondence is unavailable",
+                span,
+            );
+            return Some(self.throw_expr("first query lacks its checked native source"));
+        }
+        None
+    }
+
     /// Prepared original counts consume only their genuine issued query array.
     /// A contained Member and the original ancestor guard keep separate seals.
     fn native_count_query(
@@ -5163,6 +5192,9 @@ impl<'a> Emitter<'a> {
             let query = self.lower_expr(&args[0]);
             return format!("await firstQuery(c,{query})");
         }
+        if let Some(refusal) = self.unprepared_first_query(target, args, span) {
+            return refusal;
+        }
         if self.native_count_query(target, args, None, span, result) {
             self.stdlib.insert("countQuery".into());
             let query = self.lower_expr(&args[0]);
@@ -5189,6 +5221,9 @@ impl<'a> Emitter<'a> {
             return call;
         }
         let native_first = self.native_first_query(target, args, Some(slots), span, result);
+        if !native_first && let Some(refusal) = self.unprepared_first_query(target, args, span) {
+            return refusal;
+        }
         let native_count = self.native_count_query(target, args, Some(slots), span, result);
         let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         let capture = binding_ident("a", &self.binding_seq.to_string());

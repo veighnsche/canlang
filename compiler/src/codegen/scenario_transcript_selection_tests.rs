@@ -555,6 +555,17 @@ fn full_original_query_composition_keeps_six_queries_and_the_original_native_ret
     }
     let models = super::super::js::Emitter::source_models(&ir, &db)
         .expect("own checked standard inventory supplies the original models");
+    let run = models
+        .iter()
+        .find(|model| model.name == "chat.Run")
+        .unwrap();
+    let unfinished = run
+        .fields
+        .iter()
+        .find(|field| field.name == "unfinished")
+        .unwrap();
+    assert_eq!(unfinished.value_type.as_deref(), Some("bool"));
+    assert!(!unfinished.nullable);
     let mut emitter = super::super::js::Emitter::new(&ir);
     let value_types = emitter
         .collect_standard_value_inventory(&db)
