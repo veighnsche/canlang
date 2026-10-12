@@ -38,7 +38,10 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
   const group = getUniqueGroupProfile(def, key);
   if (group === undefined) {
     if (key.includes(',')) throw new StateError('validation', 'Composite unique lacks its checked table profile.');
-    return canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
+    const value = canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
+    if (value === null || def.containment?.parent === undefined) return value;
+    const parent = uniqueParentScope(row, def);
+    return JSON.stringify(['field', parent, value]);
   }
   const invalid = (): never => {throw new StateError('validation', `Invalid composite unique ${key} on ${def.model}.`);};
   const read = (name: string): unknown => {
@@ -65,13 +68,18 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
     id = decoded.id;
   } catch {return invalid();}
   if (typeof role !== 'string' || !group.cases.includes(role)) return invalid();
-  let parent: readonly string[] | null = null;
-  if (def.containment?.parent !== undefined) {
-    if (row.parent == null || row.parent.model !== def.containment.parent || typeof row.parent.id !== 'string' || row.parent.id === '') return invalid();
-    parent = [row.parent.model, row.parent.id];
-  }
+  const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
   // Typed JSON slots are collision-free; reference versions do not alter identity.
   return JSON.stringify(['ref-enum', parent, group.refModel, id, role]);
+}
+
+/** Scope comes only from the declared containment and actual stored metadata. */
+function uniqueParentScope(row: Pick<StoredRow, 'parent'>, def: InterimModelDef): readonly string[] {
+  if (row.parent == null || row.parent.model !== def.containment?.parent ||
+      typeof row.parent.id !== 'string' || row.parent.id === '') {
+    throw new StateError('validation', `Unique key on ${def.model} requires its actual declared parent.`);
+  }
+  return [row.parent.model, row.parent.id];
 }
 
 /** Frozen migration schema identity cannot yet retain the source group census.

@@ -293,7 +293,7 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
   for (const [target, rows] of stagedByTarget) {
     const desiredDef = desiredModels.get(target as ModelName) as InterimModelDef;
     checkUniqueSet(
-      rows.map((row) => row.data),
+      rows,
       desiredDef,
       `staged set for ${JSON.stringify(target)}`,
     );
@@ -309,7 +309,7 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
     }
     const live = await scanAllLive(store, source);
     checkUniqueSet(
-      live.map((row) => row.data),
+      live,
       desiredDef,
       `retained live rows for ${JSON.stringify(source)}`,
     );
@@ -769,15 +769,15 @@ async function checkDropGating(
 
 /** Mutual uniqueness of one row set under one def's unique keys. */
 function checkUniqueSet(
-  datas: ReadonlyArray<Readonly<Record<string, unknown>>>,
+  rows: ReadonlyArray<Pick<StoredRow, 'data' | 'parent'>>,
   def: InterimModelDef,
   what: string,
 ): void {
   const model = def.model as string;
   for (const key of def.uniqueKeys) {
     const seen = new Set<string>();
-    for (const data of datas) {
-      const value = canonicalUniqueRowValue({data, parent: null}, key, def);
+    for (const row of rows) {
+      const value = canonicalUniqueRowValue(row, key, def);
       if (value === null) {
         continue;
       }
