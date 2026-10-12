@@ -1,0 +1,15 @@
+## Test-authored isolation of original Chat's eight-entry TextRequest constructor and messages capture.
+## Fixed source-profile/source-policy labels and 8192/2048/120s limits replace Profile reads; no transcript or native authority is claimed.
+app SourceTextRequest
+use std {TextMessage,TextRequest}
+Given
+ Run {request_value:TextRequest}
+ policy Run read=members
+When
+ scenario compose(prompt:TextMessage.content) by=members -> Run
+  do
+   let messages=[TextMessage {role=system,content="Source system",attachments=[]},TextMessage {role=user,content=prompt,attachments=[]}]
+   let value=TextRequest {source=operation.id,revision=1,profile="source-profile",policy_revision="source-policy",messages,max_input_tokens=8192,max_output_tokens=2048,max_duration=120s}
+   create Run {request_value=value} as run
+   return run
+Then
