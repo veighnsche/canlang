@@ -9,7 +9,7 @@ import {
   registerBinder, startBrowserClient, startNativeBrowserClient,
   type BrowserClient, type BrowserClientOptions, type ComponentBinder,
 } from '../src/browser/bootstrap.js';
-import { submitFetchPollFetch } from '../src/browser/polling.js';
+import { PollRegion, submitFetchPollFetch } from '../src/browser/polling.js';
 import type { SubmitFetch, SubmitFetchInit } from '../src/client.js';
 
 const cancellationInputs: DerivedOperationInputs = {
@@ -131,6 +131,54 @@ function observerPort(window: Window, faults: ObserverFaults) {
 }
 
 describe('owned browser lifecycle cleanup', { concurrency: false }, () => {
+  it('poll stop exhausts owned cleanup when timer release throws', { timeout: 5000 }, async () => {
+    for (const original of failures) {
+      const page = await world();
+      let signal: AbortSignal | undefined, finish!: (value: ReturnType<typeof response>) => void;
+      let timerStops = 0;
+      try {
+        const client = startBrowserClient({ ...page.coreOptions(), fetchImpl: async (_url, init) => {
+          signal = init.signal;
+          return new Promise(resolve => { finish = resolve; });
+        } });
+        page.setClient(client);
+        await page.clock.tick();
+        assert.ok(signal); assert.equal(signal.aborted, false);
+        Object.defineProperty(page.window, 'clearTimeout', { configurable: true, value: (id: unknown) => {
+          timerStops++; page.clock.clearTimeout(id); throw original;
+        } });
+        throwsValue(() => client.stop(), original);
+        assert.equal(signal.aborted, true);
+        page.assertReleased();
+        const removed = [...page.events.removed];
+        client.stop();
+        assert.equal(timerStops, 1);
+        assert.deepEqual([...page.events.removed], removed);
+        finish(response()); await settle();
+        assert.equal(page.window.document.getElementById('state')?.textContent, 'OLD');
+      } finally {
+        finish?.(response()); await settle(); await page.close();
+      }
+
+      const clock = new Clock();
+      let stops = 0, directSignal: AbortSignal | undefined, directFinish!: (value: ReturnType<typeof response>) => void;
+      const poller = new PollRegion({ url: '/jobs', intervalSeconds: 1, contextKey: 'owner',
+        timers: { setTimeout: clock.setTimeout, clearTimeout: id => { clock.clearTimeout(id); throw original; } },
+        visibility: { visibilityState: 'visible' }, context: { key: () => 'owner', isAlive: () => true },
+        isLoggedOut: () => false, onResponse: () => assert.fail('stopped poll must not paint'),
+        onStop: reason => { stops++; assert.equal(reason, 'owner-stop'); throw new Error('secondary notification failure'); },
+        fetchImpl: async (_url, init) => { directSignal = init.signal; return new Promise(resolve => { directFinish = resolve; }); },
+      });
+      try {
+        poller.start(); await clock.tick();
+        throwsValue(() => poller.stop(), original);
+        assert.ok(directSignal); assert.equal(directSignal.aborted, true);
+        assert.equal(clock.tasks.size, 0); assert.equal(stops, 1);
+        poller.stop(); assert.equal(stops, 1);
+      } finally { directFinish?.(response()); await settle(); }
+    }
+  });
+
   it('generated form stop physically cancels a pending Node fetch response body and restores controls', { timeout: 10000 }, async t => {
     let requestBody!: (value: string) => void, responseClosed!: () => void;
     const received = new Promise<string>(resolve => { requestBody = resolve; });

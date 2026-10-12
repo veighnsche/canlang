@@ -121,12 +121,20 @@ export class PollRegion {
       return;
     }
     this.stopped = true;
-    if (this.timer !== null) {
-      this.options.timers.clearTimeout(this.timer);
-      this.timer = null;
-    }
-    this.abortInflight();
-    this.options.onStop?.(reason);
+    const timer = this.timer, inflight = this.inflight;
+    this.timer = null;
+    this.inflight = null;
+    let failed = false, failure: unknown;
+    try {
+      if (timer !== null) this.options.timers.clearTimeout(timer);
+    } catch (value) { failed = true; failure = value; }
+    try {
+      inflight?.abort();
+    } catch (value) { if (!failed) { failed = true; failure = value; } }
+    try {
+      this.options.onStop?.(reason);
+    } catch (value) { if (!failed) { failed = true; failure = value; } }
+    if (failed) throw failure;
   }
 
   private schedule(delayMs: number): void {
