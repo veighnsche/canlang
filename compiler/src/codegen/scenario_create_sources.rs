@@ -1006,6 +1006,117 @@ impl SourceExpressions<'_> {
         Some(())
     }
 
+    /// Match an original derive-fn call in an ordinary scenario expression:
+    /// the checked IR callee identity plus each authored argument, in order.
+    /// The derive definition is the single shared IR item on both sides;
+    /// its body is checked by analysis, so correspondence here is the call
+    /// occurrence itself, never a reconstructed helper.
+    fn derive_call(&self, actual: &TypedExpr, node: &SyntaxNode, depth: usize) -> Option<()> {
+        let (target, args, slots) = match &actual.expr {
+            IrExpr::Call {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+            } => (target, args.as_slice(), None),
+            IrExpr::BoundCall {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+                slots,
+            } => (target, args.as_slice(), Some(slots.as_slice())),
+            _ => return None,
+        };
+        let item = self
+            .ir
+            .items
+            .iter()
+            .find(|item| &item.canonical == target)?;
+        let IrItemKind::DeriveFn {
+            result: IrType::Known(result),
+            expr: Some(_),
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        if actual.ty != *result {
+            return None;
+        }
+        if let Some(slots) = slots {
+            if slots.len() != args.len()
+                || slots
+                    .iter()
+                    .enumerate()
+                    .any(|(index, slot)| *slot != Some(index))
+            {
+                return None;
+            }
+        }
+        let children = expressions(node);
+        if source_path(children.first()?, self.text)? != item.name {
+            return None;
+        }
+        let arguments: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument)
+            .collect();
+        if arguments.len() != args.len() {
+            return None;
+        }
+        for (argument, value) in arguments.iter().zip(args.iter()) {
+            let values = expressions(argument);
+            let [source_value] = values.as_slice() else {
+                return None;
+            };
+            self.expression(value, NodeKey::of(source_value), depth + 1)?;
+        }
+        Some(())
+    }
+
+    /// The sealed authorization shape: a derive whose body performs the
+    /// catalog membership read. Such derives are the authorization machinery
+    /// itself; their calls keep the strict authorization correspondence and
+    /// never fall back to ordinary derive matching.
+    fn authorization_shaped(&self, actual: &TypedExpr) -> bool {
+        fn contains_membership(expr: &TypedExpr, depth: usize) -> bool {
+            if depth > 32 {
+                return false;
+            }
+            match &expr.expr {
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                    matches!(target, IrCallTarget::Builtin { id, .. } if id == "active_member")
+                        || args.iter().any(|arg| contains_membership(arg, depth + 1))
+                }
+                IrExpr::Member { base, .. } => contains_membership(base, depth + 1),
+                IrExpr::Binary { left, right, .. } => {
+                    contains_membership(left, depth + 1) || contains_membership(right, depth + 1)
+                }
+                IrExpr::Unary { operand, .. } => contains_membership(operand, depth + 1),
+                _ => false,
+            }
+        }
+        let target = match &actual.expr {
+            IrExpr::Call {
+                target: IrCallTarget::DeriveFn(target),
+                ..
+            }
+            | IrExpr::BoundCall {
+                target: IrCallTarget::DeriveFn(target),
+                ..
+            } => target,
+            _ => return false,
+        };
+        let Some(item) = self.ir.items.iter().find(|item| &item.canonical == target) else {
+            return false;
+        };
+        let IrItemKind::DeriveFn {
+            expr: Some(body), ..
+        } = &item.kind
+        else {
+            return false;
+        };
+        contains_membership(body, 0)
+    }
+
     fn authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         use crate::analysis::scenario_disclosure::{
             CheckedDecisionCallTarget, CheckedDecisionStage,
@@ -2079,7 +2190,26 @@ impl SourceExpressions<'_> {
                 },
                 SyntaxKind::Call,
             ) if self.operands && primitive(Scalar::Bool) => {
-                self.authorization(actual, NodeKey::of(node), depth)?;
+                if self.authorization(actual, NodeKey::of(node), depth).is_none() {
+                    if self.authorization_shaped(actual) {
+                        return None;
+                    }
+                    self.derive_call(actual, &node, depth)?;
+                }
+                true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::DeriveFn(_),
+                    ..
+                }
+                | IrExpr::BoundCall {
+                    target: IrCallTarget::DeriveFn(_),
+                    ..
+                },
+                SyntaxKind::Call,
+            ) if self.operands => {
+                self.derive_call(actual, &node, depth)?;
                 true
             }
             (
