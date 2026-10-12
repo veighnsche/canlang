@@ -1,8 +1,13 @@
 /** Finite Template.current -> published/digest State receiver; no native/app claim. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { CanTypeId, ModelName, Receipt, StoredRow } from '@canlang/contracts';
+import type { CanTypeId, FinalizedFileReceiver, ModelName, Receipt, RetainedFinalizedFile, StoredRow } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
+import { encodeValue, validateValue } from '@canlang/values';
+import { finalizeProviderOutput, observeFinalizedFile } from '@canlang/files/finalize';
+import { DEFAULT_FILE_POLICY, revalidateRetainedFinalizedFile } from '@canlang/files';
+import { TestOnlyCounterFileIds, TestOnlyCounterIntentIds, TestOnlyManualClock,
+  TestOnlyMemoryBlobStore, TestOnlyMemoryFinalizedStore, TestOnlyMemoryIntentStore } from '@canlang/files/ports';
 import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
@@ -11,7 +16,7 @@ import type { ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { invoke } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
-import { beginScenarioReceiptMutation, bindScenarioReceiptReferenceProducer, observeScenarioReceiptDependency,
+import { beginScenarioReceiptMutation, bindScenarioReceiptReferenceProducer, bindScenarioReceiptFileProducer, observeScenarioReceiptDependency,
   readScenarioReceiptNullableStoredReferenceRow, bindScenarioReceiptModelResult, selectScenarioReceiptReturn,
   readScenarioReceiptAssociation, projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
 import { asId, asModel, FIXED_NOW, makeIdentity, makeEnvelope, seedRow, updateRow, uuidv7 } from './fixtures.js';
@@ -25,7 +30,7 @@ const refuses = (error: unknown) => error instanceof StateError;
 type Mode = 'normal' | 'null' | 'null-data' | 'null-digest' | 'null-digest-data' | 'unobserved' | 'copied-source' | 'stale-stage'
   | 'wrong-pair' | 'copied-call-caught' | 'foreign-store-caught' | 'copied-target' | 'unobserved-digest' | 'array' | 'state-race';
 
-async function world(mode: Mode = 'normal') {
+async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subfield' }) {
   const array = mode === 'array', currentType = `${REVISION}${array ? '[]' : '?'}` as CanTypeId;
   const dependencies = [
     { id: 'current-control', source, role: 'control' as const, model: TEMPLATE, field: 'current', type: currentType },
@@ -52,6 +57,23 @@ async function world(mode: Mode = 'normal') {
     ], operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [] }, result: { type: RUN as CanTypeId,
       disclosure: { version: 1, source, returns: [{ id: 'created-run', source, influences: [], dependencies }] } } }],
   };
+  if (workflow !== undefined) {
+    slice.valueTypes = { contracts: [
+      { name: 'WorkflowInput', fields: [{ name: 'node', type: 'text' as CanTypeId }, { name: 'key', type: 'text' as CanTypeId }] },
+      { name: 'WorkflowDefinition', fields: [{ name: 'graph', type: 'file' as CanTypeId },
+        ...['prompt', 'negative', 'width', 'height'].map(name => ({ name, type: 'WorkflowInput' as CanTypeId }))] },
+      { name: 'ImageRequest', fields: [
+        { name: 'source', type: 'text' as CanTypeId }, { name: 'revision', type: 'int' as CanTypeId },
+        { name: 'workflow', type: 'WorkflowDefinition' as CanTypeId }, { name: 'validation', type: 'text' as CanTypeId },
+        { name: 'prompt', type: 'text' as CanTypeId }, { name: 'negative', type: 'text' as CanTypeId },
+        { name: 'width', type: 'int' as CanTypeId }, { name: 'height', type: 'int' as CanTypeId },
+        { name: 'max_outputs', type: 'int' as CanTypeId }, { name: 'max_duration', type: 'duration' as CanTypeId },
+      ] },
+    ] };
+    slice.models!.find(model => model.name === REVISION)!.fields.push({ name: 'definition',
+      field: { kind: 'nominal', name: 'WorkflowDefinition' }, valueType: 'WorkflowDefinition' as CanTypeId, required: true, serverOnly: false });
+    dependencies.push({ id: 'definition-data', source, role: 'data', model: REVISION, field: 'definition', type: 'WorkflowDefinition' as CanTypeId });
+  }
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const team = await memberships.createTeam({ timezone: 'UTC' });
   const user = await memberships.createUser({ email: 'nullable-reader@example.test', password_hash: 'test-only', email_verified: true });
@@ -60,8 +82,29 @@ async function world(mode: Mode = 'normal') {
   const reader = await memberships.createMembership({ team_id: team.team_id, user_id: readerUser.user_id, roles: [], is_owner: false });
   const store = createMemoryStorage(), loaded = loadArtifactDescriptors(slice, { by: 'members' });
   const def = loaded.registry.get(OP); assert.ok(def && isGeneratedOperationDef(def));
-  const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, nullableFields: loaded.nullableFields, containment: loaded.containment });
+  const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, nullableFields: loaded.nullableFields, containment: loaded.containment,
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) });
   const policy = buildPolicyTable([]), access = { source: true, target: true, ancestor: true };
+  const fileClock = new TestOnlyManualClock(FIXED_NOW), blobs = new TestOnlyMemoryBlobStore(), files = new TestOnlyMemoryFinalizedStore(), intents = new TestOnlyMemoryIntentStore();
+  const receiving: FinalizedFileReceiver = { app: APP, team: team.team_id, owner: team.team_id, principal: user.user_id };
+  const retention = { unattachedHorizonMs: 60_000, retentionMs: 120_000 };
+  const fileDeps = { clock: fileClock, blobs, files, intents, fileIds: new TestOnlyCounterFileIds() };
+  let graph: string | undefined;
+  if (workflow !== undefined) {
+    const finalized = finalizeProviderOutput({ clock: fileClock, blobs, intents, intentIds: new TestOnlyCounterIntentIds(),
+      policy: DEFAULT_FILE_POLICY, intentTtlMs: 60_000, urlBase: 'https://nullable-workflow.invalid' }, fileDeps,
+    { receiver: receiving, binding: { adapter: 'workflow-test', deliveryId: 'workflow-definition', resultPath: 'graph' },
+      operation: 'NullableReader.receiveGraph', field: '/graph', args: {}, name: 'graph.txt', claimedType: 'text/plain',
+      bytes: new TextEncoder().encode('{"6":{"inputs":{"text":""}}}') });
+    assert.equal(finalized.status, 'finalized'); if (finalized.status !== 'finalized') throw new Error('Graph finalization failed');
+    graph = finalized.file.id;
+    bindScenarioReceiptFileProducer(def, { source, app: APP, revalidate: (retained: RetainedFinalizedFile, receiver: FinalizedFileReceiver) =>
+      revalidateRetainedFinalizedFile(fileDeps, retained, receiver, { policy: DEFAULT_FILE_POLICY, retention }) });
+  }
+  const definition = graph === undefined ? undefined : { graph: { id: graph }, prompt: { node: '6', key: 'text' },
+    negative: { node: '7', key: 'text' }, width: { node: '5', key: 'width' }, height: { node: '5', key: 'height' } };
+  const observeGraph = () => { assert.ok(graph); const value = observeFinalizedFile(fileDeps, graph, receiving,
+    { policy: DEFAULT_FILE_POLICY, retention }); assert.ok(value); return value; };
   let targetReads = 0, beforeTargetRead: (() => Promise<void> | void) | undefined;
   const readPolicies = new Map<ModelName, ViewerSourceReadPolicy>([
     [CONVERSATION, { fields: ['title'], secretFields: [], grants: [{ fields: ['id', 'title'], read: async ({ context }) =>
@@ -69,21 +112,23 @@ async function world(mode: Mode = 'normal') {
     [TEMPLATE, { parent: CONVERSATION, fields: ['title', 'current'], secretFields: [], grants: [{ fields: ['id', 'title', 'current'], read: async ({ context }) =>
       access.source && context.membership?.status === 'active' &&
       (await context.memberships.findMembership(team.team_id, readerUser.user_id))?.status === 'active' }] }],
-    [REVISION, { parent: TEMPLATE, fields: ['published', 'digest'], secretFields: [], grants: [{ fields: ['id', 'published', 'digest'], read: async ({ context }) => {
+    [REVISION, { parent: TEMPLATE, fields: ['published', 'digest', ...(workflow === undefined ? [] : ['definition'])], secretFields: [], grants: [{
+      fields: ['id', 'published', 'digest', ...(workflow === undefined ? [] : [workflow.grant === 'subfield' ? 'definition.graph' : 'definition'])], read: async ({ context }) => {
       targetReads++; const related = await context.memberships.findMembership(team.team_id, readerUser.user_id);
       await beforeTargetRead?.(); return access.target && context.membership?.status === 'active' && related?.status === 'active';
     } }] }],
     [RUN, { parent: TEMPLATE, fields: ['digest'], secretFields: [], grants: [{ fields: ['id', 'digest'], read: async ({ context }) => context.membership?.status === 'active' }] }],
   ]);
   bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies });
-  return { mode, store, memberships, caller, reader, table, access, policy, readPolicies, registry: loaded.registry,
+  return { mode, workflow, definition, observeGraph, valueSchema: loaded.valueSchema, store, memberships, caller, reader, table, access, policy, readPolicies, registry: loaded.registry,
     app: APP, source: 'component', identity: makeIdentity({ userId: user.user_id, team, membership: caller }),
     clock: { nowMs: () => FIXED_NOW }, envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), {}),
     targetReads: () => targetReads, beforeTargetRead: (hook?: () => Promise<void> | void) => { beforeTargetRead = hook; } };
 }
 type World = Awaited<ReturnType<typeof world>>;
 type Session = Awaited<ReturnType<typeof beginScenarioReceiptMutation>>;
-function execution(w: World, beforePromotion?: () => Promise<void> | void, after?: (session: Session) => Promise<void> | void) {
+function execution(w: World, beforePromotion?: () => Promise<void> | void, after?: (session: Session) => Promise<void> | void,
+  graphFacts: 'genuine' | 'absent' | 'copied' = 'genuine') {
   let receipt: Receipt | undefined, runs = 0, exposed = false, promoting = false, firstPromotionError: unknown,
     promoted: StoredRow | null | undefined;
   const request = { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
@@ -94,7 +139,8 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
     await session.stage({ op: 'create', model: TEMPLATE, id: asId('template'), parent: { model: CONVERSATION, id: asId('conversation') },
       data: { title: 'Template', current: w.mode === 'array' ? [] : null } }, cause);
     await session.stage({ op: 'create', model: REVISION, id: asId('revision'), parent: { model: TEMPLATE, id: asId('template') },
-      data: { published: true, digest: w.mode === 'null-digest' || w.mode === 'null-digest-data' ? null : 'original-digest' } }, cause);
+      data: { published: true, digest: w.mode === 'null-digest' || w.mode === 'null-digest-data' ? null : 'original-digest',
+        ...(w.definition === undefined ? {} : { definition: w.definition }) } }, cause);
     if (w.mode !== 'null' && w.mode !== 'null-data') await session.stage({ op: 'update', model: TEMPLATE, id: asId('template'),
       data: { current: w.mode === 'array' ? [{ id: 'revision' }] : { id: 'revision' } } }, cause);
     const template = await session.read(TEMPLATE, asId('template')); assert.ok(template);
@@ -133,6 +179,16 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
       { dependencyId: 'digest-control', model: REVISION, row: promoted, field: 'digest' });
     if (digest === null && w.mode !== 'null-digest-data') throw new StateError('rule_failed', 'Original require digest!=null failed');
     await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'digest-data', model: REVISION, row: promoted, field: 'digest' });
+    if (w.workflow !== undefined) {
+      const definition = promoted.data.definition;
+      await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'definition-data', model: REVISION, row: promoted, field: 'definition',
+        ...(graphFacts === 'absent' ? {} : { files: [graphFacts === 'copied' ? structuredClone(w.observeGraph()) : w.observeGraph()] }) });
+      assert.ok(w.valueSchema);
+      const request = { source: call.context.operationId, revision: '1', workflow: definition, validation: digest,
+        prompt: 'Original explicit image prompt', negative: '', width: '512', height: '512', max_outputs: '4', max_duration: '120000' };
+      const decoded = validateValue(w.valueSchema, 'ImageRequest', request, 'create');
+      assert.deepEqual(encodeValue('ImageRequest', decoded), request);
+    }
     await session.stage({ op: 'create', model: RUN, id: asId('created-run'), parent: { model: TEMPLATE, id: template.id }, data: { digest } }, cause);
     await after?.(session);
     const run = await session.read(RUN, asId('created-run')); assert.ok(run);
@@ -271,4 +327,19 @@ test('nullable target never escapes State movement during its final genuine SDK 
     assert.equal(ex.exposed(), false); assert.equal(ex.promoted(), undefined); assert.equal(heldOnce, true);
     await unchanged(w);
   } finally { release(); }
+});
+
+test('published nullable Revision supplies its whole standard WorkflowDefinition and genuine graph to ImageRequest values', async () => {
+  for (const mode of ['genuine', 'absent', 'copied', 'subfield'] as const) {
+    const w = await world('normal', { grant: mode === 'subfield' ? 'subfield' : 'whole' });
+    const ex = execution(w, undefined, undefined, mode === 'subfield' ? 'genuine' : mode);
+    if (mode !== 'genuine') { await assert.rejects(invoke(ex.request), refuses); await unchanged(w); continue; }
+    assert.equal((await invoke(ex.request)).status, 'committed');
+    const saved = readScenarioReceiptAssociation(ex.receipt())!;
+    const definition = saved.observations.find(observation => observation.dependencyId === 'definition-data'); assert.ok(definition);
+    assert.deepEqual(definition.row.data.definition, w.definition); assert.equal(definition.files?.length, 1);
+    assert.equal(definition.files![0]!.ref, w.definition!.graph.id);
+    assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, { id: 'created-run' });
+    assert.equal((await w.store.historyFor(RUN, asId('created-run'))).length, 1);
+  }
 });
