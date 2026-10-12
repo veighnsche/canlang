@@ -12553,3 +12553,32 @@ V05 original selected release-host/data/artifact/corpus criterion is SATISFIED b
 The app deployer chooses the provider behind deployment.inbox. The human asked whether Canlang must decide the end user's email provider; it does not. Provider-independent authenticated receiving can proceed with an explicitly configured controlled adapter performing real verification/decoding. Compiler owns original std.MailboxV1.received/private inbox.received source correspondence; Dev owns stable namespace/account/event digest/current source/owner/receiving and once/replay. Packages owns any exact missing shared verifier/decoder and Files event-position idempotency keyed authenticated cause+adapter+item+digest, preserving real finalized reference/lifetime/mismatch refusal. No fabricated trusted JSON, live account activation, silent File dropping or cross-store atomicity claim.
 
 Changed MAIN locked/offline CLI14.18s, State/DO7.22s, Work1.84s, Cloudflare4.98s, root5.06s and actual boundary13packages/1075files/1789contexts/zero2.92s all pass. Reuse unchanged owning controls and prior accepted native/browser scopes. Complete checkpoint8249342707d3280e88e39e8c911b7e457828f31f remains unadvanced; no full plan, deployment, publication or recipient hold is closed.
+
+### 2026-10-12 — retain original imported required parent authorization
+
+Reuse the existing one/two-edge required-parameter proof for the original
+creative.from_turn imported can_use call. Require the exact caller parameter
+without default, genuine exported/unbound owning root/helper/Conversation
+imports, original type annotation and every ChildOf declaration/type/edge.
+Keep imported optional input and local parent behavior unchanged. The helper
+retains both eager argument observations while existing short-circuit dependency
+pruning remains intact. This is source permission correspondence only; complete
+generate/native receiving still defines the parent runtime acceptance.
+
+### 2026-10-12 — complete original Chat model policies through State
+
+Keep State's existing owner-model-policies ABI and stored-data lock equality. Admit only source-sealed original borrowed role enum, nullable used invariant and exact reference/nominal/File/delivery lock fields; raw local policy classification stays unchanged. Require complete fresh owning declarations and all original rules before any checked fast path. Derived fields remain in the full model census but do not become writable stored fields. The actual whole Chat producer and pure callbacks are tested; Dev native activation and enforcement remain unfinished.
+
+### 2026-10-12 — preserve bound Mailbox source without ingress authority
+
+Lower only genuine checked std.MailboxV1.received bindings through the existing private handler value input and complete canonical IncomingEmail schema. Retain private original source claims so editable-table withdrawal still refuses E6008. Require fresh source/IR correspondence; raw IR or source bytes alone cannot publish the handler. Keep deployment provider choice and authenticated durable event/File provenance with the owning Dev/Interfaces/Files receiver. This source component is tested; original native ingress remains unfinished.
+
+### 2026-10-12 — retain original current Revision definition source
+
+Permit only the canonical WorkflowDefinition read from the existing exact captured current Revision lineage. Keep the real owning field/source, catalog schema, DATA dependency and evaluation order; do not generalize nullable/reference/nominal member admission. Native compilation still refuses pending the genuine same-current-view nominal/graph File receiver. Source tests pass; the existing original whole Creative source remains unfinished.
+
+### 2026-10-12 — preserve unfinished compiler checkpoints during wind-down
+
+Human-directed wind-down: preserve all current coherent and explicitly unfinished local work in main. Compiler stopped at clean c68d90e0 with every Cargo/CLI/SDK run terminal and cleanup complete. Exact15 defining source/control paths across243 imported-required-parent,628 complete original Chat policies,fe13 membership-context fixture,4aa Mailbox source/private handler andc68 current-definition are intaken as labelled checkpoints.30ac was already accepted and is not repeated. No worker worktree/branch mutation, merge/rebase/reset, push or activation/publication.
+
+Reuse owning bounded source reviews CLEAR and checks: Chat actual unchanged CLI/SDK1/51.75s plus source1/7.14/current2/legacy17/strict11.86; Mailbox unit3/.03+composedCLI/SDK1/.59/codegen121/IR2/completion5/enum1/strict8.91; current-definition2/.70+current4/144.28/strict11.18/fmt0. Changed primary locked/offline CLI build0 in18.45s. No new whole native or application run. Full original Creative remains last612.85s exit10/eight findings/no artifact; native Chat/verified Mailbox durable once and File ingress/current definition receiving remain unfinished, original conversation_revoked first/limit10 loop and four held C14 example errors/C23/publication holds remain.

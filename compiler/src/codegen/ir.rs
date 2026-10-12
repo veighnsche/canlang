@@ -828,6 +828,20 @@ pub fn build(
     if let Err(diagnostic) = program.validate_cohort(db, catalog) {
         return (empty_program(&program.catalog_version), vec![diagnostic]);
     }
+    if !program.mailbox_handlers().is_empty() {
+        // Original Mailbox claims are private and survive edits to public tables.
+        // Refuse before general lowering can index a withdrawn/corrupt handler owner.
+        let mailbox = Cx::new(program, db, catalog);
+        let mailbox_diagnostics = program.mailbox_handlers().iter().filter(|handler|
+            mailbox.mailbox_received_source(handler.id).is_none()).map(|handler|
+            Diagnostic::error("E6008", "MailboxV1.received source: original bound trigger and complete payload correspondence unavailable".into(), handler.span)
+        ).collect::<Vec<_>>();
+        if !mailbox_diagnostics.is_empty() {
+            let mut ir = empty_program(&program.catalog_version);
+            ir.committed_sources.mailbox_event_handlers = program.mailbox_handlers().to_vec();
+            return (ir, mailbox_diagnostics);
+        }
+    }
     if !program.standard_completion_handlers.is_empty() {
         let mut candidate = Cx::new(program, db, catalog);
         candidate.native_standard_completion = true;
@@ -1664,6 +1678,12 @@ pub enum IrEventSource {
     DeliveryProgressed(String),
     /// Original removed-account payload, separate from removing attribution.
     TeamsMemberRemoved,
+    /// Checked bound MailboxV1.received source. This is not ingress authority.
+    MailboxReceived {
+        source: String,
+        binding: String,
+        from: String,
+    },
     Committed {
         model: SymbolId,
         change: IrCommittedChange,
@@ -1709,6 +1729,7 @@ pub struct CheckedCommittedSources {
     // Nongrant native refusal requirement, retained when editable disclosure
     // facts or operation IDs are withdrawn after checked lowering.
     native_model_result_indices: std::collections::HashSet<usize>,
+    mailbox_event_handlers: Vec<crate::analysis::CheckedMailboxHandler>,
 }
 
 /// Selected schema roots are source evidence, not native event authority.
@@ -2149,6 +2170,20 @@ impl StandardValueCensus {
                     if let Some(IrEventSource::DeliveryProgressed(source)) = event_source {
                         census.progressed(ir, item, source)?;
                     }
+                    if let Some(IrEventSource::MailboxReceived {
+                        source, binding, ..
+                    }) = event_source
+                    {
+                        census.roots.push(("IncomingEmail".into(), item.span));
+                        census.selections.push(StandardValueSelection {
+                            item: Some(item.id),
+                            module: item.module,
+                            position: format!("{}:mailbox-received", item.canonical),
+                            identity: source.clone(),
+                            binding: Some(binding.clone()),
+                            span: item.span,
+                        });
+                    }
                     if let Some(ty) = result {
                         census.declared(item, ty, "result")?;
                     }
@@ -2536,6 +2571,14 @@ impl CheckedEmptyValueInventory {
 }
 
 impl CheckedCommittedSources {
+    pub(crate) fn requires_mailbox_event(&self, index: usize) -> bool {
+        self.mailbox_event_handlers
+            .iter()
+            .any(|handler| handler.id.0 as usize == index)
+    }
+    pub(crate) fn mailbox_event_handlers(&self) -> &[crate::analysis::CheckedMailboxHandler] {
+        &self.mailbox_event_handlers
+    }
     pub(crate) fn requires_native_model_result(&self, index: usize) -> bool {
         self.native_model_result_indices.contains(&index)
     }
@@ -3995,6 +4038,152 @@ pub struct IrSequence {
 // --- Bridge build ---------------------------------------------------------
 
 impl<'a> Cx<'a> {
+    fn mailbox_received_source(&self, id: SymbolId) -> Option<IrEventSource> {
+        let mut originals = self
+            .program
+            .mailbox_handlers()
+            .iter()
+            .filter(|handler| handler.id == id);
+        let original = originals.next()?;
+        if originals.next().is_some() {
+            return None;
+        }
+        let symbol = self.program.symbols.get(id.0 as usize)?;
+        let SymbolKind::Scenario {
+            params,
+            trusted: true,
+            ..
+        } = &symbol.kind
+        else {
+            return None;
+        };
+        let data = self.program.effects.scenarios.get(&id)?;
+        let on = data.on_node?;
+        let fact = self.program.types.std_capability_event_handlers.get(&on)?;
+        let module = self.program.modules.get(symbol.module.0 as usize)?;
+        let owner = self.node(&data.node)?;
+        let source = self.db.get(module.file)?;
+        let header = self.node(&on)?;
+        let path = crate::analysis::path_segments(header, &source.text);
+        let [alias, event] = path.as_slice() else {
+            return None;
+        };
+        let ResolvedType::Object(fields) = &fact.payload else {
+            return None;
+        };
+        let [(value, email)] = fields.as_slice() else {
+            return None;
+        };
+        if symbol.id != original.id
+            || symbol.module != original.module
+            || symbol.name != original.name
+            || symbol.span != original.span
+            || symbol.canonical != original.canonical
+            || data.node != original.node
+            || on != original.on
+            || module.id != original.module
+            || module.name != original.module_name
+            || module.file != original.file
+            || module.span != original.module_span
+            || fact.capability != original.event.capability
+            || fact.event != original.event.event
+            || fact.source != original.event.source
+            || fact.payload != original.event.payload
+            || symbol.id != id
+            || symbol.module != data.module
+            || data.scenario != id
+            || symbol.canonical != format!("{}.{}", module.name, symbol.name)
+            || !params.is_empty()
+            || !data.params.is_empty()
+            || data.by.is_some()
+            || data.read
+            || data.scope_authority
+            || data.cohort.is_some()
+            || owner.kind != SyntaxKind::Scenario
+            || header.kind != SyntaxKind::Path
+            || on.file != module.file
+            || data.node.file != module.file
+            || !owner.children.iter().any(|node| {
+                node.kind == SyntaxKind::Name
+                    && node.span == symbol.span
+                    && node
+                        .token()
+                        .is_some_and(|token| token.text(&source.text) == symbol.name)
+            })
+            || crate::analysis::attribute_value(owner, "on", &source.text).map(NodeKey::of)
+                != Some(on)
+            || *event != "received"
+            || fact.capability != "std.MailboxV1"
+            || fact.event != "received"
+            || fact.source != format!("{}.{}.received", module.name, alias)
+            || value != "value"
+            || crate::analysis::types::checked_standard_nominal_name(email) != Some("IncomingEmail")
+            || !matches!(&data.on, Some(crate::analysis::effects::HandlerSource::StdCapabilityEvent {capability,event,source})
+                if capability == &fact.capability && event == &fact.event && source == &fact.source)
+        {
+            return None;
+        }
+        let mut routes = module.imports.iter().flat_map(|import| {
+            import
+                .members
+                .iter()
+                .filter(move |member| member.alias == *alias)
+                .map(move |member| (import, member))
+        });
+        let (import, member) = routes.next()?;
+        let from = import.from.as_ref()?;
+        let import_node = self.node(&NodeKey {
+            file: import.span.file,
+            start: import.span.start,
+            end: import.span.end,
+            kind: SyntaxKind::Import as u8,
+        })?;
+        let from_node = crate::analysis::attribute_value(import_node, "from", &source.text)?;
+        let member_node = self.node(&NodeKey {
+            file: member.span.file,
+            start: member.span.start,
+            end: member.span.end,
+            kind: SyntaxKind::ImportMember as u8,
+        })?;
+        let names: Vec<_> = kids(member_node)
+            .iter()
+            .filter_map(|node| crate::analysis::name_text(node, &source.text))
+            .collect();
+        let original_alias = match names.as_slice() {
+            ["MailboxV1"] => "MailboxV1",
+            ["MailboxV1", "as", alias] => *alias,
+            _ => return None,
+        };
+        if routes.next().is_some()
+            || import.provider != "std"
+            || member.name != "MailboxV1"
+            || original_alias != *alias
+            || from.is_empty()
+            || source
+                .text
+                .get(import.provider_span.start as usize..import.provider_span.end as usize)
+                != Some("std")
+            || from_node.kind != SyntaxKind::Path
+            || crate::analysis::path_segments(from_node, &source.text)
+                .first()
+                .copied()
+                != Some("deployment")
+            || source
+                .text
+                .get(from_node.span.start as usize..from_node.span.end as usize)?
+                .trim()
+                != from
+            || std_capability(&member.name)?.name != fact.capability
+        {
+            return None;
+        }
+        Some(IrEventSource::MailboxReceived {
+            source: fact.source.clone(),
+            binding: format!("{}.{}", module.name, alias),
+            from: from.clone(),
+        })
+    }
+
     fn standard_completion_source(&self, id: SymbolId) -> Option<IrEventSource> {
         let count = self.program.standard_completion_handlers.len();
         if count != self.program.types.std_delivery_completion_handlers.len()
@@ -4349,6 +4538,7 @@ impl<'a> Cx<'a> {
         let committed_sources = CheckedCommittedSources {
             empty_value_inventory: None,
             native_model_result_indices: std::collections::HashSet::new(),
+            mailbox_event_handlers: self.program.mailbox_handlers().to_vec(),
             standard_value_inventory: None,
             sources: self
                 .program
@@ -9346,6 +9536,14 @@ impl<'a> Cx<'a> {
                 ]),
             );
         }
+        if self.mailbox_received_source(symbol.id).is_some()
+            && let Some(on) = data.on_node
+            && let Some(fact) = self.program.types.std_capability_event_handlers.get(&on)
+        {
+            scope
+                .name_types
+                .insert("event".into(), fact.payload.clone());
+        }
         let by = data
             .by
             .as_ref()
@@ -9405,6 +9603,13 @@ impl<'a> Cx<'a> {
             }
             Some(crate::analysis::effects::HandlerSource::TeamsMemberRemoved) => {
                 Some(IrEventSource::TeamsMemberRemoved)
+            }
+            Some(crate::analysis::effects::HandlerSource::StdCapabilityEvent {
+                capability,
+                event,
+                ..
+            }) if capability == "std.MailboxV1" && event == "received" => {
+                self.mailbox_received_source(symbol.id)
             }
             Some(crate::analysis::effects::HandlerSource::Committed { model, event }) => {
                 let change = match event.as_str() {

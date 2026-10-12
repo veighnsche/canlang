@@ -1791,15 +1791,32 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
+        let definition = self.checked_created_model(fact.revision, module)?;
+        let field = definition.fields.iter().find(|field| field.name == name)?;
         let declared = match name {
+            "definition"
+                if checked_standard_nominal_name(&field.ty) == Some("WorkflowDefinition") =>
+            {
+                let Some(ScopedName::External { provider, name }) = self
+                    .resolve
+                    .module_scopes
+                    .get(module.0 as usize)?
+                    .prod
+                    .get("WorkflowDefinition")
+                else {
+                    return None;
+                };
+                if provider != "std" || name != "WorkflowDefinition" {
+                    return None;
+                }
+                field.ty.clone()
+            }
             "published" => ResolvedType::Scalar(Scalar::Bool),
             "digest" => ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text))),
             "outputs" => ResolvedType::Scalar(Scalar::Int),
             "duration" => ResolvedType::Scalar(Scalar::Duration),
             _ => return None,
         };
-        let definition = self.checked_created_model(fact.revision, module)?;
-        let field = definition.fields.iter().find(|field| field.name == name)?;
         let data = definition
             .declaration
             .fields
@@ -1807,6 +1824,7 @@ impl<'a> Closure<'a> {
             .find(|data| data.field == field.field)?;
         let source = &self.db.get(data.type_node.file)?.text;
         let spelling = match name {
+            "definition" => "WorkflowDefinition",
             "published" => "bool",
             "digest" => "text?",
             "outputs" => "int",
@@ -1814,6 +1832,7 @@ impl<'a> Closure<'a> {
             _ => return None,
         };
         if field.ty != declared
+            || name == "definition" && (data.default.is_some() || data.required_array)
             || data.server.is_some()
             || source
                 .get(data.type_node.start as usize..data.type_node.end as usize)?
@@ -1949,7 +1968,13 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing current Revision leaf type"))?
             .clone();
-        let type_id = self.field_type_id(key, field, &ty)?;
+        let type_id = if declaration.name == "definition"
+            && checked_standard_nominal_name(&ty) == Some("WorkflowDefinition")
+        {
+            "WorkflowDefinition".into()
+        } else {
+            self.field_type_id(key, field, &ty)?
+        };
         for value in &mut values {
             if value.current_revision != Some(fact.binding)
                 || value.record != Some(fact.revision)
@@ -8741,9 +8766,9 @@ impl<'a> Closure<'a> {
                 values.next().is_none().then_some(value)
             })
             .collect::<Option<Vec<_>>>()?;
-        // Only the actual exported helper/Conversation import permits the
-        // new zero-hop optional-input case. Existing local parent cases keep
-        // their original source identity and containment checks.
+        // Imported authorization keeps the actual exported helper/Conversation
+        // identities for optional inputs and required containment paths.
+        // Local parent cases retain their original source checks.
         if imported
             && (head.kind != SyntaxKind::NameRef
                 || self.word(head)? != "can_use"
@@ -8785,11 +8810,16 @@ impl<'a> Closure<'a> {
         let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
             return None;
         };
-        let nullable_owner = if imported {
-            // A copied/local expression or imported parent chain is outside
-            // this exact canonical optional-input contract.
+        let imported_owner = if imported {
+            // Only the original caller parameter can supply either the already
+            // admitted optional input or one/two genuine imported parent edges.
             let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
-            let SymbolKind::Param { owner: caller, .. } = parameter_symbol.kind else {
+            let SymbolKind::Param {
+                owner: caller,
+                index,
+                type_node,
+            } = parameter_symbol.kind
+            else {
                 return None;
             };
             let scenario = self.effects.scenarios.get(&caller)?;
@@ -8798,10 +8828,10 @@ impl<'a> Closure<'a> {
                 .iter()
                 .filter(|param| param.param == *parameter);
             let parameter_data = parameters.next()?;
-            if hops != 0
-                || parent != receiver
-                || self.nodes.get(&receiver)?.kind != SyntaxKind::NameRef
+            if self.nodes.get(&receiver)?.kind != SyntaxKind::NameRef
                 || parameters.next().is_some()
+                || scenario.params.get(index)?.param != *parameter
+                || type_node != parameter_data.type_node
                 || parameter_symbol.module != module
                 || scenario.module != module
                 || scenario.read
@@ -8810,9 +8840,63 @@ impl<'a> Closure<'a> {
                 || key.file != scenario.node.file
                 || key.start < scenario.node.start
                 || key.end > scenario.node.end
-                || self.nullable_model_input(scenario, parameter_data) != Some(model)
             {
                 return None;
+            }
+            if hops == 0 {
+                if parent != receiver
+                    || self.nullable_model_input(scenario, parameter_data) != Some(model)
+                {
+                    return None;
+                }
+            } else {
+                let ResolvedType::Record {
+                    symbol: root,
+                    stored: true,
+                } = self.types.symbol_types.get(parameter)?
+                else {
+                    return None;
+                };
+                let root_declaration = self.resolve.symbols.get(root.0 as usize)?;
+                let annotation = self.nodes.get(&parameter_data.type_node)?;
+                if !matches!(hops, 1 | 2)
+                    || parameter_data.default.is_some()
+                    || self.checked_call_parent_path(parent, *parameter, 0) != Some((model, hops))
+                    || root_declaration.module != defining_module
+                    || !root_declaration.exported
+                    || annotation.kind != SyntaxKind::NamedType
+                    || self.word(annotation)? != root_declaration.name
+                    || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get(&root_declaration.name),
+                        Some(ScopedName::Imported {target, bound: false}) if target == root)
+                    || self.checked_created_model(*root, defining_module).is_none()
+                {
+                    return None;
+                }
+                // Seal both source declarations on the checked containment
+                // path, rather than treating a carried type as an imported row.
+                let mut edge = parent;
+                for _ in 0..hops {
+                    let (base, name) = self.count_member(edge)?;
+                    let ResolvedType::Record {
+                        symbol: child,
+                        stored: true,
+                    } = self.types.node_types.get(&base)?
+                    else {
+                        return None;
+                    };
+                    if name != "parent"
+                        || self.resolve.symbols.get(child.0 as usize)?.module != defining_module
+                        || self
+                            .checked_created_model(*child, defining_module)
+                            .is_none()
+                    {
+                        return None;
+                    }
+                    edge = base;
+                }
+                if edge != receiver {
+                    return None;
+                }
             }
             Some(caller)
         } else {
@@ -8898,7 +8982,7 @@ impl<'a> Closure<'a> {
         let membership_source = self.source(defining_module, membership).ok()?;
         if sites.next().is_some()
             || site.source != original_source
-            || nullable_owner.is_some_and(|owner| site.owner != owner)
+            || imported_owner.is_some_and(|owner| site.owner != owner)
             || !site.calls.iter().any(|call| {
                 call.node == membership
                     && call.module == defining_module
@@ -14739,6 +14823,160 @@ mod tests {
         assert_ne!(membership.file, call.file);
         cx.expr(call, scenario.module, &env, &[])
             .expect("actual imported helper source evaluation");
+        let from_turn = &effects.scenarios[&resolve.by_canonical["creative.from_turn"]];
+        let required = from_turn
+            .params
+            .iter()
+            .find(|param| resolve.symbols[param.param.0 as usize].name == "turn")
+            .unwrap();
+        let parent_call = *types
+            .selected_calls
+            .keys()
+            .find(|key| {
+                key.file == from_turn.node.file
+                    && from_turn.node.start <= key.start
+                    && key.end <= from_turn.node.end
+                    && db.get(key.file).unwrap().text[key.start as usize..key.end as usize].trim()
+                        == "can_use(actor,turn.parent.parent)"
+            })
+            .unwrap();
+        let (parent_helper, parent_model, parent_input, _) = cx
+            .checked_authorization_derive(parent_call, from_turn.module)
+            .expect("original required imported two-parent authorization");
+        assert_eq!(parent_helper, helper);
+        assert_eq!(parent_model, model);
+        assert_eq!(
+            cx.checked_call_parent_path(parent_input, required.param, 0),
+            Some((model, 2))
+        );
+        let (intermediate, _) = cx.count_member(parent_input).unwrap();
+        let (receiver, _) = cx.count_member(intermediate).unwrap();
+        assert!(
+            matches!(cx.query_binding(receiver), Some(Binding::Symbol(actual)) if *actual == required.param)
+        );
+        let root = resolve.by_canonical["chat.Turn"];
+        let branch = resolve.by_canonical["chat.Branch"];
+        let mut required_env = Env::new();
+        required_env.insert(
+            Local::Symbol(required.param),
+            ValuePath {
+                record: Some(root),
+                reference_origin: Some(ReferenceOrigin::Parameter(required.param)),
+                reference: Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter: required.param,
+                    parameter_name: "turn".into(),
+                    model: root,
+                    model_name: "chat.Turn".into(),
+                }),
+                ..Default::default()
+            },
+        );
+        let values = cx
+            .expr(parent_call, from_turn.module, &required_env, &[])
+            .expect("actual imported required parent source evaluation");
+        assert!(!values.is_empty());
+        assert!(values.iter().all(|value| {
+            value.reads.iter().any(|read| {
+                read.node == parent_input && read.field_name == "parent" && read.calls.is_empty()
+            })
+        }));
+        assert!(
+            values.iter().all(|value| [intermediate, parent_input]
+                .iter()
+                .all(|node| value.observed.contains(&(*node, Vec::new())))),
+            "eager original parent observations"
+        );
+        for mode in [
+            "required-default",
+            "root-import",
+            "bound-root",
+            "wrong-root-import",
+            "root-type",
+            "root-module",
+            "root-export",
+            "edge-type",
+            "edge-owner",
+            "authored-parent",
+        ] {
+            let mut changed_types = types.clone();
+            let mut changed_effects = effects.clone();
+            let mut changed_resolve = resolve.clone();
+            match mode {
+                "required-default" => {
+                    changed_effects
+                        .scenarios
+                        .get_mut(&from_turn.scenario)
+                        .unwrap()
+                        .params
+                        .iter_mut()
+                        .find(|param| param.param == required.param)
+                        .unwrap()
+                        .default = parameter.default
+                }
+                "root-import" => {
+                    changed_resolve.module_scopes[from_turn.module.0 as usize]
+                        .prod
+                        .remove("Turn");
+                }
+                "bound-root" => {
+                    changed_resolve.module_scopes[from_turn.module.0 as usize]
+                        .prod
+                        .insert(
+                            "Turn".into(),
+                            ScopedName::Imported {
+                                target: root,
+                                bound: true,
+                            },
+                        );
+                }
+                "wrong-root-import" => {
+                    changed_resolve.module_scopes[from_turn.module.0 as usize]
+                        .prod
+                        .insert(
+                            "Turn".into(),
+                            ScopedName::Imported {
+                                target: model,
+                                bound: false,
+                            },
+                        );
+                }
+                "root-type" => {
+                    changed_types.symbol_types.insert(
+                        required.param,
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                    );
+                }
+                "root-module" => changed_resolve.symbols[root.0 as usize].module = from_turn.module,
+                "root-export" => changed_resolve.symbols[root.0 as usize].exported = false,
+                "edge-type" => {
+                    changed_types.node_types.insert(
+                        intermediate,
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                    );
+                }
+                "edge-owner" => {
+                    changed_effects.models.get_mut(&branch).unwrap().owner = ModelOwner::Team
+                }
+                "authored-parent" => {
+                    changed_resolve.symbols[resolve.by_canonical["chat.Turn.run"].0 as usize].name =
+                        "parent".into()
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                make!(&changed_types, &changed_effects, &changed_resolve)
+                    .checked_authorization_derive(parent_call, from_turn.module)
+                    .is_none(),
+                "{mode}"
+            );
+        }
+
         for mode in [
             "default",
             "type",

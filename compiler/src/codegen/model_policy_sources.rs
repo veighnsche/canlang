@@ -64,6 +64,10 @@ pub(super) fn matches(program: &CheckedProgram, actual: &IrProgram, fresh: &IrPr
             || fields
                 .iter()
                 .copied()
+                .filter(|id| {
+                    matches!(fresh_program.items.get(id.0 as usize).map(|item| &item.kind),
+                    Some(IrItemKind::Field { owner, .. }) if *owner == fresh.id)
+                })
                 .ne(source.fields.iter().map(|field| field.field))
             || invariants.len() != source.invariants.len()
             || locks.len() != source.locks.len()
@@ -129,4 +133,82 @@ pub(super) fn matches(program: &CheckedProgram, actual: &IrProgram, fresh: &IrPr
         && format!("{:?}", actual.locks) == format!("{:?}", fresh.locks)
         && format!("{:?}", actual.read_rules) == format!("{:?}", fresh.read_rules)
         && format!("{:?}", actual.callback_read_rules) == format!("{:?}", fresh.callback_read_rules)
+}
+
+/// The additional original Chat fields retain their actual authored type
+/// occurrence. In particular TextMessage.role has no local enum owner: matching
+/// cases alone cannot authenticate its owning catalog field reuse. The complete
+/// source/fresh rule and declaration join runs before this private census.
+pub(super) fn checked_chat_field_annotations(
+    program: &CheckedProgram,
+    ir: &IrProgram,
+    db: &crate::source::SourceDb,
+) -> std::collections::HashSet<crate::analysis::resolve::SymbolId> {
+    let mut fields = std::collections::HashSet::new();
+    for symbol in &program.symbols {
+        let crate::analysis::resolve::SymbolKind::Field { owner, type_node } = &symbol.kind else {
+            continue;
+        };
+        let Some(model) = ir.items.get(owner.0 as usize) else {
+            continue;
+        };
+        let annotation = match (model.name.as_str(), symbol.name.as_str()) {
+            ("Branch", "profile") => "Profile",
+            ("Branch", "prefix") => "TextMessage[]",
+            ("Branch", "origin") => "Turn?",
+            ("Turn", "role") => "TextMessage.role",
+            ("Turn", "attachments") => "file[]",
+            ("Turn", "run") => "Run",
+            ("Run", "allowance") => "Allowance",
+            ("Run", "request_value") => "TextRequest",
+            ("Run", "request") => "delivery(LLM.generate)?",
+            ("Run", "used") => "int?",
+            ("Run", "reserved") => "int",
+            _ => continue,
+        };
+        let Some(actual) = ir.items.get(symbol.id.0 as usize) else {
+            continue;
+        };
+        let Some(declared_model) = program.effects.models.get(owner) else {
+            continue;
+        };
+        let Some(declared) = declared_model
+            .fields
+            .iter()
+            .find(|field| field.field == symbol.id)
+        else {
+            continue;
+        };
+        let Some(source) = db.get(type_node.file) else {
+            continue;
+        };
+        if symbol.module != model.module
+            || actual.id != symbol.id
+            || actual.module != symbol.module
+            || actual.canonical != symbol.canonical
+            || !matches!(&actual.kind, IrItemKind::Field { owner: own, .. } if own == owner)
+            || declared_model.model != *owner
+            || declared_model.module != model.module
+            || declared.type_node != *type_node
+            || type_node.file != declared.node.file
+            || type_node.start < declared.node.start
+            || type_node.end > declared.node.end
+            || type_node.start >= type_node.end
+            || symbol.span.file != declared.node.file
+            || symbol.span.start < declared.node.start
+            || symbol.span.end > declared.node.end
+            || source
+                .text
+                .get(symbol.span.start as usize..symbol.span.end as usize)
+                .is_none_or(|text| text != symbol.name)
+            || source
+                .text
+                .get(type_node.start as usize..type_node.end as usize)
+                .is_none_or(|text| text.trim() != annotation)
+        {
+            continue;
+        }
+        fields.insert(symbol.id);
+    }
+    fields
 }

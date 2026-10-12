@@ -112,6 +112,7 @@ pub struct CheckedProgram {
         std::collections::HashMap<SymbolId, scenario_disclosure::ScenarioDisclosure>,
     pub(crate) committed_handlers: Vec<CheckedCommittedHandler>,
     pub(crate) standard_completion_handlers: Vec<CheckedStandardCompletionHandler>,
+    mailbox_handlers: Vec<CheckedMailboxHandler>,
     cohort: cohort::CheckedCohort,
 }
 
@@ -143,7 +144,28 @@ pub(crate) struct CheckedStandardCompletionHandler {
     pub span: crate::source::Span,
 }
 
+/// Original checked Mailbox source requirement retained independently of the
+/// editable effects, types and module tables. It supplies no ingress authority.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedMailboxHandler {
+    pub id: SymbolId,
+    pub module: ModuleId,
+    pub module_name: String,
+    pub file: SourceId,
+    pub module_span: crate::source::Span,
+    pub name: String,
+    pub canonical: String,
+    pub node: NodeKey,
+    pub on: NodeKey,
+    pub event: types::CheckedStdCapabilityEvent,
+    pub span: crate::source::Span,
+}
+
 impl CheckedProgram {
+    pub(crate) fn mailbox_handlers(&self) -> &[CheckedMailboxHandler] {
+        &self.mailbox_handlers
+    }
+
     /// Files selected for checking, in the caller's original order.
     ///
     /// Other entries in the source database are metadata inventory, not
@@ -204,6 +226,7 @@ pub fn check_program(
                     scenario_disclosures: std::collections::HashMap::new(),
                     committed_handlers: Vec::new(),
                     standard_completion_handlers: Vec::new(),
+                    mailbox_handlers: Vec::new(),
                     cohort: cohort::CheckedCohort::new(db, files, catalog),
                 },
                 diagnostics,
@@ -315,6 +338,52 @@ pub fn check_program(
             })
             .collect()
     };
+    let mailbox_handlers = if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        Vec::new()
+    } else {
+        resolve_tables
+            .symbols
+            .iter()
+            .filter_map(|symbol| {
+                let data = effects.scenarios.get(&symbol.id)?;
+                let on = data.on_node?;
+                let event = types.std_capability_event_handlers.get(&on)?;
+                let Some(effects::HandlerSource::StdCapabilityEvent {
+                    capability,
+                    event: name,
+                    source,
+                }) = &data.on
+                else {
+                    return None;
+                };
+                if capability != "std.MailboxV1"
+                    || name != "received"
+                    || event.capability != *capability
+                    || event.event != *name
+                    || event.source != *source
+                {
+                    return None;
+                }
+                let module = resolve_tables.modules.get(symbol.module.0 as usize)?;
+                Some(CheckedMailboxHandler {
+                    id: symbol.id,
+                    module: symbol.module,
+                    module_name: module.name.clone(),
+                    file: module.file,
+                    module_span: module.span,
+                    name: symbol.name.clone(),
+                    canonical: symbol.canonical.clone(),
+                    node: data.node,
+                    on,
+                    event: event.clone(),
+                    span: symbol.span,
+                })
+            })
+            .collect()
+    };
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),
@@ -325,6 +394,7 @@ pub fn check_program(
         scenario_disclosures,
         committed_handlers,
         standard_completion_handlers,
+        mailbox_handlers,
         cohort: cohort::CheckedCohort::new(db, files, catalog),
     };
     (program, diagnostics)
