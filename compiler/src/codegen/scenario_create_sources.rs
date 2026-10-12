@@ -4,7 +4,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::analysis::NodeKey;
 use crate::analysis::resolve::{ModelOwner, ModuleKind};
-use crate::analysis::scenario_disclosure::{CheckedScenarioCreate, DisclosureSource};
+use crate::analysis::scenario_disclosure::{
+    CheckedScenarioCreate, DisclosureSource, ScenarioDisclosure,
+};
 use crate::analysis::types::{ResolvedType, Scalar};
 use crate::source::{SourceDb, Span, sha256_hex};
 use crate::syntax::{SyntaxKind, SyntaxNode};
@@ -52,6 +54,48 @@ pub(super) fn checked_created_schema(
             IrOwner::ChildOf(parent)
         }
     };
+    let mut stored_fields = Vec::new();
+    for id in fields {
+        let member = ir.items.get(id.0 as usize)?;
+        if member.id != *id || member.module != model.module {
+            return None;
+        }
+        match &member.kind {
+            IrItemKind::Field {
+                owner: field_owner, ..
+            } if *field_owner == model.id => stored_fields.push(*id),
+            IrItemKind::DeriveField {
+                model: field_owner, ..
+            } if *field_owner == model.id => {
+                // The original mixed ask returns an oversized conservative
+                // source inventory. Its mandatory private feasibility proof
+                // compares the entire member declaration/body to fresh IR.
+                // A derived member remains outside stored Create inputs.
+                let ScenarioDisclosure::Complete(checked) =
+                    ir.scenario_disclosures.get(&owner.id)?
+                else {
+                    return None;
+                };
+                let facts = checked.source_facts.as_deref()?;
+                if checked.returns.len() <= 200
+                    || super::scenario_receipts::checked_scenario_query_influences(facts)?.len()
+                        != 24
+                {
+                    return None;
+                }
+                let schema = facts
+                    .stored_contracts
+                    .as_deref()?
+                    .iter()
+                    .find(|schema| schema.model && schema.id == model.id)?;
+                super::scenario_receipts::match_stored_contract_schema(ir, schema, db)?;
+                if member.canonical != format!("{}.{}", model.canonical, member.name) {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
     if model.id != original.model
         || declaration.model != original.model
         || model.module != owner.module
@@ -60,13 +104,13 @@ pub(super) fn checked_created_schema(
         || model.span != definition.span
         || *actual_owner != expected_owner
         || fields.len() > 200
-        || fields.len() != declaration.fields.len()
-        || fields.len() != definition.fields.len()
-        || !fields
+        || stored_fields.len() != declaration.fields.len()
+        || stored_fields.len() != definition.fields.len()
+        || !stored_fields
             .iter()
             .copied()
             .eq(declaration.fields.iter().map(|field| field.field))
-        || !fields
+        || !stored_fields
             .iter()
             .copied()
             .eq(definition.fields.iter().map(|field| field.field))
@@ -344,7 +388,7 @@ pub(super) fn checked_created_schema(
     }
     // Use the actual descriptor producer. Matching source and executable IR
     // first prevents an edited initializer from agreeing with its own emit.
-    let generated = Emitter::new(ir).collect_models();
+    let generated = Emitter::source_models(ir, db)?;
     let expected: Vec<_> = generated
         .iter()
         .filter(|descriptor| descriptor.name == model.canonical)
@@ -1332,10 +1376,15 @@ impl SourceExpressions<'_> {
             return None;
         }
         let mut node = *self.nodes.get(&key)?;
-        if actual.span != node.span || self.operands && !self.operand_type_matches(actual, key) {
+        if self.operands && !self.operand_type_matches(actual, key) {
             return None;
         }
+        let mut groups = 0usize;
         while node.kind == SyntaxKind::Group {
+            groups += 1;
+            if depth + groups > 64 {
+                return None;
+            }
             let children = expressions(node);
             let [child] = children.as_slice() else {
                 return None;
@@ -1344,6 +1393,11 @@ impl SourceExpressions<'_> {
                 return None;
             }
             node = child;
+        }
+        // Group lowering retains the inner expression's source span. Every
+        // original wrapper and its inner node still have the same checked type.
+        if actual.span != node.span {
+            return None;
         }
         let children = expressions(node);
         let token = |kind| {
@@ -1465,7 +1519,7 @@ impl SourceExpressions<'_> {
                     });
                     let owner = owners.next()?;
                     if owners.next().is_some() { return None; }
-                    super::scenario_receipts::checked_profile_scalar_pair(self.ir, owner, actual, self.db)?;
+                    super::scenario_receipts::checked_profile_scalar_pairs(self.ir, owner, actual, self.db)?;
                 }
                 self.expression(base, NodeKey::of(source_base), depth + 1)?;
                 true
@@ -1526,7 +1580,28 @@ impl SourceExpressions<'_> {
                     | IrBinOp::And
                     | IrBinOp::Or
                     | IrBinOp::In => primitive(Scalar::Bool),
-                    IrBinOp::Mod | IrBinOp::Add | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => {
+                    IrBinOp::Add => {
+                        // The checked concat result drops the literal's
+                        // nonempty refinement. Both actual source operands
+                        // still retain their sealed TextMessage identity.
+                        actual.ty == left.ty
+                            || self.operands
+                                && self
+                                    .transcript_source()
+                                    .and_then(|source| {
+                                        super::scenario_receipts::checked_scenario_query_influences(
+                                            source,
+                                        )
+                                    })
+                                    .is_some_and(|influences| influences.len() == 24)
+                                && matches!((&actual.ty, &left.ty, &right.ty), (
+                                    ResolvedType::Array { element, ordered: true, nonempty: false },
+                                    ResolvedType::Array { element: left_element, ordered: true, .. },
+                                    ResolvedType::Array { element: right_element, ordered: true, .. },
+                                ) if element == left_element && element == right_element
+                                    && crate::analysis::types::checked_standard_nominal_name(element) == Some("TextMessage"))
+                    }
+                    IrBinOp::Mod | IrBinOp::Sub | IrBinOp::Mul | IrBinOp::Div => {
                         actual.ty == left.ty
                     }
                     IrBinOp::Coalesce => false,
@@ -1575,6 +1650,22 @@ impl SourceExpressions<'_> {
             (IrExpr::Object(entries), SyntaxKind::Construct) if self.operands => {
                 self.text_constructor(actual, node, entries, depth)?;
                 true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    ..
+                }
+                | IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    ..
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "any" => {
+                let source = self.transcript_source()?;
+                let owner = self.ir.items.get(source.scenario.0 as usize)?;
+                super::scenario_receipts::checked_any_query_ir(self.ir, owner, actual, self.db)?;
+                source_path(children.first()?, self.text)? == "any"
             }
             (
                 IrExpr::Call {

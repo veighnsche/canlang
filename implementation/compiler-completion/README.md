@@ -4907,3 +4907,30 @@ Genuine Dev native retry and all-target strict for the changed mixed/conditional
 closure remain separate;58/67/nine and holds unchanged.
 
 Coordinator exact source join: Corrected current337 source/native producer and actual verified unique-key/nullable consumer source join independently definingCLEAR in LOCALmain. Compiler543+f322+837+c6 exact13paths preserveoriginal2240SHA4da/fouranalysisReturns/nativeoriginal79d0/complete10dependencies/source-fresh-executable/schema/formal/role-order seals, originalTemplate.active CONTROL/sameLet CONTROL+DATA/runtimeDATAafterdigestCONTROL, fullnullable/nominalDelivery5rules/max1parent/lazyprivate3arg reader86 andactive-beforepresence. Ownercurrent4/7.98 pluspolicy2/14mutants/classifier3/focusedemitter1/.11 strictlib5.92/strictf3229.25/fmt results reused. Devfinale42→c9→9b→c3 surgicalinvoke/control/fixture validatesSAMEverifiedentry singularmodelunique declaration exactownkeys/supportedscalar-orUser/canonicaltype/nonsecret/nooverlap; where/array/File/nominal/secret/unknownmembers refuse. Exactbuiltin bool-int-duration nullable scalar declaration tags corrected, explicittext/nullable owningtypes/SAMEgetter/stage/currentauthority retained. Realcompiledtextpositive/conditionalnegative/File-negative ownercontrol reused. No nativefixture/copiedCompilerintake; rootnormalchecks [{"check": "locked offline CLI", "exit": 0, "seconds": 17.27}, {"check": "CF", "exit": 0, "seconds": 7.98}, {"check": "root", "exit": 0, "seconds": 8.07}]. OriginalDevcurrentnative1/1 FAIL159.0s/159.04s withawaitedcleanup atfinalarchivedTemplate ancestorprojection after2Runs/CRUD/numberunique/physicalFiles/receipt-replay/currentauthority partialpasses; allfailure/source/assertions retained, no currentnative/application acceptance. Stateowner nowresumed for exactancestor-denial withholding; Devfailed-onlyretry afterqualifiedrelease. Sourceconsumer safetyhold resolved only atcomponent scope.
+
+
+
+**Unfinished original six-query join, 2026-10-12.** Untouched Chat256 now owns
+six chronological query declarations,24 authentic influences and one borrowed
+successful original Return. Stored constructor slots remain distinct from the
+complete stored/derived model declaration census; grouped source anchors and
+Profile CONTROL/DATA role pairs preserve their genuine identities. Exact
+TextMessage array concatenation retains analyzed ordered/nonempty facts. The
+source-plan owning check PASS1/13.87s; strictlib0/5.92s reuses the same producer
+closure. The installed extension first failed at its wrong package import
+(209.77s), now corrected to composed entry and own SDK/Node24. A direct native
+collector assertion then failed before emission(26.52s); that real producer
+join remains active, so this is unfinished source implementation, not native
+acceptance. No synthetic row/File/query/dispatch authority. Continue the
+collector/emitter and actual installed bindings, then Dev native qualification;
+58/67/nine and exact holds unchanged.
+
+The genuine native collector now passes after constructor/reference/prefix
+descriptors use the source-backed standard inventory. Diagnostic6 reaches the
+real ownSDK composed module import, which fails(225.19s) because another original
+operation's unprepared first call imports nonexistent stdlib first. Preserve
+original source and supported firstQuery; repair that source-owned refusal seam,
+then continue the same factory/binders. Temporary markers removed; the completed
+collector assertion is distinct from unfinished installed/native execution.
+
+Coordinator source intake: The five defining mixed-query producer paths were independently reviewed CLEAR. The unchanged original Chat source retains 256 analyses, one authenticated native Return, six chronological queries and 24 genuine influences. Complete dependency order, stored versus derived constructor fields, grouped guards, dual Profile CONTROL/DATA identities and source/fresh/executable/type/role seals remain. Owning source positive1/13.87s, actual collector and owning emission assertions, strictlib0/6.13s and fmt/diff outcomes are reused. The full ownSDK attempt failed209s at a wrong package import and then225.19s at unprepared stdlib first; these failures remain unqualified. The source-owned fallback and exact reviewed callback facade/prerequisites are Compiler-owned next inputs. No dummy runtime first export, source/cap widening or native/application acceptance. MAIN normal check [{"check": "locked offline CLI", "exit": 0, "seconds": 12.34}].
