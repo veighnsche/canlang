@@ -114,7 +114,6 @@
     "DEL-C01",
     "DEL-C02",
     "DEL-C02-order",
-    "DEL-B01",
     "DEL-B02",
     "DEL-D05",
     "DEL-R01",
@@ -5051,7 +5050,7 @@
     },
     "DEL-B01": {
       "planning_status": "blocked",
-      "state": "Partial: accepted synchronous cleanup and actual staged readonly Chrome page visibility/polling consumer3798f9b1; wider initializer/async disposal/browser/installed profiles remain open.",
+      "state": "finished",
       "files": [
         "packages/ui/src/browser/polling.ts",
         "packages/ui/src/browser/bootstrap.ts",
@@ -5145,6 +5144,15 @@
         "actual_code_and_retained_result": "Compiler protected_action_form lowers row/button to form/prepareForm; Interfaces and UI supply binding and generated metadata. Existing view-reuse.can and consumer.mjs establish genuine compiled Node markup/source association. UI Chromium four cases cover generated forms, not the full compiled action lifecycle.",
         "remaining_finite_action_or_input": "Qualify existing emitted protected row/button through installed browser held-body/context/logout/stop/settle. Existing CLI build is a local runner prerequisite, not missing design/owner output.",
         "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
+      },
+      "emitted_protected_action_browser": {
+        "status": "implemented-finite-local-Chromium-tested; direct source review pending; no whole-parent acceptance",
+        "source": "packages/cloudflare/test/native-protected-poll-browser.test.ts",
+        "producer": "Unchanged compiler/tests/fixtures/view-reuse.can copied to owned temp with only poll=1s added to original page; source hash and owning compiler artifact checked; generated page/Interfaces form-binding/installed UI shell and browser bootstrap used.",
+        "consumer": "Actual installed Chromium over localhost loads two emitted sealed ViewReuse.bind_card forms, applies one current poll, then holds a poll response body and action result until owner context/logout/stop.",
+        "validation": "Pinned Node24.19.0; Chromium selected1/1 PASS7.39s; root TS noEmit0. Current poll paints Fresh card; stale protected body never paints and held action never marks committed after context/logout/stop. No further poll after stop, browser errors/host failures zero, source/assembly capture current, context/lease/server cleaned. Existing UI lifecycle12 and gallery6 reused unchanged.",
+        "limits": "This is a client lifecycle/source-markup join, not canonical backend mutation/transport cancellation or full B01 parent acceptance. Finite direct source review pending; native preparation/default/activation/publication holds unchanged.",
+        "coordinator_review": "Defining review49 CLEAR for original selected client lifecycle. Unchangedview-reuse.can+ownedpoll addition, owning source/artifact/compiledsignedforms/installed UIbootstrap, currentpollpaint and held stalepoll/action context/logout/stop no paint or committed settlement, disarm/no errors/awaited source-client-server cleanup. Worker7.39s/root0 and retained lifecycle12/gallery6/hook pause-resume-detach controls reused. Actual MAIN changed browser result [{\"check\": \"CF\", \"exit\": 0, \"seconds\": 4.84}, {\"check\": \"root\", \"exit\": 0, \"seconds\": 4.89}, {\"check\": \"MAIN changed browser\", \"exit\": 0, \"seconds\": 8.66}]. Original selected client criterion satisfied; canonical backend mutation/transport-stop/nativeapp/widerparents/allholds separate."
       }
     },
     "DEL-B02": {
