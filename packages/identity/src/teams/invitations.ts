@@ -110,32 +110,14 @@ export async function acceptInvitation(
   if (existing !== null && existing.status === 'active') {
     throw new IdentityError('conflict', 'Already a member of this team.');
   }
-  const grants = invitation.grants_roles.map((role) => ({
-    role,
-    granted_at: now,
-    granted_by: invitation.invited_by,
-  }));
-  let membership: Membership;
-  if (existing !== null) {
-    // Re-admission reactivates the one (team, user) row with the fresh
-    // ceiling; it never inserts a second row.
-    await store.reactivateMembership(existing.membership_id, {
-      is_owner: invitation.grants_owner,
-      roles: grants,
-    });
-    const reactivated = await store.findMembershipById(existing.membership_id);
-    if (reactivated === null) {
-      throw new IdentityError('not_found', 'Membership not found.');
-    }
-    membership = reactivated;
-  } else {
-    membership = await store.createMembership({
-      team_id: invitation.team_id,
-      user_id: input.user_id,
-      is_owner: invitation.grants_owner,
-      roles: grants,
-    });
+  if (typeof store.acceptInvitationWithMembership !== 'function') {
+    throw new Error('Atomic invitation acceptance is unavailable.');
   }
-  await store.acceptInvitation(input.invitation_id);
+  const membership = await store.acceptInvitationWithMembership({
+    invitation_id: input.invitation_id, user_id: input.user_id,
+  });
+  if (membership === null) {
+    throw new IdentityError('validation', 'This invitation is no longer valid.');
+  }
   return membership;
 }

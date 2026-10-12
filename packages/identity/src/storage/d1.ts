@@ -480,6 +480,51 @@ export function createD1IdentityStore(
       return prior === null ? null : removalEnvelope(prior, input, digest);
     },
     ...(typeof db.batch !== 'function' ? {} : {
+      async acceptInvitationWithMembership({ invitation_id, user_id }: Parameters<NonNullable<IdentityStore['acceptInvitationWithMembership']>>[0]) {
+        const at = now(), membershipId = random.randomUUID();
+        // The live invitation guards the membership write. Only that write's
+        // winner may consume it in the immediately following statement.
+        // Both writes and the returned membership share one Identity transaction.
+        const results: unknown = await db.batch!([
+          db.prepare(`INSERT INTO identity_memberships (membership_id, team_id, user_id, is_owner, roles, status, created_at, updated_at)
+            SELECT ?, invitation.team_id, subject.user_id, invitation.grants_owner,
+              (SELECT json_group_array(json_object('role', ceiling.value, 'granted_at', ?, 'granted_by', invitation.invited_by))
+                FROM (SELECT value FROM json_each(invitation.grants_roles) ORDER BY key) ceiling), 'active', ?, ?
+            FROM identity_invitations invitation JOIN identity_users subject ON subject.user_id = ?
+            WHERE invitation.invitation_id = ? AND invitation.accepted_at IS NULL AND invitation.revoked_at IS NULL
+              AND invitation.expires_at > ? AND subject.email_verified = 1 AND subject.email_lc = invitation.email_lc
+            ON CONFLICT(team_id, user_id) DO UPDATE SET is_owner = excluded.is_owner, roles = excluded.roles,
+              status = 'active', updated_at = excluded.updated_at WHERE identity_memberships.status <> 'active'`)
+            .bind(membershipId, at, at, at, user_id, invitation_id, at),
+          db.prepare(`UPDATE identity_invitations SET accepted_at = ? WHERE invitation_id = ? AND changes() = 1
+            AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > ?`)
+            .bind(at, invitation_id, at),
+          db.prepare(`SELECT ${MEMBERSHIP_COLUMNS.split(', ').map(column => `member.${column}`).join(', ')}
+            FROM identity_memberships member JOIN identity_invitations invitation ON invitation.team_id = member.team_id
+            WHERE invitation.invitation_id = ? AND member.user_id = ? AND changes() = 1`)
+            .bind(invitation_id, user_id),
+        ]);
+        const changes = (result: unknown): unknown => {
+          const meta: unknown = typeof result === 'object' && result !== null && !Array.isArray(result) &&
+            Object.hasOwn(result, 'meta') ? (result as Record<string, unknown>).meta : undefined;
+          return typeof meta === 'object' && meta !== null && !Array.isArray(meta) && Object.hasOwn(meta, 'changes')
+            ? (meta as Record<string, unknown>).changes : undefined;
+        };
+        if (!Array.isArray(results) || results.length !== 3) {
+          throw new Error('Atomic invitation acceptance acknowledgement is unavailable.');
+        }
+        const admitted = changes(results[0]), consumed = changes(results[1]);
+        if ((admitted !== 0 && admitted !== 1) || consumed !== admitted) {
+          throw new Error('Atomic invitation acceptance acknowledgement is unavailable.');
+        }
+        if (admitted === 0) return null;
+        const rows: unknown = typeof results[2] === 'object' && results[2] !== null && !Array.isArray(results[2]) &&
+          Object.hasOwn(results[2], 'results') ? (results[2] as Record<string, unknown>).results : undefined;
+        if (!Array.isArray(rows) || rows.length !== 1 || typeof rows[0] !== 'object' || rows[0] === null) {
+          throw new Error('Atomic invitation acceptance acknowledgement is unavailable.');
+        }
+        return toMembership(rows[0] as MembershipRow);
+      },
       async recoverAccountWithToken(input: Parameters<NonNullable<IdentityStore['recoverAccountWithToken']>>[0]) {
         const { token_id, user_id, password_hash } = input;
         const at = now();
