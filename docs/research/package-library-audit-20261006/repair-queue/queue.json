@@ -2888,7 +2888,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Capability/Work control lifecycle; Dev original observation consumer",
-        "accepted_scope": "Independently accepted finite stream cancellation-wait correction committed8c8daeb9; broader services open Same-signal bounded buffered body-cap cancellation970 independently reviewed/tested and integrated LOCAL main; original complete control-window consumer unfinished.",
+        "accepted_scope": "Independently accepted finite stream cancellation-wait correction committed8c8daeb9; broader services open Same-signal bounded buffered body-cap cancellation970 independently reviewed/tested and integrated LOCAL main; original complete control-window consumer unfinished. Suspended stream text/tail cancellation now refuses successful completion in reviewed LOCAL main; lifecycle9 reused with Services/root0. Original durable observation/reconciliation remains separate.",
         "next_action": "Bound only the remaining original control observation window; reuse closed explanation and media correspondence source checks.",
         "done_when": "Selected actual control consumer cannot renew its window or overwrite late success, reconciles original identity truthfully as succeeded/failed/unknown, and preserves secrecy and cancellation uncertainty.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02",
@@ -2902,7 +2902,8 @@
           "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
         },
         "buffered_body_limit_cleanup": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02/buffered_body_limit_cleanup",
-        "buffered_body_byte_snapshot": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/buffered_body_byte_snapshot"
+        "buffered_body_byte_snapshot": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-B02/buffered_body_byte_snapshot",
+        "suspended_stream_abort_completion": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV02/suspended_stream_abort_completion"
       }
     },
     {
