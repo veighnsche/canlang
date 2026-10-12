@@ -4720,7 +4720,7 @@ fn stored_contract_inventory_type(
     Some(declaration.canonical.clone())
 }
 
-fn match_stored_contract_schema(
+pub(super) fn match_stored_contract_schema(
     ir: &IrProgram,
     schema: &crate::analysis::scenario_disclosure::CheckedStoredContractSchema,
     db: &SourceDb,
@@ -7657,3 +7657,7 @@ mod text_request_tests;
 #[cfg(test)]
 #[path = "scenario_profile_pair_tests.rs"]
 mod profile_pair_tests;
+
+#[cfg(test)]
+#[path = "scenario_transcript_selection_tests.rs"]
+mod transcript_selection_tests;

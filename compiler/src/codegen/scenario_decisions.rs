@@ -26,10 +26,22 @@ pub fn collect_decision_sources(
         .get(&owner.id)?
         .source_facts()?;
     if own.decision_sites.as_ref() != Some(proofs)
+        || own.transcripts != source.transcripts
         || own.source.path != source.source.path
         || own.source.sha256 != source.source.sha256
     {
         return None;
+    }
+    for transcript in source.transcripts.iter().flatten() {
+        let schema = source
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .find(|schema| schema.id == transcript.model && schema.model)?;
+        super::scenario_receipts::match_stored_contract_schema(ir, schema, db)?;
+        for field in &schema.fields {
+            super::scenario_receipts::match_stored_contract_field(ir, field, db)?;
+        }
     }
     let IrItemKind::Scenario {
         guards, effects, ..
