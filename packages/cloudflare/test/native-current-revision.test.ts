@@ -378,10 +378,11 @@ test('original current337 nullable/current/published/digest returns the same Run
     };
     await generate(restored, published);
     // A second authentic parent proves retained source/target and ancestor
-    // lifetime independently. The original unique number is owner-wide.
+    // lifetime independently. Revision.number is unique within its declared
+    // Template parent; both parents retain atomic duplicate refusal.
     const second = await create(TEMPLATE, {name: 'Second workflow', graph: {id: graph}, outputs: '4', duration: '900000'});
+    const secondRevision = await create(REVISION, {parent: ref(second), number: '1', definition, outputs: '4', duration: '900000', published: true, digest});
     await reject(envelope(`${REVISION}.create`, {parent: ref(second), number: '1', definition, outputs: '4', duration: '900000', published: true, digest}), 'conflict', await current(0), false);
-    const secondRevision = await create(REVISION, {parent: ref(second), number: '2', definition, outputs: '4', duration: '900000', published: true, digest});
     const secondLive = await update(TEMPLATE, second, {current: ref(secondRevision)}); await generate(secondLive, secondRevision);
     const runRead = await read(`${RUN}.read`, await current(1)); assert.equal(runRead.length, 2);
     for (const saved of retained) assert.deepEqual(object(runRead.find(row => row.id === saved.run.id)!.data), saved.run.data);

@@ -14,6 +14,7 @@ import type {
   OrderTerm,
   OutboxIntent,
   QueryPredicate,
+  QuerySpec,
   Receipt,
   RetainedOutboxIntent,
   RecordId,
@@ -423,6 +424,20 @@ export function compilePredicate(predicate: QueryPredicate, bindings: unknown[])
   }
 }
 
+/** Only the actual bounded dispatch recovery window needs this fixed plan.
+ * Other queries keep their existing planner and permission predicates. */
+export function recoveryRecordTable(spec: QuerySpec): string {
+  const where = spec.where, order = spec.order;
+  if (spec.model !== 'work.dispatch' || spec.parent !== undefined || spec.archived === 'include' ||
+      spec.limit === undefined || !Number.isSafeInteger(spec.limit) || spec.limit < 1 ||
+      order?.length !== 1 || order[0]?.field !== 'id' || order[0]?.direction !== 'asc' ||
+      where?.op !== 'and' || where.args.length < 1 || where.args.length > 2) return 'records';
+  const state = where.args[0], after = where.args[1];
+  if (state?.op !== 'eq' || state.field !== 'state' || (state.value !== 'claimed' && state.value !== 'uncertain') ||
+      after !== undefined && (after.op !== 'gt' || after.field !== 'id' || typeof after.value !== 'string')) return 'records';
+  return 'records INDEXED BY idx_records_recovery';
+}
+
 export function compileOrder(order: ReadonlyArray<OrderTerm> | undefined): string {
   const terms = (order ?? []).map((term) => {
     if (term.direction !== 'asc' && term.direction !== 'desc') {
@@ -433,6 +448,9 @@ export function compileOrder(order: ReadonlyArray<OrderTerm> | undefined): strin
   if (terms.length === 0) {
     return 'created ASC, id ASC';
   }
+  // A sole primary-key term is already a total order. Repeating it makes
+  // SQLite allocate a needless block sorter in the bounded recovery plan.
+  if (order?.length === 1 && order[0]?.field === 'id') return terms[0]!;
   return `${terms.join(', ')}, id ASC`;
 }
 

@@ -1,0 +1,14 @@
+app NativeComposedFiles uses=[entries]
+package entries
+ Given
+  contract Metadata {note:text}
+  export Entry {label:text="Uploaded",attachment:file?,metadata:Metadata?}
+  policy Entry read=owner fields=label,attachment,metadata
+ When
+  crud Entry by=owner fields=label
+  export scenario attach(entry:Entry,attachment:file,accept:bool) -> bool by=owner
+   do
+    set entry {attachment=attachment}
+    require accept
+    return accept
+ Then

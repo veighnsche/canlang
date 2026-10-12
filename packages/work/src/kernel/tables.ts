@@ -862,6 +862,16 @@ export function dispatchByStateQuery(state: OutboxItemState): QuerySpec {
   };
 }
 
+/** Bounded recovery state window; ids are the canonical intent row keys. */
+export function dispatchRecoveryPageQuery(state: 'claimed' | 'uncertain', limit: number,
+  after: string | null): QuerySpec {
+  return { ...dispatchByStateQuery(state),
+    where: {op: 'and', args: [{op: 'eq', field: 'state', value: state},
+      ...(after === null ? [] : [{op: 'gt' as const, field: 'id', value: after}])]},
+    order: [{field: 'id', direction: 'asc'}], limit,
+  };
+}
+
 /**
  * Schedule rows under one key within one scope. Key-global L3 rows may
  * collide across scopes (open handoff); the flat scope fields disjoin

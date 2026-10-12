@@ -57,6 +57,7 @@ import {
   WORK_EVERY_SLOT_MODEL,
   WORK_SUPERSESSION_MODEL,
   dispatchByStateQuery,
+  dispatchRecoveryPageQuery,
   everySlotRowId,
   newEverySlotRow,
   readDispatchRow,
@@ -782,10 +783,11 @@ export const WORK_SYSTEM_COMMANDS: readonly SystemCommandDef[] = [
 /**
  * `work.dispatch.recover {maxClaimAgeMs, limit, resumeAfter?}`: bounded
  * batch recovery resuming interrupted claims. Releases every stale
- * claimed row (exact `isClaimStale` boundary; rows without a recorded
- * claim stay claimed) back to `pending` in ONE fenced batch, in stable
- * intent-id order after the `resumeAfter` cursor. `done: false` with a
- * fresh `resumeAfter` means unvisited rows remain: resume instead of
+ * claimed row visited within the shared row budget (exact `isClaimStale`
+ * boundary; rows without a recorded claim stay claimed) back to `pending` in ONE fenced batch, in stable
+ * intent-id order after the `resumeAfter` cursor. Fresh and uncertain rows
+ * consume the same visit budget; at most two `limit+1` windows are loaded.
+ * `done: false` with a fresh `resumeAfter` means unvisited rows remain: resume instead of
  * silently truncating. Uncertain rows are OBSERVED (read-only ids for
  * the T24b reconciling sweeper), never touched: unknown stays unknown
  * until provider evidence arrives. Failed-row retry stays per-intent
@@ -799,76 +801,70 @@ export const workDispatchRecoverCommand: SystemCommandDef = {
     checkArgs(args, what);
     const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
     const limitValue = args['limit'];
-    if (typeof limitValue !== 'number' || !Number.isInteger(limitValue) || limitValue < 1) {
-      throw new KernelTableError(`${what}: limit must be an integer >= 1.`);
+    if (typeof limitValue !== 'number' || !Number.isSafeInteger(limitValue) || limitValue < 1 || limitValue === Number.MAX_SAFE_INTEGER) {
+      throw new KernelTableError(`${what}: limit must be an integer >= 1 with a safe bounded lookahead.`);
     }
     const resumeAfter = argNullableString(args, 'resumeAfter', what);
-    const claimed = await ctx.query(dispatchByStateQuery('claimed'));
-    const candidates: Array<{ row: StoredRow; intentId: string }> = [];
-    const seen = new Set<string>();
-    for (const row of claimed) {
-      // Exact re-filter: claimed state, first sighting, after the cursor.
-      const data = readDispatchRow(row);
-      if (data.state !== 'claimed') continue;
-      if (seen.has(data.intentId)) continue;
-      seen.add(data.intentId);
-      if (resumeAfter !== null && data.intentId <= resumeAfter) continue;
-      candidates.push({ row, intentId: data.intentId });
+    if (ctx.cohortIdOrder !== undefined && ctx.cohortIdOrder !== 'utf16' && ctx.cohortIdOrder !== 'utf8-binary') {
+      throw new KernelTableError(`${what}: unsupported owning query id order.`);
     }
-    candidates.sort((a, b) => compareIds(a.intentId, b.intentId));
-    const writes: DomainWrite[] = [];
-    const released: OutboxId[] = [];
-    let visited = 0;
-    for (const candidate of candidates) {
-      if (released.length >= limitValue) break;
-      visited += 1;
-      const data = readDispatchRow(candidate.row);
-      if (
-        data.claimId !== null &&
-        data.claimedAtMs !== null &&
-        isClaimStale(
-          {
-            outboxId: candidate.intentId as OutboxId,
-            claimId: data.claimId,
-            claimedAt: data.claimedAtMs,
-          },
-          ctx.now,
-          maxClaimAgeMs,
-        )
-      ) {
-        writes.push(
-          updateWrite(
-            candidate.row,
-            { ...data, state: 'pending', claimId: null, claimedAtMs: null },
-            ctx,
-            WORK_DISPATCH_MODEL,
-            what,
-          ),
-        );
+    const encoder = new TextEncoder();
+    const compare = ctx.cohortIdOrder === 'utf8-binary' ? (a: string, b: string): number => {
+      const left = encoder.encode(a), right = encoder.encode(b);
+      for (let i = 0; i < Math.min(left.length, right.length); i++) {
+        if (left[i] !== right[i]) return left[i]! - right[i]!;
+      }
+      return left.length - right.length;
+    } : compareIds;
+    // Two bounded indexed windows include one lookahead each. The shared
+    // visit budget includes fresh claims and uncertain rows, not just releases.
+    const windowLimit = limitValue + 1;
+    const candidates: Array<{row: StoredRow; data: ReturnType<typeof readDispatchRow>; intentId: string}> = [];
+    const seen = new Map<string, 'claimed' | 'uncertain'>();
+    for (const state of ['claimed', 'uncertain'] as const) {
+      const rows = await ctx.query(dispatchRecoveryPageQuery(state, windowLimit, resumeAfter));
+      if (rows.length > windowLimit) throw new KernelTableError(`${what}: storage reader exceeded its bounded window.`);
+      // Validate this reader before opening the next one: an earlier malformed
+      // claimed row keeps precedence over a later uncertain-reader failure.
+      for (const row of rows) {
+        const data = readDispatchRow(row);
+        if (data.state !== state) throw new KernelTableError(`${what}: storage reader returned a foreign lifecycle state.`);
+        if (row.id !== data.intentId) throw new KernelTableError(`${what}: dispatch identity differs from its row key.`);
+        if (resumeAfter !== null && compare(data.intentId, resumeAfter) <= 0) {
+          throw new KernelTableError(`${what}: storage reader crossed its resume boundary.`);
+        }
+        const priorState = seen.get(data.intentId);
+        if (priorState === state) throw new KernelTableError(`${what}: storage reader duplicated a recovery identity.`);
+        // A transition between the two reads is a normal race. Keep the first
+        // sample; the registry's original revision fence rejects publication.
+        if (priorState !== undefined) continue;
+        seen.set(data.intentId, state); candidates.push({row, data, intentId: data.intentId});
+      }
+    }
+    candidates.sort((a, b) => compare(a.intentId, b.intentId));
+    const writes: DomainWrite[] = [], released: OutboxId[] = [], uncertain: string[] = [];
+    const visited = Math.min(limitValue, candidates.length);
+    for (const candidate of candidates.slice(0, visited)) {
+      const data = candidate.data;
+      if (data.state === 'uncertain') {uncertain.push(candidate.intentId); continue;}
+      if (data.claimId !== null && data.claimedAtMs !== null && isClaimStale({
+        outboxId: candidate.intentId as OutboxId, claimId: data.claimId, claimedAt: data.claimedAtMs,
+      }, ctx.now, maxClaimAgeMs)) {
+        writes.push(updateWrite(candidate.row, {...data, state: 'pending', claimId: null, claimedAtMs: null},
+          ctx, WORK_DISPATCH_MODEL, what));
         released.push(candidate.intentId as OutboxId);
       }
     }
-    const done = visited >= candidates.length;
+    const done = visited === candidates.length;
     const next = candidates[visited - 1]?.intentId ?? null;
-    const uncertainRows = await ctx.query(dispatchByStateQuery('uncertain'));
-    const uncertain: string[] = [];
-    const uncertainSeen = new Set<string>();
-    for (const row of uncertainRows) {
-      const data = readDispatchRow(row);
-      if (data.state !== 'uncertain') continue;
-      if (uncertainSeen.has(data.intentId)) continue;
-      uncertainSeen.add(data.intentId);
-      uncertain.push(data.intentId);
-    }
-    uncertain.sort(compareIds);
-    const uncertainTruncated = uncertain.length > limitValue;
+    const uncertainTruncated = candidates.slice(visited).some(candidate => candidate.data.state === 'uncertain');
     return {
       writes,
       result: {
         released,
         resumeAfter: done ? null : next,
         done,
-        uncertain: uncertain.slice(0, limitValue),
+        uncertain,
         uncertainTruncated,
       },
     };

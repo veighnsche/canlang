@@ -60,7 +60,7 @@ describe('createSystemRegistry', () => {
     const commands = createSystemRegistry([inspect]);
     await commands.run('test.inspect', {}, runCtx('sys-run-0'), { store: world.store });
     assert.ok(seen !== null);
-    assert.deepEqual(Object.keys(seen).sort(), ['actor', 'load', 'now', 'operation', 'query']);
+    assert.deepEqual(Object.keys(seen).sort(), ['actor', 'cohortIdOrder', 'load', 'now', 'operation', 'query']);
     assert.ok(!('store' in seen) && !('commit' in seen));
     assert.equal(typeof seen['load'], 'function');
     assert.equal(typeof seen['query'], 'function');
@@ -86,7 +86,7 @@ describe('createSystemRegistry', () => {
     assert.deepEqual(await pendingIntentIds(world.store), ['sys-b']);
   });
 
-  it('reads the actual original outbox after acknowledgement inside the five-key issued stage', async () => {
+  it('reads the actual original outbox after acknowledgement inside the reader-only issued stage', async () => {
     const world = await setupPortsWorld();
     await invokeStage(world, { execute: makeStagingHandler({ intents: [makeStagedIntent('retained-a')] }) });
     const original = await world.store.outboxGet('retained-a');
@@ -95,7 +95,7 @@ describe('createSystemRegistry', () => {
     let captured: SystemCommandContext | undefined;
     const read = defineSystemCommand({ name: 'test.retained', stage: async (_args, ctx) => {
       captured = ctx;
-      assert.deepEqual(Object.keys(ctx).sort(), ['actor', 'load', 'now', 'operation', 'query']);
+      assert.deepEqual(Object.keys(ctx).sort(), ['actor', 'cohortIdOrder', 'load', 'now', 'operation', 'query']);
       const retained = await readSystemCommandRetainedOutbox(ctx, 'retained-a');
       assert.deepEqual(retained?.intent, original.intent);
       assert.deepEqual(retained?.originalCommit, original.originalCommit);
@@ -407,7 +407,7 @@ describe('registry-issued read-only system execution', () => {
     } };
     const command = defineSystemCommand({ name: 'test.read-only', stage: () => ({}), read: async (_args, ctx) => {
       issued = ctx;
-      assert.deepEqual(Object.keys(ctx).sort(), ['actor', 'load', 'now', 'operation', 'query']);
+      assert.deepEqual(Object.keys(ctx).sort(), ['actor', 'cohortIdOrder', 'load', 'now', 'operation', 'query']);
       assert.equal(systemCommandStageRevision(ctx), revision);
       const [loaded, selected, original] = await Promise.all([
         ctx.load(world.model, 'absent' as never),

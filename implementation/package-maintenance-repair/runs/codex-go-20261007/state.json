@@ -600,13 +600,13 @@
     },
     "TECH-V05": {
       "planning_status": "blocked",
-      "state": "Bounded raw-key LRU64-per-cache design resolved and smallest implementation qualified21Node/21Bun; finite integration and exact release-host/data qualification remain.",
+      "state": "selected_original_recipe_satisfied_in_LOCAL_main",
       "files": [
         "packages/values/src/timezone.ts",
         "packages/values/src/locale.ts",
         "packages/values/src/currency-data.ts"
       ],
-      "review": "timezone-host-prerequisite.json",
+      "review": "V05 original selected release-host/data/artifact/corpus criterion is SATISFIED by Dev843e298c: coordinator-selected Node24.21.0 darwin/arm64, ICU78.3/CLDR48.0/tz2026c/Unicode17.0, no external ICU data. Normal Values/Contracts build4/4; full normal release packaging30/30 in19.787s verifies13 actual owners and runtime closures. Isolated Values0.1.0 SHA d0f2f2cf743d1c1d19e9d64e099642291d2ee15e28ee88674dfbb72d12a1eb67 and Contracts0.1.0 SHA49b07a1e0f293998efa5671c1d1f1e1811e446bbc5ac892afc7ed9886810bfb3 preserve original emitted corpus/binding assets/current manifest3648e40b and runtime closure. Original timezone/temporal/locale/money/ICU180/180 PASS91.766ms with zero failures/cancels/skips and complete cleanup. Existing bounded raw-key/retained-reference refusals reused. Historical releaseHostVerified:false is not an additional exit after the original declared host/data/artifact/corpus correspondence passes. Stop/reuse only this selected Node TS release scope; no other host, native backend adoption, deployment or publication.",
       "policy_agent": "/root/timezone_cache_policy",
       "model": "gpt-6.1-sol",
       "effort": "high",
@@ -634,7 +634,7 @@
         "calls_started": false,
         "no_workaround": true
       },
-      "remaining_prerequisite": "Dev/L7 supplies that exact host tuple result only; no new cache decision, maxCPU/heap/all-host or V04 dependency.",
+      "remaining_prerequisite": "None at original selected scope. Wider canonical parents/holds unchanged.",
       "bounded_key_retention_decision": {
         "status": "owning bounded design selected; smallest source implementation and affected Node/Bun tests qualified; finite integration pending",
         "authorization": "Current human AGENTS.md preauthorizes difficult-design JEV calls; coordinator verified human consultation instruction and explicitly assigned this bounded V05 choice. No implementation/activation/publication hold is lifted.",
@@ -884,10 +884,10 @@
       },
       "actual_code_reassessment": {
         "date": "2026-10-12",
-        "disposition": "external-host",
+        "disposition": "satisfied-selected",
         "defining_owner": "Dev/L7 release host",
-        "actual_code_and_retained_result": "Local bounded raw-key cache, signed year/grouping/locale endpoints are implemented/qualified. Exact declared runtime artifact/build and loaded ICU/tzdb/CLDR release tuple/corpus identity not qualified by local formatter tests.",
-        "remaining_finite_action_or_input": "Dev/L7 supplies that exact host tuple result only; no new cache decision, maxCPU/heap/all-host or V04 dependency.",
+        "actual_code_and_retained_result": "V05 original selected release-host/data/artifact/corpus criterion is SATISFIED by Dev843e298c: coordinator-selected Node24.21.0 darwin/arm64, ICU78.3/CLDR48.0/tz2026c/Unicode17.0, no external ICU data. Normal Values/Contracts build4/4; full normal release packaging30/30 in19.787s verifies13 actual owners and runtime closures. Isolated Values0.1.0 SHA d0f2f2cf743d1c1d19e9d64e099642291d2ee15e28ee88674dfbb72d12a1eb67 and Contracts0.1.0 SHA49b07a1e0f293998efa5671c1d1f1e1811e446bbc5ac892afc7ed9886810bfb3 preserve original emitted corpus/binding assets/current manifest3648e40b and runtime closure. Original timezone/temporal/locale/money/ICU180/180 PASS91.766ms with zero failures/cancels/skips and complete cleanup. Existing bounded raw-key/retained-reference refusals reused. Historical releaseHostVerified:false is not an additional exit after the original declared host/data/artifact/corpus correspondence passes. Stop/reuse only this selected Node TS release scope; no other host, native backend adoption, deployment or publication.",
+        "remaining_finite_action_or_input": "Stop/reuse; no new qualification or recap-only work.",
         "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
       }
     },
@@ -7030,7 +7030,7 @@
     },
     "TECH-S04-query": {
       "planning_status": "blocked",
-      "state": "Accepted internal per-call viewer selection prerequisite; focused17/17, actual engine projection/archive/fence and admission order retained. Broader task remains open.",
+      "state": "selected_original_recipe_satisfied_in_LOCAL_main",
       "files": [
         "packages/state/src/query/engine.ts",
         "packages/state/src/storage/d1.ts",
@@ -7038,15 +7038,16 @@
         "packages/work/src/kernel/commands.ts"
       ],
       "numeric_order_prerequisite": "Released checked State producer; actual CF consumer wiring/qualification pending, distinct from original scan/recovery resource budgets.",
-      "remaining_prerequisite": "Define actual driver counted-work domain, budget unit, continuation/refusal semantics for original consumer. No arbitrary new global timeout/viewer limit or unchanged State bounds.",
+      "remaining_prerequisite": "None at original selected scope. Wider canonical parents/holds unchanged.",
       "actual_code_reassessment": {
         "date": "2026-10-12",
-        "disposition": "missing-contract",
+        "disposition": "satisfied-selected",
         "defining_owner": "Capability State/Work bounded-work contract; driver owner",
-        "actual_code_and_retained_result": "query/engine materializes/filter/sorts full candidates before overflow; D1/DO SQL materialization and Work commands scan all claimed/uncertain rows. Returned limit does not bound visited work.",
-        "remaining_finite_action_or_input": "Define actual driver counted-work domain, budget unit, continuation/refusal semantics for original consumer. No arbitrary new global timeout/viewer limit or unchanged State bounds.",
+        "actual_code_and_retained_result": "S04-query original selected D1/DO query/recovery driver and Work dispatch.recover(limit) exit is SATISFIED at source409b6544: claimed/uncertain indexed keyset windows each limit+1, loaded at most2*(limit+1) sentinel rows and at mostlimit TOTAL decisions/visits including fresh/uncertain; stable actual binary-D1/DO versus UTF16-Memory ID ordering/non-BMP, truthful resumeAfter/done/uncertainTruncated, current fence and first/late failure with no partial published progress. Genuine D1/DO query-plan/rows_read controls over1500 unrelated pending/archived rows pass11168.22ms/276.67ms; Memory2.50ms, one release/no-repeat/inter-read state races and System35 controls reused. Exact index/hint applies only to the owning recovery query, no generic query policy or widened authority. Original decisive selected actual driver/order/continuation/fence and tiny-limit full-scan refusal recipes and done_when are met; general queryRecords/provider reconciliation/receipt parents are separate original requirements, not added gates on this selected exit. Stop/reuse this component and selected packet; no whole State/Work/Capability plan acceptance.",
+        "remaining_finite_action_or_input": "Stop/reuse; no new qualification or recap-only work.",
         "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
-      }
+      },
+      "review": "S04-query original selected D1/DO query/recovery driver and Work dispatch.recover(limit) exit is SATISFIED at source409b6544: claimed/uncertain indexed keyset windows each limit+1, loaded at most2*(limit+1) sentinel rows and at mostlimit TOTAL decisions/visits including fresh/uncertain; stable actual binary-D1/DO versus UTF16-Memory ID ordering/non-BMP, truthful resumeAfter/done/uncertainTruncated, current fence and first/late failure with no partial published progress. Genuine D1/DO query-plan/rows_read controls over1500 unrelated pending/archived rows pass11168.22ms/276.67ms; Memory2.50ms, one release/no-repeat/inter-read state races and System35 controls reused. Exact index/hint applies only to the owning recovery query, no generic query policy or widened authority. Original decisive selected actual driver/order/continuation/fence and tiny-limit full-scan refusal recipes and done_when are met; general queryRecords/provider reconciliation/receipt parents are separate original requirements, not added gates on this selected exit. Stop/reuse this component and selected packet; no whole State/Work/Capability plan acceptance."
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
@@ -7350,7 +7351,9 @@
       "DEL-C01",
       "TECH-S03",
       "DEL-R01",
-      "TECH-I01"
+      "TECH-I01",
+      "TECH-V05",
+      "TECH-S04-query"
     ],
     "partially_completed": [
       "TECH-V03",
@@ -7360,22 +7363,20 @@
     ],
     "open_or_blocked": [
       "DEL-C02",
-      "TECH-F02",
-      "TECH-S04-query",
-      "TECH-V05"
+      "TECH-F02"
     ],
     "human_held": [
       "DEL-D05"
     ],
     "counts": {
-      "finished": 39,
+      "finished": 41,
       "partial": 4,
-      "open_or_blocked": 4,
+      "open_or_blocked": 2,
       "held": 1,
       "total": 48
     },
-    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01. OriginalselectedS02 publicHTTP decisivecaller/privacypositive-negative/currentreplay criteria satisfied by independentcriticalCLEAR+actualMAIN, widerparentunchanged. OriginalFINALR03independentfiniteverdict closesonlyreleasedreviewrecipe; no wholeparent gate orunchangedrun. Human-directed original-scope C01/S03 comparisons independently satisfied; actual minimum Node22 CLI5/5/stateless SDK installed execution closes R01. Accepted original internal33900ms and signed43641ms Identity native/current cold-recovery criteria close the last I01 leaf; no unchanged rerun or wider parent acceptance.",
-    "status_given_to_human": "39/48 selected finished,4 partial,4 open,1 held; remaining9=6 exact owner outputs+2 precise holds+1 retired C02 consumer. Canonical333/widerparents/fullgoal unchanged."
+    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01. OriginalselectedS02 publicHTTP decisivecaller/privacypositive-negative/currentreplay criteria satisfied by independentcriticalCLEAR+actualMAIN, widerparentunchanged. OriginalFINALR03independentfiniteverdict closesonlyreleasedreviewrecipe; no wholeparent gate orunchangedrun. Human-directed original-scope C01/S03 comparisons independently satisfied; actual minimum Node22 CLI5/5/stateless SDK installed execution closes R01. Accepted original internal33900ms and signed43641ms Identity native/current cold-recovery criteria close the last I01 leaf; no unchanged rerun or wider parent acceptance. Original selected V05 actual declared Node runtime/data/artifact/corpus and S04 real indexed D1/DO Work recovery bounded-visits/continuation/fence/first-failure exits are satisfied from released defining outputs; no broader parent obligation is added.",
+    "status_given_to_human": "41/48 selected finished,4 partial,2 open,1 held; remaining7=4 exact owner outputs+2 precise holds+1 retired C02 consumer. Canonical333/widerparents/fullgoal unchanged."
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {
@@ -10785,13 +10786,13 @@
     "execution_list": {
       "status": "Human-requested replacement current execution list saved; not implementation or acceptance.",
       "source": "docs/research/package-library-audit-20261006/repair-queue/queue.json#current_execution and each existing packet current_execution.packages_execution",
-      "coverage": "All48 selected packet dispositions and nine remaining entries reassessed at the existing12:53UTC cadence; original IDs/recipes retained.",
-      "next": "Human-directed prerequisite implementation: Packages actively implements V03 genuine Values/Interfaces serving source-owner/revision association; then Interfaces B02 backend and Files F01 publication serialization. Capability S04 Work bounds; Compiler F02 checked source; Dev authenticated receiver/native and V05 exact host. No wholeowner gates.",
+      "coverage": "All original nine remaining entries, nine Compiler refs/C01-C24, all30 Capability IDs/33 stages and Dev35 current/platform/provider/migration/writer rows reassessed at14:08UTC; actual V05/S04 selected retirements leave seven Packages entries.",
+      "next": "Active V03 serving association, then original B02 status/download and F01 serialization; exact F02 receiver/shared Files idempotency remains with defining owners. V05/S04 stop/reuse.",
       "counts": {
         "local_ready": 1,
-        "exact_owner_output": 5,
+        "exact_owner_output": 3,
         "human_held": 2,
-        "remaining_packets": 9,
+        "remaining_packets": 7,
         "closed_consumer": 1
       },
       "classification_basis": "Focused read-only review of all26 existing current entries and newer retained component evidence; root owns State/Identity/Files classification, finite Values/Work/delivery partitions reviewed independently. Minimum-engine criterion assessed against actual manifests and existing installed scripts; no behavior check run for planning.",

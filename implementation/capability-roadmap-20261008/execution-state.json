@@ -99,10 +99,11 @@
         },
         "query_resource_prerequisite": {
           "packet": "TECH-S04-query",
-          "state": "blocked_exact_driver_output_skipped",
-          "owner": "Packages actual D1/DO driver; Capability contract consumer",
+          "state": "selected_original_bounded_recovery_driver_satisfied_in_LOCAL_main",
+          "owner": "Capability State/Work actual selected D1/DO driver; Packages selected consumer",
           "dependency": "docs/research/package-library-audit-20261006/repair-queue/queue.json#packets/TECH-S04-query/owner_dependency",
-          "validation": "Read-only actual callers identify unbounded driver scan/sort work; existing viewer17 and all unchanged query/recovery results reused. No numerical full-query policy adopted, tests run or runtime acceptance."
+          "validation": "S04-query original selected D1/DO query/recovery driver and Work dispatch.recover(limit) exit is SATISFIED at source409b6544: claimed/uncertain indexed keyset windows each limit+1, loaded at most2*(limit+1) sentinel rows and at mostlimit TOTAL decisions/visits including fresh/uncertain; stable actual binary-D1/DO versus UTF16-Memory ID ordering/non-BMP, truthful resumeAfter/done/uncertainTruncated, current fence and first/late failure with no partial published progress. Genuine D1/DO query-plan/rows_read controls over1500 unrelated pending/archived rows pass11168.22ms/276.67ms; Memory2.50ms, one release/no-repeat/inter-read state races and System35 controls reused. Exact index/hint applies only to the owning recovery query, no generic query policy or widened authority. Original decisive selected actual driver/order/continuation/fence and tiny-limit full-scan refusal recipes and done_when are met; general queryRecords/provider reconciliation/receipt parents are separate original requirements, not added gates on this selected exit. Stop/reuse this component and selected packet; no whole State/Work/Capability plan acceptance.",
+          "remaining": "Unselected general queryRecords/provider/receipt parents retain their original separate criteria; no duplicate selected driver/selected S04 qualification."
         },
         "cohort_resource_contract": {
           "packet": "TECH-S04-cohort",
@@ -1970,15 +1971,15 @@
           "coordinator_review": "Independent authentic issuance/observation and retained replay/enclosing-commit defining reviews CLEAR. Primary normal emission caught final8fca diagnostic literal; exact aa299 quote-only correction then fresh main normal State/DO/CF/root0 and affected row-ID11/11 PASS241.988291ms, zero failure/cancel/skip, qualify final committed source. Related57 unchanged outcomes reused. Finite State criterion closed; original source/native/application/full-plan acceptance remains unfinished."
         },
         "original_current337_main_qualification": {
-          "main_source": "a6a10a830b75f5ac07c39a033c0dda9fb892583b",
-          "test_ms": 163125,
-          "file_ms": 163126,
-          "vitest_seconds": 163.46,
-          "process_seconds": 163.83,
-          "cleanup_ms": 163123,
+          "main_source": "6ab3b297c8a739b0cdf62ba0d2a63f1cd30c8cab",
+          "test_ms": 176703,
+          "file_ms": 176703,
+          "vitest_seconds": 177.14,
+          "process_seconds": 177.65,
+          "cleanup_ms": 176702,
           "tests_passed": 1,
           "skipped": 0,
-          "scope": "Original current337 is implemented, tested and independently reviewed in LOCAL main at its exact finite fixture scope. Actual MAIN1/1 PASS test163125ms/file163126ms/163.46s Vitest/163.83s process; full awaited cleanup163123ms, zero skips, source/capture currency intact. Original2240-byte SHA4da5ddcc956e72ee6f8e0d5942467692c549d925dee2a01a4e01192f93e31bbf is restored by stripping ONLY labelled authenticated manager CRUD. Real CLI/verified assembly/Identity/two routed D1 owners/two independent physical SQLite Files/direct and nested WorkflowDefinition graph retention/full10 dependency census/current CONTROL and SAME once-Let DATA chronology/owner-wide Revision.number conflict/two genuine Runs/one fence/receipt-history-readback/ordinary and dedicated saved replay/current membership revocation-restoration/target AND parent archive withholding/resources and complete cleanup pass. Physical foreign/absent/unfinalized graph refusals and impossible digest-null publication/unpublished current are genuine original CRUD refusals, never invalid seeded rows. Declared3600000ms, original source/assertions, Office180/A7 and authority constraints are unchanged. Workerf225 PASS184293ms/184.61s/cleanup184291ms remains a separate result; original7654ms census and159.04s archived-parent failures remain failures. Independent final fixture and paired producer/runtime reviews CLEAR; changed CF4.66/root4.89 and accepted source/component results are reused. Stop this criterion and reuse it. No full Creative/Chat/apps/provider/J2/latency/hold or full-plan completion."
+          "scope": "Corrected original current337 ACTUAL MAIN1/1 PASS test176703ms/file176703ms/Vitest177.14s/process177.65s/awaited cleanup176702ms; zero skips and full captured source/dist/CLI/catalog currency. Original2240-byte source SHA4da5ddcc956e72ee6f8e0d5942467692c549d925dee2a01a4e01192f93e31bbf is unchanged, stripping ONLY labelled authenticated manager CRUD. Genuine two routed D1 owners/two physical SQLite Files/direct+nested WorkflowDefinition.graph/TEN original dependency census/active-current CONTROL/SAME once-Let DATA/digest chronology/two Runs/fence-history-readback/current and saved replay/member revocation-restoration/BOTH target-parent archive withholding/resources/cleanup remain. DESIGN131 permits number1 on another containing Template; duplicates within EACH parent refuse atomically with no effects. Prior MAIN163125 and worker184293 belong to earlier owner-wide inputs; new worker170921test/170922file/170918cleanup was in a combined176632ms process with failed Chat and is not a standalone process timing. Original7654census/159.04archive and Chat175528/142435 failures remain failures. No full Creative/Chat/apps/provider/J2/latency acceptance."
         }
       },
       "current_execution": {
