@@ -91,6 +91,28 @@ describe("derived module map composition", () => {
     expect(lookup(view.map as SourceMap, 1, 0)).toEqual({ source: "raw/😀/\ud800.can", line: 1, column: 1, name: "\udc00" });
   });
 
+  it("retains negative source and name array properties through a changed import", () => {
+    const sources = ["unused"] as string[] & { "-1": string };
+    const names = ["unused"] as string[] & { "-1": string };
+    sources["-1"] = "raw-negative.can";
+    names["-1"] = "negative-name";
+    const map: SourceMap = { version: 3, file: "a.js", sources, names, sourcesContent: [], mappings: "ADAAD" };
+    const before = lookup(map, 1, js.indexOf("Error"));
+    expect(before).toEqual({ source: "raw-negative.can", line: 1, column: 1, name: "negative-name" });
+    const stage = rewriteModuleImports(js, "a.js", () => "./longer/path/to/something.js");
+    expect(stage.changed).toBe(true);
+    const view = composeModuleMap(map, [stage.map!], js);
+    expect(view.status).toBe("composed");
+    expect(lookup(view.map!, 1, stage.js.indexOf("Error"))).toEqual(before);
+    expect(view.map!.sources).toBe(sources);
+    expect(view.map!.names).toBe(names);
+    expect(view.map!.sourcesContent).toBe(map.sourcesContent);
+    expect(view.map!.file).toBe(map.file);
+    expect(map.mappings).toBe("ADAAD");
+    expect(sources["-1"]).toBe("raw-negative.can");
+    expect(names["-1"]).toBe("negative-name");
+  });
+
   it("keeps wrong-type raw source tables unmapped and invalid names omitted", () => {
     const base = fixtures.sequences[0]!.map;
     const invalidSources = { ...base, sources: { 0: "not-an-array.can" }, mappings: "AAAA" } as unknown as SourceMap;

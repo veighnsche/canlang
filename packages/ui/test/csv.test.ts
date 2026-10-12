@@ -641,6 +641,28 @@ describe("csv confirm section", () => {
 // ---------------------------------------------------------------------------
 
 describe("csv commit transport", () => {
+  it("returns safe review and commit transport failures without inspecting thrown values", async () => {
+    const privateText = 'PRIVATE_CSV_BODY csrf=PRIVATE_CSRF_TOKEN';
+    let inspections = 0;
+    const accessor = new Error();
+    Object.defineProperty(accessor, 'message', { get() { inspections++; throw new Error('must not read exception message'); } });
+    const nonError = { toString() { inspections++; throw new Error('must not stringify exception'); } };
+    for (const failure of [new Error(privateText), accessor, nonError]) {
+      const input = {
+        fetchImpl: async () => { throw failure; },
+        csrf: 'csrf-123', operation: 'create-task', csv: 'title\n',
+      };
+      const review = await submitCsvReview({ ...input, action: '/api/csv/review' });
+      assert.deepEqual(review, { ok: false, error: { code: 'transport', message: 'Review request failed.' } });
+      const commit = await submitCsvCommit({
+        ...input, action: '/api/csv/commit', consent: reviewFixture().consent,
+        selections: [{ index: 0, operation_id: 'op-1' }],
+      });
+      assert.deepEqual(commit, { ok: false, error: { code: 'transport', message: 'Commit request failed.' } });
+    }
+    assert.equal(inspections, 0);
+  });
+
   it("refuses foreign review and commit actions before any protected transport", async () => {
     let calls = 0;
     const fetchImpl = async () => { calls += 1; throw new Error('must not fetch'); };

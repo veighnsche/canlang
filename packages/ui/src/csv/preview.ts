@@ -370,7 +370,8 @@ function transportError(message: string): CsvBusinessError {
 /**
  * POST one review request as JSON with the CSRF header. Server error
  * bodies digest to `CsvBusinessError`; transport failures become
- * `{code:'transport'}`. A malformed success body throws (contract
+ * `{code:'transport'}` with a fixed safe message, without inspecting
+ * thrown values. A malformed success body throws (contract
  * violation — host-fatal).
  */
 export async function submitCsvReview(input: SubmitCsvReviewInput): Promise<SubmitCsvReviewResult> {
@@ -396,9 +397,8 @@ export async function submitCsvReview(input: SubmitCsvReviewInput): Promise<Subm
       headers: { "content-type": "application/json", [CSV_CSRF_HEADER]: input.csrf },
       body: JSON.stringify({ operation: input.operation, csv: input.csv }),
     });
-  } catch (error) {
-    const messageText = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: transportError(`Review request failed: ${messageText}`) };
+  } catch {
+    return { ok: false, error: transportError("Review request failed.") };
   }
   let parsed: unknown;
   try {

@@ -400,7 +400,8 @@ function transportError(messageText: string): CsvBusinessError {
 /**
  * POST one commit request as JSON with the CSRF header. Server error
  * bodies (including `conflict` → renewed review required) digest to
- * `CsvBusinessError`; transport failures become `{code:'transport'}`.
+ * `CsvBusinessError`; transport failures become `{code:'transport'}`
+ * with a fixed safe message, without inspecting thrown values.
  * A malformed success body throws (contract violation — host-fatal).
  */
 export async function submitCsvCommit(input: SubmitCsvCommitInput): Promise<SubmitCsvCommitResult> {
@@ -434,9 +435,8 @@ export async function submitCsvCommit(input: SubmitCsvCommitInput): Promise<Subm
         rows: input.selections,
       }),
     });
-  } catch (error) {
-    const messageText = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: transportError(`Commit request failed: ${messageText}`) };
+  } catch {
+    return { ok: false, error: transportError("Commit request failed.") };
   }
   let parsed: unknown;
   try {

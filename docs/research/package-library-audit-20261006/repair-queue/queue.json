@@ -954,7 +954,7 @@
         "disposition": "open-selected-packet",
         "next_work": "consume-exact-release-host-output",
         "owner": "Dev/L7 release runtime/data qualification; Values fixed-data owner",
-        "accepted_scope": "Bounded raw-key formatter-cache producer already integrated9564cf874; reuse accepted source/checks. Actual local timezone endpoint and signed-era reconstruction repaired; owning emission plus timezone23/temporal36 checks pass and source review CLEAR. Release-host/data qualification remains separate. Exact reviewed local source component integrated LOCAL main after deadline; parent release-host criterion unfinished.",
+        "accepted_scope": "Bounded raw-key formatter-cache producer already integrated9564cf874; reuse accepted source/checks. Actual local timezone endpoint and signed-era reconstruction repaired; owning emission plus timezone23/temporal36 checks pass and source review CLEAR. Release-host/data qualification remains separate. Exact reviewed local source component integrated LOCAL main after deadline; parent release-host criterion unfinished. Finite locale_current_range_priority independently reviewed/tested and integrated LOCAL main; original parent remains unfinished.",
         "next_action": "Internal timezone range-edge source criterion is implemented/tested/reviewed locally. Dev/L7 exact release runtime/data identity and original corpus qualification remain next; no repeated local math/cache checks without a relevant change.",
         "done_when": "Existing timezone/calendar/exact-display corpus qualifies at the declared actual release-host/data identity and alias-heavy raw keys satisfy the selected128 retained-reference bound without changing public values. No total-host heap/CPU guarantee is implied.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05",
@@ -967,7 +967,8 @@
           "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately.",
           "implemented_scope": "Shared existing Gregorian signed-year reconstruction and Intl era decoding repair; public bounds/probe/fold/gap/cache unchanged. Values emit0, timezone23/23, temporal36/36, independent source review CLEAR."
         },
-        "timezone_public_range_boundary": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05/timezone_public_range_boundary"
+        "timezone_public_range_boundary": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05/timezone_public_range_boundary",
+        "locale_current_range_priority": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-V05/locale_current_range_priority"
       }
     },
     {
@@ -3669,7 +3670,7 @@
         "disposition": "open-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Coordinator finite source acceptance; Dev; Capability/State",
-        "accepted_scope": "Retain accepted source order, checked CRUD/plain scenario replay and signed recovery. Defining full-table/app/session/team/source/issued15min review proof plus fresh per-row authority adapter/UI transport implemented/component-tested and finite independent source review CLEAR; independent coordinator source review and LOCAL main integration complete; original native workflow remains open.",
+        "accepted_scope": "Retain accepted source order, checked CRUD/plain scenario replay and signed recovery. Defining full-table/app/session/team/source/issued15min review proof plus fresh per-row authority adapter/UI transport implemented/component-tested and finite independent source review CLEAR; independent coordinator source review and LOCAL main integration complete; original native workflow remains open. Finite safe_transport_failures independently reviewed/tested and integrated LOCAL main; original parent remains unfinished.",
         "next_action": "Connect the existing proof/token and per-row adapter at the original host; reuse accepted source order, replay and proof component checks.",
         "done_when": "Actual mounted review commits exactly frozen selected inputs and context, rejects tamper/foreign/expired review before effects and preserves invalid/duplicate/unselected/partial/unknown outcomes and original row order.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02",
@@ -3680,7 +3681,8 @@
           "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
           "finish_condition": "Mounted commit uses exactly the frozen table/app/session/team/source/expiry context, refuses tamper/foreign/expired proof before effects and preserves invalid/duplicate/unselected/partial/unknown outcomes plus revoked-prefix behavior; no unsigned fallback.",
           "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
-        }
+        },
+        "safe_transport_failures": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02/safe_transport_failures"
       }
     },
     {
@@ -4451,7 +4453,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Compiler emitted artifact producer; Dev/Cloudflare graph/map consumer",
-        "accepted_scope": "Partial: accepted line terminator, unchanged installed staged diagnostics and qualified library CommonJS syntax/binding replacement; namespace/provenance and wider gates open.",
+        "accepted_scope": "Partial: accepted line terminator, unchanged installed staged diagnostics and qualified library CommonJS syntax/binding replacement; namespace/provenance and wider gates open. Finite raw_negative_map_identities independently reviewed/tested and integrated LOCAL main; original parent remains unfinished.",
         "next_action": "Use the exact artifact/map output and qualify the affected original diagnostic caller; CommonJS/parser and staged diagnostics remain closed.",
         "done_when": "Actual installed diagnostic identifies the original coordinate, preserves tie/order/errors and refuses bootstrap/manifest collisions or invalid loadability before publication.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D04",
@@ -4462,7 +4464,8 @@
           "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
           "finish_condition": "Installed diagnostic identifies the original coordinate; collisions/invalid loadability refuse before publication and retained error/tie/order behavior holds.",
           "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
-        }
+        },
+        "raw_negative_map_identities": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-D04/raw_negative_map_identities"
       }
     },
     {
@@ -4911,7 +4914,7 @@
         "disposition": "open-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Packages shared installed gates; other release/host consumers retain their owners",
-        "accepted_scope": "Finite staged runtime/asset/public consumer prerequisites accepted. Explicit minimum-engine invocation3fa259b45 source-reviewed/integrated; actual Node22.0.0 declarations177/13 and locally repaired genuine installed runtime253modules PASS on macOS ARM. Local source/qualifier scope independently reviewed CLEAR and accepted in LOCAL main; owning Node22.0.0/default Node24.19.0 isolated runtime results retained at their actual closures; complete release/dependency/supported-host/authored/native qualification remains open. Finite dist-manifest digest+byte count correspondence independently reviewed/tested and integrated LOCAL main; broader host/release criteria remain. Workspace version-input completeness173 is independently reviewed/tested and integrated LOCAL main, broader release criteria unfinished. Unique artifact-path inventoryd77 is independently reviewed/tested and integrated LOCAL main, broader release criteria unfinished.",
+        "accepted_scope": "Finite staged runtime/asset/public consumer prerequisites accepted. Explicit minimum-engine invocation3fa259b45 source-reviewed/integrated; actual Node22.0.0 declarations177/13 and locally repaired genuine installed runtime253modules PASS on macOS ARM. Local source/qualifier scope independently reviewed CLEAR and accepted in LOCAL main; owning Node22.0.0/default Node24.19.0 isolated runtime results retained at their actual closures; complete release/dependency/supported-host/authored/native qualification remains open. Finite dist-manifest digest+byte count correspondence independently reviewed/tested and integrated LOCAL main; broader host/release criteria remain. Workspace version-input completeness173 is independently reviewed/tested and integrated LOCAL main, broader release criteria unfinished. Unique artifact-path inventoryd77 is independently reviewed/tested and integrated LOCAL main, broader release criteria unfinished. Finite first_fixture_checkout_input independently reviewed/tested and integrated LOCAL main; original parent remains unfinished.",
         "next_action": "Closed local Mac ARM minimum-engine criterion and common Work dispatch/Files bridge repair are reviewed/released in LOCAL main. Dev/L7 supply exact remaining supported-host/original authored outputs; reuse recorded declarations/runtime and preserve native preparation holds.",
         "done_when": "Each declared selected entry runs its genuine installed dependency closure and supported-host controls with current provenance; stale self-consistent artifacts cannot claim current release. Native preparation remains excluded while held.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01",
@@ -4926,7 +4929,8 @@
         },
         "dist_inventory_byte_correspondence": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/dist_inventory_byte_correspondence",
         "workspace_version_input_completeness": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/workspace_version_input_completeness",
-        "dist_inventory_unique_paths": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/dist_inventory_unique_paths"
+        "dist_inventory_unique_paths": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/dist_inventory_unique_paths",
+        "first_fixture_checkout_input": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-R01/first_fixture_checkout_input"
       }
     },
     {
@@ -8374,7 +8378,7 @@
     "accounting": "Current snapshot is22 finished selected packets,15 partial,10 open/blocked,1 human-held=48 after selected original bounded cohort acceptance. Separate from333 canonical identities and wider parent closure.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Actual-code reevaluation completed seven independent library criteria: release byte-inventory correspondence, complete workspace-version inputs, unique release path inventory, immutable asset getter capture, protected browser export targets, bounded buffered body-limit cleanup, and timezone range-edge reconstruction. Their source/affected controls are implemented/tested; continue only next genuine ready source/consumer/shared failure, keeping foreign mounted/source/release-host outputs and precise holds separate. Accepted components stay closed.",
+    "dispatch": "Actual-code reevaluation completed ten independent library criteria and one finite shared boundary-input correction: release byte-inventory correspondence, complete workspace-version inputs, unique release path inventory, immutable asset getter capture, protected browser export targets, safe CSV transport failures, bounded buffered body-limit cleanup, timezone range-edge reconstruction, exact-current-range locale priority, raw negative map identities through edits, and exact First fixture checkout input. Their source/affected controls are implemented/tested; continue only next genuine ready source/consumer/shared failure, keeping foreign mounted/source/release-host outputs and precise holds separate. Accepted components stay closed.",
     "completion": "Keep22/48 complete selected-packet accounting unchanged. Closing minimum-engine or another finite component does not close its broader parent. Source acceptance, original consumer qualification and actual host/human release stay distinct.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "V03 actual descriptor/source-owner/revision association; S03 actual app/mixed owner-store binding; S04 visited-work/continuation/refusal profile; D03 actual concurrent-writer interruption scope; D04 emitted namespace/maps; F01 actual external-host serialization/power-loss contract. Each belongs to the named entry owner; no global decision barrier.",
