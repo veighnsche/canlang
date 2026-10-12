@@ -1601,13 +1601,13 @@ impl SourceExpressions<'_> {
                 if name.token()?.text(self.text) != field {
                     return None;
                 }
-                // Only the original required Profile receiver joins its two
-                // actual source reads here; this issues no native row view.
-                if matches!(&base.expr, IrExpr::Member { field, .. } if field == "profile")
+                // Only the original Profile or leading Turn.run scalar pair joins
+                // its actual reads here; this issues no native row view.
+                if matches!(&base.expr, IrExpr::Member { field, .. } if field == "profile" || field == "run")
                     && self.original.expression_types.iter().any(|(at, ty)| {
                         *at == NodeKey::of(source_base)
                             && matches!(ty, ResolvedType::Record { symbol, stored: true }
-                                if self.ir.items.get(symbol.0 as usize).is_some_and(|item| item.name == "Profile"))
+                                if self.ir.items.get(symbol.0 as usize).is_some_and(|item| matches!(item.name.as_str(), "Profile" | "Run")))
                     })
                 {
                     let mut owners = self.ir.items.iter().filter(|owner| {
