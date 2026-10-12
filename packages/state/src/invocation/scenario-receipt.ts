@@ -1614,7 +1614,17 @@ function frameworkOwner(call: AdmittedCall, store: StoragePort): ReceiptOwnerSes
   try {
     capture(call, store);
     if (owner === undefined || owner.store !== store || owner.framework === null) return invalid('framework stage requires its actual bound owner session.');
-    if (owner.call !== call) return invalid('child framework effects require their own defining source binding join.');
+    if (owner.call !== call) {
+      // Only admitOwnerStageCall issues this frozen call through a checked
+      // parent occurrence/target chain. Its own once-bound source producer
+      // supplies routes and guards; the outer ledger supplies the one fence.
+      const producer = frameworkProducers.get(call.def as GeneratedOperationDef);
+      if (activeCalls.get(call)?.owner !== owner || owner.executingCall !== call || !Object.isFrozen(call) ||
+          call.def.kind !== 'scenario' || producer === undefined || producer.app !== call.context.app ||
+          [DISPATCH_MODEL, ...receiptModels].some(model => captures.get(call)!.bound.models.has(model as ModelName))) {
+        return invalid('child framework stage requires its own active checked source binding.');
+      }
+    }
     ownerHealthy(owner); return owner;
   } catch (error) {
     if (owner !== undefined) owner.capture.poisoned = true;
@@ -1622,15 +1632,16 @@ function frameworkOwner(call: AdmittedCall, store: StoragePort): ReceiptOwnerSes
     throw error;
   }
 }
-function frameworkContext(owner: ReceiptOwnerSession, models: readonly string[]): { context: SystemCommandContext; close(): void } {
+function frameworkContext(owner: ReceiptOwnerSession, models: readonly string[], call = owner.call): { context: SystemCommandContext; close(): void } {
   let live = true; let reading = false;
   const healthy = () => {
     ownerHealthy(owner);
-    if (!live || !owner.busy) return invalid('framework reader is outside its actual producer stage.');
+    if (!live || !owner.busy || owner.executingCall !== call) return invalid('framework reader is outside its actual producer stage.');
+    assertScenarioReceiptCallExecution(call, owner.store);
   };
   const context: SystemCommandContext = Object.freeze({
-    actor: owner.call.context.actor?.userId ?? owner.call.context.trustedSource ?? 'anonymous',
-    now: owner.call.context.now, operation: owner.call.context.operation,
+    actor: call.context.actor?.userId ?? call.context.trustedSource ?? 'anonymous',
+    now: call.context.now, operation: call.context.operation,
     load: async (model: ModelName, id: RecordId) => {
       try {
         healthy();
@@ -1818,7 +1829,8 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
     const request = object(dataCopy(received['request']), ['binding', 'from', 'arguments',
       ...(typeof received['request'] === 'object' && received['request'] !== null &&
         Object.hasOwn(received['request'], 'judgment') ? ['judgment'] : [])]) as unknown as BoundCapabilityRequest;
-    const ledger = owner.framework!, producer = ledger.producer;
+    const ledger = owner.framework!, producer = owner.call === call ? ledger.producer
+      : frameworkProducers.get(call.def as GeneratedOperationDef)!;
     const binding = producer.bindings.find(value => value.binding === request.binding);
     const target = binding?.targets.find(value => value.source === source);
     if (producer.app !== call.context.app || binding === undefined || target === undefined || request.from !== binding.from ||
@@ -1870,7 +1882,7 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
       const input = deepFreeze({ operationId: call.context.operationId, source, occurrenceIndex, request,
         originOccurrence: null, ...(correlation === undefined ? {} : { correlation }),
         ...(sourceGuard === undefined ? {} : { sourceGuard }) });
-      const reader = frameworkContext(owner, [DISPATCH_MODEL]);
+      const reader = frameworkContext(owner, [DISPATCH_MODEL], call);
       try {
         const original = await producer.stage(input, reader.context); ownerHealthy(owner);
         const sealed = producer.read(original, input, reader.context); ownerHealthy(owner);
@@ -1879,7 +1891,7 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
         if (sealed.delivery.operation !== source || !ledger.queued.has(sealed.delivery.id)) return invalid('send delivery lacks its actual queued intent.');
         return sealed.delivery;
       } finally { reader.close(); }
-    });
+    }, call);
   } catch (error) { owner.capture.poisoned = true; throw error; }
 }
 
@@ -1888,6 +1900,8 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
 export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: StoragePort,
   report: { readonly model: ModelName; readonly row: StoredRow; readonly field: string }): Promise<void> {
   const owner = frameworkOwner(call, store);
+  const bound = captures.get(call)!.bound;
+  const producer = owner.call === call ? owner.framework!.producer : frameworkProducers.get(call.def as GeneratedOperationDef)!;
   return ownerOperation(owner, async () => {
     if (typeof report !== 'object' || report === null || Array.isArray(report) ||
         ![Object.prototype, null].includes(Object.getPrototypeOf(report)) || Reflect.ownKeys(report).length !== 3 ||
@@ -1898,12 +1912,12 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
     const record = report.row, modelName = report.model, fieldName = report.field, stage = owner.stage;
     const issued = ownerRows.get(record);
     if (issued?.session !== owner || issued.stage !== stage || issued.model !== modelName) return invalid('delivery requires this session current-stage row.');
-    const model = owner.capture.bound.artifactModels.get(modelName), field = model?.fields.find(value => value.name === fieldName);
+    const model = bound.artifactModels.get(modelName), field = model?.fields.find(value => value.name === fieldName);
     if (model === undefined || field?.field.kind !== 'delivery' || !Object.hasOwn(record.data, fieldName) ||
         call.checkpoint === undefined) return invalid('delivery requires its owning declared field and checkpoint.');
     const value = decodeValue(`delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
       record.data[fieldName]) as DeliveryRef | null;
-    const reader = frameworkContext(owner, receiptModels);
+    const reader = frameworkContext(owner, receiptModels, call);
     const healthy = () => {
       ownerHealthy(owner);
       if (owner.executingCall !== call || owner.stage !== stage || ownerRows.get(record) !== issued ||
@@ -1912,10 +1926,10 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
     try {
       let effects = await stageAuthoredDelivery({ model, recordId: record.id, field: fieldName, value,
         queued: owner.framework!.queued, skipped: owner.framework!.skipped, operationId: call.context.operationId, revision: call.checkpoint.revision + 1,
-        ...(owner.capture.bound.valueTypes === undefined ? {} : { valueTypes: owner.capture.bound.valueTypes }),
-        ...(owner.capture.bound.valueSchema === undefined ? {} : { valueSchema: owner.capture.bound.valueSchema }) }, reader.context);
+        ...(bound.valueTypes === undefined ? {} : { valueTypes: bound.valueTypes }),
+        ...(bound.valueSchema === undefined ? {} : { valueSchema: bound.valueSchema }) }, reader.context);
       healthy();
-      const prepare = owner.framework!.producer.prepareReceiptOrigin;
+      const prepare = producer.prepareReceiptOrigin;
       if (prepare !== undefined && value !== null) {
         const send = owner.framework!.queued.get(value.id) ?? owner.framework!.skipped.get(value.id);
         if (send === undefined) return invalid('receipt origin requires this invocation actual SEND.');
@@ -1936,7 +1950,7 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
               (original.kind !== 'delivery-result' && original.kind !== 'delivery-skipped') ||
               original.deliveryId !== value.id || original.association.model !== modelName ||
               original.association.recordId !== record.id || original.association.field !== fieldName ||
-              stableStringify(original.caller.source) !== stableStringify(owner.capture.bound.plan.source) ||
+              stableStringify(original.caller.source) !== stableStringify(bound.plan.source) ||
               !isGeneratedOperationDef(call.def) || stableStringify(original.caller.canonical) !== stableStringify(call.def.descriptor)) return invalid('receipt origin differs from its actual source or owning assignment.');
           const actual = original.kind === 'delivery-result' ? original.intent : original.send;
           if (actual.operation !== send.operation || actual.operationId !== send.operationId || actual.target !== send.target ||
@@ -1949,7 +1963,7 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
               stableStringify(original.guard) !== stableStringify(send.guard)) return invalid('skipped receipt origin differs from its original false SEND.');
           if (original.declaration.kind === 'generation') {
             const request = 'intentId' in send ? send.arguments as unknown as BoundCapabilityRequest : send.request!;
-            const target = owner.framework!.producer.bindings.find(binding => binding.binding === request.binding &&
+            const target = producer.bindings.find(binding => binding.binding === request.binding &&
               binding.from === request.from)?.targets.find(target => target.source === send.target);
             if (target === undefined || target.correlation === null) return invalid('generation receipt requires its checked original request route.');
             const value = target.correlation === 'value' ? request.arguments['value'] : request.arguments;
@@ -1965,7 +1979,7 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
       }
       healthy(); await appendFrameworkWrites(owner, effects, reader.context);
     } finally { reader.close(); }
-  });
+  }, call);
 }
 
 function frameworkNetWrites(ledger: FrameworkLedger): DomainWrite[] {
