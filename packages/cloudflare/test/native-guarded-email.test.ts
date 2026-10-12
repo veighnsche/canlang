@@ -12,8 +12,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, MutationEnvelope, ProviderBinding, ReceiptIdentity } from '@canlang/contracts';
-import type { InstalledMailSender } from '@canlang/services';
+import type { CapabilityCompletion, CompileArtifact, ModelChatReply, ModelRunSnapshot, MutationEnvelope, ProviderBinding, ReceiptIdentity } from '@canlang/contracts';
+import type { InstalledMailSender, InstalledTextGeneration } from '@canlang/services';
 import { createD1IdentityStore, ensureIdentitySchema, issueMcpGrant, resolveIdentity } from '@canlang/identity';
 import { ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
@@ -49,10 +49,11 @@ function gate() {
 }
 
 test.each([
-  { profile: 'scalar/nullable/array', modelSnapshot: false, fixture: 'native-guarded-email.can' },
-  { profile: 'historical model snapshot', modelSnapshot: true, fixture: 'native-model-guarded-email.can' },
-])('original $profile Email SEND has source skip, fresh membership, one ACK fence and exact replay',
-  { timeout: 120000 }, async ({modelSnapshot, fixture}) => {
+  { profile: 'scalar/nullable/array Email', modelSnapshot: false, textGeneration: false, fixture: 'native-guarded-email.can' },
+  { profile: 'historical model snapshot Email', modelSnapshot: true, textGeneration: false, fixture: 'native-model-guarded-email.can' },
+  { profile: 'scalar/nullable/array TextGeneration', modelSnapshot: false, textGeneration: true, fixture: 'native-guarded-text-generation.can' },
+])('original $profile SEND has source skip, fresh membership, one ACK fence and exact replay',
+  { timeout: 120000 }, async ({modelSnapshot, textGeneration, fixture}) => {
     const source = join(root, 'packages/cloudflare/test/fixtures', fixture);
     const {distribution: nativeDistribution} = await nodeImport(installedModule('distribution.js')) as typeof import('../src/distribution.js');
     const compiler = join(root, 'compiler/target/debug/can'), catalog = fileURLToPath(nativeDistribution.nativeCatalog);
@@ -64,7 +65,8 @@ test.each([
       const {assembleModules, importVerifiedAssemblyModule} = await nodeImport(installedModule('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const {buildInvoker} = await nodeImport(installedModule('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
       const {createBoundMailAdapter} = await nodeImport(installedModule('runtime/bound-mail.js')) as typeof import('../src/runtime/bound-mail.js');
-      const {createBoundMailDispatcher} = await nodeImport(installedModule('runtime/bound-dispatch.js')) as typeof import('../src/runtime/bound-dispatch.js');
+      const {createBoundMailDispatcher, createBoundTextGenerationDispatcher} = await nodeImport(installedModule('runtime/bound-dispatch.js')) as typeof import('../src/runtime/bound-dispatch.js');
+      const {createBoundTextGenerationAdapter} = await nodeImport(installedModule('runtime/bound-text-generation.js')) as typeof import('../src/runtime/bound-text-generation.js');
       const require = createRequire(import.meta.url);
       const {WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand} =
         await nodeImport(pathToFileURL(require.resolve('@canlang/work/kernel/commands')).href) as typeof import('@canlang/work/kernel/commands');
@@ -142,13 +144,44 @@ test.each([
       for (const name of Object.keys(beforeRejected)) if (!['receipts', 'fence', 'fence_log'].includes(name))
         assert.deepEqual(rejectedReplay[name], beforeRejected[name], `rejected SEND leaves ${name} unchanged`);
       let sends = 0, mints = 0;
-      const binding: ProviderBinding = {deployment: 'deployment.mail', capability: 'std.EmailV1', capabilityVersion: 1, account: 'local-control'};
+      const binding: ProviderBinding = {deployment: textGeneration ? 'deployment.llm' : 'deployment.mail',
+        capability: textGeneration ? 'std.TextGenerationV1' : 'std.EmailV1', capabilityVersion: 1, account: 'local-control'};
       const installed: InstalledMailSender = {binding, mail: {send: async (_request, options) => {
         sends++; return {delivery_id: options.deliveryId, status: 'succeeded', result: {reference: 'accepted'}, error: null};
       }, reconcile: async () => { throw new Error('No recovery transport is part of this control.'); }}};
-      const adapter = createBoundMailAdapter({appDefinition: definition, binding, resolveInstalledMailSender: () => installed});
-      const dispatcher = await createBoundMailDispatcher({store: native.store, adapter, workCommands: WORK_SYSTEM_COMMANDS,
-        stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand});
+      // This synthetic installation exercises the genuine bound Text adapter and
+      // durable progress fences without opening a transport or invoking a model.
+      const installedText: InstalledTextGeneration = {binding,
+        profile: {name: 'local-control', policyRevision: 'policy-1', provider: 'synthetic-control', model: 'synthetic-control',
+          maxInputTokens: 1024, maxOutputTokens: 128, maxDurationMs: 30000, inputTokenization: 'deployment', attachments: 'unsupported'},
+        text: {
+          generate: async () => {throw new Error('This control requires the installed stream entry.');},
+          reconcile: async () => {throw new Error('No recovery transport is part of this control.');},
+          generateStream: (request, options) => {
+            sends++;
+            assert.equal(request.profile, 'local-control'); assert.equal(request.policy_revision, 'policy-1');
+            assert.equal(request.revision, 1); assert.ok(request.source);
+            assert.deepEqual(request.messages, [{role: 'user', content: 'Frozen original lexical values', attachments: []}]);
+            assert.equal(request.max_input_tokens, 1024); assert.equal(request.max_output_tokens, 128);
+            assert.equal(request.max_duration, 30000n);
+            const terminal: ModelRunSnapshot = {sequence: 0, state: 'succeeded', content: 'Synthetic guarded reply'};
+            options.onSnapshot?.(terminal);
+            const completion: CapabilityCompletion<ModelChatReply> = {delivery_id: options.deliveryId, status: 'succeeded',
+              result: {content: terminal.content, model: 'synthetic-control', finish: 'stop', inputTokens: 4, outputTokens: 3}, error: null};
+            const done = Promise.resolve(completion);
+            return {deliveryId: options.deliveryId, cancelRequested: false, snapshots: () => [terminal], done: () => done,
+              cancel: async () => {throw new Error('No cancellation is part of this control.');}};
+          },
+        }};
+      const dispatchOptions = {store: native.store, workCommands: WORK_SYSTEM_COMMANDS,
+        stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand};
+      const dispatcher = textGeneration
+        ? await createBoundTextGenerationDispatcher({...dispatchOptions, adapter: createBoundTextGenerationAdapter({
+          appDefinition: definition, binding, resolveInstalledTextGeneration: deployment => {
+            assert.equal(deployment, binding.deployment); return installedText;
+          }})})
+        : await createBoundMailDispatcher({...dispatchOptions,
+          adapter: createBoundMailAdapter({appDefinition: definition, binding, resolveInstalledMailSender: () => installed})});
       const drive = async (intentId: string) => {
         const retained = await native.store.outboxGet(intentId); assert.ok(retained);
         return dispatcher.drive({intentId, actor: owner.user_id, operation: 'native.Email.drive', nowMs: clock.nowMs,
@@ -165,6 +198,9 @@ test.each([
       };
       const original = await queue(), dispatchBefore = await native.store.load(asModel(WORK_DISPATCH_MODEL), asId(original.retained.intent.intentId));
       assert.ok(dispatchBefore); const dispatch = readDispatchRow(dispatchBefore); assert.ok(dispatch.sourceGuard); assert.ok(dispatch.filePayloadOrigin);
+      assert.equal(original.retained.intent.target, textGeneration ? 'std.TextGenerationV1.generate' : 'std.EmailV1.send');
+      for (const target of textGeneration ? ['std.EmailV1.send', 'std.TextGenerationV1.cancel'] : ['std.TextGenerationV1.generate'])
+        assert.throws(() => fenceFor({...original.retained.intent, target}), /original installed guard\/owner\/binding/);
       if (modelSnapshot) {
         const frozenEntry = object(dispatch.sourceGuard.inputs['entry']);
         assert.deepEqual(Object.fromEntries(Object.entries(dispatch.sourceGuard.inputs).filter(([name]) => name !== 'entry')),
@@ -236,8 +272,16 @@ test.each([
       }
       assert.equal((await drive(positive.retained.intent.intentId)).status, 'recorded');
       assert.equal(sends, 1); assert.equal(mints, 2);
-      assert.equal(readReceiptRow((await native.store.load(asModel(RECEIPT_MODEL), asId(positive.retained.intent.intentId)))!).receipt.status, 'succeeded');
+      const deliveredReceipt = readReceiptRow((await native.store.load(asModel(RECEIPT_MODEL), asId(positive.retained.intent.intentId)))!).receipt;
+      assert.equal(deliveredReceipt.status, 'succeeded');
+      if (textGeneration) {
+        const result = object(deliveredReceipt.result);
+        assert.equal(result.source, positive.input.operation_id); assert.equal(result.revision, '1');
+        assert.equal(result.state, 'succeeded'); assert.equal(result.content, 'Synthetic guarded reply');
+        assert.equal(result.used_tokens, '7');
+      }
       const terminal = await snapshot(db); await drive(positive.retained.intent.intentId); assert.deepEqual(await snapshot(db), terminal); assert.equal(sends, 1);
+      await invoke(positive.input); assert.deepEqual(await snapshot(db), terminal); assert.equal(sends, 1); assert.equal(mints, 2);
       assert.throws(() => fenceFor({...positive.retained.intent, occurrenceIndex: positive.retained.intent.occurrenceIndex + 1, dispatchGuard: 'foreign'}));
       const plain = await invoke({operation: `${APP}.plain`, operation_id: nextId(), inputs: {}}); assert.ok('result' in plain, JSON.stringify(plain));
       const legacy = (await native.store.outboxPending())[0]!; assert.equal(legacy.dispatchGuard, undefined);

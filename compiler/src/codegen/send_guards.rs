@@ -10,7 +10,7 @@ use crate::diagnostic::Severity;
 use crate::source::{SourceDb, Span};
 use crate::syntax::{self, SyntaxKind, SyntaxNode};
 
-use super::ir::{self, IrExpr, IrItemKind, IrProgram, IrQueryDomain, IrStmt, TypedExpr};
+use super::ir::{self, IrBinOp, IrExpr, IrItemKind, IrProgram, IrQueryDomain, IrStmt, TypedExpr};
 use super::scenario_decisions::{serial_type, serialize_decision_sources};
 
 #[derive(Debug)]
@@ -33,6 +33,24 @@ pub(super) struct PreparedSendInput {
     pub symbol: Option<SymbolId>,
     pub owner: SymbolId,
     pub ordinal: usize,
+    /// Only an earlier successful original first-row presence Require refines
+    /// the captured type. The nullable lexical declaration remains retained.
+    #[allow(dead_code)]
+    pub narrowing: Option<PreparedFirstRowNarrowing>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct PreparedFirstRowNarrowing {
+    pub declared_type: ResolvedType,
+    pub model: SymbolId,
+    pub query_id: String,
+    pub first_call: NodeKey,
+    pub binding: NodeKey,
+    pub presence: NodeKey,
+    pub require: NodeKey,
+    pub occurrence: NodeKey,
+    pub source: crate::analysis::scenario_disclosure::DisclosureSource,
 }
 
 #[derive(Clone)]
@@ -423,6 +441,7 @@ fn declaration_type(
     Ok(Some(ty))
 }
 
+#[derive(Clone, Copy)]
 struct FreeInputSource<'a> {
     program: &'a CheckedProgram,
     ir: &'a IrProgram,
@@ -432,12 +451,461 @@ struct FreeInputSource<'a> {
     owner: SymbolId,
 }
 
+/// Refine one captured first-row value only at its original SEND occurrence.
+/// No guard-local check, copied nullable alias, scalar or nullable parameter
+/// acquires this proof. The existing whole original/fresh seal precedes this
+/// producer, and the native receiver must still supply the actual selected row.
+fn checked_first_row_narrowing(
+    source: FreeInputSource<'_>,
+    predicate: NodeKey,
+    occurrence: NodeKey,
+    binding: &Binding,
+    declared_type: &ResolvedType,
+) -> Option<PreparedFirstRowNarrowing> {
+    use crate::analysis::effects::EffectVerb;
+    use crate::analysis::scenario_disclosure::{CheckedDecisionPosition, CheckedDecisionStage};
+    use crate::analysis::types::SelectedCallTarget;
+    let Binding::Let { node: declaration } = binding else {
+        return None;
+    };
+    let ResolvedType::Nullable(inner) = declared_type else {
+        return None;
+    };
+    let ResolvedType::Record {
+        symbol: model,
+        stored: true,
+    } = inner.as_ref()
+    else {
+        return None;
+    };
+    let scenario = source.program.effects.scenarios.get(&source.owner)?;
+    let facts = source
+        .program
+        .scenario_disclosures()
+        .get(&source.owner)?
+        .source_facts()?;
+    let owner = source.ir.items.get(source.owner.0 as usize)?;
+    let IrItemKind::Scenario {
+        effects: actual_effects,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let symbol = source.resolved.symbols.get(model.0 as usize)?;
+    let actual_model = source.ir.items.get(model.0 as usize)?;
+    let capture_type = ResolvedType::Record {
+        symbol: *model,
+        stored: true,
+    };
+    if owner.id != source.owner
+        || owner.module != scenario.module
+        || facts.scenario != source.owner
+        || facts.node != scenario.node
+        || facts.source.module != source.program.modules.get(scenario.module.0 as usize)?.name
+        || !matches!(symbol.kind, SymbolKind::Model { .. })
+        || symbol.id != *model
+        || symbol.module != scenario.module
+        || actual_model.id != *model
+        || actual_model.module != symbol.module
+        || actual_model.canonical != symbol.canonical
+        || !matches!(actual_model.kind, IrItemKind::Model { .. })
+        || source.program.types.node_types.get(&occurrence) != Some(&capture_type)
+        || source.nodes.get(&occurrence)?.kind != SyntaxKind::NameRef
+    {
+        return None;
+    }
+    let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
+        query
+            .first
+            .as_ref()
+            .is_some_and(|first| first.binding == *declaration)
+    });
+    let query = queries.next()?;
+    let first = query.first.as_ref()?;
+    let (let_index, let_effect) = scenario
+        .effects
+        .iter()
+        .enumerate()
+        .find(|(_, effect)| effect.node == *declaration)?;
+    let (send_index, send_effect) =
+        scenario.effects.iter().enumerate().find(|(_, effect)| {
+            effect.verb == EffectVerb::Send && effect.when == Some(predicate)
+        })?;
+    let call = first_send_group(source, let_effect.value?)?;
+    let selected = source.program.types.selected_calls.get(&call)?;
+    let collection = source.program.types.checked_collection_calls.get(&call)?;
+    let [argument] = selected.arguments.as_slice() else {
+        return None;
+    };
+    let checked_query = source.program.types.checked_queries.get(&query.node)?;
+    let let_node = source.nodes.get(declaration)?;
+    let let_values: Vec<_> = kids(let_node)
+        .into_iter()
+        .filter(|child| resolve::is_expression(child.kind))
+        .map(NodeKey::of)
+        .collect();
+    let text = &source.db.get(declaration.file)?.text;
+    let let_names: Vec<_> = kids(let_node)
+        .into_iter()
+        .filter_map(|child| name_text(child, text))
+        .collect();
+    if queries.next().is_some()
+        || query.model != *model
+        || query.source != facts.source
+        || query.count.is_some()
+        || query.projection.is_some()
+        || let_effect.verb != EffectVerb::Let
+        || let_effect.binding.as_deref() != let_names.get(1).copied()
+        || let_node.kind != SyntaxKind::Let
+        || let_names.first().copied() != Some("let")
+        || let_names.len() != 2
+        || let_values.as_slice() != [let_effect.value?]
+        || let_index >= send_index
+        || declaration.end > send_effect.node.start
+        || !contained(send_effect.node, predicate)
+        || !contained(predicate, occurrence)
+        || call != first.call
+        || collection.node != call
+        || collection.builtin != "first"
+        || collection.model != *model
+        || collection.query != query.node
+        || Some(collection.alias) != query.alias
+        || collection.predicate.is_some()
+        || collection.overload != first.overload
+        || !matches!(&selected.target,SelectedCallTarget::Builtin {id,overload}
+            if id=="first" && *overload==first.overload)
+        || selected.slots.as_slice() != [Some(0)]
+        || first_send_group(source, *argument)? != query.node
+        || checked_query.node != query.node
+        || checked_query.projection.is_some()
+        || checked_query.domain != query.domain
+        || source.program.types.node_types.get(&call) != Some(declared_type)
+        || source.program.types.node_types.get(&let_effect.value?) != Some(declared_type)
+    {
+        return None;
+    }
+    let IrStmt::Let {
+        name: actual_name,
+        value: actual_value,
+        span: actual_let,
+    } = actual_effects.get(let_index)?
+    else {
+        return None;
+    };
+    let IrStmt::Send {
+        when: Some(actual_predicate),
+        span: actual_send,
+        ..
+    } = actual_effects.get(send_index)?
+    else {
+        return None;
+    };
+    let original = facts
+        .creates
+        .as_deref()?
+        .iter()
+        .find(|created| created.source == facts.source)?;
+    if *actual_let != send_key_span(*declaration)
+        || actual_name.as_str() != let_names[1]
+        || actual_value.ty != *declared_type
+        || actual_value.span != send_key_span(call)
+        || *actual_send != send_key_span(send_effect.node)
+        || actual_predicate.span != send_key_span(predicate)
+        || super::scenario_receipts::checked_first_query_ir(
+            source.ir,
+            original,
+            actual_value,
+            call,
+            source.db,
+        )? != query
+        || !same_send_occurrence(actual_predicate, occurrence, let_names[1], &capture_type)
+    {
+        return None;
+    }
+    let sites = facts.decision_sites.as_deref()?;
+    let mut dispatches = sites.iter().filter(|site| {
+        site.owner == source.owner
+            && site.stage == CheckedDecisionStage::SendDispatch
+            && site.statement == send_effect.node
+            && site.node == predicate
+    });
+    let dispatch = dispatches.next()?;
+    if dispatches.next().is_some()
+        || dispatch.source != facts.source
+        || dispatch.position.as_slice() != [CheckedDecisionPosition::Body(send_index)]
+    {
+        return None;
+    }
+    // An earlier top-level Require is compulsory if execution reaches SEND.
+    // Only AND operands are compulsory within its true predicate; OR and a
+    // local when= presence check cannot justify freezing a nonnull snapshot.
+    for (index, effect) in scenario
+        .effects
+        .iter()
+        .enumerate()
+        .take(send_index)
+        .skip(let_index + 1)
+    {
+        if effect.verb != EffectVerb::Require
+            || effect.node.end > send_effect.node.start
+            || !effect.then_effects.is_empty()
+            || !effect.else_effects.is_empty()
+            || !effect.match_arms.is_empty()
+        {
+            continue;
+        }
+        let mut controls = sites.iter().filter(|site| {
+            site.owner == source.owner
+                && site.stage == CheckedDecisionStage::BodyRequire
+                && site.statement == effect.node
+                && Some(site.node) == effect.cond
+        });
+        let control = controls.next()?;
+        if controls.next().is_some()
+            || control.source != facts.source
+            || control.position.as_slice() != [CheckedDecisionPosition::Body(index)]
+        {
+            return None;
+        }
+        if let Some(presence) =
+            compulsory_first_presence(source, control.node, *declaration, declared_type, 0)
+        {
+            let IrStmt::Require { cond, span, .. } = actual_effects.get(index)? else {
+                return None;
+            };
+            if *span != send_key_span(effect.node)
+                || !compiled_first_presence(
+                    source,
+                    cond,
+                    control.node,
+                    presence,
+                    let_names[1],
+                    declared_type,
+                    0,
+                )
+            {
+                return None;
+            }
+            return Some(PreparedFirstRowNarrowing {
+                declared_type: declared_type.clone(),
+                model: *model,
+                query_id: query.id.clone(),
+                first_call: call,
+                binding: *declaration,
+                presence,
+                require: effect.node,
+                occurrence,
+                source: facts.source.clone(),
+            });
+        }
+    }
+    None
+}
+
+fn send_key_span(key: NodeKey) -> Span {
+    Span::new(key.file, key.start, key.end)
+}
+
+fn same_send_occurrence(root: &TypedExpr, key: NodeKey, name: &str, ty: &ResolvedType) -> bool {
+    let mut pending = vec![(root, 0usize)];
+    let mut visits = 0;
+    while let Some((value, depth)) = pending.pop() {
+        visits += 1;
+        if visits > 16384 || depth >= 64 {
+            return false;
+        }
+        if value.span == send_key_span(key) {
+            return value.ty == *ty && matches!(&value.expr,IrExpr::Name(actual) if actual==name);
+        }
+        match &value.expr {
+            IrExpr::Member { base, .. }
+            | IrExpr::Unary { operand: base, .. }
+            | IrExpr::Lambda { body: base, .. }
+            | IrExpr::DeliveryRead { record: base, .. } => pending.push((base, depth + 1)),
+            IrExpr::Binary { left, right, .. } => {
+                pending.extend([(left.as_ref(), depth + 1), (right.as_ref(), depth + 1)])
+            }
+            IrExpr::Call { args, .. }
+            | IrExpr::BoundCall { args, .. }
+            | IrExpr::Array(args)
+            | IrExpr::Format { args, .. } => {
+                pending.extend(args.iter().map(|value| (value, depth + 1)))
+            }
+            IrExpr::Object(entries) => {
+                pending.extend(entries.iter().map(|(_, value)| (value, depth + 1)))
+            }
+            IrExpr::HasRole {
+                person: Some(person),
+                ..
+            } => pending.push((person, depth + 1)),
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Verify the same compulsory path in actual typed IR. Source-only proof does
+/// not repair changed order, OR control or a different lexical occurrence.
+fn compiled_first_presence(
+    source: FreeInputSource<'_>,
+    actual: &TypedExpr,
+    key: NodeKey,
+    presence: NodeKey,
+    name: &str,
+    declared_type: &ResolvedType,
+    depth: usize,
+) -> bool {
+    if depth >= 64 || actual.ty != ResolvedType::Scalar(Scalar::Bool) {
+        return false;
+    }
+    let Some(key) = first_send_group(source, key) else {
+        return false;
+    };
+    let Some(node) = source.nodes.get(&key) else {
+        return false;
+    };
+    if actual.span != send_key_span(key) || node.kind != SyntaxKind::Binary {
+        return false;
+    }
+    let operands: Vec<_> = kids(node)
+        .into_iter()
+        .filter(|child| resolve::is_expression(child.kind))
+        .map(NodeKey::of)
+        .collect();
+    let [left_key, right_key] = operands.as_slice() else {
+        return false;
+    };
+    let Some(text) = source.db.get(key.file).map(|source| source.text.as_str()) else {
+        return false;
+    };
+    let operator = kids(node)
+        .into_iter()
+        .find(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))
+        .and_then(|node| node.token())
+        .map(|token| token.text(text));
+    if key == presence {
+        let IrExpr::Binary {
+            op: IrBinOp::Ne,
+            left,
+            right,
+        } = &actual.expr
+        else {
+            return false;
+        };
+        return operator == Some("!=")
+            && left.span == send_key_span(*left_key)
+            && right.span == send_key_span(*right_key)
+            && left.ty == *declared_type
+            && matches!(&left.expr,IrExpr::Name(actual) if actual==name)
+            && right.ty == ResolvedType::Null
+            && matches!(right.expr, IrExpr::Null);
+    }
+    let IrExpr::Binary {
+        op: IrBinOp::And,
+        left,
+        right,
+    } = &actual.expr
+    else {
+        return false;
+    };
+    operator == Some("and")
+        && (compiled_first_presence(
+            source,
+            left,
+            *left_key,
+            presence,
+            name,
+            declared_type,
+            depth + 1,
+        ) || compiled_first_presence(
+            source,
+            right,
+            *right_key,
+            presence,
+            name,
+            declared_type,
+            depth + 1,
+        ))
+}
+
+fn first_send_group(source: FreeInputSource<'_>, mut key: NodeKey) -> Option<NodeKey> {
+    for _ in 0..64 {
+        let node = source.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Group {
+            return Some(key);
+        }
+        let values: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|child| resolve::is_expression(child.kind))
+            .map(NodeKey::of)
+            .collect();
+        let [value] = values.as_slice() else {
+            return None;
+        };
+        key = *value;
+    }
+    None
+}
+
+fn compulsory_first_presence(
+    source: FreeInputSource<'_>,
+    key: NodeKey,
+    binding: NodeKey,
+    declared_type: &ResolvedType,
+    depth: usize,
+) -> Option<NodeKey> {
+    if depth >= 64 {
+        return None;
+    }
+    let key = first_send_group(source, key)?;
+    let node = source.nodes.get(&key)?;
+    if node.kind != SyntaxKind::Binary
+        || source.program.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Bool))
+    {
+        return None;
+    }
+    let text = &source.db.get(key.file)?.text;
+    let operands: Vec<_> = kids(node)
+        .into_iter()
+        .filter(|child| resolve::is_expression(child.kind))
+        .map(NodeKey::of)
+        .collect();
+    let [left, right] = operands.as_slice() else {
+        return None;
+    };
+    let operator = kids(node)
+        .into_iter()
+        .find(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))?
+        .token()?
+        .text(text);
+    if operator == "and" {
+        return compulsory_first_presence(source, *left, binding, declared_type, depth + 1)
+            .or_else(|| {
+                compulsory_first_presence(source, *right, binding, declared_type, depth + 1)
+            });
+    }
+    if operator != "!=" {
+        return None;
+    }
+    let value = first_send_group(source, *left)?;
+    let absent = first_send_group(source, *right)?;
+    let null = source.nodes.get(&absent)?;
+    (source.nodes.get(&value)?.kind==SyntaxKind::NameRef
+        && matches!(source.resolved.node_binding.get(&value),Some(Binding::Let {node}) if *node==binding)
+        && source.program.types.node_types.get(&value)==Some(declared_type)
+        && null.kind==SyntaxKind::Literal && text.get(absent.start as usize..absent.end as usize)?.trim()=="null"
+        && source.program.types.node_types.get(&absent)==Some(&ResolvedType::Null))
+        .then_some(key)
+}
+
 fn free_inputs(
     source: FreeInputSource<'_>,
     predicate_key: NodeKey,
     predicate_node: &SyntaxNode,
     predicate: &TypedExpr,
 ) -> Result<Vec<PreparedSendInput>, SendGuardGap> {
+    let original_source = source;
     let FreeInputSource {
         program,
         ir,
@@ -489,7 +957,16 @@ fn free_inputs(
             | Binding::CohortChild { node, .. } => (*node, None),
             _ => unreachable!("declaration_type admits only original lexical declarations"),
         };
-        let type_id = input_type(&ty, program, ir, symbol, 0).ok_or_else(|| {
+        let narrowing =
+            checked_first_row_narrowing(original_source, predicate_key, key, binding, &ty);
+        let capture_type = match &narrowing {
+            Some(fact) => ResolvedType::Record {
+                symbol: fact.model,
+                stored: true,
+            },
+            None => ty,
+        };
+        let type_id = input_type(&capture_type, program, ir, symbol, 0).ok_or_else(|| {
             gap(
                 "free SEND lexical type has no canonical finite codec",
                 Some(node.span),
@@ -513,11 +990,12 @@ fn free_inputs(
         inputs.push(PreparedSendInput {
             name: name.clone(),
             type_id,
-            value: TypedExpr::new(IrExpr::Name(name), ty, node.span),
+            value: TypedExpr::new(IrExpr::Name(name), capture_type, node.span),
             declaration,
             symbol,
             owner,
             ordinal: inputs.len(),
+            narrowing,
         });
     }
     let mut pending = vec![(predicate, 0usize)];
@@ -794,6 +1272,191 @@ Then
     }
 
     #[test]
+    fn original_chat_send_capture_seals_same_first_row_and_compulsory_presence() {
+        const CHAT: &str = include_str!("../../tests/fixtures/original-a850/CanChat.can");
+        let mut db = SourceDb::new();
+        let file = db.add("CanChat.can".into(), CHAT.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = root.join("target/profile-native-catalog.json");
+        let (catalog, errors) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(errors.is_empty(), "{errors:?}");
+        let catalog = catalog.unwrap();
+        let (program, errors) = check_program(&db, &[file], Some(&catalog));
+        assert!(errors.is_empty(), "{errors:?}");
+        let (ir, errors) = ir::build(&program, &db, Some(&catalog));
+        assert!(errors.is_empty(), "{errors:?}");
+        let prepared =
+            prepare(&program, &ir, &db, Some(&catalog)).expect("unchanged original Chat guard");
+        let guard = prepared
+            .guards(&ir)
+            .unwrap()
+            .values()
+            .find(|guard| guard.descriptor["owner"] == "chat.ask")
+            .unwrap();
+        let input = guard
+            .inputs
+            .iter()
+            .find(|input| input.name == "allowance")
+            .unwrap();
+        assert_eq!(input.type_id, "chat.Allowance");
+        let narrowing = input
+            .narrowing
+            .as_ref()
+            .expect("original prior first-row Require proof");
+        assert!(
+            matches!(&narrowing.declared_type,ResolvedType::Nullable(inner) if **inner==input.value.ty)
+        );
+        assert_eq!(input.declaration, narrowing.binding);
+        assert_eq!(narrowing.occurrence.start, input.value.span.start);
+        assert_eq!(
+            CHAT[narrowing.presence.start as usize..narrowing.presence.end as usize].trim(),
+            "allowance!=null"
+        );
+        assert!(
+            narrowing.binding.end <= narrowing.require.start
+                && narrowing.require.end <= narrowing.occurrence.start
+        );
+        assert!(
+            matches!(input.value.ty,ResolvedType::Record {symbol,stored:true} if symbol==narrowing.model)
+        );
+        let (tree, errors) = syntax::parse_source(file, CHAT);
+        assert!(errors.is_empty());
+        let trees = [(file, tree)];
+        let mut errors = Vec::new();
+        let resolved =
+            resolve::try_resolve_program(&db, &trees, Some(&catalog), &mut errors).unwrap();
+        assert!(errors.is_empty());
+        let mut nodes = HashMap::new();
+        let mut pending = vec![&trees[0].1];
+        while let Some(node) = pending.pop() {
+            nodes.insert(NodeKey::of(node), node);
+            pending.extend(node.children.iter());
+        }
+        let owner = input.owner;
+        let predicate_key = NodeKey {
+            file: guard.predicate.span.file,
+            start: guard.predicate.span.start,
+            end: guard.predicate.span.end,
+            kind: SyntaxKind::Binary as u8,
+        };
+        let binding = Binding::Let {
+            node: narrowing.binding,
+        };
+        let source = FreeInputSource {
+            program: &program,
+            ir: &ir,
+            db: &db,
+            resolved: &resolved,
+            nodes: &nodes,
+            owner,
+        };
+        assert!(
+            checked_first_row_narrowing(
+                source,
+                predicate_key,
+                narrowing.occurrence,
+                &binding,
+                &narrowing.declared_type
+            )
+            .is_some()
+        );
+        for mode in [
+            "missing",
+            "late",
+            "or",
+            "copied",
+            "initializer-type",
+            "occurrence-type",
+        ] {
+            let mut changed = ir.clone();
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+            else {
+                panic!("ask")
+            };
+            let require=effects.iter().position(|stmt|matches!(stmt,IrStmt::Require {span,..} if span.start==narrowing.require.start)).unwrap();
+            if mode == "missing" {
+                effects.remove(require);
+            } else if mode == "late" {
+                let send = effects
+                    .iter()
+                    .position(|stmt| matches!(stmt, IrStmt::Send { when: Some(_), .. }))
+                    .unwrap();
+                effects.swap(require, send);
+            } else if mode == "initializer-type" {
+                let IrStmt::Let {value,..}=effects.iter_mut().find(|stmt|matches!(stmt,IrStmt::Let {span,..} if span.start==narrowing.binding.start)).unwrap() else {panic!("Let")};
+                value.ty = ResolvedType::Scalar(Scalar::Text);
+            } else if mode == "occurrence-type" {
+                let IrStmt::Send {
+                    when: Some(predicate),
+                    ..
+                } = effects
+                    .iter_mut()
+                    .find(|stmt| matches!(stmt, IrStmt::Send { when: Some(_), .. }))
+                    .unwrap()
+                else {
+                    panic!("SEND")
+                };
+                fn alter(value: &mut TypedExpr, span: Span) {
+                    if value.span == span {
+                        value.ty = ResolvedType::Nullable(Box::new(value.ty.clone()));
+                    }
+                    match &mut value.expr {
+                        IrExpr::Member { base, .. } | IrExpr::Unary { operand: base, .. } => {
+                            alter(base, span)
+                        }
+                        IrExpr::Binary { left, right, .. } => {
+                            alter(left, span);
+                            alter(right, span);
+                        }
+                        IrExpr::Call { args, .. } => {
+                            for arg in args {
+                                alter(arg, span);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                alter(predicate, input.value.span);
+            } else {
+                let IrStmt::Require { cond, .. } = &mut effects[require] else {
+                    panic!("Require")
+                };
+                let IrExpr::Binary { op, left, .. } = &mut cond.expr else {
+                    panic!("AND")
+                };
+                if mode == "or" {
+                    *op = super::super::ir::IrBinOp::Or;
+                } else {
+                    let IrExpr::Binary { left, .. } = &mut left.expr else {
+                        panic!("presence")
+                    };
+                    left.expr = IrExpr::Name("branch".into());
+                }
+            }
+            assert!(
+                checked_first_row_narrowing(
+                    FreeInputSource {
+                        ir: &changed,
+                        ..source
+                    },
+                    predicate_key,
+                    narrowing.occurrence,
+                    &binding,
+                    &narrowing.declared_type
+                )
+                .is_none(),
+                "{mode}"
+            );
+            assert!(prepared.guards(&changed).is_none(), "stale {mode}");
+        }
+    }
+
+    #[test]
     fn original_chat_and_creative_guards_keep_lexical_values_over_same_named_fixtures() {
         const CHAT: &str = include_str!("../../tests/fixtures/original-a850/CanChat.can");
         const CREATIVE: &str = include_str!("../../tests/fixtures/original-a850/CanCreative.can");
@@ -835,7 +1498,7 @@ Then
             serde_json::json!([
                 {"name":"run","type":"creative.Run"},
                 {"name":"template","type":"creative.Template"},
-                {"name":"budget","type":"creative.Budget?"},
+                {"name":"budget","type":"creative.Budget"},
             ])
         );
         // The same-named authored fixture stays available to its original test

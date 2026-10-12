@@ -748,6 +748,11 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                                 });
                         }
                     }
+                    if let Some(model) = cx.nullable_model_input(scenario, param) {
+                        supplied.record = Some(model);
+                        supplied.reference_origin =
+                            Some(ReferenceOrigin::NullableParameter(param.param));
+                    }
                     if let ResolvedType::Scalar(scalar) = ty
                         && primitive_type(ty)
                         && param.default.is_none()
@@ -1273,6 +1278,8 @@ struct ValuePath {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReferenceOrigin {
     Parameter(SymbolId),
+    /// Canonical optional input slot; no row/version intrinsic or field promotion.
+    NullableParameter(SymbolId),
     Parent {
         parameter: SymbolId,
         model: SymbolId,
@@ -1399,6 +1406,54 @@ impl<'a> Closure<'a> {
     /// The canonical input-default producer owns this admitted, frozen value.
     /// This exception applies only to a checked Actor parameter default; body
     /// context reads still pass through ordinary closure inspection and decline.
+    /// Presence here is the original admitted input slot, not a stored field
+    /// or a fabricated observation. Runtime input/hash/ref admission owns it.
+    fn nullable_model_input(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        parameter: &super::effects::ParamData,
+    ) -> Option<SymbolId> {
+        let symbol = self.resolve.symbols.get(parameter.param.0 as usize)?;
+        let SymbolKind::Param {
+            owner,
+            index,
+            type_node,
+        } = symbol.kind
+        else {
+            return None;
+        };
+        let ResolvedType::Nullable(inner) = self.types.symbol_types.get(&parameter.param)? else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = inner.as_ref()
+        else {
+            return None;
+        };
+        let default = parameter.default?;
+        let node = self.nodes.get(&default)?;
+        if owner != scenario.scenario
+            || symbol.module != scenario.module
+            || scenario.params.get(index)?.param != parameter.param
+            || type_node != parameter.type_node
+            || scenario.read
+            || scenario.on.is_some()
+            || default.file != scenario.node.file
+            || node.kind != SyntaxKind::Literal
+            || self.word(node) != Some("null")
+            || self.types.node_types.get(&default) != Some(&ResolvedType::Null)
+            || !matches!(
+                self.resolve.symbols.get(model.0 as usize)?.kind,
+                SymbolKind::Model { .. }
+            )
+        {
+            return None;
+        }
+        Some(*model)
+    }
+
     fn admitted_actor_default(&self, key: NodeKey, declared: &ResolvedType) -> bool {
         let user = |ty: &ResolvedType| match ty {
             ResolvedType::Scalar(Scalar::User) => true,
@@ -8314,7 +8369,19 @@ impl<'a> Closure<'a> {
                             value.record.is_some() && value.first_query.is_some_and(|(_, original)| original == *node)
                         }))
             });
+        let input_null_check = matches!(op, "==" | "!=") && calls.is_empty()
+            && [(children[0], children[1]), (children[1], children[0])].iter().any(|(value, null)| {
+                let input = NodeKey::of(value);
+                self.types.node_types.get(&NodeKey::of(null)) == Some(&ResolvedType::Null)
+                    && value.kind == SyntaxKind::NameRef
+                    && matches!(self.query_binding(input), Some(Binding::Symbol(parameter))
+                        if env.get(&Local::Symbol(*parameter)).is_some_and(|value| {
+                            value.reference_origin == Some(ReferenceOrigin::NullableParameter(*parameter))
+                                && value.record.is_some()
+                        }))
+            });
         if !first_null_check
+            && !input_null_check
             && matches!(op, "??" | "==" | "!=")
             && children.iter().any(|operand| {
                 matches!(self.types.node_types.get(&NodeKey::of(operand)),
@@ -8396,9 +8463,10 @@ impl<'a> Closure<'a> {
                 ));
             }
             let mut values = self.product(key, &left, &right)?;
-            if current_null_check {
+            if current_null_check || input_null_check {
                 for value in &mut values {
                     value.reference_origin = None;
+                    value.record = None;
                     value.current_revision = None;
                 }
             }
@@ -8569,6 +8637,8 @@ impl<'a> Closure<'a> {
         let id = *id;
         let data = self.effects.derives.get(&id)?;
         let declaration = self.resolve.symbols.get(id.0 as usize)?;
+        let defining_module = declaration.module;
+        let imported = defining_module != module;
         let SymbolKind::DeriveFn {
             params,
             result_node,
@@ -8591,15 +8661,14 @@ impl<'a> Closure<'a> {
         let model = *model;
         let owner = self.resolve.symbols.get(model.0 as usize)?;
         if declaration.id != id
-            || declaration.module != module
             || declaration.name != "can_use"
             || declaration.canonical
                 != format!(
                     "{}.can_use",
-                    self.resolve.modules.get(module.0 as usize)?.name
+                    self.resolve.modules.get(defining_module.0 as usize)?.name
                 )
             || data.derive != id
-            || data.module != module
+            || data.module != defining_module
             || data.model.is_some()
             // Resolver retains this declaration sentinel; effects owns the
             // actual authored result type child, checked independently below.
@@ -8635,15 +8704,16 @@ impl<'a> Closure<'a> {
                 .get(result.start as usize..result.end as usize)?
                 .trim()
                 != "bool"
-            || owner.module != module
-            || self.checked_created_model(model, module).is_none()
+            || owner.module != defining_module
+            || self.checked_created_model(model, defining_module).is_none()
+            || self.source(defining_module, data.node).ok()? != self.source(defining_module, body).ok()?
         {
             return None;
         }
         for (index, parameter) in data.params.iter().enumerate() {
             let symbol = self.resolve.symbols.get(parameter.param.0 as usize)?;
             if !matches!(symbol.kind,SymbolKind::Param {owner,index:actual,type_node} if owner == id && actual == index && type_node == parameter.type_node)
-                || symbol.module != module
+                || symbol.module != defining_module
                 || symbol.id != parameter.param
                 || symbol.name != if index == 0 { "person" } else { "conversation" }
             {
@@ -8665,6 +8735,21 @@ impl<'a> Closure<'a> {
                 values.next().is_none().then_some(value)
             })
             .collect::<Option<Vec<_>>>()?;
+        // Only the actual exported helper/Conversation import permits the
+        // new zero-hop optional-input case. Existing local parent cases keep
+        // their original source identity and containment checks.
+        if imported
+            && (head.kind != SyntaxKind::NameRef
+                || self.word(head)? != "can_use"
+                || !declaration.exported
+                || !owner.exported
+                || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get("can_use"),
+                    Some(ScopedName::Imported {target, bound: false}) if *target == id)
+                || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get(&owner.name),
+                    Some(ScopedName::Imported {target, bound: false}) if *target == model))
+        {
+            return None;
+        }
         let actor = selected.arguments[0];
         let parent = selected.arguments[1];
         if call.kind != SyntaxKind::Call || arguments != selected.arguments
@@ -8694,11 +8779,44 @@ impl<'a> Closure<'a> {
         let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
             return None;
         };
-        if !matches!(hops, 1 | 2)
-            || self.checked_call_parent_path(parent, *parameter, 0) != Some((model, hops))
-        {
-            return None;
-        }
+        let nullable_owner = if imported {
+            // A copied/local expression or imported parent chain is outside
+            // this exact canonical optional-input contract.
+            let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
+            let SymbolKind::Param { owner: caller, .. } = parameter_symbol.kind else {
+                return None;
+            };
+            let scenario = self.effects.scenarios.get(&caller)?;
+            let mut parameters = scenario
+                .params
+                .iter()
+                .filter(|param| param.param == *parameter);
+            let parameter_data = parameters.next()?;
+            if hops != 0
+                || parent != receiver
+                || self.nodes.get(&receiver)?.kind != SyntaxKind::NameRef
+                || parameters.next().is_some()
+                || parameter_symbol.module != module
+                || scenario.module != module
+                || scenario.read
+                || scenario.on.is_some()
+                || scenario.cohort.is_some()
+                || key.file != scenario.node.file
+                || key.start < scenario.node.start
+                || key.end > scenario.node.end
+                || self.nullable_model_input(scenario, parameter_data) != Some(model)
+            {
+                return None;
+            }
+            Some(caller)
+        } else {
+            if !matches!(hops, 1 | 2)
+                || self.checked_call_parent_path(parent, *parameter, 0) != Some((model, hops))
+            {
+                return None;
+            }
+            None
+        };
         let (first_three, active) = self.query_binary(body, "and")?;
         let (first_two, equality) = self.query_binary(first_three, "and")?;
         let (null_guard, membership) = self.query_binary(first_two, "and")?;
@@ -8722,7 +8840,7 @@ impl<'a> Closure<'a> {
                     }))
             })
         };
-        self.checked_membership_signature(membership, module)?;
+        self.checked_membership_signature(membership, defining_module)?;
         let membership_call = self.types.selected_calls.get(&membership)?;
         if !formal_name(
             subject,
@@ -8771,9 +8889,14 @@ impl<'a> Closure<'a> {
             });
         let site = sites.next()?;
         let original_source = self.source(module, key).ok()?;
+        let membership_source = self.source(defining_module, membership).ok()?;
         if sites.next().is_some()
+            || site.source != original_source
+            || nullable_owner.is_some_and(|owner| site.owner != owner)
             || !site.calls.iter().any(|call| {
                 call.node == membership
+                    && call.module == defining_module
+                    && call.source == membership_source
                     && call.target
                         == CheckedDecisionCallTarget::Builtin {
                             id: "active_member".into(),
@@ -9129,7 +9252,16 @@ impl<'a> Closure<'a> {
         if self.authorization
             && calls.len() == 1
             && self
-                .checked_authorization_derive(calls[0], module)
+                .effects
+                .scenarios
+                .values()
+                .find_map(|scenario| {
+                    (scenario.node.file == calls[0].file
+                        && scenario.node.start <= calls[0].start
+                        && scenario.node.end >= calls[0].end)
+                        .then(|| self.checked_authorization_derive(calls[0], scenario.module))
+                        .flatten()
+                })
                 .is_some_and(|(_, _, _, membership)| membership == key)
         {
             self.checked_membership_signature(key, module)
@@ -9386,6 +9518,37 @@ impl<'a> Closure<'a> {
                 && *argument == parent
             {
                 for value in &mut alternatives {
+                    if let Some(ReferenceOrigin::NullableParameter(parameter)) =
+                        value.reference_origin
+                    {
+                        let (scenario, param) = self
+                            .effects
+                            .scenarios
+                            .values()
+                            .find_map(|scenario| {
+                                scenario
+                                    .params
+                                    .iter()
+                                    .find(|param| param.param == parameter)
+                                    .map(|param| (scenario, param))
+                            })
+                            .ok_or_else(|| self.fail(parent, "missing original optional input"))?;
+                        if scenario.module != module
+                            || self.nullable_model_input(scenario, param) != Some(model)
+                            || value.record != Some(model)
+                            || !value.reads.is_empty()
+                            || !value.intrinsics.is_empty()
+                            || !value.decisions.is_empty()
+                            || !matches!(self.query_binding(parent), Some(Binding::Symbol(actual)) if *actual == parameter)
+                            || env.get(&Local::Symbol(parameter)).is_none_or(|input| {
+                                input.reference_origin != value.reference_origin
+                            })
+                        {
+                            return Err(self.fail(parent, "authorization optional input mismatch"));
+                        }
+                        value.reference_origin = None;
+                        continue;
+                    }
                     let Some(ReferenceOrigin::Parent {
                         parameter,
                         model: actual,
@@ -14406,6 +14569,242 @@ mod tests {
             assert!(
                 check(&types, &resolved, &effects).is_none(),
                 "{mode} cannot borrow original containment authority"
+            );
+        }
+    }
+    #[test]
+    fn original_optional_model_input_seals_null_guard_and_imported_authorization() {
+        use super::super::catalog::{CatalogRequest, load_catalog};
+        let mut db = SourceDb::new();
+        let files = [
+            db.add(
+                "CanChat.can".into(),
+                include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
+            ),
+            db.add(
+                "CanCreative.can".into(),
+                include_str!("../../tests/fixtures/original-a850/CanCreative.can").into(),
+            ),
+        ];
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let catalog_path = root.join("target/profile-native-catalog.json");
+        let (catalog, errors) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: root,
+            primary: crate::source::Span::new(files[0], 0, 0),
+        });
+        assert!(errors.is_empty(), "{errors:?}");
+        let catalog = catalog.unwrap();
+        let trees = files
+            .into_iter()
+            .map(|file| {
+                let (tree, errors) = crate::syntax::parse(&db, file);
+                assert!(errors.is_empty(), "{errors:?}");
+                (file, tree)
+            })
+            .collect::<Vec<_>>();
+        let mut errors = Vec::new();
+        let resolve =
+            super::super::resolve::resolve_program(&db, &trees, Some(&catalog), &mut errors);
+        assert!(errors.is_empty(), "{errors:?}");
+        // This unit owns the original input and leading helper source seals.
+        // Build real checked types/effects without reanalyzing the unrelated body.
+        let types =
+            super::super::types::check_types(&db, &trees, Some(&catalog), &resolve, &mut errors);
+        super::super::resolve::emit_unresolved(&db, &resolve, &types, &mut errors);
+        let effects = super::super::effects::check_effects(
+            &db,
+            &trees,
+            &resolve,
+            &types,
+            Some(&catalog),
+            &mut errors,
+        );
+        assert!(errors.is_empty(), "{errors:?}");
+        let scenario = &effects.scenarios[&resolve.by_canonical["creative.generate"]];
+        let parameter = scenario
+            .params
+            .iter()
+            .find(|param| resolve.symbols[param.param.0 as usize].name == "conversation")
+            .unwrap();
+        let model = resolve.by_canonical["chat.Conversation"];
+        let mut nodes = HashMap::new();
+        let mut pending = trees.iter().map(|(_, tree)| tree).collect::<Vec<_>>();
+        while let Some(node) = pending.pop() {
+            nodes.insert(NodeKey::of(node), node);
+            pending.extend(node.children.iter());
+        }
+        let null_guard = *nodes
+            .keys()
+            .find(|key| {
+                key.file == scenario.node.file
+                    && key.start >= scenario.node.start
+                    && key.end <= scenario.node.end
+                    && key.kind == SyntaxKind::Binary as u8
+                    && db.get(key.file).unwrap().text[key.start as usize..key.end as usize].trim()
+                        == "conversation==null"
+            })
+            .unwrap();
+        let call = *types
+            .selected_calls
+            .keys()
+            .find(|key| {
+                key.file == scenario.node.file
+                    && key.start >= scenario.node.start
+                    && key.end <= scenario.node.end
+                    && db.get(key.file).unwrap().text[key.start as usize..key.end as usize].trim()
+                        == "can_use(actor,conversation)"
+            })
+            .unwrap();
+        macro_rules! make {
+            ($types:expr,$effects:expr,$resolved:expr) => {
+                Closure {
+                    catalog: Some(&catalog),
+                    db: &db,
+                    resolve: $resolved,
+                    types: $types,
+                    effects: $effects,
+                    nodes: nodes.clone(),
+                    stack: HashSet::new(),
+                    steps: 0,
+                    depth: 0,
+                    statement_depth: 1,
+                    authorization: true,
+                    effect_proofs: Vec::new(),
+                    effect_visits: 0,
+                    loop_node: None,
+                    complete_children: HashSet::new(),
+                    complete_model_children: HashMap::new(),
+                    result_model: None,
+                    statement_expressions: None,
+                }
+            };
+        }
+        let mut cx = make!(&types, &effects, &resolve);
+        assert_eq!(cx.nullable_model_input(scenario, parameter), Some(model));
+        let mut env = Env::new();
+        env.insert(
+            Local::Symbol(parameter.param),
+            ValuePath {
+                record: Some(model),
+                reference_origin: Some(ReferenceOrigin::NullableParameter(parameter.param)),
+                ..Default::default()
+            },
+        );
+        let values = cx
+            .expr(null_guard, scenario.module, &env, &[])
+            .expect("actual optional input null comparison");
+        assert!(values.iter().all(|value| value.record.is_none()
+            && value.reference_origin.is_none()
+            && value.reads.is_empty()
+            && value.intrinsics.is_empty()
+            && value.influences.is_empty()));
+        let (helper, actual_model, actual_input, membership) = cx
+            .checked_authorization_derive(call, scenario.module)
+            .expect("actual genuine imported helper and narrowed input");
+        assert_eq!(helper, resolve.by_canonical["chat.can_use"]);
+        assert_eq!(actual_model, model);
+        assert!(
+            matches!(cx.query_binding(actual_input), Some(Binding::Symbol(actual)) if *actual==parameter.param)
+        );
+        assert_ne!(membership.file, call.file);
+        cx.expr(call, scenario.module, &env, &[])
+            .expect("actual imported helper source evaluation");
+        for mode in [
+            "default",
+            "type",
+            "binding",
+            "import",
+            "export",
+            "slots",
+            "team",
+            "bound",
+            "model-import",
+            "module",
+        ] {
+            let mut types = types.clone();
+            let mut effects = effects.clone();
+            let mut resolved = resolve.clone();
+            match mode {
+                "default" => {
+                    effects
+                        .scenarios
+                        .get_mut(&scenario.scenario)
+                        .unwrap()
+                        .params
+                        .iter_mut()
+                        .find(|param| param.param == parameter.param)
+                        .unwrap()
+                        .default = None
+                }
+                "type" => {
+                    types.symbol_types.insert(
+                        parameter.param,
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                    );
+                }
+                "binding" => {
+                    resolved.node_binding.insert(
+                        actual_input,
+                        Binding::Symbol(
+                            scenario
+                                .params
+                                .iter()
+                                .find(|param| {
+                                    resolve.symbols[param.param.0 as usize].name == "template"
+                                })
+                                .unwrap()
+                                .param,
+                        ),
+                    );
+                }
+                "import" => {
+                    resolved.module_scopes[scenario.module.0 as usize]
+                        .prod
+                        .remove("can_use");
+                }
+                "export" => resolved.symbols[helper.0 as usize].exported = false,
+                "bound" => {
+                    resolved.module_scopes[scenario.module.0 as usize]
+                        .prod
+                        .insert(
+                            "can_use".into(),
+                            ScopedName::Imported {
+                                target: helper,
+                                bound: true,
+                            },
+                        );
+                }
+                "model-import" => {
+                    resolved.module_scopes[scenario.module.0 as usize]
+                        .prod
+                        .remove("Conversation");
+                }
+                "module" => effects.derives.get_mut(&helper).unwrap().module = scenario.module,
+                "slots" => types
+                    .selected_calls
+                    .get_mut(&call)
+                    .unwrap()
+                    .slots
+                    .swap(0, 1),
+                "team" => {
+                    let selected = &types.selected_calls[&membership];
+                    let team = selected.arguments[1];
+                    resolved
+                        .node_binding
+                        .insert(team, Binding::Context(ContextVar::Operation));
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                make!(&types, &effects, &resolved)
+                    .checked_authorization_derive(call, scenario.module)
+                    .is_none(),
+                "{mode}"
             );
         }
     }

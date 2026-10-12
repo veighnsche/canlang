@@ -69,7 +69,7 @@ import type { ModelTable } from '../mutation/models.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { noteUnexpectedFailure } from './recover.js';
 import type { RetainedSet } from './retain.js';
-import { canonicalUniqueValue } from './validate.js';
+import { assertMigrationUniqueSupported, canonicalUniqueRowValue } from '../internal/unique-value.js';
 import type { ValidatedMigrationPlan } from './transition.js';
 import { checkedFileInventoryForStorage } from '../storage/file-retirement.js';
 
@@ -118,6 +118,7 @@ interface DropCandidate {
  */
 export async function activate(input: ActivateInput): Promise<FlipResult> {
   const { store, plan, inventory, retained, oldModels, desiredModels, chunkSize, clock, isExpiredRow } = input;
+  assertMigrationUniqueSupported(oldModels, desiredModels);
   const fileDeclarations = migrationFileInventory(store, plan, input.fileReferenceInventory);
   if (!Number.isInteger(chunkSize) || chunkSize < 1) {
     throw new Error(`Invalid migration chunk size: ${JSON.stringify(chunkSize)}`);
@@ -418,6 +419,7 @@ export async function publishStagedAndDrops(
   isExpiredRow?: (row: StoredRow) => boolean,
   fileReferenceInventory?: FileReferenceInventory,
 ): Promise<void> {
+  assertMigrationUniqueSupported(oldModels, desiredModels);
   const declarations = migrationFileInventory(store, plan, fileReferenceInventory);
   let published = false;
   await checkActivationEvidence(store, plan);
@@ -592,42 +594,18 @@ async function appendStagedPublish(
   const liveData = live.data as Readonly<Record<string, unknown>>;
   const stagedData = row.data;
   for (const key of oldDef.uniqueKeys) {
-    const oldValue = canonicalUniqueValue(
-      Object.hasOwn(liveData, key) ? liveData[key] : undefined,
-      key,
-      source as string,
-      oldDef.fields[key],
-    );
-    if (oldValue === null) {
-      continue;
-    }
-    const newRaw = Object.hasOwn(stagedData, key) ? stagedData[key] : undefined;
-    const sameKey =
-      Object.hasOwn(desiredDef.fields, key) &&
-      desiredDef.uniqueKeys.includes(key) &&
-      canonicalUniqueValue(newRaw, key, target, desiredDef.fields[key]) === oldValue;
-    if (renamed || !sameKey) {
-      uniqueReleases.push({ model: source, keyName: key, keyValue: oldValue });
-    }
+    const oldValue = canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef);
+    if (oldValue === null) continue;
+    const sameKey = desiredDef.uniqueKeys.includes(key) &&
+      canonicalUniqueRowValue({data: stagedData, parent: live.parent ?? null}, key, desiredDef) === oldValue;
+    if (renamed || !sameKey) uniqueReleases.push({model: source, keyName: key, keyValue: oldValue});
   }
   for (const key of desiredDef.uniqueKeys) {
-    const newValue = canonicalUniqueValue(
-      Object.hasOwn(stagedData, key) ? stagedData[key] : undefined,
-      key,
-      target,
-      desiredDef.fields[key],
-    );
-    if (newValue === null) {
-      continue;
-    }
-    const oldRaw = Object.hasOwn(liveData, key) ? liveData[key] : undefined;
-    const sameKey =
-      Object.hasOwn(oldDef.fields, key) &&
-      oldDef.uniqueKeys.includes(key) &&
-      canonicalUniqueValue(oldRaw, key, source as string, oldDef.fields[key]) === newValue;
-    if (renamed || !sameKey) {
-      uniqueClaims.push({ model: row.targetModel, keyName: key, keyValue: newValue, recordId: row.recordId });
-    }
+    const newValue = canonicalUniqueRowValue({data: stagedData, parent: live.parent ?? null}, key, desiredDef);
+    if (newValue === null) continue;
+    const sameKey = oldDef.uniqueKeys.includes(key) &&
+      canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef) === newValue;
+    if (renamed || !sameKey) uniqueClaims.push({model: row.targetModel, keyName: key, keyValue: newValue, recordId: row.recordId});
   }
 }
 
@@ -673,12 +651,7 @@ function appendDropPublish(
     },
   });
   for (const key of oldDef.uniqueKeys) {
-    const value = canonicalUniqueValue(
-      Object.hasOwn(liveData, key) ? liveData[key] : undefined,
-      key,
-      drop.model,
-      oldDef.fields[key],
-    );
+    const value = canonicalUniqueRowValue(drop.row, key, oldDef);
     if (value !== null) {
       uniqueReleases.push({ model: drop.model as ModelName, keyName: key, keyValue: value });
     }

@@ -1,0 +1,22 @@
+app NativeGuardedEmail
+use std {TextMessage,TextRequest}
+use std {TextGenerationV1 as LLM} from=deployment.llm
+Given
+ Entry {count:int=0,attempt:delivery(LLM.generate)?}
+ policy Entry read=members fields=count,attempt.status,attempt.result
+When
+ crud Entry by=owner fields=count
+ ## Scalar guard control; original CanChat model lexicals remain separately qualified.
+ scenario deliver(entry:Entry,enabled:bool,note:text?,values:int[],person:user,accept:bool) -> int by=owner
+  do
+   let value=TextRequest {source=operation.id,revision=1,profile="local-control",policy_revision="policy-1",messages=[TextMessage {role=user,content="Frozen original lexical values",attachments=[]}],max_input_tokens=1024,max_output_tokens=128,max_duration=30s}
+   send LLM.generate {value} when=enabled and (note==null or note!="deny") and count(values)>=0 and active_member(person,team) as attempt
+   set entry {count=entry.count+1,attempt=attempt}
+   require accept
+   return entry.count
+ scenario plain() -> int by=owner
+  do
+   let value=TextRequest {source=operation.id,revision=1,profile="local-control",policy_revision="policy-1",messages=[TextMessage {role=user,content="Legacy native send",attachments=[]}],max_input_tokens=1024,max_output_tokens=128,max_duration=30s}
+   send LLM.generate {value} as attempt
+   return 1
+Then
