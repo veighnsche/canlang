@@ -7,34 +7,38 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import type { CanTypeId, FilePolicy, FinalizedFileObservation, FinalizedFileReceiver,
-  Receipt, RetainedFinalizedFile, StoredRow } from '@canlang/contracts';
+import type { ArtifactModelField, CanTypeId, FilePolicy, FinalizedFileObservation, FinalizedFileReceiver,
+  ModelName, Receipt, RetainedFinalizedFile, StoredRow } from '@canlang/contracts';
 import { DEFAULT_FILE_POLICY, blobKeyForFile, ingestVerifiedEventBytes, observeFinalizedFile,
   readFinalizedFileObservation, recordAttachment, revalidateRetainedFinalizedFile } from '@canlang/files';
 import { createSqliteFileStore } from '@canlang/files/host/sqlite';
+import { createFrozenClock, createMemoryIdentityStore as createSnapshotIdentityStore } from '@canlang/identity/testing';
 import type { AdmittedCall } from './admission.js';
 import { receiptIdentityFor } from './admission.js';
 import { StateError } from '../errors.js';
 import { createMemoryStorage } from '../storage/memory.js';
 import { buildModelTableFromCanonical } from '../mutation/models.js';
 import { buildPolicyTable } from '../policy/grants.js';
+import type { ViewerSourceReadPolicy } from '../query/source-policy.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice, type GeneratedOperationDef } from './registry.js';
 import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
 import { beginScenarioReceiptMutation, bindScenarioReceiptFileProducer, observeScenarioReceiptFileAssignment,
-  projectScenarioReceipt, readScenarioReceiptAssociation, selectScenarioReceiptReturn } from './scenario-receipt.js';
+  bindScenarioReceiptReferenceProducer, projectScenarioReceipt, readScenarioReceiptAssociation, selectScenarioReceiptReturn } from './scenario-receipt.js';
 import { FIXED_NOW, asId, asModel, asVersion, createMemoryIdentityStore, makeBatch, makeIdentity, makeEnvelope,
-  seedMember, seedRow, uuidv7 } from '../../test/invocation/fixtures.js';
+  makeRow, seedMember, seedRow, uuidv7 } from '../../test/invocation/fixtures.js';
 
 const MODEL = asModel('Files.Record'), OTHER = asModel('Files.Other'), OP = 'Files.assign', APP = 'state-files-app';
+const PARENT = asModel('Files.Parent');
 const bounds = { maxWork: 1000, maxRows: 10 }, cause = { cause: 'scenario' } as const;
 const retention = { unattachedHorizonMs: 60_000, retentionMs: 120_000 };
 const bytes = new TextEncoder().encode('actual finalized bytes\n');
 const origin = () => ({ path: 'files.can', sha256: 'c'.repeat(64), module: 'files.mjs' });
 const stateError = (error: unknown) => error instanceof StateError;
+const fieldsForNominal = ['file', 'optionalFile', 'files', 'optionalFiles', 'visible', 'secret', 'prefix', 'optionalPrefix', 'request_value'];
 let sequence = 40_000;
-type FileField = 'file' | 'optionalFile' | 'files' | 'optionalFiles';
-function artifact(deleteMode: 'archive' | 'remove' = 'archive'): ArtifactDescriptorSlice {
-  const fields = [
+type FileField = 'file' | 'optionalFile' | 'files' | 'optionalFiles' | 'prefix' | 'optionalPrefix' | 'request_value';
+function artifact(deleteMode: 'archive' | 'remove' = 'archive', nominal = false, contentMax = 100): ArtifactDescriptorSlice {
+  const fields: ArtifactModelField[] = [
     { name: 'file', field: { kind: 'file' as const }, valueType: 'file' as CanTypeId, required: false, serverOnly: false },
     { name: 'optionalFile', field: { kind: 'file' as const }, valueType: 'file?' as CanTypeId, nullable: true, required: false, serverOnly: false },
     { name: 'files', field: { kind: 'file' as const }, valueType: 'file[]' as CanTypeId, array: { required: false }, max: 4, required: false, serverOnly: false },
@@ -42,11 +46,24 @@ function artifact(deleteMode: 'archive' | 'remove' = 'archive'): ArtifactDescrip
     { name: 'visible', field: { kind: 'string' as const }, valueType: 'text' as CanTypeId, required: false, serverOnly: false },
     { name: 'secret', field: { kind: 'secret' as const }, required: false, serverOnly: true },
   ];
+  if (nominal) fields.push(
+    {name: 'prefix', field: {kind: 'nominal', name: 'std.TextMessage'}, valueType: 'std.TextMessage[]' as CanTypeId, array: {required: false}, max: 4, required: false, serverOnly: false},
+    {name: 'optionalPrefix', field: {kind: 'nominal', name: 'std.TextMessage'}, valueType: 'std.TextMessage[]?' as CanTypeId, array: {required: false}, nullable: true, max: 4, required: false, serverOnly: false},
+    {name: 'request_value', field: {kind: 'nominal', name: 'std.TextRequest'}, valueType: 'std.TextRequest' as CanTypeId, required: false, serverOnly: false});
   return { artifact_version: 1, sources: [{ path: 'files.can', sha256: 'c'.repeat(64) }],
     modules: [{ path: 'files.mjs', js: 'export const identity="Files.assign";',
       map: { version: 3, file: 'files.mjs', sources: ['files.can'], sourcesContent: [null], names: [], mappings: '' } }],
     callables: [{ id: OP, kind: 'operation', module: 'files.mjs', export: 'identity', member: ['assign'] }],
-    models: [{ name: MODEL, deleteMode, fields }, { name: OTHER, deleteMode: 'archive', fields }],
+    ...(nominal ? {valueTypes: {contracts: [
+      {name: 'std.TextMessage', fields: [{name: 'role', type: 'enum(system,user,assistant)' as CanTypeId},
+        {name: 'content', type: 'text' as CanTypeId, max: contentMax}, {name: 'attachments', type: 'file[]' as CanTypeId, max: 8}]},
+      {name: 'std.TextRequest', fields: [{name: 'source', type: 'text' as CanTypeId}, {name: 'revision', type: 'int' as CanTypeId, min: '1'},
+        {name: 'profile', type: 'text' as CanTypeId}, {name: 'policy_revision', type: 'text' as CanTypeId},
+        {name: 'messages', type: 'std.TextMessage[]' as CanTypeId, max: 120}, {name: 'max_input_tokens', type: 'int' as CanTypeId, min: '1'},
+        {name: 'max_output_tokens', type: 'int' as CanTypeId, min: '1'}, {name: 'max_duration', type: 'duration' as CanTypeId}]},
+    ]}} : {}),
+    models: [{ name: MODEL, deleteMode, fields, ...(nominal ? {parent: PARENT} : {}) }, { name: OTHER, deleteMode: 'archive', fields },
+      ...(nominal ? [{name: PARENT, deleteMode: 'archive' as const, fields: [{name: 'title', field: {kind: 'string' as const}, required: true, serverOnly: false}]}] : [])],
     operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [
       { name: 'record', field: { kind: 'ref', model: MODEL, requireVersion: true }, required: true },
     ] }, result: { type: 'void' as CanTypeId, disclosure: { version: 1, source: origin(), returns: [
@@ -57,20 +74,30 @@ function artifact(deleteMode: 'archive' | 'remove' = 'archive'): ArtifactDescrip
 const empty = (): ExecutionEffects => ({ result: null, writes: [], history: [], outbox: [], schedules: [],
   uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
 
-async function world(bind = true, producerApp = APP, deleteMode: 'archive' | 'remove' = 'archive') {
-  const store = createMemoryStorage(), memberships = createMemoryIdentityStore();
-  const member = await seedMember(memberships, { isOwner: false, roles: [] });
+async function world(bind = true, producerApp = APP, deleteMode: 'archive' | 'remove' = 'archive', nominal = false, contentMax = 100) {
+  const store = createMemoryStorage(), fixtureMemberships = createMemoryIdentityStore();
+  const sdk = nominal ? createSnapshotIdentityStore({clock: createFrozenClock(FIXED_NOW)}) : undefined;
+  const memberships = sdk ?? fixtureMemberships;
+  const member = sdk === undefined ? await seedMember(fixtureMemberships, { isOwner: false, roles: [] }) : await (async () => {
+    const team = await sdk.createTeam({timezone: 'UTC'});
+    const user = await sdk.createUser({email: 'assignment-reader@example.test', password_hash: 'unused', email_verified: true});
+    const membership = await sdk.createMembership({team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: []});
+    return {team, user, membership};
+  })();
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
   const receiver: FinalizedFileReceiver = { app: APP, team: member.team.team_id,
     owner: member.team.team_id, principal: member.user.user_id };
-  const loaded = loadArtifactDescriptors(artifact(deleteMode), { by: 'members' });
+  const loaded = loadArtifactDescriptors(artifact(deleteMode, nominal, contentMax), { by: 'members' });
   const def = loaded.registry.get(OP) as GeneratedOperationDef; assert.ok(def);
   const table = buildModelTableFromCanonical(loaded.models, {
     refs: loaded.refs, serverInits: loaded.serverInits, nullableFields: loaded.nullableFields,
     containment: loaded.containment,
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
   });
-  const row = await seedRow(store, MODEL, { data: { visible: 'entry visible', secret: 'never disclose' } });
+  const parent = nominal ? await seedRow(store, PARENT, {data: {title: 'Parent'}}) : undefined;
+  const row = parent === undefined ? await seedRow(store, MODEL, {data: {visible: 'entry visible', secret: 'never disclose'}})
+    : {...makeRow({data: {visible: 'entry visible', secret: 'never disclose'}}), parent: {model: PARENT, id: parent.id}};
+  if (parent !== undefined) await store.commit(makeBatch(await store.readRevision(), {writes: [{kind: 'insert', model: MODEL, row}]}));
   const dir = mkdtempSync(join(tmpdir(), 'can-state-file-assignment-'));
   const path = join(dir, 'files.sqlite');
   let physical = createSqliteFileStore(path), now = FIXED_NOW, policy: FilePolicy = DEFAULT_FILE_POLICY;
@@ -97,11 +124,28 @@ async function world(bind = true, producerApp = APP, deleteMode: 'archive' | 're
   };
   if (bind) bindScenarioReceiptFileProducer(def, { source: origin(), app: producerApp, revalidate });
   const policyTable = buildPolicyTable([{ model: MODEL, secretFields: ['secret'], grants: [
-    { by: 'members', fields: ['file', 'optionalFile', 'files', 'optionalFiles', 'visible'] },
+    { by: 'members', fields: ['file', 'optionalFile', 'files', 'optionalFiles', 'visible', ...(nominal ? ['prefix', 'optionalPrefix', 'request_value'] : [])] },
   ] }]);
+  const access = {field: true, ancestor: true};
+  const related = sdk === undefined ? undefined : await (async () => {
+    const user = await sdk.createUser({email: 'assignment-related@example.test', password_hash: 'unused', email_verified: true});
+    const membership = await sdk.createMembership({team_id: member.team.team_id, user_id: user.user_id, is_owner: false, roles: []});
+    return {team: member.team, user, membership};
+  })();
+  let readPolicies: Map<ModelName, ViewerSourceReadPolicy> | undefined;
+  if (nominal) {
+    readPolicies = new Map<ModelName, ViewerSourceReadPolicy>([
+      [MODEL, {parent: PARENT, fields: fieldsForNominal, secretFields: ['secret'], grants: [
+        {fields: ['prefix', 'optionalPrefix', 'request_value'], read: async ({context}) => access.field &&
+          context.membership?.status === 'active' && (await context.memberships.findMembership(member.team.team_id, related!.user.user_id))?.status === 'active'},
+        {fields: ['visible'], read: async ({context}) => context.membership?.status === 'active'},
+      ]}], [PARENT, {fields: ['title'], secretFields: [], grants: [{fields: ['title'], read: async ({context}) => access.ancestor && context.membership?.status === 'active'}]}],
+    ]);
+    bindScenarioReceiptReferenceProducer(def, {source: origin(), app: APP, policy: policyTable, readPolicies});
+  }
   return { store, memberships, identity, member, receiver, registry: loaded.registry, def, table, row,
     envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { record: { id: row.id, version: String(row.version) } }),
-    app: APP, source: 'test', clock, policy: policyTable, refs, deps, options, finalize, revalidate,
+    app: APP, source: 'test', clock, policy: policyTable, refs, deps, options, finalize, revalidate, access, related, loaded, readPolicies,
     observe: (ref: string, receiving = receiver) => {
       const observation = observeFinalizedFile(deps(), ref, receiving, options()); assert.ok(observation); return observation;
     },
@@ -451,6 +495,161 @@ test('saved State association honors Files first attachment evidence beyond the 
       assert.deepEqual(projected.records[0]!.data, mode === 'timely'
         ? { visible: 'assigned visible', file: { id: w.refs[0] } } : { visible: 'assigned visible' });
     } finally { w.close(); }
+  }
+});
+
+const message = (refs: readonly string[] = []) => ({role: 'user', content: 'Original message', attachments: refs.map(id => ({id}))});
+const requestValue = (messages: readonly unknown[]) => ({source: 'original-request', revision: '1', profile: 'profile',
+  policy_revision: 'policy-1', messages, max_input_tokens: '8192', max_output_tokens: '2048', max_duration: '120000'});
+
+test('nominal prefix assignment retains ordered duplicate leaves, one genuine fact per distinct ref and owner version', async () => {
+  const w = await world(true, APP, 'archive', true);
+  try {
+    const wire = [message([w.refs[1], w.refs[0], w.refs[1]]), message()];
+    const {receipt, admitted} = await originalCommit(w, 'prefix', wire, [w.refs[1], w.refs[0]]);
+    const saved = readScenarioReceiptAssociation(receipt); assert.ok(saved);
+    assert.equal(saved.changed[0]!.row.version, w.row.version + 1);
+    assert.equal(saved.changed[0]!.fieldTypes.prefix, 'std.TextMessage[]');
+    assert.deepEqual(saved.changed[0]!.row.data.prefix, wire);
+    assert.deepEqual(saved.fileAssignments!.map(entry => entry.file.ref), [w.refs[1], w.refs[0]]);
+    for (const fact of saved.fileAssignments!) assert.equal(fact.rowVersion, w.row.version + 1);
+    const retained = await w.store.readReceipt(receiptIdentityFor(admitted.context)); assert.deepEqual(retained, receipt);
+    w.reopen(); const projected = await savedProjection(w, JSON.parse(JSON.stringify(retained)) as Receipt);
+    assert.deepEqual(projected.records[0]!.data, {visible: 'assigned visible', prefix: wire});
+  } finally {w.close();}
+});
+
+test('complete nominal request_value preserves every owning field and nested message File occurrence', async () => {
+  const w = await world(true, APP, 'archive', true);
+  try {
+    const wire = requestValue([message([w.refs[0], w.refs[0]]), {...message([w.refs[1]]), role: 'assistant'}]);
+    const {receipt} = await originalCommit(w, 'request_value', wire, w.refs);
+    const saved = readScenarioReceiptAssociation(receipt); assert.ok(saved);
+    assert.equal(saved.changed[0]!.fieldTypes.request_value, 'std.TextRequest');
+    assert.deepEqual(saved.changed[0]!.row.data.request_value, wire); assert.equal(saved.fileAssignments!.length, 2);
+    w.reopen(); assert.deepEqual((await savedProjection(w, receipt)).records[0]!.data.request_value, wire);
+  } finally {w.close();}
+});
+
+test('empty and nullable nominal assignments retain declared File census without physical facts', async () => {
+  for (const [selected, wire] of [['prefix', []], ['prefix', [message()]], ['optionalPrefix', null], ['request_value', requestValue([])]] as const) {
+    const w = await world(true, APP, 'archive', true);
+    try {
+      const {receipt} = await originalCommit(w, selected, wire, []);
+      assert.deepEqual(readScenarioReceiptAssociation(receipt)!.fileAssignments, []); assert.equal(w.revalidations(), 0);
+      assert.deepEqual((await savedProjection(w, receipt)).records[0]!.data[selected], wire);
+      w.access.field = false;
+      const denied = await savedProjection(w, receipt);
+      assert.ok(denied.records.every(record => !Object.hasOwn(record.data, selected)), 'empty value still requires its whole-field source grant');
+    } finally {w.close();}
+  }
+});
+
+test('nominal missing, copied, foreign, duplicate and orphan receiving facts refuse atomically', async () => {
+  for (const mode of ['missing', 'copied', 'foreign', 'duplicate', 'orphan'] as const) {
+    const w = await world(true, APP, 'archive', true);
+    try {
+      const before = await domain(w);
+      await assert.rejects(invoke({...w, execute: async call => {
+        const session = await stage(call, w, 'prefix', [message([w.refs[0]])]);
+        if (mode !== 'missing') {
+          const receiver = {...w.receiver, principal: 'foreign'};
+          const handle = mode === 'foreign' ? w.observe(w.finalize(receiver), receiver) : w.observe(mode === 'orphan' ? w.refs[1] : w.refs[0]);
+          observeScenarioReceiptFileAssignment(call, w.store, {...locator(w, 'prefix'), observation: mode === 'copied' ? {...handle} : handle});
+          if (mode === 'duplicate') capture(call, w, 'prefix', w.refs[0]);
+        }
+        selectScenarioReceiptReturn(call, w.store, 'assigned');
+        return {...await session.finalize(), result: null, outbox: [], fileAssignments: [locator(w, 'prefix')]};
+      }}), stateError, mode);
+      assert.deepEqual(await domain(w), before);
+    } finally {w.close();}
+  }
+});
+
+test('nominal final locator model, field, target lifetime and issued version cannot drift', async () => {
+  for (const mode of ['locator', 'model', 'field', 'version', 'remove'] as const) {
+    const w = await world(true, APP, mode === 'remove' ? 'remove' : 'archive', true);
+    try {
+      const before = await domain(w);
+      await assert.rejects(invoke({...w, execute: async call => {
+        const session = await stage(call, w, 'prefix', [message([w.refs[0]])]); capture(call, w, 'prefix', w.refs[0]);
+        if (mode === 'remove') await session.stage({op: 'remove', model: MODEL, id: w.row.id}, cause);
+        selectScenarioReceiptReturn(call, w.store, 'assigned');
+        const output: ExecutionEffects = {...await session.finalize(), result: null, outbox: [], fileAssignments: [locator(w, 'prefix')]};
+        if (mode === 'locator') output.fileAssignments = [{...locator(w, 'prefix'), recordId: asId('absent')}];
+        if (mode === 'model') output.fileAssignments = [{...locator(w, 'prefix'), model: OTHER}];
+        if (mode === 'field') output.fileAssignments = [locator(w, 'optionalPrefix')];
+        if (mode === 'version') output.writes = output.writes.map(write => write.kind === 'remove' ? write : {...write, row: {...write.row, version: asVersion(write.row.version + 1)}});
+        return output;
+      }}), stateError, mode);
+      assert.deepEqual(await domain(w), before);
+    } finally {w.close();}
+  }
+});
+
+test('nominal assignment validates complete owning constraints and current schema drift masks the saved field', async () => {
+  for (const wire of [[{...message(), role: 'unknown'}], [{...message(), content: 'x'.repeat(101)}],
+    [{...message(), extra: true}], Array.from({length: 5}, () => message()), [{...message(), attachments: [{id: 'https://example.test/raw'}]}]]) {
+    const w = await world(true, APP, 'archive', true);
+    try {
+      const before = await domain(w);
+      await assert.rejects(originalCommit(w, 'prefix', wire, []), stateError);
+      assert.deepEqual(await domain(w), before);
+    } finally {w.close();}
+  }
+  const w = await world(true, APP, 'archive', true);
+  try {
+    const {receipt} = await originalCommit(w, 'prefix', [message([w.refs[0]])]);
+    const current = loadArtifactDescriptors(artifact('archive', true, 5), {by: 'members'});
+    const def = current.registry.get(OP) as GeneratedOperationDef;
+    bindScenarioReceiptFileProducer(def, {source: origin(), app: APP, revalidate: w.revalidate});
+    bindScenarioReceiptReferenceProducer(def, {source: origin(), app: APP, policy: w.policy, readPolicies: w.readPolicies!});
+    const projected = await projectScenarioReceipt({...w, registry: current.registry, receipt});
+    assert.ok(projected.records.every(record => !Object.hasOwn(record.data, 'prefix')));
+  } finally {w.close();}
+});
+
+test('nominal late physical, source ancestor and related Identity changes roll back the original owner', async () => {
+  for (const mode of ['physical', 'ancestor', 'related'] as const) {
+    const w = await world(true, APP, 'archive', true);
+    try {
+      const before = await domain(w);
+      await assert.rejects(invoke({...w, execute: async call => {
+        const session = await stage(call, w, 'prefix', [message([w.refs[0]])]); capture(call, w, 'prefix', w.refs[0]);
+        selectScenarioReceiptReturn(call, w.store, 'assigned');
+        const output = {...await session.finalize(), result: null, outbox: [], fileAssignments: [locator(w, 'prefix')]};
+        w.setBeforeRevalidate(async () => {
+          if (mode === 'physical') w.physical().blobs.remove(blobKeyForFile(w.refs[0]));
+          if (mode === 'ancestor') w.access.ancestor = false;
+          if (mode === 'related') await w.memberships.removeMembership(w.related!.membership.membership_id);
+        });
+        return output;
+      }}), stateError, mode);
+      assert.deepEqual(await domain(w), before);
+    } finally {w.close();}
+  }
+});
+
+test('saved nominal whole-field and physical drift masks; retained replay reuses original wire without recapture', async () => {
+  for (const mode of ['unchanged', 'physical', 'whole-field', 'replacement', 'ancestor', 'related'] as const) {
+    const w = await world(true, APP, 'archive', true);
+    try {
+      const wire = [message([w.refs[1], w.refs[0], w.refs[1]])];
+      const {receipt} = await originalCommit(w, 'prefix', wire, [w.refs[1], w.refs[0]]); w.reopen();
+      if (mode === 'physical') w.physical().blobs.remove(blobKeyForFile(w.refs[0]));
+      if (mode === 'whole-field') w.access.field = false;
+      if (mode === 'ancestor') w.access.ancestor = false;
+      if (mode === 'related') await w.memberships.removeMembership(w.related!.membership.membership_id);
+      if (mode === 'replacement') {const row = await w.store.load(MODEL, w.row.id); assert.ok(row);
+        await updateCurrent(w, {}, {...row.data, prefix: [{...wire[0]!, content: 'Changed scalar, same refs'}]});}
+      const before = await domain(w), revision = await w.store.readRevision(); let executed = 0;
+      const projected = await savedProjection(w, JSON.parse(JSON.stringify(receipt)) as Receipt);
+      if (mode === 'unchanged') assert.deepEqual(projected.records[0]!.data.prefix, wire);
+      else assert.ok(projected.records.every(record => !Object.hasOwn(record.data, 'prefix')));
+      const replay = await invokeRetainedReceiptOnly({...w, execute: async () => {executed++; return empty();}});
+      assert.equal(replay.status, 'replayed'); assert.equal(executed, 0);
+      assert.deepEqual(await domain(w), before); assert.equal(await w.store.readRevision(), revision);
+    } finally {w.close();}
   }
 });
 

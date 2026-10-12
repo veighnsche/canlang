@@ -44,6 +44,7 @@ import { bindScenarioQuerySelection, scenarioQuerySelectionWire, type ScenarioQu
 import { bindScenarioQueryAny, checkSavedScenarioQueryAny, type ScenarioQueryAnyMetadata, type ScenarioQueryAnyProfile } from './scenario-query-any.js';
 import { bindScenarioNarrowedFields, scenarioNarrowedFieldControls, type ScenarioNarrowedFieldBinding } from './scenario-narrowed-field.js';
 import { FenceConflictError } from '../storage/port.js';
+import { bindFileReferenceProfile, fileReferenceOccurrences, type FileReferenceProfile } from '../ports/file-reference-profile.js';
 import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences,
   type ModelLexicalSnapshotProfile } from '../ports/model-lexical-snapshot.js';
 
@@ -291,6 +292,43 @@ export function bindScenarioReceiptFileProducer(def: GeneratedOperationDef, prod
 function fileLocatorKey(locator: ScenarioReceiptFileAssignmentLocator): string {
   return stableStringify([locator.model, locator.recordId, locator.field]);
 }
+type AssignmentField = { readonly type: CanTypeId; readonly direct: ScenarioFileFieldProfile } |
+  { readonly type: CanTypeId; readonly nominal: FileReferenceProfile };
+const assignmentFields = new WeakMap<BoundPlan, Map<string, AssignmentField>>();
+/** Whole owning declarations select the existing census; values cannot select a profile. */
+function assignmentField(bound: BoundPlan, model: ModelName, field: string): AssignmentField {
+  const key = stableStringify([model, field]);
+  let fields = assignmentFields.get(bound);
+  const existing = fields?.get(key); if (existing !== undefined) return existing;
+  const declarations = bound.artifactModels.get(model)?.fields.filter(value => value.name === field);
+  const declaration = declarations?.[0];
+  if (declarations?.length !== 1 || declaration === undefined || declaration.default?.kind === 'derived') return invalid('exact stored File assignment declaration required.');
+  let profile: AssignmentField;
+  if (declaration.field.kind === 'file') {
+    const direct = scenarioFileField(bound, model, field); profile = Object.freeze({ type: direct.type, direct });
+  } else {
+    if (declaration.field.kind !== 'nominal' && declaration.field.kind !== 'other') return invalid('stored File assignment requires an owning File-bearing nominal.');
+    const nominal = bindFileReferenceProfile({ artifactModels: bound.artifactModels, canonicalModels: bound.canonicalModels,
+      ...(bound.valueTypes === undefined ? {} : { valueTypes: bound.valueTypes }),
+      ...(bound.valueSchema === undefined ? {} : { valueSchema: bound.valueSchema }) }, model, field);
+    storedNominalType(nominal.type);
+    if (!nominal.fileBearing) return invalid('stored assignment declaration has no File leaves.');
+    profile = Object.freeze({ type: nominal.type, nominal });
+  }
+  if (fields === undefined) { fields = new Map(); assignmentFields.set(bound, fields); }
+  fields.set(key, profile); return profile;
+}
+function assignmentRefs(profile: AssignmentField, wire: unknown): readonly string[] {
+  return 'direct' in profile ? scenarioFileWireRefs(profile.direct, wire) : fileReferenceOccurrences(profile.nominal, wire).map(value => value.ref);
+}
+function hasNominalAssignments(bound: BoundPlan): boolean {
+  for (const [model, declaration] of bound.artifactModels) for (const field of declaration.fields) {
+    if (field.field.kind !== 'nominal' && field.field.kind !== 'other') continue;
+    try { if ('nominal' in assignmentField(bound, model, field.name)) return true; }
+    catch { /* A nonreceiving declaration cannot authorize assignment binding. */ }
+  }
+  return false;
+}
 function fileReceiver(app: string, actor: string | null, team: string | null): FinalizedFileReceiver {
   if (actor === null) return invalid('File receiving identity requires an admitted actor.');
   return Object.freeze({ app, team: team ?? actor, owner: team ?? actor, principal: actor });
@@ -306,7 +344,7 @@ export function observeScenarioReceiptFileAssignment(call: AdmittedCall, store: 
     if (activeCalls.has(call) || state.pending !== 0) return invalid('File capture requires the actual active root call.');
     const own = object(input, ['model', 'recordId', 'field', 'observation']);
     const locator = { model: text(own['model']) as ModelName, recordId: text(own['recordId']) as RecordId, field: text(own['field']) };
-    scenarioFileField(state.bound, locator.model, locator.field);
+    assignmentField(state.bound, locator.model, locator.field);
     const producer = fileProducers.get(call.def as GeneratedOperationDef);
     if (producer === undefined || producer.app !== call.context.app) return invalid('matching installed File producer required.');
     const receiver = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
@@ -1109,7 +1147,7 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 &&
       ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles) && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
       !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
-      ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) || invokedPlans.has(def) || referenceProducers.has(def)) {
+      ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) && !(def.kind === 'scenario' && hasNominalAssignments(bound)) || invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
   }
   object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : [])]); origin(producer.source); text(producer.app);
@@ -2207,6 +2245,53 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
     } else snapshot[key] = dataCopy(member.value);
   }
   const fileAssignments = matchScenarioFileAssignments(call, snapshot as unknown as ExecutionEffects);
+  const owner = ownerSessions.get(call);
+  let nominalGuard: NonNullable<ExecutionEffects['guards']>[number] | undefined;
+  const nominalAssignments = (snapshot['fileAssignments'] as readonly ScenarioReceiptFileAssignmentLocator[] | undefined ?? [])
+    .filter(locator => 'nominal' in assignmentField(boundPlans.get(call.def as GeneratedOperationDef)!, locator.model, locator.field));
+  if (nominalAssignments.length !== 0) {
+    const source = referenceProducers.get(call.def as GeneratedOperationDef);
+    if (owner === undefined || source?.app !== call.context.app || source.readPolicies === undefined ||
+        nominalAssignments.some(locator => !source.readPolicies!.has(locator.model))) return invalid('nominal assignments require their actual owner and whole source grants.');
+    const store = owner.store, memberships = scenarioReceiptMemberships(call, store);
+    const actorUserId = call.context.actor?.userId ?? null, teamId = call.context.team?.teamId ?? null;
+    const writes = snapshot['writes'] as readonly DomainWrite[];
+    const fileProducer = fileProducers.get(call.def as GeneratedOperationDef)!;
+    const receiver = fileReceiver(fileProducer.app, actorUserId, teamId);
+    nominalGuard = Object.freeze({
+      name: 'nominal File assignment source', evaluate: async () => {
+        const healthy = () => { if (captures.get(call)?.poisoned) return invalid('nominal assignment capture is poisoned.'); };
+        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Nominal assignment authority moved beyond its checkpoint.');
+        // The complete captured physical conjunction precedes the final
+        // coherent source/ancestor observation, including retained rechecks.
+        for (const assignment of fileAssignments) {
+          if (await fileProducer.revalidate(assignment.file, receiver) !== true) return false;
+          healthy();
+        }
+        const read = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+          healthy(); const write = writes.find(value => value.model === model && (value.kind === 'insert' ? value.row.id : value.id) === id);
+          const row = write === undefined ? await store.cohortLoad({ model, id, expectedRevision: call.revision }) : write.kind === 'remove' ? null : write.row;
+          healthy(); return row;
+        };
+        const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId);
+        const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
+          for (const locator of nominalAssignments) {
+            const row = await read(locator.model, locator.recordId);
+            if (row === null || row.archivedAt !== null) return false;
+            const projected = await projectInstalledSourceRowAndAncestors({ model: locator.model, row,
+              readPolicies: source.readPolicies!, policy: source.policy, context, revision: call.revision,
+              fence: undefined, store, rows: new Map([[`${locator.model}\0${row.id}`, row]]), ownerRows: { read, assertHealthy: healthy } });
+            if (projected.record === null || !projected.grants.some(grant => grant.fields.includes(locator.field))) return false;
+          }
+          return true;
+        });
+        if (!authority.value) return false;
+        await authority.revalidate(); healthy();
+        if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Nominal assignment final authority moved beyond its checkpoint.');
+        return true;
+      },
+    });
+  }
   if (fileAssignments.length !== 0) {
     const producer = fileProducers.get(call.def as GeneratedOperationDef)!;
     const receiver = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
@@ -2214,7 +2299,7 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
       ...fileAssignments.map(assignment => Object.freeze({ name: `File ${fileLocatorKey(assignment)} ${assignment.file.ref}`,
         evaluate: async () => (await producer.revalidate(assignment.file, receiver)) === true }))];
   }
-  const owner = ownerSessions.get(call);
+  if (nominalGuard !== undefined) snapshot['guards'] = [...((snapshot['guards'] as NonNullable<ExecutionEffects['guards']> | undefined) ?? []), nominalGuard];
   const state = captures.get(call);
   if (state !== undefined && state.rowIdGuards.length !== 0) {
     if (state.rowIdWrites !== undefined) return invalid('row id effects were already captured.');
@@ -2222,7 +2307,11 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
   }
   const guards = [...(owner?.callGuards ?? []), ...(captures.get(call)?.rowIdGuards ?? [])];
   if (guards.length !== 0) retainedCallGuards.set(call, Object.freeze(guards));
-  if (owner !== undefined && owner.storedFileChecks.length !== 0) retainedStoredFileChecks.set(call, Object.freeze([...owner.storedFileChecks]));
+  const finalNominalGuard = nominalGuard;
+  const storedChecks = [...(owner?.storedFileChecks ?? []), ...(finalNominalGuard === undefined ? [] : [async () => {
+    if (!await finalNominalGuard.evaluate()) throw new StateError('forbidden', 'Nominal File assignment final source or physical authority no longer holds.');
+  }])];
+  if (storedChecks.length !== 0) retainedStoredFileChecks.set(call, Object.freeze(storedChecks));
   return deepFreeze(snapshot) as unknown as ExecutionEffects;
 }
 
@@ -2241,7 +2330,7 @@ function matchScenarioFileAssignments(call: AdmittedCall, effects: ExecutionEffe
     const producer = fileProducers.get(call.def as GeneratedOperationDef);
     if (producer === undefined || producer.app !== call.context.app) return invalid('File assignments require their installed owning producer.');
     const receiver = fileReceiver(producer.app, call.context.actor?.userId ?? null, call.context.team?.teamId ?? null);
-    const profile = scenarioFileField(bound, locator.model, locator.field);
+    const profile = assignmentField(bound, locator.model, locator.field);
     const writes = effects.writes.filter(write => write.model === locator.model &&
       (write.kind === 'insert' ? write.row.id : write.id) === locator.recordId);
     if (writes.length !== 1) return invalid('File assignment requires its final net owning write.');
@@ -2249,7 +2338,7 @@ function matchScenarioFileAssignments(call: AdmittedCall, effects: ExecutionEffe
     if (write.kind === 'remove') return invalid('removed File assignment.');
     const row = checkedRow(write.row);
     if (row.id !== locator.recordId || row.version !== (write.kind === 'insert' ? 1 : write.expectedVersion + 1) || !Object.hasOwn(row.data, locator.field)) return invalid('File assignment differs from its final row.');
-    const refs = new Set(scenarioFileWireRefs(profile, row.data[locator.field]));
+    const refs = new Set(assignmentRefs(profile, row.data[locator.field]));
     for (const ref of refs) {
       const captured = state?.files.filter(entry => fileLocatorKey(entry) === key && entry.file.ref === ref) ?? [];
       if (captured.length !== 1 || stableStringify(captured[0]!.file.receiver) !== stableStringify(receiver)) return invalid('final File ref omitted its genuine receiving capture.');
@@ -3690,7 +3779,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     changed.push({ model: write.model, row, secretFields: [...model.secrets],
       withheldFields: [...new Set([...model.withheld.filter(field => !assignedFields.has(field)), ...Object.keys(row.data).filter(field => !model.fields.has(field))])],
       fieldTypes: { ...Object.fromEntries(model.fields), ...Object.fromEntries(assigned.map(locator =>
-        [locator.field, scenarioFileField(bound, write.model, locator.field).type])) } });
+        [locator.field, assignmentField(bound, write.model, locator.field).type])) } });
   }
   for (const entry of observed) if (!entry.stored && !entry.ownerSession && !changed.some(change => change.model === entry.model &&
       stableStringify(change.row) === stableStringify(entry.row))) {
@@ -3719,6 +3808,17 @@ function savedFileRefs(type: CanTypeId, wire: unknown): readonly string[] {
   if (wire === null) return type.endsWith('?') ? [] : invalid('nonnullable saved File field.');
   const values = type.includes('[]') ? list(wire) : [wire];
   return values.map(value => text(object(value, ['id'])['id']));
+}
+function isAssignmentType(type: unknown): type is CanTypeId {
+  if (typeof type !== 'string') return false;
+  if (/^file(\[\])?\??$/.test(type)) return true;
+  try { storedNominalType(type); return true; } catch { return false; }
+}
+/** Nominal persistence establishes whole syntax only. Its refs require the
+ * genuine current owning schema, never a schema-free JSON traversal. */
+function savedAssignmentRefs(type: CanTypeId, wire: unknown): readonly string[] | null {
+  if (/^file(\[\])?\??$/.test(type)) return savedFileRefs(type, wire);
+  savedNominalWire(type, wire); return null;
 }
 
 /** Legacy receipts are unassociated; malformed recognized metadata refuses. */
@@ -3823,11 +3923,11 @@ function readSavedScenarioAssociation(receipt: Receipt,
     const types = change['fieldTypes'];
     if (typeof types !== 'object' || types === null || Array.isArray(types) || Object.keys(types).length > MAX_ITEMS) return invalid('bounded original field inventory required.');
     for (const [field, type] of Object.entries(types)) {
-      if (typeof type === 'string' && /^file(\[\])?\??$/.test(type)) {
+      if (isAssignmentType(type)) {
         if (++fileFieldCount > MAX_ITEMS) return invalid('saved File field budget exceeded.');
         if (!Object.hasOwn(value, 'fileAssignments') || !Object.hasOwn(row.data, field) ||
             (change['withheldFields'] as string[]).includes(field)) return invalid('saved File field omitted its checked assignment closure.');
-        savedFileRefs(type as CanTypeId, row.data[field]);
+        savedAssignmentRefs(type, row.data[field]);
       } else if (type !== null) scalarType(type);
     }
     const key = `${change['model']}/${row.id}`;
@@ -3850,8 +3950,9 @@ function readSavedScenarioAssociation(receipt: Receipt,
     const change = changed.find(entry => (entry as Record<string, unknown>)['model'] === model &&
       ((entry as Record<string, unknown>)['row'] as StoredRow).id === id) as ScenarioReceiptAssociation['changed'][number] | undefined;
     const type = change?.fieldTypes[field];
-    if (change === undefined || assignment['rowVersion'] !== change.row.version || typeof type !== 'string' ||
-        !/^file(\[\])?\??$/.test(type) || !savedFileRefs(type as CanTypeId, change.row.data[field]).includes(file.ref)) {
+    if (change === undefined || assignment['rowVersion'] !== change.row.version || !isAssignmentType(type) ||
+        !Object.hasOwn(change.row.data, field) || change.withheldFields.includes(field) ||
+        savedAssignmentRefs(type, change.row.data[field])?.includes(file.ref) === false) {
       return invalid('saved File assignment differs from its committed owning field.');
     }
     const expected = fileReceiver(receipt.identity.app, receipt.identity.principal === 'public' ? null : receipt.identity.principal,
@@ -3919,11 +4020,12 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const fileProducer = fileProducers.get(def as GeneratedOperationDef);
   const receiver = actorUserId === null ? null : fileReceiver(input.app, actorUserId, teamId);
   const fileFields = association.changed.flatMap(change => Object.entries(change.fieldTypes)
-    .filter(([, type]) => typeof type === 'string' && /^file(\[\])?\??$/.test(type))
+    .filter(([, type]) => isAssignmentType(type))
     .map(([field, type]) => ({ change, field, type: type as CanTypeId,
       assignments: (association.fileAssignments ?? []).filter(assignment => assignment.model === change.model &&
         assignment.recordId === change.row.id && assignment.field === field) })));
-  const readableFileFields = async (change: ScenarioReceiptAssociation['changed'][number], current: StoredRow | null): Promise<string[]> => {
+  const readableFileFields = async (change: ScenarioReceiptAssociation['changed'][number], current: StoredRow | null,
+    nominalGrant: (field: string) => Promise<boolean>): Promise<string[]> => {
     if (fileProducer === undefined || fileProducer.app !== input.app || receiver === null || current === null ||
         current.id !== change.row.id || current.version < change.row.version || current.archivedAt !== null ||
         current.created !== change.row.created || current.createdBy !== change.row.createdBy ||
@@ -3932,10 +4034,16 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     const readable: string[] = [];
     for (const entry of fileFields.filter(entry => entry.change === change)) {
       try {
-        const profile = scenarioFileField(currentBound, change.model, entry.field);
+        const profile = assignmentField(currentBound, change.model, entry.field);
         if (profile.type !== entry.type || !Object.hasOwn(current.data, entry.field) ||
             stableStringify(current.data[entry.field]) !== stableStringify(change.row.data[entry.field])) continue;
-        scenarioFileWireRefs(profile, current.data[entry.field]);
+        const refs = new Set(assignmentRefs(profile, change.row.data[entry.field]));
+        assignmentRefs(profile, current.data[entry.field]);
+        if (entry.assignments.length !== refs.size || new Set(entry.assignments.map(value => value.file.ref)).size !== refs.size ||
+            entry.assignments.some(value => !refs.has(value.file.ref))) continue;
+        if ('nominal' in profile) {
+          if (!await nominalGrant(entry.field)) continue;
+        }
         let valid = true;
         for (const assignment of entry.assignments) {
           if (stableStringify(assignment.file.receiver) !== stableStringify(receiver) ||
@@ -3973,7 +4081,9 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     const records: ProjectedRecord[] = [];
     for (const { record, changed, current } of pending) {
       if (changed === undefined) { records.push(record); continue; }
-      const fields = await readableFileFields(changed, current);
+      // This is the same authentic projection whose whole source grant was
+      // checked in projectOnce. Identity and State are fenced after this pass.
+      const fields = await readableFileFields(changed, current, async field => Object.hasOwn(record.data, field));
       const data = { ...record.data };
       for (const entry of fileFields.filter(entry => entry.change === changed)) if (!fields.includes(entry.field)) delete data[entry.field];
       records.push({ ...record, data });
@@ -4039,7 +4149,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     modelResultType(saved.scenario?.resultType) !== undefined) === true;
   const scopedQueryInfluence = currentBound.plan.queries?.some(query => query.parent !== undefined) === true ||
     association.calls?.some(saved => saved.scenario?.plan.queries?.some(query => query.parent !== undefined)) === true;
-  const fileInfluence = storedFiles.length !== 0;
+  const fileInfluence = storedFiles.length !== 0 || fileFields.some(entry => !/^file(\[\])?\??$/.test(entry.type));
   const modelSourceProducers = [def, ...(association.calls ?? []).map(saved => input.registry.get(saved.target))]
     .flatMap(def => def === undefined ? [] : [referenceProducers.get(def as GeneratedOperationDef)])
     .filter((producer): producer is ScenarioReceiptReferenceProducer => producer?.app === input.app && producer.readPolicies !== undefined);
@@ -4337,10 +4447,17 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     for (const changed of association.changed) {
       const fields = currentBound.models.get(changed.model)?.fields;
       const files = fileFields.some(entry => entry.change === changed)
-        ? await readableFileFields(changed, await currentSavedRow(changed.model, changed.row)) : [];
+        ? await readableFileFields(changed, await currentSavedRow(changed.model, changed.row), async field => {
+          const source = referenceProducers.get(def as GeneratedOperationDef), current = await currentSavedRow(changed.model, changed.row);
+          if (current === null || source?.app !== input.app || source.readPolicies?.has(changed.model) !== true) return false;
+          const projected = await sourceProjection(source, changed.model, current);
+          return projected !== null && projected.grants.some(grant => grant.fields.includes(field));
+        }) : [];
       const drifted = Object.keys(changed.row.data).filter(field => !files.includes(field) &&
         (!Object.hasOwn(changed.fieldTypes, field) || fields?.get(field) !== changed.fieldTypes[field]));
-      const record = await savedProjection(changed.model, changed.row, changed.secretFields, [...changed.withheldFields, ...drifted], [], files);
+      const assignedNominal = fileFields.some(entry => entry.change === changed && !/^file(\[\])?\??$/.test(entry.type));
+      const record = await savedProjection(changed.model, changed.row, changed.secretFields, [...changed.withheldFields, ...drifted], [], files,
+        undefined, undefined, assignedNominal ? referenceProducers.get(def as GeneratedOperationDef) : undefined);
       if (record !== null && dependenciesReadable) { projectedChanges.set(record, changed); records.push(record); }
     }
     return { result: dependenciesReadable && association.resultType === currentBound.type && receipt.outcome.status === 'committed'
