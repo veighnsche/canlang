@@ -11932,3 +11932,10 @@ Changed MAIN locked/offline CLI0 12.4s.
 Accepted corrected State0e2+07a+ca143 component after independent defining review CLEAR: bindScenarioReceiptQuerySelection retains genuine completed query slots, canonical owning ordered TextMessage fields and actual receiving Files with current/final/saved source/ancestor/full Identity authority. Recheck physical State revision AFTER final Identity SDK await and return only through synchronous lifetime/consumption checks. The original07a gap was withheld; one actual held-SDK State-movement refusal exposes zero selected arrays.101 scoped owning outcomes reused, including exact correction. Generated transcript metadata/emission and Dev native consumer remain unfinished; shape/array equality grants no authority and no hold is released.
 
 Changed MAIN emissions/noEmit all0: {"StateDO": 5.33, "CF": 7.3, "root": 11.56} seconds; unchanged owner controls reused.
+
+
+### 2026-10-12 — finish every poll cleanup effect
+
+Accepted finite DEL-B01 source component e3cee693a54a829e6412bce02cfb9f28c0f60bae: Detach timer/controller before cleanup effects; run clear/abort/onStop independently with original receiver/order and preserve first thrown value including undefined. Independent defining source review CLEAR; 12 lifecycle groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 1.86, "root": 4.8} seconds; no unchanged native/installed/engine reruns.
