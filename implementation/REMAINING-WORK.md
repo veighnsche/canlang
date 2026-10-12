@@ -1,86 +1,25 @@
 # Remaining CanLang work
 
-## Current four-plan execution view — 2026-10-11
+## Current four-plan execution view — 2026-10-12
 
-This view reconciles the four requested plans at local main
-`f3c2db112f952797d0b281cc08c1b55ced989bc1` plus the exact original diagnostic source checkpoint recorded in SEQ-025, retaining the defining cohort reconciliation `f0192cf2`. Their task entries remain authoritative
-for detailed actions and evidence; this index supplies ownership and execution
-order, not a second task ledger. Active/unmerged worker changes are not accepted
-by this snapshot. Apply [finite execution](../AGENTS.md#finite-execution).
+The human requested immediate reevaluation of **every remaining task**, a new prioritized execution list for each existing LOCAL worker, and individual instructions. Reconciled from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. Each plan has one current view; this index links those views without another task ledger. Original acceptance, canonical identities and recipient holds are unchanged. Apply [finite execution](../AGENTS.md#finite-execution).
 
-| Plan | Remaining at its declared scope | Authoritative execution entry |
+| Existing lane | Complete remaining list / original accounting | First concrete deliverable |
 | --- | --- | --- |
-| Packages | **26 of 48 selected packets unfinished:** 15 partial, 10 open, 1 human-held. The packets reference 100 distinct existing canonical IDs; this is not completion of the original 333 duties. | [Queue](../docs/research/package-library-audit-20261006/repair-queue/queue.json): top-level `current_execution` and each existing packet's `current_execution`. Historical `ready` and authorization fields are labeled separately. |
-| Compiler | **9 of 67 canonical references unfinished; 58 finished at recorded scope.** OR-06, OUT-R05, S9-Q01, S9-Q02, S9-Q05, S9-Q07, S9-Q08, SEM-R05, SEM-R08. They overlap across shared producers, consumers, decisions and holds. | [Current remainder](compiler-completion/README.md#current-remainder-and-finite-completion); local work-row labels index residuals without adding canonical tasks. |
-| Capability | **30 of 63 task stages unfinished; 33 accepted stages.** SEQ-005, 010, 011, 021, 022, 024–027, 037–040, 042–043, 045–048, 051–054, 057–063: 19 contract/implementation/qualification tasks, seven conditional/deferred gates, four cycles attached to actual releases. Stage acceptance is not whole-product acceptance. | [Roadmap](capability-roadmap-20261008/README.md) current execution view reconciles sequence requirements with the coordinator's execution state and later component outcomes. |
-| Can dev server | **T04 and T11 have explicit first-slice implementation/qualification gaps; G2 and G3 remain open.** Other T00–T13 producer/consumer results are reused at their scope; final criterion closure still follows G2. G1 has a recorded passing shared-join result. | [Declared first-slice remainder](can-dev-server/PLAN.md#current-execution-finish-the-declared-first-slice), including existing platform handoffs outside Office supplies. |
+| Packages | [Queue](../docs/research/package-library-audit-20261006/repair-queue/queue.json), current_execution plus each existing packages_execution;26 unfinished parents/22 of48 selected accepted. One demonstrated local fix,23 exact-owner leaves,two held. Gallery/CSV source releases are closed locally and queued intake. | TECH-SV02 sparse typed-page refusal; no gallery/CSV reimplementation. |
+| Compiler | [Current remainder](compiler-completion/README.md#current-remainder-and-finite-completion);nine of67 references remaining/58 accepted at scope, all24 shared work labels reconciled. | Corrected e908 Profile release→Dev20d is ready intake; implement transcript DATA metadata/emission next, then distinct nullable current-expression producer. |
+| Capability | [Current queue](capability-roadmap-20261008/README.md#current-implementation-queue-prioritized-capability-lane);all30 remaining IDs/33 accepted stages,19 implementation/seven conditional/four release cycles. | Corrected ca143 selection release is ready intake; implement analogous active nullable receiver risk/current-saved controls next. |
+| Dev | [Current execution](can-dev-server/PLAN.md#current-execution-finish-the-declared-first-slice);all original T00–T13/G1/G2 accepted at selected Office scopes,G3 external;existing platform handoffs separately retained. | Genuine required Profile native20d using corrected e908/a186, then remaining three-query tail and exact selected/nullable receivers. |
 
-These counts use different task/stage units and share outcomes. **Do not sum
-them into an independent-job count, progress percentage or estimate.** An
-accepted output can satisfy several existing references without several new
-implementations, tests or reviews. Historical records below retain their own
-dates and authority; they do not freeze current workers or override these plans.
+Counts overlap and use different units; do not sum into independent jobs, a completion percentage or a finish-time estimate. Source/tested/reviewed components are not whole native application acceptance. Accepted first/count/pair/ancestor/combined/Email/Office and other finite outcomes stay closed.
 
-### Dependency order and independent lanes
+### Dispatch and exact dependencies
 
-1. **Resolve only actual defining gaps.** Packages publishes its selected finite
-   contract/host/resource outputs; Compiler and Capability resolve the named
-   source, membership, event-identity or policy decisions needed by an existing
-   workflow. Obtain the concrete output instead of waiting for an entire plan.
-   Routine reversible implementation choices use the existing contract; difficult
-   design decisions use the existing three-request JEV rule and record advice
-   and uncertainty once. Unspecified wider profiles remain bounded decision
-   gates, not implementation mandates.
-2. **Release connected producers.** Compiler emits checked original
-   declarations/sites/types; Capability supplies actual State/Work
-   authority, observation, persistence and commit-lifetime behavior; Packages
-   owns shared codecs, adapters and gates. Keep sole writers for shared files.
-   Evidence of an already accepted component is a reusable input, not a new
-   intake-only task.
-3. **Connect the missing real consumer.** Dev/UI/Interfaces/Testkit use the
-   actual generated source and owning producer. Finish only the named
-   caller/host/profile and its current authority, order, failure/replay and
-   cleanup criteria. Correct failures in their defining owner. Components may
-   proceed while unrelated policy, original-app, preparation or provider gates
-   are held.
-4. **Finish Office independently.** T04's source-grounded eligible diagnostic
-   branch unlocks T11; exact external-packet authorization gates transmission.
-   Then G2 joins Office A1–A6, followed by the finite G3/A7 study. Files,
-   providers, composed apps, schedules and deployment are outside the declared
-   first slice and do not block it. Retain their existing platform tasks.
-5. **Close selected outcomes once.** Reuse valid results, run changed integration
-   joins proportionately, and perform the required independent final review on
-   the real released scope. A review finding receives its affected correction
-   check; a review verdict does not receive another review packet. Failed support
-   trials are reported with their original denominators rather than repeated
-   until a desired result appears.
-
-### Finishability and preserved release conditions
-
-The package queue's declared dependencies are acyclic. Cross-plan reciprocal
-joins are staged as defining contract → producer → consumer → affected outcome;
-consumer feedback may identify a concrete correction, but does not create a
-whole-plan waiting cycle. The selected terminal-completion join is complete: reviewed Dev8c original
-private late-write rollback/replay, Compiler e28 supported public Email source,
-and Dev319 unchanged genuine retained public receiving1/1. Reuse these finite
-outcomes; authored SEND, verified ingress and other selected profiles remain
-separate owning requirements.
-
-Every remaining entry must name a finite deliverable, accountable owner,
-concrete prerequisite and observable exit. If its original requirement does not
-yet select the source/profile/outcome, the next deliverable is that decision and
-its release condition. The full program cannot honestly be declared complete
-while the actual recipient/action Task22/native-preparation holds, exact external
-packet disclosure and provider/data/installed-host gates remain unresolved.
-BDD3 consultation and ordinary engineering design/source choices use the human’s
-JEV authorization; no inferred generic human architecture/source-approval gate
-blocks ready work. Original diagnostic policies/presentation are authored and
-reviewed at that stage; Compiler checked types/grants/typed arrays are now finitely implemented,
-tested and reviewed in LOCAL main; State reader hooks and Interfaces observer
-forwarding retain their component qualification. Original conditional/ancestor
-C03 and Dev genuine current-authority application consumption remain unfinished.
-Retain each precise operational activation/publication hold with its owner; this
-index neither expands scope nor advances full-plan acceptance.
+1. Finish the already active coherent source units before switching. Required Profile chain is corrected State d028→maina186 genuine fresh host promotion→Compiler f87+e323/e908 checked native emission→Dev20d actual original consumer. Selected transcript chain is reviewed source895→corrected State ca143 retained selection→exact Compiler metadata/emitter→Dev actual private query/File adapter. Nullable current337/4da is a separate receiver chain; no required-API widening.
+2. Each worker skips only a missing finite producer/profile/credential leaf and takes the next ready original task. Packages owns shared CI/common fixes alone. Capability owns State/Work behavior; Compiler owns source/IR/emission; Dev owns actual host/private native consumers. Actual released outputs, not whole producer plans, unlock joins.
+3. Serialize only real shared-file or consumed-output conflicts. Commit source/tests/related records coherently; freeze actual captured inputs until cleanup. Reuse unchanged owning validation and independent defining reviews. No PR/push/deploy/publication, duplicate intake-only commits, new programme/ledger or standing polling agent.
+4. Missing external leaves remain explicit: G3 required model/account support, actual mounted R2 concurrency/power-loss host, release runtime/ICU/tzdb/CLDR corpus and each named provider credential/profile. Exact source/adoption/preparation/default/activation/publication/BDD3/Task22/OUTBOX recipient holds remain. Consultation authorization lifts none. Ordinary finite engineering decisions belong to defining workers/coordinator and JEV.
+5. At the requested75-minute reassessment, re-evaluate all remaining entries and priorities in these same current views, dispatch each worker its own actual ready action, and retain unchanged accepted scope. Do not recreate history, re-request forecasts or infer closure from elapsed time. At15-minute cadence use only one compact four-local cursor snapshot plus later actual releases.
 
 ## Historical consolidated inventory — 2026-10-06
 
