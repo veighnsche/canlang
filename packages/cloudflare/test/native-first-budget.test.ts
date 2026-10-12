@@ -45,6 +45,7 @@ async function snapshot(db: D1Database) {
 test('original first Budget, Sets, guarded Email and model receipt preserve lawful source authority and late rollback',
  {timeout: 240000}, async () => {
   const directory = await mkdtemp(join(root, '.can-native-first-budget-'));
+  const startedAt = Date.now(), phase = (name: string) => console.info(`[native-first-budget] ${name} elapsed_ms=${Date.now() - startedAt}`);
   let worker: Miniflare | undefined, physical: SqliteFileStore | undefined;
   let sequence = 0, now = Date.now(); const clock = {nowMs: () => now};
   const requests: Record<string, unknown>[] = [];
@@ -88,6 +89,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     const {classifyFailure} = await nodeImport(pathToFileURL(require.resolve('@canlang/work/receipt')).href) as typeof import('@canlang/work/receipt');
     // Coordinator-reviewed original Compiler fixture plus the separately
     // released labelled setup scope. Root runs this outside Dev first-slice.
+    phase('source:start');
     const originalSource = join(root, 'compiler/tests/fixtures/native-first-budget.can');
     const source = join(directory, 'native-first-budget-with-labelled-setup.can');
     const compiler = join(root, 'compiler/target/debug/can'), catalog = fileURLToPath(distribution.catalog);
@@ -150,6 +152,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     assert.equal((generated.js.match(/\bfirstQuery\(/g)||[]).length,1); assert.equal((generated.js.match(/\bexecuteScenarioReceiptQuery\(/g)||[]).length,1);
     assert.doesNotMatch(generated.js,/canApp\.firstQuery|c\.canApp/);
     const compiledBytes=new Map(await Promise.all(Object.entries(asm.moduleUrls).map(async([path,url])=>[path,await readFile(fileURLToPath(url))]as const)));
+    phase('source:ready; identity/setup:start');
     worker = new Miniflare({compatibilityDate: '2026-07-15', modules: true, script: 'export default {fetch(){return new Response("ok")}}',
       d1Databases: {IDENTITY: 'first-budget-identity', OWNER: 'first-budget-owner', FOREIGN: 'first-budget-foreign'}, d1Persist: join(directory, 'd1')});
     const identityDb = await worker.getD1Database('IDENTITY') as unknown as D1Database;
@@ -198,6 +201,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
       assert.deepEqual(after.files,before.files); assert.deepEqual(after.intents,before.intents); assert.equal(requests.length,sent);
       const replay=await invoke(input); assert.ok('error'in replay); assert.equal(replay.error.code,'rule_failed'); await unchanged(after);
     };
+    phase('empty query:start');
     await rejectedWithoutEffects('genuine empty query yields null before any Budget setup');
     const createBudget=async(actor:ResolvedIdentity,active=true):Promise<StoredRow>=>{
       const input:MutationEnvelope={operation:`${BUDGET}.create`,operation_id:nextId(),inputs:{account:{id:actor.actor!.user_id},cap:'100',parallel:'10',spent:'0',held:'0',running:'0',active}};
@@ -208,6 +212,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
       assert.equal(row.version,1); assert.deepEqual(row.data.account,{id:actor.actor!.user_id}); assert.equal(row.createdBy,actor.actor!.user_id);
       const history=await native.store.historyFor(BUDGET,row.id); assert.equal(history.length,1); assert.equal(history[0]!.operation,`${BUDGET}.create`); return row;
     };
+    phase('authenticated setup:start');
     const otherUser=await identities.createUser({email:'first-budget-other@example.test',password_hash:'unused',email_verified:true});
     await identities.createMembership({user_id:otherUser.user_id,team_id:team.team_id,is_owner:false,roles:[]});
     const otherGrant=await issueMcpGrant(identities,{user_id:otherUser.user_id,team_id:team.team_id,client_id:'first-budget-other'},{clock});
@@ -216,6 +221,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     const budget=await createBudget(admittedIdentity,false);
     // Original account:user unique is enforced by the authentic CRUD commit,
     // using Values' genuine user reference wire rather than a scalar waiver.
+    phase('unique conflict:start');
     const duplicateInput: MutationEnvelope = {operation: `${BUDGET}.create`, operation_id: nextId(),
       inputs: {account: {id: user.user_id}, cap: '100', parallel: '10', spent: '0', held: '0', running: '0', active: true}};
     const crudIdentity = (input: MutationEnvelope): ReceiptIdentity => ({app: APP, owner: team.team_id, principal: user.user_id,
@@ -228,6 +234,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
 
     // Original lock account refuses a genuine different user, at the actual
     // current record version. Its business rejection is retained at one fence.
+    phase('account lock:start');
     const lockedBefore = await native.store.load(BUDGET, budget.id); assert.ok(lockedBefore);
     const lockInput: MutationEnvelope = {operation: `${BUDGET}.update`, operation_id: nextId(),
       inputs: {record: {id: lockedBefore.id, version: String(lockedBefore.version)}, account: {id: otherUser.user_id}}};
@@ -267,6 +274,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     await updateBudget({active:true});
     const saved: Array<{input: MutationEnvelope; id: string}> = [];
     for (const enabled of [false, true]) {
+      phase(`original invocation:start enabled=${enabled}`);
       const selectedBefore=await native.store.load(BUDGET,budget.id); assert.ok(selectedBefore);
       const input = envelope(enabled), before = await resources(), revision = await native.store.readRevision();
       const result = await invoke(input); assert.ok('result' in result, JSON.stringify(result)); assert.equal(result.result.status, 'committed');
@@ -358,6 +366,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
         const dispatch = readDispatchRow((await native.store.load(asModel(WORK_DISPATCH_MODEL), asId(intent.intentId)))!);
         assert.equal(dispatch.sourceGuard?.rule, guard.rule); assert.deepEqual(dispatch.sourceGuard?.inputs, {enabled: true});
         assert.equal(dispatch.attempts, 0);
+        phase('original provider drive:start');
         const driven = await dispatcher.drive({intentId: intent.intentId, actor: user.user_id, operation: 'native.first.Budget.Email.drive', nowMs: clock.nowMs,
           nextClaimId: () => `claim-${++sequence}`, maxClaimAgeMs: 60000, claimOperationId: nextId(), recordOperationId: nextId(), classifyFailure,
           evaluateGuard: () => {throw new Error('No legacy postclaim guard fallback');}, readStateSnapshot: () => null, fence: fenceFor(intent)});
@@ -372,6 +381,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
         assert.deepEqual(await native.store.readReceipt(identity(input)), receipt);
       }
     }
+    phase('original invocations:complete; exhausted guards:start');
     // Same authenticated setup CRUD exercises the original exhausted guards;
     // all values are valid under the original invariant, never raw row edits.
     await updateBudget({running:'10'}); await rejectedWithoutEffects('parallel ceiling fails before Create/SEND');
@@ -379,6 +389,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     await rejectedWithoutEffects('budget capacity fails before Create/SEND'); await updateBudget({spent:'0'});
     // A late failed require rolls back this invocation's actual Create, Sets,
     // SEND occurrence, delivery association and outbox before any provider drive.
+    phase('late rollback:start');
     const rejectedInput = envelope(true, false), beforeReject = await resources(), rejected = await invoke(rejectedInput);
     assert.ok('error' in rejected, JSON.stringify(rejected)); assert.equal(rejected.error.code, 'rule_failed');
     const rejectedState = await resources(); assert.equal(requests.length, 1);
@@ -388,6 +399,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     assert.deepEqual(rejectedState.files, beforeReject.files); assert.deepEqual(rejectedState.intents, beforeReject.intents);
     const retried = await invoke(rejectedInput); assert.ok('error' in retried); assert.equal(retried.error.code, 'rule_failed'); await unchanged(rejectedState);
     assert.equal((await query(MODEL)).length, 2); assert.equal((await query(WORK_DISPATCH_MODEL)).length, 1); assert.deepEqual(await native.store.outboxPending(), []);
+    phase('current authority:start');
     const foreignBefore = await resources();
     for (const [selected, actor, code] of [[invoker, await foreign(), 'forbidden'], [foreignInvoker, admittedIdentity, 'not_found']] as const) {
       const denied = await selected.invokeRetainedMutation(saved[1]!.input, actor);
@@ -409,6 +421,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     await identities.reactivateMembership(membership.membership_id, {is_owner: true, roles: []});
     const restored = await resources(), replay = await invoke(saved[1]!.input); assert.ok('result' in replay); assert.equal(replay.result.status, 'replayed');
     assert.deepEqual(replay.result.result, {id: saved[1]!.id}); await unchanged(restored); assert.equal(requests.length, 1);
+    phase('authority:complete; lifetime/source closure:start');
     assert.equal(hash(await readFile(source)),authoredHash); assert.equal((await readFile(source,'utf8')).replace(SETUP,''),originalText);
     for(const {path,bytes}of compilerSources)assert.deepEqual(await readFile(path),bytes);
     for(const [path,bytes]of compiledBytes)assert.deepEqual(await readFile(fileURLToPath(asm.moduleUrls[path]!)),bytes);
@@ -416,11 +429,12 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     assert.deepEqual(await Promise.all(paths.map(async path => hash(await readFile(path)))), originals.map(hash));
   } finally {
     try {
+      phase('awaited cleanup:server');
       server.closeAllConnections();
       if (server.listening) await new Promise<void>((done, reject) => server.close(error => error ? reject(error) : done()));
     } finally {
       try { physical?.close(); } finally {
-        try { await worker?.dispose(); } finally { await rm(directory, {recursive: true, force: true}); }
+        try { phase('awaited cleanup:workerd'); await worker?.dispose(); } finally { await rm(directory, {recursive: true, force: true}); phase('awaited cleanup:complete'); }
       }
     }
   }
