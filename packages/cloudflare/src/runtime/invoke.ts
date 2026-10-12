@@ -981,6 +981,7 @@ function readSelectorFacts(
   declaredFields: ReadonlyArray<string>,
   provenance: ReadPolicyProvenance | undefined,
   where: string,
+  checkedContainmentParent = false,
 ): ReadSelectorFacts | undefined {
   const declaration = provenance === undefined ? undefined : readMetadataMember(provenance, "declaration", where)?.value;
   const readRules = provenance === undefined ? undefined : readMetadataMember(provenance, "readRules", where)?.value;
@@ -1027,7 +1028,12 @@ function readSelectorFacts(
       if (selected.length === 0) throw new Error(`${where}: malformed empty read selector on ${JSON.stringify(id)}.`);
       for (const field of selected) {
         const parts = field.split(".");
-        if (parts.some((part) => part.length === 0) || !fieldNames.has(parts[0]!)) {
+        // `parent` is singular containment metadata, never a domain field
+        // or permission to select arbitrary metadata/dotted parent paths.
+        const declared = parts[0] === 'parent'
+          ? parts.length === 1 && checkedContainmentParent
+          : fieldNames.has(parts[0]!);
+        if (parts.some((part) => part.length === 0) || !declared) {
           throw new Error(`${where}: malformed or undeclared read selector on ${JSON.stringify(id)}.`);
         }
       }
@@ -2417,6 +2423,7 @@ async function collectModelPolicyManifests(
   modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
   verifiedOwnerModels: ReadonlySet<string>,
   artifact: CompileArtifact,
+  containment: LoadedArtifactDescriptors["containment"],
   onRowPolicy: () => void,
 ): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>> {
   const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>();
@@ -2513,7 +2520,26 @@ async function collectModelPolicyManifests(
         if (fields === undefined && (facts.public?.length ?? 0) > 0) {
           throw new Error(`${where}: public selector names no loaded model.`);
         }
-        const selectors = readSelectorFacts(model, facts, fields ?? [], { secretFields: [], declaration, readRules }, where);
+        const parent = containment.get(model as ModelName)?.parent;
+        const artifactModels = artifact.models ?? [];
+        const owningModels = artifactModels.filter(value => value.name === model);
+        const parentModels = artifactModels.filter(value => value.name === parent);
+        const emittedParent = isUnknownRecord(declaration) ? readMetadataMember(declaration, 'parent', where)?.value : undefined;
+        const checkedContainmentParent = parent !== undefined && modelFields.has(parent) &&
+          owningModels.length === 1 && owningModels[0]!.parent === parent &&
+          parentModels.length === 1 && emittedParent === parent;
+        const emittedGrants = isUnknownRecord(declaration) ? readMetadataMember(declaration, 'readGrants', where)?.value : undefined;
+        const selectsParent = emittedGrants === undefined ? false : readMetadataArray(emittedGrants, where, 'readGrants declaration').some(grant => {
+          const selected = isUnknownRecord(grant) ? readMetadataMember(grant, 'fields', where)?.value : undefined;
+          return selected !== undefined && readMetadataStrings(selected, where, 'read selector').includes('parent');
+        });
+        if (checkedContainmentParent && selectsParent) {
+          // The exact owning module/artifact closure, not a caller-supplied
+          // provenance shape, establishes this reserved selector vocabulary.
+          await verifyAssemblerModuleCapability(asm, artifact);
+          rowPolicyAssemblies.set(artifact, asm); onRowPolicy();
+        }
+        const selectors = readSelectorFacts(model, facts, fields ?? [], { secretFields: [], declaration, readRules }, where, checkedContainmentParent);
         const declaredFields = isUnknownRecord(declaration) ? declaration["fields"] : undefined;
         const fieldTypes = new Map<string, string>();
         if (isUnknownRecord(declaredFields)) {
@@ -3924,7 +3950,7 @@ async function loadCanonicalDescriptorsInternal(
   if (rowPolicyAssembly !== undefined) await verifyCheckedAssembly(asm, artifact);
   const manifests = await collectModelPolicyManifests(asm, modelFields,
     new Set(ownerPolicyControl === undefined ? [] : loaded.modelPolicies!.map(policy => policy.model)),
-    artifact, () => { rowPolicyAssembly = asm; });
+    artifact, loaded.containment, () => { rowPolicyAssembly = asm; });
   const policyInputs: CanonicalModelPolicyInput[] = [];
   const ruledModels = new Set<string>();
   for (const [index, model] of loaded.models.entries()) {

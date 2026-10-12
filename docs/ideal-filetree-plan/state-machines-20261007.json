@@ -1,18 +1,18 @@
 {
   "date": "2026-10-11",
-  "integrated_source_pin": "38eb95605a9cda4f50b4c0c09efbf06bed2e6572",
+  "integrated_source_pin": "965212fd8",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2420,
-    "net_path_deltas": 11143,
-    "history_touched_paths": 11180,
+    "commit_count_since_checkpoint": 2421,
+    "net_path_deltas": 11145,
+    "history_touched_paths": 11182,
     "history_only_paths": 6,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9640,
-    "scope": "Incremental local intake of 38eb95605a9cda4f50b4c0c09efbf06bed2e6572 onto main e35aa9be18988825bbc99729acb114085b38b2bc. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9642,
+    "scope": "Incremental local intake of 965212fd8 onto main 38ffb861827980eae4e5ee68048046f6512a20a7. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
   },
   "methods": [
     "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -60488,6 +60488,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/src/runtime/read-selector-parent.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/src/runtime/receipt-progress.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -61635,6 +61641,12 @@
     [
       "A",
       "packages/cloudflare/test/native-table-time-page.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/test/native-three-query-run-turn.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -66959,7 +66971,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9640,
+    "count": 9642,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -66973,5 +66985,5 @@
   "lanes": "Four existing local workers retain their assigned plans and precise holds. Coordinator alone integrates committed or human-authorized prepared changes into local main. No remote publication or PR gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Incremental local intake of 38eb95605a9cda4f50b4c0c09efbf06bed2e6572 onto main e35aa9be18988825bbc99729acb114085b38b2bc. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+  "current_maintenance_summary": "Incremental local intake of 965212fd8 onto main 38ffb861827980eae4e5ee68048046f6512a20a7. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
 }
