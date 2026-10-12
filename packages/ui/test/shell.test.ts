@@ -173,7 +173,7 @@ describe("drawer and navigation", () => {
       [],
       makeShell(),
     );
-    assert.match(html, /<div class="drawer drawer-end lg:drawer-open">/);
+    assert.match(html, /<div class="drawer lg:drawer-open">/);
     assert.match(
       html,
       /<input id="can-drawer" type="checkbox" class="drawer-toggle">/,
@@ -190,7 +190,7 @@ describe("drawer and navigation", () => {
     );
     assert.match(
       html,
-      /<aside class="w-80 min-h-full bg-base-200 flex flex-col">/,
+      /<aside class="can-sidebar w-64 min-h-full bg-base-200 flex flex-col">/,
     );
   });
 
@@ -273,10 +273,10 @@ describe("authenticated account menu", () => {
         },
       }),
     );
-    assert.match(html, /dropdown dropdown-top dropdown-end/);
+    assert.match(html, /dropdown dropdown-top/);
     assert.match(
       html,
-      /<div tabindex="0" role="button" class="btn btn-block">&lt;img src=x onerror=alert\(1\)&gt;<\/div>/,
+      /<span class="can-account-label">&lt;img src=x onerror=alert\(1\)&gt;<\/span>/,
     );
   });
 
@@ -289,7 +289,7 @@ describe("authenticated account menu", () => {
     );
     assert.match(
       html,
-      /<div tabindex="0" role="button" class="btn btn-block">Account<\/div>/,
+      /<span class="can-account-label">Account<\/span>/,
     );
   });
 
@@ -708,7 +708,30 @@ function makeLogin(overrides: Partial<LoginProps> = {}): LoginProps {
   };
 }
 
-describe("right sidebar DOM structure", () => {
+describe("left sidebar DOM structure", () => {
+  it("omits a group heading repeating the brand while keeping page links", async () => {
+    const html = await renderPage(makeContext(), makeDescriptor(), [], makeShell({
+      brand: message("Todos"),
+      navigation: { groups: [{ owner: "Todos", caption: message("Todos"), entries: [
+        { title: message("Todos"), path: "/", active: true, owner: "Todos" },
+      ] }], incomplete: false },
+      account: { authenticated: true, userLabel: "ava@preview.can.test", teams: [] },
+    }));
+    const page = await loadHtml(html);
+    try {
+      const aside = page.document.querySelector("aside")!;
+      assert.equal(aside.querySelector(".menu-title"), null);
+      assert.equal(aside.querySelector("nav a")?.textContent, "Todos");
+      assert.equal(aside.lastElementChild?.classList.contains("can-account"), true);
+      const toggle = aside.querySelector("button.can-account-toggle")!;
+      assert.equal(toggle.querySelector(".can-account-label")?.textContent, "ava");
+      assert.equal(toggle.querySelector(".can-account-avatar")?.textContent, "A");
+      assert.equal(toggle.getAttribute("title"), "ava@preview.can.test");
+      assert.ok(toggle.getAttribute("aria-label")?.includes("Settings"));
+      assert.ok(toggle.querySelector("svg.can-account-icon"));
+    } finally { await page.close(); }
+  });
+
   it("places the sidebar aside inside .drawer-side with brand, nav and account", async () => {
     const html = await renderPage(
       makeContext(),
@@ -720,7 +743,7 @@ describe("right sidebar DOM structure", () => {
     try {
       const drawer = page.document.querySelector("div.drawer");
       assert.ok(drawer !== null);
-      assert.ok(drawer.classList.contains("drawer-end"));
+      assert.ok(!drawer.classList.contains("drawer-end"));
       const aside = page.document.querySelector(".drawer-side > aside");
       assert.ok(aside !== null);
       assert.ok(aside.querySelector(".can-brand") !== null);
@@ -753,8 +776,8 @@ describe("right sidebar DOM structure", () => {
   });
 });
 
-describe("bottom-right account menu DOM", () => {
-  it("opens upward aligned to the right edge", async () => {
+describe("bottom-left account menu DOM", () => {
+  it("opens upward aligned to the left edge", async () => {
     const html = await renderPage(
       makeContext(),
       makeDescriptor(),
@@ -766,7 +789,7 @@ describe("bottom-right account menu DOM", () => {
       const menu = page.document.querySelector(".can-account.dropdown");
       assert.ok(menu !== null);
       assert.ok(menu.classList.contains("dropdown-top"));
-      assert.ok(menu.classList.contains("dropdown-end"));
+      assert.ok(!menu.classList.contains("dropdown-end"));
     } finally {
       await page.close();
     }

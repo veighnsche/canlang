@@ -31,6 +31,11 @@ const THEME_NAMES = [
 /** Structural `can-*` markup hooks owned by this package (reviewed). */
 const CAN_HOOKS = new Set([
   "can-account",
+  "can-account-toggle",
+  "can-account-avatar",
+  "can-account-label",
+  "can-account-icon",
+  "can-sidebar",
   "can-brand",
   "can-delivery",
   "can-gallery-grid",
