@@ -99,8 +99,10 @@ test("browser-export: authenticated request preserves the inline CSV byte-exact"
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.url, ACTION);
-  const init = calls[0]!.init as { method: string; headers: Record<string, string>; body: string };
+  const init = calls[0]!.init as { method: string; mode: string; redirect: string; headers: Record<string, string>; body: string };
   assert.equal(init.method, "POST");
+  assert.equal(init.mode, "same-origin");
+  assert.equal(init.redirect, "error");
   assert.equal(init.headers["content-type"], "application/json");
   assert.equal(init.headers["x-csrf-token"], CSRF);
   assert.deepEqual(JSON.parse(init.body), { operation: OPERATION, columns: ["customer"], limit: 10 });
@@ -108,6 +110,23 @@ test("browser-export: authenticated request preserves the inline CSV byte-exact"
   if (!result.ok) return;
   assert.equal(result.outcome.csv, INLINE.csv);
   assert.equal(deriveExportStatus(result.outcome, Date.parse("2026-10-06T12:00:00.000Z")), "inline-complete");
+});
+
+test("browser-export: protected targets refuse before rendering or sending the CSRF token", async () => {
+  let fetches = 0;
+  for (const action of ["https://foreign.example/api/exports", "//foreign.example/api/exports", "/\\foreign.example/api/exports", "api/exports", "/api/exports#fragment"]) {
+    await assert.rejects(submitExportRequest({
+      action, csrf: CSRF, operation: OPERATION,
+      fetchImpl: async () => {
+        fetches++;
+        return stubResponse(200, JSON.stringify(INLINE));
+      },
+    }), /operation POST action/);
+    assert.throws(() => renderExportPanel({
+      regionId: "export-panel", action, csrf: CSRF, operations: [OPERATION],
+    }), /operation POST action/);
+  }
+  assert.equal(fetches, 0);
 });
 
 test("browser-export: descriptor alone never completes; contradictions fail toward pending", () => {
