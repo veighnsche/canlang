@@ -3058,7 +3058,7 @@
         "disposition": "open-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Dev/L7 original media consumer; original Files bridge owner",
-        "accepted_scope": "Own JSON graph capture/digest/substitution producer released main90909dfad; producer requirement satisfied.",
+        "accepted_scope": "Own JSON graph capture/digest/substitution producer released main90909dfad; producer requirement satisfied. Exact graph destination aliases now refuse before provider requests rather than silently overwrite prompt/width; Services emit0/15 affected real loopback mapping+submit+installed Images/source review CLEAR locally. Original generated/durable/File host remains separate.",
         "next_action": "Qualify that original media consumer once; graph producer review/integration is already closed and File byte-domain work remains separately owned.",
         "done_when": "Original required media producer/consumer accepts the same captured graph/digest and stable retry identity, with recorded negative refusals; separate File requirements remain at their original scope.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV03",
@@ -3072,7 +3072,8 @@
           "priority": 14,
           "defining_owner": "Dev/L7 media/Files; Packages mapping only concrete gap",
           "next_action": "Take exact host release; no new graph vocabulary/profile."
-        }
+        },
+        "mapping_destination_uniqueness": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-SV03/mapping_destination_uniqueness"
       }
     },
     {

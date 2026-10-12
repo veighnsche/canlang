@@ -258,6 +258,14 @@ describe('media: workflow mapping', () => {
       () => substituteAndValidate(GRAPH, kindChanged, inputFor()),
       MappingValidationError,
     );
+    for (const [field, target] of [['negative', 'prompt'], ['height', 'width']] as const) {
+      const collision = mappingFor();
+      collision.inputs[field] = { ...collision.inputs[target] };
+      assert.throws(
+        () => substituteAndValidate(GRAPH, collision, inputFor()),
+        MappingValidationError,
+      );
+    }
     for (const output of ['99', '__proto__']) {
       const badOutput = mappingFor();
       badOutput.outputs = [output];
@@ -297,6 +305,21 @@ describe('media: submit', () => {
     });
   });
 
+
+  it('refuses colliding business destinations before provider transport', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      for (const [field, target] of [['negative', 'prompt'], ['height', 'width']] as const) {
+        const mapping = mappingFor();
+        mapping.inputs[field] = { ...mapping.inputs[target] };
+        const adapter = makeAdapter(server.url, { mapping });
+        await assert.rejects(
+          adapter.submit(inputFor(), { deliveryId: 'del_1', jobId: 'job_1' }),
+          MappingValidationError,
+        );
+      }
+      assert.equal(server.requests.length, 0);
+    });
+  });
 
   it('queues the substituted graph with the caller job id', async () => {
     await withServer({ kind: 'accept' }, async (server) => {

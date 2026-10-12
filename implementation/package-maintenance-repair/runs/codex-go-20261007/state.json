@@ -4274,6 +4274,14 @@
           "finding": "Inherited __proto__ output node could pass the existing object check; fixed with Object.hasOwn before output node read.",
           "disposition": "Concrete finding repaired in same unit; no review-of-review or broader rerun."
         }
+      },
+      "mapping_destination_uniqueness": {
+        "status": "implemented_tested_source_reviewed_CLEAR_local; finite media input preservation; original generated/durable parent unfinished",
+        "source_base": "e3cee693a54a829e6412bce02cfb9f28c0f60bae",
+        "defect": "Distinct business inputs could map to the same exact graph node/key. Negative prompt overwrote prompt, or height overwrote width, and submitWithBudget sent a graph silently dropping the earlier supplied field despite the mapping input-preservation contract.",
+        "repair": "Capture node/key scalars for consistent validation/use and track exact per-node key occupancy. Refuse repeated destinations after existing node/slot/kind checks before assignment, without delimiter aliases; identical keys in different nodes remain useful. Keep detached own-JSON graph/digest, field/error order and submit/retry/job/output protocol; no new API/profile.",
+        "validation": "Fresh Services emission0 and maintained pure substitution RED accepts exact-slot collision instead of MappingValidationError. Final Services emission0 and15/15 affected mapping/submit/installed Images cases PASS,0fail/cancel/skip, on real Node24 controlled loopback servers. Text/numeric collisions refuse and genuine adapter submit receives zero provider requests; normal submitted wire/graph/digest/freeze/own-JSON refusals/caller job/retry recovery/installed source+byte controls retained. Independent finite source review CLEAR. Unchanged observation/cancel/window/download/native/generated/durable and root public-type results reused at original scopes.",
+        "remaining": "Exact coordinator source intake. Original generated/durable media closure and actual File bridge/host qualification remain their defining Dev/Compiler/Files consumers; all holds/provider-void skip preserved. No push."
       }
     },
     "TECH-SV04": {

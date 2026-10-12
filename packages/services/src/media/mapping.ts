@@ -236,43 +236,53 @@ export function substituteAndValidate(
   if (!Number.isInteger(values.seed) || (values.seed as number) < 0) {
     throw new MappingValidationError('Image seed must be a non-negative integer');
   }
+  const usedDestinations = new Map<string, Set<string>>();
   for (const field of IMAGE_INPUT_FIELDS) {
     const destination = mapping.inputs[field] as
       | { node: string; key: string }
       | undefined;
+    const nodeId = destination === undefined ? undefined : destination.node;
+    const key = typeof nodeId === 'string' ? destination!.key : undefined;
     if (
-      destination === undefined ||
-      typeof destination.node !== 'string' ||
-      typeof destination.key !== 'string'
+      typeof nodeId !== 'string' ||
+      typeof key !== 'string'
     ) {
       throw new MappingValidationError(
         `Workflow mapping destination for '${field}' must name a node and key`,
       );
     }
-    const node = substituted[destination.node];
+    const node = substituted[nodeId];
     if (node === undefined || !isRecord(node.inputs)) {
       throw new MappingValidationError(
-        `Workflow mapping destination node '${destination.node}' for '${field}' does not exist`,
+        `Workflow mapping destination node '${nodeId}' for '${field}' does not exist`,
       );
     }
-    if (!(destination.key in node.inputs)) {
+    if (!(key in node.inputs)) {
       throw new MappingValidationError(
-        `Workflow mapping destination '${destination.node}.${destination.key}' for '${field}' does not exist`,
+        `Workflow mapping destination '${nodeId}.${key}' for '${field}' does not exist`,
       );
     }
-    const current = node.inputs[destination.key];
+    const current = node.inputs[key];
     const next = values[field];
     if (typeof current !== typeof next) {
       throw new MappingValidationError(
-        `Workflow mapping destination '${destination.node}.${destination.key}' holds ${Array.isArray(current) ? 'a link' : typeof current}; cannot substitute ${typeof next}`,
+        `Workflow mapping destination '${nodeId}.${key}' holds ${Array.isArray(current) ? 'a link' : typeof current}; cannot substitute ${typeof next}`,
       );
     }
     if (typeof current !== 'string' && typeof current !== 'number') {
       throw new MappingValidationError(
-        `Workflow mapping destination '${destination.node}.${destination.key}' is not a scalar slot`,
+        `Workflow mapping destination '${nodeId}.${key}' is not a scalar slot`,
       );
     }
-    node.inputs[destination.key] = next;
+    const usedKeys = usedDestinations.get(nodeId);
+    if (usedKeys?.has(key)) {
+      throw new MappingValidationError(
+        `Workflow mapping destination '${nodeId}.${key}' for '${field}' is already used`,
+      );
+    }
+    if (usedKeys === undefined) usedDestinations.set(nodeId, new Set([key]));
+    else usedKeys.add(key);
+    node.inputs[key] = next;
   }
   return { graph: freezeGraph(substituted), digest };
 }
