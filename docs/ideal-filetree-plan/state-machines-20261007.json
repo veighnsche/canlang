@@ -1,18 +1,18 @@
 {
   "date": "2026-10-11",
-  "integrated_source_pin": "adb432f9eb1128d3c8e24fa183a5b295667ca855",
+  "integrated_source_pin": "94579d694e012fb29c9398ea57a19a19f6fc0646",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2441,
-    "net_path_deltas": 11162,
-    "history_touched_paths": 11199,
+    "commit_count_since_checkpoint": 2442,
+    "net_path_deltas": 11163,
+    "history_touched_paths": 11200,
     "history_only_paths": 6,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9659,
-    "scope": "Incremental local intake of adb432f9eb1128d3c8e24fa183a5b295667ca855 onto main f420d0d4b58406fdd731765f9db13f75f4f04b8b. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9660,
+    "scope": "Incremental local intake of 94579d694e012fb29c9398ea57a19a19f6fc0646 onto main c102cb8d26aa03c48732c3ec371e1f7e72339f51. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
   },
   "methods": [
     "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -61712,6 +61712,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/test/nominal-file-staging.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/test/owner-page-routing.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -67073,7 +67079,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9659,
+    "count": 9660,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67087,5 +67093,5 @@
   "lanes": "Four existing local workers retain their assigned plans and precise holds. Coordinator alone integrates committed or human-authorized prepared changes into local main. No remote publication or PR gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Incremental local intake of adb432f9eb1128d3c8e24fa183a5b295667ca855 onto main f420d0d4b58406fdd731765f9db13f75f4f04b8b. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
+  "current_maintenance_summary": "Incremental local intake of 94579d694e012fb29c9398ea57a19a19f6fc0646 onto main c102cb8d26aa03c48732c3ec371e1f7e72339f51. Retained coverage/allocations since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f plus actual changed paths are reconciled; unchanged reviewed history is reused. Source scopes and precise holds remain; complete checkpoint unadvanced."
 }

@@ -342,7 +342,8 @@ test('rename-only checked scenarios never inspect optional File ports for fresh 
     assert.equal(batches[0]!.writes.length, 1); assert.equal(batches[0]!.history.length, 1);
     assert.deepEqual(batches[0]!.history[0], { model, recordId: current.id, version: current.version,
       operation: envelope.operation, operationId: envelope.operation_id, actor: w.identity.actor!.user_id, at: FIXED_NOW,
-      change: 'update', before: baseline.current.data, after: current.data });
+      change: 'update', before: baseline.current.data, after: current.data,
+      auditProjection: { created: baseline.current.created, createdBy: baseline.current.createdBy, secretFields: [] } });
     for (const effects of [batches[0]!.outbox, batches[0]!.schedules, batches[0]!.uniqueClaims, batches[0]!.uniqueReleases]) {
       assert.deepEqual(effects, []);
     }
