@@ -3,6 +3,7 @@
  */
 import type { CanTypeId, CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall } from '@canlang/state/invocation';
+import { executeScenarioReceiptAny as executeStateAny } from '@canlang/state';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
   selectScenarioReceiptReturn as selectStateReturn,
@@ -718,6 +719,23 @@ export function countQuery(c: HandlerContext, value: unknown): Promise<bigint> {
  * Only native views escape; actual query handles and candidate slots stay private. */
 export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
   predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>): Promise<readonly Readonly<Record<string, unknown>>[]> {
+  return executeNativeScenarioQuery(c, queryId, predicate, 'query');
+}
+
+/** Original stored-bool ANY uses State's whole-domain-first lazy receiver.
+ * Active candidate/slot and getter markers stay in the existing private frame. */
+export function executeScenarioReceiptAny(c: HandlerContext, queryId: string,
+  predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>): Promise<boolean> {
+  return executeNativeScenarioQuery(c, queryId, predicate, 'any');
+}
+
+function executeNativeScenarioQuery(c: HandlerContext, queryId: string,
+  predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>, mode: 'query'): Promise<readonly Readonly<Record<string, unknown>>[]>;
+function executeNativeScenarioQuery(c: HandlerContext, queryId: string,
+  predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>, mode: 'any'): Promise<boolean>;
+function executeNativeScenarioQuery(c: HandlerContext, queryId: string,
+  predicate: (record: Readonly<Record<string, unknown>>) => boolean | Promise<boolean>,
+  mode: 'query' | 'any'): Promise<readonly Readonly<Record<string, unknown>>[] | boolean> {
   const operation = (async () => {
     const frame = checkedQuery(c);
     if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario queries must run sequentially.'));
@@ -727,6 +745,7 @@ export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
       if (plan === undefined || frame.queryProducer === undefined || typeof predicate !== 'function') {
         return refuse('Scenario query requires its checked occurrence and installed native producer.');
       }
+      if (mode === 'any' && frame.kind !== 'receipt') return refuse('Stored-bool ANY requires its original mutation receipt frame.');
       if (frame.kind === 'read') {
         if (frame.selectedReturn !== null || frame.queries.has(queryId)) return refuse('Public query requires one execution of its checked occurrence before return.');
         frame.queries.add(queryId);
@@ -771,6 +790,14 @@ export function executeScenarioReceiptQuery(c: HandlerContext, queryId: string,
       };
       let result: NonNullable<NativeQueryExecution['result']>;
       if (frame.kind === 'receipt') {
+        if (mode === 'any') {
+          const accepted = await executeStateAny(frame.call, frame.store, { queryId, predicate: candidate });
+          checkedQuery(c);
+          // Visited predicate views have no selected-array lifetime. Source
+          // cannot reuse them after the actual lazy receiver completes.
+          query.bound = true;
+          return accepted;
+        }
         const receiptResult = await executeStateQuery(frame.call, frame.store, { queryId, predicate: candidate });
         query.receiptResult = receiptResult; result = receiptResult;
       } else {

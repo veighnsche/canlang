@@ -3462,6 +3462,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
 }
 
 type NativeQuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
+type NativeQueryAnyMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['any']>[number];
 const nativeScenarioQuerySelections = new WeakMap<GeneratedOperationDef, readonly NativeQuerySelectionMetadata[]>();
 
 /** Query authority comes from the checked source module and actual same-load
@@ -3484,6 +3485,15 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario query lacks its owning app identity.');
     const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
+    const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
+    const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
+      const metadata = localPolicyObject(value, ['queryId', 'dependencyId']);
+      if (Object.keys(metadata).length !== 2 || typeof metadata.queryId !== 'string' || metadata.queryId === '' ||
+          typeof metadata.dependencyId !== 'string' || metadata.dependencyId === '') {
+        throw new AssemblyCorrespondenceError('Stored-bool ANY lacks its original checked query and CONTROL occurrence.');
+      }
+      return captureDispatchPreclaimData({ queryId: metadata.queryId, dependencyId: metadata.dependencyId }) as NativeQueryAnyMetadata;
+    });
     const rawSelections = isUnknownRecord(operation) ? readMetadataMember(operation, 'querySelections', where)?.value : undefined;
     const selections = rawSelections === undefined ? [] : nativeCallArray(rawSelections, 3).map(value => {
       const selection = localPolicyObject(value, ['queryId', 'type', 'fields']);
@@ -3500,10 +3510,10 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       });
       return captureDispatchPreclaimData({ queryId: selection.queryId, type: selection.type as CanTypeId, fields }) as NativeQuerySelectionMetadata;
     });
-    if (selections.length !== 0 && (!isUnknownRecord(operation) || readMetadataMember(operation, 'handler', where)?.value !== def.name)) {
-      throw new AssemblyCorrespondenceError('Message selection differs from its actual installed operation.');
+    if ((selections.length !== 0 || any.length !== 0) && (!isUnknownRecord(operation) || readMetadataMember(operation, 'handler', where)?.value !== def.name)) {
+      throw new AssemblyCorrespondenceError('Query consumer differs from its actual installed operation.');
     }
-    const needsSourcePolicy = selections.length !== 0 || plan.queries.some(query => {
+    const needsSourcePolicy = selections.length !== 0 || any.length !== 0 || plan.queries.some(query => {
       const visited = new Set<ModelName>();
       let model: ModelName | undefined = query.model;
       while (model !== undefined && !visited.has(model)) {
@@ -3513,7 +3523,7 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       }
       return false;
     });
-    // Eager selections need whole original source grants even without row rules.
+    // Selected messages and ANY retain original source grants without row rules.
     if (needsSourcePolicy && context === undefined) continue;
     const bind = loaded.producers.invoke.bindScenarioReceiptQueryProducer;
     if (bind === undefined) throw new AssemblyCorrespondenceError('Scenario query requires its installed State producer.');
@@ -3522,7 +3532,8 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
       for (const [model, policy] of sourceReads!.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
     }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
-      ...(readPolicies === undefined ? {} : { readPolicies }), ...(selections.length === 0 ? {} : { selections }) });
+      ...(readPolicies === undefined ? {} : { readPolicies }), ...(selections.length === 0 ? {} : { selections }),
+      ...(any.length === 0 ? {} : { any }) });
     if (selections.length !== 0) nativeScenarioQuerySelections.set(def, Object.freeze(selections));
   }
 }

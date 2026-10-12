@@ -121,7 +121,6 @@
     "DEL-C02-order",
     "DEL-B01",
     "DEL-B02",
-    "DEL-D03",
     "DEL-D04",
     "DEL-D05",
     "DEL-R01",
@@ -6022,7 +6021,7 @@
     },
     "DEL-D03": {
       "planning_status": "blocked",
-      "state": "Independently accepted planned ancestry preflight committed 788e5352; wider lifecycle/sidecar/installed gates open",
+      "state": "Accepted complete selected DEL-D03 recipes at the original finite CLI/writer/lifetime scope. MAIN d3237281 supplies the final real child replacement and genuine second-sidecar EISDIR controls; prior accepted output/URL/cleanup/budget/uncertain-Wrangler results reused. Wider canonical parents and all holds unchanged.",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/preparation/build-adapter.ts",
@@ -6049,7 +6048,7 @@
       "required_fix": "Entry cleanup secondary exception must not mask original write error; filesystem cleanup success remains conditional",
       "test_sha256": "f10a25503856fb74f1e8a3f95e81b1403d58db31eff03556636129cbc5455c13",
       "commit_pending": false,
-      "parent_limit": "Broader filesystem containment/process/resource/installed gates remain open",
+      "parent_limit": "Selected DEL-D03 exit satisfied; wider canonical C04/T21-T23/install/upgrade parents and exact native preparation holds remain separate. No atomic publication, abrupt-death, process-tree, absolute-exit or remote rollback claim.",
       "correctness_growth": 18,
       "commit": "2b750a6e",
       "contained_writer_prerequisite": {
@@ -6198,6 +6197,17 @@
         "validation": "Source-only comparison confirms absent Dev mapping and present LOCAL/accepted MAIN mapping+genuine bridge visit. Fresh LOCAL Cloudflare tsc0; emitted deploy/bundle.js SHA25649f5cf29ca31db5fe06f2bfa68b6ce243365ffd674c78c235fb2b268585d4ae0. Independent finite read-only diagnosis agrees. Accepted547 actual Files/Work/missing-link controls reused, not rerun; no new physical filesystem qualification.",
         "owner": "Dev exact producer intake and original physical writer witness; Packages genuine new common gaps only",
         "holds": "Primary ea18 capture untouched; own worktree only. Native preparation/default/activation/publication/provider-void/no-push preserved; no intake-only commit."
+      },
+      "physical_writer_consumer": {
+        "status": "accepted MAIN finite original physical-writer consumer; selected DEL-D03 packet exit satisfied",
+        "source": "d32372812929a39ee2c1d730d6e269db74590372",
+        "defining_control": "3b161784cfc50c66edf1ef5438e013b46d53b5e2:packages/cloudflare/test/deploy-cli.test.ts",
+        "qualification": "Independently source-reviewed CLEAR and actual MAIN2/2 PASS file2165ms/2.95s Vitest/3.26s process,23 unrelated controls deselected. Normal MAIN CF4.64s/root4.78s0. Worker a5052/2 2307ms is separate; historical pre-link failures retained, already accepted547 mapping reused.",
+        "replacement": "Real child replaces the directory with a symlink at consumed publication preflight; writer refuses before external overwrite/output/apply, outside sentinel remains unchanged and generated scratch is cleaned.",
+        "interruption": "Real child makes the second sidecar a directory; genuine same primary EISDIR preserved, earlier bundle/plan outputs retained with truthful partial-output/no-apply warning and owned scratch cleanup.",
+        "exit": "Together with already accepted ancestry/static root-worker-target refusal, normal output, acquisition/entry-write/process/read/cleanup failure controls, usable caller-owned post-exit run file URL, actual local workerd disposal, cooperative command/Bun bounds and truthful one-attempt uncertain Wrangler outcomes, original positive/negative/done_when recipes are met. The decisive recipe explicitly permits mocked deploy-child effects. No concrete additional Packages adaptation or original selected criterion remains.",
+        "limits": "Detection at consumed preflight, not atomic check-to-write; sequential publication. Bun/Wrangler mocked in these2controls. No abrupt-death/process-tree/absolute-exit/remote rollback/deployment guarantee. Wider canonical preparation/install/upgrade parents and all native preparation/default/activation/publication holds remain separate.",
+        "records": "Stop previously missing physical replacement/interruption and mapper-intake asks. Reuse unchanged scoped results; no duplicate host fixture/Dev review/rerun/intake-only commit."
       }
     },
     "DEL-D04": {
@@ -7079,7 +7089,8 @@
       "DEL-A01-admission",
       "DEL-A01-canonical",
       "TECH-S04-admission",
-      "TECH-S04-cohort"
+      "TECH-S04-cohort",
+      "DEL-D03"
     ],
     "partially_completed": [
       "TECH-V03",
@@ -7092,7 +7103,6 @@
       "TECH-SV02",
       "DEL-B01",
       "DEL-B02",
-      "DEL-D03",
       "DEL-D04",
       "DEL-E02",
       "VERIFY-TV01",
@@ -7114,14 +7124,14 @@
       "DEL-D05"
     ],
     "counts": {
-      "finished": 22,
-      "partial": 15,
+      "finished": 23,
+      "partial": 14,
       "open_or_blocked": 10,
       "held": 1,
       "total": 48
     },
-    "source_basis": "Current queue IDs + explicit independent dispositions/task scope; accepted narrow corrections do not close broad qualification packets",
-    "status_given_to_human": "22/48 finished selected packets,15 partial,10 open or blocked,1 held; original bounded cohort criterion accepted, wider canonical parents unchanged."
+    "source_basis": "Current queue IDs and original selected recipes: accepted prior DEL-D03 components plus coordinator-reviewed actual MAIN d3237281 final physical controls supply its finite exit. Wider canonical parent/hold acceptance unchanged.",
+    "status_given_to_human": "23/48 finished selected packets,14 partial,10 open or blocked,1 held; DEL-D03 original finite exit accepted, wider canonical parents and exact recipient holds unchanged."
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {
