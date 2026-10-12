@@ -2,7 +2,9 @@
 use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
 use canlang_compiler::codegen::ir::{self, IrExpr, IrItemKind, IrModelRuleKind, IrProgram, IrType};
-use canlang_compiler::codegen::model_unique_conditions::collect_checked_unique_conditions;
+use canlang_compiler::codegen::model_unique_conditions::{
+    collect_checked_model_rule_origins, collect_checked_unique_conditions,
+};
 use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, sha256_hex};
@@ -314,6 +316,9 @@ fn original_conditional_unique_artifact_and_verified_factory_share_exact_existin
             "declaration does not invent a field-modifier unconditional key"
         );
     }
+    let expected_census =
+        collect_checked_model_rule_origins(&program, &ir, &db, Some(&catalog)).unwrap();
+    assert_eq!(expected_census.len(), 11);
     let expected = serde_json::json!({
         "fields":fact.fields,"where":fact.registry_id,"wherePredicate":fact.predicate,"ordinal":fact.ordinal,
         "source":{"path":fact.source.path,"sha256":fact.source.sha256,"module":fact.source.module},
@@ -329,6 +334,11 @@ fn original_conditional_unique_artifact_and_verified_factory_share_exact_existin
     std::fs::write(
         scratch.path().join("expected.json"),
         serde_json::to_vec(&expected).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        scratch.path().join("expected-census.json"),
+        serde_json::to_vec(&expected_census).unwrap(),
     )
     .unwrap();
     let runner = scratch.path().join("conditional-unique.mjs");
@@ -354,6 +364,13 @@ for(const name of ['Office.Item','Warehouse.Item']){
 }
 const module=await importVerifiedAssemblyModule(assembly,artifact.modules[0].path,artifact);
 const definition=module.appDefinition,registry=module.canApp();
+const expectedCensus=JSON.parse(readFileSync(resolve(base,'expected-census.json'),'utf8'));
+assert.deepEqual(definition.modelRuleOrigins,expectedCensus);
+assert.equal(definition.modelRuleOrigins.length,11);
+assert.equal(artifact.modules.reduce((count,module)=>count+(module.js.match(/modelRuleOrigins:/g)||[]).length,0),1,'one complete census, not per-unique replicas');
+assert.equal(definition.modelRuleOrigins[5].kind,'unique');assert.equal(definition.modelRuleOrigins[5].model,'Office.Item');
+assert.equal(definition.modelRuleOrigins[5].registryId,'Office.Item.unique.1');
+
 assert.ok(definition.models['Office.Item']);assert.ok(definition.models['Warehouse.Item']);
 const declarations=definition.models['Office.Item'].uniques;
 assert.equal(declarations.length,1);assert.deepEqual(declarations[0],expected);
@@ -382,4 +399,115 @@ for(const closed of [false,true]){
         String::from_utf8_lossy(&run.stdout),
         String::from_utf8_lossy(&run.stderr)
     );
+}
+
+#[test]
+fn original_global_model_rule_census_retains_every_interleaved_declaration_once() {
+    let (db, program, ir) = checked(SOURCE);
+    let census = collect_checked_model_rule_origins(&program, &ir, &db, None).unwrap();
+    let expected = [
+        ("policy", "Office.Item"),
+        ("policy", "Office.Bin"),
+        ("invariant", "Office.Bin"),
+        ("lock", "Office.Item"),
+        ("invariant", "Office.Item"),
+        ("unique", "Office.Item"),
+        ("lock", "Office.Bin"),
+        ("invariant", "Office.Item"),
+        ("policy", "Warehouse.Item"),
+        ("invariant", "Warehouse.Item"),
+        ("lock", "Warehouse.Item"),
+    ];
+    assert_eq!(census.len(), expected.len());
+    for (index, (entry, (kind, model))) in census.iter().zip(expected).enumerate() {
+        assert_eq!(entry["ordinal"], index);
+        assert_eq!(entry["kind"], kind);
+        assert_eq!(entry["model"], model);
+        assert_eq!(entry["ownerPackage"], model.split('.').next().unwrap());
+        assert_eq!(entry["source"]["path"], "model-rules.can");
+        assert_eq!(entry["source"]["sha256"], sha256_hex(SOURCE.as_bytes()));
+        let start = entry["declaredAt"]["start"].as_u64().unwrap() as usize;
+        let end = entry["declaredAt"]["end"].as_u64().unwrap() as usize;
+        assert!(SOURCE[start..end].trim().starts_with(kind));
+    }
+    assert_eq!(census[5]["registryId"], "Office.Item.unique.1");
+    let unique = collect_checked_unique_conditions(&program, &ir, &db, None)
+        .unwrap()
+        .remove(0);
+    assert_eq!(unique.ordinal, 5);
+    assert_eq!(
+        census[5]["declaredAt"],
+        serde_json::json!({"start":unique.node.start,"end":unique.node.end})
+    );
+}
+
+#[test]
+fn incomplete_reordered_wrong_global_ordinal_owner_source_and_executable_censuses_refuse() {
+    let (db, program, original) = checked(SOURCE);
+    let office = original
+        .items
+        .iter()
+        .find(|item| item.canonical == "Office.Item")
+        .unwrap()
+        .id;
+    for mutation in ["missing", "reordered", "model", "source", "anchor"] {
+        let mut ir = original.clone();
+        match mutation {
+            "missing" => {
+                ir.read_rules.remove(0);
+            }
+            "reordered" => ir.invariants.swap(0, 1),
+            "model" => ir.items[office.0 as usize].canonical = "Warehouse.Item".into(),
+            "source" => ir.modules[0].file = canlang_compiler::source::SourceId(u32::MAX),
+            "anchor" => ir.invariants[0].span.start += 1,
+            _ => unreachable!(),
+        }
+        assert!(
+            collect_checked_model_rule_origins(&program, &ir, &db, None).is_none(),
+            "{mutation}"
+        );
+        assert!(
+            collect_checked_unique_conditions(&program, &ir, &db, None).is_none(),
+            "{mutation} unique intake"
+        );
+    }
+    // Rebuild from edited public tables too: contiguity and lexical source
+    // correspondence authenticate neither a duplicated nor swapped ordinal.
+    for swapped in [false, true] {
+        let (db, mut program, _) = checked(SOURCE);
+        let id = program
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == "Office.Item")
+            .unwrap()
+            .id;
+        let data = program.effects.models.get_mut(&id).unwrap();
+        if swapped {
+            std::mem::swap(&mut data.uniques[0].id, &mut data.invariants[0].id);
+        } else {
+            data.uniques[0].id += 1;
+        }
+        let (ir, diagnostics) = ir::build(&program, &db, None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(collect_checked_model_rule_origins(&program, &ir, &db, None).is_none());
+        assert!(collect_checked_unique_conditions(&program, &ir, &db, None).is_none());
+    }
+}
+
+#[test]
+fn preferences_invariants_share_the_real_global_allocation_without_model_substitution() {
+    let source=SOURCE.replacen(" Then\npackage Warehouse", " Then\n  preferences { enabled:bool=true }\n  invariant preferences: true\npackage Warehouse",1);
+    let (db, program, ir) = checked(&source);
+    let census = collect_checked_model_rule_origins(&program, &ir, &db, None).unwrap();
+    assert_eq!(census.len(), 12);
+    assert_eq!(census[8]["kind"], "invariant");
+    let preferences = ir
+        .items
+        .iter()
+        .find(|item| matches!(item.kind, IrItemKind::Preferences { .. }))
+        .unwrap();
+    assert_eq!(census[8]["model"], preferences.canonical);
+    assert_eq!(census[8]["ownerPackage"], "Office");
+    assert_eq!(census[8]["registryId"], "preferencesValid");
+    assert_eq!(census[9]["model"], "Warehouse.Item");
 }
