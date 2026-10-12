@@ -12009,3 +12009,10 @@ Changed MAIN checks all0: {"StateDO": 4.09, "CF": 4.27, "root": 4.53} seconds.
 Accepted Dev14c+ecb host component after independent defining review CLEAR. Apply only exact invoke additions and new installed caller control, preserving newer required Profile/query/source/SEND paths; copied already accepted Statec0 excluded. Declaration-bound nominal File profile traverses owning fields, but actual invocation-local grants and genuine installed Files observations confer authority. Ordered duplicate/empty prefix observations, rejected malformed/absent/expired/in-flight revoked cases and cleanup/resource guards reused. Stored File CALL limit8 stays original; no new prefix limit or full compiled transcript/native authority.
 
 Changed MAIN checks all0: {"CF": 4.17, "root": 4.51} seconds.
+
+
+### 2026-10-12 — require original Print HTML media essence
+
+Accepted Packagesfdf source/control after independent defining review CLEAR: parse trimmed case-insensitive media essence before semicolon and require exact text/html at the original post-body/status gate. application/not-html;note=text/html and text/htmlish refuse; parameterized mixed-case HTML remains valid. Four public caller controls reused, original safe links/sandbox/cancellation/context/cleanup preserved. Existing human current scheduling view stays; completed local library components leave24 exact-owner parent leaves/two held/local-ready0,22/48 unchanged. Mounted/native/installed authority is distinct; no host/profile/hold release.
+
+Changed MAIN checks all0: {"UI": 1.6, "root": 4.64} seconds.

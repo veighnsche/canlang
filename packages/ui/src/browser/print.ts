@@ -104,7 +104,8 @@ export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrint
     };
   }
   const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("text/html")) {
+  const mediaType = contentType.split(";", 1)[0]!.trim().toLowerCase();
+  if (mediaType !== "text/html") {
     return { ok: false, error: transportError("Print request failed (non-HTML answer).") };
   }
   return { ok: true, html: body, view: input.view };

@@ -44,7 +44,7 @@ test("browser-print: live GET per call with declared view + bounds; HTML preserv
   const second = await fetchPrintView({
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
-      return stubResponse(200, "<!DOCTYPE html><html><body><table></table></body></html>");
+      return stubResponse(200, "<!DOCTYPE html><html><body><table></table></body></html>", " TeXt/HTML ; charset=utf-8");
     },
     printBase: BASE,
     view: VIEW,
@@ -93,6 +93,16 @@ test("browser-print: non-HTML answers and error JSON digest explicitly", async (
   assert.equal(json.ok, false);
   if (json.ok) return;
   assert.equal(json.error.code, "transport");
+  for (const contentType of ["application/not-html; note=text/html", "text/htmlish"]) {
+    const misleading = await fetchPrintView({
+      fetchImpl: async () => stubResponse(200, "<html>not an HTML media type</html>", contentType),
+      printBase: BASE,
+      view: VIEW,
+    });
+    assert.deepEqual(misleading, {
+      ok: false, error: { code: "transport", message: "Print request failed (non-HTML answer)." },
+    });
+  }
   const denied = await fetchPrintView({
     fetchImpl: async () => stubResponse(403, JSON.stringify({ code: "forbidden", message: "No." })),
     printBase: BASE,
