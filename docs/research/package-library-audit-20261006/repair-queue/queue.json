@@ -5200,7 +5200,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Compiler checked channels; Dev materializer; Testkit/Values/State exact cleanup owners",
-        "accepted_scope": "Partial: accepted table disposal, DO audit reset, caller scratch cleanup and outside-checkout public runner disposal workflow",
+        "accepted_scope": "Partial: accepted table disposal, DO audit reset, caller scratch cleanup and outside-checkout public runner disposal workflow Ordinary ReportValue/public runTable own-key comparison now distinguishes absent inherited versus explicit own __proto__ keys in either direction and catches actual rejected writes; reviewed485 source/control unit component-accepted in LOCAL main, owner11/11 177ms reused and normal Testkit0. Original checked-channel/Dev materializer gates remain separate.",
         "next_action": "Connect the existing checked-channel consumer and execute only a specifically unsatisfied original cleanup condition. TV02/TEW01 and EC04 are closed; held TV04/05/native cleanup stays excluded.",
         "done_when": "Original comparator/cleanup errors remain observable; every selected cleanup retains reconstructible independent donor/source and real substrate controls. No oracle expectation edits, evidence deletion or new hash/proof chain.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-E02",
@@ -5216,7 +5216,8 @@
           "priority": 20,
           "defining_owner": "Compiler checked channels; Dev/Testkit consumer",
           "next_action": "Qualify only the released original caller."
-        }
+        },
+        "own_observation_key_presence": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-E02/own_observation_key_presence"
       }
     },
     {

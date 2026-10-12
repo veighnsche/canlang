@@ -6594,6 +6594,15 @@
         "review": "Independent finite source review CLEAR; helper remains independent and test-only.",
         "remaining": "Other named selected E02 oracle/loader/type/installed or original consumer criteria retain exact defining outputs/holds. TV02 and EC04 local criteria now stop; no broader/native acceptance inferred.",
         "coordinator_review": "Independent defining review CLEAR: identical half-even digit-string oracle extracted test-only, exact seeds/vectors/assertions and independent roles retained. Reuse owning4 affected seeded consumers and normal Values/root checks; no production byte change or savings, no unchanged rerun. This closes original EC04 only; broader E02/installed/native criteria and exact holds remain."
+      },
+      "own_observation_key_presence": {
+        "status": "implemented_tested_reviewed_component_in_LOCAL_main; original checked channels/materializer remain unfinished",
+        "source_base": "960746e8596be13b95753d666617c9d0f3a6692d",
+        "defect": "diffReportValues formed an own-key union but used inherited presence. Ordinary own __proto__:{} compared equal to an absent key whose inherited prototype has no own entries; public runTable falsely reported sideEffectsAbsent:true after an expected rejection wrote that field.",
+        "repair": "Use Object.hasOwn for existing presence and missing-side diagnostic selection. Preserve Object.is, arrays, sorted paths, null diagnostics, original comparator throws and row disposal behavior; no new ReportValue profile, framework, carrier or oracle expectation weakening.",
+        "validation": "Pinned Node24.19 fresh Testkit emission0; two affected maintained cases RED reproduced empty mismatch list and actual MemoryScope/runTable rejected-write row incorrectly passed. After correction fresh owning emission0 and complete affected equal/table files11/11 PASS,0fail/skip,177ms. Both missing/extra own __proto__ directions produce exact diagnostics; rejected write reports failed/sideEffectsAbsent:false and disposes. Independent root source review CLEAR; accepted disposal-error/native/oracle/installed controls reused rather than repeated.",
+        "remaining": "Exact coordinator source intake with normal Testkit emission. This is local public runner/comparator behavior with an explicit memory scope, not storage/native/generated-channel or complete DEL-E02 acceptance. Original Compiler checked channels and Dev materializer remain separate; all holds/provider-void skip preserved, no push.",
+        "coordinator_review": "Exact defining source/control diff and three main preimages match; finite independent source review CLEAR and11 owner equal/table controls177ms reused. Changed MAIN Testkit0 0.86s; no unchanged disposal/oracle/generated/installed/native rerun."
       }
     },
     "REPLAY-IP07": {
