@@ -2179,6 +2179,95 @@ mod inline_selection_tests {
         assert_eq!(metadata[0]["queryId"], fact.query.id);
         assert_eq!(metadata[0]["type"], "TextMessage[]");
         assert_eq!(metadata[0]["fields"].as_array().unwrap().len(), 3);
+        let mut emitter = super::super::js::Emitter::new(&ir);
+        let models =
+            super::super::js::Emitter::source_models(&ir, &db).expect("original source models");
+        let value_types = emitter
+            .collect_standard_value_inventory(&db)
+            .expect("original standard inventory");
+        let prepared =
+            super::super::scenario_feasibility::prepare(&program, &ir, &db, catalog.as_ref())
+                .expect("original same-IR successful paths");
+        let native_sources = |plan| super::super::scenario_receipts::NativeReceiptSources {
+            db: Some(&db),
+            send_guards: None,
+            query_plan: plan,
+        };
+        assert!(
+            super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                &ir,
+                owner,
+                &models,
+                &module,
+                Some(&value_types),
+                native_sources(None),
+                None,
+            )
+            .is_none(),
+            "an unprepared inline query has no native authority"
+        );
+        let receipt =
+            super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                &ir,
+                owner,
+                &models,
+                &module,
+                Some(&value_types),
+                native_sources(Some(&plan)),
+                Some(&prepared),
+            )
+            .expect("original inline source must produce a complete native receipt");
+        assert_eq!(receipt.plan.queries.len(), 1);
+        for mode in [
+            "parent",
+            "model",
+            "query-role",
+            "query-source",
+            "return-role",
+            "influence",
+        ] {
+            let mut changed = plan.clone();
+            match mode {
+                "parent" => {
+                    let ReceiptQueryParentOrigin::StoredReference { dependency_id } =
+                        &mut changed.queries[0].parent.as_mut().unwrap().origin
+                    else {
+                        panic!("stored parent")
+                    };
+                    dependency_id.push_str("-foreign");
+                }
+                "model" => changed.queries[0].model.push_str("-foreign"),
+                "query-role" => changed.queries[0].dependencies[0].role = ReceiptRole::Data,
+                "query-source" => changed.queries[0].dependencies[0].source.sha256 = "0".repeat(64),
+                "return-role" => {
+                    changed.returns[0].dependencies[0].role =
+                        match changed.returns[0].dependencies[0].role {
+                            ReceiptRole::Data => ReceiptRole::Control,
+                            ReceiptRole::Control => ReceiptRole::Data,
+                        }
+                }
+                "influence" => changed.returns[0].influences[0].id.push_str("-foreign"),
+                _ => unreachable!(),
+            }
+            assert!(
+                super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                    &ir,
+                    owner,
+                    &models,
+                    &module,
+                    Some(&value_types),
+                    super::super::scenario_receipts::NativeReceiptSources {
+                        db: Some(&db),
+                        send_guards: None,
+                        query_plan: Some(&changed)
+                    },
+                    Some(&prepared),
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
+
         for returned in &plan.returns {
             assert_eq!(returned.influences.len(), 4);
             assert!(

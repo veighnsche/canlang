@@ -1060,7 +1060,25 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             .then_some(fact)
                     })
                 });
-            if dependency.query_id.is_some() && !parent_read && selected_transcript.is_none() {
+            let selected_inline = checked
+                .source_facts
+                .as_deref()
+                .and_then(|source| source.inline_selections.as_deref())
+                .and_then(|facts| {
+                    facts.iter().find(|fact| {
+                        dependency == &fact.bound_dependency
+                            || fact.dependencies.iter().any(|read| read == dependency)
+                    })
+                });
+            if let Some(fact) = selected_inline {
+                let expression = sites.members.get(&site)?.first()?;
+                checked_inline_selection_member(ir, item, fact, dependency, expression, db?)?;
+            }
+            if dependency.query_id.is_some()
+                && !parent_read
+                && selected_transcript.is_none()
+                && selected_inline.is_none()
+            {
                 return None;
             }
             let transport_type = if id_read {
@@ -1259,7 +1277,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                         return None;
                     }
                     let expression = sites.members.get(&site)?.first()?;
-                    let original = if let Some(fact) = selected_transcript {
+                    let original = if let Some(fact) = selected_inline {
+                        checked
+                            .source_facts
+                            .as_deref()?
+                            .stored_contracts
+                            .as_deref()?
+                            .iter()
+                            .find(|schema| schema.id == fact.query.model && schema.model)?
+                            .fields
+                            .iter()
+                            .find(|field| field.id == dependency.field)?
+                    } else if let Some(fact) = selected_transcript {
                         checked
                             .source_facts
                             .as_deref()?
@@ -1325,6 +1354,18 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     }
                     inline
                 } else if let Some(prefix) = checked_transcript_prefix_inventory(
+                    ir,
+                    item,
+                    dependency,
+                    declared[0],
+                    value_types,
+                    db,
+                ) {
+                    if transition.is_some() || prefix != dependency.type_id {
+                        return None;
+                    }
+                    prefix
+                } else if let Some(prefix) = checked_inline_prefix_inventory(
                     ir,
                     item,
                     dependency,
@@ -2042,6 +2083,51 @@ pub(super) fn checked_scenario_query_influences(
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
     let queries = facts.queries.as_deref()?;
     let transcripts = facts.transcripts.as_deref().unwrap_or_default();
+    if let Some([fact]) = facts
+        .inline_selections
+        .as_deref()
+        .filter(|facts| !facts.is_empty())
+    {
+        let [query] = queries else {
+            return None;
+        };
+        if query != &fact.query
+            || !transcripts.is_empty()
+            || query.influences.len() != 4
+            || query.first.is_some()
+            || query.count.is_some()
+            || query.projection.is_some()
+            || query.source != facts.source
+            || query.return_node.file != facts.node.file
+        {
+            return None;
+        }
+        let mut ids = HashSet::new();
+        for (influence, kind) in query.influences.iter().zip([
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]) {
+            if influence.kind != kind
+                || influence.id.is_empty()
+                || !ids.insert(influence.id.as_str())
+                || influence.source != query.source
+                || influence.node != query.node
+                || influence.query_id.as_deref() != Some(query.id.as_str())
+            {
+                return None;
+            }
+        }
+        return Some(query.influences.clone());
+    }
+    if facts
+        .inline_selections
+        .as_deref()
+        .is_some_and(|facts| !facts.is_empty())
+    {
+        return None;
+    }
     if transcripts.is_empty() {
         return checked_native_query_influences(queries);
     }
@@ -2187,6 +2273,22 @@ fn checked_native_first_query_plan<'a>(
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
     if facts
+        .inline_selections
+        .as_deref()
+        .is_some_and(|facts| !facts.is_empty())
+    {
+        return checked_native_inline_selection_plan(
+            ir,
+            owner,
+            checked,
+            supplied?,
+            entry_module,
+            returned_paths,
+            db?,
+        )
+        .map(Some);
+    }
+    if facts
         .transcripts
         .as_deref()
         .is_some_and(|facts| !facts.is_empty())
@@ -2247,6 +2349,335 @@ fn checked_native_first_query_plan<'a>(
     };
     project_plan_returns(&mut expected, returned_paths)?;
     (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+}
+
+/// The private source selection is authenticated against its actual complete
+/// prefix Let using the existing owning Branch create expression seal. This
+/// returns borrowed executable operands, never a reconstructed getter or row.
+fn checked_inline_selection_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    fact: &crate::analysis::scenario_disclosure::CheckedInlineSelectionSource,
+    db: &SourceDb,
+) -> Option<&'a super::ir::IrQuery> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [original_fact] = facts.inline_selections.as_deref()? else {
+        return None;
+    };
+    let [original_query] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let IrItemKind::Scenario {
+        effects,
+        read: false,
+        ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let mut statements = effects.iter().filter(
+        |statement| matches!(statement,IrStmt::Let {span,..} if *span==node_span(fact.statement)),
+    );
+    let IrStmt::Let { name, value, .. } = statements.next()? else {
+        return None;
+    };
+    let mut creates = facts.creates.as_deref()?.iter().filter(|created| {
+        created.model == fact.parent.parent && created.node.start >= fact.statement.end
+    });
+    let original = creates.next()?;
+    if statements.next().is_some()
+        || creates.next().is_some()
+        || name != "prefix"
+        || original_fact != fact
+        || original_query != &fact.query
+        || !facts.transcripts.as_deref()?.is_empty()
+        || fact.query.source != facts.source
+        || fact.parent.child != fact.query.model
+        || fact.parent.parent != fact.prefix_parent.parent
+        || fact.parent.child != fact.prefix_parent.child
+        || fact.parent_dependency.node != fact.parent.node
+        || fact.parent_dependency.model != fact.parent.child
+        || fact.parent_dependency.field != fact.parent.child
+        || fact.parent_dependency.field_name != "parent"
+        || fact.parent_dependency.role != DependencyRole::Data
+        || fact.parent_dependency.query_id.is_some()
+        || !fact.parent_dependency.calls.is_empty()
+    {
+        return None;
+    }
+    super::scenario_create_sources::checked_create_expression(ir, original, value, fact.value, db)?;
+    let IrExpr::Binary {
+        op: IrBinOp::Add,
+        left,
+        right,
+    } = &value.expr
+    else {
+        return None;
+    };
+    let IrExpr::Query(query) = &right.expr else {
+        return None;
+    };
+    if left.span != node_span(fact.prefix_node)
+        || right.span != node_span(fact.query.node)
+        || value.ty != fact.ty
+        || right.ty != fact.ty
+        || query.source.as_deref() != Some(&fact.checked)
+        || query.where_pred.as_deref()?.span != node_span(fact.query.predicate?)
+        || query.parent.as_deref()?.span != node_span(fact.parent.node)
+        || query.select.as_deref()?.span != node_span(fact.select)
+        || query.order.len() != 1
+        || query.order[0].field != "position"
+        || query.order[0].descending
+        || query.limit.is_some()
+        || query.archived.is_some()
+        || query.collection_call.is_some()
+        || query.contract_collection_call.is_some()
+    {
+        return None;
+    }
+    Some(query)
+}
+
+fn checked_native_inline_selection_plan<'a>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    plan: &'a ReceiptDisclosurePlan,
+    entry: &str,
+    returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
+    db: &SourceDb,
+) -> Option<&'a ReceiptDisclosurePlan> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let [fact] = facts.inline_selections.as_deref()? else {
+        return None;
+    };
+    checked_inline_selection_ir(ir, owner, fact, db)?;
+    let query = &fact.query;
+    let [actual] = plan.queries.as_slice() else {
+        return None;
+    };
+    let parent = ir.items.get(fact.parent.parent.0 as usize)?;
+    let model = ir.items.get(query.model.0 as usize)?;
+    let origin = actual.parent.as_ref()?;
+    let ReceiptQueryParentOrigin::StoredReference { dependency_id } = &origin.origin else {
+        return None;
+    };
+    let expected_influences = checked_scenario_query_influences(facts)?;
+    if plan.version != 1
+        || plan.returns.len() != returned_paths.len()
+        || returned_paths.is_empty()
+        || !matches!(model.kind,IrItemKind::Model {owner:IrOwner::ChildOf(id),..} if id==parent.id)
+        || query.dependencies.len() != 5
+        || fact.dependencies.len() != 3
+        || fact.fields.len() != 3
+        || actual.id != query.id
+        || actual.model != model.canonical
+        || origin.model != parent.canonical
+        || dependency_id != &fact.parent_dependency.id
+        || actual.order.len() != 1
+        || actual.order[0].field != "position"
+        || actual.order[0].direction != "asc"
+        || actual.limit.is_some()
+        || actual.archived != "exclude"
+        || actual.dependencies.len() != query.dependencies.len()
+        || serde_json::to_value(&plan.source).ok()?
+            != serde_json::to_value(transport_source(&checked.source, entry)?).ok()?
+        || serde_json::to_value(&actual.source).ok()?
+            != serde_json::to_value(transport_source(&query.source, entry)?).ok()?
+        || serde_json::to_value(&origin.source).ok()?
+            != serde_json::to_value(&actual.source).ok()?
+    {
+        return None;
+    }
+    let mut ids = HashSet::new();
+    for ((original, emitted), (role, field)) in
+        query.dependencies.iter().zip(&actual.dependencies).zip([
+            (DependencyRole::Control, "position"),
+            (DependencyRole::Control, "position"),
+            (DependencyRole::Data, "role"),
+            (DependencyRole::Data, "content"),
+            (DependencyRole::Data, "attachments"),
+        ])
+    {
+        let emitted_role = match role {
+            DependencyRole::Data => ReceiptRole::Data,
+            DependencyRole::Control => ReceiptRole::Control,
+        };
+        if original.id.is_empty()
+            || !ids.insert(original.id.as_str())
+            || original.model != query.model
+            || original.source != query.source
+            || original.role != role
+            || original.field_name != field
+            || !original.calls.is_empty()
+            || original.query_id.is_some()
+            || emitted.id != original.id
+            || emitted.role != emitted_role
+            || emitted.field != field
+            || emitted.type_id != original.type_id
+            || serde_json::to_value(&emitted.source).ok()?
+                != serde_json::to_value(transport_source(&original.source, entry)?).ok()?
+        {
+            return None;
+        }
+    }
+    for (returned, emitted) in returned_paths.iter().zip(&plan.returns) {
+        if returned.source!=checked.source || returned.influences!=expected_influences
+            || emitted.id!=returned.id || emitted.projection.is_some()
+            || emitted.dependencies.len()!=returned.dependencies.len()
+            || emitted.intrinsics.len()!=returned.intrinsics.len()
+            || emitted.influences.len()!=returned.influences.len()
+            || serde_json::to_value(&emitted.source).ok()?!=serde_json::to_value(transport_source(&returned.source,entry)?).ok()?
+            || !fact.dependencies.iter().chain([&fact.bound_dependency,&fact.parent_dependency])
+                .all(|required| returned.dependencies.iter().any(|read| read==required))
+            // Candidate WHERE and engine ORDER controls belong to the genuine
+            // query, not invented ordinary root/source getter observations.
+            || returned.dependencies.iter().any(|read|
+                read==&fact.predicate_dependency || read==&fact.order_dependency)
+        {
+            return None;
+        }
+        for (read, emitted) in returned.dependencies.iter().zip(&emitted.dependencies) {
+            let role = match read.role {
+                DependencyRole::Data => ReceiptRole::Data,
+                DependencyRole::Control => ReceiptRole::Control,
+            };
+            if emitted.id != read.id
+                || emitted.model != read.model_name
+                || emitted.field != read.field_name
+                || emitted.type_id != read.type_id
+                || emitted.role != role
+                || emitted.query_id != read.query_id
+                || serde_json::to_value(&emitted.source).ok()?
+                    != serde_json::to_value(transport_source(&read.source, entry)?).ok()?
+            {
+                return None;
+            }
+        }
+        for (read, emitted) in returned.intrinsics.iter().zip(&emitted.intrinsics) {
+            let role = match read.role {
+                DependencyRole::Data => ReceiptRole::Data,
+                DependencyRole::Control => ReceiptRole::Control,
+            };
+            let kind = match &read.kind {
+                DisclosureIntrinsicKind::OperationId => NativeIntrinsicKind::OperationId,
+                DisclosureIntrinsicKind::AdmittedInput { parameter_name, .. } => {
+                    NativeIntrinsicKind::AdmittedInput {
+                        parameter: parameter_name.clone(),
+                    }
+                }
+                DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter_name,
+                    model_name,
+                    ..
+                } => NativeIntrinsicKind::AdmittedReferenceVersion {
+                    parameter: parameter_name.clone(),
+                    model: model_name.clone(),
+                },
+            };
+            if emitted.id != read.id
+                || emitted.type_id != read.type_id
+                || emitted.role != role
+                || emitted.kind != kind
+                || serde_json::to_value(&emitted.source).ok()?
+                    != serde_json::to_value(transport_source(&read.source, entry)?).ok()?
+            {
+                return None;
+            }
+        }
+        for (influence, emitted) in returned.influences.iter().zip(&emitted.influences) {
+            let kind = match influence.kind {
+                InfluenceKind::QueryExistence => "query-existence",
+                InfluenceKind::QueryCardinality => "query-cardinality",
+                InfluenceKind::QueryMembership => "query-membership",
+                InfluenceKind::QueryOrder => "query-order",
+                InfluenceKind::AbsentReference => return None,
+            };
+            if emitted.id != influence.id
+                || emitted.query_id != influence.query_id
+                || emitted.kind != kind
+            {
+                return None;
+            }
+        }
+    }
+    Some(plan)
+}
+
+/// Ordinary observations exist only for eager selected values and the real
+/// supplied Turn.position WHERE-bound read. Candidate controls remain query-only.
+fn checked_inline_selection_member(
+    ir: &IrProgram,
+    owner: &IrItem,
+    fact: &crate::analysis::scenario_disclosure::CheckedInlineSelectionSource,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
+    let query = checked_inline_selection_ir(ir, owner, fact, db)?;
+    let actual = if read == &fact.bound_dependency {
+        let IrExpr::Binary {
+            op: IrBinOp::Lt,
+            right,
+            ..
+        } = &query.where_pred.as_deref()?.expr
+        else {
+            return None;
+        };
+        right.as_ref()
+    } else {
+        let field = fact
+            .fields
+            .iter()
+            .zip(&fact.dependencies)
+            .find_map(|(field, dependency)| (dependency == read).then_some(field))?;
+        let IrExpr::Object(entries) = &query.select.as_deref()?.expr else {
+            return None;
+        };
+        &entries
+            .iter()
+            .find(|(name, actual)| {
+                name == &field.name && actual.span == node_span(field.value_node)
+            })?
+            .1
+    };
+    if !std::ptr::eq(actual, value)
+        || value.span != node_span(read.node)
+        || value.ty != read.ty
+        || read.query_id.as_deref() != Some(fact.query.id.as_str())
+        || !read.calls.is_empty()
+        || read.source != fact.query.source
+        || read.model != fact.query.model
+    {
+        return None;
+    }
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    if base.ty
+        != (ResolvedType::Record {
+            symbol: fact.query.model,
+            stored: true,
+        })
+        || field != &read.field_name
+    {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut schemas = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == read.model);
+    let schema = schemas.next()?;
+    if schemas.next().is_some() {
+        return None;
+    }
+    match_stored_contract_schema(ir, schema, db)?;
+    let original = schema.fields.iter().find(|field| field.id == read.field)?;
+    match_stored_contract_field(ir, original, db)?;
+    (original.ty == read.ty && original.name == read.field_name && original.source == read.source)
+        .then_some(())
 }
 
 fn checked_native_transcript_plan<'a>(
@@ -5646,8 +6077,61 @@ fn checked_transcript_prefix_inventory(
             && read.source == fact.source
             && read.query_id.is_none()
     })?;
-    let branch = ir.items.get(fact.branch.0 as usize)?;
-    let field = ir.items.get(fact.prefix.0 as usize)?;
+    checked_message_prefix_inventory(
+        ir,
+        descriptor,
+        value_types,
+        db,
+        (fact.branch, fact.prefix, &fact.ty, fact.prefix_max),
+    )
+}
+
+fn checked_inline_prefix_inventory(
+    ir: &IrProgram,
+    owner: &IrItem,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    descriptor: &JsModelField,
+    value_types: Option<&JsValueTypes>,
+    db: Option<&SourceDb>,
+) -> Option<String> {
+    let db = db?;
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let fact = facts.inline_selections.as_deref()?.iter().find(|fact| {
+        read.calls.is_empty()
+            && read.node == fact.prefix_node
+            && read.model == fact.parent.parent
+            && read.field == fact.prefix
+            && read.ty == fact.ty
+            && read.type_id == "TextMessage[]"
+            && read.role == DependencyRole::Data
+            && read.source == fact.query.source
+            && read.query_id.is_none()
+    })?;
+    checked_inline_selection_ir(ir, owner, fact, db)?;
+    checked_message_prefix_inventory(
+        ir,
+        descriptor,
+        value_types,
+        db,
+        (fact.parent.parent, fact.prefix, &fact.ty, fact.prefix_max),
+    )
+}
+
+fn checked_message_prefix_inventory(
+    ir: &IrProgram,
+    descriptor: &JsModelField,
+    value_types: Option<&JsValueTypes>,
+    db: &SourceDb,
+    prefix: (
+        crate::analysis::SymbolId,
+        crate::analysis::SymbolId,
+        &ResolvedType,
+        crate::analysis::NodeKey,
+    ),
+) -> Option<String> {
+    let (branch_id, prefix_id, prefix_ty, prefix_max) = prefix;
+    let branch = ir.items.get(branch_id.0 as usize)?;
+    let field = ir.items.get(prefix_id.0 as usize)?;
     let IrItemKind::Field {
         owner: field_owner,
         ty: IrType::Known(ty),
@@ -5661,13 +6145,13 @@ fn checked_transcript_prefix_inventory(
         return None;
     };
     let max = modifiers.max.as_ref()?;
-    if field.id != fact.prefix
+    if field.id != prefix_id
         || field.module != branch.module
-        || field_owner != &fact.branch
+        || field_owner != &branch_id
         || field.name != "prefix"
         || field.canonical != format!("{}.prefix", branch.canonical)
-        || ty != &fact.ty
-        || max.span != node_span(fact.prefix_max)
+        || ty != prefix_ty
+        || max.span != node_span(prefix_max)
         || !matches!(max.expr, IrExpr::Int(120))
         || max.ty != ResolvedType::Scalar(Scalar::Int)
         || modifiers.min.is_some()
@@ -7303,10 +7787,12 @@ fn ordered_intermediate_call_create(
         || proof.source != checked.source
         || !matches!(&proof.kind, DisclosureEffectKind::Call { operation: actual, input_keys }
             if actual == operation && input_keys == &entries.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>())
-        || checked.returns.len() != 1
-        || !matches!(checked.returns[0].model_result,
+        || checked.returns.is_empty()
+        || checked.returns.iter().any(|returned| {
+            !matches!(returned.model_result,
             Some(DisclosureModelResult::Call { model, node, operation: actual })
                 if model == result_model && node_span(node) == *called && actual == *operation)
+        })
     {
         return None;
     }
@@ -8432,6 +8918,23 @@ impl<'a> Sites<'a> {
                 Visit::Expression(expression) => match &expression.expr {
                     IrExpr::Query(query) => {
                         let facts = super::scenario_calls::checked_source(ir, owner, db?)?;
+                        if let Some(fact) = facts.inline_selections.as_deref().and_then(|facts| {
+                            facts.iter().find(|fact| {
+                                context.calls.is_empty()
+                                    && expression.span == node_span(fact.query.node)
+                            })
+                        }) {
+                            let actual = checked_inline_selection_ir(ir, owner, fact, db?)?;
+                            if !std::ptr::eq(actual, query) {
+                                return None;
+                            }
+                            push!(Visit::Expression(query.parent.as_ref()?));
+                            push!(Visit::Expression(query.where_pred.as_ref()?));
+                            push!(Visit::Expression(query.select.as_ref()?));
+                            // IrQuery.order has no executable TypedExpr. Its
+                            // exact query-control source/field is captured by State.
+                            continue;
+                        }
                         let fact = facts.transcripts.as_deref()?.iter().find(|fact| {
                             context.calls.as_slice() == [node_span(fact.call)]
                                 && query

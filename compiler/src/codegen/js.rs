@@ -1684,6 +1684,7 @@ fn emit_program_with_sources(
                 continue;
             };
             let transcripts = source.transcripts.clone().unwrap_or_default();
+            let inline_selections = source.inline_selections.clone().unwrap_or_default();
             if checked_queries.is_empty() && transcripts.is_empty() {
                 continue;
             }
@@ -1695,6 +1696,7 @@ fn emit_program_with_sources(
                 NativeQuerySource {
                     queries: checked_queries,
                     transcripts,
+                    inline_selections,
                     return_id: return_id.into(),
                     plan: plan.clone(),
                 },
@@ -1833,7 +1835,7 @@ fn emit_program_with_sources(
                 &operations,
                 db,
                 &module_path(&entry_name),
-                feasibility,
+                (feasibility, Some(&emitter.native_receipts)),
             )
         });
         if let Some(sites) = sites {
@@ -2651,6 +2653,7 @@ struct OriginalUiRow {
 struct NativeQuerySource {
     queries: Vec<crate::analysis::scenario_disclosure::DisclosureQuery>,
     transcripts: Vec<crate::analysis::scenario_disclosure::CheckedTranscriptSource>,
+    inline_selections: Vec<crate::analysis::scenario_disclosure::CheckedInlineSelectionSource>,
     return_id: String,
     plan: serde_json::Value,
 }
@@ -6211,6 +6214,45 @@ impl<'a> Emitter<'a> {
                 return format!(
                     "(await (async()=>{{const $querySelected=await executeScenarioReceiptQuery(c,{},async()=>true);const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({body}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
                     js_string(&transcript.id)
+                );
+            }
+            if let Some(selection) = capture.inline_selections.iter().find(|fact| {
+                query
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.node == fact.query.node)
+                    && self.receipt_calls.is_empty()
+            }) {
+                let (Some(parent), Some(predicate), Some(projection), Some(param)) = (
+                    query.parent.as_ref(),
+                    query.where_pred.as_ref(),
+                    query.select.as_ref(),
+                    query.select_param.as_ref(),
+                ) else {
+                    self.unsupported(
+                        "inline selection",
+                        "original checked domain, predicate and projection are required",
+                        span,
+                    );
+                    return self.throw_expr("unsupported inline selection");
+                };
+                // Observe the original stored parent before query admission. The
+                // supplied bound remains in the per-candidate predicate.
+                let parent = self.lower_expr(parent);
+                self.enter_scope();
+                let row = self.bind("row");
+                let predicate = self.lower_expr(predicate);
+                self.exit_scope();
+                self.enter_scope();
+                let param = self.bind(param);
+                let projection = self.lower_expr(projection);
+                self.exit_scope();
+                self.stdlib.insert("executeScenarioReceiptQuery".into());
+                self.stdlib
+                    .insert("bindScenarioReceiptQuerySelection".into());
+                return format!(
+                    "(await (async()=>{{await ({parent});const $querySelected=await executeScenarioReceiptQuery(c,{},async({row})=>{predicate});const $queryMessages=[];for(const {param} of $querySelected){{$queryMessages.push(await ({projection}));}}return await bindScenarioReceiptQuerySelection(c,$querySelected,$queryMessages);}})())",
+                    js_string(&selection.query.id)
                 );
             }
             for source in &capture.queries {

@@ -274,7 +274,14 @@ pub fn collect_static_scenario_calls(
     db: &SourceDb,
     entry_module: &str,
 ) -> Option<Vec<StaticScenarioCall>> {
-    collect_static_scenario_calls_with_feasibility(ir, parent, operations, db, entry_module, None)
+    collect_static_scenario_calls_with_feasibility(
+        ir,
+        parent,
+        operations,
+        db,
+        entry_module,
+        (None, None),
+    )
 }
 
 pub(super) fn collect_static_scenario_calls_with_feasibility(
@@ -283,8 +290,14 @@ pub(super) fn collect_static_scenario_calls_with_feasibility(
     operations: &[JsOperation],
     db: &SourceDb,
     entry_module: &str,
-    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    prepared: (
+        Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+        Option<
+            &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+        >,
+    ),
 ) -> Option<Vec<StaticScenarioCall>> {
+    let (feasibility, native_receipts) = prepared;
     if entry_module.is_empty() || operations.len() > 16384 {
         return None;
     }
@@ -312,7 +325,7 @@ pub(super) fn collect_static_scenario_calls_with_feasibility(
             db,
             entry_module,
             id != parent.id,
-            feasibility,
+            (feasibility, native_receipts),
         )?;
         occurrences = occurrences.checked_add(sites.len())?;
         if occurrences > 200 {
@@ -1344,8 +1357,14 @@ fn collect_owner(
     db: &SourceDb,
     entry: &str,
     is_child: bool,
-    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    prepared: (
+        Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+        Option<
+            &std::collections::HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+        >,
+    ),
 ) -> Option<Vec<StaticScenarioCall>> {
+    let (feasibility, native_receipts) = prepared;
     let IrItemKind::Scenario {
         trusted: false,
         read,
@@ -1680,9 +1699,17 @@ fn collect_owner(
                     }
                 }
             }
-            // The finite nested-call consumer profile excludes framework Send effects.
-            // Root/standalone receipt profiles retain their existing Send support.
-            IrStmt::Send { .. } if is_child => return None,
+            IrStmt::Send { .. } if is_child => {
+                // Only the private emitter's complete native producer can release
+                // child SEND. Raw/source-only call collection remains refused.
+                let receipt = native_receipts?.get(&owner.id)?;
+                let descriptor = operations.iter().find(|op| op.name == owner.canonical)?;
+                let plan = serde_json::to_value(&receipt.plan).ok()?;
+                if descriptor.disclosure.as_ref()? != &plan {
+                    return None;
+                }
+                checked_child_return_subset(ir, owner, checked, &plan, feasibility)?;
+            }
             IrStmt::Create { .. }
                 if super::scenario_receipts::checked_created_model_result(ir, owner).is_some() => {}
             IrStmt::Create { span, .. } if depth == 0 => {
