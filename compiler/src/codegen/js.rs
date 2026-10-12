@@ -3149,6 +3149,12 @@ impl<'a> Emitter<'a> {
             if let Some(name) = context_scalar_type(resolved) {
                 return Some(name);
             }
+            // A reused catalog field can have an anonymous checked enum.
+            // Retain its exact cases for the owning field/selection codec;
+            // no nominal declaration or field identity is invented.
+            if matches!(resolved, ResolvedType::Enum { owner: None, .. }) {
+                return checked_enum_value_type(resolved);
+            }
         }
         checked_string_value_type(ty).map(str::to_string)
     }

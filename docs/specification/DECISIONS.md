@@ -12066,3 +12066,12 @@ Initial actual MAIN attempt failed1/1 at996ms/1.91s process on strict Values ins
 ### 2026-10-12 — accept real CSV public API browser host crossing
 
 Exact Dev1beac548+0cb1ddd4 witness independently reviewed CLEAR and qualified in actual MAIN1/1 at 20.62s process/zero skips, root noEmit0 7.08s; worker22334ms kept separate. Actual Chromium FormData/fetch and installed public helper cross mounted canonical review/commit/Identity/native D1 with signed context/consent/current grant/replay, retained prefix and restored suffix, full durable effects/resources/currency/awaited cleanup. Scope is declared public API host crossing from DEL-C02/Dev row13; no automatic CSV controller/.can renderer/currentCLI/maxresource/memory, native default/activation/publication or whole-plan claim. Existing source/framework/source inputs unchanged through capture; no unchanged library/backend reruns.
+
+
+### 2026-10-12 — keep transcript query and ordinary ID namespaces distinct
+
+Accepted corrected Compiler292+00fa after independent defining source/installed-binder review CLEAR. Same-ID292 metadata was source-checked but actual State collision admission failed; it was never installed/native-qualified. Preserve strict State collision guard and mint authentic query-only IDs, retaining ordinary Return/selection IDs and exact field/type/source/caller equality. Emit missing required anonymous role enum valueType through existing owning codec. Genuine emitted module/artifact canonical schema and installed State checker/binder now qualify both literal recipes; source/Return/Turn/order/collision refusals remain.3 owning/318affected8/strict/fmt results reused; no new State compatibility profile/carrier or row/File authority. Actual Dev receiver/native emitter still E6008.
+
+New actual MAIN CSV public API host output eacf6325 is linked once to existing DEL-C02/DELC01 consumer acceptance. Packages was resumed only on that exact missing assigned output, not a common status check or new controller programme. Full original recipe/accounting and unrelated currentCLI/host/holds remain.
+
+Changed MAIN locked/offline CLI0 15.8s. Dev frozen own26b inputs untouched.
