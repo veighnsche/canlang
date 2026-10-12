@@ -239,6 +239,9 @@ describe("bounded profile reject matrix", () => {
       () => validateMessagePattern("{n, plural, other {{x}}}", declared),
       "invalid-construction",
     );
+    for (const name of ["constructor", "toString", "__proto__"]) {
+      assertValueError(() => validateMessagePattern(`{${name}}`, declared), "invalid-construction");
+    }
   });
 
   it("rejects incompatible argument/selector types", () => {
@@ -464,6 +467,10 @@ describe("message descriptors", () => {
         makeMessageDescriptor("{n, plural, other {#}}", { nl: "{m, plural, other {#}}" }, params),
       "invalid-construction",
     );
+    for (const name of ["constructor", "toString", "__proto__"]) {
+      assertValueError(() => makeMessageDescriptor(`{${name}}`, {}, params), "invalid-construction");
+      assertValueError(() => makeMessageDescriptor("Source", { nl: `{${name}}` }, params), "invalid-construction");
+    }
   });
 
   it("rejects malformed params at construction", () => {

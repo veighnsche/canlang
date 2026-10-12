@@ -645,7 +645,7 @@ export function validateMessagePattern(
 ): void {
   const ast = parseMessageFormat(pattern);
   if (declared !== undefined) {
-    checkUsagesBound(ast, (name) => declared[name]);
+    checkUsagesBound(ast, (name) => Object.hasOwn(declared, name) ? declared[name] : undefined);
   }
 }
 
