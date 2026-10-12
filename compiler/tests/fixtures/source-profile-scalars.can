@@ -1,0 +1,21 @@
+## Test-authored scalar sink for original Chat Profile reads; no native facade or application claim.
+app SourceProfileScalars
+Given
+ Profile { name:text trim, provider_key:text, policy_revision:text, system_prompt:text max=8192, input_tokens:int=8192 min=1 max=32768, output_tokens:int=2048 min=1 max=8192, duration:duration=120s, active:bool=true } label="Model profile"@{nl="Modelprofiel"}
+ Conversation { title:text trim max=200, account:user server=actor, active:bool=true }
+ Branch in Conversation { title:text trim max=200, profile:Profile }
+ Run in Branch {reserved:int,system_prompt:text max=8192,provider_key:text,policy_revision:text,input_tokens:int,output_tokens:int,duration:duration}
+ policy Profile read=members
+ policy Conversation read=members and row.account==actor
+ policy Branch read=members
+ policy Run read=members
+ invariant Profile: row.duration>=1s and row.duration<=10m
+ lock Profile fields=name,provider_key,policy_revision,system_prompt,input_tokens,output_tokens,duration
+When
+ scenario ask(branch:Branch) by=members -> Run
+  require branch.profile.active
+  do
+   let reserve=branch.profile.input_tokens+branch.profile.output_tokens
+   create Run {parent=branch,reserved=reserve,system_prompt=branch.profile.system_prompt,provider_key=branch.profile.provider_key,policy_revision=branch.profile.policy_revision,input_tokens=branch.profile.input_tokens,output_tokens=branch.profile.output_tokens,duration=branch.profile.duration} as run
+   return run
+Then
