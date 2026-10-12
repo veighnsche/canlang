@@ -433,6 +433,7 @@ pub(super) fn collect_complete_query_receipt(
         // created-model collector joins its own original effects and reads.
         return Some(NativeScenarioReceipt {
             plan,
+            current_revision: None,
             dependencies: Default::default(),
             intrinsics: Default::default(),
             decisions: Default::default(),
@@ -476,6 +477,7 @@ pub(super) fn collect_complete_query_receipt(
     }
     Some(NativeScenarioReceipt {
         plan,
+        current_revision: None,
         dependencies: Default::default(),
         intrinsics: Default::default(),
         decisions: Default::default(),

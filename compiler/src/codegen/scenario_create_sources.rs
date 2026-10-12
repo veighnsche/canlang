@@ -1301,20 +1301,38 @@ impl SourceExpressions<'_> {
         self.expression(argument, *argument_node, depth + 1)
     }
 
+    fn operand_type_matches(&self, actual: &TypedExpr, key: NodeKey) -> bool {
+        let Some((_, original)) = self
+            .original
+            .expression_types
+            .iter()
+            .find(|(at, _)| *at == key)
+        else {
+            return false;
+        };
+        if original == &actual.ty {
+            return true;
+        }
+        let Some(source) = self.transcript_source() else {
+            return false;
+        };
+        let Some(owner) = self.ir.items.get(source.scenario.0 as usize) else {
+            return false;
+        };
+        super::scenario_current_revision::checked_current_revision(self.ir, owner, self.db)
+            .is_some_and(|current| {
+                std::ptr::eq(current.published_read.value, actual)
+                    && current.published_read.control.node == key
+                    && &current.published_read.control.ty == original
+            })
+    }
+
     fn expression(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         if depth > 64 {
             return None;
         }
         let mut node = *self.nodes.get(&key)?;
-        if actual.span != node.span
-            || self.operands
-                && self
-                    .original
-                    .expression_types
-                    .iter()
-                    .find(|(at, _)| *at == key)
-                    .is_none_or(|(_, original)| original != &actual.ty)
-        {
+        if actual.span != node.span || self.operands && !self.operand_type_matches(actual, key) {
             return None;
         }
         while node.kind == SyntaxKind::Group {
@@ -1322,14 +1340,7 @@ impl SourceExpressions<'_> {
             let [child] = children.as_slice() else {
                 return None;
             };
-            if self.operands
-                && self
-                    .original
-                    .expression_types
-                    .iter()
-                    .find(|(at, _)| *at == NodeKey::of(child))
-                    .is_none_or(|(_, original)| original != &actual.ty)
-            {
+            if self.operands && !self.operand_type_matches(actual, NodeKey::of(child)) {
                 return None;
             }
             node = child;

@@ -4865,3 +4865,45 @@ C14/C23 and local-only publication hold remain unchanged.
 **Bounded original analysis reuse in LOCAL main:** Independent defining review CLEAR for ffebca22 nine-path source/control unit. Exact statement-local completed-analysis reuse matches node/module/call chain/authorization mode/result model/full lexical provenance; only successful analyses without effect/scope changes are cached, bookkeeping remains original. Unchanged original Chat analysis retains ALL256 conservative Return inventories/ordinary4+transcript2; original current337 four identities/evaluation and caps remain. Authentic owning queryAny metadata rejoins original source/parent/builtin/separate IR Lambda/CONTROL field/freshIR; no metadata/native authority, dormant lowering requires final recipe. Owning375distinct/9scopes/strict12.39s/fmt/diff reused; two obsolete resource-decline test expectations only corrected, old failures retained. Changed MAIN locked/offline CLI0 17.78s. Actual copied worker CLI result remains pending, native successful-Require feasibility and complete six-query source/collector/application consumer remain unreleased/unqualified. No global budget/cap increase, source truth pruning, runtime cache or held policy/source release.
 
 **Corrected native original-Return preparation in LOCAL main:** Corrected82f+047 native feasibility producer independently reviewed CLEAR after actual unsupported-field name-seal defect was fixed. Full immutable/actual/fresh source proof, effects, executable/helpers/formals/slots and ALL original stored declarations now compare actual names before a private lifetime-bound same-IR borrow of feasible ORIGINAL Return rows. Genuine Chat source256/native1 and current337 source4/native original79d0 retain complete source inventories; existing bounded first/count/scalar/machine/create/archive inventories remain. Unknown leaves, conditional guards and SEND evaluation are unchanged; native200/20k bounds and raw unprepared refusal remain. Owning384 distinct/12 scopes reused; changed name-only cancellation refusal owning2/9.61s/strict0 7.03s/fmt/diff0 closes the one review finding. Six source/control preimages exact; changed MAIN locked/offline CLI0 11.5s. Exact six-query mixed emitted artifact and actual generated/native applications remain unqualified, no State/carrier/cap widening or hold release.
+
+
+**Original current native compiler producer, 2026-10-12 (runtime unfinished).**
+The original337 source keeps four conservative Returns; the native collector
+borrows original79d0 after its full source/fresh/executable seals. Three original
+current getters remain: raw presence/null comparison, separate lazy published
+getter/promotion, and the once Let whose promotion happens at digest CONTROL.
+Its same-source DATA marker runs at validation after promotion; later scalar
+reads and Run reference reuse the retained view. Complete nullable and nominal/
+delivery declarations stay intact. Source-sealed owner policies retain all five
+original rules, a one-parent Revision→Template dependency selector, and the
+original lazy predicate. Only that Template callback receives a private third
+readCurrent accessor at the two original required member positions; its initial
+nullable read and earlier Duration operands stay synchronous/lazy.
+Owning current4, policy2 and classifier3 PASS, including a real checked artifact/
+own SDK verified factory/loader and callback order/failure/selector checks;
+strictalltargets0 7.85s after moving the test module. The exact current-only
+source is isolated and qualified: current4/8.24s, policy2/.05s, classifier3/.04s,
+strictalltargets0 9.25s/fmt/diff0; preserved mixed edits are restored afterward. Dev5d's genuine owner transaction/current authority/File
+consumer still requires the reviewed source pin and native run. Mixed six-query
+work and58/67/nine/C14/C23/publication holds remain separate.
+
+
+
+**Original current native failure correction, 2026-10-12.** Dev's first actual
+337 native attempt stopped before assembly because Template.active Bool CONTROL
+was absent. Exact current lineage now retains that original leading member,
+without widening ordinary scalar guard retention. The complete successful
+original Return has ten distinct roles, including both original Let CONTROL and
+DATA. Owning current4 PASS7.98s compares every original descriptor dependency
+ID/model/field/type/role in source order and refuses active loss/role mutations.
+Source descriptor order places both Let roles at its original node; actual
+observation order defers Let DATA until validation after digest CONTROL, as the
+existing State reader requires by dependency ID. Genuine Dev native retry and
+changed-source strict checks remain separate;58/67/nine and holds unchanged.
+
+existing State reader requires by dependency ID. Native association also consumes the authentic active site and checks its
+CONTROL precedes presence: failed-only emitter1/.11s and strictlib0/5.92s PASS.
+Genuine Dev native retry and all-target strict for the changed mixed/conditional
+closure remain separate;58/67/nine and holds unchanged.
+
+Coordinator exact source join: Corrected current337 source/native producer and actual verified unique-key/nullable consumer source join independently definingCLEAR in LOCALmain. Compiler543+f322+837+c6 exact13paths preserveoriginal2240SHA4da/fouranalysisReturns/nativeoriginal79d0/complete10dependencies/source-fresh-executable/schema/formal/role-order seals, originalTemplate.active CONTROL/sameLet CONTROL+DATA/runtimeDATAafterdigestCONTROL, fullnullable/nominalDelivery5rules/max1parent/lazyprivate3arg reader86 andactive-beforepresence. Ownercurrent4/7.98 pluspolicy2/14mutants/classifier3/focusedemitter1/.11 strictlib5.92/strictf3229.25/fmt results reused. Devfinale42→c9→9b→c3 surgicalinvoke/control/fixture validatesSAMEverifiedentry singularmodelunique declaration exactownkeys/supportedscalar-orUser/canonicaltype/nonsecret/nooverlap; where/array/File/nominal/secret/unknownmembers refuse. Exactbuiltin bool-int-duration nullable scalar declaration tags corrected, explicittext/nullable owningtypes/SAMEgetter/stage/currentauthority retained. Realcompiledtextpositive/conditionalnegative/File-negative ownercontrol reused. No nativefixture/copiedCompilerintake; rootnormalchecks [{"check": "locked offline CLI", "exit": 0, "seconds": 17.27}, {"check": "CF", "exit": 0, "seconds": 7.98}, {"check": "root", "exit": 0, "seconds": 8.07}]. OriginalDevcurrentnative1/1 FAIL159.0s/159.04s withawaitedcleanup atfinalarchivedTemplate ancestorprojection after2Runs/CRUD/numberunique/physicalFiles/receipt-replay/currentauthority partialpasses; allfailure/source/assertions retained, no currentnative/application acceptance. Stateowner nowresumed for exactancestor-denial withholding; Devfailed-onlyretry afterqualifiedrelease. Sourceconsumer safetyhold resolved only atcomponent scope.

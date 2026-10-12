@@ -1263,6 +1263,7 @@ struct CurrentRevisionSource {
     template: SymbolId,
     field: SymbolId,
     revision: SymbolId,
+    active: Option<(NodeKey, SymbolId)>,
     presence: NodeKey,
     presence_read: NodeKey,
     published: NodeKey,
@@ -1560,7 +1561,7 @@ impl<'a> Closure<'a> {
                     operands.push(self.query_group(node)?);
                 }
             }
-            for pair in operands.windows(2) {
+            for (position, pair) in operands.windows(2).enumerate() {
                 let Some((read, null)) = self.query_binary(pair[0], "!=") else {
                     continue;
                 };
@@ -1582,11 +1583,27 @@ impl<'a> Closure<'a> {
                     if leading.is_some() {
                         return None;
                     }
-                    leading = Some((pair[0], read, pair[1], published_read));
+                    let active = operands.get(position.wrapping_sub(1)).and_then(|node| {
+                        let (receiver, name) = self.count_member(*node)?;
+                        if name != "active" {
+                            return None;
+                        }
+                        let active = template_definition.fields.iter().find(|field| field.name == "active")?;
+                        let declaration = template_definition.declaration.fields.iter().find(|field| field.field == active.field)?;
+                        (matches!(self.query_binding(receiver), Some(Binding::Symbol(id)) if *id == parameter)
+                            && self.types.node_types.get(&receiver) == Some(&ResolvedType::Record { symbol: template, stored: true })
+                            && self.types.node_types.get(node) == Some(&ResolvedType::Scalar(Scalar::Bool))
+                            && active.ty == ResolvedType::Scalar(Scalar::Bool)
+                            && declaration.server.is_none()
+                            && !self.types.field_reuse_sources.contains_key(&active.field)
+                            && text.get(declaration.type_node.start as usize..declaration.type_node.end as usize)?.trim() == "bool")
+                            .then_some((*node, active.field))
+                    });
+                    leading = Some((active, pair[0], read, pair[1], published_read));
                 }
             }
         }
-        let (presence, presence_read, published, published_read) = leading?;
+        let (active, presence, presence_read, published, published_read) = leading?;
         let published_field = revision_definition
             .fields
             .iter()
@@ -1636,6 +1653,7 @@ impl<'a> Closure<'a> {
             template,
             field: field.field,
             revision,
+            active,
             presence,
             presence_read,
             published,
@@ -1746,6 +1764,13 @@ impl<'a> Closure<'a> {
                     && dependency.field == fact.field
                     && [fact.presence_read, fact.published_read, fact.value]
                         .contains(&dependency.node)
+                    || fact.active.is_some_and(|(node, field)| {
+                        dependency.node == node
+                            && dependency.model == fact.template
+                            && dependency.field == field
+                            && dependency.field_name == "active"
+                            && dependency.ty == ResolvedType::Scalar(Scalar::Bool)
+                    })
                     || self
                         .checked_current_revision_leaf(dependency.node, module)
                         .is_some_and(|(fact, field)| {
