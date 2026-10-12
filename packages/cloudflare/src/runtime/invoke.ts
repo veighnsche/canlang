@@ -1387,6 +1387,7 @@ interface StateModelsProducer {
     models: ReadonlyArray<unknown>,
     opts: {
       readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
+      readonly uniqueWhen?: ReadonlyMap<ModelName, Readonly<Record<string, QueryPredicate>>>;
       /**
        * C2 production joins (mirror of `CanonicalModelTableOptions`):
        * the loader's engine-local channels, forwarded verbatim. Every
@@ -2401,7 +2402,8 @@ function hasRowReadCarrier(module: unknown): boolean {
   return false;
 }
 
-function assertServableModelRules(where: string, metadata: unknown, verifiedOwner = false): void {
+function assertServableModelRules(where: string, metadata: unknown, verifiedOwner = false,
+  verifiedConditions?: WeakSet<object>): void {
   if (!isUnknownRecord(metadata)) return;
   for (const kind of ["invariants", "locks"] as const) {
     const rules = readMetadataMember(metadata, kind, where)?.value;
@@ -2419,7 +2421,7 @@ function assertServableModelRules(where: string, metadata: unknown, verifiedOwne
         Object.getPrototypeOf(unique) !== Object.prototype && Object.getPrototypeOf(unique) !== null) {
       throw new Error(`${where}: malformed owning unique declaration.`);
     }
-    if (readMetadataMember(unique, 'where', where) !== undefined) {
+    if (readMetadataMember(unique, 'where', where) !== undefined && !verifiedConditions?.has(unique)) {
       throw new Error(`${where}: conditional unique cannot activate without its source-verified owning predicate.`);
     }
   }
@@ -2442,6 +2444,7 @@ async function collectModelPolicyManifests(
   verifiedOwnerModels: ReadonlySet<string>,
   artifact: CompileArtifact,
   containment: LoadedArtifactDescriptors["containment"],
+  verifiedConditions: WeakSet<object>,
   onRowPolicy: () => void,
 ): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>> {
   const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>();
@@ -2500,7 +2503,7 @@ async function collectModelPolicyManifests(
       if (isUnknownRecord(declaredModels)) {
         for (const model of modelFields.keys()) {
           const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
-          assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model));
+          assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model), verifiedConditions);
         }
       }
       const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
@@ -2604,15 +2607,19 @@ function canonicalModelName(model: unknown, index: number): ModelName {
   return model["name"] as ModelName;
 }
 
-/** Join singular source `unique Model fields=field` before State builds its table.
+/** Join source model-level keys before State builds its one owning table.
  * Artifact `uniqueKeys` intentionally contains only field modifiers; the
- * entry module's verified appDefinition owns model-level declarations. */
+ * verified entry appDefinition owns these declarations and predicates. */
 async function joinOwningUnconditionalUniques(
   asm: AssembledModules, artifact: CompileArtifact,
   models: ReadonlyArray<CanonicalModelDescriptor>,
   secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>,
-): Promise<ReadonlyArray<CanonicalModelDescriptor>> {
-  if (!claimsEmittedSourceProperty(artifact, 'uniques')) return models;
+): Promise<{ readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+  readonly uniqueWhen: ReadonlyMap<ModelName, Readonly<Record<string, QueryPredicate>>>;
+  readonly verifiedConditions: WeakSet<object> }> {
+  const uniqueWhen = new Map<ModelName, Record<string, QueryPredicate>>();
+  const verifiedConditions = new WeakSet<object>();
+  if (!claimsEmittedSourceProperty(artifact, 'uniques')) return {models, uniqueWhen, verifiedConditions};
   await verifyCheckedAssembly(asm, artifact);
   const entry = artifact.modules[0];
   if (entry === undefined || typeof entry.path !== 'string') {
@@ -2627,7 +2634,48 @@ async function joinOwningUnconditionalUniques(
       Object.getPrototypeOf(declarations) !== Object.prototype && Object.getPrototypeOf(declarations) !== null) {
     throw new AssemblyCorrespondenceError(`${where} lacks its original models declaration.`);
   }
+  const exact = (value: unknown, names: readonly string[], site: string): Record<string, unknown> => {
+    if (!isUnknownRecord(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+        Reflect.ownKeys(value).length !== names.length ||
+        Reflect.ownKeys(value).some(key => typeof key !== 'string' || !names.includes(key) ||
+          !Object.getOwnPropertyDescriptor(value, key)?.enumerable ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(value, key)!, 'value'))) {
+      throw new AssemblyCorrespondenceError(`${where}: malformed ${site} source association.`);
+    }
+    return value;
+  };
+  const packages = isUnknownRecord(definition) ? readMetadataMember(definition, 'packages', where)?.value : undefined;
+  const emittedOrigins = isUnknownRecord(definition)
+    ? readMetadataMember(definition, 'modelRuleOrigins', where)?.value : undefined;
+  const origins = emittedOrigins === undefined ? undefined :
+    readMetadataArray(emittedOrigins, where, 'model rule origins').map((value, index) => {
+      const site = `model rule origin ${index}`;
+      const hasRegistry = isUnknownRecord(value) && readMetadataMember(value, 'registryId', where) !== undefined;
+      const origin = exact(value, hasRegistry
+        ? ['ordinal', 'kind', 'model', 'ownerPackage', 'source', 'declaredAt', 'registryId']
+        : ['ordinal', 'kind', 'model', 'ownerPackage', 'source', 'declaredAt'], site);
+      const source = exact(readMetadataMember(origin, 'source', where)?.value,
+        ['path', 'sha256', 'module'], `${site} source`);
+      const at = exact(readMetadataMember(origin, 'declaredAt', where)?.value,
+        ['start', 'end'], `${site} location`);
+      if (origin.ordinal !== index ||
+          typeof origin.kind !== 'string' ||
+          !['policy', 'invariant', 'unique', 'lock', 'retain'].includes(origin.kind) ||
+          typeof origin.model !== 'string' || typeof origin.ownerPackage !== 'string' ||
+          !origin.model.startsWith(`${origin.ownerPackage}.`) ||
+          typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
+          source.module !== origin.ownerPackage ||
+          artifact.sources.filter(candidate => candidate.path === source.path && candidate.sha256 === source.sha256).length !== 1 ||
+          typeof at.start !== 'number' || !Number.isSafeInteger(at.start) || at.start < 0 ||
+          typeof at.end !== 'number' || !Number.isSafeInteger(at.end) || at.end <= at.start ||
+          hasRegistry && typeof origin.registryId !== 'string') {
+        throw new AssemblyCorrespondenceError(`${where}: malformed complete ${site} association.`);
+      }
+      return origin;
+    });
   const additions = new Map<ModelName, string[]>();
+  const ordinals = new Set<number>(), registries = new Set<string>();
+  const modelNames = Object.keys(declarations);
   for (const name of Object.keys(declarations)) {
     const source = readMetadataMember(declarations, name, where)?.value;
     if (!isUnknownRecord(source)) throw new AssemblyCorrespondenceError(`${where}: malformed model ${JSON.stringify(name)}.`);
@@ -2638,21 +2686,15 @@ async function joinOwningUnconditionalUniques(
     if (canonical.length !== 1 || original.length !== 1) {
       throw new AssemblyCorrespondenceError(`${where}: model ${JSON.stringify(name)} lacks one original canonical association.`);
     }
-    const keys: string[] = [];
-    for (const unique of readMetadataArray(declared, where, 'uniques')) {
+    const keys: string[] = [], predicates: Record<string, QueryPredicate> = Object.create(null);
+    for (const [index, unique] of readMetadataArray(declared, where, 'uniques').entries()) {
       if (!isUnknownRecord(unique) ||
           Object.getPrototypeOf(unique) !== Object.prototype && Object.getPrototypeOf(unique) !== null) {
         throw new AssemblyCorrespondenceError(`${where}: malformed unique declaration on ${JSON.stringify(name)}.`);
       }
-      const members = Reflect.ownKeys(unique);
-      if (members.some(member => member !== 'fields' && member !== 'where') ||
-          !members.includes('fields') ||
-          !Object.getOwnPropertyDescriptor(unique, 'fields')?.enumerable) {
-        throw new AssemblyCorrespondenceError(`${where}: unexpected unique declaration member on ${JSON.stringify(name)}.`);
-      }
-      if (readMetadataMember(unique, 'where', where) !== undefined) {
-        throw new AssemblyCorrespondenceError(`${where}: conditional unique cannot activate without its source-verified owning predicate.`);
-      }
+      const conditional = readMetadataMember(unique, 'where', where) !== undefined;
+      exact(unique, conditional ? ['fields', 'where', 'wherePredicate', 'ordinal', 'source', 'declaredAt'] : ['fields'],
+        `unique declaration on ${JSON.stringify(name)}`);
       const fields = readMetadataStrings(readMetadataMember(unique, 'fields', where)?.value, where, 'unique fields');
       if (fields.length !== 1) {
         throw new AssemblyCorrespondenceError(`${where}: composite unique is unsupported on ${JSON.stringify(name)}.`);
@@ -2669,21 +2711,69 @@ async function joinOwningUnconditionalUniques(
       if (!Object.hasOwn(canonical[0]!.fields, field) ||
           originalField.length !== 1 || canonicalField === undefined ||
           sourceField === undefined || !['string', 'integer', 'decimal', 'money', 'datetime', 'boolean', 'date', 'duration', 'user'].includes(sourceField.field.kind) ||
+          conditional && !['string', 'integer', 'boolean'].includes(sourceField.field.kind) ||
           sourceField.array !== undefined || canonicalField.array !== undefined ||
           (sourceField.field.kind === 'string' && sourceField.valueType === undefined) ||
           scalarType === undefined || scalarType !== canonicalField.valueType ||
           secretFields.get(canonical[0]!.name)?.has(field) !== false ||
-          keys.includes(field) || canonical[0]!.uniqueKeys?.includes(field)) {
+          keys.includes(field) || Object.hasOwn(predicates, field) || canonical[0]!.uniqueKeys?.includes(field)) {
         throw new AssemblyCorrespondenceError(`${where}: unique field ${JSON.stringify(name + '.' + field)} lacks one original association.`);
       }
-      keys.push(field);
+      if (!conditional) { keys.push(field); continue; }
+      const registry = readMetadataMember(unique, 'where', where)?.value;
+      const ordinal = readMetadataMember(unique, 'ordinal', where)?.value;
+      const source = exact(readMetadataMember(unique, 'source', where)?.value, ['path', 'sha256', 'module'], 'conditional unique source');
+      const at = exact(readMetadataMember(unique, 'declaredAt', where)?.value,
+        ['start', 'end', 'fields', 'where'], 'conditional unique location');
+      const fieldAt = exact(readMetadataMember(at, 'fields', where)?.value, ['start', 'end'], 'conditional unique fields location');
+      const whereAt = exact(readMetadataMember(at, 'where', where)?.value, ['start', 'end'], 'conditional unique predicate location');
+      const coordinate = (value: unknown): number => {
+        if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+          throw new AssemblyCorrespondenceError(`${where}: invalid conditional unique source offset.`);
+        }
+        return value;
+      };
+      const [start, fieldsStart, fieldsEnd, predicateStart, predicateEnd, end] =
+        [at.start, fieldAt.start, fieldAt.end, whereAt.start, whereAt.end, at.end].map(coordinate);
+      const owner = source.module;
+      const localModel = name.slice(name.lastIndexOf('.') + 1);
+      const rulePrefix = modelNames.some(other => other !== name &&
+        other.slice(other.lastIndexOf('.') + 1) === localModel) ? name : localModel;
+      if (registry !== `${rulePrefix}.unique.${index + 1}` || registries.has(registry) ||
+          typeof ordinal !== 'number' || !Number.isSafeInteger(ordinal) || ordinal < 0 || ordinals.has(ordinal) ||
+          typeof source.path !== 'string' || typeof source.sha256 !== 'string' ||
+          artifact.sources.filter(candidate => candidate.path === source.path && candidate.sha256 === source.sha256).length !== 1 ||
+          typeof owner !== 'string' || !isUnknownRecord(packages) || readMetadataMember(packages, owner, where) === undefined ||
+          !name.startsWith(`${owner}.`) ||
+          !(start! < fieldsStart! && fieldsStart! < fieldsEnd! && fieldsEnd! <= predicateStart! &&
+            predicateStart! < predicateEnd! && predicateEnd! <= end!)) {
+        throw new AssemblyCorrespondenceError(`${where}: conditional unique lacks its exact source, owner, registry or ordinal.`);
+      }
+      const origin = origins?.[ordinal];
+      const originSource = isUnknownRecord(origin) ? readMetadataMember(origin, 'source', where)?.value : undefined;
+      const originAt = isUnknownRecord(origin) ? readMetadataMember(origin, 'declaredAt', where)?.value : undefined;
+      if (!isUnknownRecord(originSource) || !isUnknownRecord(originAt) ||
+          origin?.kind !== 'unique' || origin.model !== name || origin.ownerPackage !== owner ||
+          origin.registryId !== registry ||
+          originSource.path !== source.path || originSource.sha256 !== source.sha256 || originSource.module !== owner ||
+          originAt.start !== start || originAt.end !== end) {
+        throw new AssemblyCorrespondenceError(`${where}: conditional unique lacks its original global rule origin.`);
+      }
+      const predicate = readMetadataMember(unique, 'wherePredicate', where)?.value;
+      if (!isUnknownRecord(predicate)) {
+        throw new AssemblyCorrespondenceError(`${where}: conditional unique lacks its checked predicate.`);
+      }
+      registries.add(registry); ordinals.add(ordinal); predicates[field] = predicate as QueryPredicate;
+      verifiedConditions.add(unique);
     }
     if (keys.length > 0) additions.set(canonical[0]!.name, keys);
+    if (Object.keys(predicates).length > 0) uniqueWhen.set(canonical[0]!.name, predicates);
   }
-  return models.map(model => {
+  const joined = models.map(model => {
     const keys = additions.get(model.name);
     return keys === undefined ? model : { ...model, uniqueKeys: [...(model.uniqueKeys ?? []), ...keys] };
   });
+  return {models: joined, uniqueWhen, verifiedConditions};
 }
 
 /**
@@ -4091,8 +4181,10 @@ async function loadCanonicalDescriptorsInternal(
     assertDroppedDeliveryEnvelopes(producers, artifact);
     loaded = producers.registry.loadArtifactDescriptors(stripDeliveryInputs(artifact), byOptions);
   }
-  loaded = { ...loaded, models: await joinOwningUnconditionalUniques(asm, artifact, loaded.models, loaded.secretFields) };
+  const owningUniques = await joinOwningUnconditionalUniques(asm, artifact, loaded.models, loaded.secretFields);
+  loaded = { ...loaded, models: owningUniques.models };
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
+    uniqueWhen: owningUniques.uniqueWhen,
     refs: loaded.refs,
     serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields,
@@ -4129,7 +4221,7 @@ async function loadCanonicalDescriptorsInternal(
   if (rowPolicyAssembly !== undefined) await verifyCheckedAssembly(asm, artifact);
   const manifests = await collectModelPolicyManifests(asm, modelFields,
     new Set(ownerPolicyControl === undefined ? [] : loaded.modelPolicies!.map(policy => policy.model)),
-    artifact, loaded.containment, () => { rowPolicyAssembly = asm; });
+    artifact, loaded.containment, owningUniques.verifiedConditions, () => { rowPolicyAssembly = asm; });
   const policyInputs: CanonicalModelPolicyInput[] = [];
   const ruledModels = new Set<string>();
   for (const [index, model] of loaded.models.entries()) {
@@ -5802,13 +5894,6 @@ async function loadLocalOwnerPolicyControl(input: {
       for (const map of [declarations, policyModels, definitionPolicyModels]) {
         for (const model of Object.keys(map)) {
           const metadata = localPolicyObject(localPolicyMember(map, model));
-          if (map === declarations) {
-            const uniques = localPolicyMember(metadata, 'uniques');
-            if (uniques !== undefined && localPolicyArray(uniques).some(unique =>
-              Object.hasOwn(localPolicyObject(unique), 'where'))) {
-              throw new Error('Conditional unique source requires checked native adoption before owner-policy activation.');
-            }
-          }
           const hasRules = ['invariants', 'locks'].some(member => {
             const ids = localPolicyMember(metadata, member);
             return ids !== undefined && localPolicyStrings(ids).length > 0;
