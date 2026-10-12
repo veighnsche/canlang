@@ -14829,7 +14829,9 @@ impl<'a> Cx<'a> {
                 ),
             ));
         }
-        for (name, value) in ui_attributes(self.db, node) {
+        let attributes = ui_attributes(self.db, node);
+        let has_submit = attributes.iter().any(|(name, _)| name == "submit");
+        for (name, value) in attributes {
             match name.as_str() {
                 "display" => {
                     if let Some(value) = value {
@@ -14880,6 +14882,22 @@ impl<'a> Cx<'a> {
                 }
                 _ => {}
             }
+        }
+        if !has_submit
+            && let Some(operation) = operation_target
+                .and_then(|op| self.program.effects.crud_ops.get(&op))
+                .cloned()
+            && let Some(label) = operation.label
+            && let Some(message) = self.decode_message_value(operation.module, &label)
+        {
+            props.push((
+                "submit".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(message),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
         }
         let bound_fields: Option<HashSet<String>> =
             match props.iter().find(|(name, _)| name == "arguments") {

@@ -176,19 +176,73 @@ describe("tabs", () => {
     assert.ok(html.includes('private body'));
   });
 
-  it("renders a selector-only bound tabset without panels", async () => {
+  it("renders styled native selector tabs preserving the preference POST fields", async () => {
     const html = await tabs({
       context: makeContext(),
       caption: "Views",
+      id: "preference-views",
       binding: {
         name: "view",
-        options: [{ value: "a", label: "First" }],
+        options: [{ value: "a", label: "First" }, { value: "b", label: "Second" }],
+        current: "b",
+        version: "7",
         postTo: "/prefs/view",
       },
     });
-    assert.ok(html.includes(`<form action="/prefs/view" method="post">`), html);
-    assert.ok(html.includes("<fieldset>"), html);
-    assert.ok(!html.includes("tab-content"), html);
+    const page = await loadHtml(html);
+    try {
+      const form = page.document.querySelector("form.can-preference-tabs");
+      assert.ok(form);
+      assert.equal(form.getAttribute("action"), "/prefs/view");
+      assert.equal(form.getAttribute("method"), "post");
+      assert.equal(form.id, "preference-views");
+      assert.equal(form.querySelector("fieldset > legend")?.textContent, "Views");
+      const radios = form.querySelectorAll("fieldset > .tabs > input.tab[type=radio]");
+      assert.equal(radios.length, 2);
+      assert.deepEqual(Array.from(radios, (radio) => [radio.getAttribute("name"), radio.getAttribute("value"), radio.getAttribute("aria-label"), radio.hasAttribute("checked")]),
+        [["view", "a", "First", false], ["view", "b", "Second", true]]);
+      assert.equal(form.querySelector('input[name="_csrf"]')?.getAttribute("value"), "csrf-123");
+      assert.equal(form.querySelector('input[name="_version"]')?.getAttribute("value"), "7");
+      assert.equal(form.querySelector('button[type="submit"]')?.textContent, "Save");
+      assert.equal(form.querySelector(".tab-content, [role=tablist], [role=tab], script, input.radio"), null);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("applies admitted appearance to the selector container and rejects unadmitted tokens", async () => {
+    const props = {
+      context: makeContext(),
+      binding: { name: "view", options: [{ value: "a", label: "First" }], postTo: "/prefs/view" },
+    };
+    for (const size of ALL_SIZES) {
+      const html = await tabs(withExtra({ ...props, size }, { variant: "solid" }));
+      assert.ok(html.includes(`<div class="tabs tabs-border tabs-${size}">`), html);
+      assert.ok(!html.includes(`class="tab tab-${size}`), html);
+    }
+    const html = await tabs(withExtra(props, { variant: "solid" }));
+    assert.ok(html.includes('<div class="tabs tabs-border">'), html);
+    for (const [key, value] of [["tone", "primary"], ["orientation", "vertical"], ["size", "huge"], ["variant", "outline"]] as const) {
+      await assert.rejects(tabs(withExtra(props, { [key]: value })), new RegExp(`does not admit ${key}`));
+    }
+  });
+
+  it("localizes and escapes selector labels used as visible tab captions", async () => {
+    const html = await tabs({
+      context: makeContext({ preferredLocales: ["nl"] }),
+      caption: message("Views", { nl: "Weergaven" }),
+      binding: {
+        name: "view",
+        options: [{ value: 'a"b', label: message("First", { nl: 'Eerste "weergave"' }) }, { value: "other", label: XSS }],
+        postTo: "/prefs/view",
+      },
+    });
+    assert.ok(html.includes("<legend>Weergaven</legend>"), html);
+    assert.ok(html.includes('value="a&quot;b" aria-label="Eerste &quot;weergave&quot;"'), html);
+    assert.ok(html.includes('aria-label="&lt;script&gt;'), html);
+    assert.ok(html.includes(">Opslaan</button>"), html);
+    assert.ok(!html.includes("<script>"), html);
+    assert.ok(!html.includes(" checked"), html);
   });
 
   it("prefers an explicit open item over the bound current value", async () => {

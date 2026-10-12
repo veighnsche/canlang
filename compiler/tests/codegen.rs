@@ -312,6 +312,71 @@ fn money(value: TypedExpr, other: TypedExpr, op: IrBinOp) -> TypedExpr {
 // TEST-ONLY artifact: see module docs. No runtime-success claims.
 
 #[test]
+fn explicit_forms_inherit_owning_crud_caption_unless_submit_is_authored() {
+    use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
+    use canlang_compiler::analysis::check_program;
+    use canlang_compiler::codegen::ir::{self, IrExpr};
+    use canlang_compiler::source::{SourceDb, Span};
+    use std::path::Path;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let source = r#"app FormCaptions
+Given
+ message add = "Add task"@{nl="Taak toevoegen"}
+ Todo { title:text }
+ Plain { title:text }
+ policy Todo read=public
+ policy Plain read=public
+When
+ crud Todo by=public fields=title label={create=add,update="Save task"@{nl="Taak opslaan"}}
+ crud Plain by=public fields=title
+Then
+ page / title="Tasks"
+  form Todo.create
+  form Todo.create submit="Create now"@{nl="Nu maken"}
+  form Todo.update
+  form Plain.create
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("form-captions.can".into(), source.into());
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let forms = &program.modules[0].pages[0].render;
+    assert_eq!(forms.len(), 4);
+    for (form, source, translated) in [
+        (&forms[0], "Add task", "Taak toevoegen"),
+        (&forms[1], "Create now", "Nu maken"),
+        (&forms[2], "Save task", "Taak opslaan"),
+    ] {
+        assert_eq!(form.factory, "form");
+        let captions: Vec<_> = form
+            .props
+            .iter()
+            .filter(|(name, _)| name == "submit")
+            .collect();
+        assert_eq!(captions.len(), 1);
+        let IrExpr::Message(message) = &captions[0].1.expr else {
+            panic!("form submit lost its owning message descriptor");
+        };
+        assert_eq!(message.source, source);
+        assert_eq!(message.source_lang, "en");
+        assert_eq!(message.variants, vec![("nl".into(), Some(translated.into()))]);
+        assert!(message.params.is_empty());
+    }
+    assert!(!forms[3].props.iter().any(|(name, _)| name == "submit"));
+}
+
+#[test]
 fn golden_teamtasks_structure() {
     let (db, id) = load_example("TeamTasks.can");
     // Production-like: the golden catalog implements every builtin the
@@ -487,7 +552,7 @@ fn golden_teamtasks_structure() {
         "page declares the exact source preference save allowlist"
     );
     let form_occurrence = entry
-        .split_once("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",occurrence:")
+        .split_once("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",submit:$can$h$636865636b65645f6d657373616765(\"Add\",{nl:\"Toevoegen\"},undefined,\"en\"),occurrence:")
         .expect("protected create form preparation")
         .1.split_once(",labels:").unwrap().0;
     let form_start: usize = form_occurrence
@@ -510,7 +575,7 @@ fn golden_teamtasks_structure() {
         )
     );
     assert!(
-        entry.contains(&"c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$h$636865636b65645f6d657373616765(\"Title\",{nl:\"Titel\"},undefined,\"en\"),assignee:$can$h$636865636b65645f6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"},undefined,\"en\")},authoredFields:[\"title\"]})".replace(",labels:", &format!(",occurrence:{form_occurrence},labels:"))),
+        entry.contains(&"c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",submit:$can$h$636865636b65645f6d657373616765(\"Add\",{nl:\"Toevoegen\"},undefined,\"en\"),labels:{title:$can$h$636865636b65645f6d657373616765(\"Title\",{nl:\"Titel\"},undefined,\"en\"),assignee:$can$h$636865636b65645f6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"},undefined,\"en\")},authoredFields:[\"title\"]})".replace(",labels:", &format!(",occurrence:{form_occurrence},labels:"))),
         "form operation"
     );
     // Field controls consume prepared props. Breadcrumbs consume the

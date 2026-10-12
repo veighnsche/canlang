@@ -269,7 +269,7 @@ describe("form hidden fields and roots", () => {
   });
   it("renders operation, operation_id, csrf and timezone hiddens", async () => {
     const html = await form(makeFormProps());
-    assert.ok(html.includes('<form action="/submit" method="post">'));
+    assert.ok(html.includes('<form action="/submit" method="post" class="can-form">'));
     assert.ok(html.includes('<input type="hidden" name="operation" value="TeamTasks.Todo.create">'));
     assert.ok(html.includes('<input type="hidden" name="operation_id" value="op-1">'));
     assert.ok(html.includes(`<input type="hidden" name="${CSRF_FIELD}" value="csrf-123">`));
@@ -309,7 +309,7 @@ describe("form hidden fields and roots", () => {
     const props = makeFormProps({ fields: [field("title")], cancelHref: "/back", submit: "Publish" });
     const authoredControl = input({ context: props.context, field: props.fields[0]!, idPrefix: props.idPrefix, mode: props.mode });
     const authored = await form({ ...props, children: async () => ["<section>", authoredControl, "</section>"] });
-    assert.ok(authored.includes('<section><fieldset>'));
+    assert.ok(authored.includes('<section><fieldset class="fieldset">'));
     assert.equal((authored.match(/name="inputs\[title\]"/g) ?? []).length, 1);
     assert.ok(authored.includes('</section><div class="flex gap-4">'));
     assert.ok(authored.includes('<button type="submit" class="btn btn-primary">Publish</button>'));
@@ -323,7 +323,7 @@ describe("form hidden fields and roots", () => {
     assert.ok(inDrawer.includes('<label for="f1-drawer" class="btn drawer-button">Publish</label>'));
     assert.ok(inDrawer.includes('<div class="drawer-side">'));
     assert.ok(inDrawer.includes('<label for="f1-drawer" class="drawer-overlay"'));
-    assert.ok(inDrawer.includes('<form action="/submit" method="post">'));
+    assert.ok(inDrawer.includes('<form action="/submit" method="post" class="can-form">'));
 
     const orderedProps = makeFormProps({ fields: [field("title"), field("enabled", { type: "bool" }),
       field("description"), field("note")], cancelHref: "/back", submit: "Publish" });
@@ -370,7 +370,7 @@ describe("form hidden fields and roots", () => {
 
   it("labels each fieldset with a prefixed for/id pair", async () => {
     const html = await form(makeFormProps({ fields: [field("title")] }));
-    assert.ok(html.includes("<fieldset>"));
+    assert.ok(html.includes('<fieldset class="fieldset">'));
     assert.ok(html.includes('<label for="f1-title"'));
     assert.ok(html.includes('id="f1-title"'));
     assertIdsPrefixed(html, "f1");
@@ -663,9 +663,9 @@ describe("required and readonly fields", () => {
         fields: [field("req", { required: true }), field("opt")],
       }),
     );
-    assert.ok(html.includes('name="inputs[req]" id="f1-req" value="" class="input" aria-required="true"'));
+    assert.ok(html.includes('name="inputs[req]" id="f1-req" value="" class="input w-full" aria-required="true"'));
     assert.ok(html.includes('Label req <span aria-hidden="true">*</span>'));
-    assert.ok(!html.includes('name="inputs[opt]" id="f1-opt" value="" class="input" aria-required'));
+    assert.ok(!html.includes('name="inputs[opt]" id="f1-opt" value="" class="input w-full" aria-required'));
     assert.ok(!html.includes("Label opt <span"));
   });
 
@@ -973,7 +973,7 @@ describe("deleteRecord", () => {
     assert.ok(html.includes('<section class="card bg-base-100 shadow">'));
     assert.ok(html.includes('<h2 class="card-title">Buy milk</h2>'));
     assert.ok(html.includes("<p>This cannot be undone.</p>"));
-    assert.ok(html.includes('<form action="/delete" method="post" data-can-delete-form='));
+    assert.ok(html.includes('<form action="/delete" method="post" class="can-form" data-can-delete-form='));
     assert.ok(html.includes('<input type="hidden" name="operation" value="TeamTasks.Todo.delete">'));
     assert.ok(html.includes('<input type="hidden" name="operation_id" value="op-del-1">'));
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));
@@ -1112,7 +1112,7 @@ describe("action", () => {
     }
     assert.equal(effects, 0);
     const native = await action(makeActionProps({ actionHandle: handle }));
-    assert.ok(native.includes('<form action="/act" method="post">'));
+    assert.ok(native.includes('<form action="/act" method="post" class="can-form">'));
     assert.ok(native.includes('name="action_handle"'));
     assert.equal(native.includes("data-can-generated-form"), false);
   });
@@ -1164,7 +1164,7 @@ describe("action", () => {
         inputs: { note: "hi", count: 3, big: 9007199254740993n, flag: true },
       }),
     );
-    assert.ok(html.includes('<form action="/act" method="post">'));
+    assert.ok(html.includes('<form action="/act" method="post" class="can-form">'));
     assert.ok(html.includes('<input type="hidden" name="operation" value="TeamTasks.Todo.complete">'));
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));
     assert.ok(html.includes('<input type="hidden" name="timezone" value="UTC">'));
@@ -1176,7 +1176,7 @@ describe("action", () => {
     assert.ok(html.includes('<input type="hidden" name="inputs[big]" value="9007199254740993">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[flag]" value="true">'));
     assert.ok(html.includes('<button type="submit" class="btn btn-primary">Complete</button>'));
-    assert.ok(!html.includes("<fieldset>"));
+    assert.ok(!html.includes('<fieldset class="fieldset">'));
   });
 
   it("maps variants to button tones with primary as default", async () => {
@@ -1307,7 +1307,7 @@ describe("forms escaping and prefixes", () => {
     const html = await form(
       makeFormProps({ action: "/mounted/submit?source=one&mode=two", cancelHref: "JaVaScRiPt:alert(1)" }),
     );
-    assert.ok(html.includes('<form action="/mounted/submit?source=one&amp;mode=two" method="post">'));
+    assert.ok(html.includes('<form action="/mounted/submit?source=one&amp;mode=two" method="post" class="can-form">'));
     assert.ok(html.includes('href="#"'));
     assert.ok(!html.includes("javascript:"));
     assert.ok(!html.includes("JaVaScRiPt:"));
@@ -1390,12 +1390,12 @@ describe("explicit control dispatch", () => {
     const textInput = await form(
       makeFormProps({ fields: [field("a", { type: "text", value: "x", control: "input" })] }),
     );
-    assert.ok(textInput.includes('<input type="text" name="inputs[a]" id="f1-a" value="x" class="input"'));
+    assert.ok(textInput.includes('<input type="text" name="inputs[a]" id="f1-a" value="x" class="input w-full"'));
 
     const area = await form(
       makeFormProps({ fields: [field("a", { type: "text", value: "x", control: "textarea" })] }),
     );
-    assert.ok(area.includes('<textarea name="inputs[a]" id="f1-a" class="textarea"'));
+    assert.ok(area.includes('<textarea name="inputs[a]" id="f1-a" class="textarea w-full"'));
 
     const box = await form(
       makeFormProps({ fields: [field("a", { type: "bool", value: true, control: "checkbox" })] }),
@@ -1431,7 +1431,7 @@ describe("explicit control dispatch", () => {
         fields: [field("s", { type: "enum", value: "b", control: "select", options })],
       }),
     );
-    assert.ok(picked.includes('<select name="inputs[s]" id="f1-s" class="select"'));
+    assert.ok(picked.includes('<select name="inputs[s]" id="f1-s" class="select w-full"'));
     assert.ok(picked.includes('<option value="b" selected>B</option>'));
 
     const filtered = await form(
@@ -1465,9 +1465,9 @@ describe("explicit control dispatch", () => {
     const html = await form(
       makeFormProps({ fields: [field("avatar", { type: "file", control: "file_input" })] }),
     );
-    assert.ok(html.includes('<form action="/submit" method="post" enctype="multipart/form-data">'));
+    assert.ok(html.includes('<form action="/submit" method="post" class="can-form" enctype="multipart/form-data">'));
     assert.ok(html.includes('type="file" name="inputs[avatar]" id="f1-avatar"'));
-    assert.ok(html.includes('class="file-input"'));
+    assert.ok(html.includes('class="file-input w-full"'));
   });
 
   it("renders otp and calendar controls", async () => {
@@ -1552,7 +1552,7 @@ describe("multipart encoding", () => {
     const html = await form(
       makeFormProps({ fields: [field("title", { control: "input" }), field("n", { type: "int" })] }),
     );
-    assert.ok(html.includes('<form action="/submit" method="post">'));
+    assert.ok(html.includes('<form action="/submit" method="post" class="can-form">'));
     assert.ok(!html.includes("enctype"));
     const mini = await action(makeActionProps({ fields: [field("reason")] }));
     assert.ok(!mini.includes("enctype"));
@@ -1564,7 +1564,7 @@ describe("multipart encoding", () => {
     const html = await action(
       makeActionProps({ fields: [field("avatar", { type: "file", control: "file_input" })] }),
     );
-    assert.ok(html.includes('<form action="/act" method="post" enctype="multipart/form-data">'));
+    assert.ok(html.includes('<form action="/act" method="post" class="can-form" enctype="multipart/form-data">'));
     assert.ok(html.includes('type="file" name="inputs[avatar]"'));
   });
 });

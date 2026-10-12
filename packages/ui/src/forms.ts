@@ -386,7 +386,7 @@ function fileWidget(
   const attached = fileFieldValue(field) ?? "";
   const picker =
     `<input type="file" data-can-file="${escapeAttr(field.path)}" id="${attrs.idAttr}" ` +
-    `class="file-input"${attrs.common}>`;
+    `class="file-input w-full"${attrs.common}>`;
   const slot = `<input type="hidden" name="${attrs.nameAttr}" value="${escapeAttr(attached)}">`;
   const line =
     attached === ""
@@ -401,7 +401,7 @@ function textWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   if (field.multiline === true) {
     return {
       html:
-        `<textarea name="${attrs.nameAttr}" id="${attrs.idAttr}" class="textarea"${attrs.common}>` +
+        `<textarea name="${attrs.nameAttr}" id="${attrs.idAttr}" class="textarea w-full"${attrs.common}>` +
         `${escapeHtml(value)}</textarea>`,
       submitValue: value,
     };
@@ -410,7 +410,7 @@ function textWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   return {
     html:
       `<input type="${inputType}" name="${attrs.nameAttr}" id="${attrs.idAttr}" ` +
-      `value="${escapeAttr(value)}" class="input"${attrs.common}>`,
+      `value="${escapeAttr(value)}" class="input w-full"${attrs.common}>`,
     submitValue: value,
   };
 }
@@ -425,7 +425,7 @@ function decimalWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   return {
     html:
       `<input type="text" inputmode="decimal" name="${attrs.nameAttr}" id="${attrs.idAttr}" ` +
-      `value="${escapeAttr(value)}" class="input"${attrs.common}>`,
+      `value="${escapeAttr(value)}" class="input w-full"${attrs.common}>`,
     submitValue: value,
   };
 }
@@ -476,7 +476,7 @@ function selectWidget(
     })
     .join("");
   return {
-    html: `<select name="${attrs.nameAttr}" id="${attrs.idAttr}" class="select"${attrs.common}>${items}</select>`,
+    html: `<select name="${attrs.nameAttr}" id="${attrs.idAttr}" class="select w-full"${attrs.common}>${items}</select>`,
     submitValue: current ?? "",
   };
 }
@@ -486,7 +486,7 @@ function dateWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   return {
     html:
       `<input type="date" name="${attrs.nameAttr}" id="${attrs.idAttr}" ` +
-      `value="${escapeAttr(value)}" class="input"${attrs.common}>`,
+      `value="${escapeAttr(value)}" class="input w-full"${attrs.common}>`,
     submitValue: value,
   };
 }
@@ -496,7 +496,7 @@ function datetimeWidget(field: FormFieldDef, attrs: WidgetAttrs, timeZone: strin
   return {
     html:
       `<input type="datetime-local" name="${attrs.nameAttr}" id="${attrs.idAttr}" ` +
-      `value="${escapeAttr(value)}" class="input"${attrs.common}>` +
+      `value="${escapeAttr(value)}" class="input w-full"${attrs.common}>` +
       `<span>${escapeHtml(timeZone)}</span>`,
     submitValue: value,
   };
@@ -660,7 +660,7 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
     field.readonly === true && widget.suppressDuplicate !== true
       ? hidden(name, widget.submitValue)
       : "";
-  return `<fieldset>${labelHtml}${widget.html}${errorHtml}${duplicate}</fieldset>`;
+  return `<fieldset class="fieldset">${labelHtml}${widget.html}${errorHtml}${duplicate}</fieldset>`;
 }
 
 /**
@@ -705,7 +705,7 @@ function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperat
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
   const projection = derived === undefined ? ""
     : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs, bindingIdentity, draftIdentity }))}"`;
-  return `<form action="${escapeAttr(action)}" method="post"${encoding}${projection}>`;
+  return `<form action="${escapeAttr(action)}" method="post" class="can-form"${encoding}${projection}>`;
 }
 
 function splitErrors(
@@ -1039,7 +1039,7 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
     `<section class="card bg-base-100 shadow"><div class="card-body">` +
     `<h2 class="card-title">${heading}</h2>` +
     `<p>${copy}</p>` +
-    `<form action="${escapeAttr(postTo)}" method="post" data-can-delete-form="${escapeAttr(JSON.stringify({ operation: props.operation }))}">` +
+    `<form action="${escapeAttr(postTo)}" method="post" class="can-form" data-can-delete-form="${escapeAttr(JSON.stringify({ operation: props.operation }))}">` +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +

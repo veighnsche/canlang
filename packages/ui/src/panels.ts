@@ -191,17 +191,18 @@ export async function tabs(props: TabsProps): Promise<string> {
     const radios = binding.options
       .map(
         (option) =>
-          `<label><input type="radio" class="radio" name="${escapeAttr(binding.name)}" value="${escapeAttr(option.value)}"` +
+          `<input type="radio" class="tab" name="${escapeAttr(binding.name)}" value="${escapeAttr(option.value)}"` +
+          ` aria-label="${escapeAttr(resolveCaption(option.label, props.context))}"` +
           (option.value === binding.current ? " checked" : "") +
-          `>${escapeHtml(resolveCaption(option.label, props.context))}</label>`,
+          `>`,
       )
       .join("");
     const save = escapeHtml(resolveCaption(SAVE_LABEL, props.context));
     return (
-      `<form action="${escapeAttr(postTo!)}" method="post"${idAttr("tabs", props.id)}>` +
+      `<form action="${escapeAttr(postTo!)}" method="post" class="can-preference-tabs"${idAttr("tabs", props.id)}>` +
       `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
       (binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`) +
-      `<fieldset>${legend}<div class="flex flex-col gap-2">${radios}</div></fieldset>` +
+      `<fieldset>${legend}<div class="${escapeAttr(joinClasses("tabs tabs-border", modifiers))}">${radios}</div></fieldset>` +
       `<div class="flex gap-2"><button type="submit" class="btn btn-primary">${save}</button></div></form>`
     );
   }

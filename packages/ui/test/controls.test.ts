@@ -55,7 +55,7 @@ function fieldError(path: string, messageText = "is invalid", code = "type"): Fi
 /** Unit ids: label for=, widget id=, outlet id=/describedby must agree. */
 function assertUnitWiring(html: string, idPrefix: string, path: string, outlet: boolean): void {
   const id = `${idPrefix}-${path}`;
-  assert.ok(html.startsWith("<fieldset>"), "unit opens with fieldset");
+  assert.ok(html.startsWith('<fieldset class="fieldset">'), "unit opens with fieldset");
   assert.ok(html.includes(`<label for="${id}"`), "label targets the widget id");
   assert.ok(html.includes(`id="${id}"`), "widget carries the input id");
   if (outlet) {
@@ -159,7 +159,7 @@ describe("input", () => {
       size: "sm",
       variant: "ghost",
     });
-    assert.ok(ok.includes(`class="input input-primary input-sm input-ghost"`), "admitted modifiers");
+    assert.ok(ok.includes(`class="input input-primary input-sm input-ghost w-full"`), "admitted modifiers");
     await assert.rejects(
       input({ context: makeContext(), field: field("title"), idPrefix: "f", mode: "create", orientation: "vertical" } as unknown as Parameters<typeof input>[0]),
       /orientation/,
@@ -277,7 +277,7 @@ describe("radio and select", () => {
     });
     assertUnitWiring(html, "u1", "pick", false);
     assert.ok(html.includes(`<select`), "select widget");
-    assert.ok(html.includes(`class="select select-primary select-sm"`), "appearance modifiers");
+    assert.ok(html.includes(`class="select select-primary select-sm w-full"`), "appearance modifiers");
     assert.ok(html.includes(`value="a" selected`), "current option selected");
     await assert.rejects(
       select({ context: makeContext(), field: field("pick", { type: "enum" }), idPrefix: "f", mode: "create" }),
@@ -409,7 +409,7 @@ describe("fileInput and otp", () => {
     });
     assertUnitWiring(html, "u1", "doc", false);
     assert.ok(html.includes(`type="file"`), "file widget");
-    assert.ok(html.includes(`class="file-input"`), "file-input base class");
+    assert.ok(html.includes(`class="file-input w-full"`), "file-input base class");
     await assert.rejects(
       fileInput({ context: makeContext(), field: field("t", { value: "x" }), idPrefix: "f", mode: "create" }),
       /field "t"/,
@@ -487,7 +487,7 @@ describe("label and validator fragments", () => {
   it("label renders only the label with caption precedence", async () => {
     const f = field("title", { label: "Base", labelCaption: "Override", required: true });
     const html = await label({ context: makeContext(), field: f, idPrefix: "u1" });
-    assert.ok(html === `<label for="u1-title" class="label">Override <span aria-hidden="true">*</span></label>`, `exact label fragment, got ${html}`);
+    assert.ok(html === `<label for="u1-title" class="label fieldset-label">Override <span aria-hidden="true">*</span></label>`, `exact label fragment, got ${html}`);
     assert.ok(!html.includes("<input"), "no widget");
     const explicit = await label({ context: makeContext(), field: f, idPrefix: "u1", caption: "Explicit" });
     assert.ok(explicit.includes(">Explicit <span"), "explicit caption wins");
@@ -941,7 +941,7 @@ describe("fileControl", () => {
         { href: "/files/r2", name: "photo.png" },
       ],
     });
-    assert.ok(html.startsWith("<fieldset>"), "fieldset group");
+    assert.ok(html.startsWith('<fieldset class="fieldset">'), "fieldset group");
     assert.ok(
       html.includes(`<legend class="fieldset-legend">Label doc</legend>`),
       "field label as legend",

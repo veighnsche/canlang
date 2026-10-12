@@ -193,7 +193,7 @@ function unitContext(props: FieldControlProps): UnitContext {
 function unitLabel(props: FieldControlProps, unit: UnitContext): string {
   const text = escapeHtml(labelText(props.field, props.context));
   const mark = props.field.required ? ` <span aria-hidden="true">*</span>` : "";
-  return `<label for="${escapeAttr(unit.id)}" class="label">${text}${mark}</label>`;
+  return `<label for="${escapeAttr(unit.id)}" class="label fieldset-label">${text}${mark}</label>`;
 }
 
 function unitErrors(props: FieldControlProps, unit: UnitContext): string {
@@ -218,7 +218,7 @@ function unit(
   submitValue: string,
 ): string {
   return (
-    `<fieldset>${props.authoredLabel === true ? "" : unitLabel(props, unitCtx)}` +
+    `<fieldset class="fieldset">${props.authoredLabel === true ? "" : unitLabel(props, unitCtx)}` +
     `${widgetHtml}${props.authoredValidator === true ? "" : unitErrors(props, unitCtx)}${unitDuplicate(props, unitCtx, submitValue)}</fieldset>`
   );
 }
@@ -254,7 +254,7 @@ export async function input(props: InputProps): Promise<string> {
   const unitCtx = unitContext(props);
   const nameAttr = escapeAttr(unitCtx.name);
   const idAttr = escapeAttr(unitCtx.id);
-  const cls = escapeAttr(joinClasses("input", modifiers));
+  const cls = escapeAttr(joinClasses("input", modifiers) + " w-full");
   if (TEXT_TYPES.has(field.type)) {
     const value = stringFieldValue(field) ?? "";
     const inputType = field.type === "email" ? "email" : field.type === "url" ? "url" : "text";
@@ -312,7 +312,7 @@ export async function textarea(props: TextareaProps): Promise<string> {
     );
   }
   const unitCtx = unitContext(props);
-  const cls = escapeAttr(joinClasses("textarea", modifiers));
+  const cls = escapeAttr(joinClasses("textarea", modifiers) + " w-full");
   const value = stringFieldValue(field) ?? "";
   return unit(
     props,
@@ -412,7 +412,7 @@ export async function select(props: SelectProps): Promise<string> {
   assertFieldType(field);
   const options = requireOptions(field, "select");
   const unitCtx = unitContext(props);
-  const cls = escapeAttr(joinClasses("select", modifiers));
+  const cls = escapeAttr(joinClasses("select", modifiers) + " w-full");
   const current = stringFieldValue(field);
   const items = options
     .map((option) => {
@@ -602,7 +602,7 @@ export async function fileInput(props: FileInputProps): Promise<string> {
     );
   }
   const unitCtx = unitContext(props);
-  const cls = escapeAttr(joinClasses("file-input", modifiers));
+  const cls = escapeAttr(joinClasses("file-input", modifiers) + " w-full");
   return unit(
     props,
     unitCtx,
@@ -658,7 +658,7 @@ export async function label(props: LabelProps): Promise<string> {
   const caption: MessageValue = props.caption ?? props.field.labelCaption ?? props.field.label;
   const text = escapeHtml(resolveCaption(caption, props.context));
   const mark = props.field.required ? ` <span aria-hidden="true">*</span>` : "";
-  return `<label for="${escapeAttr(id)}" class="label">${text}${mark}</label>`;
+  return `<label for="${escapeAttr(id)}" class="label fieldset-label">${text}${mark}</label>`;
 }
 
 /**
@@ -751,7 +751,7 @@ async function calendarField(props: CalendarProps & { readonly kind: "field" }):
     return unit(
       props,
       unitCtx,
-      `<input type="date" name="${nameAttr}" id="${idAttr}" value="${escapeAttr(value)}" class="input"${unitCtx.common}>`,
+      `<input type="date" name="${nameAttr}" id="${idAttr}" value="${escapeAttr(value)}" class="input w-full"${unitCtx.common}>`,
       value,
     );
   }
@@ -760,7 +760,7 @@ async function calendarField(props: CalendarProps & { readonly kind: "field" }):
   return unit(
     props,
     unitCtx,
-    `<input type="datetime-local" name="${nameAttr}" id="${idAttr}" value="${escapeAttr(value)}" class="input"${unitCtx.common}><span>${escapeHtml(zone)}</span>`,
+    `<input type="datetime-local" name="${nameAttr}" id="${idAttr}" value="${escapeAttr(value)}" class="input w-full"${unitCtx.common}><span>${escapeHtml(zone)}</span>`,
     value,
   );
 }
@@ -922,5 +922,5 @@ export async function fileControl(props: FileProps): Promise<string> {
     props.files.length === 0
       ? `<p>${escapeHtml(resolveCaption(FILE_UNAVAILABLE, props.context))}</p>`
       : `<ul>${props.files.map((file) => fileItem(field.path, file, props.context)).join("")}</ul>`;
-  return `<fieldset>${legend}${body}${unitErrors(props, unitCtx)}</fieldset>`;
+  return `<fieldset class="fieldset">${legend}${body}${unitErrors(props, unitCtx)}</fieldset>`;
 }
