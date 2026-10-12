@@ -30,7 +30,25 @@ const refuses = (error: unknown) => error instanceof StateError;
 type Mode = 'normal' | 'null' | 'null-data' | 'null-digest' | 'null-digest-data' | 'unobserved' | 'copied-source' | 'stale-stage'
   | 'wrong-pair' | 'copied-call-caught' | 'foreign-store-caught' | 'copied-target' | 'unobserved-digest' | 'array' | 'state-race' | 'required-api';
 
-async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subfield' }, requiredCurrentControl = false) {
+type OriginalJoin = { layout: 'S/S' | 'S/E' | 'E/S' | 'E/E'; fault?: 'missing-let' | 'early-data' | 'copied-let' | 'stale-let' | 'changed-wire' };
+// Coordinator's checked original337 tuple, source fixture SHA
+// 4da5ddcc956e72ee6f8e0d5942467692c549d925dee2a01a4e01192f93e31bbf.
+// Other markers remain this direct State fixture's IDs; this is no Compiler artifact.
+const originalIds = {
+  presence: '0342ea60029ea5b011f43ae25d98ce2befb393e9b75e23b3df22aec8bb8d0116',
+  published: '356ea644a1ef36fed72fdbad0bd3298f6620f572effd95d36d2b71fe5cf3a417',
+  let: 'f6d42944cd92e67cc997626ccc675e27e6e0215990eab06707b2f4e496246c28',
+  data: '1c327f4f4aeae7be717182a0af8c956063f757d1e3062910735de1af97ddb541',
+  digestControl: '7563f4ad5a7ab9be1754d6d95e78f101939df57c089028108a2ee75cf083c9b3',
+  digestData: '6ca63b1bd123c7c1223adcf596add493893ea29c82395e59ed74385ed406c519',
+};
+const originalReturns = {
+  'S/S': 'a514f06e72d460ed6ddefc226d9f51be7907ce1c2ee0393d5f90ad7614e366ff',
+  'S/E': '70af48801b2fe1f13f28c9c4b8762466e13ecaddab07ae7fa69c32dc357b4837',
+  'E/S': '998791f4b82d91cc8b381a940f827dfc876f5f1963f89eac9ad6b80653a7f5dd',
+  'E/E': '79d0c5b24994f46af0206a4d6076165d075c65e6e63272c97ce6f2f47d5d08dd',
+};
+async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subfield' }, requiredCurrentControl = false, originalJoin?: OriginalJoin) {
   const array = mode === 'array', currentType = `${REVISION}${array ? '[]' : '?'}` as CanTypeId;
   const dependencies = [
     { id: 'current-control', source, role: 'control' as const, model: TEMPLATE, field: 'current', type: currentType },
@@ -84,6 +102,24 @@ async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subf
       field: { kind: 'nominal', name: 'WorkflowDefinition' }, valueType: 'WorkflowDefinition' as CanTypeId, required: true, serverOnly: false });
     dependencies.push({ id: 'definition-data', source, role: 'data', model: REVISION, field: 'definition', type: 'WorkflowDefinition' as CanTypeId });
   }
+  if (originalJoin !== undefined) {
+    slice.models!.find(model => model.name === TEMPLATE)!.fields.push({ name: 'active', field: { kind: 'boolean' },
+      valueType: 'bool' as CanTypeId, required: true, serverOnly: false });
+    const common = dependencies.map(dep => ({ ...dep, id: dep.id === 'current-control' ? originalIds.published :
+      dep.id === 'current-data' ? originalIds.data : dep.id === 'digest-control' ? originalIds.digestControl :
+      dep.id === 'digest-data' ? originalIds.digestData : dep.id,
+      ...(dep.id === 'current-control' ? { type: REVISION as CanTypeId } : {}) }));
+    common.splice(1, 0, { id: originalIds.let, source, role: 'control', model: TEMPLATE, field: 'current', type: REVISION as CanTypeId });
+    const returns = (['S/S', 'S/E', 'E/S', 'E/E'] as const).map(layout => ({
+      id: originalReturns[layout], source, influences: [], dependencies: [
+        { id: 'active-control', source, role: 'control' as const, model: TEMPLATE, field: 'active', type: 'bool' as CanTypeId },
+        ...(layout.startsWith('E/') ? [{ id: originalIds.presence, source, role: 'control' as const,
+          model: TEMPLATE, field: 'current', type: currentType }] : []), ...common,
+      ],
+    }));
+    const result = slice.operations![0]!.result!;
+    slice.operations![0]!.result = { ...result, disclosure: { ...result.disclosure!, returns } };
+  }
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const team = await memberships.createTeam({ timezone: 'UTC' });
   const user = await memberships.createUser({ email: 'nullable-reader@example.test', password_hash: 'test-only', email_verified: true });
@@ -119,7 +155,7 @@ async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subf
   const readPolicies = new Map<ModelName, ViewerSourceReadPolicy>([
     [CONVERSATION, { fields: ['title'], secretFields: [], grants: [{ fields: ['id', 'title'], read: async ({ context }) =>
       access.ancestor && context.membership?.status === 'active' }] }],
-    [TEMPLATE, { parent: CONVERSATION, fields: ['title', 'current'], secretFields: [], grants: [{ fields: ['id', 'title', 'current'], read: async ({ context }) =>
+    [TEMPLATE, { parent: CONVERSATION, fields: ['title', 'current', ...(originalJoin ? ['active'] : [])], secretFields: [], grants: [{ fields: ['id', 'title', 'current', ...(originalJoin ? ['active'] : [])], read: async ({ context }) =>
       access.source && context.membership?.status === 'active' &&
       (await context.memberships.findMembership(team.team_id, readerUser.user_id))?.status === 'active' }] }],
     [REVISION, { parent: TEMPLATE, fields: ['published', 'digest', ...(workflow === undefined ? [] : ['definition'])], secretFields: [], grants: [{
@@ -130,7 +166,7 @@ async function world(mode: Mode = 'normal', workflow?: { grant?: 'whole' | 'subf
     [RUN, { parent: TEMPLATE, fields: ['digest'], secretFields: [], grants: [{ fields: ['id', 'digest'], read: async ({ context }) => context.membership?.status === 'active' }] }],
   ]);
   bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies });
-  return { mode, requiredCurrentControl, slice, workflow, definition, observeGraph, valueSchema: loaded.valueSchema, store, memberships, caller, reader, table, access, policy, readPolicies, registry: loaded.registry,
+  return { mode, requiredCurrentControl, originalJoin, slice, workflow, definition, observeGraph, valueSchema: loaded.valueSchema, store, memberships, caller, reader, table, access, policy, readPolicies, registry: loaded.registry,
     app: APP, source: 'component', identity: makeIdentity({ userId: user.user_id, team, membership: caller }),
     clock: { nowMs: () => FIXED_NOW }, envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), {}),
     targetReads: () => targetReads, beforeTargetRead: (hook?: () => Promise<void> | void) => { beforeTargetRead = hook; } };
@@ -147,15 +183,24 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
     const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 2000 } });
     await session.stage({ op: 'create', model: CONVERSATION, id: asId('conversation'), data: { title: 'Conversation' } }, cause);
     await session.stage({ op: 'create', model: TEMPLATE, id: asId('template'), parent: { model: CONVERSATION, id: asId('conversation') },
-      data: { title: 'Template', current: w.mode === 'array' ? [] : null } }, cause);
+      data: { title: 'Template', current: w.mode === 'array' ? [] : null,
+        ...(w.originalJoin ? { active: w.originalJoin.layout.startsWith('E/') } : {}) } }, cause);
     await session.stage({ op: 'create', model: REVISION, id: asId('revision'), parent: { model: TEMPLATE, id: asId('template') },
       data: { published: true, digest: w.mode === 'null-digest' || w.mode === 'null-digest-data' ? null : 'original-digest',
         ...(w.definition === undefined ? {} : { definition: w.definition }) } }, cause);
-    if (w.mode !== 'null' && w.mode !== 'null-data') await session.stage({ op: 'update', model: TEMPLATE, id: asId('template'),
+    if (w.mode !== 'null' && w.mode !== 'null-data' && w.originalJoin?.layout !== 'E/S') await session.stage({ op: 'update', model: TEMPLATE, id: asId('template'),
       data: { current: w.mode === 'array' ? [{ id: 'revision' }] : { id: 'revision' } } }, cause);
     const template = await session.read(TEMPLATE, asId('template')); assert.ok(template);
+    const depId = (id: string) => w.originalJoin === undefined ? id : id === 'current-control' ? originalIds.published :
+      id === 'current-data' ? originalIds.data : id === 'digest-control' ? originalIds.digestControl : id === 'digest-data' ? originalIds.digestData : id;
+    if (w.originalJoin) {
+      await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'active-control', model: TEMPLATE, row: template, field: 'active' });
+      if (!template.data.active) throw new StateError('rule_failed', 'Original active Require short-circuited');
+      await observeScenarioReceiptDependency(call, w.store, { dependencyId: originalIds.presence, model: TEMPLATE, row: template, field: 'current' });
+      if (template.data.current === null) throw new StateError('rule_failed', 'Original current presence Require short-circuited');
+    }
     if (w.mode !== 'unobserved') await observeScenarioReceiptDependency(call, w.store,
-      { dependencyId: 'current-control', model: TEMPLATE, row: template, field: 'current' });
+      { dependencyId: depId('current-control'), model: TEMPLATE, row: template, field: 'current' });
     if (w.mode === 'stale-stage') await session.stage({ op: 'update', model: TEMPLATE, id: template.id, data: { title: 'Later stage' } }, cause);
     await beforePromotion?.();
     const promote = async () => {
@@ -163,7 +208,7 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
       try {
         const reader = w.mode === 'required-api' ? readScenarioReceiptStoredReferenceRow : readScenarioReceiptNullableStoredReferenceRow;
         return await reader(w.mode === 'copied-call-caught' ? { ...call } : call,
-          w.mode === 'foreign-store-caught' ? { ...w.store } : w.store, { sourceDependencyId: 'current-control',
+          w.mode === 'foreign-store-caught' ? { ...w.store } : w.store, { sourceDependencyId: depId('current-control'),
             scalarLeafDependencyId: w.mode === 'wrong-pair' ? 'digest-data' : 'published-control',
             sourceRow: w.mode === 'copied-source' ? { ...template } : template });
       } catch (error) { firstPromotionError ??= error; throw error; }
@@ -188,12 +233,21 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
       await after?.(session); selectScenarioReceiptReturn(call, w.store, 'created-run');
       return { ...await session.finalize(), result: published, outbox: [] };
     }
-    await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'current-data', model: TEMPLATE, row: template, field: 'current' });
+    if (w.originalJoin) {
+      const fault = w.originalJoin.fault;
+      if (fault === 'early-data') await observeScenarioReceiptDependency(call, w.store,
+        { dependencyId: originalIds.data, model: TEMPLATE, row: template, field: 'current' });
+      if (fault !== 'missing-let') await observeScenarioReceiptDependency(call, w.store,
+        { dependencyId: originalIds.let, model: TEMPLATE, row: fault === 'copied-let' ? { ...template } : template, field: 'current' });
+      if (fault === 'stale-let' || fault === 'changed-wire') await session.stage({ op: 'update', model: TEMPLATE, id: template.id,
+        data: fault === 'changed-wire' ? { current: null } : { title: 'After same-Let marker' } }, cause);
+    }
+    await observeScenarioReceiptDependency(call, w.store, { dependencyId: depId('current-data'), model: TEMPLATE, row: template, field: 'current' });
     const digest = promoted.data.digest;
     if (w.mode !== 'unobserved-digest') await observeScenarioReceiptDependency(call, w.store,
-      { dependencyId: 'digest-control', model: REVISION, row: promoted, field: 'digest' });
+      { dependencyId: depId('digest-control'), model: REVISION, row: promoted, field: 'digest' });
     if (digest === null && w.mode !== 'null-digest-data') throw new StateError('rule_failed', 'Original require digest!=null failed');
-    await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'digest-data', model: REVISION, row: promoted, field: 'digest' });
+    await observeScenarioReceiptDependency(call, w.store, { dependencyId: depId('digest-data'), model: REVISION, row: promoted, field: 'digest' });
     if (w.workflow !== undefined) {
       const definition = promoted.data.definition;
       await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'definition-data', model: REVISION, row: promoted, field: 'definition',
@@ -207,8 +261,9 @@ function execution(w: World, beforePromotion?: () => Promise<void> | void, after
     await session.stage({ op: 'create', model: RUN, id: asId('created-run'), parent: { model: TEMPLATE, id: template.id }, data: { digest } }, cause);
     await after?.(session);
     const run = await session.read(RUN, asId('created-run')); assert.ok(run);
-    const result = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'created-run', row: run });
-    selectScenarioReceiptReturn(call, w.store, 'created-run'); return { ...await session.finalize(), result, outbox: [] };
+    const returnId = w.originalJoin === undefined ? 'created-run' : originalReturns[w.originalJoin.layout];
+    const result = await bindScenarioReceiptModelResult(call, w.store, { returnId, row: run });
+    selectScenarioReceiptReturn(call, w.store, returnId); return { ...await session.finalize(), result, outbox: [] };
   } };
   return { request, receipt: () => { assert.ok(receipt); return receipt; }, runs: () => runs, exposed: () => exposed,
     promoted: () => promoted, promoting: () => promoting, firstPromotionError: () => firstPromotionError };
@@ -400,5 +455,84 @@ test('narrowed reference CONTROL retains source/target/ancestor/Identity authori
     const revision = await current.store.readRevision();
     assert.deepEqual(await projectScenarioReceipt({ ...current, receipt }), { result: null, records: [] });
     assert.equal(await current.store.readRevision(), revision); assert.equal(saved.runs(), 1);
+  }
+});
+
+test('original337 four Return layouts preserve false Require routes and genuine same-Let DATA order', async () => {
+  for (const layout of ['S/S', 'S/E', 'E/S', 'E/E'] as const) {
+    const w = await world('normal', undefined, false, { layout }), ex = execution(w);
+    const plans = w.slice.operations![0]!.result!.disclosure!.returns;
+    assert.deepEqual(plans.map(plan => plan.dependencies.some(dep => dep.id === originalIds.presence)), [false, false, true, true]);
+    if (layout !== 'E/E') {
+      await assert.rejects(invoke(ex.request), error => error instanceof StateError && error.code === 'rule_failed');
+      assert.equal(ex.exposed(), false); assert.equal(w.targetReads(), 0); await unchanged(w); continue;
+    }
+    assert.equal((await invoke(ex.request)).status, 'committed');
+    const saved = readScenarioReceiptAssociation(ex.receipt())!;
+    assert.equal(saved.returnId, originalReturns['E/E']);
+    assert.deepEqual(saved.observations.map(value => value.dependencyId), ['active-control', originalIds.presence,
+      originalIds.published, 'published-control', originalIds.let, originalIds.data, originalIds.digestControl, originalIds.digestData]);
+    assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, { id: 'created-run' });
+    const revision = await w.store.readRevision();
+    assert.equal((await invoke(ex.request)).status, 'replayed'); assert.equal(ex.runs(), 1); assert.equal(await w.store.readRevision(), revision);
+  }
+});
+
+test('original337 published receiver cannot substitute for genuine same-Let CONTROL before required DATA', async () => {
+  for (const fault of ['missing-let', 'early-data', 'copied-let', 'stale-let', 'changed-wire'] as const) {
+    const w = await world('normal', undefined, false, { layout: 'E/E', fault }), ex = execution(w);
+    await assert.rejects(invoke(ex.request), refuses); await unchanged(w);
+  }
+  for (const mode of ['copied-source', 'stale-stage', 'foreign-store-caught', 'unobserved-digest', 'null-digest-data'] as const) {
+    const w = await world(mode, undefined, false, { layout: 'E/E' }), ex = execution(w);
+    await assert.rejects(invoke(ex.request), refuses); await unchanged(w);
+  }
+  const late = await world('normal', undefined, false, { layout: 'E/E' });
+  await assert.rejects(invoke(execution(late, undefined, () => { late.access.source = false; }).request), refuses);
+  await unchanged(late);
+});
+
+test('original337 current DATA retains digest nullable pairing, whole WorkflowDefinition Files and saved current authority', async () => {
+  for (const loss of ['none', 'source', 'target', 'ancestor', 'identity'] as const) {
+    const w = await world('normal', { grant: 'whole' }, false, { layout: 'E/E' }), ex = execution(w);
+    await invoke(ex.request); const receipt = ex.receipt();
+    const saved = readScenarioReceiptAssociation(receipt)!;
+    const data = saved.observations.find(value => value.dependencyId === originalIds.data)!;
+    assert.deepEqual(data.row.data.current, { id: 'revision' });
+    assert.equal(saved.observations.find(value => value.dependencyId === originalIds.digestData)!.row.data.digest, 'original-digest');
+    assert.equal(saved.observations.find(value => value.dependencyId === 'definition-data')!.files!.length, 1);
+    if (loss === 'source') w.access.source = false;
+    if (loss === 'target') w.access.target = false;
+    if (loss === 'ancestor') w.access.ancestor = false;
+    if (loss === 'identity') await w.memberships.removeMembership(w.reader.membership_id);
+    assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, loss === 'none' ? { id: 'created-run' } : null);
+    assert.equal(ex.runs(), 1);
+  }
+});
+
+test('retained backend corruption of plural same-Let order or row withholds the original337 result', async () => {
+  for (const corruption of ['after-data', 'different-row'] as const) {
+    const w = await world('normal', undefined, false, { layout: 'E/E' }), ex = execution(w);
+    await invoke(ex.request); const receipt = ex.receipt();
+    assert.equal(receipt.outcome.status, 'committed');
+    const association = readScenarioReceiptAssociation(receipt)!;
+    const observations = [...association.observations];
+    const letIndex = observations.findIndex(value => value.dependencyId === originalIds.let);
+    const [letObservation] = observations.splice(letIndex, 1); assert.ok(letObservation);
+    if (corruption === 'after-data') observations.splice(observations.findIndex(value => value.dependencyId === originalIds.data) + 1, 0, letObservation);
+    else observations.splice(letIndex, 0, { ...letObservation,
+      row: { ...letObservation.row, data: { ...letObservation.row.data, title: 'Corrupted retained same-Let row' } } });
+    const altered: Receipt = { ...receipt, outcome: { ...receipt.outcome, scenario: { ...association, observations } } };
+    assert.ok(readScenarioReceiptAssociation(altered), 'complete canonical DTO still reaches plural correspondence checking');
+    let backendReads = 0;
+    // Corrupt the retained backend payload too, preserving exact receipt identity
+    // and the actual physical State/current grants. This issues no new authority.
+    const store = { ...w.store, readReceipt: async (identity: Receipt['identity']) => {
+      backendReads++; const actual = await w.store.readReceipt(identity);
+      assert.deepEqual(actual?.identity, receipt.identity); return altered;
+    } };
+    const revision = await w.store.readRevision();
+    assert.deepEqual(await projectScenarioReceipt({ ...w, store, receipt: altered }), { result: null, records: [] });
+    assert.ok(backendReads > 0); assert.equal(await w.store.readRevision(), revision); assert.equal(ex.runs(), 1);
   }
 });
