@@ -1,6 +1,6 @@
 //! Nongrant correspondence for the original schema of a scenario-created row.
 //! Defaults stay in the owning model descriptor; this join never evaluates them.
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::analysis::NodeKey;
 use crate::analysis::resolve::{ModelOwner, ModuleKind};
@@ -644,6 +644,112 @@ impl SourceExpressions<'_> {
         }
     }
 
+    fn text_constructor(
+        &self,
+        actual: &TypedExpr,
+        node: &SyntaxNode,
+        entries: &[(String, TypedExpr)],
+        depth: usize,
+    ) -> Option<()> {
+        let name = crate::analysis::types::checked_standard_nominal_name(&actual.ty)?;
+        if !matches!(name, "TextRequest" | "TextMessage") || !self.operands {
+            return None;
+        }
+        let roots = self
+            .ir
+            .committed_sources
+            .standard_value_inventory_roots(self.ir, self.db)?;
+        let parts = expressions(node);
+        let [target, object] = parts.as_slice() else {
+            return None;
+        };
+        let alias = single_name(target, self.text)?;
+        let mut modules = self.ir.modules.iter().filter(|module| {
+            module.name == self.original.source.module && module.file == node.span.file
+        });
+        let module = modules.next()?;
+        let imports: Vec<_> = module
+            .imports
+            .iter()
+            .flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter_map(move |member| (member.1 == alias).then_some((import, member)))
+            })
+            .collect();
+        let [(import, member)] = imports.as_slice() else {
+            return None;
+        };
+        let ResolvedType::StdNominal { fields, .. } = &actual.ty else {
+            return None;
+        };
+        if modules.next().is_some()
+            || module.id.0 as usize >= self.ir.modules.len()
+            || self.ir.modules[module.id.0 as usize].id != module.id
+            || node.span.start < module.span.start
+            || node.span.end > module.span.end
+            || target.kind != SyntaxKind::NameRef
+            || object.kind != SyntaxKind::Object
+            || import.provider != "std"
+            || import.from.is_some()
+            || member.0 != name
+            || !roots
+                .iter()
+                .any(|(root, at)| root == name && *at == member.2)
+            || fields.len() != entries.len()
+            || entries.len() > 200
+        {
+            return None;
+        }
+        let authored: Vec<_> = object
+            .children
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::ObjectEntry)
+            .collect();
+        if authored.len() != entries.len() {
+            return None;
+        }
+        let mut seen = HashSet::new();
+        for ((name, value), entry) in entries.iter().zip(authored) {
+            let key = entry
+                .children
+                .iter()
+                .find(|part| part.kind == SyntaxKind::Name)?;
+            let (_, expected) = fields.iter().find(|(field, _)| field == name)?;
+            // Literal arrays may retain the checker's stronger nonempty fact;
+            // their actual element identity and order still match exactly.
+            let compatible = match (&value.ty, expected) {
+                (
+                    ResolvedType::Array {
+                        element,
+                        ordered,
+                        nonempty,
+                    },
+                    ResolvedType::Array {
+                        element: declared,
+                        ordered: declared_order,
+                        nonempty: declared_nonempty,
+                    },
+                ) => {
+                    element == declared
+                        && ordered == declared_order
+                        && (!declared_nonempty || *nonempty)
+                }
+                _ => &value.ty == expected,
+            };
+            if key.token()?.text(self.text) != name || !seen.insert(name) || !compatible {
+                return None;
+            }
+            match expressions(entry).as_slice() {
+                [] => self.expression(value, NodeKey::of(key), depth + 1)?,
+                [original] => self.expression(value, NodeKey::of(original), depth + 1)?,
+                _ => return None,
+            }
+        }
+        Some(())
+    }
+
     fn can_use(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         use crate::analysis::scenario_disclosure::{
             CheckedDecisionCallTarget, CheckedDecisionStage,
@@ -1212,6 +1318,10 @@ impl SourceExpressions<'_> {
                 }
                 true
             }
+            (IrExpr::Object(entries), SyntaxKind::Construct) if self.operands => {
+                self.text_constructor(actual, node, entries, depth)?;
+                true
+            }
             (
                 IrExpr::Call {
                     target: IrCallTarget::Builtin { id, awaited: false },
@@ -1386,6 +1496,8 @@ fn expressions(node: &SyntaxNode) -> Vec<&SyntaxNode> {
                     | SyntaxKind::NameRef
                     | SyntaxKind::Group
                     | SyntaxKind::Array
+                    | SyntaxKind::Object
+                    | SyntaxKind::Construct
                     | SyntaxKind::Member
                     | SyntaxKind::Unary
                     | SyntaxKind::Binary

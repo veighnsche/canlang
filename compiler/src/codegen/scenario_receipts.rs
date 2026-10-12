@@ -5535,6 +5535,7 @@ fn checked_created_statements(
                         | SyntaxKind::Literal
                         | SyntaxKind::Group
                         | SyntaxKind::Array
+                        | SyntaxKind::Construct
                         | SyntaxKind::Member
                         | SyntaxKind::Unary
                         | SyntaxKind::Binary
@@ -7179,3 +7180,7 @@ fn source_matches(ir: &IrProgram, source: &DisclosureSource, span: Span) -> bool
             .bytes()
             .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
+
+#[cfg(test)]
+#[path = "scenario_text_request_tests.rs"]
+mod text_request_tests;
