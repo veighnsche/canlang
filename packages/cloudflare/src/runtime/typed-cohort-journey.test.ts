@@ -52,6 +52,8 @@ test('compiled child bodies share native D1 fanout outcomes, fresh authority and
     const team = await storage.identity.createTeam({ timezone: 'UTC' });
     const membership = await storage.identity.createMembership({ user_id: user.user_id,
       team_id: team.team_id, is_owner: true, roles: [] });
+    const replacementOwner = await storage.identity.createUser({ email: 'replacement-owner@cohort-journey.example.test', password_hash: 'unused', email_verified: true });
+    await storage.identity.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
     const token = 'cohort-native-session';
     await storage.identity.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       expires_at: new Date(now + 3600_000).toISOString(), last_team_id: team.team_id });

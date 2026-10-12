@@ -84,6 +84,8 @@ test('unchanged native TableTime page uses admitted time and protected partial b
       const team = await identities.createTeam({ timezone: 'UTC' });
       const user = await identities.createUser({ email: 'table-page@example.test', password_hash: 'unused', email_verified: true });
       const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+      const replacementOwner = await identities.createUser({ email: 'replacement-owner@table-time.example.test', password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
       const token = 'native-table-page-session';
       await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
         last_team_id: team.team_id, expires_at: new Date(FIXED_NOW + 3600000).toISOString() });
@@ -383,6 +385,8 @@ test('genuine paginated TableTime first pages and native continuations retain or
       const team = await identities.createTeam({ timezone: 'UTC' });
       const user = await identities.createUser({ email: 'paged-table-time@example.test', password_hash: 'unused', email_verified: true });
       const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+      const replacementOwner = await identities.createUser({ email: 'replacement-owner@paged-table-time.example.test', password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
       const token = 'native-paged-table-time-session';
       await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token), last_team_id: team.team_id,
         expires_at: new Date(FIXED_NOW + 2 * 3600000).toISOString() });

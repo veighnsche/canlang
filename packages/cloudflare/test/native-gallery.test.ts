@@ -77,6 +77,8 @@ test('original Gallery retains ordered protected images across full/partial page
   const team=await identities.createTeam({timezone:'UTC'}),foreignTeam=await identities.createTeam({timezone:'UTC'});
   const users=await Promise.all(['owner','partial','foreign'].map(name=>identities.createUser({email:`${name}@gallery.example.test`,password_hash:'unused',email_verified:true})));
   const memberships=await Promise.all(users.map((user,index)=>identities.createMembership({user_id:user.user_id,team_id:index===2?foreignTeam.team_id:team.team_id,is_owner:index!==1,roles:[]})));
+  const replacementOwner = await identities.createUser({ email: 'replacement-owner@gallery.example.test', password_hash: 'unused', email_verified: true });
+  await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
   const grant=await issueMcpGrant(identities,{user_id:users[0]!.user_id,team_id:team.team_id,client_id:'native-gallery'},{clock});
   const currentOwner=()=>resolveIdentity(identities,{mcp_grant_token:grant.token},{clock});
   const retention={unattachedHorizonMs:120000,retentionMs:600000};physical=createSqliteFileStore(join(dir,'files.sqlite'));

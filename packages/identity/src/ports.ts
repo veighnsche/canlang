@@ -138,6 +138,9 @@ export interface IdentityStore {
     membership_id: MembershipId,
     roles: Membership['roles'],
   ): Promise<void>;
+  /** D1's conditional write refuses demotion/removal of the last active owner;
+   * promotion, inactive/nonowner updates and missing-row no-ops remain supported.
+   * This does not make the surrounding feature admission/cascades atomic. */
   setMembershipOwner(membership_id: MembershipId, is_owner: boolean): Promise<void>;
   removeMembership(membership_id: MembershipId): Promise<void>;
   /** Atomic original removal and cascades; exact replay returns the saved technical outcome only.

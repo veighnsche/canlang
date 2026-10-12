@@ -371,6 +371,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     }
     const ava = await login('Ava'), ben = await login('Ben'), cal = await login('Cal'), dee = await login('Dee');
     assert.ok(ava.owner && cal.owner); assert.equal(ben.owner, ava.owner); assert.notEqual(cal.owner, ava.owner); assert.equal(dee.owner, null);
+    const replacementStore = createD1IdentityStore(identityDb);
+    const replacementOwner = await replacementStore.createUser({ email: 'replacement-owner@native-receipts.example.test', password_hash: 'unused', email_verified: true });
+    await replacementStore.createMembership({ team_id: ava.owner, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
     const cedar = dbs.get(ava.owner)!;
     async function row(id: string) {
       const stored = await cedar.prepare('SELECT id,version,data FROM records WHERE model=? AND id=?').bind(model,id).first<StoredRow>();

@@ -113,6 +113,8 @@ test('original populated Create, two Sets and guarded Email retain the same mode
     const identities = createD1IdentityStore(identityDb, {clock}), team = await identities.createTeam({timezone: 'UTC'});
     const user = await identities.createUser({email: 'created-email@example.test', password_hash: 'unused', email_verified: true});
     const membership = await identities.createMembership({user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: []});
+    const replacementOwner = await identities.createUser({ email: 'replacement-owner@created-email.example.test', password_hash: 'unused', email_verified: true });
+    await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
     const foreignTeam = await identities.createTeam({timezone: 'UTC'}), foreignUser = await identities.createUser({email: 'created-email-foreign@example.test', password_hash: 'unused', email_verified: true});
     await identities.createMembership({user_id: foreignUser.user_id, team_id: foreignTeam.team_id, is_owner: true, roles: []});
     const grant = await issueMcpGrant(identities, {user_id: user.user_id, team_id: team.team_id, client_id: 'created-email'}, {clock});

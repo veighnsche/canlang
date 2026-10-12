@@ -17,6 +17,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeMember } from '../src/teams/membership.js';
+import { setMemberRole } from '../src/teams/roles.js';
 import { recoverAccount } from '../src/accounts/recovery.js';
 import { IdentityError } from '../src/ports.js';
 import type { IdentityStore } from '../src/ports.js';
@@ -60,8 +61,8 @@ test('D1 snapshot is one complete bound SELECT, detached from later equal-clock 
   const users = ['subject', 'absent', user.user_id, user.user_id];
   const pending = snapshotStore.findMembershipsSnapshot(team.team_id, users);
   users[0] = 'absent';
-  await store.removeMembership(membership.membership_id);
   await store.reactivateMembership(subject.membership_id, { is_owner: true, roles: [] });
+  await store.removeMembership(membership.membership_id);
   release();
   const snapshot = await pending;
   assert.equal(statements.length, 1);
@@ -370,6 +371,127 @@ test('teams and memberships: full lifecycle', async () => {
   assert.equal(reactivated?.is_owner, false);
 });
 
+test('ordinary D1 owner demotion and removal serialize two admitted contenders, including a mixed race', async (t) => {
+  for (const actions of [['demote', 'demote'], ['remove', 'remove'], ['demote', 'remove']] as const) {
+    await t.test(actions.join('/'), async () => {
+      const directory = mkdtempSync(join(tmpdir(), 'identity-owner-race-'));
+      const path = join(directory, 'identity.sqlite');
+      const first = new DatabaseSync(path), second = new DatabaseSync(path);
+      try {
+        const clock = createFrozenClock(NOW), d1 = wrapSqlite(first);
+        await ensureIdentitySchema(d1);
+        const store = createD1IdentityStore(d1, { clock });
+        const { user: a, team, membership: aMember } = await setupUserTeam(store);
+        const b = await store.createUser({ email: 'second-owner@example.test', password_hash: 'opaque', email_verified: true });
+        const bMember = await store.createMembership({ team_id: team.team_id, user_id: b.user_id, is_owner: true, roles: [] });
+        const members = [aMember, bMember], users = [a, b];
+        const grants = [], invitations = [];
+        for (const user of users) {
+          grants.push(await store.createMcpGrant({ user_id: user.user_id, team_id: team.team_id, client_id: 'owner-race',
+            token_sha256: user.user_id, expires_at: new Date(NOW + 100_000).toISOString() }));
+          invitations.push(await store.createInvitation({ team_id: team.team_id, email: user.email,
+            grants_owner: false, grants_roles: [], invited_by: a.user_id, expires_at: new Date(NOW + 100_000).toISOString() }));
+        }
+        let admitted = 0, release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const stores = [store, createD1IdentityStore(wrapSqlite(second), { clock })];
+        for (const contender of stores) {
+          const list = contender.listActiveOwners;
+          contender.listActiveOwners = async id => {
+            const owners = await list.call(contender, id);
+            assert.equal(owners.length, 2, 'both public prechecks observe the original two owners');
+            if (++admitted === 2) release();
+            await gate;
+            return owners;
+          };
+        }
+        const results = await Promise.allSettled(actions.map((action, index) => action === 'demote'
+          ? setMemberRole(stores[index]!, { team_id: team.team_id, member_user_id: users[index]!.user_id, role: '-owner' },
+            { granted_by: users[index]!.user_id, clock })
+          : removeMember(stores[index]!, { team_id: team.team_id, member_user_id: users[index]!.user_id },
+            { removed_by: users[index]!.user_id })));
+        assert.equal(admitted, 2);
+        assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+        const loser = results.findIndex(result => result.status === 'rejected');
+        const rejected = results[loser]!;
+        assert.equal(rejected.status, 'rejected');
+        if (rejected.status === 'rejected') {
+          assert.ok(rejected.reason instanceof IdentityError);
+          assert.equal(rejected.reason.code, 'forbidden');
+          assert.equal(rejected.reason.message, 'A team must keep at least one owner.');
+        }
+        const owners = await createD1IdentityStore(d1, { clock }).listActiveOwners(team.team_id);
+        assert.equal(owners.length, 1);
+        assert.equal(owners[0]!.membership_id, members[loser]!.membership_id);
+        assert.deepEqual(await store.findMembershipById(members[loser]!.membership_id), members[loser]);
+        for (let index = 0; index < users.length; index++) {
+          const changed = index !== loser && actions[index] === 'remove';
+          assert.equal((await store.findMcpGrantByTokenHash(users[index]!.user_id))!.revoked_at,
+            changed ? new Date(NOW).toISOString() : null);
+          assert.equal((await store.findInvitationById(invitations[index]!.invitation_id))!.revoked_at,
+            changed ? new Date(NOW).toISOString() : null);
+        }
+      } finally { second.close(); first.close(); rmSync(directory, { recursive: true, force: true }); }
+    });
+  }
+});
+
+test('D1 owner guard preserves promotions, nonowners, inactive owners and missing raw rows', async () => {
+  const { db, store } = await setup();
+  try {
+    const { user, team, membership } = await setupUserTeam(store);
+    const member = await store.createMembership({ team_id: team.team_id, user_id: 'ordinary-member', is_owner: false, roles: [] });
+    await store.setMembershipOwner('missing-member', true);
+    await store.setMembershipOwner('missing-member', false);
+    await store.removeMembership('missing-member');
+    await store.setMembershipOwner(member.membership_id, false);
+    await store.removeMembership(member.membership_id);
+    await store.setMembershipOwner(member.membership_id, true);
+    await store.setMembershipOwner(member.membership_id, false);
+    await store.removeMembership(member.membership_id);
+    for (const mutate of [() => store.setMembershipOwner(membership.membership_id, false),
+      () => store.removeMembership(membership.membership_id)]) {
+      await assert.rejects(mutate, (error: unknown) => error instanceof IdentityError &&
+        error.code === 'forbidden' && error.message === 'A team must keep at least one owner.');
+      assert.deepEqual(await store.findMembership(team.team_id, user.user_id), membership);
+    }
+    await store.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    await store.setMembershipOwner(member.membership_id, true);
+    assert.equal((await store.listActiveOwners(team.team_id)).length, 2);
+    await store.setMembershipOwner(membership.membership_id, false);
+    await store.removeMembership(membership.membership_id);
+    assert.equal((await store.listActiveOwners(team.team_id)).length, 1);
+  } finally { db.close(); }
+});
+
+test('ordinary D1 removal refuses unavailable mutation acknowledgement before cascades', async () => {
+  for (const answer of [undefined, { meta: {} }, { meta: { changes: '1' } }, { meta: { changes: 2 } }]) {
+    const { db, d1, store, clock } = await setup();
+    try {
+      const { user: owner, team } = await setupUserTeam(store);
+      const user = await store.createUser({ email: 'ack-member@example.test', password_hash: 'opaque', email_verified: true });
+      await store.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: false, roles: [] });
+      const grant = await store.createMcpGrant({ user_id: user.user_id, team_id: team.team_id, client_id: 'ack',
+        token_sha256: 'ack-grant', expires_at: new Date(NOW + 100_000).toISOString() });
+      const invitation = await store.createInvitation({ team_id: team.team_id, email: user.email,
+        grants_owner: false, grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 100_000).toISOString() });
+      const uncertain = createD1IdentityStore({ exec: sql => d1.exec(sql), prepare(sql) { return { bind(...values) {
+        const bound = d1.prepare(sql).bind(...values);
+        return { ...bound, async run() {
+          const result = await bound.run();
+          return sql.startsWith('UPDATE identity_memberships SET status') ? answer : result;
+        } };
+      } }; } }, { clock });
+      await assert.rejects(removeMember(uncertain, { team_id: team.team_id, member_user_id: user.user_id },
+        { removed_by: owner.user_id }), /membership mutation needs definitive meta.changes of 0 or 1/);
+      assert.equal((await store.findMembership(team.team_id, user.user_id))!.status, 'removed',
+        'unavailable acknowledgement does not undo a physically committed single update');
+      assert.equal((await store.findMcpGrantByTokenHash(grant.token_sha256))!.revoked_at, null);
+      assert.equal((await store.findInvitationById(invitation.invitation_id))!.revoked_at, null);
+    } finally { db.close(); }
+  }
+});
+
 test('invitations: create, accept, revoke, pending-addressed revocation', async () => {
   const { store } = await setup();
   const { user, team } = await setupUserTeam(store);
@@ -621,6 +743,8 @@ test('grant round-trip: real issue + mcp-grant resolve, revoke and expiry deny',
 
   // Removed membership ends grant admission immediately (collapsed, not an oracle).
   clock.advance(-2000);
+  const replacement = await store.createUser({ email: 'replacement-owner@example.test', password_hash: 'opaque', email_verified: true });
+  await store.createMembership({ team_id: team.team_id, user_id: replacement.user_id, is_owner: true, roles: [] });
   const member = await issueMcpGrant(
     store,
     { user_id: user.user_id, team_id: team.team_id, client_id: 'prod-client' },
@@ -815,6 +939,7 @@ test('delayed losing removal batch preserves re-admitted resources and retained 
     assert.equal((await store.findMembershipById(member.membership_id))!.status, 'active');
     assert.equal((await store.findMcpGrantByTokenHash('delayed-fresh-grant'))!.revoked_at, null);
     // Technical receipt replay survives loss of the original remover's authority.
+    await store.setMembershipOwner(member.membership_id, true);
     await store.removeMembership(ownerMembership.membership_id);
     const withoutAuthority = snapshot();
     assert.deepEqual(await store.removeMemberWithOccurrence!(input), original);
@@ -844,6 +969,7 @@ test('cold removal occurrence lookup reopens original SQL facts without command 
       client_id: 'client', token_sha256: 'cold-fresh-grant', expires_at: new Date(NOW + 100_000).toISOString() });
     const invitation = await store.createInvitation({ team_id: team.team_id, email: subject.email,
       grants_owner: false, grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 100_000).toISOString() });
+    await store.setMembershipOwner(member.membership_id, true);
     await store.removeMembership(ownerMembership.membership_id);
     db.close(); db = new DatabaseSync(path);
     const reopened = wrapSqlite(db);

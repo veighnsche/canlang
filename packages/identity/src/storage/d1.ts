@@ -14,13 +14,13 @@
  * (created rows are constructed from inputs, exactly like the memory
  * store, so reads never depend on write-return shapes).
  *
- * FENCE LIMITATION (loud): each method is ONE statement (atomic), but
- * multi-step feature operations (last-owner guards, recovery cascades,
- * re-admission races) are check-then-act across calls WITHOUT the
- * lane-03 revision fence (`ports.ts` join J2). The UNIQUE constraints
+ * FENCE LIMITATION (loud): ordinary demotion/removal preserve an active
+ * owner in their conditional UPDATE, but their surrounding feature
+ * operations and ordinary removal cascades are separate calls WITHOUT
+ * the lane-03 revision fence (`ports.ts` join J2). The UNIQUE constraints
  * below (email, token hashes, one (team, user) row) make the dangerous
  * collisions fail loud instead of duplicating; the proposed J2 fence join
- * has not made these guards atomic. The MCP path rechecks current
+ * has not made the surrounding feature transactions atomic. The MCP path rechecks current
  * facts per call, which is exactly what the unfenced store guarantees.
  *
  * Schema ownership: `ensureIdentitySchema` creates every table/index
@@ -453,6 +453,22 @@ export function createD1IdentityStore(
   const clock = opts.clock ?? systemClock;
   const random = opts.random ?? webRandom;
   const now = () => toInstant(clock.nowMs());
+
+  const finishMembershipMutation = async (result: unknown, membershipId: string): Promise<void> => {
+    const meta: unknown = typeof result === 'object' && result !== null && !Array.isArray(result) &&
+      Object.hasOwn(result, 'meta') ? (result as Record<string, unknown>).meta : undefined;
+    const changes: unknown = typeof meta === 'object' && meta !== null && !Array.isArray(meta) &&
+      Object.hasOwn(meta, 'changes') ? (meta as Record<string, unknown>).changes : undefined;
+    if (changes !== 0 && changes !== 1) {
+      throw new Error('Identity D1 membership mutation needs definitive meta.changes of 0 or 1.');
+    }
+    // An absent raw row remains a no-op. An existing row with zero changes
+    // lost the atomic owner guard; do not proceed to any feature cascade.
+    if (changes === 0 && await db.prepare('SELECT 1 FROM identity_memberships WHERE membership_id = ?')
+      .bind(membershipId).first() !== null) {
+      throw new IdentityError('forbidden', 'A team must keep at least one owner.');
+    }
+  };
   const readRemoval = (input: Parameters<NonNullable<IdentityStore['removeMemberWithOccurrence']>>[0]) =>
     db.prepare('SELECT namespace, operation_id, request_digest, event_id, team_id, membership_id, user_id, removed_by, occurred_at FROM identity_member_removals WHERE namespace = ? AND operation_id = ?')
       .bind(input.namespace, input.operationId).first<RemovalRow>();
@@ -709,16 +725,24 @@ export function createD1IdentityStore(
         .run();
     },
     async setMembershipOwner(membership_id, is_owner) {
-      await db
-        .prepare('UPDATE identity_memberships SET is_owner = ?, updated_at = ? WHERE membership_id = ?')
-        .bind(is_owner ? 1 : 0, now(), membership_id)
+      const result: unknown = await db
+        .prepare("UPDATE identity_memberships SET is_owner = ?, updated_at = ? WHERE membership_id = ? " +
+          "AND (? = 1 OR status <> 'active' OR is_owner <> 1 OR EXISTS (SELECT 1 FROM identity_memberships owners " +
+          "WHERE owners.team_id = identity_memberships.team_id AND owners.membership_id <> identity_memberships.membership_id " +
+          "AND owners.status = 'active' AND owners.is_owner = 1))")
+        .bind(is_owner ? 1 : 0, now(), membership_id, is_owner ? 1 : 0)
         .run();
+      await finishMembershipMutation(result, membership_id);
     },
     async removeMembership(membership_id) {
-      await db
-        .prepare("UPDATE identity_memberships SET status = 'removed', updated_at = ? WHERE membership_id = ?")
+      const result: unknown = await db
+        .prepare("UPDATE identity_memberships SET status = 'removed', updated_at = ? WHERE membership_id = ? " +
+          "AND (status <> 'active' OR is_owner <> 1 OR EXISTS (SELECT 1 FROM identity_memberships owners " +
+          "WHERE owners.team_id = identity_memberships.team_id AND owners.membership_id <> identity_memberships.membership_id " +
+          "AND owners.status = 'active' AND owners.is_owner = 1))")
         .bind(now(), membership_id)
         .run();
+      await finishMembershipMutation(result, membership_id);
     },
     async reactivateMembership(membership_id, input) {
       await db

@@ -107,6 +107,8 @@ test('authored native CRUD joins checked committed sources and retained ordinary
       const team = await identities.createTeam({ timezone: 'UTC' }), foreignTeam = await identities.createTeam({ timezone: 'UTC' });
       const user = await identities.createUser({ email: 'committed-member@example.test', password_hash: 'unused', email_verified: true });
       await identities.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+      const replacementOwner = await identities.createUser({ email: 'replacement-owner@committed-model.example.test', password_hash: 'unused', email_verified: true });
+      await identities.createMembership({ team_id: team.team_id, user_id: replacementOwner.user_id, is_owner: true, roles: [] });
       const token = randomBytes(32).toString('hex');
       await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
         expires_at: new Date(FIXED_NOW + 3600000).toISOString(), last_team_id: team.team_id });
