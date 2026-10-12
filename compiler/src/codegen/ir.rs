@@ -1706,6 +1706,9 @@ pub struct CheckedCommittedSources {
     // Source-cohort schema absence, independent of committed handler/event authority.
     empty_value_inventory: Option<CheckedEmptyValueInventory>,
     standard_value_inventory: Option<CheckedStandardValueInventory>,
+    // Nongrant native refusal requirement, retained when editable disclosure
+    // facts or operation IDs are withdrawn after checked lowering.
+    native_model_result_indices: std::collections::HashSet<usize>,
 }
 
 /// Selected schema roots are source evidence, not native event authority.
@@ -2533,6 +2536,9 @@ impl CheckedEmptyValueInventory {
 }
 
 impl CheckedCommittedSources {
+    pub(crate) fn requires_native_model_result(&self, index: usize) -> bool {
+        self.native_model_result_indices.contains(&index)
+    }
     /// Reuse original source ownership for the fixed removal payload. This is
     /// compiler correspondence only; it authenticates no Identity occurrence.
     pub(crate) fn teams_member_removed_matches(
@@ -4342,6 +4348,7 @@ impl<'a> Cx<'a> {
         let referenced_builtins = self.build_referenced_builtins();
         let committed_sources = CheckedCommittedSources {
             empty_value_inventory: None,
+            native_model_result_indices: std::collections::HashSet::new(),
             standard_value_inventory: None,
             sources: self
                 .program
@@ -4505,6 +4512,15 @@ impl<'a> Cx<'a> {
                 constraints: program.value_constraints.clone(),
             });
         }
+        program.committed_sources.native_model_result_indices = program
+            .items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, item)| {
+                super::scenario_receipts::has_original_created_model_result(&program, item.id)
+                    .then_some(index)
+            })
+            .collect();
         (program, std::mem::take(&mut self.diags))
     }
 

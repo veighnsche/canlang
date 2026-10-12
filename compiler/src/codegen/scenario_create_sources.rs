@@ -1213,6 +1213,25 @@ impl SourceExpressions<'_> {
                 if name.token()?.text(self.text) != field {
                     return None;
                 }
+                // Only the original required Profile receiver joins its two
+                // actual source reads here; this issues no native row view.
+                if matches!(&base.expr, IrExpr::Member { field, .. } if field == "profile")
+                    && self.original.expression_types.iter().any(|(at, ty)| {
+                        *at == NodeKey::of(source_base)
+                            && matches!(ty, ResolvedType::Record { symbol, stored: true }
+                                if self.ir.items.get(symbol.0 as usize).is_some_and(|item| item.name == "Profile"))
+                    })
+                {
+                    let mut owners = self.ir.items.iter().filter(|owner| {
+                        self.ir.scenario_disclosures.get(&owner.id).and_then(|disclosure| disclosure.source_facts())
+                            .is_some_and(|facts| facts.source == self.original.source
+                                && facts.creates.as_deref().is_some_and(|creates|
+                                    creates.iter().any(|created| created.node == self.original.node)))
+                    });
+                    let owner = owners.next()?;
+                    if owners.next().is_some() { return None; }
+                    super::scenario_receipts::checked_profile_scalar_pair(self.ir, owner, actual, self.db)?;
+                }
                 self.expression(base, NodeKey::of(source_base), depth + 1)?;
                 true
             }

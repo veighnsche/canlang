@@ -11918,3 +11918,10 @@ Changed MAIN normal checks: Cloudflare0 4.72s, root0 4.65s. Owner3/State61 reuse
 ### 2026-10-12 — reassess the four existing local execution lists
 
 Accepted execution decision under the human’s explicit immediate instruction: replace stale scheduling views in the existing Packages queue, Compiler README/status, Capability README/execution-state and Dev PLAN; retain every original remaining canonical identity and acceptance. Prioritize real Profile/transcript/nullable producer-consumer joins and the three demonstrated Packages defects. Completed mechanisms remain closed, and exact missing owner outputs/conditional triggers/recipient holds are leaf-specific. No new programme, plan, task ledger, worker, source permission or native acceptance is created. The cross-plan index links each sole current view. Remaining uncertainty is in actual native/provider/host qualification and precisely recorded external releases; no full-plan completion or finish time is inferred.
+
+
+### 2026-10-12 — accept corrected required Profile native producer
+
+Accepted at source/installed producer scope: f87+e323+e908, independent defining reviews CLEAR. Correct every original Profile field before pair admission and preserve original private model-result indices so missing source facts/proof/IDs fail closed. Nine once getter/source await/SAME reference promotion/scalar await sequences retain exact source/IR/type/order.412 meaningful owning outcomes and strict/fmt reused. Actual generated invocation/current authority/rollback/replay remains defining Dev20d; no source-only whole-app claim or held action release.
+
+Changed MAIN locked/offline CLI0 12.4s.
