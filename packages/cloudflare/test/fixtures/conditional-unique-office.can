@@ -1,0 +1,10 @@
+## Compiled source for the original Office qty/closed conditional-key profile.
+app ConditionalOffice
+Given
+ Item {qty:int,title:text,closed:bool}
+ policy Item read=members
+ unique Item fields=qty where=row.closed
+ invariant Item: row.qty>=0
+When
+ crud Item by=members fields=qty,title,closed
+Then

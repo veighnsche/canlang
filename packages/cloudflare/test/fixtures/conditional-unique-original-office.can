@@ -1,0 +1,22 @@
+package Office
+ Given
+  Item {qty:int,title:text,closed:bool}
+  Bin {qty:int,title:text,closed:bool}
+  policy Item read=public
+  policy Bin read=public
+  invariant Bin: row.qty>=0
+  lock Item fields=title
+  invariant Item: row.qty>=0
+  unique Item fields=qty where=row.closed
+  lock Bin fields=title when=row.closed
+  invariant Item: row.qty<=100
+ When
+ Then
+package Warehouse
+ Given
+  Item {qty:int,title:text}
+  policy Item read=public
+  invariant Item: row.qty>=0
+  lock Item fields=title
+ When
+ Then
