@@ -2872,6 +2872,15 @@
           "verification": "Node24 owning UI build:emit0 includes real browser assets and manifest. Existing S7 upload-flow6/6 passes239ms overall,0fail/cancel/skip: canonical create/update File wire, exact bytes/digest/CSRF, derivation order/accumulating arguments, draft identity, missing intent URL and safe errors. Finite source review CLEAR and diff0; unchanged other owner results reused.",
           "remaining": "Dev owns release intake and original native File/SQLite/D1/browser/replay/current-authority journey qualification. Prior native actual offset adapter and concurrent/provider/power-loss parent requirements retain defining owners and precise holds."
         }
+      },
+      "upload_pointer_escape_admission": {
+        "status": "implemented_tested_independently_reviewed_CLEAR_source_component_in_LOCAL_main; external_host_parent_unfinished",
+        "source_base": "1bd843067da9ba775684d37666d89ce039402e22",
+        "defect": "fileSlotAbsent described a well-formed JSON Pointer but decoded valid escapes without rejecting raw invalid/trailing tilde escapes. Actual handleCreateIntent granted /a~ and persisted a malformed field binding.",
+        "repair": "Reject any tilde not followed by 0 or 1 at the existing initial structural field gate, before decoding/intent storage/grant. Preserve existing token decode order and empty-slot/object profile; no new schema/authority/storage/size/provider policy.",
+        "validation": "Fresh Files emission0 and maintained malformed-pointer bridge RED granted /a~ instead of invalid-request. Final Files emission0/validation13/13 PASS,0fail/cancel/skip; malformed trailing/invalid escapes leave zero intents, valid ~1/~0/~01 pointers retain exact stored fields and decoded present slots refuse. Existing exact bytes/SHA/MIME/oversize/partial/no-file/nonserializable controls retained; finite independent source review CLEAR. Unchanged root/public types/upload/reopen/retention/SQLite/native/installed results reused at original scopes.",
+        "remaining": "Actual mounted R2/concurrent-store serialization and interruption/power-loss qualification remain defining Dev/storage-owner outputs; recipient holds preserved.",
+        "coordinator_review": "Independent defining review CLEAR; exact source/control preimages, validation13 reused and changed MAIN Files/root0. No storage/authority policy or native/host acceptance; complete checkpoint and holds unchanged."
       }
     },
     "TECH-F02": {

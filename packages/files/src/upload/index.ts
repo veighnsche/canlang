@@ -193,7 +193,7 @@ function unescapePointerToken(token: string): string {
  * through the parent object instead of rejecting the whole `changes` arg.
  */
 function fileSlotAbsent(args: Record<string, unknown>, field: string): boolean {
-  if (typeof field !== 'string' || !field.startsWith('/') || field === '/') {
+  if (typeof field !== 'string' || !field.startsWith('/') || field === '/' || /~(?![01])/.test(field)) {
     return false;
   }
   const tokens = field.split('/').slice(1).map(unescapePointerToken);

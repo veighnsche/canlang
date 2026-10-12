@@ -2398,7 +2398,7 @@
         "disposition": "partial-selected-packet",
         "next_work": "consume-exact-owner-output",
         "owner": "Actual deployment/storage/provider host owner; Dev",
-        "accepted_scope": "Finalization/publication/reopen/retention and required offset producer/Interfaces/UI plus finite actual native consumers are implemented/tested/manually reviewed; live external-host/concurrent/power-loss and full parent qualification remain open.",
+        "accepted_scope": "Finalization/publication/reopen/retention and required offset producer/Interfaces/UI plus finite actual native consumers are implemented/tested/manually reviewed; live external-host/concurrent/power-loss and full parent qualification remain open. Upload pointer escape grammar is reviewed in LOCAL main; malformed escapes refuse before storage/grant, validation13 reused with changed Files/root0. Actual external R2/mounted concurrency/power-loss remains separate.",
         "next_action": "Qualify only that declared actual host profile; serial local results cannot replace external concurrency evidence.",
         "done_when": "On that declared actual host, exact range retry and each original publication interruption either recover the same finalized identity or refuse before immutable acceptance; serial outcomes are not credited as external concurrency.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01",
@@ -2409,7 +2409,8 @@
           "release_condition": "Exact named owner output is released at this finite scope; not completion of the owner plan.",
           "finish_condition": "Exact range retry and each original publication interruption recover the same finalized identity or refuse before immutable acceptance on the declared host.",
           "reuse": "Accepted components and unchanged checks remain closed. Run one proportionate affected check after a relevant edit, failure or genuinely missing qualification; record implemented/tested/accepted/held separately."
-        }
+        },
+        "upload_pointer_escape_admission": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-F01/upload_pointer_escape_admission"
       }
     },
     {
