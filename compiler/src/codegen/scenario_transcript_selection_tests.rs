@@ -102,6 +102,322 @@ fn selections(
     )
 }
 
+fn full_original_fixture(
+    catalog_edit: Option<(&str, &str, &str)>,
+) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+    let mut db = SourceDb::new();
+    let files = [
+        db.add(
+            "CanChat.can".into(),
+            include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
+        ),
+        db.add(
+            "CanCreative.can".into(),
+            include_str!("../../tests/fixtures/original-a850/CanCreative.can").into(),
+        ),
+    ];
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let primary_catalog = Path::new("/Users/vince/Projects/canlang")
+        .join("packages/cloudflare/dist/native-catalog.json");
+    let mut path = if primary_catalog.is_file() {
+        primary_catalog
+    } else {
+        root.join("packages/cloudflare/dist/native-catalog.json")
+    };
+    let scratch = tempfile::tempdir().unwrap();
+    if let Some((id, field, replacement)) = catalog_edit {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        let entry = value["entries"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|entry| entry["id"] == id)
+            .unwrap();
+        entry[field] = replacement.into();
+        path = scratch.path().join("catalog.json");
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+    }
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(files[0], 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let (program, diagnostics) = check_program(&db, &files, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    (db, program, ir, catalog)
+}
+
+#[test]
+fn full_original_query_composition_cannot_borrow_an_isolated_transcript_plan() {
+    let (db, program, ir, catalog) = full_original_fixture(None);
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "chat.ask")
+        .unwrap();
+    let disclosure = &ir.scenario_disclosures[&owner.id];
+    let facts = disclosure
+        .source_facts()
+        .expect("full original source inventory");
+    let transcripts = facts.transcripts.as_deref().expect("original helper calls");
+    let queries = facts.queries.as_deref().expect("original ordinary queries");
+    assert_eq!(transcripts.len(), 2);
+    assert_eq!(queries.len(), 4);
+    assert_ne!(transcripts[0].id, transcripts[1].id);
+    for fact in transcripts {
+        assert_eq!(text(&db, fact.call), "transcript(branch)");
+        assert_eq!(fact.source, facts.source);
+    }
+    let ScenarioDisclosure::Declined(decline) = disclosure else {
+        panic!("the original lazy model aggregate still needs its owning consumer");
+    };
+    assert_eq!(decline.reason, "closure resource bound");
+    assert_ne!(text(&db, decline.node), "branch.Run as run");
+    assert!(queries[0].first.is_none() && queries[0].count.is_none());
+    let [control] = queries[0].dependencies.as_slice() else {
+        panic!("real aggregate predicate control");
+    };
+    assert_eq!(control.field_name, "unfinished");
+    assert_eq!(control.role, DependencyRole::Control);
+    assert_eq!(text(&db, control.node), "run.unfinished");
+    assert_eq!(control.source, facts.source);
+    assert_eq!(control.ty, ResolvedType::Scalar(Scalar::Bool));
+    assert_eq!(control.type_id, "bool");
+    assert_eq!(control.model, queries[0].model);
+    assert!(control.calls.is_empty());
+    assert_eq!(text(&db, queries[0].node), "branch.Run as run");
+    assert_eq!(text(&db, queries[0].predicate.unwrap()), "run.unfinished");
+    assert!(queries[0].projection.is_none() && queries[0].order.is_empty());
+    assert!(!queries[0].archived && queries[0].limit.is_none());
+    let [(receiver, parent)] = queries[0].inputs.as_slice() else {
+        panic!("original required Branch");
+    };
+    assert_eq!(text(&db, *receiver), "branch");
+    assert_eq!(ir.items[parent.0 as usize].canonical, "chat.ask.branch");
+    assert!(
+        facts
+            .stored_contracts
+            .as_deref()
+            .unwrap()
+            .iter()
+            .any(|schema| schema.model
+                && schema.id == queries[0].model
+                && schema.fields.iter().any(|field| field.id == control.field))
+    );
+    assert_eq!(queries[0].influences.len(), 4);
+    let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        panic!("original scenario");
+    };
+    let IrStmt::Require { cond, .. } = &guards[2] else {
+        panic!("original aggregate guard");
+    };
+    let IrExpr::Unary {
+        op: super::super::ir::IrUnOp::Not,
+        operand,
+    } = &cond.expr
+    else {
+        panic!("original not any");
+    };
+    let (id, args) = match &operand.expr {
+        IrExpr::Call {
+            target: super::super::ir::IrCallTarget::Builtin { id, awaited: false },
+            args,
+        } => (id, args),
+        IrExpr::BoundCall {
+            target: super::super::ir::IrCallTarget::Builtin { id, awaited: false },
+            args,
+            slots,
+        } => {
+            assert_eq!(slots, &[Some(0), Some(1)]);
+            (id, args)
+        }
+        _ => panic!("actual aggregate call"),
+    };
+    assert_eq!(id, "any");
+    let [domain, predicate] = args.as_slice() else {
+        panic!("separate domain and predicate");
+    };
+    let IrExpr::Query(query) = &domain.expr else {
+        panic!("actual contained domain");
+    };
+    assert!(query.where_pred.is_none());
+    let original_call = query.collection_call.as_ref().unwrap();
+    assert_eq!(original_call.builtin, "any");
+    assert_eq!(original_call.query, queries[0].node);
+    assert_eq!(original_call.alias, queries[0].alias.unwrap());
+    assert_eq!(
+        original_call.predicate.as_ref().unwrap().node,
+        queries[0].predicate.unwrap()
+    );
+    assert!(matches!(predicate.expr, IrExpr::Lambda { .. }));
+    assert!(
+        queries[1]
+            .count
+            .as_ref()
+            .unwrap()
+            .contained_parent
+            .is_none()
+    );
+    assert!(queries[2].first.is_some());
+    assert!(
+        queries[3]
+            .count
+            .as_ref()
+            .unwrap()
+            .contained_parent
+            .is_some()
+    );
+    let entry = super::super::js::pick_entrypoint(&ir).unwrap();
+    let entry_module = super::super::js::module_path(&ir.module(entry).name);
+    assert!(
+        super::super::scenario_queries::collect_transcript_query_source(
+            &program,
+            &ir,
+            owner,
+            &db,
+            Some(&catalog),
+            &entry_module,
+        )
+        .is_none(),
+        "the full original closure needs its combined producer"
+    );
+}
+
+#[test]
+fn original_input_guards_refuse_changed_effect_or_signature_before_the_model_query() {
+    for (id, field, replacement, expected) in [
+        ("trim", "effects", "state-read", "trim(prompt)"),
+        (
+            "trim",
+            "signature",
+            "trim(value:text)->text",
+            "trim(prompt)",
+        ),
+        ("count", "effects", "state-read", "count(attachments)"),
+        (
+            "count",
+            "signature",
+            "count(items:C<T>)->int",
+            "count(attachments)",
+        ),
+    ] {
+        let (db, _, ir, _) = full_original_fixture(Some((id, field, replacement)));
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "chat.ask")
+            .unwrap();
+        let ScenarioDisclosure::Declined(decline) = &ir.scenario_disclosures[&owner.id] else {
+            panic!("changed {id} declaration must not gain pure source admission");
+        };
+        assert_eq!(text(&db, decline.node), expected, "{id}/{field}");
+    }
+}
+
+#[test]
+fn original_pure_guard_ir_matches_its_source_and_refuses_changed_calls() {
+    fn builtin<'a>(value: &'a TypedExpr, id: &str) -> Option<&'a TypedExpr> {
+        match &value.expr {
+            IrExpr::Call {
+                target: super::super::ir::IrCallTarget::Builtin { id: actual, .. },
+                ..
+            }
+            | IrExpr::BoundCall {
+                target: super::super::ir::IrCallTarget::Builtin { id: actual, .. },
+                ..
+            } if actual == id => Some(value),
+            IrExpr::Binary { left, right, .. } => builtin(left, id).or_else(|| builtin(right, id)),
+            _ => None,
+        }
+    }
+    let (db, _, ir, _) = full_original_fixture(None);
+    let owner = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "chat.ask")
+        .unwrap();
+    let facts = ir.scenario_disclosures[&owner.id].source_facts().unwrap();
+    let created = facts
+        .creates
+        .as_deref()
+        .unwrap()
+        .iter()
+        .find(|created| ir.items[created.model.0 as usize].canonical == "chat.Run")
+        .unwrap();
+    let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        panic!("original scenario");
+    };
+    let IrStmt::Require { cond, .. } = &guards[0] else {
+        panic!("original leading guard");
+    };
+    for id in ["trim", "count"] {
+        let call = builtin(cond, id).unwrap();
+        let key = created
+            .expression_types
+            .iter()
+            .map(|(key, _)| *key)
+            .find(|key| {
+                key.kind == crate::syntax::SyntaxKind::Call as u8 && node_span(*key) == call.span
+            })
+            .unwrap();
+        assert!(
+            super::super::scenario_create_sources::checked_create_expression(
+                &ir, created, call, key, &db,
+            )
+            .is_some(),
+            "original {id} source/IR join"
+        );
+        for edit in ["awaited", "argument", "slot", "type"] {
+            let mut changed = call.clone();
+            if edit == "type" {
+                changed.ty = ResolvedType::Scalar(Scalar::Bool);
+            } else if edit == "slot" {
+                let (target, args) = match changed.expr {
+                    IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        (target, args)
+                    }
+                    _ => panic!("original builtin"),
+                };
+                changed.expr = IrExpr::BoundCall {
+                    target,
+                    args,
+                    slots: vec![None],
+                };
+            } else {
+                let (target, args) = match &mut changed.expr {
+                    IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        (target, args)
+                    }
+                    _ => panic!("original builtin"),
+                };
+                match edit {
+                    "awaited" => {
+                        let super::super::ir::IrCallTarget::Builtin { awaited, .. } = target else {
+                            panic!("builtin");
+                        };
+                        *awaited = true;
+                    }
+                    "argument" => args[0].expr = IrExpr::Name("copied".into()),
+                    _ => unreachable!(),
+                }
+            }
+            assert!(
+                super::super::scenario_create_sources::checked_create_expression(
+                    &ir, created, &changed, key, &db,
+                )
+                .is_none(),
+                "changed {id}/{edit} cannot borrow original correspondence"
+            );
+        }
+    }
+}
+
 #[test]
 fn both_real_transcript_consumers_keep_distinct_query_and_selected_turn_field_ids() {
     assert_eq!(sha256_hex(SOURCE.as_bytes()), HASH);

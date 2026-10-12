@@ -897,6 +897,7 @@ Then
             &BTreeMap::new(),
             super::super::js::EmitDecisionSources {
                 query_selections: None,
+                transcript_queries: None,
                 membership: membership.as_ref(),
                 send_guards: Some(&guards),
                 send_guard_gap: None,
@@ -1061,6 +1062,7 @@ await assert.rejects(()=>failed(fresh,inputs),error=>error===first);
                 &BTreeMap::new(),
                 EmitDecisionSources {
                     query_selections: None,
+                    transcript_queries: None,
                     membership: membership.as_ref(),
                     send_guards: Some(&guards),
                     send_guard_gap: None,

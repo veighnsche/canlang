@@ -486,9 +486,7 @@ pub(super) fn collect_native_scenario_receipt(
     value_types: Option<&JsValueTypes>,
     sources: NativeReceiptSources<'_>,
 ) -> Option<NativeScenarioReceipt> {
-    if has_original_transcript_source(ir, item.id) {
-        return None;
-    }
+    let transcript = has_original_transcript_source(ir, item.id);
     let NativeReceiptSources {
         db,
         send_guards,
@@ -510,7 +508,8 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     };
     let created_model = checked_created_model_result(ir, item);
-    if (!result.as_ref().is_none_or(native_result_type) && created_model.is_none())
+    if (transcript && created_model.is_none())
+        || (!result.as_ref().is_none_or(native_result_type) && created_model.is_none())
         || entry_module.is_empty()
     {
         return None;
@@ -844,7 +843,31 @@ pub(super) fn collect_native_scenario_receipt(
             };
             let id_read = field == "id" && dependency.field == dependency.model;
             let parent_read = field == "parent" && dependency.field == dependency.model;
-            if dependency.query_id.is_some() && !parent_read {
+            let selected_transcript = checked
+                .source_facts
+                .as_deref()
+                .and_then(|source| source.transcripts.as_deref())
+                .and_then(|facts| {
+                    facts.iter().find_map(|fact| {
+                        let index = fact
+                            .dependencies
+                            .iter()
+                            .position(|read| read == dependency)?;
+                        let query = fact.query_dependencies.get(index)?;
+                        (transcript
+                            && query.role == DependencyRole::Data
+                            && query.id != dependency.id
+                            && query.source == dependency.source
+                            && query.node == dependency.node
+                            && query.calls == dependency.calls
+                            && query.model == dependency.model
+                            && query.field == dependency.field
+                            && query.ty == dependency.ty
+                            && query.type_id == dependency.type_id)
+                            .then_some(fact)
+                    })
+                });
+            if dependency.query_id.is_some() && !parent_read && selected_transcript.is_none() {
                 return None;
             }
             let transport_type = if id_read {
@@ -981,6 +1004,10 @@ pub(super) fn collect_native_scenario_receipt(
                 {
                     return None;
                 }
+                if let Some(fact) = selected_transcript {
+                    let expression = sites.members.get(&site)?.first()?;
+                    checked_transcript_selected_member(ir, item, fact, expression, db?)?;
+                }
                 let reference_type = reference_operand_type_id(ir, ty);
                 if let Some(reference_type) = reference_type {
                     if transition.is_some() || !dependency.calls.is_empty() {
@@ -1012,14 +1039,27 @@ pub(super) fn collect_native_scenario_receipt(
                     if **element == ResolvedType::Scalar(Scalar::File))
                 {
                     if transition.is_some()
-                        || !dependency.calls.is_empty()
+                        || (!dependency.calls.is_empty() && selected_transcript.is_none())
                         || dependency.role != DependencyRole::Data
                         || dependency.type_id != "file[]"
                     {
                         return None;
                     }
                     let expression = sites.members.get(&site)?.first()?;
-                    let original = stored_file_array_operand(ir, item, expression, db?)?;
+                    let original = if let Some(fact) = selected_transcript {
+                        checked
+                            .source_facts
+                            .as_deref()?
+                            .stored_contracts
+                            .as_deref()?
+                            .iter()
+                            .find(|schema| schema.id == fact.model && schema.model)?
+                            .fields
+                            .iter()
+                            .find(|field| field.id == dependency.field)?
+                    } else {
+                        stored_file_array_operand(ir, item, expression, db?)?
+                    };
                     if original.id != stored.id
                         || !stored_file_array_descriptor_matches(ir, original, declared[0])
                     {
@@ -1071,6 +1111,18 @@ pub(super) fn collect_native_scenario_receipt(
                         return None;
                     }
                     inline
+                } else if let Some(prefix) = checked_transcript_prefix_inventory(
+                    ir,
+                    item,
+                    dependency,
+                    declared[0],
+                    value_types,
+                    db,
+                ) {
+                    if transition.is_some() || prefix != dependency.type_id {
+                        return None;
+                    }
+                    prefix
                 } else if let Some(contract) = stored_contract_inventory_type(
                     ir,
                     value_types,
@@ -1353,6 +1405,11 @@ pub(super) fn collect_native_scenario_receipt(
     if matched_returns != sites.returns {
         return None;
     }
+    if transcript
+        && serde_json::to_value(&recipe.plan).ok()? != serde_json::to_value(query_plan?).ok()?
+    {
+        return None;
+    }
     Some(recipe)
 }
 
@@ -1483,6 +1540,14 @@ fn checked_native_first_query_plan<'a>(
     db: Option<&SourceDb>,
 ) -> Option<Option<&'a ReceiptDisclosurePlan>> {
     let facts = checked.source_facts.as_deref()?;
+    if facts
+        .transcripts
+        .as_deref()
+        .is_some_and(|facts| !facts.is_empty())
+    {
+        return checked_native_transcript_plan(ir, owner, checked, supplied?, entry_module)
+            .map(Some);
+    }
     let queries = facts.queries.as_deref().unwrap_or_default();
     if queries
         .iter()
@@ -1527,6 +1592,130 @@ fn checked_native_first_query_plan<'a>(
         _ => return None,
     };
     (serde_json::to_value(plan).ok()? == serde_json::to_value(expected).ok()?).then_some(Some(plan))
+}
+
+fn checked_native_transcript_plan<'a>(
+    ir: &IrProgram,
+    owner: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    plan: &'a ReceiptDisclosurePlan,
+    entry: &str,
+) -> Option<&'a ReceiptDisclosurePlan> {
+    let facts = checked.source_facts.as_deref()?;
+    let [first, later] = facts.transcripts.as_deref()? else {
+        return None;
+    };
+    if checked_created_model_result(ir, owner).is_none()
+        || !facts.queries.as_deref().unwrap_or_default().is_empty()
+        || first.id == later.id
+        || first.call.end > later.call.start
+        || first.parameter != later.parameter
+        || first.derive != later.derive
+        || first.query != later.query
+        || first.source != checked.source
+        || later.source != checked.source
+        || plan.version != 1
+        || plan.queries.len() != 2
+        || plan.returns.len() != checked.returns.len()
+        || serde_json::to_value(&plan.source).ok()?
+            != serde_json::to_value(transport_source(&checked.source, entry)?).ok()?
+    {
+        return None;
+    }
+    let mut influences = Vec::new();
+    for (fact, query) in [first, later].into_iter().zip(&plan.queries) {
+        let model = ir.items.get(fact.model.0 as usize)?;
+        let branch = ir.items.get(fact.branch.0 as usize)?;
+        let parameter = ir.items.get(fact.parameter.0 as usize)?;
+        let parent = query.parent.as_ref()?;
+        let ReceiptQueryParentOrigin::AdmittedReference {
+            parameter: selected,
+        } = &parent.origin;
+        if query.id != fact.id
+            || query.model != model.canonical
+            || parent.model != branch.canonical
+            || selected != &parameter.name
+            || query.limit.is_some()
+            || query.archived != "exclude"
+            || query.order.len() != 1
+            || query.order[0].field != "position"
+            || query.order[0].direction != "asc"
+            || fact.query_dependencies.len() != 3
+            || fact.dependencies.len() != 3
+            || query.dependencies.len() != 4
+            || fact.influences.len() != 4
+            || serde_json::to_value(&query.source).ok()?
+                != serde_json::to_value(transport_source(&fact.source, entry)?).ok()?
+            || serde_json::to_value(&parent.source).ok()?
+                != serde_json::to_value(&query.source).ok()?
+        {
+            return None;
+        }
+        for (original, actual) in std::iter::once(&fact.order_dependency)
+            .chain(&fact.query_dependencies)
+            .zip(&query.dependencies)
+        {
+            let role = match original.role {
+                DependencyRole::Data => ReceiptRole::Data,
+                DependencyRole::Control => ReceiptRole::Control,
+            };
+            if original.id != actual.id
+                || original.field_name != actual.field
+                || original.type_id != actual.type_id
+                || role != actual.role
+                || serde_json::to_value(&actual.source).ok()?
+                    != serde_json::to_value(transport_source(&original.source, entry)?).ok()?
+            {
+                return None;
+            }
+        }
+        influences.extend(fact.influences.iter().cloned());
+    }
+    for (returned, actual) in checked.returns.iter().zip(&plan.returns) {
+        if returned.influences != influences
+            || actual.id != returned.id
+            || actual.dependencies.len() != returned.dependencies.len()
+            || actual.projection.is_some()
+            || actual.influences.len() != 8
+            || serde_json::to_value(&actual.source).ok()?
+                != serde_json::to_value(transport_source(&returned.source, entry)?).ok()?
+        {
+            return None;
+        }
+        for (read, emitted) in returned.dependencies.iter().zip(&actual.dependencies) {
+            let role = match read.role {
+                DependencyRole::Data => ReceiptRole::Data,
+                DependencyRole::Control => ReceiptRole::Control,
+            };
+            if emitted.id != read.id
+                || emitted.model != read.model_name
+                || emitted.field != read.field_name
+                || emitted.type_id != read.type_id
+                || emitted.role != role
+                || emitted.query_id != read.query_id
+                || serde_json::to_value(&emitted.source).ok()?
+                    != serde_json::to_value(transport_source(&read.source, entry)?).ok()?
+            {
+                return None;
+            }
+        }
+        for (original, emitted) in influences.iter().zip(&actual.influences) {
+            let kind = match original.kind {
+                InfluenceKind::QueryExistence => "query-existence",
+                InfluenceKind::QueryCardinality => "query-cardinality",
+                InfluenceKind::QueryMembership => "query-membership",
+                InfluenceKind::QueryOrder => "query-order",
+                InfluenceKind::AbsentReference => return None,
+            };
+            if emitted.id != original.id
+                || emitted.query_id != original.query_id
+                || emitted.kind != kind
+            {
+                return None;
+            }
+        }
+    }
+    Some(plan)
 }
 
 fn checked_native_first_query_source_plan(
@@ -4582,6 +4771,131 @@ fn stored_reference_descriptor_matches(
         && field.max == bound(&original.max)
 }
 
+fn checked_transcript_selected_member(
+    ir: &IrProgram,
+    owner: &IrItem,
+    fact: &crate::analysis::scenario_disclosure::CheckedTranscriptSource,
+    value: &TypedExpr,
+    db: &SourceDb,
+) -> Option<()> {
+    let IrExpr::Member { base, field } = &value.expr else {
+        return None;
+    };
+    let original = fact
+        .fields
+        .iter()
+        .find(|original| node_span(original.value_node) == value.span)?;
+    if original.name != *field
+        || original.ty != value.ty
+        || !matches!(&base.expr, IrExpr::Name(name) if name == "turn")
+        || base.ty
+            != (ResolvedType::Record {
+                symbol: fact.model,
+                stored: true,
+            })
+    {
+        return None;
+    }
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let schema = source
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .find(|schema| schema.id == fact.model && schema.model)?;
+    match_stored_contract_schema(ir, schema, db)?;
+    let field = schema
+        .fields
+        .iter()
+        .find(|field| field.id == original.source_field)?;
+    match_stored_contract_field(ir, field, db)?;
+    (field.ty == value.ty && field.source == fact.source).then_some(())
+}
+
+fn checked_transcript_prefix_inventory(
+    ir: &IrProgram,
+    owner: &IrItem,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    descriptor: &JsModelField,
+    value_types: Option<&JsValueTypes>,
+    db: Option<&SourceDb>,
+) -> Option<String> {
+    let db = db?;
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let fact = source.transcripts.as_deref()?.iter().find(|fact| {
+        read.calls == [fact.call]
+            && read.node == fact.prefix_node
+            && read.model == fact.branch
+            && read.field == fact.prefix
+            && read.ty == fact.ty
+            && read.type_id == "TextMessage[]"
+            && read.source == fact.source
+            && read.query_id.is_none()
+    })?;
+    let branch = ir.items.get(fact.branch.0 as usize)?;
+    let field = ir.items.get(fact.prefix.0 as usize)?;
+    let IrItemKind::Field {
+        owner: field_owner,
+        ty: IrType::Known(ty),
+        required_array: false,
+        default: None,
+        server: None,
+        modifiers,
+        ..
+    } = &field.kind
+    else {
+        return None;
+    };
+    let max = modifiers.max.as_ref()?;
+    if field.id != fact.prefix
+        || field.module != branch.module
+        || field_owner != &fact.branch
+        || field.name != "prefix"
+        || field.canonical != format!("{}.prefix", branch.canonical)
+        || ty != &fact.ty
+        || max.span != node_span(fact.prefix_max)
+        || !matches!(max.expr, IrExpr::Int(120))
+        || max.ty != ResolvedType::Scalar(Scalar::Int)
+        || modifiers.min.is_some()
+        || modifiers.trim
+        || modifiers.machine
+        || descriptor.value_type.as_deref() != Some("TextMessage[]")
+        || !matches!(&descriptor.field, JsModelFieldType::Nominal { name } if name == "TextMessage")
+        || descriptor.array_required != Some(false)
+        || descriptor.nullable
+        || descriptor.server_only
+    {
+        return None;
+    }
+    let generated = super::js::Emitter::new(ir).collect_models();
+    let expected = generated
+        .iter()
+        .find(|model| model.name == branch.canonical)?
+        .fields
+        .iter()
+        .find(|candidate| candidate.name == "prefix")?;
+    if serde_json::to_value(expected).ok()? != serde_json::to_value(descriptor).ok()? {
+        return None;
+    }
+    let mut emitter = super::js::Emitter::new(ir);
+    let expected = emitter.collect_standard_value_inventory(db)?;
+    let message = expected
+        .contracts
+        .iter()
+        .find(|contract| contract.name == "TextMessage")?;
+    let supplied = value_types?
+        .contracts
+        .iter()
+        .filter(|contract| contract.name == "TextMessage")
+        .collect::<Vec<_>>();
+    let [supplied] = supplied.as_slice() else {
+        return None;
+    };
+    if serde_json::to_value(message).ok()? != serde_json::to_value(supplied).ok()? {
+        return None;
+    }
+    Some("TextMessage[]".into())
+}
+
 /// Only an owning whole stored contract dependency uses this codec. Its local
 /// members are already canonical values; neither nominal results nor stored
 /// reference views gain admission here.
@@ -7301,6 +7615,30 @@ impl<'a> Sites<'a> {
                     _ => return None,
                 },
                 Visit::Expression(expression) => match &expression.expr {
+                    IrExpr::Query(query) => {
+                        let facts = super::scenario_calls::checked_source(ir, owner, db?)?;
+                        let fact = facts.transcripts.as_deref()?.iter().find(|fact| {
+                            context.calls.as_slice() == [node_span(fact.call)]
+                                && query
+                                    .source
+                                    .as_ref()
+                                    .is_some_and(|source| source.node == fact.query.node)
+                        })?;
+                        let IrItemKind::DeriveFn {
+                            expr: Some(body), ..
+                        } = &ir.items.get(fact.derive.0 as usize)?.kind
+                        else {
+                            return None;
+                        };
+                        let original = facts.creates.as_deref()?.iter().find(|created| {
+                            checked_created_model_result(ir, owner) == Some(created.model)
+                        })?;
+                        super::scenario_create_sources::checked_create_expression(
+                            ir, original, body, fact.body, db?,
+                        )?;
+                        push!(Visit::Expression(query.parent.as_ref()?));
+                        push!(Visit::Expression(query.select.as_ref()?));
+                    }
                     IrExpr::Member { base, .. } => {
                         out.members
                             .entry(context.site(expression.span))
