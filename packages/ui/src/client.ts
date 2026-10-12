@@ -235,7 +235,8 @@ export async function collectFormValues(form: DomFormLike): Promise<CollectedFor
     const type = (control.type ?? "").toLowerCase();
     if (type === "checkbox" || type === "radio") {
       if (control.checked === true) {
-        flat[name] = stringMember(control.value ?? "on", `control ${JSON.stringify(name)}`);
+        Object.defineProperty(flat, name, { value: stringMember(control.value ?? "on", `control ${JSON.stringify(name)}`),
+          enumerable: true, writable: true, configurable: true });
       }
       continue;
     }
@@ -249,7 +250,8 @@ export async function collectFormValues(form: DomFormLike): Promise<CollectedFor
       }
       continue;
     }
-    flat[name] = stringMember(control.value, `control ${JSON.stringify(name)}`);
+    Object.defineProperty(flat, name, { value: stringMember(control.value, `control ${JSON.stringify(name)}`),
+      enumerable: true, writable: true, configurable: true });
   }
   return { flat, files };
 }
