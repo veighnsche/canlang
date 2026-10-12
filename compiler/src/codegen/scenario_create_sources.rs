@@ -1048,15 +1048,14 @@ impl SourceExpressions<'_> {
         if actual.ty != *result {
             return None;
         }
-        if let Some(slots) = slots {
-            if slots.len() != args.len()
+        if let Some(slots) = slots
+            && (slots.len() != args.len()
                 || slots
                     .iter()
                     .enumerate()
-                    .any(|(index, slot)| *slot != Some(index))
-            {
-                return None;
-            }
+                    .any(|(index, slot)| *slot != Some(index)))
+        {
+            return None;
         }
         let children = expressions(node);
         if source_path(children.first()?, self.text)? != item.name {
@@ -1094,6 +1093,34 @@ impl SourceExpressions<'_> {
     /// other body/formal content) from mutable IR cannot reclassify a
     /// sealed derive as ordinary. `None` means the original declaration
     /// could not be authenticated at all.
+    /// A checked occurrence type is the declared type or that type with
+    /// outer nullable layers removed by flow narrowing (for example a
+    /// formal read after a `!= null` guard in the same body).
+    fn type_narrows(occurrence: &ResolvedType, declared: &ResolvedType) -> bool {
+        occurrence == declared
+            || matches!(declared, ResolvedType::Nullable(inner)
+                if Self::type_narrows(occurrence, inner))
+    }
+
+    /// Canonical authored spelling of a checked type over the bounded
+    /// grammar derive formals use (scalars, stored models, nullable and
+    /// arrays). `None` leaves exotic shapes to their existing seals.
+    fn authored_type_text(&self, ty: &ResolvedType) -> Option<String> {
+        match ty {
+            ResolvedType::Scalar(scalar) => Some(scalar.as_str().to_string()),
+            ResolvedType::Record { symbol, .. } => {
+                Some(self.ir.items.get(symbol.0 as usize)?.name.clone())
+            }
+            ResolvedType::Nullable(inner) => {
+                Some(format!("{}?", self.authored_type_text(inner)?))
+            }
+            ResolvedType::Array { element, .. } => {
+                Some(format!("{}[]", self.authored_type_text(element)?))
+            }
+            _ => None,
+        }
+    }
+
     fn authenticated_derive(&self, target: &str, depth: usize, seen: &mut std::collections::HashSet<String>) -> Option<bool> {
         if depth > 32 || !seen.insert(target.to_string()) {
             // Cycles and excessive chains stay sealed; recursive derives are
@@ -1169,25 +1196,66 @@ impl SourceExpressions<'_> {
         if authored_formals.len() != params.len() {
             return None;
         }
-        for (authored, formal) in authored_formals.iter().zip(params.iter()) {
+        let mut formal_types: Vec<(String, ResolvedType)> = Vec::new();
+        for (position, (authored, formal)) in authored_formals.iter().zip(params.iter()).enumerate()
+        {
             let name = authored
                 .children
                 .iter()
                 .find(|node| node.kind == SyntaxKind::Name)?;
             let param = self.ir.items.get(formal.0 as usize)?;
-            if !matches!(param.kind, IrItemKind::Param { .. })
+            let IrItemKind::Param {
+                owner,
+                index,
+                ty: param_ty,
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            if *owner != item.id
+                || *index != position
                 || name.token()?.text(defining_text) != param.name
             {
                 return None;
+            }
+            // Formal type identity against the authored type declaration,
+            // over the bounded type grammar derive formals use.
+            if let IrType::Known(known) = param_ty {
+                let type_node = authored.children.iter().find(|node| {
+                    matches!(
+                        node.kind,
+                        SyntaxKind::NamedType
+                            | SyntaxKind::UnionType
+                            | SyntaxKind::ArrayType
+                            | SyntaxKind::NullableType
+                            | SyntaxKind::EnumType
+                            | SyntaxKind::ActionType
+                            | SyntaxKind::DeliveryType
+                            | SyntaxKind::InvocationType
+                    )
+                })?;
+                if let Some(expected) = self.authored_type_text(known) {
+                    let authored_text: String = defining_text
+                        .get(type_node.span.start as usize..type_node.span.end as usize)?
+                        .chars()
+                        .filter(|c| !c.is_whitespace())
+                        .collect();
+                    if authored_text != expected {
+                        return None;
+                    }
+                }
+                formal_types.push((param.name.clone(), known.clone()));
             }
         }
         let authored_bodies = expressions(declaration);
         let [authored_body] = authored_bodies.as_slice() else {
             return None;
         };
+        let facts = self.transcript_source();
         let mut reached = Vec::new();
         let mut membership = false;
-        self.derive_body_corresponds(body, authored_body, defining_text, 0, &mut reached, &mut membership)?;
+        self.derive_body_corresponds(body, authored_body, defining_text, 0, &formal_types, facts, &mut reached, &mut membership)?;
         if membership {
             return Some(true);
         }
@@ -1203,12 +1271,15 @@ impl SourceExpressions<'_> {
     /// authored CST body: literals, lexical names, member fields, operators
     /// and call occurrences (callee identity plus in-order arguments) must
     /// agree exactly. Anything outside this scalar body grammar refuses.
+    #[allow(clippy::too_many_arguments)]
     fn derive_body_corresponds(
         &self,
         expr: &TypedExpr,
         node: &SyntaxNode,
         text: &str,
         depth: usize,
+        formals: &[(String, ResolvedType)],
+        facts: Option<&crate::analysis::scenario_disclosure::CheckedScenarioSource>,
         reached: &mut Vec<String>,
         membership: &mut bool,
     ) -> Option<()> {
@@ -1218,6 +1289,9 @@ impl SourceExpressions<'_> {
         let mut node = node;
         while node.kind == SyntaxKind::Group {
             node = expressions(node).first()?;
+        }
+        if expr.span != node.span {
+            return None;
         }
         let token = |kind: SyntaxKind| {
             node.children
@@ -1259,21 +1333,42 @@ impl SourceExpressions<'_> {
                 if single_name(node, text)? != *name {
                     return None;
                 }
+                let formal_ty = formals
+                    .iter()
+                    .find(|(formal, _)| formal == name)
+                    .map(|(_, ty)| ty)?;
+                if !Self::type_narrows(&expr.ty, formal_ty) {
+                    return None;
+                }
             }
             (IrExpr::Member { base, field }, SyntaxKind::Member) => {
                 let field_name = node
                     .children
                     .iter()
-                    .filter(|child| child.kind == SyntaxKind::Name)
-                    .last()?;
+                    .rev()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
                 if field_name.token()?.text(text) != field.as_str() {
                     return None;
+                }
+                if let ResolvedType::Record { symbol: model, .. } = &base.ty {
+                    let facts = facts?;
+                    let contracts = facts.stored_contracts.as_deref()?;
+                    let schema = contracts.iter().find(|schema| schema.id == *model)?;
+                    super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
+                    let field_fact = schema
+                        .fields
+                        .iter()
+                        .find(|candidate| candidate.owner == *model && candidate.name == *field)?;
+                    super::scenario_receipts::match_stored_contract_field(self.ir, field_fact, self.db)?;
+                    if !Self::type_narrows(&expr.ty, &field_fact.ty) {
+                        return None;
+                    }
                 }
                 let base_nodes = expressions(node);
                 let [base_node] = base_nodes.as_slice() else {
                     return None;
                 };
-                self.derive_body_corresponds(base, base_node, text, depth + 1, reached, membership)?;
+                self.derive_body_corresponds(base, base_node, text, depth + 1, formals, facts, reached, membership)?;
             }
             (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
                 let spelling = match op {
@@ -1304,14 +1399,13 @@ impl SourceExpressions<'_> {
                 let [left_node, right_node] = operand_nodes.as_slice() else {
                     return None;
                 };
-                self.derive_body_corresponds(left, left_node, text, depth + 1, reached, membership)?;
-                self.derive_body_corresponds(right, right_node, text, depth + 1, reached, membership)?;
+                self.derive_body_corresponds(left, left_node, text, depth + 1, formals, facts, reached, membership)?;
+                self.derive_body_corresponds(right, right_node, text, depth + 1, formals, facts, reached, membership)?;
             }
             (IrExpr::Unary { op, operand }, SyntaxKind::Unary) => {
                 let spelling = match op {
                     IrUnOp::Not => "not",
                     IrUnOp::Neg => "-",
-                    _ => return None,
                 };
                 let operator = node
                     .children
@@ -1324,21 +1418,20 @@ impl SourceExpressions<'_> {
                 let [operand_node] = operand_nodes.as_slice() else {
                     return None;
                 };
-                self.derive_body_corresponds(operand, operand_node, text, depth + 1, reached, membership)?;
+                self.derive_body_corresponds(operand, operand_node, text, depth + 1, formals, facts, reached, membership)?;
             }
             (
                 IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. },
                 SyntaxKind::Call,
             ) => {
-                if let IrExpr::BoundCall { slots, .. } = &expr.expr {
-                    if slots.len() != args.len()
+                if let IrExpr::BoundCall { slots, .. } = &expr.expr
+                    && (slots.len() != args.len()
                         || slots
                             .iter()
                             .enumerate()
-                            .any(|(index, slot)| *slot != Some(index))
-                    {
-                        return None;
-                    }
+                            .any(|(index, slot)| *slot != Some(index)))
+                {
+                    return None;
                 }
                 let callee = source_path(expressions(node).first()?, text)?;
                 match target {
@@ -1359,6 +1452,16 @@ impl SourceExpressions<'_> {
                         if callee != item.name {
                             return None;
                         }
+                        let IrItemKind::DeriveFn {
+                            result: IrType::Known(result),
+                            ..
+                        } = &item.kind
+                        else {
+                            return None;
+                        };
+                        if !Self::type_narrows(&expr.ty, result) {
+                            return None;
+                        }
                         reached.push(canonical.clone());
                     }
                     IrCallTarget::CapabilityOp(_) => return None,
@@ -1376,7 +1479,7 @@ impl SourceExpressions<'_> {
                     let [source_value] = values.as_slice() else {
                         return None;
                     };
-                    self.derive_body_corresponds(value, source_value, text, depth + 1, reached, membership)?;
+                    self.derive_body_corresponds(value, source_value, text, depth + 1, formals, facts, reached, membership)?;
                 }
             }
             _ => return None,
@@ -2484,7 +2587,7 @@ impl SourceExpressions<'_> {
                     if self.authorization_shaped(actual) {
                         return None;
                     }
-                    self.derive_call(actual, &node, depth)?;
+                    self.derive_call(actual, node, depth)?;
                 }
                 true
             }
@@ -2499,7 +2602,7 @@ impl SourceExpressions<'_> {
                 },
                 SyntaxKind::Call,
             ) if self.operands => {
-                self.derive_call(actual, &node, depth)?;
+                self.derive_call(actual, node, depth)?;
                 true
             }
             (
@@ -2769,7 +2872,7 @@ mod tests {
         (cond.clone(), cond.span)
     }
 
-    fn create_fact<'a>(ir: &'a IrProgram) -> &'a CheckedScenarioCreate {
+    fn create_fact(ir: &IrProgram) -> &CheckedScenarioCreate {
         let owner = ir
             .items
             .iter()
@@ -2886,6 +2989,27 @@ mod tests {
             checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
                 .is_none(),
             "ordinary body-only replacement must refuse"
+        );
+        // Stored field-type corruption: only the supplied IR declaration
+        // of Conversation.active changes Bool -> Text; source, checked
+        // facts, body, call and arguments are unchanged. The body walk
+        // authenticates reached stored fields, so this refuses too.
+        let mut changed = ir.clone();
+        let field = changed
+            .items
+            .iter()
+            .find(|item| item.canonical == "OrdinaryDerive.Conversation.active")
+            .unwrap()
+            .id;
+        let IrItemKind::Field { ty, .. } = &mut changed.items[field.0 as usize].kind else {
+            panic!("field")
+        };
+        *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+        let (cond, span, _) = guard_and_fact(&changed, "OrdinaryDerive.pick");
+        assert!(
+            checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
+                .is_none(),
+            "stored field-type corruption must refuse"
         );
         // Formal-ID swap: the supplied formal order no longer matches the
         // authored declaration order.
