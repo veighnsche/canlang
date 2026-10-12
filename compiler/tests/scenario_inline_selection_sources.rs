@@ -25,10 +25,13 @@ struct Original {
 }
 impl Original {
     fn new() -> Self {
+        Self::from_sources(CHAT, CREATIVE)
+    }
+    fn from_sources(chat: &str, creative: &str) -> Self {
         let mut db = SourceDb::new();
         let files = [
-            db.add("CanChat.can".into(), CHAT.into()),
-            db.add("CanCreative.can".into(), CREATIVE.into()),
+            db.add("CanChat.can".into(), chat.into()),
+            db.add("CanCreative.can".into(), creative.into()),
         ];
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let path = root.join("packages/values/dist/catalog.json");
@@ -278,6 +281,61 @@ fn byte_exact_regenerate_retains_where_bound_inline_selection_separately_from_tr
     );
     // Whole original source may still decline another guarded/reference/CALL leaf.
     // An inventory cannot establish native execution or application acceptance.
+}
+
+#[test]
+fn inline_selection_follows_renamed_declarations_and_the_actual_order_field() {
+    let source = CHAT
+        .replace("Branch", "Stream")
+        .replace("Turn", "Entry")
+        .replace("Profile", "Settings")
+        .replace("Run", "Job")
+        .replace("TextJob", "TextRun")
+        .replace("prefix", "seed_messages")
+        .replace("position", "sequence")
+        .replace("as prior", "as previous")
+        .replace("prior.", "previous.")
+        .replace("max=120", "max=96")
+        .replace("<120", "<96");
+    let creative = CREATIVE
+        .replace("Branch", "Stream")
+        .replace("Turn", "Entry")
+        .replace("Profile", "Settings")
+        .replace("Run", "Job")
+        .replace("ImageJob", "ImageRun")
+        .replace(
+            "list row.Entry order=position",
+            "list row.Entry order=sequence",
+        );
+    let own = Original::from_sources(&source, &creative);
+    let owner = own.symbol("chat.regenerate");
+    let inventory = own.inventory();
+    let expected = ORIGINAL
+        .replace("prefix", "seed_messages")
+        .replace("Turn", "Entry")
+        .replace("position", "sequence")
+        .replace("as prior", "as previous")
+        .replace("prior.", "previous.");
+    let node = *own
+        .types
+        .checked_queries
+        .keys()
+        .find(|key| text(&own.db, **key) == expected)
+        .unwrap();
+    let query = exact(&inventory, owner, node).expect("genuine renamed inline declaration");
+    assert_eq!(query.model, own.symbol("chat.Entry"));
+    assert_eq!(
+        query.order[0].field,
+        Some(own.symbol("chat.Entry.sequence"))
+    );
+    assert!(
+        query
+            .dependencies
+            .iter()
+            .any(|read| read.field_name == "sequence")
+    );
+    assert_eq!(query.dependencies.len(), 5);
+    assert_eq!(query.influences.len(), 4);
 }
 
 #[test]

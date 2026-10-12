@@ -378,6 +378,97 @@ fn original_transcript_prefix_projection_and_each_caller_are_consumed_by_real_co
 }
 
 #[test]
+fn transcript_matching_uses_declarations_aliases_fields_and_their_bound() {
+    let source = SOURCE
+        .replace("transcript", "history")
+        .replace("Branch", "Stream")
+        .replace("branch", "stream")
+        .replace("Turn", "Entry")
+        .replace("as turn", "as entry")
+        .replace("turn.", "entry.")
+        .replace("Profile", "Settings")
+        .replace("Conversation", "Thread")
+        .replace("prefix", "seed_messages")
+        .replace("position", "sequence")
+        .replace("max=120", "max=96")
+        .replace("<120", "<96");
+    let (db, program, ir, catalog) = checked(&source);
+    let owner = symbol(&program, OWNER);
+    let ScenarioDisclosure::Complete(proof) = &program.scenario_disclosures()[&owner] else {
+        panic!(
+            "equivalent renamed transcript: {:?}",
+            program.scenario_disclosures()[&owner]
+        );
+    };
+    assert_eq!(proof.returns.len(), 1);
+    assert_eq!(proof.returns[0].influences.len(), 8);
+    assert!(
+        proof.returns[0]
+            .dependencies
+            .iter()
+            .any(|read| read.field_name == "seed_messages")
+    );
+    let plan = canlang_compiler::codegen::scenario_queries::serialize_query_sources(
+        &program,
+        &ir,
+        &ir.items[owner.0 as usize],
+        &db,
+        Some(&catalog),
+        "SourceTranscript.mjs",
+    )
+    .expect("renamed declaration supplies the checked query plan");
+    assert_eq!(plan["queries"][0]["order"][0]["field"], "sequence");
+    assert_eq!(plan["queries"][1]["order"][0]["field"], "sequence");
+    assert!(
+        collect_decision_sources(
+            &program,
+            &ir,
+            &ir.items[owner.0 as usize],
+            &db,
+            Some(&catalog)
+        )
+        .is_some()
+    );
+
+    // Checked identity still matters after authored names become arbitrary.
+    let mut changed = ir.clone();
+    let helper = symbol(&program, "SourceTranscript.history");
+    changed.items[helper.0 as usize].canonical = "Foreign.history".into();
+    assert!(
+        collect_decision_sources(
+            &program,
+            &changed,
+            &changed.items[owner.0 as usize],
+            &db,
+            Some(&catalog)
+        )
+        .is_none()
+    );
+}
+
+#[test]
+fn ordinary_message_array_derives_keep_their_existing_profile_refusal() {
+    let source = "app OrdinaryMessages\nuse std {TextMessage}\nGiven\n derive literal():TextMessage[] = [TextMessage {role=user,content=\"Hello\",attachments=[]}]\nWhen\n scenario size() by=members -> int\n  do\n   return count(literal())\nThen\n";
+    let mut reasons = Vec::new();
+    for source in [source.to_string(), source.replace("literal", "transcript")] {
+        let (_, program, _, _) = checked(&source);
+        let owner = symbol(&program, "OrdinaryMessages.size");
+        let ScenarioDisclosure::Declined(decline) = &program.scenario_disclosures()[&owner] else {
+            panic!("unreleased ordinary array-count profile");
+        };
+        assert_ne!(
+            decline.reason,
+            "transcript needs its exact original source projection"
+        );
+        reasons.push(decline.reason);
+    }
+    assert_eq!(
+        reasons[0], reasons[1],
+        "renaming does not change ordinary derive evaluation"
+    );
+}
+
+#[test]
 fn same_span_ir_helper_count_concat_slots_order_and_nominal_mutants_lose_original_correspondence() {
     let (db, program, ir, catalog) = checked(SOURCE);
     let owner = symbol(&program, OWNER);

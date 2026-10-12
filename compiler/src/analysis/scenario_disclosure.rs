@@ -1536,8 +1536,7 @@ impl<'a> Closure<'a> {
             .iter()
             .enumerate()
             .filter_map(|(index, binding)| {
-                if binding.verb != EffectVerb::Let || binding.binding.as_deref() != Some("revision")
-                {
+                if binding.verb != EffectVerb::Let || binding.binding.is_none() {
                     return None;
                 }
                 let value = self.query_group(binding.value?)?;
@@ -1564,7 +1563,6 @@ impl<'a> Closure<'a> {
             return None;
         }
         let template_definition = self.checked_created_model(template, scenario.module)?;
-        let template_symbol = self.resolve.symbols.get(template.0 as usize)?;
         let field = template_definition
             .fields
             .iter()
@@ -1593,24 +1591,12 @@ impl<'a> Closure<'a> {
             .find(|data| data.param == parameter)?;
         let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
         let text = &self.db.get(scenario.node.file)?.text;
-        if template_symbol.name != "Template"
-            || revision_symbol.name != "Revision"
-            || !matches!(revision_symbol.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(parent),..} if parent==template)
+        if !matches!(revision_symbol.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(parent),..} if parent==template)
             || revision_definition.declaration.owner != ModelOwner::ChildOf(template)
             || current_data.default.is_some()
             || current_data.server.is_some()
             || current_data.required_array
             || self.types.field_reuse_sources.contains_key(&field.field)
-            || text
-                .get(current_data.type_node.start as usize..current_data.type_node.end as usize)?
-                .trim()
-                != "Revision?"
-            || text
-                .get(
-                    parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
-                )?
-                .trim()
-                != "Template"
             || !matches!(parameter_symbol.kind,SymbolKind::Param {owner,type_node,..} if owner==scenario.scenario && type_node==parameter_data.type_node)
             || parameter_symbol.module != scenario.module
             || self.nodes.get(&binding.node)?.kind != SyntaxKind::Let
@@ -1797,18 +1783,6 @@ impl<'a> Closure<'a> {
             "definition"
                 if checked_standard_nominal_name(&field.ty) == Some("WorkflowDefinition") =>
             {
-                let Some(ScopedName::External { provider, name }) = self
-                    .resolve
-                    .module_scopes
-                    .get(module.0 as usize)?
-                    .prod
-                    .get("WorkflowDefinition")
-                else {
-                    return None;
-                };
-                if provider != "std" || name != "WorkflowDefinition" {
-                    return None;
-                }
                 field.ty.clone()
             }
             "published" => ResolvedType::Scalar(Scalar::Bool),
@@ -1822,22 +1796,9 @@ impl<'a> Closure<'a> {
             .fields
             .iter()
             .find(|data| data.field == field.field)?;
-        let source = &self.db.get(data.type_node.file)?.text;
-        let spelling = match name {
-            "definition" => "WorkflowDefinition",
-            "published" => "bool",
-            "digest" => "text?",
-            "outputs" => "int",
-            "duration" => "duration",
-            _ => return None,
-        };
         if field.ty != declared
             || name == "definition" && (data.default.is_some() || data.required_array)
             || data.server.is_some()
-            || source
-                .get(data.type_node.start as usize..data.type_node.end as usize)?
-                .trim()
-                != spelling
             || self.types.field_reuse_sources.contains_key(&field.field)
             || !matches!(self.resolve.symbols.get(field.field.0 as usize)?.kind,SymbolKind::Field {owner,..} if owner==fact.revision)
         {
@@ -2059,8 +2020,6 @@ impl<'a> Closure<'a> {
         let text = &self.db.get(node.file)?.text;
         if name != "profile"
             || depth != 0
-            || declaration.name != "Branch"
-            || target.name != "Profile"
             || declaration.module != module
             || target.module != module
             || parameter_symbol.module != module
@@ -2080,13 +2039,13 @@ impl<'a> Closure<'a> {
             || text
                 .get(data.type_node.start as usize..data.type_node.end as usize)?
                 .trim()
-                != "Profile"
+                != target.name
             || text
                 .get(
                     parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
                 )?
                 .trim()
-                != "Branch"
+                != declaration.name
             || self.checked_created_model(branch, module).is_none()
             || self.checked_created_model(profile, module).is_none()
         {
@@ -2224,8 +2183,6 @@ impl<'a> Closure<'a> {
         if name != "run"
             || depth != 0
             || fields.next().is_some()
-            || declaration.name != "Turn"
-            || target.name != "Run"
             || !matches!((turn_parent, run_parent), (ModelOwner::ChildOf(left), ModelOwner::ChildOf(right)) if left == right)
             || declaration.module != module
             || target.module != module
@@ -2255,13 +2212,13 @@ impl<'a> Closure<'a> {
             || text
                 .get(data.type_node.start as usize..data.type_node.end as usize)?
                 .trim()
-                != "Run"
+                != target.name
             || text
                 .get(
                     parameter_data.type_node.start as usize..parameter_data.type_node.end as usize,
                 )?
                 .trim()
-                != "Turn"
+                != declaration.name
             || self.checked_created_model(turn, module).is_none()
             || self.checked_created_model(run, module).is_none()
         {
@@ -2916,8 +2873,9 @@ impl<'a> Closure<'a> {
             .collect::<Option<Vec<_>>>()?;
         if let_node.kind != SyntaxKind::Let
             || values != [value]
-            || names != ["let", "prefix"]
-            || statement.binding.as_deref() != Some("prefix")
+            || names.len() != 2
+            || names[0] != "let"
+            || statement.binding.as_deref() != Some(names[1])
         {
             return None;
         }
@@ -2956,7 +2914,6 @@ impl<'a> Closure<'a> {
         if query_syntax.kind != SyntaxKind::Query
             || checked.node != query_node
             || checked.projection.is_some()
-            || name != "prior"
             || !alias.expressions.is_empty()
             || predicate.kind != CheckedQueryClauseKind::Where
             || order.kind != CheckedQueryClauseKind::Order
@@ -3030,10 +2987,8 @@ impl<'a> Closure<'a> {
             ordered: true,
             nonempty: false,
         };
-        if owner.name != "Turn"
-            || child_name != owner.name
+        if child_name != owner.name
             || parent_name != "parent"
-            || self.resolve.symbols.get(parent.parent.0 as usize)?.name != "Branch"
             || checked.domain_type != array
             || self.types.node_types.get(&checked.domain) != Some(&array)
             || self.checked_call_parent_path(domain_parent, parameter, 0)
@@ -3070,7 +3025,10 @@ impl<'a> Closure<'a> {
             model,
             scenario.module,
         )?;
-        let prefix = branch.fields.iter().find(|field| field.name == "prefix")?;
+        let prefix = branch
+            .fields
+            .iter()
+            .find(|field| field.name == prefix_name)?;
         let prefix_data = branch
             .declaration
             .fields
@@ -3081,17 +3039,14 @@ impl<'a> Closure<'a> {
             .iter()
             .find(|modifier| modifier.name == "max")?
             .value?;
-        if prefix_name != "prefix"
-            || prefix_parent_name != "parent"
+        if prefix_parent_name != "parent"
             || self.query_parameter(scenario, prefix_argument) != Some(parameter)
             || prefix_parent.parent != parent.parent
             || prefix.ty != *ty
             || prefix_data.required_array
             || prefix_data.default.is_some()
             || prefix_data.server.is_some()
-            || self.nodes.get(&prefix_max)?.kind != SyntaxKind::Literal
-            || self.word(self.nodes.get(&prefix_max)?) != Some("120")
-            || self.types.node_types.get(&prefix_max) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || self.declared_message_bound(prefix_max).is_none()
         {
             return None;
         }
@@ -3099,10 +3054,8 @@ impl<'a> Closure<'a> {
         let candidate = self.query_member(candidate_node, alias.node, model)?;
         let position = self.query_member(*order_node, alias.node, model)?;
         let (bound_receiver, bound_name) = self.count_member(bound_node)?;
-        if self.query_member_name(candidate_node, alias.node, model) != Some("position")
-            || self.query_member_name(*order_node, alias.node, model) != Some("position")
-            || candidate != position
-            || bound_name != "position"
+        if candidate != position
+            || self.resolve.symbols.get(position.0 as usize)?.name != bound_name
             || self.query_parameter(scenario, bound_receiver) != Some(parameter)
             || self.types.node_types.get(&bound_receiver) != self.types.symbol_types.get(&parameter)
             || self.types.symbol_types.get(&position) != Some(&ResolvedType::Scalar(Scalar::Int))
@@ -3168,7 +3121,8 @@ impl<'a> Closure<'a> {
             if key.kind != SyntaxKind::Name
                 || self.word(key)? != expected
                 || values.next().is_some()
-                || self.query_member_name(value_node, alias.node, model) != Some(expected.as_str())
+                || self.query_member_name(value_node, alias.node, model)
+                    != Some(field.name.as_str())
                 || field.ty != *expected_ty
                 || self.types.node_types.get(&value_node) != Some(expected_ty)
                 || declaration.default.is_some()
@@ -3359,9 +3313,7 @@ impl<'a> Closure<'a> {
         module: ModuleId,
     ) -> Option<CheckedInlineSelectionSource> {
         let node = self.nodes.get(&key)?;
-        if node.kind != SyntaxKind::Query
-            && self.count_member(key).map(|(_, name)| name) != Some("prefix")
-        {
+        if node.kind != SyntaxKind::Query && node.kind != SyntaxKind::Member {
             return None;
         }
         self.effects
@@ -3440,7 +3392,7 @@ impl<'a> Closure<'a> {
                 model_name: self.resolve.symbols[edge.parent.0 as usize]
                     .canonical
                     .clone(),
-                field_name: "prefix".into(),
+                field_name: self.resolve.symbols[fact.prefix.0 as usize].name.clone(),
                 ty: fact.ty,
                 type_id: "TextMessage[]".into(),
                 query_id: None,
@@ -3461,6 +3413,47 @@ impl<'a> Closure<'a> {
         Ok(values)
     }
 
+    /// Read the owning field's checked literal maximum; authored spellings
+    /// and a particular draft's chosen maximum are not source authority.
+    fn declared_message_bound(&self, key: NodeKey) -> Option<u64> {
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Literal
+            || self.types.node_types.get(&key) != Some(&ResolvedType::Scalar(Scalar::Int))
+        {
+            return None;
+        }
+        let bound = self.word(node)?.parse::<u64>().ok()?;
+        (bound > 0).then_some(bound)
+    }
+
+    fn transcript_bound_matches(&self, key: NodeKey, paths: &[ValuePath]) -> bool {
+        let Some(bound) = self.declared_message_bound(key) else {
+            return false;
+        };
+        !paths.is_empty()
+            && paths.iter().all(|path| {
+                path.reads.iter().any(|read| {
+                    transcript_message_array(&read.ty)
+                        && self
+                            .effects
+                            .models
+                            .get(&read.model)
+                            .and_then(|model| {
+                                model.fields.iter().find(|field| field.field == read.field)
+                            })
+                            .and_then(|field| {
+                                field
+                                    .modifiers
+                                    .iter()
+                                    .find(|modifier| modifier.name == "max")
+                            })
+                            .and_then(|modifier| modifier.value)
+                            .and_then(|maximum| self.declared_message_bound(maximum))
+                            == Some(bound)
+                })
+            })
+    }
+
     fn checked_transcript_sources(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -3475,11 +3468,18 @@ impl<'a> Closure<'a> {
                     return None;
                 }
                 let key = NodeKey::of(node);
-                if let Some(SelectedCallTarget::DeriveFn(derive)) =
-                    self.types.selected_calls.get(&key).map(|call| &call.target)
-                    && self.resolve.symbols.get(derive.0 as usize)?.name == "transcript"
+                if matches!(
+                    self.types.selected_calls.get(&key).map(|call| &call.target),
+                    Some(SelectedCallTarget::DeriveFn(_))
+                ) && self
+                    .types
+                    .node_types
+                    .get(&key)
+                    .is_some_and(transcript_message_array)
+                    && let Some(fact) =
+                        self.checked_transcript_source(scenario, statement.node, key)
                 {
-                    out.push(self.checked_transcript_source(scenario, statement.node, key)?);
+                    out.push(fact);
                 }
                 // Source order, including nested operands; no derive invocation
                 // is hoisted, reused or replaced with a cardinality shortcut.
@@ -3581,12 +3581,12 @@ impl<'a> Closure<'a> {
                     self.word(name) == Some(symbol.name.as_str()) && name.span == symbol.span
                 })
         };
-        if declaration.name != "transcript"
-            || declaration.module != scenario.module
+        if declaration.module != scenario.module
             || declaration.canonical
                 != format!(
-                    "{}.transcript",
-                    self.resolve.modules.get(scenario.module.0 as usize)?.name
+                    "{}.{}",
+                    self.resolve.modules.get(scenario.module.0 as usize)?.name,
+                    declaration.name
                 )
             || data.module != scenario.module
             || data.derive != derive
@@ -3600,20 +3600,14 @@ impl<'a> Closure<'a> {
             || actual_symbol.module != scenario.module
             || !parameter_name(formal, formal_symbol)
             || !parameter_name(actual, actual_symbol)
-            || formal_symbol.name != "branch"
-            || formal_symbol.canonical != format!("{}.branch", declaration.canonical)
+            || formal_symbol.canonical
+                != format!("{}.{}", declaration.canonical, formal_symbol.name)
             || !matches!(formal_symbol.kind,SymbolKind::Param {owner,type_node,..} if owner==derive && type_node==formal.type_node)
             || !matches!(actual_symbol.kind,SymbolKind::Param {owner,type_node,..} if owner==scenario.scenario && type_node==actual.type_node)
             || self.types.symbol_types.get(&formal.param) != Some(&branch_ty)
             || self.types.node_types.get(argument) != Some(&branch_ty)
-            || text
-                .get(formal.type_node.start as usize..formal.type_node.end as usize)?
-                .trim()
-                != "Branch"
-            || text
-                .get(actual.type_node.start as usize..actual.type_node.end as usize)?
-                .trim()
-                != "Branch"
+            || !self.checked_created_field_type(formal.type_node, scenario.module, &branch_ty, 0)
+            || !self.checked_created_field_type(actual.type_node, scenario.module, &branch_ty, 0)
             || text.get(result.start as usize..result.end as usize)?.trim() != "TextMessage[]"
             || !self
                 .nodes
@@ -3632,13 +3626,9 @@ impl<'a> Closure<'a> {
             return None;
         }
         let branch_definition = self.checked_created_model(branch, scenario.module)?;
-        if self.resolve.symbols.get(branch.0 as usize)?.name != "Branch" {
-            return None;
-        }
         let (prefix_node, query_group) = self.query_binary(body, "+")?;
         let (prefix_receiver, prefix_name) = self.count_member(prefix_node)?;
-        if prefix_name != "prefix"
-            || !matches!(self.query_binding(prefix_receiver),Some(Binding::Symbol(id)) if *id==formal.param)
+        if !matches!(self.query_binding(prefix_receiver),Some(Binding::Symbol(id)) if *id==formal.param)
             || self.types.node_types.get(&prefix_receiver) != Some(&branch_ty)
             || self.types.node_types.get(&prefix_node) != Some(result_ty)
         {
@@ -3647,7 +3637,7 @@ impl<'a> Closure<'a> {
         let prefix_field = branch_definition
             .fields
             .iter()
-            .find(|field| field.name == "prefix")?;
+            .find(|field| field.name == prefix_name)?;
         let prefix_data = branch_definition
             .declaration
             .fields
@@ -3662,12 +3652,7 @@ impl<'a> Closure<'a> {
             || prefix_data.required_array
             || prefix_data.default.is_some()
             || prefix_data.server.is_some()
-            || self.nodes.get(&prefix_max)?.kind != SyntaxKind::Literal
-            || text
-                .get(prefix_max.start as usize..prefix_max.end as usize)?
-                .trim()
-                != "120"
-            || self.types.node_types.get(&prefix_max) != Some(&ResolvedType::Scalar(Scalar::Int))
+            || self.declared_message_bound(prefix_max).is_none()
         {
             return None;
         }
@@ -3684,7 +3669,15 @@ impl<'a> Closure<'a> {
             || query.projection.is_some()
             || order.kind != CheckedQueryClauseKind::Order
             || select.kind != CheckedQueryClauseKind::Select
-            || alias_name != "turn"
+            || self
+                .nodes
+                .get(&alias.node)?
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Name)
+                .map(|child| self.word(child))
+                .collect::<Option<Vec<_>>>()?
+                != ["as", alias_name.as_str()]
             || query.result != *result_ty
             || self.types.node_types.get(&query_node) != Some(result_ty)
         {
@@ -3715,8 +3708,7 @@ impl<'a> Closure<'a> {
         let model = *model;
         let model_definition = self.checked_created_model(model, scenario.module)?;
         let model_symbol = self.resolve.symbols.get(model.0 as usize)?;
-        if child_name != "Turn"
-            || model_symbol.name != child_name
+        if model_symbol.name != child_name
             || !matches!(model_symbol.kind,SymbolKind::Model {owner:ModelOwner::ChildOf(parent),..} if parent==branch)
             || branch_definition
                 .fields
@@ -3729,8 +3721,7 @@ impl<'a> Closure<'a> {
             return None;
         }
         let position = self.query_member(*order_node, alias.node, model)?;
-        if self.query_member_name(*order_node, alias.node, model) != Some("position")
-            || self.types.symbol_types.get(&position) != Some(&ResolvedType::Scalar(Scalar::Int))
+        if self.types.symbol_types.get(&position) != Some(&ResolvedType::Scalar(Scalar::Int))
             || self.types.node_types.get(order_node) != Some(&ResolvedType::Scalar(Scalar::Int))
         {
             return None;
@@ -3789,7 +3780,8 @@ impl<'a> Closure<'a> {
             if key_node.kind != SyntaxKind::Name
                 || self.word(key_node)? != expected
                 || values.next().is_some()
-                || self.query_member_name(value_node, alias.node, model) != Some(expected.as_str())
+                || self.query_member_name(value_node, alias.node, model)
+                    != Some(field.name.as_str())
                 || field.ty != *expected_ty
                 || self.types.node_types.get(&value_node) != Some(expected_ty)
                 || source_data.default.is_some()
@@ -3840,7 +3832,7 @@ impl<'a> Closure<'a> {
             model,
             field: position,
             model_name: model_symbol.canonical.clone(),
-            field_name: "position".into(),
+            field_name: self.resolve.symbols.get(position.0 as usize)?.name.clone(),
             ty: ResolvedType::Scalar(Scalar::Int),
             type_id: "int".into(),
             query_id: None,
@@ -3859,7 +3851,12 @@ impl<'a> Closure<'a> {
                     model,
                     field: field.source_field,
                     model_name: model_symbol.canonical.clone(),
-                    field_name: field.name.clone(),
+                    field_name: self
+                        .resolve
+                        .symbols
+                        .get(field.source_field.0 as usize)?
+                        .name
+                        .clone(),
                     ty: field.ty.clone(),
                     type_id: checked_stored_contract_type_id(&field.ty, None, self.resolve, 0)?,
                     query_id: Some(id.clone()),
@@ -5725,7 +5722,7 @@ impl<'a> Closure<'a> {
         let (receiver, collection) = self.count_member(query.domain)?;
         let parameter = self.query_parameter(scenario, receiver)?;
         let (parent, hops) = self.checked_call_parent_path(receiver, parameter, 0)?;
-        let parent_owner = self.checked_count_model(parent, scenario.module)?;
+        self.checked_count_model(parent, scenario.module)?;
         let parameter_symbol = self.resolve.symbols.get(parameter.0 as usize)?;
         let SymbolKind::Param {
             owner: parameter_owner,
@@ -5787,10 +5784,7 @@ impl<'a> Closure<'a> {
             || domains != [query.domain]
             || clauses != [alias.node]
             || !alias.expressions.is_empty()
-            || name != "run"
-            || alias_words != ["as", "run"]
-            || owner.name != "Run"
-            || parent_owner.name != "Branch"
+            || alias_words != ["as", name.as_str()]
             || collection != owner.name
             || hops != 0
             || !self.original_reference_parameter(receiver, parameter)
@@ -8540,14 +8534,7 @@ impl<'a> Closure<'a> {
             // controls on a scalar Return; other authorization pruning stays.
             if op == "<"
                 && left.iter().all(|value| value.transcript_count)
-                && self
-                    .nodes
-                    .get(&NodeKey::of(children[1]))
-                    .is_some_and(|node| {
-                        node.kind == SyntaxKind::Literal && self.word(node) == Some("120")
-                    })
-                && self.types.node_types.get(&NodeKey::of(children[1]))
-                    == Some(&ResolvedType::Scalar(Scalar::Int))
+                && self.transcript_bound_matches(NodeKey::of(children[1]), &left)
             {
                 for value in &mut values {
                     value.transcript_count = true;
@@ -8691,12 +8678,24 @@ impl<'a> Closure<'a> {
         };
         let model = *model;
         let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let declaration_path = self
+            .nodes
+            .get(&data.node)?
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Path)?;
+        let declaration_name = declaration_path
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::Name)?;
         if declaration.id != id
-            || declaration.name != "can_use"
+            || self.word(declaration_name) != Some(declaration.name.as_str())
+            || declaration_path.span != declaration.span
             || declaration.canonical
                 != format!(
-                    "{}.can_use",
-                    self.resolve.modules.get(defining_module.0 as usize)?.name
+                    "{}.{}",
+                    self.resolve.modules.get(defining_module.0 as usize)?.name,
+                    declaration.name
                 )
             || data.derive != id
             || data.module != defining_module
@@ -8746,7 +8745,16 @@ impl<'a> Closure<'a> {
             if !matches!(symbol.kind,SymbolKind::Param {owner,index:actual,type_node} if owner == id && actual == index && type_node == parameter.type_node)
                 || symbol.module != defining_module
                 || symbol.id != parameter.param
-                || symbol.name != if index == 0 { "person" } else { "conversation" }
+                || symbol.canonical != format!("{}.{}", declaration.canonical, symbol.name)
+                || self
+                    .nodes
+                    .get(&parameter.node)?
+                    .children
+                    .iter()
+                    .find(|node| node.kind == SyntaxKind::Name)
+                    .is_none_or(|name| {
+                        self.word(name) != Some(symbol.name.as_str()) || name.span != symbol.span
+                    })
             {
                 return None;
             }
@@ -8771,13 +8779,12 @@ impl<'a> Closure<'a> {
         // Local parent cases retain their original source checks.
         if imported
             && (head.kind != SyntaxKind::NameRef
-                || self.word(head)? != "can_use"
                 || !declaration.exported
                 || !owner.exported
-                || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get("can_use"),
+                || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get(self.word(head)?),
                     Some(ScopedName::Imported {target, bound: false}) if *target == id)
-                || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get(&owner.name),
-                    Some(ScopedName::Imported {target, bound: false}) if *target == model))
+                || !self.resolve.module_scopes.get(module.0 as usize)?.prod.values().any(|name|
+                    matches!(name, ScopedName::Imported {target, bound: false} if *target == model)))
         {
             return None;
         }
@@ -8865,8 +8872,7 @@ impl<'a> Closure<'a> {
                     || root_declaration.module != defining_module
                     || !root_declaration.exported
                     || annotation.kind != SyntaxKind::NamedType
-                    || self.word(annotation)? != root_declaration.name
-                    || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get(&root_declaration.name),
+                    || !matches!(self.resolve.module_scopes.get(module.0 as usize)?.prod.get(self.word(annotation)?),
                         Some(ScopedName::Imported {target, bound: false}) if target == root)
                     || self.checked_created_model(*root, defining_module).is_none()
                 {
@@ -9203,27 +9209,19 @@ impl<'a> Closure<'a> {
         if calls.is_empty()
             && self.statement_depth == 1
             && self.loop_node.is_none()
-            && matches!(&selected.target,SelectedCallTarget::DeriveFn(id)
-                if self.resolve.symbols.get(id.0 as usize).is_some_and(|symbol| symbol.name=="transcript"))
+            && matches!(&selected.target, SelectedCallTarget::DeriveFn(_))
             && self
                 .types
                 .node_types
                 .get(&key)
                 .is_some_and(transcript_message_array)
+            && let Some(fact) = self.effects.scenarios.values().find_map(|scenario| {
+                (scenario.module == module).then_some(())?;
+                self.checked_transcript_sources(scenario)?
+                    .into_iter()
+                    .find(|fact| fact.call == key)
+            })
         {
-            let fact = self
-                .effects
-                .scenarios
-                .values()
-                .find_map(|scenario| {
-                    (scenario.module == module).then_some(())?;
-                    self.checked_transcript_sources(scenario)?
-                        .into_iter()
-                        .find(|fact| fact.call == key)
-                })
-                .ok_or_else(|| {
-                    self.fail(key, "transcript needs its exact original source projection")
-                })?;
             if !env.get(&Local::Symbol(fact.parameter)).is_some_and(|value| {
                 value.record==Some(fact.branch)
                     && matches!(value.reference_origin,Some(ReferenceOrigin::Parameter(parameter)) if parameter==fact.parameter)
@@ -9251,7 +9249,7 @@ impl<'a> Closure<'a> {
                 model: fact.branch,
                 field: fact.prefix,
                 model_name: model.canonical.clone(),
-                field_name: "prefix".into(),
+                field_name: self.resolve.symbols[fact.prefix.0 as usize].name.clone(),
                 ty: fact.ty.clone(),
                 type_id: "TextMessage[]".into(),
                 query_id: None,
@@ -10735,8 +10733,8 @@ impl<'a> Closure<'a> {
                             .and_then(|field| self.resolve.symbols.get(field.0 as usize))
                             .ok_or_else(fail)?;
                         if fact.binding != binding
-                            || owner.name != "Run"
-                            || input.name != "revision"
+                            || !matches!(owner.kind, SymbolKind::Model { .. })
+                            || input.name != field.name
                             || !matches!(field.kind,SymbolKind::Field {owner,..} if owner==model)
                             || !matches!(self.query_binding(input.value_node),Some(Binding::Let {node}) if *node==binding)
                             || input.ty

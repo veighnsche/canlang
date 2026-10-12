@@ -117,7 +117,7 @@ fn full_original_fixture(
         ),
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let mut path = Path::new(env!("CARGO_MANIFEST_DIR")).join("target/profile-native-catalog.json");
+    let mut path = root.join("packages/cloudflare/dist/native-catalog.json");
     let scratch = tempfile::tempdir().unwrap();
     if let Some((id, field, replacement)) = catalog_edit {
         let mut value: serde_json::Value =

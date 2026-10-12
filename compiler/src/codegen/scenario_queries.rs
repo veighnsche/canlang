@@ -1111,14 +1111,12 @@ fn checked_transcript_query_plan(
             || *parent != fact.branch
             || *symbol != fact.branch
             || *parameter_owner != owner.id
-            || model.name != "Turn"
-            || branch.name != "Branch"
             || fact.slots != [Some(0)]
             || order.role != DependencyRole::Control
             || order.model != fact.model
             || order.model_name != model.canonical
             || order.field != fact.order
-            || order.field_name != "position"
+            || order.field_name != ir.items.get(fact.order.0 as usize)?.name
             || order.ty != ResolvedType::Scalar(Scalar::Int)
             || order.type_id != "int"
             || order.node != fact.order_node
@@ -1161,7 +1159,7 @@ fn checked_transcript_query_plan(
                 || read.model != fact.model
                 || read.model_name != model.canonical
                 || read.field != field.source_field
-                || read.field_name != field.name
+                || read.field_name != ir.items.get(field.source_field.0 as usize)?.name
                 || read.ty != field.ty
                 || field_type(program, ir, read.field, fact.model)? != &read.ty
                 || query_read.id.is_empty()
@@ -1217,7 +1215,7 @@ fn checked_transcript_query_plan(
                 },
             }),
             order: vec![ReceiptQueryOrder {
-                field: "position".into(),
+                field: order.field_name.clone(),
                 direction: "asc".into(),
             }],
             limit: None,

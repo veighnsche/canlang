@@ -143,13 +143,14 @@ pub(super) fn checked_current_revision<'a>(
         return None;
     }
 
+    // The native receiver's current/published/digest field roles stay fixed;
+    // model, parameter and capture names come from this checked declaration.
     let mut lets = effects
         .iter()
         .enumerate()
         .filter_map(|(index, statement)| match statement {
-            IrStmt::Let { name, value, .. }
-                if name == "revision"
-                    && matches!(&value.expr, IrExpr::Member { field, .. } if field == "current") =>
+            IrStmt::Let { value, .. }
+                if matches!(&value.expr, IrExpr::Member { field, .. } if field == "current") =>
             {
                 Some((index, statement, value))
             }
@@ -164,6 +165,13 @@ pub(super) fn checked_current_revision<'a>(
         return None;
     }
     syntax.statement(revision_statement, authored_effects[let_index])?;
+    let IrStmt::Let {
+        name: revision_binding,
+        ..
+    } = revision_statement
+    else {
+        return None;
+    };
     let IrExpr::Member {
         base: template_receiver,
         field,
@@ -201,9 +209,7 @@ pub(super) fn checked_current_revision<'a>(
     };
     let template = schema(template_id)?;
     let revision = schema(revision_id)?;
-    if ir.items.get(template_id.0 as usize)?.name != "Template"
-        || ir.items.get(revision_id.0 as usize)?.name != "Revision"
-        || template.module != owner.module
+    if template.module != owner.module
         || revision.module != owner.module
         || template.source != source.source
         || revision.source != source.source
@@ -361,7 +367,13 @@ pub(super) fn checked_current_revision<'a>(
         match statement {
             IrStmt::Require { cond, .. } if digest_guard.is_none() => {
                 if let Some(read) = null_presence(cond)
-                    && revision_leaf(read, "digest", &digest_field.ty, &revision_value.ty)
+                    && revision_leaf(
+                        read,
+                        revision_binding,
+                        "digest",
+                        &digest_field.ty,
+                        &revision_value.ty,
+                    )
                 {
                     syntax.expression(cond, 0)?;
                     digest_guard = Some((index, cond, read));
@@ -387,7 +399,7 @@ pub(super) fn checked_current_revision<'a>(
         let mut candidates = data_leaves
             .iter()
             .copied()
-            .filter(|value| revision_leaf(value, name, &ty, &revision_value.ty));
+            .filter(|value| revision_leaf(value, revision_binding, name, &ty, &revision_value.ty));
         let value = candidates.next()?;
         (candidates.next().is_none() && digest_presence.span.end <= value.span.start)
             .then_some(value)
@@ -400,8 +412,7 @@ pub(super) fn checked_current_revision<'a>(
     if digest_data_value.span.start > outputs_value.span.start
         || outputs_value.span.start >= duration_value.span.start
         || !matches!(effects.get(digest_index + 1)?,
-            IrStmt::Let { name, value, .. } if name == "validation"
-                && std::ptr::eq(value, digest_data_value))
+            IrStmt::Let { value, .. } if std::ptr::eq(value, digest_data_value))
     {
         return None;
     }
@@ -688,11 +699,10 @@ fn checked_parameter<'a>(
         || original.default.is_some()
         || original.constraints.is_some()
         || authored.kind != SyntaxKind::Parameter
-        || syntax
-            .text
-            .get(original.type_node.start as usize..original.type_node.end as usize)?
-            .trim()
-            != "Template"
+        || !authored
+            .children
+            .iter()
+            .any(|node| NodeKey::of(node) == original.type_node)
     {
         return None;
     }
@@ -1022,7 +1032,7 @@ fn field_type_matches(
             let target = ir.items.get(symbol.0 as usize)?;
             node.kind == SyntaxKind::NamedType
                 && target.module == schema.module
-                && spelling == target.name
+                && (spelling == target.name || spelling == target.canonical)
                 && matches!(target.kind, IrItemKind::Model { .. })
         }
         ResolvedType::StdNominal { .. } => {
@@ -1191,6 +1201,7 @@ fn null_presence(value: &TypedExpr) -> Option<&TypedExpr> {
 }
 fn revision_leaf(
     value: &TypedExpr,
+    binding: &str,
     name: &str,
     ty: &ResolvedType,
     revision: &ResolvedType,
@@ -1198,7 +1209,7 @@ fn revision_leaf(
     value.ty == *ty
         && matches!(&value.expr, IrExpr::Member { base, field }
         if field == name && base.ty == *revision
-            && matches!(&base.expr, IrExpr::Name(name) if name == "revision"))
+            && matches!(&base.expr, IrExpr::Name(name) if name == binding))
 }
 fn flatten_and<'a>(value: &'a TypedExpr, out: &mut Vec<&'a TypedExpr>, depth: usize) -> Option<()> {
     if depth > 64 || out.len() > 200 {

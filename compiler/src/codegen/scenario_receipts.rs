@@ -2378,7 +2378,7 @@ fn checked_inline_selection_ir<'a>(
     let mut statements = effects.iter().filter(
         |statement| matches!(statement,IrStmt::Let {span,..} if *span==node_span(fact.statement)),
     );
-    let IrStmt::Let { name, value, .. } = statements.next()? else {
+    let IrStmt::Let { value, .. } = statements.next()? else {
         return None;
     };
     let mut creates = facts.creates.as_deref()?.iter().filter(|created| {
@@ -2387,7 +2387,6 @@ fn checked_inline_selection_ir<'a>(
     let original = creates.next()?;
     if statements.next().is_some()
         || creates.next().is_some()
-        || name != "prefix"
         || original_fact != fact
         || original_query != &fact.query
         || !facts.transcripts.as_deref()?.is_empty()
@@ -2426,7 +2425,7 @@ fn checked_inline_selection_ir<'a>(
         || query.parent.as_deref()?.span != node_span(fact.parent.node)
         || query.select.as_deref()?.span != node_span(fact.select)
         || query.order.len() != 1
-        || query.order[0].field != "position"
+        || query.order[0].field != fact.order_dependency.field_name
         || query.order[0].descending
         || query.limit.is_some()
         || query.archived.is_some()
@@ -2475,7 +2474,7 @@ fn checked_native_inline_selection_plan<'a>(
         || origin.model != parent.canonical
         || dependency_id != &fact.parent_dependency.id
         || actual.order.len() != 1
-        || actual.order[0].field != "position"
+        || actual.order[0].field != fact.order_dependency.field_name
         || actual.order[0].direction != "asc"
         || actual.limit.is_some()
         || actual.archived != "exclude"
@@ -2490,15 +2489,13 @@ fn checked_native_inline_selection_plan<'a>(
         return None;
     }
     let mut ids = HashSet::new();
-    for ((original, emitted), (role, field)) in
-        query.dependencies.iter().zip(&actual.dependencies).zip([
-            (DependencyRole::Control, "position"),
-            (DependencyRole::Control, "position"),
-            (DependencyRole::Data, "role"),
-            (DependencyRole::Data, "content"),
-            (DependencyRole::Data, "attachments"),
-        ])
-    {
+    for ((original, emitted), expected) in query.dependencies.iter().zip(&actual.dependencies).zip(
+        std::iter::once(&fact.predicate_dependency)
+            .chain(std::iter::once(&fact.order_dependency))
+            .chain(&fact.dependencies),
+    ) {
+        let role = expected.role;
+        let field = expected.field_name.as_str();
         let emitted_role = match role {
             DependencyRole::Data => ReceiptRole::Data,
             DependencyRole::Control => ReceiptRole::Control,
@@ -2507,6 +2504,7 @@ fn checked_native_inline_selection_plan<'a>(
             || !ids.insert(original.id.as_str())
             || original.model != query.model
             || original.source != query.source
+            || original != expected
             || original.role != role
             || original.field_name != field
             || !original.calls.is_empty()
@@ -2758,7 +2756,7 @@ fn checked_native_transcript_plan<'a>(
             || query.limit.is_some()
             || query.archived != "exclude"
             || query.order.len() != 1
-            || query.order[0].field != "position"
+            || query.order[0].field != fact.order_dependency.field_name
             || query.order[0].direction != "asc"
             || fact.query_dependencies.len() != 3
             || fact.dependencies.len() != 3
@@ -5474,8 +5472,8 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
         return None;
     };
     let run_guard = field == "run" && scalar_name == "unfinished";
-    let (source_name, target_name, reference_name, expected) = if run_guard {
-        ("Turn", "Run", "run", Scalar::Bool)
+    let (reference_name, expected) = if run_guard {
+        ("run", Scalar::Bool)
     } else if field == "profile" {
         let expected = match scalar_name.as_str() {
             "active" => Scalar::Bool,
@@ -5484,7 +5482,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
             "duration" => Scalar::Duration,
             _ => return None,
         };
-        ("Branch", "Profile", "profile", expected)
+        ("profile", expected)
     } else {
         return None;
     };
@@ -5565,8 +5563,8 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     let profile = unique_schema(profile_id)?;
     let branch_item = ir.items.get(branch_id.0 as usize)?;
     let profile_item = ir.items.get(profile_id.0 as usize)?;
-    if branch_item.name != source_name
-        || profile_item.name != target_name
+    if !matches!(branch_item.kind, IrItemKind::Model { .. })
+        || !matches!(profile_item.kind, IrItemKind::Model { .. })
         || branch.module != owner.module
         || profile.module != owner.module
         || branch.source != source.source
@@ -5662,7 +5660,7 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
                     ..original_parameter.type_node.end as usize,
             )?
             .trim()
-            != source_name
+            != branch_item.name
     {
         return None;
     }
@@ -6031,9 +6029,11 @@ fn checked_transcript_selected_member(
         .fields
         .iter()
         .find(|original| node_span(original.value_node) == value.span)?;
-    if original.name != *field
+    if ir.items.get(original.source_field.0 as usize)?.name != *field
         || original.ty != value.ty
-        || !matches!(&base.expr, IrExpr::Name(name) if name == "turn")
+        || !matches!(&base.expr, IrExpr::Name(name)
+            if fact.query.clauses.iter().any(|clause| matches!(&clause.kind,
+                crate::analysis::types::CheckedQueryClauseKind::As {name: alias} if alias == name)))
         || base.ty
             != (ResolvedType::Record {
                 symbol: fact.model,
@@ -6148,11 +6148,10 @@ fn checked_message_prefix_inventory(
     if field.id != prefix_id
         || field.module != branch.module
         || field_owner != &branch_id
-        || field.name != "prefix"
-        || field.canonical != format!("{}.prefix", branch.canonical)
+        || field.canonical != format!("{}.{}", branch.canonical, field.name)
         || ty != prefix_ty
         || max.span != node_span(prefix_max)
-        || !matches!(max.expr, IrExpr::Int(120))
+        || !matches!(max.expr, IrExpr::Int(bound) if bound > 0)
         || max.ty != ResolvedType::Scalar(Scalar::Int)
         || modifiers.min.is_some()
         || modifiers.trim
@@ -6171,7 +6170,7 @@ fn checked_message_prefix_inventory(
         .find(|model| model.name == branch.canonical)?
         .fields
         .iter()
-        .find(|candidate| candidate.name == "prefix")?;
+        .find(|candidate| candidate.name == field.name)?;
     if serde_json::to_value(expected).ok()? != serde_json::to_value(descriptor).ok()? {
         return None;
     }
