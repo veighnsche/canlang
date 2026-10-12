@@ -12059,3 +12059,10 @@ Corrected direct Dev Profile20d timing: test10323ms/file10325ms (10.33s tests/11
 Accepted bounded Compiler430+cc56 after independent defining source/control review CLEAR: direct required owning Duration/literal ordered comparisons and original seven-field lock emit complete original invariant/lock descriptor and callbacks through existing ABI. Preserve source/model/type/order/whole-unit refusal, no generic duration arithmetic/containers/nullable/cross-row support or runtime/State activation waiver.338 owning/related outcomes plus failed-only corrected origin expectation1/strict/fmt reused; collision-qualified IDs preserve owner/target/ordinal/span/kind and unique Bin. Production IDs unchanged; separately identified CF composed-owner parser remains its actual consumer gap. Actual Profile native retry remains after Dev shared capture cleanup and is not inferred from producer tests.
 
 Changed MAIN locked/offline CLI0 10.37s.
+
+
+Initial actual MAIN attempt failed1/1 at996ms/1.91s process on strict Values installed-source currency before browser/D1 allocation. Owning normal Values emission+catalog refreshed unchanged bytes; only failed CSV scope retried, prior root7.08s reused. Failure remains historical, no stale gate bypass.
+
+### 2026-10-12 — accept real CSV public API browser host crossing
+
+Exact Dev1beac548+0cb1ddd4 witness independently reviewed CLEAR and qualified in actual MAIN1/1 at 20.62s process/zero skips, root noEmit0 7.08s; worker22334ms kept separate. Actual Chromium FormData/fetch and installed public helper cross mounted canonical review/commit/Identity/native D1 with signed context/consent/current grant/replay, retained prefix and restored suffix, full durable effects/resources/currency/awaited cleanup. Scope is declared public API host crossing from DEL-C02/Dev row13; no automatic CSV controller/.can renderer/currentCLI/maxresource/memory, native default/activation/publication or whole-plan claim. Existing source/framework/source inputs unchanged through capture; no unchanged library/backend reruns.
