@@ -103,10 +103,13 @@ function renderAccount(shell: ShellData, context: PresentationContext): string {
     const href = escapeAttr(safeHref(shell.routes.signIn));
     return `<div class="can-account p-4"><a class="btn btn-block" href="${href}">${label}</a></div>`;
   }
-  const toggle =
+  const userLabel =
     account.userLabel !== undefined
-      ? escapeHtml(account.userLabel)
-      : escapeHtml(resolveText(CHROME.account, context));
+      ? account.userLabel
+      : resolveText(CHROME.account, context);
+  const displayLabel = /^[^\s@]+@[^\s@]+$/.test(userLabel)
+    ? userLabel.split("@")[0]! : userLabel;
+  const initial = escapeHtml(Array.from(displayLabel.trim())[0]?.toLocaleUpperCase() ?? "?");
   const csrfField = escapeAttr(CSRF_FIELD);
   const csrfToken = escapeAttr(context.csrfToken);
   const teamField = escapeAttr(TEAM_FIELD);
@@ -134,8 +137,12 @@ function renderAccount(shell: ShellData, context: PresentationContext): string {
     .join("");
 
   return (
-    `<div class="can-account dropdown dropdown-top dropdown-end p-4">` +
-    `<div tabindex="0" role="button" class="btn btn-block">${toggle}</div>` +
+    `<div class="can-account dropdown dropdown-top p-4">` +
+    `<button type="button" class="can-account-toggle btn btn-ghost btn-block" title="${escapeAttr(userLabel)}" aria-label="${escapeAttr(userLabel + ' — ' + resolveText(CHROME.settings, context))}">` +
+    `<span class="can-account-avatar badge badge-neutral" aria-hidden="true">${initial}</span>` +
+    `<span class="can-account-label">${escapeHtml(displayLabel)}</span>` +
+    `<svg class="can-account-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1 1-3Z"/><circle cx="12" cy="12" r="3"/></svg>` +
+    `</button>` +
     `<ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box w-64 p-2 shadow">` +
     `<li><label for="can-settings">${settingsLabel}</label></li>` +
     teamItems +
@@ -240,7 +247,9 @@ export const renderPage: RenderPageFn = async (
       const entries = group.entries
         .map((entry) => renderEntry(entry, context))
         .join("");
-      return `<div class="menu-title">${caption}</div><ul class="menu">${entries}</ul>`;
+      const heading = resolveText(group.caption, context) === brand
+        ? "" : `<div class="menu-title">${caption}</div>`;
+      return `${heading}<ul class="menu">${entries}</ul>`;
     })
     .join("");
   const incomplete = shell.navigation.incomplete
@@ -259,7 +268,7 @@ export const renderPage: RenderPageFn = async (
     metaDescription +
     `<title>${headTitle}</title></head>` +
     `<body class="density-${escapeAttr(context.theme.density)}"${contextAttr}>` +
-    `<div class="drawer drawer-end lg:drawer-open">` +
+    `<div class="drawer lg:drawer-open">` +
     `<input id="can-drawer" type="checkbox" class="drawer-toggle">` +
     `<div class="drawer-content">` +
     `<div class="navbar lg:hidden">` +
@@ -271,7 +280,7 @@ export const renderPage: RenderPageFn = async (
     `</div>` +
     `<div class="drawer-side">` +
     `<label for="can-drawer" class="drawer-overlay" aria-label="${closeMenu}"></label>` +
-    `<aside class="w-80 min-h-full bg-base-200 flex flex-col">` +
+    `<aside class="can-sidebar w-64 min-h-full bg-base-200 flex flex-col">` +
     `<div class="can-brand px-4 py-3 text-lg font-bold">${escapeHtml(brand)}</div>` +
     `<nav class="flex-1 overflow-y-auto" hx-boost="true" hx-target="#can-main" hx-select="#can-main">` +
     groups +
