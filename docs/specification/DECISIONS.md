@@ -12325,3 +12325,16 @@ analyzer does, without relaxing element identity or generic array arithmetic.
 Verified entry/installed binding and full native collector remain required.
 
 Coordinator source intake: The five defining mixed-query producer paths were independently reviewed CLEAR. The unchanged original Chat source retains 256 analyses, one authenticated native Return, six chronological queries and 24 genuine influences. Complete dependency order, stored versus derived constructor fields, grouped guards, dual Profile CONTROL/DATA identities and source/fresh/executable/type/role seals remain. Owning source positive1/13.87s, actual collector and owning emission assertions, strictlib0/6.13s and fmt/diff outcomes are reused. The full ownSDK attempt failed209s at a wrong package import and then225.19s at unprepared stdlib first; these failures remain unqualified. The source-owned fallback and exact reviewed callback facade/prerequisites are Compiler-owned next inputs. No dummy runtime first export, source/cap widening or native/application acceptance. MAIN normal check [{"check": "locked offline CLI", "exit": 0, "seconds": 12.34}]. Existing scope records and remaining index are reconciled; complete824, full plans, counts and recipient-specific holds remain unchanged.
+
+2026-10-12 — source-owned conditional unique association (implemented/tested; native adoption pending)
+Extend the existing verified model uniques entry with the source-sealed
+wherePredicate using State's existing QueryPredicate, alongside original where
+registry, global ordinal, source and declaration anchors. Preserve field-modifier
+ArtifactModel.uniqueKeys semantics and conditional unique's distinct non-invariant
+registry. The installed owner joins its declared field and predicate to existing
+uniqueKeys/uniqueWhen only after verified model/source correspondence. Admit the
+released singular own primitive bool/eq/ne/and/or/not profile; other shapes lack
+the checked association and must refuse activation. No new shared carrier or
+second predicate engine; genuine collision/atomicity remains the native consumer.
+
+Coordinator source intake: The six conditional unique source/control paths were independently reviewed CLEAR. Original Office/Warehouse bytes, fields, where predicate, registry, global ordinal, model/module/owner and source anchors are bound to immutable, fresh executable IR. The same original uniques entry retains fields/where and adds checked wherePredicate/ordinal/source/declaredAt, using existing bounded local boolean QueryPredicate grammar. Unsupported conditions refuse an association rather than becoming unconditional keys or invariants; Artifact.uniqueKeys keeps field-modifier semantics. Four source/refusal controls and actual ownSDK Node24 artifact-to-verified-factory/State-loader1/.29s, strictalltargets0/8.14s/fmt/diff are reused. No fabricated native rows/calls/stores. Dev02cc exact owning registry/global ordinal verification remains unfinished after defining review found suffix/positive-number admission; original conditional collision/rollback native qualification remains required. MAIN normal check [{"check": "locked offline CLI", "exit": 0, "seconds": 14.27}]. Existing scope records and remaining index are reconciled; complete824, full plans, counts and recipient-specific holds remain unchanged.

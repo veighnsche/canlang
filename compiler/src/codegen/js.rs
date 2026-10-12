@@ -1478,6 +1478,7 @@ pub fn emit_program_with_native_source_receipts(
 #[derive(Default)]
 pub(super) struct EmitDecisionSources<'a> {
     pub local_policies: Option<&'a LocalPolicies>,
+    pub unique_conditions: Option<&'a [super::model_unique_conditions::CheckedUniqueCondition]>,
     pub query_any: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub query_selections: Option<&'a BTreeMap<String, serde_json::Value>>,
     pub transcript_queries:
@@ -1578,6 +1579,7 @@ fn emit_program_with_sources(
         }
     }
     emitter.native_source_predicates = native_receipts;
+    emitter.unique_conditions = decisions.unique_conditions.unwrap_or_default().to_vec();
     emitter.query_selections = decisions.query_selections;
     emitter.query_any = decisions.query_any;
     emitter.send_guard_gap = decisions.send_guard_gap;
@@ -2616,6 +2618,7 @@ pub struct Emitter<'a> {
     native_call_sites: HashMap<SymbolId, Vec<super::scenario_calls::StaticScenarioCall>>,
     receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
+    unique_conditions: Vec<super::model_unique_conditions::CheckedUniqueCondition>,
     current_revision_binding: Option<String>,
     current_policy_rule: Option<super::model_policy_profile::CurrentRevisionRuleProfile>,
     receipt_calls: Vec<Span>,
@@ -2699,6 +2702,7 @@ impl<'a> Emitter<'a> {
             native_call_sites: HashMap::new(),
             receipt_call_sites: Vec::new(),
             receipt_capture: None,
+            unique_conditions: Vec::new(),
             current_revision_binding: None,
             current_policy_rule: None,
             receipt_calls: Vec::new(),
@@ -10093,14 +10097,24 @@ impl<'a> Emitter<'a> {
                             .collect::<Vec<_>>()
                             .join(",");
                         match unique.where_predicate {
-                            Some(_) => format!(
-                                "{{fields:[{fields}],where:{}}}",
-                                js_string(&format!(
-                                    "{}.unique.{}",
-                                    crate::codegen::ir::ir_model_rule_prefix(ir, item),
-                                    index + 1
-                                ))
-                            ),
+                            Some(_) => {
+                                let registry = format!("{}.unique.{}", crate::codegen::ir::ir_model_rule_prefix(ir, item), index + 1);
+                                let association = self.unique_conditions.iter().find(|fact| {
+                                    fact.model == item.id && fact.module == item.module
+                                        && fact.canonical_model == item.canonical
+                                        && fact.registry_id == registry && fact.fields == unique.fields
+                                        && fact.node.file == unique.span.file
+                                        && fact.node.start == unique.span.start && fact.node.end == unique.span.end
+                                });
+                                let metadata = association.map_or_else(String::new, |fact| {
+                                    let source = serde_json::json!({"path":fact.source.path,"sha256":fact.source.sha256,"module":fact.source.module});
+                                    let declared_at = serde_json::json!({"start":fact.node.start,"end":fact.node.end,
+                                        "fields":{"start":fact.fields_node.start,"end":fact.fields_node.end},
+                                        "where":{"start":fact.where_node.start,"end":fact.where_node.end}});
+                                    format!(",wherePredicate:{},ordinal:{},source:{},declaredAt:{}", descriptor_json(&fact.predicate), fact.ordinal, descriptor_json(&source), descriptor_json(&declared_at))
+                                });
+                                format!("{{fields:[{fields}],where:{}{metadata}}}", js_string(&registry))
+                            },
                             None => format!("{{fields:[{fields}]}}"),
                         }
                     })

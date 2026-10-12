@@ -4934,3 +4934,23 @@ then continue the same factory/binders. Temporary markers removed; the completed
 collector assertion is distinct from unfinished installed/native execution.
 
 Coordinator source intake: The five defining mixed-query producer paths were independently reviewed CLEAR. The unchanged original Chat source retains 256 analyses, one authenticated native Return, six chronological queries and 24 genuine influences. Complete dependency order, stored versus derived constructor fields, grouped guards, dual Profile CONTROL/DATA identities and source/fresh/executable/type/role seals remain. Owning source positive1/13.87s, actual collector and owning emission assertions, strictlib0/6.13s and fmt/diff outcomes are reused. The full ownSDK attempt failed209s at a wrong package import and then225.19s at unprepared stdlib first; these failures remain unqualified. The source-owned fallback and exact reviewed callback facade/prerequisites are Compiler-owned next inputs. No dummy runtime first export, source/cap widening or native/application acceptance. MAIN normal check [{"check": "locked offline CLI", "exit": 0, "seconds": 12.34}].
+
+
+
+**Original conditional unique producer, 2026-10-12.** The unchanged Office/
+Warehouse model-rule source now supplies an authenticated singular conditional
+unique association in its existing verified uniques entry: original fields/where
+registry plus wherePredicate, global ordinal, source and declaration/fields/where
+anchors. Full immutable/fresh/executable model/field/owner/type/registry checks
+retain namespace collisions and decline unsupported predicates/composites.
+ArtifactModel.uniqueKeys remains field-modifier-only; unique is not an invariant.
+Owning source/refusal4 PASS; failed-only actual ownSDK verified factory/descriptor
+loader1/.29s PASS, including exact metadata and pure callback Bool equivalence.
+Canonical artifact serialization and owning registry import errors were corrected
+at the tests, preserving real source/consumer assertions. Strictalltargets0/8.14s,
+fmt/diff0 after equivalent conditional lint and mixed-test borrow cleanup. Dev's
+verified declaration→State uniqueWhen adoption and original closed qty7 collision
+remain external; original Revision.number adoption/native current run are Devc9.
+No fabricated row/call/store authority or broader acceptance;58/67/nine unchanged.
+
+Coordinator source intake: The six conditional unique source/control paths were independently reviewed CLEAR. Original Office/Warehouse bytes, fields, where predicate, registry, global ordinal, model/module/owner and source anchors are bound to immutable, fresh executable IR. The same original uniques entry retains fields/where and adds checked wherePredicate/ordinal/source/declaredAt, using existing bounded local boolean QueryPredicate grammar. Unsupported conditions refuse an association rather than becoming unconditional keys or invariants; Artifact.uniqueKeys keeps field-modifier semantics. Four source/refusal controls and actual ownSDK Node24 artifact-to-verified-factory/State-loader1/.29s, strictalltargets0/8.14s/fmt/diff are reused. No fabricated native rows/calls/stores. Dev02cc exact owning registry/global ordinal verification remains unfinished after defining review found suffix/positive-number admission; original conditional collision/rollback native qualification remains required. MAIN normal check [{"check": "locked offline CLI", "exit": 0, "seconds": 14.27}].
