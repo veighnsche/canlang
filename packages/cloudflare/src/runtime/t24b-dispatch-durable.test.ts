@@ -903,6 +903,48 @@ function durableSuite(
       assert.equal(readDispatchExecutionRow(row).state, "dead");
     });
 
+    it("preserves physical binary id order in the bounded failed scan (limit 1)", async () => {
+      const { store, secondHandle, reset } = await handles();
+      await reset();
+      const stack = await workerStack(store);
+      // UTF-8 binary order: U+E000 (EE 80 80) precedes U+10000
+      // (F0 90 80 80); UTF-16 code-unit order would invert them. The
+      // physical D1/DO backends own this ordering; the planner must keep
+      // the supplied window order instead of re-sorting.
+      const bmp = "obx_";
+      const astral = "obx_𐀀";
+      await stageDispatchBatch({
+        registry: stack.registry,
+        store: stack.joined,
+        actor: ACTOR,
+        now: NOW,
+        operation: "test.join",
+        runKey: "run_d_binary_0",
+        intents: [
+          stageInput({ intentId: astral, occurrenceIndex: 0 }),
+          stageInput({ intentId: bmp, occurrenceIndex: 1 }),
+        ],
+      });
+      for (const intentId of [astral, bmp]) {
+        const intent = await pendingIntent(stack, intentId);
+        const outcome = await driveDispatchIntent(driveOpts(stack, intent, transientProvider));
+        assert.equal(outcome.status, "recorded");
+      }
+      const sweep = await runRecoverySweep(sweepOpts(stack, { limit: 1 }));
+      assert.equal(sweep.truncated.failed, true);
+      // The bounded physical window selected the binary-first row.
+      assert.deepEqual(sweep.retried.map((act) => act.intentId), [bmp]);
+      // Stable continuation: a wider sweep reaches the astral row.
+      const rest = await runRecoverySweep(sweepOpts(stack, { limit: 10 }));
+      assert.equal(rest.truncated.failed, false);
+      assert.deepEqual(rest.retried.map((act) => act.intentId), [astral]);
+      const peer = secondHandle();
+      assert.deepEqual(
+        (await peer.outboxPending()).map((intent) => intent.intentId).sort(),
+        [astral, bmp].sort(),
+      );
+    });
+
     it("skips on claim-time guard-false with cross-handle read-back", async () => {
       const { store, secondHandle, reset } = await handles();
       await reset();
