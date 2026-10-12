@@ -1326,7 +1326,8 @@ describe("t24b sweep: bounded per-state scans", () => {
     // before U+10000 (F0 90 80 80); UTF-16 order would invert them.
     const store: StoragePort = { ...physical,
       query: async spec => {
-        const rows = await physical.query({ ...spec, order: undefined, limit: undefined });
+        const { order: _order, limit: _limit, ...unbounded } = spec;
+        const rows = await physical.query(unbounded);
         if (spec.model !== "work.dispatch") return rows;
         const ordered = [...rows].sort((l, r) => binaryLess(String(l.id), String(r.id)));
         return spec.limit === undefined ? ordered : ordered.slice(0, spec.limit);
@@ -1352,7 +1353,8 @@ describe("t24b sweep: bounded per-state scans", () => {
     for (const intentId of ["obx_a", "obx_b", "obx_c"]) await exhaustAttempts(setup, intentId, 1);
     const store: StoragePort = { ...physical,
       query: async spec => {
-        const rows = await physical.query({ ...spec, order: undefined, limit: undefined });
+        const { order: _order, limit: _limit, ...unbounded } = spec;
+        const rows = await physical.query(unbounded);
         // Adapter echo beyond the requested bounded window.
         return rows;
       },
