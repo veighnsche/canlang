@@ -34,19 +34,20 @@ function releaseGalleryResources(releases: readonly (() => void)[]): void {
   if (failure !== undefined) throw failure.value;
 }
 
-export const bindGallery: ComponentBinder = (root, _client, internals) => {
+export const bindGallery: ComponentBinder = (root, client, internals) => {
   const dialog = root.querySelector?.('[data-can-gallery-dialog]') as GalleryDialog | null | undefined;
   const image = root.querySelector?.('[data-can-gallery-image]') as GalleryImage | null | undefined;
   const state = root.querySelector?.('[data-can-gallery-state]') as StatusElement | null | undefined;
   const original = root.querySelector?.('[data-can-gallery-preview-original]');
   if (dialog == null || image == null || state == null || original == null ||
       typeof dialog.showModal !== 'function' || typeof dialog.close !== 'function' || typeof image.decode !== 'function') return () => {};
+  const context = client.contextKey();
   const loading = root.getAttribute('data-can-gallery-loading') ?? '';
   const error = root.getAttribute('data-can-gallery-error') ?? '';
   const listeners: Array<readonly [ElementLike, string, (event: EventLike) => void, boolean]> = [];
   let stopped = false, version = 0, controller: AbortController | undefined, objectUrl: string | undefined;
   let opener: ElementLike | undefined;
-  const connected = () => !stopped && root.isConnected && dialog.isConnected && image.isConnected;
+  const connected = () => !stopped && root.isConnected && dialog.isConnected && image.isConnected && client.contextKey() === context;
   const invalidate = () => {
     version++;
     const pending = controller, url = objectUrl; controller = undefined; objectUrl = undefined;

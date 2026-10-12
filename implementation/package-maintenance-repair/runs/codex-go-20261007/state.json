@@ -4988,6 +4988,17 @@
         "repair": "Detach timer/controller before invoking cleanup, independently attempt timer release, request abort and stop notification in original order/receivers, retain/rethrow the first thrown value with an explicit flag including undefined. Keep terminal/idempotent stop, scheduling and stale result suppression; no new cleanup framework/API.",
         "validation": "Fresh UI emission0 and real BrowserClient held-poll RED leaves signal.aborted false after timer removal/throw. Final UI emission0/browser build0 and12/12 affected existing lifecycle cleanup cases PASS,0fail/cancel/skip. New bounded case loops undefined/Symbol/Error through actual browser cleanup/idempotence/late response and direct PollRegion onStop with secondary failure; existing exhaustive stop/native-DOM-adapter/body suspension/context controls retained. Independent finite source review CLEAR. Unchanged generated form physical Node HTTP cancellation, other polling/context/type/installed/Chrome/native compiler results reused only at their original scopes.",
         "remaining": "Exact coordinator source intake. Compiler original plain-action metadata and Dev genuine installed/browser/settlement/source producer remain separate; sealed issuer and all precise holds preserved. No provider-void/push."
+      },
+      "gallery_context_currentness": {
+        "status": "implemented_tested_source_reviewed_CLEAR_local; finite ordinary DOM gallery binding; original mounted/source parent unfinished",
+        "source_base": "ebf985817caca6d12fb1fc2bb3c5ad4abc9c3b19",
+        "defect": "Gallery ignored the existing BrowserClient context key. A retained connected DOM with unchanged URLs could display an earlier-context protected preview after owner or path/query changed during fetch/blob/decode, before rescan.",
+        "repair": "Capture the existing client context at binding and include equality in the existing connected/currentness predicate. Reuse invalidation, original abort, hidden/src/href cleanup, owned object URL revocation and changed-context rescan rebind. No new authority/epoch/URL/transport/profile policy.",
+        "validation": "Fresh pinned Node24.19 UI emission0 and maintained real-DOM RED failed fetch/owner cleanup with original request un-aborted. Final UI emission0/browser build0 and all6 owning gallery cases PASS,0fail/cancel/skip (independent CSV selection3 also pass in same frozen run). Six retained-DOM fetch/blob/decode x owner/navigation controls suppress late exposure, abort original signal, revoke any allocated URL, block old preview activation, then fresh rescan binding displays. Original protected GET/foreign/media/decoder/acquisition/disposal/queued-close controls retained. Finite independent source review CLEAR. Unchanged root/types/installed/native/mounted checks reused at original scopes; native adapter here structural DOM only.",
+        "consumers": [
+          "DEL-B02"
+        ],
+        "remaining": "Exact coordinator intake with normal UI emit/browser bundle regeneration; original Compiler checked markup/source and Dev mounted/native decoder/current authority qualification remain separate. All holds/provider-void skip preserved; no push."
       }
     },
     "DEL-B02": {
