@@ -13,6 +13,29 @@ const variants: Array<(config: HttpClientConfig, request: HttpRequest) => Promis
 ];
 const config = { baseUrl: 'https://synthetic.test', timeoutMs: 100, maxBodyBytes: 100 };
 
+test('buffered text and binary preserve chunks when the response producer reuses its buffer', async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const binary of [false, true]) {
+      const parts = ['old-', 'new-'];
+      const chunk = new Uint8Array(4);
+      let index = 0;
+      const body = new ReadableStream<Uint8Array>({ pull(controller) {
+        if (index === parts.length) { controller.close(); return; }
+        chunk.set(new TextEncoder().encode(parts[index++]!));
+        controller.enqueue(chunk);
+      } }, { highWaterMark: 0 });
+      globalThis.fetch = async () => new Response(body);
+      const request = { method: 'GET', path: '/' } as const;
+      const actual = binary
+        ? new TextDecoder().decode((await httpRequestBinary(config, request)).bytes)
+        : (await httpRequest(config, request)).bodyText;
+      assert.equal(actual, 'old-new-');
+      assert.equal(body.locked, false);
+    }
+  } finally { globalThis.fetch = original; }
+});
+
 test('all readers preserve already-aborted caller reasons', async () => {
   const original = globalThis.fetch;
   try {

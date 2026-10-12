@@ -11747,3 +11747,19 @@ Actual MAIN original combined1/1 PASS 786374ms (787.31s process),zero skips/awai
 ## 2026-10-12 — Original TextRequest construction source correspondence
 
 Compiler867 original TextRequest/TextMessage construction source component independently reviewed CLEAR and integrated in LOCAL main after deadline. Four defining source/fixture/control paths exact preimages; real standard census/import/member/nominal identity, complete ordered CST keys/schema types and original child/shorthand capture preserved before Run.request_value Create and SAME Run return. Labelled source-text-request.can SHAf1e2b2aa7581a73de310d7ac9f140e6e46083ee29b7dca37854ddb3d9b39e69d isolates original eight-entry request with fixed Profile substitutions. Owning3/.04s plus208affected/17targets=211, strictalltargets0 11.46s/fmt/diff0 reused; original a850 still exit10/complete=true/omitted0/noartifact/same8 diagnostics. Native nested File storage including empty attachments remains E6008/no recipe; source acceptance creates no authority. Capability/Dev genuine retained storage/current-final-saved/source/File receiver remains unfinished. No anonymous-object/default/schema/Workflow widening. Existing transcript source component stays closed; next exact original Creative presence-guarded Template.current lineage remains distinct. Complete checkpoint/58of67/nine/C14/C23 and all exact holds unchanged.
+
+2026-10-12 — Buffered body byte snapshots (implemented/tested local component).
+Both bounded request and provider-response readers retained mutable chunk
+references until final concatenation. Copy each admitted chunk before the next
+read, after its existing cap check. Genuine reused-buffer Request/Response
+controls first reproduce lost request fields and repeated response content;
+raw/form/JSON and text/binary consumers now retain the received bytes. HTTP
+operations26 and Services lifecycle8 pass, keeping cap/refusal/cancellation/
+lock/timer controls; owning emissions, frozen current root types and finite
+independent source review pass. The initial stale Interfaces test run after a
+fixture type failure is excluded. Record this shared outcome once under DEL-B02
+and link TECH-SV02; mounted/durable/host qualifications and all holds remain.
+
+Packagesc58 bounded request/response byte snapshot independently reviewed CLEAR and integrated after deadline. Copy each admitted Uint8Array after existing byte cap and before next read, preserving received raw/form/JSON/text/binary bytes when the producer reuses its buffer. Owning HTTP26+Services lifecycle8=34 meaningful cases reused, including genuine highWaterMark0 Request/Response old-byte corruption, framing/CSRF/cap/refusals/cancellation/locks/timers/final merge. Initial stale-output fixture run is uncredited. Changed normal Interfaces/Services/CF/root checks pass. One shared outcome under DEL-B02 with TECH-SV02 link; broader mounted/current-authority/resource and original immutable control window/durable original-ID reconciliation remain defining Dev/Work outputs. No new API/policy/budget/provider/native/host acceptance or hold release;22/48/26 parent accounting and complete checkpoint unchanged.
+
+Changed MAIN normal checks: Interfaces0 3.29s, Services0 1.16s, Cloudflare0 5.75s, root0 6.45s. Scoped owning34 reused; no unchanged native/host reruns.
