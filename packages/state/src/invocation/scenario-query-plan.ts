@@ -10,6 +10,7 @@ import {
   type NormalizedSchema,
 } from '@canlang/values';
 import { StateError } from '../errors.js';
+import { assertSafeBlobKey } from '@canlang/files/ports';
 import { deepFreeze } from '../internal/own-data.js';
 import { stableStringify } from './replay.js';
 
@@ -65,12 +66,12 @@ function source(value: unknown): void {
   const item = object(value, ['path', 'sha256', 'module']); text(item.path); text(item.module);
   if (typeof item.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(item.sha256)) fail('exact source digest required.');
 }
-function checkedType(value: unknown, nominal = false): CanTypeId {
+function checkedType(value: unknown, nominal = false, files = false): CanTypeId {
   if (typeof value !== 'string') return fail('canonical type required.');
   try {
     const type = parseTypeId(value);
     if (printTypeId(type) !== value || type.requiredArray ||
-        !(type.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(value) ||
+        !(files && value === 'file[]' || type.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(value) ||
           nominal && type.base.kind === 'nominal' && !type.array && value !== 'void')) return fail('unsupported query type.');
   } catch (error) { if (error instanceof StateError) throw error; return fail('invalid canonical type.'); }
   return value as CanTypeId;
@@ -107,7 +108,8 @@ export function checkQueries(value: unknown): readonly ScenarioReceiptQueryPlan[
     const local: string[] = [];
     for (const value of list(query.dependencies)) {
       const dep = object(value, ['id', 'source', 'role', 'field', 'type']);
-      const id = text(dep.id); local.push(id); source(dep.source); fieldName(dep.field); checkedType(dep.type, true);
+      const id = text(dep.id); local.push(id); source(dep.source); fieldName(dep.field); checkedType(dep.type, true, dep.role === 'data');
+      if (dep.type === 'file[]' && order.some(term => (term as Record<string, unknown>).field === dep.field)) fail('File data cannot order a query.');
       if (['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt'].includes(String(dep.field))) fail('declared metadata-named query fields require a separate owning path join.');
       if (dep.field === 'parent') {
         const type = parseTypeId(dep.type as string);
@@ -208,13 +210,17 @@ function artifactType(field: ArtifactModelField, models: readonly ArtifactModel[
   const primitive = ({ string: 'text', integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
     boolean: 'bool', date: 'date', duration: 'duration', user: 'user' } as Record<string, string>)[tag.kind];
   const base = primitive ?? (tag.kind === 'ref' ? tag.model : tag.kind === 'enum' ? `enum(${tag.values.join(',')})`
-    : tag.kind === 'nominal' ? tag.name : undefined);
+    : tag.kind === 'nominal' ? tag.name : tag.kind === 'file' ? 'file' : undefined);
   if (base === undefined) return fail('unsupported owning query field.');
-  const type = checkedType(field.valueType ?? `${base}${field.array === undefined ? '' : '[]'}${field.nullable === true ? '?' : ''}`, true);
+  const type = checkedType(field.valueType ?? `${base}${field.array === undefined ? '' : '[]'}${field.nullable === true ? '?' : ''}`, true, tag.kind === 'file');
   const parsed = parseTypeId(type);
   if (parsed.array !== (field.array !== undefined) || parsed.nullable !== (field.nullable === true)) fail('owning field markers disagree with canonical type.');
   const leaf = printTypeId({ ...parsed, array: false, nullable: false, requiredArray: false });
-  if (tag.kind === 'ref') {
+  if (tag.kind === 'file') {
+    if (type !== 'file[]' || field.valueType !== type || field.nullable === true || field.array === undefined || field.array.required !== false ||
+        Object.keys(field.array).length !== 1 || Object.keys(tag).length !== 1 ||
+        typeof field.required !== 'boolean' || typeof field.serverOnly !== 'boolean') fail('ordinary owning nonnullable File array required.');
+  } else if (tag.kind === 'ref') {
     if (leaf !== tag.model || !models.some(model => model.name === tag.model) ||
         schema && (Object.hasOwn(schema.contracts, leaf) || Object.hasOwn(schema.enums, leaf) || Object.hasOwn(schema.aliases ?? {}, leaf))) fail('actual native model reference required.');
   } else if (tag.kind === 'nominal') {
@@ -321,6 +327,14 @@ function dependencyWire(record: ProjectedRecord, dependency: ScenarioReceiptQuer
 }
 function checkDependencyWire(record: ProjectedRecord, dependency: ScenarioReceiptQueryPlan['dependencies'][number], schema?: NormalizedSchema): unknown {
   const wire = dependencyWire(record, dependency);
+  if (dependency.type === 'file[]') {
+    for (const value of list(wire)) {
+      const file = object(value, ['id']);
+      if (typeof file.id !== 'string') fail('canonical File identity required.');
+      try { assertSafeBlobKey(file.id as string); }
+      catch { fail('safe canonical File identity required.'); }
+    }
+  }
   // Stored containment is a model wire, never a nominal contract or a data field.
   canonicalWire(dependency.type, wire, dependency.field === 'parent' && schema === undefined
     ? normalizeValueTypes({ contracts: [] }, [dependency.type]).valueSchema : schema);

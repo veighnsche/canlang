@@ -99,7 +99,7 @@ Original planning audit checks, at their historical scope: read-only Git/blob/st
 After every merge, its handler reconciles all accumulated changes since the complete checkpoint and updates coverage, decisions, reviews, owners, tree, retirements, tasks and lanes together. Advance only after complete review; open product defects may remain with explicit owner tasks, and runtime qualification is a separate dimension. Bookkeeping does not recursively update itself or authorize implementation. [Historical primary records](ideal-filetree-plan/baseline.md), [main merge reconciliation](ideal-filetree-plan/main-merge-20261006.json) and other existing integration records are retained as prior evidence, never parallel current targets.
 
 <!-- local-main-integration:start -->
-Current local intake: `e908947598f7d3bee33bd3d77a22bddcec74586e` onto main `ec34442fd9036fe32de435cdb69f8b931acafa1d`. Existing coverage since the complete checkpoint is retained and reconciled incrementally with the actual changed paths. Source owners, accepted scopes and precise holds remain distinct from unmet workflow criteria; worker edits are preserved. Complete review remains open and the checkpoint is not advanced.
+Current local intake: `ca143ddbd37539e1546510c1c4f450207f291f9c` onto main `690e96089a7751b029965999abfcc66fa72e423b`. Existing coverage since the complete checkpoint is retained and reconciled incrementally with the actual changed paths. Source owners, accepted scopes and precise holds remain distinct from unmet workflow criteria; worker edits are preserved. Complete review remains open and the checkpoint is not advanced.
 <!-- local-main-integration:end -->
 
 <!-- documentation-review:start -->

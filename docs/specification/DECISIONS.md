@@ -11925,3 +11925,10 @@ Accepted execution decision under the human’s explicit immediate instruction: 
 Accepted at source/installed producer scope: f87+e323+e908, independent defining reviews CLEAR. Correct every original Profile field before pair admission and preserve original private model-result indices so missing source facts/proof/IDs fail closed. Nine once getter/source await/SAME reference promotion/scalar await sequences retain exact source/IR/type/order.412 meaningful owning outcomes and strict/fmt reused. Actual generated invocation/current authority/rollback/replay remains defining Dev20d; no source-only whole-app claim or held action release.
 
 Changed MAIN locked/offline CLI0 12.4s.
+
+
+### 2026-10-12 — fence retained selection after final Identity await
+
+Accepted corrected State0e2+07a+ca143 component after independent defining review CLEAR: bindScenarioReceiptQuerySelection retains genuine completed query slots, canonical owning ordered TextMessage fields and actual receiving Files with current/final/saved source/ancestor/full Identity authority. Recheck physical State revision AFTER final Identity SDK await and return only through synchronous lifetime/consumption checks. The original07a gap was withheld; one actual held-SDK State-movement refusal exposes zero selected arrays.101 scoped owning outcomes reused, including exact correction. Generated transcript metadata/emission and Dev native consumer remain unfinished; shape/array equality grants no authority and no hold is released.
+
+Changed MAIN emissions/noEmit all0: {"StateDO": 5.33, "CF": 7.3, "root": 11.56} seconds; unchanged owner controls reused.
