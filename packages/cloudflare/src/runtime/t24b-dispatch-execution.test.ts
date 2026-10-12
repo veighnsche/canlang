@@ -1311,5 +1311,61 @@ describe("t24b sweep: bounded per-state scans", () => {
     // Stable continuation: the window holds the lowest ids in storage order.
     assert.deepEqual(sweep.retried.map(act => act.intentId).sort(), ["obx_a", "obx_b"]);
   });
+
+  it("preserves backend binary id order instead of re-sorting in UTF-16", async () => {
+    const { store: physical } = createTestMemoryStorage();
+    const enc = new TextEncoder();
+    const binaryLess = (a: string, b: string): number => {
+      const x = enc.encode(a); const y = enc.encode(b);
+      for (let i = 0; i < Math.min(x.length, y.length); i++) {
+        if (x[i] !== y[i]) return (x[i] as number) - (y[i] as number);
+      }
+      return x.length - y.length;
+    };
+    // Durable backends order ids by UTF-8 binary: U+E000 (EE 80 80) sorts
+    // before U+10000 (F0 90 80 80); UTF-16 order would invert them.
+    const store: StoragePort = { ...physical,
+      query: async spec => {
+        const rows = await physical.query({ ...spec, order: undefined, limit: undefined });
+        if (spec.model !== "work.dispatch") return rows;
+        const ordered = [...rows].sort((l, r) => binaryLess(String(l.id), String(r.id)));
+        return spec.limit === undefined ? ordered : ordered.slice(0, spec.limit);
+      },
+    };
+    const stack = await workerStack(store);
+    const bmp = "obx_";
+    const astral = "obx_𐀀";
+    await stageIntents(stack, [astral, bmp].map((intentId, occurrenceIndex) => stageInput({ intentId, occurrenceIndex })));
+    await exhaustAttempts(stack, astral, 1);
+    await exhaustAttempts(stack, bmp, 1);
+    const sweep = await runRecoverySweep({ ...sweepDefaults(stack), limit: 1 });
+    assert.equal(sweep.truncated.failed, true);
+    // The window selected the binary-first row, not the UTF-16-first one.
+    assert.deepEqual(sweep.retried.map(act => act.intentId), [bmp]);
+  });
+
+  it("refuses an oversized scan window before decoding and publishes nothing", async () => {
+    const { store: physical } = createTestMemoryStorage();
+    const setup = await workerStack(physical);
+    await stageIntents(setup, ["obx_a", "obx_b", "obx_c"].map((intentId, occurrenceIndex) =>
+      stageInput({ intentId, occurrenceIndex })));
+    for (const intentId of ["obx_a", "obx_b", "obx_c"]) await exhaustAttempts(setup, intentId, 1);
+    const store: StoragePort = { ...physical,
+      query: async spec => {
+        const rows = await physical.query({ ...spec, order: undefined, limit: undefined });
+        // Adapter echo beyond the requested bounded window.
+        return rows;
+      },
+    };
+    const stack = await workerStack(store);
+    await assert.rejects(
+      runRecoverySweep({ ...sweepDefaults(stack), limit: 1 }),
+      /exceeding the bounded window/,
+    );
+    // Nothing was acted on: all three intents are still failed, unretried.
+    const after = await runRecoverySweep({ ...sweepDefaults(await workerStack(physical)), limit: 10 });
+    assert.equal(after.truncated.failed, false);
+    assert.equal(after.retried.length, 3);
+  });
 });
 
