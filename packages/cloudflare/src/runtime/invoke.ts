@@ -147,7 +147,7 @@ import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
-import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
+import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
 import { assertOwnerMutationHookContext } from '@canlang/state/mutation';
 import type { OwnerMutationHookContext } from '@canlang/state/mutation';
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
@@ -5388,6 +5388,52 @@ function localPolicyContextFacts(context: InvocationContext): string {
   return JSON.stringify(snapshot);
 }
 
+/** Decode only the row presently chosen by State. A referenced current row is
+ * fetched later, at the original source callback's explicit access point. */
+async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, row: StoredRow,
+  owner: OwnerRuleContext, hydrateParent = false): Promise<Record<string, unknown>> {
+  const StateError = native.producers.errors;
+  const definition = native.models.find(candidate => candidate.name === model);
+  if (definition === undefined) throw new StateError('validation', 'Owner rule names no loaded model.');
+  const wire = localPolicyObject(row.data);
+  const record: Record<string, unknown> = Object.create(null);
+  for (const field of Object.keys(wire)) {
+    const declared = definition.fields[field];
+    const target = native.refs.get(model)?.find(reference => reference.field === field)?.model;
+    if (declared === undefined) throw new StateError('validation', 'Owner rule field lacks its loaded declaration.');
+    const value = localPolicyMember(wire, field);
+    if (declared.valueType !== undefined || target !== undefined) {
+      record[field] = nativeRecordField(native, model, field, value);
+    } else if (declared.delivery?.kind === 'delivery' &&
+        typeof declared.delivery.capability === 'string' && typeof declared.delivery.operation === 'string') {
+      try {
+        record[field] = decodeValue(`delivery(${declared.delivery.capability}.${declared.delivery.operation})${declared.nullable === true ? '?' : ''}`, value);
+      } catch (error) { throw new StateError('validation', message(error)); }
+    } else {
+      throw new StateError('validation', 'Owner rule field lacks an exact loaded type association.');
+    }
+  }
+  Object.assign(record, nativeRecordMetadata(row));
+  const containment = native.containment.get(model);
+  if (isUnknownRecord(containment) && typeof containment.parent === 'string') {
+    const parent = row.parent;
+    if (parent === null || parent === undefined || parent.model !== containment.parent) {
+      throw new StateError('validation', 'Owner rule parent differs from its declared containment.');
+    }
+    if (hydrateParent) {
+      const parentRow = await owner.read.get(parent.model as ModelName, parent.id as RecordId);
+      if (parentRow === null || parentRow.id !== parent.id) {
+        throw new StateError('validation', 'Owner rule parent is missing from its owning view.');
+      }
+      record.parent = await nativeOwnerRuleRecord(native, parent.model, parentRow, owner);
+    } else {
+      record.parent = makeRecordRef(parent.model, parent.id);
+    }
+  }
+  bindNativeRecord(record, model, row.id, row.version);
+  return freezeScenarioSnapshot(record) as Record<string, unknown>;
+}
+
 async function loadLocalOwnerPolicyControl(input: {
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
@@ -5398,8 +5444,20 @@ async function loadLocalOwnerPolicyControl(input: {
   const descriptors = input.loaded.modelPolicies;
   if (descriptors === undefined || descriptors.length === 0 || !Object.isFrozen(descriptors)) throw new Error('Local owner policies require immutable nonempty loaded claims.');
   for (const descriptor of descriptors) {
-    if (descriptor.rules.length + descriptor.hooks.length === 0 || descriptor.rules.some(rule => rule.kind === 'invariant' && rule.dependencies.length !== 0)) {
-      throw new Error('Local owner policies require nonempty claims without unjoined invariant dependencies.');
+    if (descriptor.rules.length + descriptor.hooks.length === 0) {
+      throw new Error('Local owner policies require nonempty claims.');
+    }
+    for (const rule of descriptor.rules) {
+      if (rule.kind !== 'invariant' || rule.dependencies.length === 0) continue;
+      const dependency = rule.dependencies[0];
+      const parent = dependency === undefined ? undefined : input.native.containment.get(dependency.model);
+      if (rule.dependencies.length !== 1 || dependency === undefined || dependency.maxTargets !== 1 ||
+          descriptor.model !== `${descriptor.ownerPackage}.Template` ||
+          dependency.model !== `${descriptor.ownerPackage}.Revision` ||
+          input.native.refs.get(descriptor.model)?.filter(ref => ref.field === 'current' && ref.model === dependency.model).length !== 1 ||
+          !isUnknownRecord(parent) || parent.parent !== descriptor.model) {
+        throw new Error('Local owner rule lacks the checked current Revision dependency and declared Template parent.');
+      }
     }
   }
   const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string }>();
@@ -5532,6 +5590,35 @@ async function loadLocalOwnerPolicyControl(input: {
         }));
         continue;
       }
+      if (localPolicyMember(localPolicyObject(raw), 'kind') === 'dependency') {
+        const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'select']);
+        const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
+        const descriptor = owning.find(candidate => candidate.model === model);
+        const dependency = descriptor?.rules.flatMap(rule => rule.kind === 'invariant' ? rule.dependencies : [])
+          .find(candidate => candidate.id === id);
+        const select = localPolicyMember(binding, 'select');
+        if (descriptor === undefined || dependency === undefined ||
+            localPolicyMember(binding, 'module') !== emitted.path ||
+            localPolicyMember(binding, 'ownerPackage') !== descriptor.ownerPackage || typeof select !== 'function') {
+          throw new Error('Native owner dependency differs from its exact loaded claim.');
+        }
+        adapted.push(Object.freeze({ id: dependency.id, model: descriptor.model, kind: 'dependency',
+          module: descriptor.module, ownerPackage: descriptor.ownerPackage,
+          select: async (views: OwnerModelPolicyViews, change: OwnerModelChange) => {
+            const frame = activeFrames.get(views.context);
+            if (frame?.active !== true || change.model !== dependency.model) {
+              throw new input.native.producers.errors('validation', 'Owner dependency has no live private frame or changed model.');
+            }
+            // State supplies immutable entry/final snapshots and checks returned
+            // target identity, maxTargets and work. Keep the verified source
+            // selector's raw ABI and its original before/after ordering.
+            const selected = await (select as Extract<OwnerModelPolicyBinding, { kind: 'dependency' }>['select'])(views, change);
+            if (!frame.active) throw new input.native.producers.errors('validation', 'Owner dependency frame closed during selection.');
+            return selected;
+          },
+        }));
+        continue;
+      }
       const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate']);
       const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
       const kind = localPolicyMember(binding, 'kind'), evaluate = localPolicyMember(binding, 'evaluate');
@@ -5540,6 +5627,9 @@ async function loadLocalOwnerPolicyControl(input: {
       if (descriptor === undefined || rule === undefined || localPolicyMember(binding, 'module') !== emitted.path ||
           localPolicyMember(binding, 'ownerPackage') !== descriptor.ownerPackage || typeof evaluate !== 'function') {
         throw new Error('Local owner native binding disagrees with its exact loaded claim.');
+      }
+      if (rule.kind === 'invariant' && rule.dependencies.length === 1 && evaluate.length !== 3) {
+        throw new Error('Original current owner predicate lacks its source-ordered accessor.');
       }
       adapted.push(Object.freeze({ id: rule.id, model: descriptor.model, kind: rule.kind,
         module: descriptor.module, ownerPackage: descriptor.ownerPackage,
@@ -5559,17 +5649,28 @@ async function loadLocalOwnerPolicyControl(input: {
             publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
             recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
           try {
-            const modelDefinition = input.native.models.find(candidate => candidate.name === descriptor.model);
-            if (modelDefinition === undefined) throw new Error('Owner native row names no loaded model.');
-            const data = localPolicyObject(row.data);
-            for (const field of Object.keys(data)) {
-              const declared = localPolicyMember(modelDefinition.fields, field);
-              const target = input.native.refs.get(descriptor.model)?.find(reference => reference.field === field)?.model;
-              if (!isUnknownRecord(declared) || (localPolicyMember(declared, 'valueType') === undefined && target === undefined)) {
-                throw new Error('Owner native row field lacks a checked type association.');
+            const nativeRow = await nativeOwnerRuleRecord(input.native, descriptor.model, row, owner);
+            const dependency = rule.kind === 'invariant' ? rule.dependencies[0] : undefined;
+            const originalCurrent = dependency === undefined ? undefined : nativeRow.current;
+            let currentView: Promise<Record<string, unknown>> | undefined;
+            const readCurrent = async (reference: unknown): Promise<Record<string, unknown>> => {
+              assertLive();
+              if (dependency === undefined || reference !== originalCurrent ||
+                  !isRecordRef(reference) || reference.model !== dependency.model) {
+                throw new input.native.producers.errors('validation', 'Owner current access lacks its original checked reference.');
               }
-            }
-            const nativeRow = nativeProjectedRecord(input.native, descriptor.model, row);
+              currentView ??= (async () => {
+                const current = await owner.read.get(dependency.model, reference.id as RecordId);
+                assertLive();
+                if (current === null || current.id !== reference.id || current.archivedAt !== null) {
+                  throw new input.native.producers.errors('validation', 'Owner current Revision is missing from its owning view.');
+                }
+                const view = await nativeOwnerRuleRecord(input.native, dependency.model, current, owner, true);
+                assertLive();
+                return view;
+              })();
+              return currentView;
+            };
             const c = createContext({
               ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
               caller: Object.freeze({ userId: owner.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
@@ -5578,7 +5679,10 @@ async function loadLocalOwnerPolicyControl(input: {
               qualified: owner.context,
             });
             freezeScenarioSnapshot(c);
-            const answer: unknown = await (evaluate as (c: HandlerContext, row: Record<string, unknown>) => unknown)(c, nativeRow);
+            const callback = evaluate as (c: HandlerContext, row: Record<string, unknown>,
+              readCurrent?: (reference: unknown) => Promise<Record<string, unknown>>) => unknown;
+            const answer: unknown = dependency === undefined ? await callback(c, nativeRow)
+              : await callback(c, nativeRow, readCurrent);
             assertLive();
             if (typeof answer !== 'boolean') throw new input.native.producers.errors('validation', 'Native owner model predicate did not return bool.');
             return answer;

@@ -7302,7 +7302,8 @@
       "REPLAY-IP07",
       "DEL-E02",
       "VERIFY-TV01",
-      "DEL-D04"
+      "DEL-D04",
+      "DEL-B01"
     ],
     "partially_completed": [
       "TECH-V03",
@@ -7310,7 +7311,6 @@
       "TECH-S02",
       "TECH-I01",
       "TECH-F01",
-      "DEL-B01",
       "DEL-B02",
       "DEL-C01"
     ],
@@ -7327,14 +7327,14 @@
       "DEL-D05"
     ],
     "counts": {
-      "finished": 32,
-      "partial": 8,
+      "finished": 33,
+      "partial": 7,
       "open_or_blocked": 7,
       "held": 1,
       "total": 48
     },
-    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance.",
-    "status_given_to_human": "32/48 selected packets finished;8 partial,7 open/blocked,1 held. Of22 rechecked entries:9 satisfied,8 ready,5 exact contract/host inputs. Two distinct held entries and retired C02 consumer retain their existing accounting."
+    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01.",
+    "status_given_to_human": "33/48 selected packets finished;7partial7open1held. Remaining currentview:2ready,10exactinputs,2held,1retiredC02consumer; canonical333/widerparents/holds separate."
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {
