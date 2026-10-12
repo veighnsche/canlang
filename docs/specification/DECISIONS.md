@@ -11995,3 +11995,10 @@ Changed MAIN checks all0: {"owning": 2.21, "root": 7.27} seconds; no unchanged n
 Accepted finite TECH-SV02 source component e90dea189ba3751baf5edef7f9abae6ee8ce429b: Capture items/initial length, validate each position and capture/validate/return cursor once; sparse positions and changing cursor getters cannot bypass the existing unknown-loader validator. Preserve original first false/throw and same item array. Independent defining source review CLEAR; five provider pagination groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 0.83, "root": 5.15} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — bind nullable source narrowing to original observation
+
+Accepted Statec98b81ed after independent defining review CLEAR. Keep required promotion strict; distinct nullable port preserves authentic absence without target loading. Only prior same-row/call/stage source CONTROL may narrow original required Model/Text DATA, with unchanged original source/ancestor/Identity/lifetime/saved association. Recheck State revision after final coherent SDK await before private issuance.107 owning outcomes reused, including actual final-await conflict/zero exposure. Current337 generated consumer and Dev genuine nullable facade/native authority remain unfinished; no shape/context/grant fabrication or recipient hold release.
+
+Changed MAIN checks all0: {"StateDO": 4.09, "CF": 4.27, "root": 4.53} seconds.

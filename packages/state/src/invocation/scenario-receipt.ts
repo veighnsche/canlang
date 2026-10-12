@@ -41,6 +41,7 @@ import { readLiveScenarioFile, checkRetainedScenarioFile, scenarioFileField, sce
 import { storedNominalType, storedNominalField, storedNominalWire, storedNominalFileRefs, savedNominalWire, type StoredNominalFieldProfile } from './scenario-stored-value.js';
 import { storedReferenceField, storedReferenceWire, type StoredReferenceFieldProfile } from './scenario-stored-reference.js';
 import { bindScenarioQuerySelection, scenarioQuerySelectionWire, type ScenarioQuerySelectionMetadata, type ScenarioQuerySelectionProfile } from './scenario-query-selection.js';
+import { bindScenarioNarrowedFields, scenarioNarrowedFieldControl, type ScenarioNarrowedFieldBinding } from './scenario-narrowed-field.js';
 import { FenceConflictError } from '../storage/port.js';
 import { bindModelLexicalSnapshotProfile, modelLexicalSnapshotOccurrences,
   type ModelLexicalSnapshotProfile } from '../ports/model-lexical-snapshot.js';
@@ -247,6 +248,7 @@ interface BoundPlan {
   readonly canonicalModels: readonly CanonicalModelDescriptor[];
   readonly idDependencies: ReadonlyMap<string, ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
   readonly namedEnumDependencies: ReadonlyMap<string, ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+  readonly narrowedDependencies: ReadonlyMap<string, ScenarioNarrowedFieldBinding>;
   readonly nominalDependencies: ReadonlyMap<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
     readonly profile: StoredNominalFieldProfile }>;
   readonly referenceDependencies: ReadonlyMap<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
@@ -859,6 +861,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   }
   const artifactModels = new Map(models.map(model => [model.name as ModelName, deepFreeze(dataCopy(model))]));
   const canonicalModels = Object.freeze(defaults.canonicalModels.map(model => deepFreeze(dataCopy(model))));
+  const narrowedDependencies = bindScenarioNarrowedFields({ plan, artifactModels, canonicalModels });
   const idDependencies = new Map<string, ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>();
   const namedEnumDependencies = new Map<string, ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>();
   const nominalDependencies = new Map<string, { readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
@@ -874,14 +877,15 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
       if (dep.type !== 'text' || !inventory.has(dep.model)) return invalid('row id dependency requires its owning model and reserved text metadata.');
       idDependencies.set(dep.id, dep);
     } else if (scalar) {
-      if (inventory.get(dep.model)?.fields.get(dep.field) !== dep.type) return invalid('dependency disagrees with declared model field/type inventory.');
+      if (inventory.get(dep.model)?.fields.get(dep.field) !== (narrowedDependencies.get(dep.id)?.declarationType ?? dep.type)) return invalid('dependency disagrees with declared model field/type inventory.');
     } else if (dep.type === 'file[]') {
       const profile = scenarioFileField({ artifactModels, canonicalModels }, dep.model, dep.field);
       if (profile.type !== dep.type || !profile.array || profile.nullable) return invalid('stored File dependency disagrees with its owning ordinary array declaration.');
       if (!fileDependencies.has(dep.id)) fileDependencies.set(dep.id, Object.freeze({ dependency: dep, profile }));
     } else if (dep.field === 'parent' || artifactModels.get(dep.model)?.fields.some(field => field.name === dep.field && field.field.kind === 'ref')) {
       if (!referenceDependencies.has(dep.id)) referenceDependencies.set(dep.id, Object.freeze({ dependency: dep,
-        profile: storedReferenceField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field, dep.type) }));
+        profile: storedReferenceField({ artifactModels, canonicalModels, valueSchema: defaults.valueSchema }, dep.model, dep.field,
+          narrowedDependencies.get(dep.id)?.declarationType ?? dep.type) }));
     } else if (dep.queryId !== undefined && dep.role === 'data' && dep.field === 'role' &&
         (dep.type === 'TextMessage.role' || dep.type === 'std.TextMessage.role') && (() => {
       const parsed = parseTypeId(dep.type), schema = defaults.valueSchema;
@@ -926,7 +930,7 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   boundPlans.set(def, { plan, type, resultModel, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
-    artifactModels, canonicalModels, idDependencies, namedEnumDependencies, nominalDependencies, referenceDependencies, fileDependencies,
+    artifactModels, canonicalModels, idDependencies, namedEnumDependencies, narrowedDependencies, nominalDependencies, referenceDependencies, fileDependencies,
     valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
 }
 
@@ -1350,6 +1354,40 @@ type DependencyObservation = ScenarioReceiptAssociation['observations'][number];
 const queryLinkedObservations = new WeakMap<DependencyObservation, {
   readonly execution: QueryExecution; readonly slot: ScenarioReceiptQuerySlot;
 }>();
+const narrowedControlInputs = new WeakMap<DependencyObservation, {
+  readonly call: AdmittedCall; readonly owner: ReceiptOwnerSession; readonly stage: number; readonly row: StoredRow;
+}>();
+
+function capturedNarrowedControl(call: AdmittedCall, owner: ReceiptOwnerSession | undefined, state: Capture,
+  binding: ScenarioNarrowedFieldBinding, row: StoredRow): void {
+  const control = scenarioNarrowedFieldControl(binding);
+  const observations = state.observations.filter(observation => observation.dependencyId === control.id);
+  const observation = observations[0], issued = observation === undefined ? undefined : narrowedControlInputs.get(observation);
+  if (owner === undefined || observations.length !== 1 || issued?.call !== call || issued.owner !== owner ||
+      issued.stage !== owner.stage || issued.row !== row || observation!.model !== binding.data.model ||
+      stableStringify(observation!.row) !== stableStringify(row)) return invalid('narrowed DATA requires its genuine same-row nullable CONTROL at the original stage.');
+  const wire = dependencyObservedWire(binding.data, row);
+  if (wire === null || stableStringify(wire) !== stableStringify(dependencyObservedWire(control, observation!.row))) {
+    return invalid('narrowed DATA requires the original nonnull CONTROL wire.');
+  }
+  savedDependencyWire(binding.declarationType, wire); savedDependencyWire(binding.data.type, wire);
+}
+
+function savedNarrowedControls(bound: BoundPlan, observations: readonly DependencyObservation[]): boolean {
+  for (const observation of observations) {
+    const binding = bound.narrowedDependencies.get(observation.dependencyId);
+    if (binding === undefined) continue;
+    const control = scenarioNarrowedFieldControl(binding), prior = observations.filter(candidate => candidate.dependencyId === control.id);
+    if (prior.length !== 1 || observations.indexOf(prior[0]!) >= observations.indexOf(observation) ||
+        prior[0]!.model !== observation.model || stableStringify(prior[0]!.row) !== stableStringify(observation.row)) return false;
+    try {
+      const wire = dependencyObservedWire(binding.data, observation.row);
+      if (wire === null || stableStringify(wire) !== stableStringify(dependencyObservedWire(control, prior[0]!.row))) return false;
+      savedDependencyWire(binding.declarationType, wire); savedDependencyWire(binding.data.type, wire);
+    } catch { return false; }
+  }
+  return true;
+}
 
 function requireReturnDependencies(state: Capture, returned: ScenarioResultDisclosurePlan['returns'][number],
   observations: readonly DependencyObservation[]): void {
@@ -2205,9 +2243,21 @@ function queryModelDescriptor(bound: BoundPlan, query: ScenarioReceiptQueryPlan)
 /** Promote only a checked stored reference whose actual source marker has
  * completed in this owner stage. Native owns the private getter/reference
  * binding; State owns provisional rows and immediate source/leaf authority. */
-export async function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, store: StoragePort, input: {
+export function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, store: StoragePort, input: {
   readonly sourceDependencyId: string; readonly scalarLeafDependencyId: string; readonly sourceRow: StoredRow;
 }): Promise<StoredRow> {
+  return readObservedStoredReferenceRow(call, store, input, false) as Promise<StoredRow>;
+}
+/** Original nullable presence retains null as absence, never as a denied read.
+ * Nonnull promotion uses the same source/target authority as the required port. */
+export function readScenarioReceiptNullableStoredReferenceRow(call: AdmittedCall, store: StoragePort, input: {
+  readonly sourceDependencyId: string; readonly scalarLeafDependencyId: string; readonly sourceRow: StoredRow;
+}): Promise<StoredRow | null> {
+  return readObservedStoredReferenceRow(call, store, input, true);
+}
+async function readObservedStoredReferenceRow(call: AdmittedCall, store: StoragePort, input: {
+  readonly sourceDependencyId: string; readonly scalarLeafDependencyId: string; readonly sourceRow: StoredRow;
+}, nullable: boolean): Promise<StoredRow | null> {
   const poisonSourceOwner = () => {
     const carrier = typeof input === 'object' && input !== null ? Object.getOwnPropertyDescriptor(input, 'sourceRow') : undefined;
     if (carrier !== undefined && 'value' in carrier) {
@@ -2230,9 +2280,10 @@ export async function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, 
     const source = ownerRows.get(input.sourceRow);
     if (owner === undefined || owner.session === null || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || source?.session !== owner || source.stage !== owner.stage ||
-        reference?.profile.kind !== 'field' || reference.profile.array || reference.profile.nullable ||
+        reference?.profile.kind !== 'field' || reference.profile.array || reference.profile.nullable !== nullable ||
         reference.dependency.queryId !== undefined || scalar === undefined || scalar.queryId !== undefined ||
-        scalar.model !== reference.profile.target || state.bound.models.get(scalar.model)?.fields.get(scalar.field) !== scalar.type ||
+        scalar.model !== reference.profile.target || state.bound.models.get(scalar.model)?.fields.get(scalar.field) !==
+          (state.bound.narrowedDependencies.get(scalar.id)?.declarationType ?? scalar.type) ||
         state.bound.idDependencies.has(scalar.id) || state.bound.referenceDependencies.has(scalar.id) ||
         state.bound.nominalDependencies.has(scalar.id) || state.bound.fileDependencies.has(scalar.id) ||
         source.model !== reference.dependency.model || observations.length !== 1 || issued?.call !== call ||
@@ -2259,14 +2310,16 @@ export async function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, 
     }
     await observeModelQuerySourceAuthority(call, store, owner, state, source.model, currentSource,
       [reference.dependency.field], 1); healthy();
-    const wire = storedReferenceWire(reference.profile, currentSource) as { id: RecordId };
-    const target = await owner.session.views.final.get(scalar.model, wire.id); healthy();
-    if (target === null || target.archivedAt !== null) throw new StateError('forbidden', 'Stored scalar target lifetime is unavailable.');
-    const targetAuthority = await observeModelQuerySourceAuthority(call, store, owner, state, scalar.model, target, [scalar.field], 1); healthy();
+    const wire = storedReferenceWire(reference.profile, currentSource) as { id: RecordId } | null;
+    const target = wire === null ? null : await owner.session.views.final.get(scalar.model, wire.id); healthy();
+    if (wire !== null && (target === null || target.archivedAt !== null)) throw new StateError('forbidden', 'Stored scalar target lifetime is unavailable.');
+    const narrowed = state.bound.narrowedDependencies.get(scalar.id);
+    if (target !== null && narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, target);
+    const targetAuthority = target === null ? null : await observeModelQuerySourceAuthority(call, store, owner, state, scalar.model, target, [scalar.field], 1); healthy();
     await issued.revalidate(); healthy();
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar projection moved beyond its admitted checkpoint.');
     healthy();
-    await targetAuthority.revalidate(); healthy();
+    await targetAuthority?.revalidate(); healthy();
     // Source and target can depend on distinct related subjects. Their final
     // conjunction must use one complete Identity snapshot before disclosure.
     const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
@@ -2274,7 +2327,7 @@ export async function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, 
     const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
     const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
       for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field },
-        { model: scalar.model, row: target, field: scalar.field }]) {
+        ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field }])]) {
         const producer = querySourceProducer(call.def as GeneratedOperationDef, entry.model), read = producer?.readPolicies?.get(entry.model);
         if (producer?.app !== call.context.app || producer.readPolicies === undefined || read === undefined || !('grants' in read)) {
           return invalid('stored scalar conjunction requires its installed source and target grants.');
@@ -2299,7 +2352,9 @@ export async function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, 
       return true;
     }); healthy();
     await authority.revalidate(); healthy();
-    ownerRows.set(target, { session: owner, stage, model: scalar.model });
+    if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar final authority moved beyond its checkpoint.');
+    healthy();
+    if (target !== null) ownerRows.set(target, { session: owner, stage, model: scalar.model });
     return target;
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; poisonSourceOwner(); throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
@@ -3178,6 +3233,8 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
     if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
     const row = checkedRow(observed.row);
+    const narrowed = state.bound.narrowedDependencies.get(dependency.id);
+    if (narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, input.row);
     const namedEnum = state.bound.namedEnumDependencies.get(dependency.id);
     const nominal = state.bound.nominalDependencies.get(dependency.id);
     const reference = state.bound.referenceDependencies.get(dependency.id);
@@ -3270,6 +3327,10 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       ...(files === undefined ? {} : { files }),
       stored: current !== null && stableStringify(current) === stableStringify(row), ownerSession: owner !== undefined };
     state.observations.push(observation);
+    if (owner !== undefined && [...state.bound.narrowedDependencies.values()].some(binding =>
+        scenarioNarrowedFieldControl(binding).id === dependency.id)) {
+      narrowedControlInputs.set(observation, { call, owner, stage: owner.stage, row: input.row });
+    }
     if (linkedQuery !== undefined) {
       if (linkedQuery.activeSlot !== linkedCandidate!.slot || linkedQuery.complete && !selectedRead || linkedQuery.stage !== owner!.stage ||
           owner!.executingCall !== call || !owner!.busy) return invalid('ordinary observation crossed its active query candidate.');
@@ -4045,7 +4106,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         if (observation.files !== undefined) return null;
         const source = querySourceProducer(consumer, observation.model)?.readPolicies?.has(observation.model) ? querySourceProducer(consumer, observation.model) : undefined;
         const projection = await savedProjection(observation.model, observation.row, observation.secretFields, [], [], [], undefined, undefined, source);
-        return bound.models.get(observation.model)?.fields.get(dependency.field) === dependency.type ? projection : null;
+        const narrowed = bound.narrowedDependencies.get(dependency.id);
+        if (narrowed !== undefined) {
+          const current = await currentSavedRow(observation.model, observation.row);
+          if (current === null) return null;
+          try { scalarWire(narrowed.declarationType, dependencyObservedWire(dependency, current)); }
+          catch { return null; }
+        }
+        return bound.models.get(observation.model)?.fields.get(dependency.field) === (narrowed?.declarationType ?? dependency.type) ? projection : null;
       }
       if (stableStringify(nominal.dependency) !== stableStringify(dependency) || observation.files !== undefined) return null;
       // This exact dependency field alone may pass the internal authority
@@ -4137,6 +4205,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       if (current === undefined || stableStringify(current.plan) !== stableStringify(child.plan) || current.type !== child.resultType) {
         dependenciesReadable = false; continue;
       }
+      if (!savedNarrowedControls(current, child.observations)) dependenciesReadable = false;
       if (!await modelResultReadable(target, current, saved.result)) dependenciesReadable = false;
       const returned = child.plan.returns.find(entry => entry.id === child.returnId)!;
       if (!await queryAuthority(target, current, child) || !await savedQueriesReadable(current, child, saved.result, (model, row, secrets, blocked) =>
@@ -4156,6 +4225,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       }
     }
     const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
+    if (!savedNarrowedControls(currentBound, association.observations)) dependenciesReadable = false;
     if (currentBound.resultModel !== undefined && (stableStringify(currentBound.plan) !== stableStringify(association.plan) ||
         !await modelResultReadable(def as GeneratedOperationDef, currentBound, receipt.outcome.status === 'committed' ? receipt.outcome.result : null))) {
       dependenciesReadable = false;
