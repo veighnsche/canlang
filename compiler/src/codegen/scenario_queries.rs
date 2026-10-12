@@ -504,15 +504,21 @@ fn checked_query_plan(
     catalog: Option<&Catalog>,
     entry_module: &str,
 ) -> Option<ReceiptDisclosurePlan> {
-    let mut plan = checked_query_plan_full(program, ir, owner, db, catalog, entry_module)?;
-    if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
+    // Direct source-plan consumers also validate the complete original/fresh
+    // declaration before constructor matching. The oversized mixed source's
+    // derived members cannot borrow a later native-only validation step.
+    let returned = if matches!(owner.kind, IrItemKind::Scenario { read: false, .. })
         && matches!(
             program.scenario_disclosures().get(&owner.id)?,
             ScenarioDisclosure::Complete(_)
-        )
-    {
+        ) {
         let prepared = super::scenario_feasibility::prepare(program, ir, db, catalog)?;
-        let returned = prepared.returns(ir, owner.id)?;
+        Some(prepared.returns(ir, owner.id)?)
+    } else {
+        None
+    };
+    let mut plan = checked_query_plan_full(program, ir, owner, db, catalog, entry_module)?;
+    if let Some(returned) = returned {
         super::scenario_receipts::project_plan_returns(&mut plan, &returned)?;
     }
     Some(plan)
@@ -540,7 +546,6 @@ fn checked_query_plan_full(
         || source.source != original.source
         || source.queries != original.queries
         || source.transcripts != original.transcripts
-        || queries.len() > 3
     {
         return None;
     }
@@ -549,12 +554,14 @@ fn checked_query_plan_full(
         .as_deref()
         .is_some_and(|facts| !facts.is_empty())
     {
-        if !queries.is_empty() {
+        if !queries.is_empty()
+            && super::scenario_receipts::checked_scenario_query_influences(source)?.len() != 24
+        {
             return None;
         }
         return checked_transcript_query_plan(program, ir, owner, db, catalog, entry_module);
     }
-    if queries.is_empty() {
+    if queries.is_empty() || queries.len() > 3 {
         return None;
     }
     // Build from the immutable checked owner rather than accepting a second
@@ -1012,6 +1019,41 @@ fn checked_transcript_query_plan(
             dependencies,
         });
     }
+    if !source.queries.as_deref()?.is_empty() {
+        influences = super::scenario_receipts::checked_scenario_query_influences(source)?;
+        if influences.len() != 24 {
+            return None;
+        }
+        // The owning checked call retains its separate external predicate.
+        // Public metadata is checked here, never used as receipt authority.
+        serialize_query_any(program, ir, owner, db, catalog, entry)?;
+        let [any, ancestor, selected, count] = source.queries.as_deref()? else {
+            return None;
+        };
+        let any =
+            super::scenario_receipts::checked_native_any_query_plan(ir, owner, any, db, entry)?;
+        let mut ancestor =
+            checked_count_query_plan(program, ir, owner, ancestor, db, entry)?.queries;
+        let mut selected = checked_first_query_plan(program, ir, owner, selected, entry)?.queries;
+        let mut counted = checked_count_query_plan(program, ir, owner, count, db, entry)?.queries;
+        if ancestor.len() != 1 || selected.len() != 1 || counted.len() != 1 || queries.len() != 2 {
+            return None;
+        }
+        let later = queries.pop()?;
+        let early = queries.pop()?;
+        queries = vec![
+            early,
+            any,
+            ancestor.pop()?,
+            selected.pop()?,
+            later,
+            counted.pop()?,
+        ];
+        let mut ids = HashSet::new();
+        if queries.iter().any(|query| !ids.insert(query.id.as_str())) {
+            return None;
+        }
+    }
     let (
         ScenarioDisclosure::Complete(checked),
         ScenarioDisclosure::Complete(original),
@@ -1227,8 +1269,7 @@ fn checked_first_query_plan(
     use super::ir::IrCallTarget;
     use crate::analysis::{ResolvedType, Scalar};
     let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
-    let expected_influences =
-        super::scenario_receipts::checked_native_query_influences(facts.queries.as_deref()?)?;
+    let expected_influences = super::scenario_receipts::checked_scenario_query_influences(facts)?;
     let first = q.first.as_ref()?;
     let alias = q.alias?;
     let predicate_node = q.predicate?;

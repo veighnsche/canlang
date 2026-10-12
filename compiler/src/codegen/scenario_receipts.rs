@@ -704,19 +704,25 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             let [expression] = expressions.as_slice() else {
                 continue;
             };
-            let Some(pair) = checked_profile_scalar_pair(ir, item, expression, db) else {
+            let Some(pairs) = checked_profile_scalar_pairs(ir, item, expression, db) else {
                 continue;
             };
             let IrExpr::Member { base, .. } = &expression.expr else {
                 return None;
             };
-            let source_site = checked_site(pair.0.node, &pair.0.calls)?;
+            let first = pairs.first()?;
+            let source_site = checked_site(first.0.node, &first.0.calls)?;
             let [source_expression] = sites.members.get(&source_site)?.as_slice() else {
                 return None;
             };
             if !std::ptr::eq(*source_expression, base.as_ref())
-                || profile_scalar_pairs.insert(site.clone(), pair).is_some()
-                || profile_source_pairs.insert(source_site, pair).is_some()
+                || pairs.iter().any(|(source, _)| {
+                    checked_site(source.node, &source.calls).as_ref() != Some(&source_site)
+                })
+                || profile_scalar_pairs
+                    .insert(site.clone(), pairs.clone())
+                    .is_some()
+                || profile_source_pairs.insert(source_site, pairs).is_some()
             {
                 return None;
             }
@@ -731,10 +737,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         Some(current) => Some(NativeCurrentRevision::from_sites(current)?),
         None => None,
     };
-    let profile_descriptors = if current_sites.is_some() {
+    let profile_descriptors = if current_sites.is_some() || !profile_scalar_pairs.is_empty() {
         Some(super::js::Emitter::source_models(ir, db?)?)
     } else {
-        (!profile_scalar_pairs.is_empty()).then(|| super::js::Emitter::new(ir).collect_models())
+        None
     };
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
@@ -938,10 +944,20 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 return None;
             }
             let site = checked_site(dependency.node, &dependency.calls)?;
-            let profile_scalar_pair = profile_scalar_pairs.get(&site).copied();
-            let profile_source_pair = profile_source_pairs.get(&site).copied();
-            if profile_scalar_pair.is_some_and(|(_, scalar)| scalar != dependency)
-                || profile_source_pair.is_some_and(|(reference, _)| reference != dependency)
+            let profile_scalar_pair = profile_scalar_pairs.get(&site).and_then(|pairs| {
+                pairs
+                    .iter()
+                    .copied()
+                    .find(|(_, scalar)| *scalar == dependency)
+            });
+            let profile_source_pair = profile_source_pairs.get(&site).and_then(|pairs| {
+                pairs
+                    .iter()
+                    .copied()
+                    .find(|(reference, _)| *reference == dependency)
+            });
+            if profile_scalar_pairs.contains_key(&site) && profile_scalar_pair.is_none()
+                || profile_source_pairs.contains_key(&site) && profile_source_pair.is_none()
             {
                 return None;
             }
@@ -1609,6 +1625,325 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
 /// owned by this collector rather than the query preparation's skeleton.
 /// Existing native selectors admit only their individual source profile or
 /// the authored first-then-contained-count composition on the same result.
+pub(super) fn checked_any_query_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &'a IrItem,
+    actual: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    if checked_scenario_query_influences(facts)?.len() != 24 {
+        return None;
+    }
+    let [query, _, _, _] = facts.queries.as_deref()? else {
+        return None;
+    };
+    let IrItemKind::Scenario { guards, params, .. } = &owner.kind else {
+        return None;
+    };
+    let mut statements = guards.iter().filter_map(|statement| {
+        let IrStmt::Require { cond, span } = statement else {
+            return None;
+        };
+        let IrExpr::Unary {
+            op: super::ir::IrUnOp::Not,
+            operand,
+        } = &cond.expr
+        else {
+            return None;
+        };
+        std::ptr::eq(operand.as_ref(), actual).then_some((cond, *span))
+    });
+    let (condition, statement) = statements.next()?;
+    let (target, args, slots) = match &actual.expr {
+        IrExpr::Call { target, args } => (target, args, None),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args, Some(slots.as_slice())),
+        _ => return None,
+    };
+    let [domain, predicate] = args.as_slice() else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    let IrExpr::Lambda { param, body } = &predicate.expr else {
+        return None;
+    };
+    let checked = scan.source.as_deref()?;
+    let collection = scan.collection_call.as_deref()?;
+    let [alias] = checked.clauses.as_slice() else {
+        return None;
+    };
+    let crate::analysis::types::CheckedQueryClauseKind::As { name } = &alias.kind else {
+        return None;
+    };
+    let [(receiver, parameter_id)] = query.inputs.as_slice() else {
+        return None;
+    };
+    let parameter = ir.items.get(parameter_id.0 as usize)?;
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index,
+        ty:
+            IrType::Known(ResolvedType::Record {
+                symbol: parent_id,
+                stored: true,
+            }),
+        default: None,
+        default_node: None,
+        default_copy_source: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    let original_parameter = facts.parameters.get(*index)?;
+    let parent = scan.parent.as_deref()?;
+    let [dependency] = query.dependencies.as_slice() else {
+        return None;
+    };
+    let boolean = ResolvedType::Scalar(Scalar::Bool);
+    let record = ResolvedType::Record {
+        symbol: query.model,
+        stored: true,
+    };
+    let array = ResolvedType::Array {
+        element: Box::new(record.clone()),
+        ordered: true,
+        nonempty: false,
+    };
+    let model = ir.items.get(query.model.0 as usize)?;
+    let IrExpr::Member { base, field } = &body.expr else {
+        return None;
+    };
+    let sites = facts.decision_sites.as_deref()?;
+    let mut original_calls =
+        sites
+            .iter()
+            .filter(|site| {
+                site.owner==owner.id
+        && node_span(site.statement)==statement && node_span(site.node)==condition.span
+        && site.stage==crate::analysis::scenario_disclosure::CheckedDecisionStage::LeadingRequire
+        && site.source==facts.source
+            })
+            .flat_map(|site| &site.calls)
+            .filter(|call| node_span(call.node) == actual.span);
+    let original_call = original_calls.next()?;
+    let census = facts.expression_types.as_deref()?;
+    if statements.next().is_some()
+        || original_calls.next().is_some()
+        || !matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
+        || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
+        || actual.ty != boolean
+        || condition.ty != boolean
+        || predicate.ty != boolean
+        || body.ty != boolean
+        || collection.node != original_call.node
+        || collection.builtin != "any"
+        || collection.overload != 0
+        || collection.model != query.model
+        || collection.query != query.node
+        || Some(collection.alias) != query.alias
+        || collection.alias != alias.node
+        || collection
+            .predicate
+            .as_ref()
+            .is_none_or(|value| Some(value.node) != query.predicate || value.ty != boolean)
+        || original_call.target
+            != (crate::analysis::scenario_disclosure::CheckedDecisionCallTarget::Builtin {
+                id: "any".into(),
+                overload: 0,
+            })
+        || original_call.arguments
+            != vec![
+                (query.node, array.clone()),
+                (query.predicate?, boolean.clone()),
+            ]
+        || original_call.slots != [Some(0), Some(1)]
+        || !original_call.defaults.is_empty()
+        || !original_call.chain.is_empty()
+        || original_call.source != facts.source
+        || original_call.module != owner.module
+        || checked.node != query.node
+        || checked.domain != query.domain
+        || checked.projection.is_some()
+        || checked.domain_type != array
+        || checked.result != array
+        || domain.ty != array
+        || domain.span != node_span(query.node)
+        || body.span != node_span(query.predicate?)
+        || param != name
+        || param != "run"
+        || field != "unfinished"
+        || base.ty != record
+        || !matches!(&base.expr,IrExpr::Name(value) if value==param)
+        || scan.contract_collection_call.is_some()
+        || scan.where_pred.is_some()
+        || scan.where_async
+        || scan.select.is_some()
+        || scan.select_param.is_some()
+        || !scan.order.is_empty()
+        || scan.limit.is_some()
+        || scan.archived.is_some()
+        || !matches!(&scan.domain,super::ir::IrQueryDomain::Model(value) if value==&model.canonical)
+        || *parameter_owner != owner.id
+        || params.get(*index) != Some(parameter_id)
+        || original_parameter.parameter != *parameter_id
+        || original_parameter.default.is_some()
+        || original_parameter.ty != parent.ty
+        || parent.span != node_span(*receiver)
+        || !matches!(&parent.expr,IrExpr::Name(value) if value==&parameter.name)
+        || !matches!(&model.kind,IrItemKind::Model {owner:IrOwner::ChildOf(value),..} if value==parent_id)
+        || dependency.role != DependencyRole::Control
+        || dependency.ty != boolean
+        || dependency.type_id != "bool"
+        || dependency.model != query.model
+        || dependency.model_name != model.canonical
+        || dependency.node != query.predicate?
+        || dependency.field_name != *field
+        || !dependency.calls.is_empty()
+        || dependency.query_id.is_some()
+        || !census
+            .iter()
+            .any(|(node, ty)| node_span(*node) == actual.span && ty == &actual.ty)
+        || !census
+            .iter()
+            .any(|(node, ty)| node_span(*node) == body.span && ty == &body.ty)
+        || !census
+            .iter()
+            .any(|(node, ty)| node_span(*node) == base.span && ty == &base.ty)
+        || !census
+            .iter()
+            .any(|(node, ty)| node_span(*node) == parent.span && ty == &parent.ty)
+    {
+        return None;
+    }
+    let source_receiver = checked_effect_node(ir, owner, *receiver, db)?;
+    let source_predicate = checked_effect_node(ir, owner, query.predicate?, db)?;
+    let text = &db.get(receiver.file)?.text;
+    let source_base = source_predicate
+        .children
+        .iter()
+        .find(|part| matches!(part.kind, SyntaxKind::NameRef))?;
+    let source_field = source_predicate
+        .children
+        .iter()
+        .rev()
+        .find(|part| part.kind == SyntaxKind::Name)?;
+    if source_receiver.kind != SyntaxKind::NameRef
+        || text.get(receiver.start as usize..receiver.end as usize)? != parameter.name
+        || source_predicate.kind != SyntaxKind::Member
+        || source_base.span != base.span
+        || text.get(source_base.span.start as usize..source_base.span.end as usize)? != param
+        || source_field.token()?.text(text) != "unfinished"
+    {
+        return None;
+    }
+    for id in [query.model, *parent_id] {
+        let mut schemas = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .filter(|schema| schema.id == id && schema.model);
+        let schema = schemas.next()?;
+        if schemas.next().is_some() || schema.source != query.source {
+            return None;
+        }
+        match_stored_contract_schema(ir, schema, db)?;
+        for field in &schema.fields {
+            match_stored_contract_field(ir, field, db)?;
+        }
+        if id == query.model
+            && schema
+                .fields
+                .iter()
+                .filter(|field| {
+                    field.id == dependency.field
+                        && field.name == dependency.field_name
+                        && field.ty == boolean
+                })
+                .count()
+                != 1
+        {
+            return None;
+        }
+    }
+    Some(query)
+}
+
+pub(super) fn checked_native_any_query_plan(
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    db: &SourceDb,
+    entry: &str,
+) -> Option<ReceiptQuery> {
+    let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        return None;
+    };
+    let mut calls = guards.iter().filter_map(|statement| {
+        let IrStmt::Require { cond, .. } = statement else {
+            return None;
+        };
+        let IrExpr::Unary {
+            op: super::ir::IrUnOp::Not,
+            operand,
+        } = &cond.expr
+        else {
+            return None;
+        };
+        (checked_any_query_ir(ir, owner, operand, db) == Some(query)).then_some(operand.as_ref())
+    });
+    calls.next()?;
+    if calls.next().is_some() {
+        return None;
+    }
+    let [(_, parameter)] = query.inputs.as_slice() else {
+        return None;
+    };
+    let parameter = ir.items.get(parameter.0 as usize)?;
+    let IrItemKind::Param {
+        ty: IrType::Known(ResolvedType::Record { symbol: parent, .. }),
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    Some(ReceiptQuery {
+        id: query.id.clone(),
+        source: transport_source(&query.source, entry)?,
+        model: query.model_name.clone(),
+        parent: Some(ReceiptQueryParent {
+            source: transport_source(&query.source, entry)?,
+            model: ir.items.get(parent.0 as usize)?.canonical.clone(),
+            origin: ReceiptQueryParentOrigin::AdmittedReference {
+                parameter: parameter.name.clone(),
+            },
+        }),
+        order: Vec::new(),
+        limit: None,
+        archived: "exclude".into(),
+        dependencies: query
+            .dependencies
+            .iter()
+            .map(|read| {
+                Some(ReceiptQueryDependency {
+                    id: read.id.clone(),
+                    source: transport_source(&read.source, entry)?,
+                    role: ReceiptRole::Control,
+                    field: read.field_name.clone(),
+                    type_id: read.type_id.clone(),
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    })
+}
+
 pub(super) fn checked_native_query_influences(
     queries: &[crate::analysis::scenario_disclosure::DisclosureQuery],
 ) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
@@ -1652,6 +1987,24 @@ pub(super) fn checked_native_query_influences(
                     <= first.first.as_ref()?.binding.start
                 && ancestor.inputs.len() == 1
                 && ancestor.inputs[0].1 == count.count.as_ref()?.contained_parent?.1 => {}
+        [any, ancestor, first, count]
+            if any.first.is_none()
+                && any.count.is_none()
+                && any.projection.is_none()
+                && any.cardinality_guard.is_none()
+                && any.alias.is_some()
+                && any.predicate.is_some()
+                && checked_native_query_influences(&queries[1..]).is_some()
+                && any.source == ancestor.source
+                && any.return_node == ancestor.return_node
+                && any.model == ancestor.model
+                && any.inputs.len() == 1
+                && any.inputs[0].1 == ancestor.inputs[0].1
+                && any.node.file == ancestor.count.as_ref()?.statement.file
+                && any.node.end <= ancestor.count.as_ref()?.statement.start
+                && any.id != ancestor.id
+                && any.id != first.id
+                && any.id != count.id => {}
         _ => return None,
     }
     let mut ids = HashSet::new();
@@ -1673,6 +2026,101 @@ pub(super) fn checked_native_query_influences(
         }
     }
     Some(influences)
+}
+
+/// The original ask composes four ordinary selectors with two independent
+/// transcript calls. This exact source cohort retains all six identities in
+/// authored evaluation order, without granting a generic mixed-query surface.
+pub(super) fn checked_scenario_query_influences(
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+) -> Option<Vec<crate::analysis::scenario_disclosure::DisclosureInfluence>> {
+    let queries = facts.queries.as_deref()?;
+    let transcripts = facts.transcripts.as_deref().unwrap_or_default();
+    if transcripts.is_empty() {
+        return checked_native_query_influences(queries);
+    }
+    let [early, later] = transcripts else {
+        return None;
+    };
+    let ordered = if queries.is_empty() {
+        vec![early.influences.as_slice(), later.influences.as_slice()]
+    } else {
+        let [any, ancestor, first, count] = queries else {
+            return None;
+        };
+        checked_native_query_influences(queries)?;
+        let [run, turn] = facts.creates.as_deref()? else {
+            return None;
+        };
+        let branch = early.parameter;
+        if early.source != facts.source
+            || later.source != facts.source
+            || early.parameter != later.parameter
+            || early.derive != later.derive
+            || early.body != later.body
+            || early.query != later.query
+            || early.branch != later.branch
+            || early.model != later.model
+            || any.inputs[0].1 != branch
+            || ancestor.inputs[0].1 != branch
+            || count.count.as_ref()?.contained_parent?.1 != branch
+            || early.call.file != any.node.file
+            || early.call.end > any.node.start
+            || first.first.as_ref()?.call.end > later.call.start
+            || later.call.end > count.count.as_ref()?.call.start
+            || early.statement.kind != SyntaxKind::Require as u8
+            || later.statement.kind != SyntaxKind::Let as u8
+            || run.model != any.model
+            || turn.model != count.model
+            || turn.model != early.model
+            || count.count.as_ref()?.statement != turn.node
+            || run.source != facts.source
+            || turn.source != facts.source
+            || run.definition.declaration.owner
+                != crate::analysis::resolve::ModelOwner::ChildOf(early.branch)
+            || turn.definition.declaration.owner
+                != crate::analysis::resolve::ModelOwner::ChildOf(early.branch)
+        {
+            return None;
+        }
+        vec![
+            early.influences.as_slice(),
+            any.influences.as_slice(),
+            ancestor.influences.as_slice(),
+            first.influences.as_slice(),
+            later.influences.as_slice(),
+            count.influences.as_slice(),
+        ]
+    };
+    let mut ids = HashSet::new();
+    let mut query_ids = HashSet::new();
+    let mut out = Vec::new();
+    for group in ordered {
+        if group.len() != 4 {
+            return None;
+        }
+        let query = group[0].query_id.as_deref()?;
+        if !query_ids.insert(query) {
+            return None;
+        }
+        for (influence, kind) in group.iter().zip([
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]) {
+            if influence.kind != kind
+                || influence.source != facts.source
+                || influence.id.is_empty()
+                || !ids.insert(influence.id.as_str())
+                || influence.query_id.as_deref() != Some(query)
+            {
+                return None;
+            }
+            out.push(influence.clone());
+        }
+    }
+    Some(out)
 }
 
 /// Merge already checked individual selectors, retaining original query and
@@ -1744,6 +2192,7 @@ fn checked_native_first_query_plan<'a>(
             supplied?,
             entry_module,
             returned_paths,
+            db?,
         )
         .map(Some);
     }
@@ -1801,13 +2250,18 @@ fn checked_native_transcript_plan<'a>(
     plan: &'a ReceiptDisclosurePlan,
     entry: &str,
     returned_paths: &[&crate::analysis::scenario_disclosure::DisclosureReturn],
+    db: &SourceDb,
 ) -> Option<&'a ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
     let [first, later] = facts.transcripts.as_deref()? else {
         return None;
     };
+    let mixed = !facts.queries.as_deref()?.is_empty();
+    let expected_influences = checked_scenario_query_influences(facts)?;
+    if mixed && expected_influences.len() != 24 {
+        return None;
+    }
     if checked_created_model_result(ir, owner).is_none()
-        || !facts.queries.as_deref().unwrap_or_default().is_empty()
         || first.id == later.id
         || first.call.end > later.call.start
         || first.parameter != later.parameter
@@ -1816,15 +2270,40 @@ fn checked_native_transcript_plan<'a>(
         || first.source != checked.source
         || later.source != checked.source
         || plan.version != 1
-        || plan.queries.len() != 2
+        || plan.queries.len() != if mixed { 6 } else { 2 }
         || plan.returns.len() != returned_paths.len()
         || serde_json::to_value(&plan.source).ok()?
             != serde_json::to_value(transport_source(&checked.source, entry)?).ok()?
     {
         return None;
     }
+    if mixed {
+        let [any, ancestor, first, count] = facts.queries.as_deref()? else {
+            return None;
+        };
+        let expected_any = checked_native_any_query_plan(ir, owner, any, db, entry)?;
+        let expected_ancestor = checked_native_count_query_plan(ir, owner, ancestor, db, entry)?;
+        let expected_first =
+            checked_native_first_query_source_plan(ir, owner, checked, first, entry, db)?;
+        let expected_count = checked_native_count_query_plan(ir, owner, count, db, entry)?;
+        for (actual, expected) in [
+            (1, &expected_any),
+            (2, expected_ancestor.queries.first()?),
+            (3, expected_first.queries.first()?),
+            (5, expected_count.queries.first()?),
+        ] {
+            if serde_json::to_value(&plan.queries[actual]).ok()?
+                != serde_json::to_value(expected).ok()?
+            {
+                return None;
+            }
+        }
+    }
     let mut influences = Vec::new();
-    for (fact, query) in [first, later].into_iter().zip(&plan.queries) {
+    for (fact, query) in [first, later]
+        .into_iter()
+        .zip([&plan.queries[0], &plan.queries[if mixed { 4 } else { 1 }]])
+    {
         let model = ir.items.get(fact.model.0 as usize)?;
         let branch = ir.items.get(fact.branch.0 as usize)?;
         let parameter = ir.items.get(fact.parameter.0 as usize)?;
@@ -1872,12 +2351,15 @@ fn checked_native_transcript_plan<'a>(
         }
         influences.extend(fact.influences.iter().cloned());
     }
+    if mixed {
+        influences = expected_influences;
+    }
     for (returned, actual) in returned_paths.iter().zip(&plan.returns) {
         if returned.influences != influences
             || actual.id != returned.id
             || actual.dependencies.len() != returned.dependencies.len()
             || actual.projection.is_some()
-            || actual.influences.len() != 8
+            || actual.influences.len() != influences.len()
             || serde_json::to_value(&actual.source).ok()?
                 != serde_json::to_value(transport_source(&returned.source, entry)?).ok()?
         {
@@ -1928,7 +2410,7 @@ fn checked_native_first_query_source_plan(
     db: &SourceDb,
 ) -> Option<ReceiptDisclosurePlan> {
     let facts = checked.source_facts.as_deref()?;
-    let expected_influences = checked_native_query_influences(facts.queries.as_deref()?)?;
+    let expected_influences = checked_scenario_query_influences(facts)?;
     if checked.returns.is_empty() {
         return None;
     }
@@ -2391,6 +2873,9 @@ fn checked_ancestor_count_query_operands<'a>(
             (owning, created)
         }
         [owning, _, _] => (owning, checked_created_pair(ir, owner, db)?.0),
+        [_, owning, _, _] if facts.transcripts.as_deref()?.len() == 2 => {
+            (owning, checked_created_pair(ir, owner, db)?.0)
+        }
         _ => return None,
     };
     let count = query.count.as_ref()?;
@@ -2526,7 +3011,7 @@ fn checked_native_ancestor_count_query_plan(
     checked_ancestor_count_query_operands(ir, owner, query, db)?;
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let queries = facts.queries.as_deref()?;
-    let expected_influences = checked_native_query_influences(queries)?;
+    let expected_influences = checked_scenario_query_influences(facts)?;
     let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
     };
@@ -2548,7 +3033,7 @@ fn checked_native_ancestor_count_query_plan(
         if statements.next().is_some() || creates.next().is_some() {
             return None;
         }
-        let models = super::js::Emitter::new(ir).collect_models();
+        let models = super::js::Emitter::source_models(ir, db)?;
         checked_scenario_create(ir, owner, &models, proof, create, statement, db)?;
     }
     // In the triple, the owning contained-count plan and final effect
@@ -2648,7 +3133,7 @@ pub(super) fn checked_native_count_query_plan(
         return checked_native_ancestor_count_query_plan(ir, owner, query, db, entry);
     }
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
-    let expected_influences = checked_native_query_influences(facts.queries.as_deref()?)?;
+    let expected_influences = checked_scenario_query_influences(facts)?;
     let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id)? else {
         return None;
     };
@@ -2687,7 +3172,7 @@ pub(super) fn checked_native_count_query_plan(
     }
     if originals.len() == 2 {
         checked_created_pair(ir, owner, db)?;
-        let models = super::js::Emitter::new(ir).collect_models();
+        let models = super::js::Emitter::source_models(ir, db)?;
         for created in originals {
             let proof = checked
                 .effects
@@ -3730,7 +4215,7 @@ fn checked_parameter_row_id<'a>(
     for field in &original.fields {
         match_stored_contract_field(ir, field, db)?;
     }
-    let generated = super::js::Emitter::new(ir).collect_models();
+    let generated = super::js::Emitter::source_models(ir, db)?;
     let mut expected = generated
         .iter()
         .filter(|model| model.name == original.canonical);
@@ -4478,8 +4963,9 @@ pub(super) fn stored_file_array_descriptor_matches(
             .is_some_and(|expected| serde_json::to_value(descriptor).ok() == Some(expected))
 }
 
-/// Borrow the two original reads of a required Branch.profile scalar. This
-/// source correspondence neither promotes a native reference nor emits a recipe.
+/// Borrow a singular original required Branch.profile read pair. Existing
+/// consumers cannot silently discard another role retained by the source.
+#[cfg(test)]
 pub(super) fn checked_profile_scalar_pair<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
@@ -4489,6 +4975,27 @@ pub(super) fn checked_profile_scalar_pair<'a>(
     &'a crate::analysis::scenario_disclosure::DisclosureDependency,
     &'a crate::analysis::scenario_disclosure::DisclosureDependency,
 )> {
+    let pairs = checked_profile_scalar_pairs(ir, owner, leaf, db)?;
+    let [pair] = pairs.as_slice() else {
+        return None;
+    };
+    Some(*pair)
+}
+
+/// Borrow all original role pairs of the same required Profile getter. A Let
+/// consumed by both a guard and the created result retains both real reads.
+/// This correspondence neither promotes a reference nor emits a recipe.
+pub(super) fn checked_profile_scalar_pairs<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    leaf: &TypedExpr,
+    db: &SourceDb,
+) -> Option<
+    Vec<(
+        &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+        &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
+> {
     use crate::analysis::NodeKey;
     if !std::ptr::eq(ir.items.get(owner.id.0 as usize)?, owner) {
         return None;
@@ -4787,6 +5294,26 @@ pub(super) fn checked_profile_scalar_pair<'a>(
         }
         DependencyRole::Data
     };
+    let multiple_roles = role == DependencyRole::Data
+        && checked_scenario_query_influences(source)
+            .is_some_and(|influences| influences.len() == 24);
+    let read_identity = |node: NodeKey, role: DependencyRole| {
+        let kind = match role {
+            DependencyRole::Data => "read-data",
+            DependencyRole::Control => "read-control",
+        };
+        sha256_hex(
+            format!(
+                "scenario-disclosure/v1:{kind}:{}:{}:{}:{}:{}:",
+                source.source.path,
+                source.source.sha256,
+                source.source.module,
+                node.start,
+                node.end
+            )
+            .as_bytes(),
+        )
+    };
     let mut result = None;
     for returned in &proof.returns {
         if returned.source != source.source {
@@ -4807,44 +5334,57 @@ pub(super) fn checked_profile_scalar_pair<'a>(
         if references.is_empty() && leaves.is_empty() {
             continue;
         }
-        let [(source_index, reference_read)] = references.as_slice() else {
-            return None;
-        };
-        let [(leaf_index, scalar_read)] = leaves.as_slice() else {
-            return None;
-        };
-        if source_index >= leaf_index
-            || reference_read.id.is_empty()
-            || scalar_read.id.is_empty()
-            || reference_read.id == scalar_read.id
-            || reference_read.source != source.source
-            || scalar_read.source != source.source
-            || !reference_read.calls.is_empty()
-            || !scalar_read.calls.is_empty()
-            || reference_read.query_id.is_some()
-            || scalar_read.query_id.is_some()
-            || reference_read.role != role
-            || scalar_read.role != role
-            || reference_read.model != branch.id
-            || reference_read.field != reference_field.id
-            || reference_read.model_name != branch.canonical
-            || reference_read.field_name != "profile"
-            || reference_read.ty != reference.ty
-            || reference_read.type_id != profile.canonical
-            || scalar_read.model != profile.id
-            || scalar_read.field != scalar_field.id
-            || scalar_read.model_name != profile.canonical
-            || scalar_read.field_name != *scalar_name
-            || scalar_read.ty != leaf.ty
-            || scalar_read.type_id != expected.as_str()
+        if references.len() != leaves.len()
+            || references.is_empty()
+            || references.len() > if multiple_roles { 2 } else { 1 }
         {
             return None;
         }
-        let pair = (*reference_read, *scalar_read);
-        if result.is_some_and(|previous| previous != pair) {
+        let expected_roles: &[DependencyRole] = if references.len() == 2 {
+            &[DependencyRole::Control, DependencyRole::Data]
+        } else {
+            std::slice::from_ref(&role)
+        };
+        let mut pairs = Vec::new();
+        let mut identities = HashSet::new();
+        for (((source_index, reference_read), (leaf_index, scalar_read)), expected_role) in
+            references.iter().zip(&leaves).zip(expected_roles)
+        {
+            if source_index >= leaf_index
+                || reference_read.id != read_identity(reference_key, *expected_role)
+                || scalar_read.id != read_identity(leaf_key, *expected_role)
+                || reference_read.id == scalar_read.id
+                || !identities.insert(&reference_read.id)
+                || !identities.insert(&scalar_read.id)
+                || reference_read.source != source.source
+                || scalar_read.source != source.source
+                || !reference_read.calls.is_empty()
+                || !scalar_read.calls.is_empty()
+                || reference_read.query_id.is_some()
+                || scalar_read.query_id.is_some()
+                || reference_read.role != *expected_role
+                || scalar_read.role != *expected_role
+                || reference_read.model != branch.id
+                || reference_read.field != reference_field.id
+                || reference_read.model_name != branch.canonical
+                || reference_read.field_name != "profile"
+                || reference_read.ty != reference.ty
+                || reference_read.type_id != profile.canonical
+                || scalar_read.model != profile.id
+                || scalar_read.field != scalar_field.id
+                || scalar_read.model_name != profile.canonical
+                || scalar_read.field_name != *scalar_name
+                || scalar_read.ty != leaf.ty
+                || scalar_read.type_id != expected.as_str()
+            {
+                return None;
+            }
+            pairs.push((*reference_read, *scalar_read));
+        }
+        if result.as_ref().is_some_and(|previous| previous != &pairs) {
             return None;
         }
-        result = Some(pair);
+        result = Some(pairs);
     }
     result
 }
@@ -5064,7 +5604,7 @@ fn checked_transcript_prefix_inventory(
     {
         return None;
     }
-    let generated = super::js::Emitter::new(ir).collect_models();
+    let generated = super::js::Emitter::source_models(ir, db)?;
     let expected = generated
         .iter()
         .find(|model| model.name == branch.canonical)?
@@ -7875,6 +8415,28 @@ impl<'a> Sites<'a> {
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        if matches!(target,IrCallTarget::Builtin {id,awaited:false} if id=="any")
+                            && ir
+                                .scenario_disclosures
+                                .get(&owner.id)
+                                .and_then(|source| source.source_facts())
+                                .is_some_and(|source| {
+                                    source
+                                        .transcripts
+                                        .as_deref()
+                                        .is_some_and(|facts| facts.len() == 2)
+                                        && source
+                                            .queries
+                                            .as_deref()
+                                            .is_some_and(|queries| queries.len() == 4)
+                                })
+                        {
+                            checked_any_query_ir(ir, owner, expression, db?)?;
+                            // The external unfinished predicate is evaluated in
+                            // the genuine active candidate slot by its facade.
+                            // Neither its leaf nor its Lambda is a root site.
+                            continue;
+                        }
                         if matches!(target, IrCallTarget::Builtin {id,awaited:false} if id == "count")
                             && let Some(facts) = ir
                                 .scenario_disclosures

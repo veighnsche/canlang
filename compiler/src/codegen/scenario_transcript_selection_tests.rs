@@ -117,13 +117,7 @@ fn full_original_fixture(
         ),
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let primary_catalog = Path::new("/Users/vince/Projects/canlang")
-        .join("packages/cloudflare/dist/native-catalog.json");
-    let mut path = if primary_catalog.is_file() {
-        primary_catalog
-    } else {
-        root.join("packages/cloudflare/dist/native-catalog.json")
-    };
+    let mut path = root.join("packages/cloudflare/dist/native-catalog.json");
     let scratch = tempfile::tempdir().unwrap();
     if let Some((id, field, replacement)) = catalog_edit {
         let mut value: serde_json::Value =
@@ -154,7 +148,7 @@ fn full_original_fixture(
 }
 
 #[test]
-fn full_original_query_composition_cannot_borrow_an_isolated_transcript_plan() {
+fn full_original_query_composition_keeps_six_queries_and_the_original_native_return() {
     let (db, program, ir, catalog) = full_original_fixture(None);
     let owner = ir
         .items
@@ -274,17 +268,426 @@ fn full_original_query_composition_cannot_borrow_an_isolated_transcript_plan() {
     );
     let entry = super::super::js::pick_entrypoint(&ir).unwrap();
     let entry_module = super::super::js::module_path(&ir.module(entry).name);
+    assert_eq!(
+        checked_scenario_query_influences(facts)
+            .expect("exact original six-query source cohort")
+            .len(),
+        24
+    );
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        panic!("original scenario")
+    };
+    let reserve = effects
+        .iter()
+        .find_map(|statement| match statement {
+            IrStmt::Let { name, value, .. } if name == "reserve" => Some(value),
+            _ => None,
+        })
+        .unwrap();
+    let IrExpr::Binary { left, right, .. } = &reserve.expr else {
+        panic!("original token reservation")
+    };
+    let mut profile_ids = HashSet::new();
+    for leaf in [left.as_ref(), right.as_ref()] {
+        let pairs = checked_profile_scalar_pairs(&ir, owner, leaf, &db)
+            .expect("the same original getter retains Control and Data pairs");
+        assert_eq!(pairs.len(), 2);
+        assert!(checked_profile_scalar_pair(&ir, owner, leaf, &db).is_none());
+        for ((reference, scalar), role) in pairs
+            .iter()
+            .zip([DependencyRole::Control, DependencyRole::Data])
+        {
+            assert_eq!(reference.role, role);
+            assert_eq!(scalar.role, role);
+            assert!(profile_ids.insert(reference.id.clone()));
+            assert!(profile_ids.insert(scalar.id.clone()));
+            assert!(proof.returns.iter().all(|returned| {
+                returned.dependencies.iter().any(|read| read == *reference)
+                    && returned.dependencies.iter().any(|read| read == *scalar)
+            }));
+        }
+    }
+    assert_eq!(profile_ids.len(), 8);
+    let messages = effects
+        .iter()
+        .find_map(|statement| match statement {
+            IrStmt::Let { name, value, .. } if name == "messages" => Some(value),
+            _ => None,
+        })
+        .unwrap();
+    let IrExpr::Binary { left: appended, .. } = &messages.expr else {
+        panic!("original message concat")
+    };
+    let IrExpr::Binary {
+        left: singleton, ..
+    } = &appended.expr
+    else {
+        panic!("original system message and transcript")
+    };
+    assert!(matches!(
+        &singleton.ty,
+        ResolvedType::Array {
+            ordered: true,
+            nonempty: true,
+            ..
+        }
+    ));
     assert!(
-        super::super::scenario_queries::collect_transcript_query_source(
-            &program,
-            &ir,
-            owner,
-            &db,
-            Some(&catalog),
-            &entry_module,
-        )
-        .is_none(),
-        "the full original closure needs its combined producer"
+        matches!(&messages.ty, ResolvedType::Array { element, ordered: true, nonempty: false }
+        if crate::analysis::types::checked_standard_nominal_name(element) == Some("TextMessage"))
+    );
+    let plan = super::super::scenario_queries::collect_transcript_query_source(
+        &program,
+        &ir,
+        owner,
+        &db,
+        Some(&catalog),
+        &entry_module,
+    )
+    .expect("the unchanged full original owns its complete combined producer");
+    let prepared =
+        super::super::scenario_feasibility::prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+    let returned = prepared.returns(&ir, owner.id).unwrap();
+    assert_eq!(returned.len(), 1);
+    assert_eq!(plan.returns.len(), 1);
+    assert_eq!(plan.returns[0].id, returned[0].id);
+    let ScenarioDisclosure::Complete(original_proof) =
+        program.scenario_disclosures().get(&owner.id).unwrap()
+    else {
+        panic!("immutable checked original")
+    };
+    assert!(
+        original_proof
+            .returns
+            .iter()
+            .any(|source| std::ptr::eq(source, returned[0]))
+    );
+    assert_eq!(
+        plan.queries
+            .iter()
+            .map(|query| query.id.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            transcripts[0].id.as_str(),
+            queries[0].id.as_str(),
+            queries[1].id.as_str(),
+            queries[2].id.as_str(),
+            transcripts[1].id.as_str(),
+            queries[3].id.as_str()
+        ]
+    );
+    assert_eq!(plan.returns[0].influences.len(), 24);
+    assert_eq!(
+        plan.returns[0].dependencies.len(),
+        returned[0].dependencies.len()
+    );
+    for fact in transcripts {
+        for read in &fact.dependencies {
+            let actual = plan.returns[0]
+                .dependencies
+                .iter()
+                .find(|actual| actual.id == read.id)
+                .unwrap();
+            assert_eq!(actual.query_id.as_deref(), Some(fact.id.as_str()));
+            assert!(matches!(actual.role, ReceiptRole::Data));
+        }
+        let query = plan
+            .queries
+            .iter()
+            .find(|query| query.id == fact.id)
+            .unwrap();
+        for read in &fact.query_dependencies {
+            assert!(query.dependencies.iter().any(|actual| actual.id == read.id));
+            assert!(
+                plan.returns[0]
+                    .dependencies
+                    .iter()
+                    .all(|actual| actual.id != read.id)
+            );
+        }
+    }
+    for mode in [
+        "derived-name",
+        "derived-type",
+        "derived-body",
+        "selection-id",
+        "query-order",
+        "return-data",
+        "profile-role",
+        "profile-order",
+        "profile-missing",
+        "profile-id",
+        "concat-order",
+        "concat-element",
+    ] {
+        let mut changed = ir.clone();
+        if mode.starts_with("derived-") {
+            let member = changed
+                .items
+                .iter_mut()
+                .find(|item| item.canonical == "chat.Run.partial")
+                .unwrap();
+            match mode {
+                "derived-name" => member.name = "forged".into(),
+                "derived-type" => {
+                    let IrItemKind::DeriveField { ty, .. } = &mut member.kind else {
+                        panic!("original derived member")
+                    };
+                    *ty = IrType::Known(ResolvedType::Scalar(Scalar::Bool));
+                }
+                "derived-body" => {
+                    let IrItemKind::DeriveField {
+                        expr: Some(body), ..
+                    } = &mut member.kind
+                    else {
+                        panic!("original derived body")
+                    };
+                    body.expr = IrExpr::Text("forged".into());
+                }
+                _ => unreachable!(),
+            }
+        } else if mode.starts_with("concat-") {
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.id.0 as usize].kind
+            else {
+                unreachable!()
+            };
+            let value = effects
+                .iter_mut()
+                .find_map(|statement| match statement {
+                    IrStmt::Let { name, value, .. } if name == "messages" => Some(value),
+                    _ => None,
+                })
+                .unwrap();
+            let ResolvedType::Array {
+                element, ordered, ..
+            } = &mut value.ty
+            else {
+                unreachable!()
+            };
+            if mode == "concat-order" {
+                *ordered = false;
+            } else {
+                **element = ResolvedType::Scalar(Scalar::Text);
+            }
+        } else {
+            let ScenarioDisclosure::Complete(disclosure) =
+                changed.scenario_disclosures.get_mut(&owner.id).unwrap()
+            else {
+                panic!("original Complete")
+            };
+            if mode.starts_with("profile-") {
+                let pairs = checked_profile_scalar_pairs(&ir, owner, left, &db).unwrap();
+                let (reference, scalar) = pairs[0];
+                for returned in &mut disclosure.returns {
+                    let reference_index = returned
+                        .dependencies
+                        .iter()
+                        .position(|read| read.id == reference.id)
+                        .unwrap();
+                    let scalar_index = returned
+                        .dependencies
+                        .iter()
+                        .position(|read| read.id == scalar.id)
+                        .unwrap();
+                    match mode {
+                        "profile-role" => {
+                            returned.dependencies[reference_index].role = DependencyRole::Data
+                        }
+                        "profile-order" => {
+                            returned.dependencies.swap(reference_index, scalar_index)
+                        }
+                        "profile-missing" => {
+                            returned.dependencies.remove(reference_index);
+                        }
+                        "profile-id" => {
+                            returned.dependencies[reference_index].id = scalar.id.clone()
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            } else if mode == "return-data" {
+                let id = &transcripts[0].dependencies[2].id;
+                for returned in &mut disclosure.returns {
+                    returned.dependencies.retain(|read| &read.id != id);
+                }
+            } else {
+                let facts = disclosure.source_facts.as_mut().unwrap();
+                if mode == "query-order" {
+                    facts.queries.as_mut().unwrap().swap(0, 1);
+                } else {
+                    let first = &mut facts.transcripts.as_mut().unwrap()[0];
+                    first.query_dependencies[0].id = first.dependencies[0].id.clone();
+                }
+            }
+        }
+        let changed_owner = &changed.items[owner.id.0 as usize];
+        if mode.starts_with("profile-") {
+            let IrItemKind::Scenario { effects, .. } = &changed_owner.kind else {
+                unreachable!()
+            };
+            let value = effects
+                .iter()
+                .find_map(|statement| match statement {
+                    IrStmt::Let { name, value, .. } if name == "reserve" => Some(value),
+                    _ => None,
+                })
+                .unwrap();
+            let IrExpr::Binary { left, .. } = &value.expr else {
+                unreachable!()
+            };
+            assert!(
+                checked_profile_scalar_pairs(&changed, changed_owner, left, &db).is_none(),
+                "{mode} cannot discard or reorder an authentic role pair"
+            );
+        }
+        assert!(
+            super::super::scenario_queries::collect_transcript_query_source(
+                &program,
+                &changed,
+                changed_owner,
+                &db,
+                Some(&catalog),
+                &entry_module
+            )
+            .is_none(),
+            "{mode} cannot borrow the original full six-query source plan"
+        );
+    }
+    let models = super::super::js::Emitter::source_models(&ir, &db)
+        .expect("own checked standard inventory supplies the original models");
+    let mut emitter = super::super::js::Emitter::new(&ir);
+    let value_types = emitter
+        .collect_standard_value_inventory(&db)
+        .expect("own source supplies the complete selected standard values");
+    let send_guards = super::super::send_guards::prepare(&program, &ir, &db, Some(&catalog))
+        .expect("the actual original SEND has its checked dispatch Rule");
+    let recipe = collect_native_scenario_receipt_with_feasibility(
+        &ir,
+        owner,
+        &models,
+        &entry_module,
+        Some(&value_types),
+        NativeReceiptSources {
+            db: Some(&db),
+            send_guards: send_guards.guards(&ir),
+            query_plan: Some(&plan),
+        },
+        Some(&prepared),
+    )
+    .expect("the unchanged original six-query body owns a complete native recipe");
+    assert_eq!(
+        serde_json::to_value(&recipe.plan).unwrap(),
+        serde_json::to_value(&plan).unwrap()
+    );
+    let mut result = DiagnosticResult::new("original-six-query-source", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let installed = root;
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.primary.file == owner.span.file
+                && facts.node.start <= diagnostic.primary.start
+                && diagnostic.primary.end <= facts.node.end),
+        "original chat.ask native emission is unsupported: {diagnostics:?}"
+    );
+    let emitted_operation = artifact
+        .operations
+        .iter()
+        .find(|operation| operation.name == owner.canonical)
+        .expect("the original owning operation is present in the real artifact");
+    assert_eq!(
+        serde_json::to_value(&emitted_operation.disclosure).unwrap(),
+        serde_json::to_value(&Some(&recipe.plan)).unwrap()
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    for (_, file) in db.iter() {
+        std::fs::write(scratch.path().join(&file.path), &file.text).unwrap();
+    }
+    let source_path = scratch.path().join("CanChat.can");
+    std::fs::write(
+        scratch.path().join("artifact.json"),
+        crate::codegen::artifact::to_json(&artifact),
+    )
+    .unwrap();
+    std::fs::write(
+        scratch.path().join("query-source.json"),
+        serde_json::to_vec(&plan).unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("original-source-binder.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+import {dirname,resolve} from 'node:path';import {fileURLToPath,pathToFileURL} from 'node:url';import {createRequire} from 'node:module';
+const base=dirname(fileURLToPath(import.meta.url)),require=createRequire(resolve(process.argv[2],'package.json'));
+const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
+const {assembleModules,importVerifiedAssemblyModule}=await load('@canlang/cloudflare/runtime/modules');
+const {loadArtifactDescriptors}=await load('@canlang/state/invocation/registry');
+const state=dirname(require.resolve('@canlang/state'));
+const {checkScenarioResultDisclosurePlan}=await import(pathToFileURL(resolve(state,'invocation/scenario-receipt.js')));
+const {bindScenarioQuerySelection}=await import(pathToFileURL(resolve(state,'invocation/scenario-query-selection.js')));
+const {bindScenarioQueryAny}=await import(pathToFileURL(resolve(state,'invocation/scenario-query-any.js')));
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const expected=JSON.parse(readFileSync(resolve(base,'query-source.json'),'utf8'));
+const assembly=await assembleModules({artifact,sourcePath:process.argv[3]},{workDir:resolve(base,'modules'),stdlibUrl:pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href});
+const module=await importVerifiedAssemblyModule(assembly,process.argv[4],artifact);
+const plan=module.canScenarioQuerySources()['chat.ask'];
+assert.deepEqual(plan,expected);assert.deepEqual(checkScenarioResultDisclosurePlan(plan),plan);
+assert.equal(plan.queries.length,6);assert.equal(plan.returns.length,1);assert.equal(plan.returns[0].influences.length,24);
+const operation=module.appDefinition.operations['chat.ask'];
+const loaded=loadArtifactDescriptors(artifact,{by:{role:'members'}});
+const bound={plan,artifactModels:new Map(artifact.models.map(model=>[model.name,model])),canonicalModels:loaded.models,valueSchema:loaded.valueSchema};
+assert.equal(operation.querySelections.length,2);assert.equal(operation.queryAny.length,1);
+for(const [index,metadata] of operation.querySelections.entries()) {
+ const profile=bindScenarioQuerySelection(bound,metadata);
+ assert.equal(profile.queryId,plan.queries[index===0?0:4].id);assert.equal(profile.type,'TextMessage[]');
+ assert.equal(profile.model,'chat.Turn');assert.deepEqual(profile.fields.map(field=>field.name),['role','content','attachments']);
+ assert.deepEqual(profile.fields.map(field=>[field.name,field.dependencyId]),metadata.fields.map(field=>[field.name,field.dependencyId]));
+ assert.ok(profile.fields.find(field=>field.name==='attachments').fileProfile);
+ for(const field of metadata.fields) {
+  const ordinary=plan.returns[0].dependencies.find(read=>read.id===field.dependencyId);
+  assert.equal(ordinary.queryId,profile.queryId);assert.equal(ordinary.role,'data');
+  assert.ok(plan.queries.every(query=>query.dependencies.every(read=>read.id!==field.dependencyId)));
+ }
+}
+const any=bindScenarioQueryAny(bound,operation.queryAny[0]);
+assert.equal(any.queryId,plan.queries[1].id);assert.equal(any.dependencyId,plan.queries[1].dependencies[0].id);
+assert.equal(any.model,'chat.Run');assert.equal(any.field,'unfinished');assert.equal(any.parentModel,'chat.Branch');assert.equal(any.parameter,'branch');
+// Literal declaration binding only: no admitted call/store, candidate query,
+// selected row/File grant, dispatch or native result is fabricated here.
+const collision=structuredClone(plan);
+collision.queries[0].dependencies.find(read=>read.role==='data').id=operation.querySelections[0].fields[0].dependencyId;
+assert.throws(()=>checkScenarioResultDisclosurePlan(collision));
+const foreign=structuredClone(operation.querySelections[0]);foreign.fields[0].dependencyId=operation.querySelections[1].fields[0].dependencyId;
+assert.throws(()=>bindScenarioQuerySelection(bound,foreign));
+const wrongAny=structuredClone(operation.queryAny[0]);wrongAny.queryId=plan.queries[3].id;
+assert.throws(()=>bindScenarioQueryAny(bound,wrongAny));
+"#).unwrap();
+    let executed = std::process::Command::new("node")
+        .arg(runner)
+        .arg(installed)
+        .arg(source_path)
+        .arg(&entry_module)
+        .current_dir(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
     );
 }
 

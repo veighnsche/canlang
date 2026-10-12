@@ -1670,7 +1670,11 @@ fn emit_program_with_sources(
             let Some(checked_queries) = source
                 .queries
                 .as_ref()
-                .filter(|queries| queries.len() <= 3)
+                .filter(|queries| {
+                    queries.len() <= 3
+                        || super::scenario_receipts::checked_scenario_query_influences(source)
+                            .is_some_and(|influences| influences.len() == 24)
+                })
                 .cloned()
             else {
                 continue;
@@ -4442,9 +4446,26 @@ impl<'a> Emitter<'a> {
                 .iter()
                 .any(|read| read.source_dependency_id.is_some())
             {
-                let [scalar] = dependencies.as_slice() else {
-                    return self.throw_expr("Original stored scalar pair is ambiguous");
+                let last_source = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|recipe| recipe.dependencies.get(&self.receipt_site(base.span)))
+                    .and_then(|reads| reads.last())
+                    .map(|read| read.id.as_str());
+                let Some(scalar) = dependencies
+                    .iter()
+                    .find(|read| read.source_dependency_id.as_deref() == last_source)
+                else {
+                    return self.throw_expr("Original stored scalar source observation is missing");
                 };
+                if dependencies.iter().any(|read| {
+                    read.source_dependency_id.is_none()
+                        || read.model != scalar.model
+                        || read.field != scalar.field
+                }) {
+                    return self
+                        .throw_expr("Original stored scalar pairs differ from their one getter");
+                }
                 let Some(source_id) = &scalar.source_dependency_id else {
                     return self.throw_expr("Original stored scalar source is missing");
                 };
