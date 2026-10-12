@@ -116,7 +116,8 @@ async function readBoundedBytes(
         await cancelStreamReader(reader, signal);
         throw new HttpBodyLimitError(status, maxBytes);
       }
-      chunks.push(value);
+      // The producer may reuse its buffer on the next read.
+      chunks.push(new Uint8Array(value));
     }
   } finally {
     try {

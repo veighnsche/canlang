@@ -738,6 +738,20 @@ test('B3-I5: framing failures re-render too when drafts exist', async () => {
 });
 
 test('body readers enforce caps and shapes', async () => {
+  function reusedChunks(parts: string[]): Request {
+    const chunk = new Uint8Array(parts[0]!.length);
+    let index = 0;
+    const body = new ReadableStream<Uint8Array>({ pull(controller) {
+      if (index === parts.length) { controller.close(); return; }
+      chunk.set(new TextEncoder().encode(parts[index++]!));
+      controller.enqueue(chunk);
+    } }, { highWaterMark: 0 });
+    const init = { method: 'POST', body, duplex: 'half' as const };
+    return new Request('https://x.invalid/body', init);
+  }
+  assert.equal(new TextDecoder().decode(await readCappedBody(reusedChunks(['a=1&', 'b=2&']), 8)), 'a=1&b=2&');
+  assert.deepEqual(await parseFormBody(reusedChunks(['a=1&', 'b=2&']), 8), { a: '1', b: '2' });
+  assert.deepEqual(await parseJsonBody(reusedChunks(['{"a":1,', '"b":2} ']), 14), { a: 1, b: 2 });
   const over = testRequest('/x', { method: 'POST', body: 'x'.repeat(100) });
   await assert.rejects(readCappedBody(over, 10), (e: unknown) => e instanceof IdentityError && e.code === 'limit');
   const badJson = testRequest('/x', {

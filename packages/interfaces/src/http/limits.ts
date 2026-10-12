@@ -50,7 +50,8 @@ export async function readCappedBody(request: Request, maxBytes: number): Promis
         await reader.cancel().catch(() => undefined);
         throw new IdentityError('limit', 'Request body too large.');
       }
-      chunks.push(value);
+      // The producer may reuse its buffer on the next read.
+      chunks.push(new Uint8Array(value));
     }
   } finally {
     reader.releaseLock();

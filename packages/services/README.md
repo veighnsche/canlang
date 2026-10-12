@@ -43,6 +43,8 @@ scenario tables `SCENARIO_TABLES`, `parseScenarioTable`,
 `startControlledSystemOneServer`, `startControlledComfyServer`.
 
 HTTP readers share one request deadline across redirect hops and body reads.
+Buffered readers copy admitted chunk bytes before the next read so a producer
+reusing its buffer cannot change already consumed text or binary content.
 After detecting an oversized body, cancellation waits use that same deadline
 and caller signal; the original body-limit refusal remains authoritative.
 The reader lock is released on return even when physical provider cleanup is
