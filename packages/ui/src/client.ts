@@ -254,28 +254,34 @@ export async function collectFormValues(form: DomFormLike): Promise<CollectedFor
   return { flat, files };
 }
 
-function assertFileLike(file: FileLike): void {
-  if (typeof file.field !== "string" || file.field === "") {
+function captureFileLike(file: FileLike): FileLike {
+  const field = file.field;
+  if (typeof field !== "string" || field === "") {
     throw new GeneratedSubmitError("usage", "submitGeneratedForm: upload file needs its input field", false);
   }
-  const what = `upload file for ${JSON.stringify(file.field)}`;
-  if (typeof file.name !== "string" || typeof file.type !== "string") {
+  const what = `upload file for ${JSON.stringify(field)}`;
+  const name = file.name;
+  const type = typeof name === "string" ? file.type : undefined;
+  if (typeof name !== "string" || typeof type !== "string") {
     throw new GeneratedSubmitError("usage", `submitGeneratedForm: ${what} needs string name/type`, false);
   }
-  if (!Number.isSafeInteger(file.size) || file.size < 0) {
+  const size = file.size;
+  if (!Number.isSafeInteger(size) || size < 0) {
     throw new GeneratedSubmitError(
       "usage",
       `submitGeneratedForm: ${what} needs a safe nonnegative size`,
       false,
     );
   }
-  if (!(file.bytes instanceof Uint8Array)) {
+  const bytes = file.bytes;
+  if (!(bytes instanceof Uint8Array)) {
     throw new GeneratedSubmitError(
       "usage",
       `submitGeneratedForm: ${what} needs Uint8Array bytes`,
       false,
     );
   }
+  return { field, name, type, size, bytes: new Uint8Array(bytes) };
 }
 
 function mustUploadsUrl(value: string | undefined): string {
@@ -394,7 +400,7 @@ async function putBytes(
     response = await fetchImpl(url, {
       method: "PUT",
       headers: { "content-type": "application/octet-stream", "upload-offset": "0", [CSRF_HEADER]: csrf },
-      body: bytes,
+      body: new Uint8Array(bytes),
     });
   } catch (error) {
     throw transportError("upload", field, error);
@@ -590,10 +596,8 @@ export async function submitGeneratedForm(
     );
   }
   const fetchImpl = input.fetchImpl ?? defaultFetch();
-  const files = input.files ?? [];
-  for (const file of files) {
-    assertFileLike(file);
-  }
+  const files: FileLike[] = [];
+  for (const file of input.files ?? []) files.push(captureFileLike(file));
   const byField = new Map<string, FileLike>();
   for (const file of files) {
     if (byField.has(file.field)) {

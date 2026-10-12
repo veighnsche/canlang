@@ -657,6 +657,70 @@ describe("T20b S7 upload flow", () => {
     });
   });
 
+  it("pins upload getters and bytes across pending intent and PUT responses", { timeout: 5000 }, async () => {
+    for (const pending of ["intent", "PUT"] as const) {
+      const original = { field: "doc", name: "a.pdf", type: "application/pdf", size: 3, bytes: new Uint8Array([1, 2, 3]) };
+      const reads = { field: 0, name: 0, type: 0, size: 0, bytes: 0 };
+      const file = {
+        get field() { reads.field++; return original.field; },
+        get name() { reads.name++; return original.name; },
+        get type() { reads.type++; return original.type; },
+        get size() { reads.size++; return original.size; },
+        get bytes() { reads.bytes++; return original.bytes; },
+      };
+      let reached!: () => void, release!: () => void;
+      const waiting = new Promise<void>(resolve => { reached = resolve; });
+      const held = new Promise<void>(resolve => { release = resolve; });
+      const calls: SeenCall[] = [];
+      const fetch: SubmitFetch = async (url, init) => {
+        calls.push({ url, init: { ...init, ...(init.body instanceof Uint8Array ? { body: new Uint8Array(init.body) } : {}) },
+          json: typeof init.body === "string" ? JSON.parse(init.body) as unknown : undefined });
+        if (url === "https://uploads.test/intents") {
+          if (pending === "intent") { reached(); await held; }
+          return { status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify(INTENT) };
+        }
+        if (url === INTENT.content) {
+          if (pending === "PUT") {
+            reached(); await held;
+            assert.ok(init.body instanceof Uint8Array);
+            init.body.fill(8); // Transport-owned bytes must not alter the retained digest input.
+          }
+          return { status: 200, headers: { get: () => null }, text: async () => "" };
+        }
+        if (url === INTENT.finalize) {
+          return { status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ file: "file-opaque-1" }) };
+        }
+        assert.equal(url, "/api/operations/Ledger.Entry.create");
+        return { status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ status: "committed", operation_id: "op-1" }) };
+      };
+      const outcome = submitGeneratedForm({ derived: FILE_CREATE, mode: "create", flat: baseFlat({ "inputs[title]": "t" }),
+        files: [file], action: "/api/operations/Ledger.Entry.create", fragment: true, intentsUrl: "https://uploads.test/intents",
+        fetchImpl: fetch, mintUploadId: () => "up-1" });
+      try {
+        await waiting;
+        original.field = "other"; original.name = "changed.txt"; original.type = "text/plain"; original.size = 9;
+        original.bytes.fill(9);
+        release();
+        assert.equal((await outcome).kind, "committed");
+        assert.deepEqual(pickCall(calls, "PUT", INTENT.content).init.body, new Uint8Array([1, 2, 3]));
+        assert.deepEqual(reads, { field: 1, name: 1, type: 1, size: 1, bytes: 1 });
+        assert.deepEqual(pickCall(calls, "POST", "https://uploads.test/intents").json, {
+          upload_id: "up-1", operation: "Ledger.Entry.create", field: "/doc", arguments: { title: "t" },
+          name: "a.pdf", type: "application/pdf", size: "3",
+        });
+        assert.deepEqual(pickCall(calls, "POST", INTENT.finalize).json, {
+          upload_id: "up-1", bytes_digest: "sha256:039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+        });
+        assert.deepEqual(pickCall(calls, "POST", "/api/operations/Ledger.Entry.create").json, {
+          operation: "Ledger.Entry.create", operation_id: "op-1", inputs: { title: "t", doc: { id: "file-opaque-1" } },
+        });
+      } finally {
+        release();
+        await outcome.catch(() => undefined);
+      }
+    }
+  });
+
   it("points update intents at the canonical flat file slot", async () => {
     const { fetch, calls } = stubFetch([
       {
