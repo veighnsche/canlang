@@ -1,0 +1,7 @@
+app SourcePolicyProjection
+Given
+ Entry { label:text, hidden:text, token:secret server=random_secret() }
+ policy Entry read=members fields=label
+When
+ crud Entry by=members fields=label,hidden
+Then

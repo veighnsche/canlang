@@ -103,7 +103,6 @@
     "TECH-V05",
     "TECH-S01",
     "TECH-S01-own-key",
-    "TECH-S02",
     "TECH-S03",
     "TECH-I01",
     "TECH-F01",
@@ -934,7 +933,7 @@
     },
     "TECH-S02": {
       "planning_status": "blocked",
-      "state": "independently accepted finite metadata/selector correction; committed89d885a9",
+      "state": "finished",
       "files": [
         "packages/state/src/mutation/crud.ts",
         "packages/state/src/mutation/pipeline.ts",
@@ -1081,6 +1080,14 @@
         "actual_code_and_retained_result": "Released State1fd877c35b97499f24ab6275e604b57a2b5e5f26 invoke/query source-policy and Dev206516cc944931fbcbbd80701eb3007f6d3b3f0e CF fresh source-policy forwarding exist; local hunks absent. Main63b9192eda21bc00af1d5d7326353e6d322852c0 records genuine First native pass.",
         "remaining_finite_action_or_input": "Surgically consume exact released affected outputs preserving later local changes; identify only missing combined original HTTP/query/replay secret consumer, never whole State/Dev completion.",
         "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
+      },
+      "public_http_source_projection": {
+        "status": "implemented_tested_reviewed_actual_MAIN_selected_criterion_closed",
+        "source": "packages/cloudflare/test/fixtures/native-source-policy-projection.can; packages/cloudflare/test/native-source-policy-http.test.ts; packages/cloudflare/src/runtime/invoke.ts",
+        "failure_and_fix": "Actual no-read-policy mutation returned HTTP400 because the Cloudflare source adapter required a generated .read operation even for an empty original read-grant inventory. That inventory has no fields to disclose; accept its absence of .read while preserving checked model/ancestor correspondence and all nonempty-grant read checks.",
+        "checks": "Cloudflare clean build/emission0; root strict TypeScript0; exact generated Compiler/installed Cloudflare/State/Identity/D1/public HTTP test1/1 PASS8.96s. Secret grant E4010 refusal; authorized label-only response/read/replay; revoked membership current withholding; no-repeat effects; no-read-policy durable write with empty public result/records and safe replay.",
+        "remaining": "Independent critical source review of the changed runtime branch and joined consumer. Existing First Budget and State query-source checks reused; held scopes and provider-void untouched.",
+        "coordinator_review": "TECH-S02 joined generatedCompiler/installedCF/State/Identity/D1/publicHTTP projection independently critical definingCLEAR and actualMAIN qualified. Only original verifiedEMPTY readgrant inventory permits absence of .read; checkedmodel/ancestor/source identity remain, missing/nonemptygrants retaincheckedread requirement, empty grants add nofieldauthority. Explicitrandom_secret sourcegrantE4010 refuses; authorizedlabel-onlycreate/read/replay remainuseful, hiddenordinary+secret neverwire, currentrevocation/reactivation/no repeatedcommit. Genuine no-read durablemutation and safe replay yield emptypublicrecords. Owner1/1 8.96s reused separately; MAIN changed checks [{\"check\": \"CF\", \"exit\": 0, \"seconds\": 5.08}, {\"check\": \"root\", \"exit\": 0, \"seconds\": 4.99}, {\"check\": \"MAIN joined HTTP\", \"exit\": 0, \"seconds\": 9.34}]. Originalselecteddecisivepositive/negative/donewhen satisfied atthisHTTPprojection scope, no fullJ2/app/platform/provider/hold release. PriorOWN0c sourceprereq intake only, rootalreadyhasoriginalFirst/modelPolicy/query source companions; no duplicateFirst native rerun."
       }
     },
     "TECH-S03": {
@@ -7303,12 +7310,12 @@
       "DEL-E02",
       "VERIFY-TV01",
       "DEL-D04",
-      "DEL-B01"
+      "DEL-B01",
+      "TECH-S02"
     ],
     "partially_completed": [
       "TECH-V03",
       "TECH-V04",
-      "TECH-S02",
       "TECH-I01",
       "TECH-F01",
       "DEL-B02",
@@ -7327,14 +7334,14 @@
       "DEL-D05"
     ],
     "counts": {
-      "finished": 33,
-      "partial": 7,
+      "finished": 34,
+      "partial": 6,
       "open_or_blocked": 7,
       "held": 1,
       "total": 48
     },
-    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01.",
-    "status_given_to_human": "33/48 selected packets finished;7partial7open1held. Remaining currentview:2ready,10exactinputs,2held,1retiredC02consumer; canonical333/widerparents/holds separate."
+    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01. OriginalselectedS02 publicHTTP decisivecaller/privacypositive-negative/currentreplay criteria satisfied by independentcriticalCLEAR+actualMAIN, widerparentunchanged.",
+    "status_given_to_human": "34/48 selected packets finished;6partial7open1held. Remaining currentview:1local-ready FINAL-R03,10exactownerinputs,2preciseholds,1retiredC02consumer; canonical333/widerparents/holds unchanged."
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {

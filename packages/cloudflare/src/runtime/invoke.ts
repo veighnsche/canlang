@@ -4940,12 +4940,16 @@ function createSourceReadPolicyAdapter(input: {
     while (model !== undefined) {
       if (reads.has(model)) throw new StateError('validation', 'Unsupported source read containment scope.');
       const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
-      if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
-          !loaded.models.some(candidate => candidate.name === model)) {
+      const source = loaded.sourceReadPolicies.get(model);
+      // The compiler records an empty original read-grant inventory when a
+      // model has no read policy. Its mutation is still valid, but it has no
+      // generated .read operation and no fields may be disclosed from it.
+      if (!loaded.models.some(candidate => candidate.name === model) ||
+          (source === undefined || source.grants.length !== 0) &&
+          (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0)) {
         throw new StateError('validation', 'Source projection requires its checked model read and containment facts.');
       }
       const parent: ModelName | undefined = (loaded.containment as LoadedArtifactDescriptors['containment']).get(model)?.parent;
-      const source = loaded.sourceReadPolicies.get(model);
       if (source !== undefined) {
         app ??= source.app;
         if (source.app !== app) throw new StateError('validation', 'Source read policy differs from its installed app.');
@@ -4959,6 +4963,7 @@ function createSourceReadPolicyAdapter(input: {
           })), ...(parent === undefined ? {} : { parent }) }));
       } else {
         if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+        if (def === undefined) throw new StateError('validation', 'Source projection requires its checked model read and containment facts.');
         reads.set(model, { by: def.by, ...(parent === undefined ? {} : { parent }) });
       }
       model = parent;
