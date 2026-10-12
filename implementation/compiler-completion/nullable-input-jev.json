@@ -1,0 +1,127 @@
+{
+  "requests": [
+    {
+      "model": "jev-latest",
+      "state": {
+        "verified": "Unchanged public CanCreative generate has optional conversation:Conversation?=null and leading guard (conversation==null or can_use(actor,conversation)); next actual analyzer decline is bytes11967..11985 conversation==null. Existing typed input admission freezes inputs/inputHash and records provided versioned optional references in recordRefs; ordinary field observations join actual provided admitted rows. There is no stored-row read when comparing the admitted input slot with null. Current source analyzer seeds model identity only nonnullable Model parameters and refuses all nullableModel equality/null comparisons. Literal null defaults have no source read/decision and already use the supplied typed input ValuePath for source analysis. State admitted-input intrinsic supports required primitive only; admitted-reference-version requires nonnullable required versioned reference and an actual version getter. Source-only model tags never supply authority.",
+        "required": "Implement exact original null-vs-supplied Model input guard with lazy helper calls and field reads only on nonnull runtime path, preserving original source/roles/decisions/guards/conditional SEND/default/null/failure, no source pruning/cap raises or fabricated getter/intrinsic. Genuine runtime caller must still qualify admitted optional reference and null path. Stored field nullable/current/query profiles remain distinct.",
+        "uncertainty": "Existing canonical input admission may already be the complete proof for presence of an optional input slot, like existing literal-defaulted scalar inputs without admitted-input intrinsic. Need compare complete maintenance and permission behavior; do not treat source model tracking as runtime row authority."
+      },
+      "questions": {
+        "correction": {
+          "type": "choice",
+          "instructions": "Which finite correction best preserves the required behavior and permissions for this demonstrated original input guard? Balance existing authenticated input reuse against a new presence intrinsic and a precise owner prerequisite; advice is not acceptance.",
+          "criteria": {
+            "existing_input_slot": "Track only actual nullable stored-Model parameter with exact owning declaration and literal-null default in source ValuePath. Permit direct ==null/!=null on that exact admitted slot, retain all lazy decisions; keep nonnull field reads as existing ordinary observations tied to admitted recordRefs. Use existing canonical input/default/hash/ref admission; add no presence intrinsic or row read. Refuse nullable field/other default/copied/foreign paths and qualify real null/provided/late failure at runtime.",
+            "presence_intrinsic": "Add a canonical optional-reference presence intrinsic across compiler and State receiving, authenticating exact nullable parameter/default/inputHash and null/provided semantics. Retain lazy field observations and guards, qualify issuer/refusals/runtime paths. Accept a new shared intrinsic ABI and defining State work to make presence explicit.",
+            "owner_decision_first": "Keep producer blocked for this leaf and obtain a precise defining input-presence contract/decision from State/Dev first; continue independent work. Avoid assuming canonical input admission is sufficient, then implement chosen existing or new carrier and same runtime/refusal validation."
+          }
+        }
+      }
+    },
+    {
+      "model": "jev-latest",
+      "state": {
+        "verified": "Unchanged public CanCreative generate has optional conversation:Conversation?=null and leading guard (conversation==null or can_use(actor,conversation)); next actual analyzer decline is bytes11967..11985 conversation==null. Existing typed input admission freezes inputs/inputHash and records provided versioned optional references in recordRefs; ordinary field observations join actual provided admitted rows. There is no stored-row read when comparing the admitted input slot with null. Current source analyzer seeds model identity only nonnullable Model parameters and refuses all nullableModel equality/null comparisons. Literal null defaults have no source read/decision and already use the supplied typed input ValuePath for source analysis. State admitted-input intrinsic supports required primitive only; admitted-reference-version requires nonnullable required versioned reference and an actual version getter. Source-only model tags never supply authority.",
+        "required": "Implement exact original null-vs-supplied Model input guard with lazy helper calls and field reads only on nonnull runtime path, preserving original source/roles/decisions/guards/conditional SEND/default/null/failure, no source pruning/cap raises or fabricated getter/intrinsic. Genuine runtime caller must still qualify admitted optional reference and null path. Stored field nullable/current/query profiles remain distinct.",
+        "uncertainty": "Existing canonical input admission may already be the complete proof for presence of an optional input slot, like existing literal-defaulted scalar inputs without admitted-input intrinsic. Need compare complete maintenance and permission behavior; do not treat source model tracking as runtime row authority."
+      },
+      "questions": {
+        "correction": {
+          "type": "choice",
+          "instructions": "Choose the smallest complete way to handle the original optional conversation null guard using the verified source and runtime facts. Compare reuse, explicit presence proof and exact owner clarification on the same outcomes and validation burden.",
+          "criteria": {
+            "existing_input_slot": "Track only actual nullable stored-Model parameter with exact owning declaration and literal-null default in source ValuePath. Permit direct ==null/!=null on that exact admitted slot, retain all lazy decisions; keep nonnull field reads as existing ordinary observations tied to admitted recordRefs. Use existing canonical input/default/hash/ref admission; add no presence intrinsic or row read. Refuse nullable field/other default/copied/foreign paths and qualify real null/provided/late failure at runtime.",
+            "presence_intrinsic": "Add a canonical optional-reference presence intrinsic across compiler and State receiving, authenticating exact nullable parameter/default/inputHash and null/provided semantics. Retain lazy field observations and guards, qualify issuer/refusals/runtime paths. Accept a new shared intrinsic ABI and defining State work to make presence explicit.",
+            "owner_decision_first": "Keep producer blocked for this leaf and obtain a precise defining input-presence contract/decision from State/Dev first; continue independent work. Avoid assuming canonical input admission is sufficient, then implement chosen existing or new carrier and same runtime/refusal validation."
+          }
+        }
+      }
+    },
+    {
+      "model": "jev-latest",
+      "state": {
+        "verified": "Unchanged public CanCreative generate has optional conversation:Conversation?=null and leading guard (conversation==null or can_use(actor,conversation)); next actual analyzer decline is bytes11967..11985 conversation==null. Existing typed input admission freezes inputs/inputHash and records provided versioned optional references in recordRefs; ordinary field observations join actual provided admitted rows. There is no stored-row read when comparing the admitted input slot with null. Current source analyzer seeds model identity only nonnullable Model parameters and refuses all nullableModel equality/null comparisons. Literal null defaults have no source read/decision and already use the supplied typed input ValuePath for source analysis. State admitted-input intrinsic supports required primitive only; admitted-reference-version requires nonnullable required versioned reference and an actual version getter. Source-only model tags never supply authority.",
+        "required": "Implement exact original null-vs-supplied Model input guard with lazy helper calls and field reads only on nonnull runtime path, preserving original source/roles/decisions/guards/conditional SEND/default/null/failure, no source pruning/cap raises or fabricated getter/intrinsic. Genuine runtime caller must still qualify admitted optional reference and null path. Stored field nullable/current/query profiles remain distinct.",
+        "uncertainty": "Existing canonical input admission may already be the complete proof for presence of an optional input slot, like existing literal-defaulted scalar inputs without admitted-input intrinsic. Need compare complete maintenance and permission behavior; do not treat source model tracking as runtime row authority."
+      },
+      "questions": {
+        "correction": {
+          "type": "choice",
+          "instructions": "For this original nullable Model parameter guard, what implementation should proceed next to preserve lazy evaluation, canonical input authority and complete workflows with proportionate maintenance? Evaluate all three options fairly.",
+          "criteria": {
+            "existing_input_slot": "Track only actual nullable stored-Model parameter with exact owning declaration and literal-null default in source ValuePath. Permit direct ==null/!=null on that exact admitted slot, retain all lazy decisions; keep nonnull field reads as existing ordinary observations tied to admitted recordRefs. Use existing canonical input/default/hash/ref admission; add no presence intrinsic or row read. Refuse nullable field/other default/copied/foreign paths and qualify real null/provided/late failure at runtime.",
+            "presence_intrinsic": "Add a canonical optional-reference presence intrinsic across compiler and State receiving, authenticating exact nullable parameter/default/inputHash and null/provided semantics. Retain lazy field observations and guards, qualify issuer/refusals/runtime paths. Accept a new shared intrinsic ABI and defining State work to make presence explicit.",
+            "owner_decision_first": "Keep producer blocked for this leaf and obtain a precise defining input-presence contract/decision from State/Dev first; continue independent work. Avoid assuming canonical input admission is sufficient, then implement chosen existing or new carrier and same runtime/refusal validation."
+          }
+        }
+      }
+    }
+  ],
+  "responses": [
+    {
+      "model": "jev-1.13.0",
+      "answers": {
+        "correction": {
+          "type": "choice",
+          "choice": "existing_input_slot",
+          "confidence": 0.83,
+          "probabilities": {
+            "existing_input_slot": 0.89,
+            "presence_intrinsic": 0.01,
+            "owner_decision_first": 0.1
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 906,
+        "output_tokens": 51
+      }
+    },
+    {
+      "model": "jev-1.13.0",
+      "answers": {
+        "correction": {
+          "type": "choice",
+          "choice": "existing_input_slot",
+          "confidence": 0.97,
+          "probabilities": {
+            "existing_input_slot": 0.98,
+            "presence_intrinsic": 0.0,
+            "owner_decision_first": 0.02
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 907,
+        "output_tokens": 51
+      }
+    },
+    {
+      "model": "jev-1.13.0",
+      "answers": {
+        "correction": {
+          "type": "choice",
+          "choice": "existing_input_slot",
+          "confidence": 0.83,
+          "probabilities": {
+            "existing_input_slot": 0.89,
+            "presence_intrinsic": 0.0,
+            "owner_decision_first": 0.11
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 905,
+        "output_tokens": 51
+      }
+    }
+  ],
+  "decision": {
+    "scope": "source association implemented; native receiving remains unqualified",
+    "choice": "existing_input_slot",
+    "agreement": "3/3; probabilities .89/.98/.89, confidence .83/.97/.83",
+    "uncertainty": "Advice does not establish complete original closure or authority. Genuine explicit-null/omitted checked default/supplied same versioned ref/lazy guard/current authority must be proved by Dev using actual source emitter and receipt lifetime. Existing canonical input/hash/ref mechanisms are reused, required primitive/version intrinsics unchanged.",
+    "approval": "Two auto-review refusals; exact direct human approval then three unchanged requests succeeded."
+  }
+}

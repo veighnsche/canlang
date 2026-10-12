@@ -43,7 +43,7 @@
  */
 
 import { getDataPath } from '../internal/own-data.js';
-import { canonicalUniqueFieldValue } from '../internal/unique-value.js';
+import { assertMigrationUniqueSupported, canonicalUniqueRowValue, canonicalUniqueFieldValue } from '../internal/unique-value.js';
 import type {
   MigrationProgress,
   ModelName,
@@ -205,6 +205,7 @@ function mapLockPredicate(
  */
 export async function validateStaged(input: ValidateStagedInput): Promise<MigrationProgress> {
   const { store, plan, desiredModels, oldLocks, oldModels } = input;
+  assertMigrationUniqueSupported(oldModels, desiredModels);
   const progress = await store.readMigrationProgress(plan.migrationId);
   if (progress === null) {
     throw new StateError('validation', 'Migration has no staged state to validate.');
@@ -776,14 +777,7 @@ function checkUniqueSet(
   for (const key of def.uniqueKeys) {
     const seen = new Set<string>();
     for (const data of datas) {
-      const value = canonicalUniqueValue(
-        Object.hasOwn(data, key)
-          ? (data as Readonly<Record<string, unknown>>)[key]
-          : undefined,
-        key,
-        model,
-        def.fields[key],
-      );
+      const value = canonicalUniqueRowValue({data, parent: null}, key, def);
       if (value === null) {
         continue;
       }

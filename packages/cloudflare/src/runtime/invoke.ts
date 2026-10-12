@@ -13640,7 +13640,9 @@ const nativeEmailPreclaims = new WeakMap<AsyncGuardEvaluator, NativeEmailPreclai
 
 /** Trusted host installation before any source call. Each returned fence owns
  * one actual deferred evaluation; lexical values come only from its persisted
- * original Work row and installed Compiler/State declaration. */
+ * original Work row and installed Compiler/State declaration. The existing
+ * entry also binds TextGeneration's original generate target; control targets
+ * retain their separate current-delivery admission. */
 export async function bindNativeEmailDispatchGuards(input: {
   readonly asm: AssembledModules; readonly artifact: CompileArtifact;
   readonly store: StoragePort; readonly identities: IdentityStore;
@@ -13664,13 +13666,13 @@ export async function bindNativeEmailDispatchGuards(input: {
     const def = generatedScenarioDef({ def: value });
     if (def === undefined) continue;
     for (const selected of nativeSourceSendGuards.get(def)?.values() ?? []) {
-      if (selected.guard.target !== 'std.EmailV1.send' || selected.ownerPackage !== scope.ownerPackage ||
+      if (!['std.EmailV1.send', 'std.TextGenerationV1.generate'].includes(selected.guard.target) || selected.ownerPackage !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type))) continue;
       const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch' &&
         stableStringify(site.node) === stableStringify(selected.guard.node));
       bindNativeDispatchMembership(def, { source: selected.logicalGuard.source, app: scope.app,
         predicate: selected.guard.rule, sites, store, memberships: identities,
-        admit: execution => admissions.get(execution) ?? (() => { throw new Error('Native Email requires its actual fresh dispatch Identity.'); })() });
+        admit: execution => admissions.get(execution) ?? (() => { throw new Error('Native guarded SEND requires its actual fresh dispatch Identity.'); })() });
       guards.set(selected.guard.rule, { def, selected });
     }
   }
@@ -13680,8 +13682,8 @@ export async function bindNativeEmailDispatchGuards(input: {
     const originalIntent = captureDispatchPreclaimData(intent);
     const installed = guards.get(originalIntent.dispatchGuard ?? '');
     if (installed === undefined || originalIntent.operation !== installed.selected.guard.owner ||
-        originalIntent.target !== 'std.EmailV1.send' || originalIntent.arguments['binding'] !== installed.selected.guard.binding) {
-      throw new Error('Native Email fence requires its original installed guard/owner/binding.');
+        originalIntent.target !== installed.selected.guard.target || originalIntent.arguments['binding'] !== installed.selected.guard.binding) {
+      throw new Error('Native guarded SEND fence requires its original installed guard/owner/binding.');
     }
     const { def, selected } = installed;
     let staged: { input: DispatchClaimGuardInput; retained: RetainedOutboxIntent; lexical: Readonly<Record<string, unknown>>;
@@ -13691,7 +13693,7 @@ export async function bindNativeEmailDispatchGuards(input: {
     const poison = (error: unknown): void => { if (!poisoned) { poisoned = true; terminal = error; } };
     const refuse = (error: unknown): never => { poison(error); throw terminal; };
     const evaluator: AsyncGuardEvaluator = async (predicate, lexical, _snapshot, execution) => {
-      if (entered || staged === undefined) return refuse(new Error('Native Email guard needs its one actual prepared claim stage.'));
+      if (entered || staged === undefined) return refuse(new Error('Native guarded SEND guard needs its one actual prepared claim stage.'));
       entered = true;
       const actual = staged;
       let open = true;
@@ -13700,10 +13702,10 @@ export async function bindNativeEmailDispatchGuards(input: {
             predicate !== selected.guard.rule || stableStringify(lexical) !== stableStringify(actual.lexical) ||
             work.readDispatchGuardExecution(execution).checkpoint?.revision !== actual.input.revision ||
             work.readDispatchGuardExecution(execution).checkpoint?.owner !== scope.owner) {
-          return refuse(new Error('Native Email crossed its original Work guard/context/checkpoint.'));
+          return refuse(new Error('Native guarded SEND crossed its original Work guard/context/checkpoint.'));
         }
       };
-      const reject = (): never => refuse(new Error('Native Email historical guard context is read only; live model/query effects require their owning join.'));
+      const reject = (): never => refuse(new Error('Native guarded SEND historical guard context is read only; live model/query effects require their owning join.'));
       const physical = new Proxy(Object.create(null) as StoragePort, {
         get: reject, set: reject, defineProperty: reject, deleteProperty: reject, ownKeys: reject });
       const canonical: CanonicalEffectsScope = Object.freeze({ operation: selected.guard.owner,
@@ -13731,7 +13733,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         frame.assertCompleted(); healthy();
         const answer: unknown = await selected.evaluate(c, Object.freeze(inputs));
         frame.assertCompleted(); healthy();
-        if (typeof answer !== 'boolean') return refuse(new Error('Original native Email predicate must return Bool.'));
+        if (typeof answer !== 'boolean') return refuse(new Error('Original native SEND predicate must return Bool.'));
         work.registerDispatchGuardRevalidation(execution, async () => {
           if (open || poisoned) return false;
           await actual.opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row: actual.row,
@@ -13746,14 +13748,14 @@ export async function bindNativeEmailDispatchGuards(input: {
     nativeEmailPreclaims.set(evaluator, { prepare: async (claim, retained) => {
       if (staged !== undefined || entered || poisoned || claim.data.state !== 'pending' ||
           stableStringify(retained.intent) !== stableStringify(originalIntent)) {
-        return refuse(new Error('Native Email requires its actual unchanged original preclaim.'));
+        return refuse(new Error('Native guarded SEND requires its actual unchanged original preclaim.'));
       }
       const currentIdentity = () => resolvePrivateSourceOwner(identities, scope, claim.context.now);
       const identity = await currentIdentity();
       const healthy = async (): Promise<void> => {
         if (await store.readRevision() !== claim.revision || claim.context.now < 0 ||
             stableStringify((await currentIdentity()).team) !== stableStringify(identity.team)) {
-          throw new Error('Native Email original owner/checkpoint changed.');
+          throw new Error('Native guarded SEND original owner/checkpoint changed.');
         }
       };
       await healthy();
@@ -13769,10 +13771,10 @@ export async function bindNativeEmailDispatchGuards(input: {
           stableStringify(header.origin.intent) !== stableStringify({ intentId: originalIntent.intentId, operation: originalIntent.operation,
             operationId: originalIntent.operationId, target: originalIntent.target, occurrenceIndex: originalIntent.occurrenceIndex,
             dispatchGuard: originalIntent.dispatchGuard })) {
-        return refuse(new Error('Native Email lost its original persisted sourceGuard/header/intent correspondence.'));
+        return refuse(new Error('Native guarded SEND lost its original persisted sourceGuard/header/intent correspondence.'));
       }
       const declaration = opaque.sendGuard(selected.guard, selected.inputDeclaration);
-      if (header.origin.inputsDeclarationId !== declaration.inputsDeclarationId) return refuse(new Error('Native Email lexical declaration was replaced.'));
+      if (header.origin.inputsDeclarationId !== declaration.inputsDeclarationId) return refuse(new Error('Native guarded SEND lexical declaration was replaced.'));
       await opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row, field: 'sourceGuard', binding: header }, claim.revision, input.files);
       // The original complete historical typed census includes model fields.
       // revalidateSource above requires the genuine physical observer for every File.
@@ -13785,7 +13787,7 @@ export async function bindNativeEmailDispatchGuards(input: {
         }
         if (stableStringify(encodeCanonicalField(loaded.producers.errors, slot.type,
           localPolicyMember(lexical, slot.name), loaded.valueSchema)) !== stableStringify(localPolicyMember(lexical, slot.name))) {
-          return refuse(new Error('Native Email persisted lexical slot is not canonical.'));
+          return refuse(new Error('Native guarded SEND persisted lexical slot is not canonical.'));
         }
       }
       await healthy();

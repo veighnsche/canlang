@@ -294,6 +294,8 @@ export interface InterimModelDef {
   readonly fields: Record<string, InterimFieldDef>;
   readonly refs: ReadonlyArray<InterimRefDef>;
   readonly uniqueKeys: ReadonlyArray<string>;
+  /** Engine-local source-derived ordered required ref/enum constraints. */
+  readonly uniqueGroups?: ReadonlyArray<ReadonlyArray<string>>;
   /** Optional owning row conditions for these indexed fields. Omitted keys
    * retain unconditional uniqueness; this data is not source authority. */
   readonly uniqueWhen?: Readonly<Record<string, QueryPredicate>>;
@@ -306,6 +308,35 @@ export interface InterimModelDef {
 
 /** Validated, frozen model table keyed by model. */
 export type ModelTable = ReadonlyMap<ModelName, InterimModelDef>;
+
+/** Checked tuple profiles attach only to table-built definitions. */
+export interface UniqueGroupProfile {
+  readonly fields: readonly [string, string];
+  readonly refModel: ModelName;
+  readonly cases: readonly string[];
+}
+function checkedUniqueGroups(raw: unknown): readonly (readonly string[])[] {
+  if (!Array.isArray(raw) || Reflect.ownKeys(raw).length !== raw.length + 1) throw new Error('Unique groups must be own data arrays.');
+  const result: string[][] = [];
+  for (let index = 0; index < raw.length; index++) {
+    const entry = Object.getOwnPropertyDescriptor(raw, String(index));
+    if (entry === undefined || !entry.enumerable || !('value' in entry)) throw new Error('Unique group accessor or hole.');
+    const group: unknown = entry.value;
+    if (!Array.isArray(group) || group.length !== 2 || Reflect.ownKeys(group).length !== 3) throw new Error('Unique group requires exactly two fields.');
+    const names: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const d = Object.getOwnPropertyDescriptor(group, String(i));
+      if (d === undefined || !d.enumerable || !('value' in d) || typeof d.value !== 'string') throw new Error('Unique group fields must be own strings.');
+      names.push(d.value);
+    }
+    result.push(names);
+  }
+  return result;
+}
+const uniqueGroupProfiles = new WeakMap<InterimModelDef, ReadonlyMap<string, UniqueGroupProfile>>();
+export function getUniqueGroupProfile(def: InterimModelDef, key: string): UniqueGroupProfile | undefined {
+  return uniqueGroupProfiles.get(def)?.get(key);
+}
 
 const fieldConstraintSchemas = new WeakMap<InterimFieldDef, { readonly schema: NormalizedSchema; readonly type: string }>();
 
@@ -540,6 +571,33 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
     if (!Array.isArray(def.uniqueKeys)) {
       throw new Error(`Invalid model ${JSON.stringify(model)}: uniqueKeys must be an array.`);
     }
+    const groups = new Map<string, UniqueGroupProfile>();
+    if (def.uniqueGroups !== undefined) {
+      for (const group of checkedUniqueGroups(def.uniqueGroups)) {
+        const first = group[0]!, second = group[1]!, key = group.join(',');
+        if (first === second || groups.has(key) || [first, second].some(name => name.includes(',') ||
+            name.includes('.') || isMetadataPath(name) || !Object.hasOwn(def.fields, name))) {
+          throw new Error('Duplicate, unknown or unsupported unique group member.');
+        }
+        const refField = def.fields[first]!, enumField = def.fields[second]!;
+        for (const field of [refField, enumField]) {
+          if (!field.required || field.array !== undefined || field.nullable === true || field.valueType === undefined ||
+              parseTypeId(field.valueType).nullable || parseTypeId(field.valueType).array) {
+            throw new Error('Composite unique requires required singular nonnullable stored fields.');
+          }
+        }
+        const ref = def.refs.find(ref => ref.field === first), refType = parseTypeId(refField.valueType!);
+        const enumType = parseTypeId(enumField.valueType!);
+        const cases = enumType.base.kind === 'enum' ? enumType.base.cases :
+          enumType.base.kind === 'nominal' ? opts.valueSchema?.enums[enumType.base.path]?.cases : undefined;
+        if (ref === undefined || !modelNames.has(ref.model) || refType.base.kind !== 'nominal' ||
+            refType.base.path !== ref.model || refFields.has(second) || cases === undefined || cases.length === 0) {
+          throw new Error('Composite unique requires the owning model reference followed by its checked enum.');
+        }
+        groups.set(key, Object.freeze({fields: Object.freeze([first, second]) as readonly [string, string],
+          refModel: ref.model, cases: Object.freeze([...cases])}));
+      }
+    }
     const seenKeys = new Set<string>();
     for (const key of def.uniqueKeys) {
       if (typeof key !== 'string' || key === '') {
@@ -547,7 +605,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
           `Invalid unique key on model ${JSON.stringify(model)}: keys are non-empty field names.`,
         );
       }
-      if (!Object.hasOwn(def.fields, key)) {
+      if (!Object.hasOwn(def.fields, key) && !groups.has(key)) {
         throw new Error(
           `Unknown unique-key field ${JSON.stringify(key)} on model ${JSON.stringify(model)}.`,
         );
@@ -559,6 +617,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
       }
       seenKeys.add(key);
     }
+    if ([...groups.keys()].some(key => !seenKeys.has(key))) throw new Error('Unique group must have its exact ordered unique key.');
     let uniqueWhen: Record<string, QueryPredicate> | undefined;
     if (def.uniqueWhen !== undefined) {
       const raw = def.uniqueWhen;
@@ -569,7 +628,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
       uniqueWhen = Object.create(null) as Record<string, QueryPredicate>;
       for (const key of Reflect.ownKeys(raw)) {
         const descriptor = Object.getOwnPropertyDescriptor(raw, key);
-        if (typeof key !== 'string' || isMetadataPath(key) || !seenKeys.has(key) || descriptor === undefined ||
+        if (typeof key !== 'string' || groups.has(key) || isMetadataPath(key) || !seenKeys.has(key) || descriptor === undefined ||
             !descriptor.enumerable || !('value' in descriptor) || def.fields[key]?.array !== undefined || refFields.has(key)) {
           throw new Error(`Invalid conditional unique on model ${JSON.stringify(model)}: condition must name its declared scalar unique field.`);
         }
@@ -769,6 +828,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         fields: deepFreeze(fields),
         refs: deepFreeze(refs),
         uniqueKeys: Object.freeze(uniqueKeys),
+        ...(def.uniqueGroups === undefined ? {} : {uniqueGroups: Object.freeze([...groups.values()].map(group => group.fields))}),
         ...(uniqueWhen === undefined ? {} : { uniqueWhen: Object.freeze(uniqueWhen) }),
         deleteMode: def.deleteMode,
         hooks: Object.freeze(
@@ -785,6 +845,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         ...(containment !== undefined ? { containment: Object.freeze(containment) } : {}),
       }) as InterimModelDef,
     );
+    uniqueGroupProfiles.set(table.get(def.model)!, groups);
   }
   checkContainmentAcyclic(table);
   return table;
@@ -833,6 +894,8 @@ function checkContainmentAcyclic(table: Map<ModelName, InterimModelDef>): void {
 
 /** Engine-local attachments for canonical-derived model tables (T04b owns the rest). */
 export interface CanonicalModelTableOptions extends ModelTableOptions {
+  /** Verified source tuples omitted from the immutable scalar-only canonical registry. */
+  readonly uniqueGroups?: ReadonlyMap<ModelName, ReadonlyArray<ReadonlyArray<string>>>;
   /** Checked owning single-field conditional constraints, supplied by their
    * defining source adapter. They cannot weaken declared unconditional keys. */
   readonly uniqueWhen?: ReadonlyMap<ModelName, Readonly<Record<string, QueryPredicate>>>;
@@ -895,6 +958,9 @@ export function buildModelTableFromCanonical(
 ): ModelTable {
   const defs: InterimModelDef[] = [];
   const modelNames = new Set(models.map(model => model.name as string));
+  if (opts.uniqueGroups !== undefined) for (const model of opts.uniqueGroups.keys()) {
+    if (!modelNames.has(model)) throw new Error(`Composite unique names unknown model ${JSON.stringify(model)}.`);
+  }
   if (opts.uniqueWhen !== undefined) for (const model of opts.uniqueWhen.keys()) {
     if (!modelNames.has(model)) throw new Error(`Conditional unique names unknown model ${JSON.stringify(model)}.`);
   }
@@ -954,6 +1020,8 @@ export function buildModelTableFromCanonical(
     }
     const containment = opts.containment?.get(model.name);
     const uniqueWhen = opts.uniqueWhen?.get(model.name);
+    const rawGroups = opts.uniqueGroups?.get(model.name);
+    const uniqueGroups = rawGroups === undefined ? undefined : checkedUniqueGroups(rawGroups);
     if (uniqueWhen !== undefined && Object.keys(uniqueWhen).some(key => uniqueKeys.includes(key))) {
       throw new Error(`Conditional unique cannot weaken an unconditional key on model ${JSON.stringify(model.name)}.`);
     }
@@ -961,7 +1029,8 @@ export function buildModelTableFromCanonical(
       model: model.name,
       fields,
       refs: [...(opts.refs?.get(model.name) ?? [])],
-      uniqueKeys: [...uniqueKeys, ...Object.keys(uniqueWhen ?? {})],
+      uniqueKeys: [...uniqueKeys, ...Object.keys(uniqueWhen ?? {}), ...(uniqueGroups ?? []).map(group => group.join(','))],
+      ...(uniqueGroups === undefined ? {} : {uniqueGroups}),
       ...(uniqueWhen === undefined ? {} : { uniqueWhen }),
       deleteMode: model.deleteMode,
       hooks: [],

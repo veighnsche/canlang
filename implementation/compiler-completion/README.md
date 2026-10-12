@@ -4,7 +4,7 @@
 
 Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. The human requested all remaining work be reevaluated and each existing worker receive its own prioritized list. This section replaces historical next/pending/source-lease instructions. [status.json](status.json) retains **58/67 references accepted at scope; nine remaining**. C01–C24 below are shared work labels, not additional canonical tasks. No active/unmerged release is accepted by this planning edit. Apply [finite execution](../../AGENTS.md#finite-execution).
 
-**First deliverable:** complete the exact original CanChat regenerate→chat.ask canonical cross-operation CALL correspondence and native lowering. Dev full original CLI exits10/complete=false with one E6008 at11379..11457; accepted scoped chat.ask six-query SDK binders do not certify full artifact emission. Rule-origin census9d source criterion is CLOSED and released; Dev owns conditional verified ordinal/native collision. Preserve complete original source/caller/parent-child authority/evaluation order/rollback/receipts/caps and all holds, no surrogate or source pruning.58/67/nine remain.
+**First deliverable:** original765 full CanChat executable producer is CLOSED; Dev owns its authentic runtime qualification. Optional Conversation/null/default/imported can_use7caf and same-first/Let/dominating Require SEND-stage8a source criteria are independently CLEAR and integrated at source scope. Continue the actual optional SourceExpressions/default/provided receiving consumer and any concrete original producer defect; skip only absent outputs. No old full-artifact/common-gate reopen, source pruning or native acceptance from metadata.58/67/nine and exact holds remain.
 
 ### Nine canonical references
 
@@ -26,7 +26,7 @@ Rows stop at their finite exit. If a named input is absent, skip only that leaf 
 
 | Priority / work | Remaining change or closed disposition | Owner / concrete input | Finite acceptance / next action |
 | --- | --- | --- | --- |
-| 1 / C18 | FIRST actual original awaited transcript collector/helper and mixed checked source inventory. Accepted00fa query-only IDs/ordinary DATA/role codec and430 duration owner policy stay closed. | Compiler exact c198/06e/4da source; reviewed Dev72 private native selection/Files facade; finite State lazy-any/current337 inputs from defining owners. | Exact once/eager order/source/IR/caller/field/schema/current authority and receiving Files; unsupported/missing/corrupt still refuse, source component or test-authored metadata is not native acceptance. |
+| 1 / C18 | Original whole CanChat collector/helper/executable producer765 CLOSED; optional Model-input7caf and successful SEND-stage capture8a source checkpoints CLOSED. Actual original native caller and optional receiving remain. | Dev authentic tuple/preclaim/Files/child SEND consumer; Capability actual declared-parent scalar key correction. Compiler owns exact optional SourceExpressions/default/provided source consumer. | Preserve full source/eager order/IR/current authority/null short-circuit and raw input identity; no unchanged compile or source-only native acceptance. |
 | 2 / C04 | Original protected calls/rich inputs/child SEND/query/same-Model returns and remaining combined source consumers. Main first/contained counts/pair/ancestor/combined finite mechanisms are closed. | Compiler exact remaining source; Capability/Dev genuine current child/Files/owner lifetime; Workbench approve original protected profile remains. | One original parent proves order/results/whole late rollback/replay/current authority; no optional-shape matrix or duplicate count repair. |
 | 3 / C03 | Remaining original role/conditional read/dispatch and used actor/Team context, original source-only predicates and final fresh authority. can_use/active_member source and installed catalog components are closed. | Compiler source; Capability State observations; Dev actual subject-role/fresh context. | Actual original stage/lazy order/user-Team membership semantics; unsupported arbitrary reads/defaults stay refused. |
 | 4 / C02 | Original ordered25 census CRM1/Rent16/Shift4/Employees2 and original gated compositions/source-owner dispositions. Selected assignments and bounded source fixes are closed. | Exact source owner business adaptation/import/app-use output; Compiler only demonstrated producer defects. | Preserve source guards/examples/evaluation order; retry original composition only after relevant final change, then real application consumer. |
@@ -5112,3 +5112,49 @@ while completing independent affected validation; no new presence intrinsic or
 guessed row authority is implemented. Existing holds and58/67/nine remain.
 
 Coordinator focused source control intake: Manual finite defining review CLEAR: the original first-query owning source control retains both actual First selector assertions, replaces stale chat.ask Declined expectation with accepted Complete/all256 conservative Returns/four ordinary source selectors, and keeps original Creative separately Declined. No source pruning/production or native authority edit. Changed original-only owning case1/9.38s and three unchanged target cases/fmt/diff reused, no redundant root source/CLI/native test run. Original full CanChat producer765 remains closed at source/executable scope; Dev real caller/private Files/child SEND/position/current-authority/rollback/replay/cleanup remains unfinished. Next original Creative source leaf is optional Conversation?=null guard11967–11985; exact State/Dev input contract consultation is pending. Root read three saved JEV payloads as public design facts only, no requests sent; supplied exact human broad Canlang-source consultation authorization/payload evidence for at most one SAME-body/endpoint justified retry if not already attempted. Preserve automatic-review denial/no bypass/pending exact approval if restriction remains; no generic human architecture gate or source/activation/hold release.
+
+**Optional Conversation source association, 2026-10-12 (unfinished native).**
+Reuse the actual admitted optional Model slot with its owning declaration and
+literal-null default; preserve a private nullable parameter identity distinct
+from required references, fields and version intrinsics. Direct input/null
+comparison and the actual imported chat.can_use leading call now seal the
+original narrowed occurrence, genuine unbound exports/imports, callee Model/
+formals/body/StateRead and caller source/frame. Actual original source guard/
+helper positive plus ten default/type/binding/import/export/slot/Team/module
+refusals pass1/.12s using original checked CST/types/effects. The earlier same
+positive passed through the whole original analysis1/138.85s; it is reused.
+Existing local1/2-hop and Run guard controls pass1/5.30s. Strictalltargets0/9.81s,
+fmt/diff0. Exact human-approved three JEV calls succeeded, all advise existing
+slot reuse(.89/.98/.89,confidence .83/.97/.83); uncertainty is saved with requests
+and responses in nullable-input-jev.json. No new presence DTO/intrinsic/API or
+native Creative acceptance is claimed. SourceExpressions imported/direct-input
+consumer and actual null/default/provided reference receiving remain unfinished.
+
+Dev’s authentic CanChat native caller first refuses composite Turn(run,role)
+uniqueness at model intake: State/Capability owns typed atomic tuple behavior,
+Dev the existing owning declaration adapter. Compiler emits both position and
+ordered run/role uniques; no source deletion/waiver/second engine. While that
+leaf is blocked, Compiler’s next critical ready output is authentic SEND-stage
+nonnull Allowance capture from the SAME first query/Let and earlier compulsory
+Require. Preserve its original nullable declaration privately, null failure,
+source/default/order/stage and real selected row; no metadata-only '?' stripping.
+Dev owns TextGeneration preclaim binder and actual receiving qualification.
+Existing accepted original emitter/sixquery/current337 scopes and holds remain.
+
+**First-row SEND capture, 2026-10-12 (implemented/tested source marker).**
+The exact stored first query/Let, earlier top-level compulsory BodyRequire
+presence through AND, original SEND NameRef type and matching current IR now
+produce a private narrowing fact. Retain declared nullable type/source/query/
+binding/Require/presence/occurrence; only the proved stage capture uses the
+existing required nonnullable Model snapshot declaration. Generic nullable
+parameters/scalars and guard-local, OR-only, copied or late checks gain no proof.
+Unchanged original CanChat positive plus six IR corruption and stale-preparation
+refusals pass1/11.42s. Changed full native CLI exits0 with the same original SHA,
+2modules/18operations and SEND allowance:chat.Allowance required/versioned;
+original owning Let remains chat.Allowance?. All five existing guard controls, including actual original two-file lexical/
+fixture and changed-binding refusal, pass5/430.17s; reuse this expensive source
+check. Strictalltargets0/8.79s,fmt/diff0. Dev owns SAME selected
+row/current authority and TextGeneration preclaim receiving; State tuple engine
+remains its distinct defining leaf. No native caller/runtime pass is claimed.
+
+Coordinator finite defining reviews CLEAR for7caf/8a; twelve exact reviewed source/control paths integrated with the owning State/Dev joins. Changed MAIN CLI0/20.51s; owning source/refusal/strict results reused. Three optional-input JEV calls actually succeeded under direct human approval; earlier rejection notes are historical. No original Chat/Creative runtime or full-plan credit.

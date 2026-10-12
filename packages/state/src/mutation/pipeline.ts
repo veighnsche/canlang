@@ -12,7 +12,7 @@
  */
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import { canonicalUniqueFieldValue } from '../internal/unique-value.js';
+import { canonicalUniqueRowValue } from '../internal/unique-value.js';
 import { encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
@@ -1151,9 +1151,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
   /** Owning field types distinguish user identities from arbitrary objects.
    * All write phases and final net claims use the same canonical key. */
   const canonicalUnique = (row: StoredRow, key: string, def: InterimModelDef): string | null => {
-    const when = def.uniqueWhen?.[key];
-    if (when !== undefined && !evalPredicateForRow(when, row)) return null;
-    return canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
+    return canonicalUniqueRowValue(row, key, def);
   };
 
   /**

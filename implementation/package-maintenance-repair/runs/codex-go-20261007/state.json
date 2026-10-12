@@ -1092,7 +1092,7 @@
     },
     "TECH-S03": {
       "planning_status": "blocked",
-      "state": "verified conditional mixed-store witness; trusted owner-to-store contract still required",
+      "state": "satisfied original selected criteria; human-directed scope correction",
       "files": [
         "packages/cloudflare/src/worker/assembly.ts",
         "packages/cloudflare/src/runtime/env-assembly.ts",
@@ -1101,7 +1101,7 @@
         "packages/state/src/storage/d1.ts"
       ],
       "evidence": "security-joins.json",
-      "remaining_prerequisite": "Defining owner must select exact app/mixed model physical-store and route rule. Another team fixture cannot establish that decision; team scope stays closed.",
+      "remaining_prerequisite": "None at selected scope.",
       "actual_code_reassessment": {
         "date": "2026-10-12",
         "disposition": "missing-contract",
@@ -1109,6 +1109,12 @@
         "actual_code_and_retained_result": "Actual team owner-router/physical D1 and multi-owner page/env witnesses are qualified. worker/assembly.ts explicitly refuses app-scope binding; no model-to-physical-store assignment for app-root/mixed scope exists.",
         "remaining_finite_action_or_input": "Defining owner must select exact app/mixed model physical-store and route rule. Another team fixture cannot establish that decision; team scope stays closed.",
         "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
+      },
+      "original_scope_closure": {
+        "date": "2026-10-12",
+        "evidence": "Original trusted production-host owner isolation criteria satisfied: D1 owner pins and actual same-physicalDB separate-handle alias/app mismatch refusal; unknown/unassigned legacy and raced assignment refuse before routed use; same model/id A/B stores retain isolated rows/parent/history/receipt/unique keys; mounted Identity/page/native reads and mutation keep selected owner/current authority/public access. multi-owner environment rejects mixed/global/aliased bindings before D1 touch. Arbitrary privileged raw-store/post-pin writes are outside that host contract; app-root feature support is not an added selected exit.",
+        "validation": "Reuse retained accepted owning/actual caller results; no unchanged checks repeated.",
+        "limit": "Selected criterion only; wider canonical parent duties/holds unchanged. Record remains grouped with the next substantive output; no recap-only commit."
       }
     },
     "TECH-W02": {
@@ -1489,7 +1495,7 @@
       "commit_pending": false,
       "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open",
       "commit": "33f12d62",
-      "remaining_prerequisite": "Commit last-owner source/test companions, then inspect/repair finite ordinary invitation single-winner acceptance within Identity. No blanket J2/whole-State prerequisite.",
+      "remaining_prerequisite": "None at original selected Identity criteria; older producer-native-unfinished notes are superseded by original internal/signed consumer acceptance.",
       "coherent_membership_consultation": {
         "status": "complete; advice only",
         "basis": "Current-source defining-owner reconciliation; AGENTS general JEV preauthorization. No previous intrinsic or held legacy payload approval reused. Facts only, no source/app/provider/user payload or credentials.",
@@ -2289,7 +2295,14 @@
         "review": "Root nonwriter finite source review CLEAR at same-Identity ordinary invitation scope. SQL correlated role ceiling and changes() tested in genuine SQLite plus Miniflare D1.",
         "limits": "Lost/malformed response after physically committed batch is uncertain and throws, never infers bearer success or automatically retries. Separate raw id-only fixture stamp remains compatibility-only; wider J2/State/route/native holds unchanged.",
         "coordinator_review": "Ordinary invitation admission uses optional one-Identity combined command after original ordered public checks. D1 transactional batch admits/reactivates one exact current verified addressed member under stored role ceiling and consumes invitation; strict own changes acknowledgments, unsupported refusal, no split fallback. Missing/malformed/lost acknowledgement remains uncertain with no automatic retry. Independent defining source review CLEAR,8 exact source/control preimages, owner39 and genuine MiniflareD1 1/1 552ms/1.51s reused; wider J2/State/route/native holds remain. MAIN normal checks [{\"check\": \"Identity\", \"exit\": 0, \"seconds\": 0.76}, {\"check\": \"CF\", \"exit\": 0, \"seconds\": 4.59}, {\"check\": \"root\", \"exit\": 0, \"seconds\": 4.85}]."
-      }
+      },
+      "original_scope_closure": {
+        "date": "2026-10-12",
+        "evidence": "Original selected Identity criterion satisfied by accepted store OAuth/verification/presession/recovery, conditional last-owner and atomic invitation results plus genuine generated internal removal1/1 MAIN33900ms and signed public ingress1/1 MAIN43641ms. Exact subject/remover/cause, trusted namespace and physical receiver, SELECT-only cold recovery after remover revocation, actor=null current receiving authority, complete routes and final State fence/replay/refusal remain. Releases6721be405a124459ef9641da5c96e453174dcc86 and972748eefbf311cde58e9558fc7651049bdbcd80; DECISIONS original internal/signed acceptance supersedes older native-unfinished notes. Broader J2 and held/provider/application duties remain separate.",
+        "validation": "Read-only original-criterion/code comparison; reuse accepted internal33900ms/signed43641ms and owning store results. No unchanged checks repeated.",
+        "limit": "Selected criterion only; broader canonical parent duties and exact holds unchanged. Group minimal closure with next substantive output; no recap-only commit."
+      },
+      "status": "Original selected Identity criterion satisfied; accepted ordinary store repairs and genuine generated internal/signed cold retry/replay/current-authority outcomes reused. Broader J2/provider/application duties and exact holds remain separate."
     },
     "TECH-I02": {
       "planning_status": "defining-browser-effect-decision-released-implementation-unfinished",
@@ -2720,7 +2733,7 @@
         "commit": "98c1e811"
       },
       "commit": "d450130f",
-      "remaining_prerequisite": "For claimed multiple-owner/separate-store/power-loss host, release exact serialization+durability primitive and witness. Do not implement second algorithm or demand R2 specifically.",
+      "remaining_prerequisite": "Original multiple-owner separate-store retry/publication serialization primitive and interruption/reopen witness only. Existing SQLite two-connection and serial FS/SQLite outcomes stay accepted; R2 and hardware power loss are not required.",
       "append_retry_consultation": {
         "status": "completed once with exact human approval; range_identity selected as implementation advice, not acceptance",
         "endpoint": "https://api.typesafe.ai/v1/systemone",
@@ -4544,7 +4557,7 @@
     },
     "DEL-C01": {
       "planning_status": "blocked",
-      "state": "Partial: scalar mapping/decoded duplicates, checked date and genuine bounded-alias CSV admission implemented/tested; resource/installed/durable joins open",
+      "state": "satisfied original selected criteria; human-directed scope correction",
       "files": [
         "packages/interfaces/src/http/csv.ts",
         "packages/ui/src/csv/parse.ts",
@@ -4606,7 +4619,7 @@
           ]
         }
       },
-      "remaining_prerequisite": "Use exact released native-csv-browser fixture for same maximum/excess boundaries; no currentCLI-first, automatic controller or invented absolute heap ceiling.",
+      "remaining_prerequisite": "None at selected scope.",
       "stored_field_constraint_slice": {
         "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
         "source": "Exact published8f4cd883e47e63718993d5e37798538d1898d3e1 JS model field/builder/serializer and codegen/typed artifact/typed descriptor tests consumed; no unrelated Compiler source or plan.",
@@ -4835,7 +4848,13 @@
         "validation": "Pinned Node24.19.0; owning installed Contracts/Values/WASM/State/Testkit/Cloudflare outputs refreshed; Chromium+Miniflare+Identity+State+D1 selected 1/1 PASS 21.08s. Exact 1MiB depth3 1000-row/2002-cell review; +1 byte/cell/depth4 429 limit and no state/effect/private marker; 1000 rendered checkboxes and native FormData selecting row999, canonical D1 record with exact label/count/owner, own history and receipt input hash/revision/status, plus fence; full context/server/lease/source cleanup; root TypeScript noEmit PASS. Coordinator finite review found the earlier exact persisted correspondence assertion absent; added it and reran only this Chromium case 1/1 PASS21.36s. Prior scalar/date/alias and small browser pass reused.",
         "remaining": "Original source-current CLI, automatic controller/browser distribution and any distinct peak-memory/lifetime qualification remain separately owned; no full DEL-C01 parent, hold or release claim."
       },
-      "coordinator_maximum_browser": "Maximum bounded public Chromium CSV source/control review771+corrected9f CLEAR. Exact1MiB/depth3/1000rows/2002cells admits; +byte/+cell/depth4 refuse before effects/private disclosure. Real1000-rowDOM/FormData selects999 and exact stored label/count/owner, one history, receipt exactinputHash/status/revision+1 read back. Worker21.08 initial+changed21.36s retained separate; actual MAIN changed browser result and awaited resources/source-current cleanup [{\"check\": \"CF\", \"exit\": 0, \"seconds\": 4.61}, {\"check\": \"root\", \"exit\": 0, \"seconds\": 4.96}, {\"check\": \"MAIN changed browser\", \"exit\": 0, \"seconds\": 21.91}]. Current emitted CLI/distinct status lifetime/peak memory original qualifiers remain separate, no broader packet/nativeapp/hold closure."
+      "coordinator_maximum_browser": "Maximum bounded public Chromium CSV source/control review771+corrected9f CLEAR. Exact1MiB/depth3/1000rows/2002cells admits; +byte/+cell/depth4 refuse before effects/private disclosure. Real1000-rowDOM/FormData selects999 and exact stored label/count/owner, one history, receipt exactinputHash/status/revision+1 read back. Worker21.08 initial+changed21.36s retained separate; actual MAIN changed browser result and awaited resources/source-current cleanup [{\"check\": \"CF\", \"exit\": 0, \"seconds\": 4.61}, {\"check\": \"root\", \"exit\": 0, \"seconds\": 4.96}, {\"check\": \"MAIN changed browser\", \"exit\": 0, \"seconds\": 21.91}]. Current emitted CLI/distinct status lifetime/peak memory original qualifiers remain separate, no broader packet/nativeapp/hold closure.",
+      "original_scope_closure": {
+        "date": "2026-10-12",
+        "evidence": "Original authoritative header/cell/Values review and browser advisory criteria satisfied by retained grammar19608/mounted7, native maximum1MiB/depth3/1000rows/2002cells, accepted maximum Chromium row999 input/history/receipt/fence and excess/refusal controls. Current-CLI, absolute peak-memory and automatic controller demands are not additional selected criteria.",
+        "validation": "Reuse retained accepted owning/actual caller results; no unchanged checks repeated.",
+        "limit": "Selected criterion only; wider canonical parent duties/holds unchanged. Record remains grouped with the next substantive output; no recap-only commit."
+      }
     },
     "DEL-C02": {
       "planning_status": "blocked",
@@ -6493,7 +6512,7 @@
       "review": "interfaces-installed-prerequisite.json",
       "read_released": true,
       "commands_released": true,
-      "status": "Finite source-owned UI/Interfaces/currentCF static stage and runtime mapping qualified narrowly. Exact Dev3d37c2b28b04aa3cf8ce5f4a03e4867fb4a1887f portable assembly-verification/State mutation-index prerequisite consumed without duplicate implementation; Modules owning17/17 result reused. Common deploy fixture now requires runtime/stdlib and private verification leaf, maps generated stdlib and Work receipt to their defining portable producers, and preserves both required DB abs imports. Actual22producer build tasks pass. Three affected layout/rewrite/receipt cases pass; two DB boot cases initially refuse missing appDefinition.id, then pass after handwritten entries declare it, retaining real workerd/D1 unauth401/grant401, inactive500 and authorized operation discovery. Remaining25unchanged owning Dev bundle results reused at their original scope; no full-current suite claim. Source-derived caller/installed/native/full-current closure gates remain open.",
+      "status": "Original selected delivered-entry scope satisfied; minimum Node22 CLI/SDK and retained installed Worker/type/assets/security results accepted at their recorded scopes. Wider canonical authored/native/release-host duties and exact holds unchanged.",
       "remaining_prerequisite": "Qualify only actually unqualified original installed entry with genuine isolated tarballs on an available declared engine. Other OS/held native inventory separate.",
       "current_validation_gap": "Existing isolated installed declaration and Worker gates also pass once for changed Contracts/Identity source a0a4d31e plus46d2b89d common fixtures:174typed exports/13owners, zero owned/consumer diagnostics/undeclarededges,797thirdpartydiagnosticsretained;217module actualinstalled Worker initialization/auth/assets/checkout-denial/refusals. See TECH-I01.bounded_membership_release.installed_validation for the same existing-gate receipts. Earlier044/216module qualification retains its original scope. New native multi-member consumer, exact Dev mirror/root intake, earliestengine/otherhost and whole selected authored source/lock/tool/emit/pack/native/fullrelease correspondence remain owner gates; nativepreparation HOLD unchanged.",
       "portable_import_fixture_slice": {
@@ -6616,7 +6635,20 @@
         "cli": "Dist-only can-dev entry: help0; unknown/construct-ID/rank-ref refusals2; unavailable status1, five of five; one stdout JSON line and empty CLI stderr each. Emitted=packed=installed control CLI/client exact byte SHA preserved in ordinary scratch result.",
         "sdk": "Real installed Interfaces MCP handler and SDK1.32.0: stateless initialize twice200/no session ID; descriptor list; authenticated tool result/one invocation; unauthenticated401/no invocation; separate cancellation notification202 while entered call remains pending, then completes only after invoker release. No retroactive physical/effect cancellation claim. Emitted/packed/installed server/testing bytes match.",
         "validation": "Changed Cloudflare and Interfaces owning emit0. Genuine Bun isolated install/Node24 local probes pass; initial sandbox temp/DNS blocked before assertions, then exact escalated install succeeded. Checkout denial preserved. Existing Node22.0.0 Worker/types/assets results reused without repeat.",
-        "limits": "Mac Node24 local selected entries only; other supported hosts, authored/native release, preparation/default/activation/publication and human holds remain."
+        "limits": "Mac Node24 local selected entries only; other supported hosts, authored/native release, preparation/default/activation/publication and human holds remain.",
+        "minimum_node22_entry_result": {
+          "status": "Original minimum delivered CLI and stateless SDK entry criterion tested PASS; selected R01 scope closed under direct human instruction.",
+          "runner": "Same retained isolated11-owner/144-dependency fixture and probe.mjs/sdk-entry-probe.mjs at /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/canlang-r01-cli-aNhyWL/consumer. Actualv22.0.0 interpreter; previously verified official archiveSHA1e4c5dc7144475f52fa7c86819a756126eb981e53469b8484b6dc30f9f08f26f rechecked. Only CLI probe permission spelling temporarily selected experimental-permission with host ExperimentalWarning suppression; original runner restored byte-exact.",
+          "validation": "CLI5/5 original help0/unknown-construct-rank2/unavailable1, one JSON stdout/empty CLI stderr. Unchanged actual SDK1.32 probe passes initialize twice200/no sessionID/file metadata, list, authenticated structured/text result+one invocation,401/no invocation, cancellation notification202 while entered abort remains pending until release then original200/two invocations. Both checkout reads ERR_ACCESS_DENIED. Four CLI/client/MCPserver/testing emitted=packed=installed bytes equal before/after; frozen fixture producers unchanged. Existing ordinary cli-entry-result.json/sdk-entry-result.json record actual Node22. No product source failure.",
+          "reuse": "Accepted Node22 Worker253/type177/13/assets/missing-corrupt-restored/security and Node24 transport outputs reused unchanged at their original scopes. No native/application/default/preparation/activation/publication acceptance or new runner/OS matrix.",
+          "record_policy": "Carry minimal result and original-scope retirement with next substantive release; no recap-only commit or push."
+        }
+      },
+      "original_scope_closure": {
+        "date": "2026-10-12",
+        "evidence": "Actual same isolated installed CLI5/5 and genuine stateless SDK initialize/list/call/auth/cancel pass on Node22.0.0; emitted=packed=installed entry bytes and denied checkout reads retained. Existing Node22 Worker253/type177/13/assets/missing-corrupt-restored/security and Node24 results reused.",
+        "validation": "Only previously unqualified minimum-engine CLI/SDK execution performed; no product failure and no unchanged check repeated.",
+        "limit": "Selected delivered-entry criterion only; broader canonical parent duties/holds unchanged. Group this minimal record with next substantive output; no recap-only commit."
       }
     },
     "DEL-E02": {
@@ -7314,21 +7346,21 @@
       "DEL-D04",
       "DEL-B01",
       "TECH-S02",
-      "FINAL-R03"
+      "FINAL-R03",
+      "DEL-C01",
+      "TECH-S03",
+      "DEL-R01",
+      "TECH-I01"
     ],
     "partially_completed": [
       "TECH-V03",
       "TECH-V04",
-      "TECH-I01",
       "TECH-F01",
-      "DEL-B02",
-      "DEL-C01"
+      "DEL-B02"
     ],
     "open_or_blocked": [
       "DEL-C02",
-      "DEL-R01",
       "TECH-F02",
-      "TECH-S03",
       "TECH-S04-query",
       "TECH-V05"
     ],
@@ -7336,14 +7368,14 @@
       "DEL-D05"
     ],
     "counts": {
-      "finished": 35,
-      "partial": 6,
-      "open_or_blocked": 6,
+      "finished": 39,
+      "partial": 4,
+      "open_or_blocked": 4,
       "held": 1,
       "total": 48
     },
-    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01. OriginalselectedS02 publicHTTP decisivecaller/privacypositive-negative/currentreplay criteria satisfied by independentcriticalCLEAR+actualMAIN, widerparentunchanged. OriginalFINALR03independentfiniteverdict closesonlyreleasedreviewrecipe; no wholeparent gate orunchangedrun.",
-    "status_given_to_human": "35/48selectedfinished6partial6open1held. Remaining13=10exactownerinputs+2preciseholds+1retiredC02consumer; canonical333/widerparents/fullgoal unchanged."
+    "source_basis": "All22 compared to original selected recipes, actual owning code and retained accepted genuine callers. Nine inherited blocker labels superseded; no broader canonical parent/333/native/hold acceptance. Genuine emitted protected client49 definingCLEAR +actualMAINb1731/1 8174ms and retained unchanged hook/lifecycle/gallery controls close only selectedB01. OriginalselectedS02 publicHTTP decisivecaller/privacypositive-negative/currentreplay criteria satisfied by independentcriticalCLEAR+actualMAIN, widerparentunchanged. OriginalFINALR03independentfiniteverdict closesonlyreleasedreviewrecipe; no wholeparent gate orunchangedrun. Human-directed original-scope C01/S03 comparisons independently satisfied; actual minimum Node22 CLI5/5/stateless SDK installed execution closes R01. Accepted original internal33900ms and signed43641ms Identity native/current cold-recovery criteria close the last I01 leaf; no unchanged rerun or wider parent acceptance.",
+    "status_given_to_human": "39/48 selected finished,4 partial,4 open,1 held; remaining9=6 exact owner outputs+2 precise holds+1 retired C02 consumer. Canonical333/widerparents/fullgoal unchanged."
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {
@@ -10753,13 +10785,14 @@
     "execution_list": {
       "status": "Human-requested replacement current execution list saved; not implementation or acceptance.",
       "source": "docs/research/package-library-audit-20261006/repair-queue/queue.json#current_execution and each existing packet current_execution.packages_execution",
-      "coverage": "All26 remaining packet identities exactly once;22 finished identities remain closed. No canonical IDs or acceptance recipes added/removed.",
-      "next": "Consume the exact released descendant source carrier, build only matching affected genuine producers/catalog, and retry only the failed isolated Node22 runtime scope. Reuse declaration177/13 and unchanged Node24/owning native outcomes.",
+      "coverage": "All48 selected packet dispositions and nine remaining entries reassessed at the existing12:53UTC cadence; original IDs/recipes retained.",
+      "next": "No demonstrated ready Packages implementation/review. Capability owns the actual Work recover(limit) visited-work defect; Dev exact durable download/File ingress and Values serving descriptor remain named outputs. Resume only a genuine assigned release/common failure.",
       "counts": {
         "local_ready": 0,
-        "exact_owner_output": 24,
+        "exact_owner_output": 6,
         "human_held": 2,
-        "remaining_packets": 26
+        "remaining_packets": 9,
+        "closed_consumer": 1
       },
       "classification_basis": "Focused read-only review of all26 existing current entries and newer retained component evidence; root owns State/Identity/Files classification, finite Values/Work/delivery partitions reviewed independently. Minimum-engine criterion assessed against actual manifests and existing installed scripts; no behavior check run for planning.",
       "no_reopen": "Atomic recovery, safe explanations, prepared plain action metadata, TV02/TEW01, EC04, contained query parent ABI and earlier accepted components stay closed. Conditional foreign consumers alone remain.",
