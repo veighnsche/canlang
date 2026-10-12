@@ -450,6 +450,11 @@ export async function* httpStreamText(
   assertValidHttpConfig(config);
   const startUrl = resolveRequestUrl(config, request);
   const { signal, timer, timedOut } = startDeadline(config, request);
+  const assertActive = (): void => {
+    if (!signal.aborted) return;
+    if (timedOut()) throw new HttpTransportError('timeout');
+    throw signal.reason;
+  };
   try {
     const fetched = await fetchWithRedirects(
       config,
@@ -483,6 +488,7 @@ export async function* httpStreamText(
       throw new HttpStatusError(response.status, bodyText);
     }
     if (response.body === null) {
+      assertActive();
       return { status: response.status, url: fetched.url.href };
     }
     const reader = response.body.getReader();
@@ -495,6 +501,7 @@ export async function* httpStreamText(
     let finished = false;
     try {
       for (;;) {
+        assertActive();
         let read: ReadableStreamReadResult<Uint8Array>;
         try {
           read = await reader.read();
@@ -508,6 +515,7 @@ export async function* httpStreamText(
           throw new HttpTransportError('network-error');
         }
         if (read.done) {
+          assertActive();
           break;
         }
         total += read.value.byteLength;
@@ -515,6 +523,7 @@ export async function* httpStreamText(
           await cancelStreamReader(reader, signal);
           throw new HttpBodyLimitError(response.status, config.maxBodyBytes);
         }
+        assertActive();
         const text = decoder.decode(read.value, { stream: true });
         if (text.length > 0) {
           yield { text, totalBytes: total };
@@ -535,6 +544,7 @@ export async function* httpStreamText(
     if (tail.length > 0) {
       yield { text: tail, totalBytes: total };
     }
+    assertActive();
     return { status: response.status, url: fetched.url.href };
   } finally {
     clearTimeout(timer);

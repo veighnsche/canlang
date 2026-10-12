@@ -11877,3 +11877,18 @@ separate prerequisites, with no retained selection/native credit from them.
 Coordinator defining source/type-checker review CLEAR and coherent LOCAL main integration after deadline.719 distinct scoped results reused, including four lazy source/IR paths and real narrowing/type/corpus/refusal controls. B4 genuine nominal diagnostic name correction retains E3015/duration error/spans; no weakened assertion. Changed MAIN locked/offline CLI0; no nullable native/current-authority/application claim.58of67/nine/C14/C23/all exact holds and complete checkpoint unchanged.
 
 Changed MAIN locked/offline CLI0 12.74s; no unchanged qualification reruns.
+
+2026-10-12 — Suspended stream cancellation completion (implemented/tested local
+component). Re-admit the existing combined cancellation signal around streaming
+reads and final completion, including after a decoder-tail yield. An already
+closed Response must not convert cancellation while the consumer is suspended
+into success. Preserve the first winner, detected quota precedence and existing
+reader cancellation/lock/timer/redirect/status behavior. The real closed-body
+regression first succeeds incorrectly after abort; all9 lifecycle cases now pass,
+including text/tail and caller/deadline controls. Services emission and finite
+independent source review pass; unchanged loopback/types/provider/native results
+retain their scope. Original durable Work/Dev consumers and all holds remain.
+
+Coordinator finite source review CLEAR and coherent LOCAL main integration after deadline. Owning lifecycle9/9 zero skips/cancels reused: actual caller/deadline interruption at text and incomplete-UTF8 tail yields refuses closed/queued Response success, retaining exact first reason/lock release/detected quota/redirect/status behavior. Unchanged real loopback11/provider/native/installed results remain at their own scopes; Work/Dev durable observation,22/48/26 parents, complete checkpoint and all holds remain separate.
+
+Changed MAIN normal checks: Services0 1.17s, root0 5.94s. No unchanged qualification reruns.

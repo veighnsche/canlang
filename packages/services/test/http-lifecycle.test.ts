@@ -112,6 +112,54 @@ test('breaking a text stream cancels its reader and releases the body lock', asy
   } finally { globalThis.fetch = original; }
 });
 
+test('a suspended text or decoder-tail yield cannot complete after cancellation', { timeout: 5000 }, async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const suspended of ['text', 'tail']) {
+      for (const trigger of ['caller', 'deadline']) {
+        const caller = new AbortController();
+        const reason = new Error('caller cancelled suspended stream');
+        let observedAbort!: () => void;
+        const aborted = new Promise<void>(resolve => { observedAbort = resolve; });
+        const body = new ReadableStream<Uint8Array>({ start(controller) {
+          controller.enqueue(new TextEncoder().encode('first'));
+          if (suspended === 'tail') {
+            controller.enqueue(new Uint8Array([0xe2]));
+            controller.enqueue(new Uint8Array([0x82]));
+          }
+          controller.close();
+        } });
+        globalThis.fetch = async (_url, init) => {
+          assert.ok(init?.signal);
+          init.signal.addEventListener('abort', observedAbort, { once: true });
+          return new Response(body);
+        };
+        const stream = httpStreamText({ ...config, timeoutMs: trigger === 'deadline' ? 50 : 1000 },
+          { method: 'GET', path: '/', signal: caller.signal });
+        try {
+          const first = await stream.next();
+          assert.equal(first.done, false);
+          assert.equal(first.value.text, 'first');
+          if (suspended === 'tail') {
+            const tail = await stream.next();
+            assert.equal(tail.done, false);
+            assert.equal(tail.value.text, '\ufffd');
+          }
+          if (trigger === 'caller') caller.abort(reason);
+          await aborted;
+          await assert.rejects(stream.next(), (error: unknown) => trigger === 'caller'
+            ? error === reason
+            : error instanceof Error && 'kind' in error && error.kind === 'timeout');
+          assert.equal(body.locked, false);
+        } finally {
+          caller.abort(reason);
+          await stream.return({ status: 200, url: 'https://synthetic.test/' });
+        }
+      }
+    }
+  } finally { globalThis.fetch = original; }
+});
+
 test('every reader bounds redirect bodies before sending the next hop', async () => {
   const original=globalThis.fetch;
   try {
