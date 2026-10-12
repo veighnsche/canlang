@@ -3148,7 +3148,7 @@ fn t14b_b1_nominal_fixture_flow_surfaces_e3015() {
     assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
     assert_eq!(
         diags[0].message,
-        "'request': expected object{source,revision,profile,policy_revision,messages,max_input_tokens,max_output_tokens,max_duration}, found int"
+        "'request': expected TextRequest, found int"
     );
     let wrong_duration = src
         .replace("request=TextRequest {", "request={")
@@ -3159,7 +3159,11 @@ fn t14b_b1_nominal_fixture_flow_surfaces_e3015() {
         vec!["E3015", "E3001"],
         "wrong duration: {diags:?}"
     );
-    assert!(diags[0].message.starts_with("'request': expected object{"));
+    assert!(
+        diags[0]
+            .message
+            .starts_with("'request': expected TextRequest")
+    );
     assert_eq!(
         diags[1].message,
         "field 'max_duration': expected duration, found text"

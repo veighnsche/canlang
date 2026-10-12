@@ -11862,3 +11862,18 @@ remain separate. No new schema/authority/provider/storage policy.
 Coordinator source review CLEAR and coherent LOCAL main integration after deadline. Owning validation13/13 zero skips/cancels reused; real malformed upload pointers store zero intents, valid ~1/~0/~01 retain exact pointer/decoded absent-slot behavior. Existing object/field/bytes/SHA/MIME/size/refusal profiles preserved. Actual R2/mounted concurrency/power-loss,22/48/26 parents, complete checkpoint and holds remain separate.
 
 Changed MAIN normal checks: Files0 0.96s, root0 4.86s. Unchanged upload/durable/reopen/retention/SQLite/native/installed checks reused at their original scopes.
+
+2026-10-12 — original Creative current Revision lineage
+(implemented/tested source; native nullable receiver blocked).
+Retain the actual presence/published guard, narrowed current Let, digest guard
+and direct original scalar/reference consumers using existing source mechanisms.
+Preserve four lazy paths and original privacy/schema/locks; add no generic
+nullable record permission. The checker now visits the genuine receiver even
+when a narrowed member shortcut already knows the result.719 relevant checks and
+strict0 pass; native E6008 remains until Dev supplies genuine ordinary nullable
+field/current-row authority. Required Profile and prefix observer releases are
+separate prerequisites, with no retained selection/native credit from them.
+
+Coordinator defining source/type-checker review CLEAR and coherent LOCAL main integration after deadline.719 distinct scoped results reused, including four lazy source/IR paths and real narrowing/type/corpus/refusal controls. B4 genuine nominal diagnostic name correction retains E3015/duration error/spans; no weakened assertion. Changed MAIN locked/offline CLI0; no nullable native/current-authority/application claim.58of67/nine/C14/C23/all exact holds and complete checkpoint unchanged.
+
+Changed MAIN locked/offline CLI0 12.74s; no unchanged qualification reruns.

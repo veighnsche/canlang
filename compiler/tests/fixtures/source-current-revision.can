@@ -1,0 +1,30 @@
+## Test-authored source sink for original Creative current/published/digest narrowing; no Budget, dispatch or native authority claim.
+app SourceCurrentRevision
+use std {WorkflowDefinition}
+use std {ImagesV1 as Images} from=deployment.images
+Given
+ role creative_manager label="Creative administrator"@{nl="Creatief beheerder"}
+ Template { name:text trim max=200, owner:user server=actor, graph:file, prompt_node:text="6", prompt_key:text="text", negative_node:text="7", negative_key:text="text", width_node:text="5", width_key:text="width", height_node:text="5", height_key:text="height", outputs:int=1 min=1 max=4, duration:duration=120s, active:bool=true, current:Revision?, inspection:delivery(Images.inspect)? } label="Image workflow"@{nl="Beeldworkflow"}
+ Revision in Template { number:int min=1, definition:WorkflowDefinition, outputs:int min=1 max=4, duration:duration, validation:delivery(Images.validate)?, published:bool=false, digest:text? } label="Immutable workflow revision"@{nl="Onveranderlijke workflowversie"}
+ Run {revision:Revision,digest:text,outputs:int,duration:duration}
+ policy Template read=members fields=name,active,current
+ policy Template read=creative_manager and row.owner==actor
+ policy Revision read=members where=row.published and row.parent.active fields=parent,number,definition,published,digest,outputs,duration
+ policy Revision read=creative_manager and row.parent.owner==actor
+ policy Run read=members
+ invariant Template: row.duration>=1s and row.duration<=15m and (row.current==null or (row.current.parent==row and row.current.published))
+ invariant Revision: row.duration>=1s and row.duration<=15m and (not row.published or row.digest!=null)
+ unique Revision fields=number
+ lock Template fields=owner
+ lock Revision fields=number,definition,outputs,duration,validation
+ lock Revision fields=published,digest when=row.published
+When
+ scenario generate(template:Template) by=members -> Run
+  require template.active and template.current!=null and template.current.published
+  do
+   let revision=template.current
+   require revision.digest!=null
+   let validation=revision.digest
+   create Run {revision,digest=validation,outputs=revision.outputs,duration=revision.duration} as run
+   return run
+Then
