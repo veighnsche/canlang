@@ -9672,7 +9672,12 @@ impl<'a> Closure<'a> {
         let mut argument_paths = vec![(ValuePath::default(), Vec::<ValuePath>::new())];
         for argument in &selected.arguments {
             let mut alternatives =
-                if authorization.is_some() && selected.arguments.first() == Some(argument) {
+                if (authorization.is_some() && selected.arguments.first() == Some(argument))
+                    || matches!(
+                        self.query_binding(*argument),
+                        Some(Binding::Context(ContextVar::Actor(_)))
+                    )
+                {
                     // Only this original authorization call passes Actor into its
                     // checked nullable User formal. It is not ordinary context data.
                     vec![ValuePath::default()]
