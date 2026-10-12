@@ -266,6 +266,28 @@ export function createMemoryIdentityStore(opts?: {
       const row = invitations.get(invitation_id);
       if (row) invitations.set(invitation_id, { ...row, accepted_at: now() });
     },
+    async acceptInvitationWithMembership({ invitation_id, user_id }) {
+      const at = now(), candidateId = random.randomUUID();
+      const invitation = invitations.get(invitation_id), user = users.get(user_id);
+      if (invitation === undefined || invitation.accepted_at !== null || invitation.revoked_at !== null ||
+          invitation.expires_at <= at || user === undefined || !user.email_verified ||
+          user.email.toLowerCase() !== invitation.email.toLowerCase()) return null;
+      const existing = [...memberships.values()].find(row => row.team_id === invitation.team_id && row.user_id === user_id);
+      if (existing?.status === 'active') return null;
+      // Construct every replacement before publishing either fact; no await or
+      // external callback occurs between the current recheck and publication.
+      const membership: Membership = {
+        membership_id: existing?.membership_id ?? candidateId,
+        team_id: invitation.team_id, user_id, is_owner: invitation.grants_owner,
+        roles: invitation.grants_roles.map(role => ({ role, granted_at: at, granted_by: invitation.invited_by })),
+        status: 'active', created_at: existing?.created_at ?? at, updated_at: at,
+      };
+      const accepted = { ...invitation, accepted_at: at };
+      step();
+      memberships.set(membership.membership_id, membership);
+      invitations.set(invitation_id, accepted);
+      return membership;
+    },
     async revokeInvitation(invitation_id) {
       step();
       const row = invitations.get(invitation_id);

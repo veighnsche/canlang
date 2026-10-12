@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeMember } from '../src/teams/membership.js';
 import { setMemberRole } from '../src/teams/roles.js';
+import { acceptInvitation } from '../src/teams/invitations.js';
 import { recoverAccount } from '../src/accounts/recovery.js';
 import { IdentityError } from '../src/ports.js';
 import type { IdentityStore } from '../src/ports.js';
@@ -175,7 +176,9 @@ function wrapSqlite(db: DatabaseSync): IdentityD1Database {
               return { meta: { changes: Number(stmt.run(...args).changes) } };
             },
           };
-          executions.set(bound, () => ({ meta: { changes: Number(stmt.run(...args).changes) } }));
+          executions.set(bound, () => stmt.columns().length > 0
+            ? { results: stmt.all(...args), meta: { changes: 0 } }
+            : { meta: { changes: Number(stmt.run(...args).changes) } });
           return bound;
         },
       };
@@ -490,6 +493,169 @@ test('ordinary D1 removal refuses unavailable mutation acknowledgement before ca
       assert.equal((await store.findInvitationById(invitation.invitation_id))!.revoked_at, null);
     } finally { db.close(); }
   }
+});
+
+async function setupAcceptanceFacts(store: IdentityStore, removed = false) {
+  const { user: owner, team } = await setupUserTeam(store);
+  const guest = await store.createUser({ email: 'Guest@example.test', password_hash: 'opaque', email_verified: true });
+  const history = removed ? await store.createMembership({ team_id: team.team_id, user_id: guest.user_id,
+    is_owner: true, roles: [{ role: 'Old.role', granted_at: new Date(NOW - 1).toISOString(), granted_by: owner.user_id }] }) : null;
+  if (history !== null) await store.removeMembership(history.membership_id);
+  const invitation = await store.createInvitation({ team_id: team.team_id, email: 'guest@EXAMPLE.test',
+    grants_owner: false, grants_roles: ['Tasks.review', 'Tasks.write'], invited_by: owner.user_id,
+    expires_at: new Date(NOW + 60_000).toISOString() });
+  return { owner, team, guest, history, input: { invitation_id: invitation.invitation_id, user_id: guest.user_id } };
+}
+
+function acceptanceFacts(db: DatabaseSync) {
+  return ['identity_memberships', 'identity_invitations'].map(table => db.prepare(`SELECT * FROM ${table} ORDER BY 1`).all());
+}
+
+test('atomic invitation acceptance has one public winner for first admission and re-admission across real SQL connections', async (t) => {
+  for (const removed of [false, true]) await t.test(removed ? 're-admission' : 'first admission', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'identity-invite-race-'));
+    const path = join(directory, 'identity.sqlite'), first = new DatabaseSync(path), second = new DatabaseSync(path);
+    try {
+      const clock = createFrozenClock(NOW), d1 = wrapSqlite(first);
+      await ensureIdentitySchema(d1);
+      const store = createD1IdentityStore(d1, { clock });
+      const { team, guest, history, owner, input } = await setupAcceptanceFacts(store, removed);
+      const other = createD1IdentityStore(wrapSqlite(second), { clock });
+      let admitted = 0, release!: () => void;
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      for (const contender of [store, other]) {
+        const find = contender.findMembership;
+        contender.findMembership = async (id, user) => {
+          const row = await find.call(contender, id, user);
+          assert.equal(row?.status ?? null, removed ? 'removed' : null);
+          if (++admitted === 2) release();
+          await gate;
+          return row;
+        };
+      }
+      const results = await Promise.allSettled([acceptInvitation(store, input, { clock }), acceptInvitation(other, input, { clock })]);
+      assert.equal(admitted, 2);
+      assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+      const failed = results.find(result => result.status === 'rejected');
+      assert.ok(failed?.status === 'rejected' && failed.reason instanceof IdentityError);
+      assert.equal(failed.reason.code, 'validation');
+      assert.equal(failed.reason.message, 'This invitation is no longer valid.');
+      const winner = results.find(result => result.status === 'fulfilled');
+      assert.ok(winner?.status === 'fulfilled');
+      const member = winner.value;
+      assert.equal(member.team_id, team.team_id); assert.equal(member.user_id, guest.user_id);
+      assert.equal(member.status, 'active'); assert.equal(member.is_owner, false);
+      assert.deepEqual(member.roles, ['Tasks.review', 'Tasks.write'].map(role => ({ role,
+        granted_at: new Date(NOW).toISOString(), granted_by: owner.user_id })));
+      if (history !== null) {
+        assert.equal(member.membership_id, history.membership_id); assert.equal(member.created_at, history.created_at);
+      }
+      assert.equal(first.prepare('SELECT COUNT(*) AS count FROM identity_memberships WHERE team_id = ? AND user_id = ?')
+        .get(team.team_id, guest.user_id)!.count, 1);
+      assert.equal((await store.findInvitationById(input.invitation_id))!.accepted_at, new Date(NOW).toISOString());
+      const before = acceptanceFacts(first);
+      assert.equal(await other.acceptInvitationWithMembership!(input), null);
+      assert.deepEqual(acceptanceFacts(first), before);
+    } finally { second.close(); first.close(); rmSync(directory, { recursive: true, force: true }); }
+  });
+});
+
+test('atomic invitation acceptance rolls back membership and consumption failures', async (t) => {
+  for (const phase of ['insert', 'reactivate', 'consume'] as const) await t.test(phase, async () => {
+    const { db, store } = await setup();
+    try {
+      const { input } = await setupAcceptanceFacts(store, phase === 'reactivate');
+      db.exec(`CREATE TRIGGER invitation_fault BEFORE ${phase === 'insert' ? 'INSERT' : 'UPDATE'} ON
+        ${phase === 'consume' ? 'identity_invitations' : 'identity_memberships'}
+        BEGIN SELECT RAISE(ABORT, 'invitation phase fault'); END`);
+      const before = acceptanceFacts(db);
+      await assert.rejects(store.acceptInvitationWithMembership!(input), /invitation phase fault/);
+      assert.deepEqual(acceptanceFacts(db), before);
+    } finally { db.close(); }
+  });
+});
+
+test('atomic invitation acceptance rechecks validity and account at batch admission without effects', async (t) => {
+  for (const change of ['expiry', 'revocation', 'unverified', 'wrong account', 'active member', 'missing invitation', 'missing account'] as const) {
+    await t.test(change, async () => {
+      const { db, store, clock, d1 } = await setup();
+      try {
+        const { input, team, guest } = await setupAcceptanceFacts(store);
+        if (change === 'expiry') clock.advance(60_000);
+        if (change === 'revocation') await store.revokeInvitation(input.invitation_id);
+        if (change === 'unverified') await store.setUserEmailVerified(guest.user_id, false);
+        if (change === 'wrong account') input.user_id = (await store.createUser({ email: 'other@example.test', password_hash: 'opaque', email_verified: true })).user_id;
+        if (change === 'active member') await store.createMembership({ team_id: team.team_id, user_id: guest.user_id, is_owner: true, roles: [] });
+        if (change === 'missing invitation') input.invitation_id = 'missing';
+        if (change === 'missing account') input.user_id = 'missing';
+        const before = acceptanceFacts(db);
+        assert.equal(await store.acceptInvitationWithMembership!(input), null);
+        assert.deepEqual(acceptanceFacts(db), before);
+        const unsupported = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql) }, { clock });
+        assert.equal(unsupported.acceptInvitationWithMembership, undefined);
+      } finally { db.close(); }
+    });
+  }
+});
+
+test('atomic invitation acceptance rejects lost or malformed acknowledgement without fallback or retry', async (t) => {
+  const faults = ['lost response', 'missing results', 'missing meta', 'inherited count', 'string count', 'wrong count', 'different counts', 'missing membership'] as const;
+  for (const fault of faults) await t.test(fault, async () => {
+    const { db, store, d1, clock } = await setup();
+    try {
+      const { input, team, guest } = await setupAcceptanceFacts(store);
+      let batches = 0;
+      const uncertain = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql), async batch(statements) {
+        batches++;
+        const result = await d1.batch!(statements) as Array<{ meta: { changes: unknown }; results?: unknown[] }>;
+        if (fault === 'lost response') throw new Error('lost invitation response');
+        if (fault === 'missing results') return undefined;
+        if (fault === 'missing meta') return [{}, ...result.slice(1)];
+        if (fault === 'inherited count') result[0]!.meta = Object.create({ changes: 1 });
+        if (fault === 'string count') result[0]!.meta.changes = '1';
+        if (fault === 'wrong count') result[0]!.meta.changes = 2;
+        if (fault === 'different counts') result[1]!.meta.changes = 0;
+        if (fault === 'missing membership') result[2]!.results = [];
+        return result;
+      } }, { clock });
+      await assert.rejects(acceptInvitation(uncertain, input, { clock }), /lost invitation response|acknowledgement is unavailable/);
+      assert.equal(batches, 1);
+      assert.equal((await store.findMembership(team.team_id, guest.user_id))!.status, 'active');
+      assert.equal((await store.findInvitationById(input.invitation_id))!.accepted_at, new Date(NOW).toISOString());
+      const before = acceptanceFacts(db);
+      await assert.rejects(acceptInvitation(uncertain, input, { clock }), (error: unknown) => error instanceof IdentityError && error.code === 'validation');
+      assert.equal(batches, 1); assert.deepEqual(acceptanceFacts(db), before);
+    } finally { db.close(); }
+  });
+});
+
+test('delayed losing invitation cannot overwrite later re-admission or consume a competing invitation', async () => {
+  const { db, store, d1, clock } = await setup();
+  try {
+    const { input, team, guest, owner } = await setupAcceptanceFacts(store);
+    let entered!: () => void, release!: () => void;
+    const enteredBatch = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const delayed = createD1IdentityStore({ prepare: sql => d1.prepare(sql), exec: sql => d1.exec(sql), async batch(statements) {
+      entered(); await gate; return d1.batch!(statements);
+    } }, { clock });
+    const pending = acceptInvitation(delayed, input, { clock });
+    await enteredBatch;
+    const member = await acceptInvitation(store, input, { clock });
+    await store.removeMembership(member.membership_id);
+    const fresh = await store.createInvitation({ team_id: team.team_id, email: guest.email, grants_owner: true,
+      grants_roles: [], invited_by: owner.user_id, expires_at: new Date(NOW + 60_000).toISOString() });
+    const reactivated = await acceptInvitation(store, { invitation_id: fresh.invitation_id, user_id: guest.user_id }, { clock });
+    const competing = await store.createInvitation({ team_id: team.team_id, email: guest.email, grants_owner: false,
+      grants_roles: ['Losing.role'], invited_by: owner.user_id, expires_at: new Date(NOW + 60_000).toISOString() });
+    const before = acceptanceFacts(db);
+    release();
+    await assert.rejects(pending, (error: unknown) => error instanceof IdentityError && error.code === 'validation');
+    assert.equal(await store.acceptInvitationWithMembership!({ invitation_id: competing.invitation_id, user_id: guest.user_id }), null);
+    assert.deepEqual(acceptanceFacts(db), before);
+    assert.equal(reactivated.membership_id, member.membership_id); assert.equal(reactivated.is_owner, true);
+    assert.deepEqual(reactivated.roles, []);
+  } finally { db.close(); }
 });
 
 test('invitations: create, accept, revoke, pending-addressed revocation', async () => {

@@ -44,7 +44,7 @@ import type {
   CompileArtifact,
   StoragePort,
 } from "@canlang/contracts";
-import { buildSessionCookie, deriveCsrfToken, parseSessionCookie, sha256HexText, IdentityError, exchangeCode, issueAuthCode, registerClient, createD1IdentityStore } from "@canlang/identity";
+import { buildSessionCookie, deriveCsrfToken, parseSessionCookie, sha256HexText, IdentityError, exchangeCode, issueAuthCode, registerClient, createD1IdentityStore, acceptInvitation } from "@canlang/identity";
 import { createFrozenClock } from "@canlang/identity/testing";
 import { consumePreSessionToken, mintPreSessionToken, PRESESSION_TTL_MS, ensureIdentitySchema } from "@canlang/identity";
 import type {
@@ -96,6 +96,12 @@ void _mirrorRemovalAcceptsReal;
 void _realRemovalAcceptsMirror;
 void _mirrorRemovalReadAcceptsReal;
 void _realRemovalReadAcceptsMirror;
+const _mirrorInvitationAcceptsReal: MirrorIdentityStore['acceptInvitationWithMembership'] =
+  null as unknown as RealIdentityStore['acceptInvitationWithMembership'];
+const _realInvitationAcceptsMirror: RealIdentityStore['acceptInvitationWithMembership'] =
+  null as unknown as MirrorIdentityStore['acceptInvitationWithMembership'];
+void _mirrorInvitationAcceptsReal;
+void _realInvitationAcceptsMirror;
 
 /** A genuine D1 binding satisfies the store's minimal D1 surface. */
 function d1SatisfiesStoreSurface(db: D1Database): IdentityD1Database {
@@ -659,6 +665,50 @@ describe('OAuth one-use consumption on real D1', () => {
     expect(await consumePreSessionToken(first, live.token, { clock })).toBe(true);
     expect(await consumePreSessionToken(second, live.token, { clock })).toBe(false);
     expect(await second.findPreSessionTokenByHash(await sha256HexText(live.token))).toBeNull();
+  }, 30_000);
+
+  it('actual D1 invitation batches admit exactly one contender and roll back failed consumption', async () => {
+    const { db } = await startD1('invitation-atomic-acceptance');
+    await ensureIdentitySchema(db);
+    const clock = createFrozenClock(Date.parse('2026-10-11T12:00:00Z'));
+    const first = createD1IdentityStore(db, { clock }), second = createD1IdentityStore(db, { clock });
+    const team = await first.createTeam({});
+    const guest = await first.createUser({ email: 'Guest@example.test', password_hash: 'opaque', email_verified: true });
+    const { invitation_id } = await first.createInvitation({ team_id: team.team_id, email: 'guest@EXAMPLE.test',
+      grants_owner: false, grants_roles: ['Tasks.write', 'Tasks.review'], invited_by: 'inviter',
+      expires_at: new Date(clock.nowMs() + 60_000).toISOString() });
+    let checked = 0, release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    for (const contender of [first, second]) {
+      const find = contender.findMembership;
+      contender.findMembership = async (id, user) => {
+        const original = await find.call(contender, id, user);
+        expect(original).toBeNull();
+        if (++checked === 2) release();
+        await gate; return original;
+      };
+    }
+    const input = { invitation_id, user_id: guest.user_id };
+    const results = await Promise.allSettled([acceptInvitation(first, input, { clock }), acceptInvitation(second, input, { clock })]);
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    const loser = results.find(result => result.status === 'rejected');
+    expect(loser?.status === 'rejected' && loser.reason instanceof IdentityError && loser.reason.code === 'validation').toBe(true);
+    const winner = results.find(result => result.status === 'fulfilled');
+    expect(winner?.status === 'fulfilled' && winner.value.roles.map(role => role.role)).toEqual(['Tasks.write', 'Tasks.review']);
+    expect((await first.findInvitationById(invitation_id))!.accepted_at).toBe(new Date(clock.nowMs()).toISOString());
+    expect(await second.acceptInvitationWithMembership!(input)).toBeNull();
+    const newOwner = await first.createUser({ email: 'owner@example.test', password_hash: 'opaque', email_verified: true });
+    const ownerInvite = await first.createInvitation({ team_id: team.team_id, email: newOwner.email,
+      grants_owner: true, grants_roles: [], invited_by: 'inviter', expires_at: new Date(clock.nowMs() + 60_000).toISOString() });
+    const ownerMember = await first.acceptInvitationWithMembership!({ invitation_id: ownerInvite.invitation_id, user_id: newOwner.user_id });
+    expect(ownerMember!.is_owner).toBe(true); expect(ownerMember!.roles).toEqual([]);
+    const other = await first.createUser({ email: 'other@example.test', password_hash: 'opaque', email_verified: true });
+    const fresh = await first.createInvitation({ team_id: team.team_id, email: other.email, grants_owner: true,
+      grants_roles: [], invited_by: 'inviter', expires_at: new Date(clock.nowMs() + 60_000).toISOString() });
+    await db.exec("CREATE TRIGGER invitation_consume_fault BEFORE UPDATE ON identity_invitations BEGIN SELECT RAISE(ABORT, 'invitation consumption fault'); END");
+    await expect(first.acceptInvitationWithMembership!({ invitation_id: fresh.invitation_id, user_id: other.user_id })).rejects.toThrow('invitation consumption fault');
+    expect(await createD1IdentityStore(db, { clock }).findMembership(team.team_id, other.user_id)).toBeNull();
+    expect((await first.findInvitationById(fresh.invitation_id))!.accepted_at).toBeNull();
   }, 30_000);
 
   it('two actual pre-reads yield one grant, and stale/missing/ambiguous consumers never mint', async () => {

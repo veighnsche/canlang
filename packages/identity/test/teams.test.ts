@@ -18,6 +18,93 @@ import { sha256HexText } from '../src/sessions/tokens.js';
 
 const NOW = Date.parse('2026-10-04T15:00:00.000Z');
 
+test('atomic memory invitations admit one contender and preserve the stored ceiling on re-admission', async (t) => {
+  for (const removed of [false, true]) await t.test(removed ? 're-admission' : 'first admission', async () => {
+    const { store, clock } = setup();
+    const team = await store.createTeam({});
+    const guest = await store.createUser({ email: 'GUEST@x.co', password_hash: 'opaque', email_verified: true });
+    const history = removed ? await store.createMembership({ team_id: team.team_id, user_id: guest.user_id,
+      is_owner: true, roles: [{ role: 'Old.role', granted_at: new Date(NOW - 1).toISOString(), granted_by: 'old' }] }) : null;
+    if (history !== null) await store.removeMembership(history.membership_id);
+    const { invitation_id } = await store.createInvitation({ team_id: team.team_id, email: 'guest@X.co',
+      grants_owner: false, grants_roles: ['Tasks.write', 'Tasks.review'], invited_by: 'inviter',
+      expires_at: new Date(NOW + 60_000).toISOString() });
+    const find = store.findMembership;
+    let checked = 0, release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    store.findMembership = async (id, user) => {
+      const row = await find.call(store, id, user);
+      if (++checked === 2) release();
+      await gate; return row;
+    };
+    const input = { invitation_id, user_id: guest.user_id };
+    const results = await Promise.allSettled([acceptInvitation(store, input, { clock }), acceptInvitation(store, input, { clock })]);
+    assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+    const winner = results.find(result => result.status === 'fulfilled');
+    assert.ok(winner?.status === 'fulfilled');
+    assert.equal(winner.value.is_owner, false); assert.equal(winner.value.status, 'active');
+    assert.deepEqual(winner.value.roles, ['Tasks.write', 'Tasks.review'].map(role => ({ role,
+      granted_at: new Date(NOW).toISOString(), granted_by: 'inviter' })));
+    if (history !== null) assert.equal(winner.value.membership_id, history.membership_id);
+    assert.equal((await store.listUserMemberships(guest.user_id)).length, 1);
+    const failed = results.find(result => result.status === 'rejected');
+    assert.ok(failed?.status === 'rejected' && failed.reason instanceof IdentityError);
+    assert.equal(failed.reason.code, 'validation');
+    const revision = store.revision();
+    assert.equal(await store.acceptInvitationWithMembership!(input), null);
+    assert.equal(store.revision(), revision);
+  });
+});
+
+test('atomic memory invitation construction failure publishes neither fact', async () => {
+  let fail = false, count = 0;
+  const clock = createFrozenClock(NOW);
+  const store = createMemoryIdentityStore({ clock, random: {
+    randomBytes: n => new Uint8Array(n), randomUUID: () => { if (fail) throw new Error('invitation construction failed'); return `id-${++count}`; },
+  } });
+  const team = await store.createTeam({});
+  const guest = await store.createUser({ email: 'guest@x.co', password_hash: 'opaque', email_verified: true });
+  const { invitation_id } = await store.createInvitation({ team_id: team.team_id, email: guest.email,
+    grants_owner: true, grants_roles: [], invited_by: 'inviter', expires_at: new Date(NOW + 60_000).toISOString() });
+  const before = await store.findInvitationById(invitation_id), revision = store.revision();
+  fail = true;
+  await assert.rejects(acceptInvitation(store, { invitation_id, user_id: guest.user_id }, { clock }), /construction failed/);
+  assert.equal(await store.findMembership(team.team_id, guest.user_id), null);
+  assert.deepEqual(await store.findInvitationById(invitation_id), before); assert.equal(store.revision(), revision);
+});
+
+test('atomic invitation capability refusal preserves public validation order and never calls separate mutations', async () => {
+  const { store, clock } = setup();
+  const team = await store.createTeam({});
+  const guest = await store.createUser({ email: 'guest@x.co', password_hash: 'opaque', email_verified: true });
+  const { invitation_id } = await store.createInvitation({ team_id: team.team_id, email: guest.email,
+    grants_owner: true, grants_roles: [], invited_by: 'inviter', expires_at: new Date(NOW + 60_000).toISOString() });
+  const calls: string[] = [];
+  const { acceptInvitationWithMembership: _command, ...unsupported } = store;
+  unsupported.findInvitationById = async id => { calls.push('invitation'); return store.findInvitationById(id); };
+  unsupported.findUserById = async id => { calls.push('user'); return store.findUserById(id); };
+  unsupported.findMembership = async (id, user) => { calls.push('membership'); return store.findMembership(id, user); };
+  const revision = store.revision();
+  const input = { invitation_id, user_id: guest.user_id };
+  await assert.rejects(acceptInvitation(unsupported, input, { clock }), /Atomic invitation acceptance is unavailable/);
+  assert.deepEqual(calls, ['invitation', 'user', 'membership']); assert.equal(store.revision(), revision);
+  assert.equal(await store.findMembership(team.team_id, guest.user_id), null);
+  assert.equal((await store.findInvitationById(invitation_id))!.accepted_at, null);
+  calls.length = 0;
+  await assertIdentityError(() => acceptInvitation(unsupported, { ...input, invitation_id: 'missing' }, { clock }), 'not_found');
+  assert.deepEqual(calls, ['invitation']);
+  calls.length = 0;
+  await assertIdentityError(() => acceptInvitation(unsupported, { ...input, user_id: 'missing' }, { clock }), 'forbidden');
+  assert.deepEqual(calls, ['invitation', 'user']);
+  await store.createMembership({ team_id: team.team_id, user_id: guest.user_id, is_owner: false, roles: [] });
+  calls.length = 0;
+  await assertIdentityError(() => acceptInvitation(unsupported, input, { clock }), 'conflict');
+  assert.deepEqual(calls, ['invitation', 'user', 'membership']);
+  clock.advance(60_000); calls.length = 0;
+  await assertIdentityError(() => acceptInvitation(unsupported, input, { clock }), 'validation');
+  assert.deepEqual(calls, ['invitation']);
+});
+
 function setup() {
   const clock = createFrozenClock(NOW);
   const store = createMemoryIdentityStore({ clock });

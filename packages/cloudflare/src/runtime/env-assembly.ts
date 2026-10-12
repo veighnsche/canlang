@@ -180,6 +180,10 @@ export interface IdentityStore {
     invitation_id: InvitationId,
   ): Promise<(TeamInvitationRow & { invitation_id: InvitationId }) | null>;
   acceptInvitation(invitation_id: InvitationId): Promise<void>;
+  acceptInvitationWithMembership?(input: {
+    readonly invitation_id: InvitationId;
+    readonly user_id: UserId;
+  }): Promise<Membership | null>;
   revokeInvitation(invitation_id: InvitationId): Promise<void>;
   revokePendingTeamInvitationsForEmail(team_id: TeamId, email: string): Promise<void>;
 

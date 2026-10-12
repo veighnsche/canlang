@@ -88,8 +88,8 @@ export interface MailPort {
 /**
  * Constrained system-command surface for identity facts. No raw SQL, no
  * second role store, no account enumeration beyond the exact lookups below.
- * Recovery and occurrence-backed removal use their bounded atomic commands.
- * Other check-then-act mutations and re-admission have no shared transaction fence.
+ * Recovery, invitation acceptance and occurrence-backed removal use their bounded atomic commands.
+ * Other check-then-act mutations have no shared transaction fence.
  * The bounded membership snapshot supplies one read observation only. The
  * memory double is single-threaded and proves no native concurrency semantics.
  */
@@ -180,6 +180,16 @@ export interface IdentityStore {
     (TeamInvitationRow & { invitation_id: InvitationId }) | null
   >;
   acceptInvitation(invitation_id: InvitationId): Promise<void>;
+  /** Atomically recheck a live invitation and its verified addressed account,
+   * admit/reactivate the unique membership with exactly its stored ceiling,
+   * and consume the invitation. Store-owned time is read at command admission.
+   * Null means no effects. Lost/malformed acknowledgement remains uncertain;
+   * never fall back to separate mutations or infer success from later rows.
+   * Unsupported stores omit this command. */
+  acceptInvitationWithMembership?(input: {
+    readonly invitation_id: InvitationId;
+    readonly user_id: UserId;
+  }): Promise<Membership | null>;
   revokeInvitation(invitation_id: InvitationId): Promise<void>;
   revokePendingTeamInvitationsForEmail(team_id: TeamId, email: string): Promise<void>;
 

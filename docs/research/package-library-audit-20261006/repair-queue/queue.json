@@ -2147,10 +2147,10 @@
       "implementation_reference": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state.TECH-I01.bounded_membership_release",
       "current_execution": {
         "disposition": "partial-selected-packet",
-        "next_work": "implement-or-qualify-selected-consumer",
+        "next_work": "consume-exact-finite-input",
         "owner": "Dev original Identity/native consumers; Capability final State authority; Compiler source",
         "accepted_scope": "Bounded coherent Identity producer, accepted State multi-member saved-disclosure source and installed Dev D1 mirror are released; whole J2/native parent obligations remain open. Coordinator accepts the finite original requestRecovery -> real D1 atomic recovery consumer at LOCAL12e9081fd4945cae98e55964eb2d56c7e52d4ddf, corrected MAIN1/1 PASS recorded55f750c20a7b1a16916bd6309b82066fa8e764e0. Retires both HTTP/MCP credentials with original entry boundaries; broader J2 remains separate. Account token URL query/hash composition is reviewed in LOCAL main; owning15 reused with changed Identity/CF/root0, original mounted/source authority remains separate.",
-        "next_action": "Commit last-owner source/test companions, then inspect/repair finite ordinary invitation single-winner acceptance within Identity. No blanket J2/whole-State prerequisite.",
+        "next_action": "Consume only named original mounted route/current authority output; reuse completed Identity store controls.",
         "done_when": "Genuine authoritative store proves one contender wins, loser cannot mint, completed revocation and each selected crash/replay phase retain original policy; no cross-database atomicity inferred.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I01",
         "membership_removal_source": "Original Teams.member_removed typed removed-subject/causation and optional bounded Identity atomic occurrence source are implemented at the scopes below. Exactly three human-approved saved Choice requests executed; jev-1.13.0 chooses atomic_removal_occurrence3/3 with confidence1.0 each. Historical pre-implementation state and model concentration are advice, not current-code/native/J2 qualification. Compiler checked source and Dev trusted original ingress/handler consumers remain; holds unchanged.",
@@ -2159,25 +2159,26 @@
         "membership_removal_cold_reader": "New demonstrated Dev cold-recovery command gap repaired: optional readMemberRemovalOccurrence SAME original five args -> frozen retained original ornull; SELECT-only and exact same-key/digest refusal, no command/cascade/journal writes/time/random/source mint, available without batch. Identity emit0/new3 focused memory+actual SQL reopen/refusal/noeffects controls pass67.811042ms, finite source review CLEAR. Dev original source/ingress cold verifier consumer remains; accepted command31 reused, no parent/hold change. Coordinator independent defining review CLEAR, exact source integrated in LOCAL main after deadline; changed Identity/Cloudflare/root0. Dev consumes only this read-only verifier for cold recovery, never mutating command fallback; original native/J2/holds remain.",
         "atomic_recovery": "Defining optional atomic same-Identity recovery implemented and focused-tested locally. Store reads admission clock after hash;5 guarded native SQL statements consume exact proof last. Single winner, rollback every phase, reopened all facts, unrelated verification preserved, uncertain acknowledgement/spent retry and unsupported refusal proved. Identity/root types0,27 affected controls pass/reused; finite source review CLEAR. Coordinator intake and Dev selected original native recovery/final authority remain separate; no broader J2/hold release. Coordinator independent source review CLEAR and finite library component integrated LOCAL main after deadline; unchanged owning27 reused, actual changed main Identity/CF/root emission0. Original Dev native recovery/final effect timing remains unfinished.",
         "packages_execution": {
-          "lane": "local-ready",
-          "remaining_outcome": "Commit last-owner source/test companions, then inspect/repair finite ordinary invitation single-winner acceptance within Identity. No blanket J2/whole-State prerequisite.",
-          "required_input": "Commit last-owner source/test companions, then inspect/repair finite ordinary invitation single-winner acceptance within Identity. No blanket J2/whole-State prerequisite.",
+          "lane": "owner-output",
+          "remaining_outcome": "Actual original mounted State/Identity namespace/principal/final-writer route joins only; ordinary last-owner and invitation single-winner repairs closed.",
+          "required_input": "Defining Capability/Dev/Compiler exact supported generated State/Identity receiving route/final authority output where original consumer demands it; no whole J2 or vague full-plan gate.",
           "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
           "finish_condition": "Trusted original cause/remover/null receiving actor and complete routing/final current fence hold through cold retry/replay.",
           "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
           "priority": 8,
           "defining_owner": "Packages Identity ordinary store",
-          "next_action": "Commit last-owner source/test companions, then inspect/repair finite ordinary invitation single-winner acceptance within Identity. No blanket J2/whole-State prerequisite."
+          "next_action": "Consume only named original mounted route/current authority output; reuse completed Identity store controls."
         },
         "account_link_query_composition": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/TECH-I01/account_link_query_composition",
         "actual_code_reassessment": {
           "date": "2026-10-12",
-          "disposition": "local-ready",
+          "disposition": "missing-contract",
           "defining_owner": "Packages Identity ordinary store",
-          "actual_code_and_retained_result": "Code exposed a real last-owner race: public prechecks both observe two owners then unconditional D1 writes can remove both. Local conditional-write repair and62/62 package controls now pass. Existing signed/internal removal occurrences and actual atomic recovery are accepted. Ordinary invitation acceptance still writes membership before unconditional acceptance.",
-          "remaining_finite_action_or_input": "Commit last-owner source/test companions, then inspect/repair finite ordinary invitation single-winner acceptance within Identity. No blanket J2/whole-State prerequisite.",
+          "actual_code_and_retained_result": "Ordinary public acceptInvitation now invokes one optional owning Identity command after original ordered checks. Real D1 batch conditionally admits/reactivates unique member from current verified addressed email/stored ceiling and consumes invitation, one winner across actual two connections; memory publishes both facts synchronously. Missing batch refuses before any writes. Identity emit0, affected SQL/memory39/39 and genuine Miniflare D1 case1/1 after sandbox EPERM escalation; changed CF/root emit/type0, root finite source review CLEAR. Lost/malformed acknowledgment throws uncertain after possible physical commit, no fallback/retry. Raw id-only fixture primitive remains. Wider J2/State/route/held scopes separate. Coordinator defining source review CLEAR/local main-intaken at recorded component scope; owning meaningful results reused.",
+          "remaining_finite_action_or_input": "Defining Capability/Dev/Compiler exact supported generated State/Identity receiving route/final authority output where original consumer demands it; no whole J2 or vague full-plan gate.",
           "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
-        }
+        },
+        "atomic_invitation_acceptance": "Ordinary public acceptInvitation now invokes one optional owning Identity command after original ordered checks. Real D1 batch conditionally admits/reactivates unique member from current verified addressed email/stored ceiling and consumes invitation, one winner across actual two connections; memory publishes both facts synchronously. Missing batch refuses before any writes. Identity emit0, affected SQL/memory39/39 and genuine Miniflare D1 case1/1 after sandbox EPERM escalation; changed CF/root emit/type0, root finite source review CLEAR. Lost/malformed acknowledgment throws uncertain after possible physical commit, no fallback/retry. Raw id-only fixture primitive remains. Wider J2/State/route/held scopes separate."
       }
     },
     {
@@ -8668,17 +8669,16 @@
     "source": "Single current view in each existing packet current_execution.packages_execution; original recipes and canonical references remain authoritative.",
     "authorization": "Human requested immediate reevaluation of every remaining task and an individual prioritized list/instruction for each existing LOCAL worker. No new task IDs, ownership transfer, hold release or remote work.",
     "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
-    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining view:5local-ready,8exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
+    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining view:4local-ready,9exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
-    "dispatch": "Reuse nine satisfied selected scopes; implement/qualify five still-ready entries. Current B02 inline Chromium and R01 local installed CLI/SDK components are qualified and their distinct Dev/host parent inputs remain. Eight exact contract/host inputs and two human-held entries retain original scope; DEL-C02 closed consumer separate. No provider-void/new obligations.",
-    "completion": "32/48 selected packets finished;8partial7open1held. Remaining view:5local-ready,8exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
+    "dispatch": "Reuse nine satisfied selected scopes; implement/qualify four still-ready entries. Current Identity ordinary owner/invitation, V03 Decimal, B02 inline Chromium and R01 local installed CLI/SDK components closed with narrower genuine parent inputs. Nine exact owner/host inputs and two human-held entries remain at original scope; no provider-void or new obligations.",
+    "completion": "32/48 selected packets finished;8partial7open1held. Remaining view:4local-ready,9exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "Exact V03 serving association after local Decimal fix; S03 app/mixed physical owner placement; S04 visited-work/continuation/refusal; F01 multiple-owner/power-loss host contract; F02 supported non-Identity provider correspondence. V05 exact release-host result Dev/L7. Former D04 namespace and accepted durable/browser lifecycle blockers removed.",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation.",
     "packages_dispatch_order": [
-      "TECH-I01",
       "DEL-B01",
       "DEL-C01",
       "TECH-S02",
@@ -8703,8 +8703,8 @@
       "DEL-D05"
     ],
     "lane_counts": {
-      "local_ready": 5,
-      "exact_owner_output": 8,
+      "local_ready": 4,
+      "exact_owner_output": 9,
       "human_held": 2,
       "remaining_packets": 16,
       "closed_consumer": 1
