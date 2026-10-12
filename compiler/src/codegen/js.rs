@@ -1827,12 +1827,13 @@ fn emit_program_with_sources(
     }).collect();
     for item in call_parents {
         let sites = db.and_then(|db| {
-            super::scenario_calls::collect_static_scenario_calls(
+            super::scenario_calls::collect_static_scenario_calls_with_feasibility(
                 ir,
                 item,
                 &operations,
                 db,
                 &module_path(&entry_name),
+                feasibility,
             )
         });
         if let Some(sites) = sites {

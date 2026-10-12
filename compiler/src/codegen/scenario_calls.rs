@@ -274,6 +274,17 @@ pub fn collect_static_scenario_calls(
     db: &SourceDb,
     entry_module: &str,
 ) -> Option<Vec<StaticScenarioCall>> {
+    collect_static_scenario_calls_with_feasibility(ir, parent, operations, db, entry_module, None)
+}
+
+pub(super) fn collect_static_scenario_calls_with_feasibility(
+    ir: &IrProgram,
+    parent: &IrItem,
+    operations: &[JsOperation],
+    db: &SourceDb,
+    entry_module: &str,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+) -> Option<Vec<StaticScenarioCall>> {
     if entry_module.is_empty() || operations.len() > 16384 {
         return None;
     }
@@ -294,7 +305,15 @@ pub fn collect_static_scenario_calls(
         if owner.id != id {
             return None;
         }
-        let sites = collect_owner(ir, owner, operations, db, entry_module, id != parent.id)?;
+        let sites = collect_owner(
+            ir,
+            owner,
+            operations,
+            db,
+            entry_module,
+            id != parent.id,
+            feasibility,
+        )?;
         occurrences = occurrences.checked_add(sites.len())?;
         if occurrences > 200 {
             return None;
@@ -316,6 +335,37 @@ pub fn collect_static_scenario_calls(
     }
     root_sites
 }
+/// Join the child descriptor to the same immutable successful requirement paths
+/// used by native emission, preserving the complete conservative source proof.
+fn checked_child_return_subset(
+    ir: &IrProgram,
+    child: &IrItem,
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    disclosure: &serde_json::Value,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+) -> Option<()> {
+    let expected: Vec<_> = match feasibility
+        .filter(|_| super::scenario_feasibility::requires_projection(checked, ir))
+    {
+        Some(prepared) => prepared.returns(ir, child.id)?,
+        None => checked.returns.iter().collect(),
+    };
+    let actual = disclosure["returns"].as_array()?;
+    let mut ids = HashSet::new();
+    if expected.is_empty()
+        || expected.len() > 200
+        || actual.len() != expected.len()
+        || actual.iter().zip(&expected).any(|(value, returned)| {
+            value["id"]
+                .as_str()
+                .is_none_or(|id| !ids.insert(id) || returned.id != id)
+        })
+    {
+        return None;
+    }
+    Some(())
+}
+
 fn scalar_id(ty: &ResolvedType) -> Option<&'static str> {
     let ResolvedType::Scalar(scalar) = ty else {
         return None;
@@ -730,10 +780,14 @@ fn explicit_stored_file_input(
     value: &TypedExpr,
     input: &JsOperationField,
     operations: &[JsOperation],
-    entry: &str,
+    native: (
+        &str,
+        Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
+    ),
     db: &SourceDb,
 ) -> Option<String> {
     let (owner, child, parameter) = declarations;
+    let (entry, feasibility) = native;
     explicit_file_array_declaration(ir, child, parameter, input, db)?;
     let original = super::scenario_receipts::stored_file_array_operand(ir, owner, value, db)?;
     if !ordinary_file_array(&value.ty)
@@ -793,12 +847,16 @@ fn explicit_stored_file_input(
     {
         return None;
     }
+    checked_child_return_subset(ir, owner, checked, published, feasibility)?;
+    let paths: Vec<_> = match feasibility
+        .filter(|_| super::scenario_feasibility::requires_projection(checked, ir))
+    {
+        Some(prepared) => prepared.returns(ir, owner.id)?,
+        None => checked.returns.iter().collect(),
+    };
     let returns = published["returns"].as_array()?;
-    if returns.len() != checked.returns.len() {
-        return None;
-    }
     let mut dependency_id = None;
-    for returned in &checked.returns {
+    for returned in paths {
         let mut dependencies = returned.dependencies.iter().filter(|read| {
             read.node.file == value.span.file
                 && read.node.start == value.span.start
@@ -1286,6 +1344,7 @@ fn collect_owner(
     db: &SourceDb,
     entry: &str,
     is_child: bool,
+    feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
 ) -> Option<Vec<StaticScenarioCall>> {
     let IrItemKind::Scenario {
         trusted: false,
@@ -1452,17 +1511,7 @@ fn collect_owner(
                 {
                     return None;
                 }
-                let actual_returns = disclosure["returns"].as_array()?;
-                if actual_returns.len() != child_checked.returns.len()
-                    || actual_returns.iter().any(|value| {
-                        !child_checked
-                            .returns
-                            .iter()
-                            .any(|returned| value["id"] == returned.id)
-                    })
-                {
-                    return None;
-                }
+                checked_child_return_subset(ir, child, child_checked, disclosure, feasibility)?;
                 if let Some(query) = query {
                     match_query_disclosure(ir, query, disclosure, entry)?;
                 }
@@ -1566,7 +1615,7 @@ fn collect_owner(
                             value,
                             input,
                             operations,
-                            entry,
+                            (entry, feasibility),
                             db,
                         )?;
                         file_inputs.push(StaticScenarioCallFileInput {
@@ -2166,4 +2215,96 @@ fn simple_value(value: &super::ir::TypedExpr) -> bool {
         }
     }
     true
+}
+
+#[cfg(test)]
+mod prepared_child_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::check_program;
+    use crate::source::SourceDb;
+    use std::path::Path;
+
+    #[test]
+    fn original_ask_child_joins_only_the_same_authenticated_successful_return_subset() {
+        let mut db = SourceDb::new();
+        let file = db.add(
+            "CanChat.can".into(),
+            include_str!("../../tests/fixtures/original-a850/CanChat.can").into(),
+        );
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = root.join("target/profile-native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let child = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "chat.ask")
+            .unwrap();
+        let ScenarioDisclosure::Complete(checked) = &ir.scenario_disclosures[&child.id] else {
+            panic!("original proof");
+        };
+        assert_eq!(checked.returns.len(), 256);
+        let prepared =
+            super::super::scenario_feasibility::prepare(&program, &ir, &db, catalog.as_ref())
+                .unwrap();
+        let selected = prepared.returns(&ir, child.id).unwrap();
+        assert_eq!(selected.len(), 1);
+        let ScenarioDisclosure::Complete(original) = &program.scenario_disclosures()[&child.id]
+        else {
+            panic!("original immutable source proof");
+        };
+        assert!(
+            original
+                .returns
+                .iter()
+                .any(|row| std::ptr::eq(row, selected[0]))
+        );
+        let descriptor = serde_json::json!({"returns":[{"id":selected[0].id}]});
+        assert!(
+            checked_child_return_subset(&ir, child, checked, &descriptor, Some(&prepared))
+                .is_some()
+        );
+        assert!(checked_child_return_subset(&ir, child, checked, &descriptor, None).is_none());
+        let copied = ir.clone();
+        assert!(
+            checked_child_return_subset(&copied, child, checked, &descriptor, Some(&prepared))
+                .is_none()
+        );
+        for rows in [
+            serde_json::json!([]),
+            serde_json::json!([{"id":"copied"}]),
+            serde_json::json!([{"id":selected[0].id},{"id":selected[0].id}]),
+        ] {
+            assert!(
+                checked_child_return_subset(
+                    &ir,
+                    child,
+                    checked,
+                    &serde_json::json!({"returns":rows}),
+                    Some(&prepared)
+                )
+                .is_none()
+            );
+        }
+        let conservative = serde_json::json!({"returns":checked.returns.iter().map(|row|serde_json::json!({"id":row.id})).collect::<Vec<_>>()});
+        assert!(
+            checked_child_return_subset(&ir, child, checked, &conservative, Some(&prepared))
+                .is_none()
+        );
+        assert_eq!(
+            checked.returns.len(),
+            256,
+            "complete original proof remains unchanged"
+        );
+    }
 }
