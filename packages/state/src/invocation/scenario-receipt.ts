@@ -4175,10 +4175,17 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     };
     const sourceProjection = async (producer: ScenarioReceiptReferenceProducer, model: ModelName, current: StoredRow) => {
       if (producer.readPolicies === undefined) return null;
-      const projected = await projectInstalledSourceRowAndAncestors({ model, row: current,
-        readPolicies: producer.readPolicies, policy: producer.policy, context, revision, fence: undefined,
-        store: input.store, rows: new Map([[`${model}\0${current.id}`, current]]) });
-      return projected.record === null ? null : projected;
+      try {
+        const projected = await projectInstalledSourceRowAndAncestors({ model, row: current,
+          readPolicies: producer.readPolicies, policy: producer.policy, context, revision, fence: undefined,
+          store: input.store, rows: new Map([[`${model}\0${current.id}`, current]]) });
+        return projected.record === null ? null : projected;
+      } catch (error) {
+        // Source navigation can deny an unavailable ancestor with not_found.
+        // The retained receipt stays valid; only its saved disclosure is denied.
+        if (error instanceof StateError && error.code === 'not_found') return null;
+        throw error;
+      }
     };
     const modelResultReadable = async (def: GeneratedOperationDef, bound: BoundPlan, result: unknown) => {
       if (bound.resultModel === undefined) return true;
