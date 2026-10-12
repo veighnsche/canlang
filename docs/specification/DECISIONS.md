@@ -11967,3 +11967,10 @@ Changed MAIN checks all0: {"owning": 1.6, "root": 4.56} seconds; no unchanged na
 Accepted finite TECH-V03 source component 49d053c1a5f93a493af97119f5192b17d7e7f487: Pass numeric metadata primitives through detached frozen default copying; genuine Date registration remains valid while Decimal class/forgery/owner/lifetime/partial publication refusals stay strict. Independent defining source review CLEAR; 24 prepared default/provenance groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning_reused": 1.06, "catalog": 0.18, "root": 4.88} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — refuse empty bridge url delimiters
+
+Accepted finite TECH-F01 source component ebf985817caca6d12fb1fc2bb3c5ad4abc9c3b19: No-query/no-fragment BridgeOrigin refuses bare ?/# at the same validation stage; encoded %3F/%23 path and original principal/destination order remain valid. Independent defining source review CLEAR; 13 bridge groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 0.73, "root": 4.75} seconds; no unchanged native/installed/engine reruns.

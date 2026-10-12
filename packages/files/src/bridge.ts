@@ -211,7 +211,7 @@ export function createBridgeOrigin(baseUrl: string): BridgeOrigin | null {
   if (url.username !== '' || url.password !== '') {
     return null;
   }
-  if (url.search !== '' || url.hash !== '') {
+  if (baseUrl.includes('?') || baseUrl.includes('#')) {
     return null;
   }
   const normalized = url.toString().replace(/\/+$/, '');
