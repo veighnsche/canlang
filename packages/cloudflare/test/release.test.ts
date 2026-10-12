@@ -160,6 +160,27 @@ describe("dist manifest (B5-J3)", () => {
     expect(() => verifyDistManifest(root, manifestPath)).toThrow(/index\.js/);
   });
 
+  it("refuses covered file and directory symlinks instead of omitting their inventory", () => {
+    const { root, dist } = fixtureDist();
+    try {
+      const manifest = buildDistManifest(root, ["packages/demo/dist"]);
+      const manifestPath = writeDistManifest(root, manifest);
+      for (const [name, target] of [["extra.js", join(dist, "index.js")], ["linked", dist]] as const) {
+        const path = join(dist, name);
+        symlinkSync(target, path);
+        expect(() => buildDistManifest(root, ["packages/demo/dist"])).toThrow(`packages/demo/dist/${name}`);
+        expect(() => verifyDistManifest(root, manifestPath)).toThrow(`packages/demo/dist/${name}`);
+        rmSync(path);
+        expect(() => verifyDistManifest(root, manifestPath)).not.toThrow();
+      }
+      symlinkSync(join(dist, "index.js"), join(dist, "excluded.tsbuildinfo"));
+      expect(buildDistManifest(root, ["packages/demo/dist"])).toEqual(manifest);
+      expect(() => verifyDistManifest(root, manifestPath)).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("verify rejects a false byte count with unchanged content and digest", () => {
     const { root } = fixtureDist();
     try {

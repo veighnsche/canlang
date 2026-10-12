@@ -11892,3 +11892,18 @@ retain their scope. Original durable Work/Dev consumers and all holds remain.
 Coordinator finite source review CLEAR and coherent LOCAL main integration after deadline. Owning lifecycle9/9 zero skips/cancels reused: actual caller/deadline interruption at text and incomplete-UTF8 tail yields refuses closed/queued Response success, retaining exact first reason/lock release/detected quota/redirect/status behavior. Unchanged real loopback11/provider/native/installed results remain at their own scopes; Work/Dev durable observation,22/48/26 parents, complete checkpoint and all holds remain separate.
 
 Changed MAIN normal checks: Services0 1.17s, root0 5.94s. No unchanged qualification reruns.
+
+2026-10-12 — Covered dist symlink refusal (implemented/tested local component).
+A covered symbolic link must not disappear from the promised complete emitted
+path inventory. Refuse it by relative path before ordinary traversal instead of
+following links; preserve the existing tsbuildinfo exclusion and listed-root
+policy. The actual public producer first accepts an added link incorrectly;
+producer/verifier now refuse file/cyclic directory links and pass after removal,
+while an excluded tsbuildinfo link remains omitted. All7 manifest cases,
+Cloudflare emission and finite independent source review pass. Unchanged5 stamp
+and types/installed/native/host results retain their scope; broader release and
+all preparation/default/activation/publication/source/adoption holds remain.
+
+Coordinator finite source review CLEAR and coherent LOCAL main integration after deadline. Seven actual producer/filesystem build→write→verify cases reused; covered file/cyclic-directory links refuse by path, removal restores verification, excluded tsbuildinfo symlink remains omitted. Unmatched zero-test filter is uncredited; five unchanged stamp controls reused separately. Ordinary capture/root/discovery/hash/bytes/unique inventory preserved. Supported-host/authored/native release,22/48/26 parents, complete checkpoint and all holds remain separate.
+
+Changed MAIN normal checks: Cloudflare0 4.9s, root0 4.78s. No unchanged installed/native/host qualification reruns.
