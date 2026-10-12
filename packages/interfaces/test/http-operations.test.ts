@@ -737,7 +737,7 @@ test('B3-I5: framing failures re-render too when drafts exist', async () => {
   }
 });
 
-test('body readers enforce caps and shapes', async () => {
+test('body readers enforce caps and shapes', { timeout: 5000 }, async () => {
   function reusedChunks(parts: string[]): Request {
     const chunk = new Uint8Array(parts[0]!.length);
     let index = 0;
@@ -754,6 +754,40 @@ test('body readers enforce caps and shapes', async () => {
   assert.deepEqual(await parseJsonBody(reusedChunks(['{"a":1,', '"b":2} ']), 14), { a: 1, b: 2 });
   const over = testRequest('/x', { method: 'POST', body: 'x'.repeat(100) });
   await assert.rejects(readCappedBody(over, 10), (e: unknown) => e instanceof IdentityError && e.code === 'limit');
+  const caller = new AbortController();
+  let entered!: () => void, release!: () => void;
+  const cancellationEntered = new Promise<void>(resolve => { entered = resolve; });
+  const heldCancellation = new Promise<void>(resolve => { release = resolve; });
+  let cancellations = 0, physicallyCancelled = false;
+  const heldBody = new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(new Uint8Array(9)); },
+    cancel() {
+      cancellations++;
+      entered();
+      return heldCancellation.then(() => { physicallyCancelled = true; });
+    },
+  });
+  const heldInit = { method: 'POST', body: heldBody, duplex: 'half' as const, signal: caller.signal };
+  const heldRequest = new Request('https://x.invalid/body', heldInit);
+  const pending = readCappedBody(heldRequest, 8);
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await cancellationEntered;
+    caller.abort(new Error('caller disconnected'));
+    assert.equal(heldRequest.signal.aborted, true);
+    const stalled = new Promise<never>((_resolve, reject) => {
+      watchdog = setTimeout(() => reject(new Error('quota cancellation waited after caller abort')), 100);
+    });
+    await assert.rejects(Promise.race([pending, stalled]),
+      (e: unknown) => e instanceof IdentityError && e.code === 'limit' && e.message === 'Request body too large.');
+    assert.equal(cancellations, 1);
+    assert.equal(heldBody.locked, false);
+    assert.equal(physicallyCancelled, false);
+  } finally {
+    if (watchdog !== undefined) clearTimeout(watchdog);
+    release();
+    await pending.catch(() => undefined);
+  }
   const badJson = testRequest('/x', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

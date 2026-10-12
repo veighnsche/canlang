@@ -11953,3 +11953,10 @@ Changed MAIN checks all0: {"owning": 0.8, "root": 4.74} seconds; no unchanged na
 Accepted finite DEL-B02 source component a5949aa830b5e116fc9efa10e09e087a519c7b9b: Collect __proto__ and other original named controls as own enumerable writable configurable string properties, preserving plain prototype/last-wins/default-on/refusal/opaque File semantics. Independent defining source review CLEAR; 21 rendered form groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
 
 Changed MAIN checks all0: {"owning": 1.67, "root": 4.63} seconds; no unchanged native/installed/engine reruns.
+
+
+### 2026-10-12 — settle cancelled body limits
+
+Accepted finite DEL-B02 source component a8b522a1046fb13084368bbecb80cf2b49273770: Cancel once and race pending quota cleanup against the same Request signal, retaining original quota error, releaseLock and eventual physical cleanup; no new timeout or dependency. Independent defining source review CLEAR; 26 HTTP operation groups owning results reused at their exact closure. Original mounted/native/provider/durable/release parent remains unfinished; no codec/authority/profile/hold waiver or full-plan credit. Changed owning normal emission and root check follow.
+
+Changed MAIN checks all0: {"owning": 1.6, "root": 4.56} seconds; no unchanged native/installed/engine reruns.
