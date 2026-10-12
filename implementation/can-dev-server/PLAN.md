@@ -30,7 +30,7 @@ The declared Office first slice has **T00–T13 and G1/G2 accepted at their froz
 
 ### Prioritized existing platform handoffs
 
-**First deliverable:** consume exact State archived-source-parent withholding correction, then retry ONLY original current337 failed finalsavedprojection, preserving original2240SHA4da/full ten source dependencies/runtimechronology/uniqueconflict/physicalFiles/receipt-history-fence/readback/replay/currentauthority/archive/resources/cleanup. Corrected current source543/f322/837/c6 and safeDevunique/nullableconsumer are nowreviewed inLOCALmain; worker159s failure remainsunqualified. Mixedtranscript/privateFiles/SEND andconditionalunique source→State1ae adoption are distinctreadyexactoutputs; alloriginalplatform/provider/migration/allwriter rows/holds retained.
+**First deliverable:** consume exact reviewedState0cdd archived-source ancestor denial withholding fromLOCALmain, thenretryONLYoriginal current337159.04s failedfinalarchive workflow with original2240SHA4da/source/complete10dependencycensus/unique-numberconflict/physicalFiles/receipt-history-fence/currentauthority/readback-replay/resources/cleanup intact. Correctedsourcecurrent+safeunconditionalconsumer components are closed; conditional02cc registry/globalordinal association remainsunderexactsourcefix, no wholeplan gate. Mixedcallback/SEND/privateFiles andoriginalplatform/provider/migration/allwriter rows remainseparate.
 
 | Priority / original owning scope | Remaining Dev change / observable outcome | Exact prerequisite | Finite acceptance / action |
 | --- | --- | --- | --- |

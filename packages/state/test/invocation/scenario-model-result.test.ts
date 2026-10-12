@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import type { CanTypeId, ClosedInputs, ModelName, Receipt } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { StateError } from '../../src/errors.js';
+import { queryRecordsPage } from '../../src/query/engine.js';
+import { openFenceScope } from '../../src/invocation/admission.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTable } from '../../src/mutation/models.js';
 import { buildPolicyTable } from '../../src/policy/grants.js';
@@ -16,7 +18,7 @@ import { beginScenarioReceiptMutation, bindScenarioReceiptCallProducer, invokeSc
   bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, selectScenarioReceiptReturn,
   projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
 import { field, modelDef } from '../mutation/fixtures.js';
-import { asId, asModel, FIXED_NOW, makeBatch, makeEnvelope, makeIdentity, makeRow, uuidv7 } from './fixtures.js';
+import { asId, asModel, asRevision, asVersion, FIXED_NOW, makeBatch, makeEnvelope, makeIdentity, makeRow, uuidv7 } from './fixtures.js';
 
 const MODEL = asModel('ModelResult.Run'), FOREIGN = asModel('ModelResult.Other');
 const ROOT = 'ModelResult.start', CHILD = 'ModelResult.create', APP = 'model-result-components', TEAM = 'model-result-team';
@@ -282,6 +284,99 @@ test('created Run source navigation resolves its uncommitted parent in the share
     if (loss === 'grant') w.access.parentAllowed = false;
     else await w.memberships.removeMembership(w.parentOwner.membership_id);
     assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+  }
+});
+
+/** Saved-only navigation uses the same installed child and parent reads. The
+ * nested child callback joins the page read without starting another page. */
+function savedParentNavigation(w: World, mode: 'live' | 'invalid-parent' | 'fence' = 'live') {
+  let entered = false, missing = 0, pages = 0;
+  w.navigation.after = async observation => {
+    if (entered) return;
+    entered = true;
+    try {
+      const input = { model: MODEL, authority: 'viewer' as const, policy: w.policy, sourceReadPolicies: w.readPolicies,
+        store: w.store, memberships: observation.context.memberships,
+        context: observation.context,
+        selection: { parent: { model: FOREIGN, id: mode === 'invalid-parent' ? asId('') : PARENT_ID } },
+        ...(mode === 'fence' ? { fence: openFenceScope(asRevision(observation.revision - 1), TEAM) } : {}),
+      };
+      const page = await queryRecordsPage(input);
+      assert.deepEqual(page.records.map(record => record.id), [CREATED]); pages++;
+    } catch (error) {
+      if (error instanceof StateError && error.code === 'not_found') {
+        assert.equal(error.message, 'Parent record not found.'); missing++;
+      }
+      throw error;
+    } finally { entered = false; }
+  };
+  return { get missing() { return missing; }, get pages() { return pages; } };
+}
+async function savedContainedWorld() {
+  const w = await world(MODEL as CanTypeId, true), producer = bindChild(w);
+  let roots = 0, commits = 0, receipt: Receipt | undefined;
+  const commit = w.store.commit;
+  w.store.commit = async batch => { commits++; return commit(batch); };
+  const input = { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
+    roots++;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    await child(call, w);
+    const row = await session.read(MODEL, CREATED); assert.ok(row);
+    return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
+  } };
+  assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
+  assert.equal(roots, 1); assert.equal(producer.executions, 1); assert.equal(commits, 1);
+  assert.deepEqual((await w.store.load(MODEL, CREATED))?.parent, { model: FOREIGN, id: PARENT_ID });
+  return { w, input, producer, receipt, counts: () => ({ roots, child: producer.executions, commits }) };
+}
+async function savedState(w: World, receipt: Receipt) {
+  return { revision: await w.store.readRevision(), receipt: await w.store.readReceipt(receipt.identity),
+    child: await w.store.load(MODEL, CREATED), parent: await w.store.load(FOREIGN, PARENT_ID),
+    childHistory: await w.store.historyFor(MODEL, CREATED), parentHistory: await w.store.historyFor(FOREIGN, PARENT_ID),
+    outbox: await w.store.outboxPending() };
+}
+
+test('saved authentic contained result replays live scoped parent queries and withholds archived or missing ancestors without writes', async () => {
+  for (const mode of ['live', 'archived', 'missing'] as const) {
+    const { w, input, receipt, counts } = await savedContainedWorld();
+    const navigation = savedParentNavigation(w), retained = structuredClone(receipt);
+    const visible = await projectScenarioReceipt({ ...w, receipt });
+    assert.deepEqual(visible.result, { id: CREATED }); assert.equal(visible.records.length, 2);
+    assert.ok(navigation.pages > 0);
+    if (mode !== 'live') {
+      const parent = await w.store.load(FOREIGN, PARENT_ID); assert.ok(parent);
+      await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [mode === 'missing'
+        ? { kind: 'remove', model: FOREIGN, id: PARENT_ID, expectedVersion: parent.version }
+        : { kind: 'update', model: FOREIGN, id: PARENT_ID, expectedVersion: parent.version,
+          row: { ...parent, version: asVersion(parent.version + 1), archivedAt: FIXED_NOW + 1 } }] }));
+    }
+    const before = await savedState(w, receipt), executions = counts();
+    const projection = await projectScenarioReceipt({ ...w, receipt });
+    if (mode === 'live') { assert.deepEqual(projection.result, { id: CREATED }); assert.equal(projection.records.length, 2); }
+    else { assert.deepEqual(projection, { result: null, records: [] }); assert.ok(navigation.missing > 0); }
+    const replay = await invoke(input); assert.equal(replay.status, 'replayed');
+    assert.deepEqual(counts(), executions); assert.deepEqual(await savedState(w, receipt), before);
+    assert.deepEqual(receipt, retained);
+  }
+});
+
+test('saved source navigation preserves genuine parent validation, authentication and fence exceptions', async () => {
+  for (const [mode, code] of [['invalid-parent', 'validation'], ['row-identity', 'validation'], ['authentication', 'forbidden'], ['fence', 'conflict']] as const) {
+    const { w, input, receipt, counts } = await savedContainedWorld();
+    if (mode === 'row-identity') {
+      // A real stored row returned under the wrong requested identity is an
+      // adapter-contract error, not loss of authority over an absent parent.
+      const load = w.store.cohortLoad;
+      w.store.cohortLoad = async request => request.model === FOREIGN && request.id === PARENT_ID
+        ? w.old : load(request);
+    } else if (mode !== 'authentication') savedParentNavigation(w, mode);
+    const before = await savedState(w, receipt), executions = counts();
+    // A different actual SDK member cannot read the caller's retained receipt.
+    const identity = mode === 'authentication' ? makeIdentity({ membership: w.parentOwner }) : w.identity;
+    await assert.rejects(projectScenarioReceipt({ ...w, receipt, identity }),
+      error => error instanceof StateError && error.code === code, mode);
+    assert.equal((await invoke(input)).status, 'replayed');
+    assert.deepEqual(counts(), executions); assert.deepEqual(await savedState(w, receipt), before);
   }
 });
 
