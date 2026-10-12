@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ArtifactModel, CanonicalModelDescriptor, CanTypeId, ModelName, ScenarioResultDisclosurePlan } from '@canlang/contracts';
 import { StateError } from '../../src/errors.js';
-import { bindScenarioNarrowedFields, scenarioNarrowedFieldControl } from '../../src/invocation/scenario-narrowed-field.js';
+import { bindScenarioNarrowedFields, scenarioNarrowedFieldControl, scenarioNarrowedFieldControls } from '../../src/invocation/scenario-narrowed-field.js';
 const model = (name: string) => name as ModelName, type = (name: string) => name as CanTypeId;
 const TEMPLATE = model('creative.Template'), REVISION = model('creative.Revision');
 const source = { path: 'CanCreative.can', module: 'CanCreative.mjs', sha256: 'a'.repeat(64) };
@@ -52,14 +52,15 @@ test('required current reference CONTROL retains its actual occurrence and authe
     assert.throws(() => scenarioNarrowedFieldControl({ ...binding }), refuses);
   }
 });
-test('required reference CONTROL does not replace the unique nullable predecessor for DATA', () => {
+test('required reference CONTROL supplies DATA correspondence while text preserves nullable pairing', () => {
   const bound = fixture();
   const deps = bound.plan.returns[0]!.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
   deps.push({ ...deps[1]!, id: 'current-published', role: 'control' });
   const bindings = bindScenarioNarrowedFields(bound);
-  assert.equal(scenarioNarrowedFieldControl(bindings.get('current-data')!).id, 'current-presence');
+  assert.equal(scenarioNarrowedFieldControl(bindings.get('current-data')!).id, 'current-published');
+  assert.equal(scenarioNarrowedFieldControl(bindings.get('digest-data')!).id, 'digest-presence');
   deps.splice(0, 1);
-  assert.throws(() => bindScenarioNarrowedFields(bound), refuses);
+  assert.equal(scenarioNarrowedFieldControl(bindScenarioNarrowedFields(bound).get('current-data')!).id, 'current-published');
 });
 test('required CONTROL refuses text, array, query, metadata, nonowning and declaration drift', () => {
   for (const mode of ['text', 'array', 'required-array', 'query', 'metadata', 'nonowning', 'nullable', 'type', 'marker', 'target', 'field-kind'] as const) {
@@ -90,6 +91,65 @@ test('required CONTROL gains no narrowing binding without an explicit nullable d
   delete bound.artifactModels.get(TEMPLATE)!.fields[0]!.valueType;
   Reflect.deleteProperty(bound.canonicalModels[0]!.fields.current!, 'valueType');
   assert.equal(bindScenarioNarrowedFields(bound).size, 0);
+});
+const currentData = '1c327f4f4aeae7be717182a0af8c956063f757d1e3062910735de1af97ddb541';
+const publishedControl = '356ea644a1ef36fed72fdbad0bd3298f6620f572effd95d36d2b71fe5cf3a417';
+const letControl = 'f6d42944cd92e67cc997626ccc675e27e6e0215990eab06707b2f4e496246c28';
+function commonRequiredFixture() {
+  const bound = requiredControlFixture();
+  const returned = bound.plan.returns[0]!;
+  const originalSource = { ...source, path: 'draft/CanCreative.can', sha256: '4da5ddcc956e72ee6f8e0d5942467692c549d925dee2a01a4e01192f93e31bbf' };
+  const required = { ...returned.dependencies[0]!, id: publishedControl, source: originalSource };
+  const dependencies = [required, { ...required, id: letControl }, { ...required, id: currentData, role: 'data' as const }];
+  const returns = bound.plan.returns as Array<ScenarioResultDisclosurePlan['returns'][number]>;
+  returns.splice(0, 1, ...[
+    'a514f06e72d460ed6ddefc226d9f51be7907ce1c2ee0393d5f90ad7614e366ff',
+    '70af48801b2fe1f13f28c9c4b8762466e13ecaddab07ae7fa69c32dc357b4837',
+    '998791f4b82d91cc8b381a940f827dfc876f5f1963f89eac9ad6b80653a7f5dd',
+    '79d0c5b24994f46af0206a4d6076165d075c65e6e63272c97ce6f2f47d5d08dd',
+  ].map((id, index) => ({ ...returned, id, source: originalSource,
+    dependencies: [...dependencies.map(dependency => ({ ...dependency })), ...(index < 2 ? [] : [{ ...required,
+      id: '0342ea60029ea5b011f43ae25d98ce2befb393e9b75e23b3df22aec8bb8d0116', type: type(`${REVISION}?`),
+    }]), { id: '7563f4ad5a7ab9be1754d6d95e78f101939df57c089028108a2ee75cf083c9b3', source: originalSource,
+      model: REVISION, field: 'digest', type: type('text?'), role: 'control' as const },
+    { id: '6ca63b1bd123c7c1223adcf596add493893ea29c82395e59ed74385ed406c519', source: originalSource,
+      model: REVISION, field: 'digest', type: type('text'), role: 'data' as const }],
+  })));
+  return { ...bound, plan: { ...bound.plan, source: originalSource } };
+}
+test('reference DATA retains the entire common required CONTROL set across every used Return', () => {
+  const bound = commonRequiredFixture();
+  const bindings = bindScenarioNarrowedFields(bound), binding = bindings.get(currentData)!;
+  assert.deepEqual(scenarioNarrowedFieldControls(binding).map(control => control.id), [publishedControl, letControl]);
+  assert.equal(binding.data.role, 'data'); assert.equal(binding.data.type, REVISION);
+  assert.ok(Object.isFrozen(binding.controls));
+  assert.throws(() => scenarioNarrowedFieldControl(binding), refuses);
+  assert.throws(() => scenarioNarrowedFieldControls({ ...binding }), refuses);
+  assert.equal(scenarioNarrowedFieldControl(bindings.get('6ca63b1bd123c7c1223adcf596add493893ea29c82395e59ed74385ed406c519')!).id,
+    '7563f4ad5a7ab9be1754d6d95e78f101939df57c089028108a2ee75cf083c9b3');
+});
+test('one common required CONTROL remains valid at a separately declared scope', () => {
+  const bound = commonRequiredFixture();
+  const deps = bound.plan.returns[0]!.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+  deps.splice(1, 1);
+  const binding = bindScenarioNarrowedFields(bound).get(currentData)!;
+  assert.deepEqual(scenarioNarrowedFieldControls(binding).map(control => control.id), [publishedControl]);
+});
+test('reference DATA refuses absent common required correspondence and drifting DATA occurrences', () => {
+  for (const mode of ['field', 'source', 'type', 'foreign', 'return-drift', 'duplicate'] as const) {
+    const bound = commonRequiredFixture();
+    const deps = bound.plan.returns[0]!.dependencies as Array<ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number]>;
+    if (mode === 'return-drift') deps[2] = { ...deps[2]!, source: { ...source, sha256: 'b'.repeat(64) } };
+    else if (mode === 'duplicate') deps.push({ ...deps[2]! });
+    else for (let index = 0; index < 2; index++) {
+      const control = deps[index]!;
+      deps[index] = mode === 'field' ? { ...control, field: 'other' }
+        : mode === 'source' ? { ...control, source: { ...source, sha256: 'b'.repeat(64) } }
+        : mode === 'type' ? { ...control, type: type(`${REVISION}?`) }
+        : { ...control, queryId: 'foreign' };
+    }
+    assert.throws(() => bindScenarioNarrowedFields(bound), refuses, mode);
+  }
 });
 test('original current reference and digest text pair with exact nullable CONTROL while exact fields stay untouched', () => {
   const bound = fixture(), bindings = bindScenarioNarrowedFields(bound);

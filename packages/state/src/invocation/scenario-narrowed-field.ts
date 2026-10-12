@@ -10,6 +10,7 @@ type Dependency = ScenarioResultDisclosurePlan['returns'][number]['dependencies'
 export interface ScenarioNarrowedFieldBinding {
   readonly data: Dependency;
   readonly control: Dependency;
+  readonly controls: readonly Dependency[];
   readonly declarationType: CanTypeId;
   readonly kind: 'reference' | 'text';
   readonly target?: ModelName;
@@ -21,8 +22,9 @@ const authentic = new WeakSet<ScenarioNarrowedFieldBinding>();
 const fail = (message: string): never => { throw new StateError('validation', `Scenario narrowed field: ${message}`); };
 const same = (a: unknown, b: unknown) => stableStringify(a) === stableStringify(b);
 
-/** Required DATA pairs with its unique nullable CONTROL. A required genuine
- * model-reference CONTROL authenticates its own nullable declaration narrowing. */
+/** Reference DATA retains every common required CONTROL, falling back to the
+ * unique nullable CONTROL used by legacy reference and text DATA. A required
+ * reference CONTROL authenticates its own nullable declaration narrowing. */
 export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, ScenarioNarrowedFieldBinding> {
   try {
     const plan = copyScenarioFileData(bound.plan) as ScenarioResultDisclosurePlan;
@@ -64,17 +66,33 @@ export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, Sc
         if (artifacts.get(target)?.name !== target || canonical.filter(model => model.name === target).length !== 1) return fail('genuine same-load target model required.');
         kind = 'reference';
       } else return fail('only nullable text and genuine model references may narrow.');
-      let control: Dependency;
+      let controls: Dependency[];
       if (dependency.role === 'control') {
         if (kind !== 'reference') return fail('only genuine model-reference CONTROL may narrow.');
-        control = dependency;
+        controls = [dependency];
       } else {
-        const controls = returned.dependencies.filter(control => control.role === 'control' && control.queryId === undefined &&
-          control.model === dependency.model && control.field === dependency.field && control.type === owning.valueType && same(control.source, dependency.source));
-        if (controls.length !== 1 || controls[0]!.id === dependency.id) return fail('unique exact nullable CONTROL counterpart required.');
-        control = controls[0]!;
+        controls = [];
+        if (kind === 'reference') {
+          const uses = plan.returns.filter(value => value.dependencies.some(value => value.id === dependency.id));
+          for (const use of uses) {
+            const occurrences = use.dependencies.filter(value => value.id === dependency.id);
+            if (occurrences.length !== 1 || !same(occurrences[0], dependency)) return fail('DATA occurrence has inconsistent return correspondence.');
+          }
+          const required = (value: typeof returned) => value.dependencies.filter(control => control.role === 'control' && control.queryId === undefined &&
+            control.model === dependency.model && control.field === dependency.field && control.type === dependency.type && same(control.source, dependency.source));
+          controls = required(uses[0]!).filter(control => uses.every(use => {
+            const matches = use.dependencies.filter(value => value.id === control.id);
+            return matches.length === 1 && same(matches[0], control);
+          })).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+          if (controls.some(control => control.id === dependency.id) || new Set(controls.map(control => control.id)).size !== controls.length) return fail('distinct required CONTROL occurrences required.');
+        }
+        if (controls.length === 0) {
+          controls = returned.dependencies.filter(control => control.role === 'control' && control.queryId === undefined &&
+            control.model === dependency.model && control.field === dependency.field && control.type === owning.valueType && same(control.source, dependency.source));
+          if (controls.length !== 1 || controls[0]!.id === dependency.id) return fail('unique exact nullable CONTROL counterpart required.');
+        }
       }
-      const binding = deepFreeze({ data: dependency, control, declarationType: owning.valueType, kind,
+      const binding = deepFreeze({ data: dependency, control: controls[0]!, controls, declarationType: owning.valueType, kind,
         ...(target === undefined ? {} : { target }) });
       const previous = result.get(dependency.id);
       if (previous !== undefined && !same(previous, binding)) return fail('narrowed occurrence has inconsistent return correspondence.');
@@ -87,5 +105,11 @@ export function bindScenarioNarrowedFields(bound: Bound): ReadonlyMap<string, Sc
 /** A copied binding cannot supply runtime correspondence. */
 export function scenarioNarrowedFieldControl(binding: ScenarioNarrowedFieldBinding): Dependency {
   if (!authentic.has(binding)) return fail('authentic private binding required.');
+  if (binding.controls.length !== 1) return fail('plural CONTROL correspondence required.');
   return binding.control;
+}
+
+export function scenarioNarrowedFieldControls(binding: ScenarioNarrowedFieldBinding): readonly Dependency[] {
+  if (!authentic.has(binding)) return fail('authentic private binding required.');
+  return binding.controls;
 }
