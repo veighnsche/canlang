@@ -11847,3 +11847,18 @@ and installed/D1/native/mounted outcomes are reused at their scope; holds remain
 Coordinator source review CLEAR and coherent LOCAL main integration after deadline. Owning oauth13/13 with zero skips/cancels reused; invalid fragment cases make zero createOAuthClient calls and real encoded %23 URIs persist exactly. Protocol/loopback/userinfo/query/PKCE/one-use/expiry/contender/mint behavior preserved. Dev mounted/native acceptance,22/48/26 parents, complete checkpoint and recipient holds remain separate.
 
 Changed MAIN normal checks: Identity0 0.86s, root0 4.9s. Unchanged accounts/D1/native/mounted checks reused at their original scope.
+
+2026-10-12 — Well-formed upload pointer admission (implemented/tested local
+component). Reject trailing/invalid raw tilde escapes at the existing upload
+field structural gate before decoding, intent storage or grant issuance. Keep
+the current object/absent-slot profile and ordered ~1/~0 decoding, including
+valid ~01 names. The real bridge first grants malformed /a~, then refuses every
+malformed control without storing intents; valid escaped pointers retain exact
+fields and reject decoded occupied slots. All13 validation cases, Files emission
+and finite independent source review pass. Unchanged durable/SQLite/native/host
+results retain their original scopes; external concurrency/power-loss and holds
+remain separate. No new schema/authority/provider/storage policy.
+
+Coordinator source review CLEAR and coherent LOCAL main integration after deadline. Owning validation13/13 zero skips/cancels reused; real malformed upload pointers store zero intents, valid ~1/~0/~01 retain exact pointer/decoded absent-slot behavior. Existing object/field/bytes/SHA/MIME/size/refusal profiles preserved. Actual R2/mounted concurrency/power-loss,22/48/26 parents, complete checkpoint and holds remain separate.
+
+Changed MAIN normal checks: Files0 0.96s, root0 4.86s. Unchanged upload/durable/reopen/retention/SQLite/native/installed checks reused at their original scopes.

@@ -259,6 +259,16 @@ describe('content validation', () => {
       BINDING,
     );
     assert.equal(absent.status, 'granted');
+    for (const [field, key] of [['/changes/a~1b~0c', 'a/b~c'], ['/changes/a~01b', 'a~1b']] as const) {
+      const present = handleCreateIntent(h.bridge, h.upload, {},
+        uploadRequest({ field, arguments: { changes: { [key]: 'file_0' } } }), BINDING);
+      assert.deepEqual(present, { status: 'rejected', reason: 'invalid-request' });
+      const escaped = handleCreateIntent(h.bridge, h.upload, {},
+        uploadRequest({ field, arguments: { changes: { title: 't' } } }), BINDING);
+      assert.equal(escaped.status, 'granted');
+      if (escaped.status !== 'granted') throw new Error('setup: expected escaped file slot grant');
+      assert.equal(h.intents.get(escaped.intentId)?.field, field);
+    }
   });
 
   it('rejects non-serializable arguments instead of throwing', () => {
@@ -296,7 +306,7 @@ describe('content validation', () => {
       );
       assert.deepEqual(created, { status: 'rejected', reason: 'invalid-request' });
     }
-    for (const field of ['', 'receipt', '/', '/a//b']) {
+    for (const field of ['', 'receipt', '/', '/a//b', '/a~', '/a~2', '/a~x/b', '/a/~9b']) {
       const created = handleCreateIntent(
         h.bridge,
         h.upload,
@@ -306,5 +316,6 @@ describe('content validation', () => {
       );
       assert.deepEqual(created, { status: 'rejected', reason: 'invalid-request' });
     }
+    assert.equal(h.intents.listAll().length, 0);
   });
 });
