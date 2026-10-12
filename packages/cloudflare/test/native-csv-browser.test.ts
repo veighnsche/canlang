@@ -60,7 +60,7 @@ test('public CSV APIs carry Chromium selections and review proof through localho
     await nodeImport(producer('@canlang/identity')) as typeof import('@canlang/identity');
   const { createHttpHandler, handleCsvRequest, catalogFromArtifactOperations, createSourceFormBindings } =
     await nodeImport(producer('@canlang/interfaces')) as typeof import('@canlang/interfaces');
-  const { csvPreviewSection, collectCommitSelections, submitCsvReview, submitCsvCommit } =
+  const { csvPreviewSection, collectCommitSelections, parseReviewPayload, submitCsvReview, submitCsvCommit } =
     await nodeImport(producer('@canlang/ui')) as typeof import('@canlang/ui');
   const sourcePath = join(root, 'packages/cloudflare/test/fixtures/typed-operation-forms.can');
   const artifactPath = join(root, 'packages/cloudflare/test/fixtures/typed-operation-forms.json');
@@ -94,6 +94,10 @@ test('public CSV APIs carry Chromium selections and review proof through localho
     const user = await identities.createUser({ email: 'native-csv-browser@example.test', password_hash: 'unused', email_verified: true });
     const team = await identities.createTeam({ timezone: 'UTC' });
     const membership = await identities.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+    const replacementOwner = await identities.createUser({ email: 'replacement-owner@native-csv-browser.example.test',
+      password_hash: 'unused', email_verified: true });
+    await identities.createMembership({ user_id: replacementOwner.user_id, team_id: team.team_id,
+      is_owner: true, roles: [] });
     const token = randomBytes(32).toString('hex');
     await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
       expires_at: new Date(now + 3600000).toISOString(), last_team_id: team.team_id });
@@ -290,6 +294,63 @@ test('public CSV APIs carry Chromium selections and review proof through localho
     const complete = await snapshot(db), repeated = await submitCsvCommit(await collect()); assert.ok(repeated.ok);
     assert.ok(repeated.outcome.rows.every(row => (row.result as MutationResult).status === 'replayed'));
     assert.deepEqual(await snapshot(db), complete); assert.equal(commits, batchCommits + 2);
+
+    // Carry the same source-owned maximum profile across Chromium's real
+    // cookie/Origin/CSRF fetch, then render its genuine 1000-row preview.
+    const maximumLabels = Array.from({ length: 1000 }, (_, index) => `${'x'.repeat(1020)}-${index}`);
+    const maximumCsv = ['label,count', ...maximumLabels.map((label, index) => `${label},${index}`)].join('\n');
+    const maximum = { operation: OPERATION, csv: maximumCsv, metadata: { nested: { padding: '' } } };
+    const padding = 'p'.repeat(1_048_576 - Buffer.byteLength(JSON.stringify(maximum)));
+    const exactBody = JSON.stringify({ ...maximum, metadata: { nested: { padding } } });
+    assert.equal(Buffer.byteLength(exactBody), 1_048_576);
+    const maximumBefore = await snapshot(db), maximumInvocations = invocations, maximumCommits = commits;
+    const browserReview = async (body: string) => page.evaluate(async ({ body, csrf }) => {
+      const reply = await fetch('/api/csv/review', { method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': csrf }, body });
+      return { status: reply.status, payload: await reply.json() };
+    }, { body, csrf });
+    const admitted = await browserReview(exactBody); assert.equal(admitted.status, 200);
+    const maximumReview = parseReviewPayload(admitted.payload);
+    assert.deepEqual(maximumReview.counts, { total: 1000, valid: 1000, invalid: 0, duplicate: 0 });
+    assert.deepEqual(maximumReview.rows[999]!.inputs, { label: maximumLabels[999], count: '999' });
+    for (const body of [
+      exactBody + ' ',
+      JSON.stringify({ operation: OPERATION, csv: `label,count\nPRIVATE_RESOURCE_MARKER${','.repeat(2000)}` }),
+      JSON.stringify({ operation: OPERATION, csv: maximumCsv, extra: { nested: { fourth: {} } } }),
+    ]) {
+      const refused = await browserReview(body); assert.equal(refused.status, 429);
+      assert.equal(object(refused.payload).code, 'limit');
+      assert.equal(JSON.stringify(refused.payload).includes('PRIVATE_RESOURCE_MARKER'), false);
+    }
+    assert.deepEqual(await snapshot(db), maximumBefore, 'maximum browser review and refusals cannot mutate D1');
+    assert.equal(invocations, maximumInvocations); assert.equal(commits, maximumCommits);
+    previewHtml = '<!doctype html><html><body>' + await csvPreviewSection({ context: presentation,
+      review: maximumReview, csvText: maximumCsv, commitPath: '/api/csv/commit', regionId: 'csv-maximum-preview' }) + '</body></html>';
+    assert.equal((await page.goto(origin, { waitUntil: 'networkidle' }))!.status(), 200);
+    assert.equal(await page.locator('form[data-csv-commit-form] input[type="checkbox"]').count(), 1000);
+    await page.locator('form[data-csv-commit-form]').evaluate(form => {
+      for (const input of form.querySelectorAll('input[type="checkbox"]')) {
+        const checkbox = input as unknown as { checked: boolean; name: string };
+        checkbox.checked = checkbox.name === 'rows[999].selected';
+      }
+    });
+    const maximumRequest = await collect();
+    assert.deepEqual(maximumRequest.selections.map(row => row.index), [999]);
+    const maximumRevision = await state.readRevision();
+    const maximumCommitted = await submitCsvCommit(maximumRequest); assert.ok(maximumCommitted.ok);
+    assert.deepEqual(maximumCommitted.outcome.rows.map(row => [row.index, row.status]), [[999, 'committed']]);
+    assertCreate(maximumBefore, await snapshot(db));
+    assert.equal(invocations, maximumInvocations + 1); assert.equal(commits, maximumCommits + 1);
+    const maximumRows = (await state.query({ model: MODEL, authority: 'owner' }))
+      .filter(row => row.data.label === maximumLabels[999]);
+    assert.equal(maximumRows.length, 1);
+    assert.deepEqual(maximumRows[0]!.data, { label: maximumLabels[999], count: '999', owner: { id: user.user_id } });
+    assert.equal((await state.historyFor(MODEL, maximumRows[0]!.id)).length, 1);
+    const maximumReceipt = await receipt(maximumRequest.selections[0]!.operation_id); assert.ok(maximumReceipt);
+    assert.equal(maximumReceipt.inputHash, await hashInputs({ label: maximumLabels[999], count: '999' }));
+    assert.equal(maximumReceipt.committedRevision, maximumRevision + 1);
+    assert.equal(maximumReceipt.outcome.status, 'committed');
+    assert.equal(await state.readRevision(), maximumRevision + 1);
     for (const entry of received.filter(entry => entry.path.startsWith('/api/csv/'))) {
       assert.equal(entry.headers.get('origin'), origin); assert.equal(entry.headers.get('x-csrf-token'), csrf);
       assert.equal(entry.headers.get('cookie'), `can_session=${token}`);

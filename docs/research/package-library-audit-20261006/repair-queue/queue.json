@@ -3672,30 +3672,31 @@
         "disposition": "partial-selected-packet",
         "next_work": "implement-or-qualify-selected-consumer",
         "owner": "Coordinator finite source acceptance; Dev original CSV host",
-        "accepted_scope": "Accepted scalar/date/alias and source-derived preallocation/mounted receiver reused; finite prebuilt generated Node/Identity/D1 maximum CSV consumer tested and independently reviewed. Memory evidence scoped; original current-CLI/browser and full parent remain unfinished. Linked accepted eacf6325 now supplies the actual public API Chromium small-table browser host crossing. Original current-CLI and maximum browser-resource/memory/lifetime scope remains explicitly unqualified; count the shared crossing once under DEL-C02. Linked accepted eacf6325 now supplies the actual public API Chromium small-table browser host crossing. Original current-CLI and maximum browser-resource/memory/lifetime scope remains explicitly unqualified; count the shared crossing once under DEL-C02.",
-        "next_action": "Use exact released native-csv-browser fixture for same maximum/excess boundaries; no currentCLI-first, automatic controller or invented absolute heap ceiling.",
+        "accepted_scope": "Accepted scalar/date/alias and source-derived preallocation/mounted receiver reused; finite prebuilt generated Node/Identity/D1 maximum CSV consumer tested and independently reviewed. Memory evidence is scoped. Linked accepted eacf6325 supplies the actual public API Chromium small-table host crossing, counted once under DEL-C02. Public Chromium maximum/excess crossing now passes at the released 1MiB/1000-row/2002-cell/depth-3 profile with resource refusals and selected canonical D1 commit, including exact stored row999 inputs, history and receipt hash/revision. Original current-CLI emission, any distinct browser lifetime/peak-memory qualification and the full parent remain separate.",
+        "next_action": "Obtain exact original current-CLI/host output from Dev; any distinct peak-memory/lifetime requirement needs its existing owner profile. Stop repeating accepted Chromium maximum/excess behavior.",
         "done_when": "Selected mounted/installed CSV caller retains existing blank/default/int64/duplicate semantics and refuses hostile headers/protected paths and resource excess before parser allocation under the released profile.",
         "progress_source": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C01",
         "packages_execution": {
-          "lane": "local-ready",
-          "remaining_outcome": "Use exact released native-csv-browser fixture for same maximum/excess boundaries; no currentCLI-first, automatic controller or invented absolute heap ceiling.",
-          "required_input": "Use exact released native-csv-browser fixture for same maximum/excess boundaries; no currentCLI-first, automatic controller or invented absolute heap ceiling.",
+          "lane": "owner-input",
+          "remaining_outcome": "Obtain exact original current-CLI/host output from Dev; any distinct peak-memory/lifetime requirement needs its existing owner profile. Stop repeating accepted Chromium maximum/excess behavior.",
+          "required_input": "Dev source-current original CLI emission and host profile, if separately required; already accepted maximum/excess Chromium crossing is closed.",
           "release_condition": "Only this exact finite output/recipient release; never completion of another whole plan.",
           "finish_condition": "Blank/default/int64/duplicate and normalized host caps refuse in original order before allocation/effects.",
           "reuse": "Accepted components remain closed; reuse unchanged meaningful results and validate only the relevant changed/failed scope.",
           "priority": 17,
           "defining_owner": "Packages browser consumer; Dev accepted native CSV profile",
-          "next_action": "Use exact released native-csv-browser fixture for same maximum/excess boundaries; no currentCLI-first, automatic controller or invented absolute heap ceiling."
+          "next_action": "Obtain exact original current-CLI/host output from Dev; any distinct peak-memory/lifetime requirement needs its existing owner profile. Stop repeating accepted Chromium maximum/excess behavior."
         },
         "public_api_browser_host_crossing": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state/DEL-C02/public_api_browser_host_consumer",
         "actual_code_reassessment": {
           "date": "2026-10-12",
-          "disposition": "local-ready",
+          "disposition": "missing-contract",
           "defining_owner": "Packages browser consumer; Dev accepted native CSV profile",
-          "actual_code_and_retained_result": "Accepted ebcc794a923f2e15d26c740b294f926b32e43118 qualifies1MiB/depth3/1000rows/2002cells native auth/resource refusals. Accepted eacf6325bec0a8a6fa0a8a8ed30db449e4983e06 supplies real Chromium public FormData/fetch canonical D1 small-table consumer.",
-          "remaining_finite_action_or_input": "Use exact released native-csv-browser fixture for same maximum/excess boundaries; no currentCLI-first, automatic controller or invented absolute heap ceiling.",
+          "actual_code_and_retained_result": "Accepted ebcc794a923f2e15d26c740b294f926b32e43118 qualifies1MiB/depth3/1000rows/2002cells native auth/resource refusals. Accepted eacf6325bec0a8a6fa0a8a8ed30db449e4983e06 supplies real Chromium public FormData/fetch canonical D1 small-table consumer. LOCAL Chromium native-csv-browser now passes 1/1 (21.08s) with exact 1MiB/1000-row/2002-cell/depth-3 review, +1 byte/cell/depth refusal before effects, real selected FormData canonical D1 row999 inputs/receipt hash/revision and full cleanup.",
+          "remaining_finite_action_or_input": "Dev source-current original CLI emission and host profile, if separately required; already accepted maximum/excess Chromium crossing is closed.",
           "limits": "Original selected recipes only; wider parents/holds unchanged. No unchanged checks repeated."
-        }
+        },
+        "coordinator_maximum_browser": "Maximum bounded public Chromium CSV source/control review771+corrected9f CLEAR. Exact1MiB/depth3/1000rows/2002cells admits; +byte/+cell/depth4 refuse before effects/private disclosure. Real1000-rowDOM/FormData selects999 and exact stored label/count/owner, one history, receipt exactinputHash/status/revision+1 read back. Worker21.08 initial+changed21.36s retained separate; actual MAIN changed browser result and awaited resources/source-current cleanup [{\"check\": \"CF\", \"exit\": 0, \"seconds\": 4.61}, {\"check\": \"root\", \"exit\": 0, \"seconds\": 4.96}, {\"check\": \"MAIN changed browser\", \"exit\": 0, \"seconds\": 21.91}]. Current emitted CLI/distinct status lifetime/peak memory original qualifiers remain separate, no broader packet/nativeapp/hold closure."
       }
     },
     {
@@ -8669,18 +8670,17 @@
     "source": "Single current view in each existing packet current_execution.packages_execution; original recipes and canonical references remain authoritative.",
     "authorization": "Human requested immediate reevaluation of every remaining task and an individual prioritized list/instruction for each existing LOCAL worker. No new task IDs, ownership transfer, hold release or remote work.",
     "authority": "One current_execution entry per existing packet; existing_task_ids/canonical_task_references still identify every canonical task. Recorded accepted outputs are inputs at their stated scope; active/unmerged work and local checked candidates remain pending until owning release. No new completion inferred from this edit.",
-    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining view:4local-ready,9exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
+    "accounting": "32/48 selected packets finished;8partial7open1held. Remaining current view:3local-ready,10exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "rules": "../../../../AGENTS.md#finite-execution",
     "working_rule": "Dispatch only local-ready Packages work. On a missing named output, record its defining owner and release condition in that existing entry, skip it immediately and take the next ready item. An exact owner release promotes only the affected assigned consumer/shared repair; final aggregation and whole-owner completion never gate ready work.",
     "dispatch": "Reuse nine satisfied selected scopes; implement/qualify four still-ready entries. Current Identity ordinary owner/invitation, V03 Decimal, B02 inline Chromium and R01 local installed CLI/SDK components closed with narrower genuine parent inputs. Nine exact owner/host inputs and two human-held entries remain at original scope; no provider-void or new obligations.",
-    "completion": "32/48 selected packets finished;8partial7open1held. Remaining view:4local-ready,9exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
+    "completion": "32/48 selected packets finished;8partial7open1held. Remaining current view:3local-ready,10exact missing inputs,2precise held entries and1retiredC02consumer; canonical333/widerparents/holds unchanged.",
     "dependency_interpretation": "depends_on_packets preserves historical whole-packet topology. For execution, consume the exact accepted affected output rather than requiring that producer parent to finish. No declared packet dependency cycle; reciprocal producer/consumer joins are ordered by shared contract -> producer output -> consumer integration -> one affected joined check.",
     "unresolved_decisions": "Exact V03 serving association after local Decimal fix; S03 app/mixed physical owner placement; S04 visited-work/continuation/refusal; F01 multiple-owner/power-loss host contract; F02 supported non-Identity provider correspondence. V05 exact release-host result Dev/L7. Former D04 namespace and accepted durable/browser lifecycle blockers removed.",
     "inherited_acceptance": "Existing decisive_actual_caller_recipe, positive_acceptance_recipe, negative_acceptance_recipe and acceptance_limits are unchanged and authoritative for every packet. existing_task_ids/canonical_task_references preserve all task identities. This current view adds no obligation or live writer lease.",
     "finished_packet_policy": "Reuse each finished selected packet's recorded acceptance without repeated qualification or recap-only commits. Existing positive/negative recipes remain authoritative at that accepted scope; wider canonical task status, parent closure and holds are not advanced by this reconciliation.",
     "packages_dispatch_order": [
       "DEL-B01",
-      "DEL-C01",
       "TECH-S02",
       "FINAL-R03"
     ],
@@ -8703,8 +8703,8 @@
       "DEL-D05"
     ],
     "lane_counts": {
-      "local_ready": 4,
-      "exact_owner_output": 9,
+      "local_ready": 3,
+      "exact_owner_output": 10,
       "human_held": 2,
       "remaining_packets": 16,
       "closed_consumer": 1
