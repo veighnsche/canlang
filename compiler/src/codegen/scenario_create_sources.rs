@@ -1040,7 +1040,9 @@ impl SourceExpressions<'_> {
         // The ordinary lane admits only an authenticated original derive
         // whose authored body performs no membership read; sealed or
         // unauthenticated derives refuse here and keep their strict path.
-        if self.authenticated_derive_membership(target) != Some(false) {
+        if self.authenticated_derive(target, 0, &mut std::collections::HashSet::new())
+            != Some(false)
+        {
             return None;
         }
         if actual.ty != *result {
@@ -1082,15 +1084,35 @@ impl SourceExpressions<'_> {
     /// catalog membership read. Such derives are the authorization machinery
     /// itself; their calls keep the strict authorization correspondence and
     /// never fall back to ordinary derive matching.
-    /// Authenticate the original derive declaration in its defining source
-    /// and report whether its authored body performs the catalog membership
-    /// read. Lane selection consumes only this original evidence: a supplied
-    /// IR body is never consulted, so deleting membership from mutable IR
-    /// cannot reclassify a sealed derive as ordinary. `None` means the
-    /// original declaration could not be authenticated at all.
-    fn authenticated_derive_membership(&self, target: &str) -> Option<bool> {
+    /// Authenticate the original derive declaration in its defining source:
+    /// declaration span/name, ordered formal identities, and the actual
+    /// authored body structure must correspond to the supplied IR callee.
+    /// Returns whether the authenticated body performs the catalog
+    /// membership read, directly or through a transitively sealed derive.
+    /// Lane selection consumes only this original evidence; a supplied IR
+    /// body or formal list is never trusted, so deleting membership (or any
+    /// other body/formal content) from mutable IR cannot reclassify a
+    /// sealed derive as ordinary. `None` means the original declaration
+    /// could not be authenticated at all.
+    fn authenticated_derive(&self, target: &str, depth: usize, seen: &mut std::collections::HashSet<String>) -> Option<bool> {
+        if depth > 32 || !seen.insert(target.to_string()) {
+            // Cycles and excessive chains stay sealed; recursive derives are
+            // refused by analysis, so this is only a fail-closed bound.
+            return Some(true);
+        }
+        let result = self.authenticated_derive_inner(target, depth, seen);
+        seen.remove(target);
+        result
+    }
+
+    fn authenticated_derive_inner(&self, target: &str, depth: usize, seen: &mut std::collections::HashSet<String>) -> Option<bool> {
         let item = self.ir.items.iter().find(|item| item.canonical == target)?;
-        let IrItemKind::DeriveFn { params, .. } = &item.kind else {
+        let IrItemKind::DeriveFn {
+            params,
+            expr: Some(body),
+            ..
+        } = &item.kind
+        else {
             return None;
         };
         let defining = self.ir.modules.get(item.module.0 as usize)?;
@@ -1137,36 +1159,238 @@ impl SourceExpressions<'_> {
         {
             return None;
         }
-        let authored_params = declaration
+        // Formal identities: authored names in declaration order must equal
+        // the supplied formal items at the same positions.
+        let authored_formals: Vec<_> = declaration
             .children
             .iter()
             .filter(|node| node.kind == SyntaxKind::Parameter)
-            .count();
-        if authored_params != params.len() {
+            .collect();
+        if authored_formals.len() != params.len() {
             return None;
         }
-        let mut pending: Vec<&SyntaxNode> = declaration.children.iter().collect();
-        let mut membership = false;
-        while let Some(node) = pending.pop() {
-            if node.kind == SyntaxKind::Call
-                && expressions(node)
-                    .first()
-                    .and_then(|head| source_path(head, defining_text))
-                    .is_some_and(|name| name == "active_member")
+        for (authored, formal) in authored_formals.iter().zip(params.iter()) {
+            let name = authored
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Name)?;
+            let param = self.ir.items.get(formal.0 as usize)?;
+            if !matches!(param.kind, IrItemKind::Param { .. })
+                || name.token()?.text(defining_text) != param.name
             {
-                membership = true;
+                return None;
             }
-            pending.extend(node.children.iter());
         }
-        Some(membership)
+        let authored_bodies = expressions(declaration);
+        let [authored_body] = authored_bodies.as_slice() else {
+            return None;
+        };
+        let mut reached = Vec::new();
+        let mut membership = false;
+        self.derive_body_corresponds(body, authored_body, defining_text, 0, &mut reached, &mut membership)?;
+        if membership {
+            return Some(true);
+        }
+        for reached_target in reached {
+            if self.authenticated_derive(&reached_target, depth + 1, seen)? {
+                return Some(true);
+            }
+        }
+        Some(false)
+    }
+
+    /// Structural correspondence between a supplied IR derive body and its
+    /// authored CST body: literals, lexical names, member fields, operators
+    /// and call occurrences (callee identity plus in-order arguments) must
+    /// agree exactly. Anything outside this scalar body grammar refuses.
+    fn derive_body_corresponds(
+        &self,
+        expr: &TypedExpr,
+        node: &SyntaxNode,
+        text: &str,
+        depth: usize,
+        reached: &mut Vec<String>,
+        membership: &mut bool,
+    ) -> Option<()> {
+        if depth > 64 {
+            return None;
+        }
+        let mut node = node;
+        while node.kind == SyntaxKind::Group {
+            node = expressions(node).first()?;
+        }
+        let token = |kind: SyntaxKind| {
+            node.children
+                .iter()
+                .find(|child| child.kind == kind)
+                .and_then(|child| child.token())
+        };
+        match (&expr.expr, node.kind) {
+            (IrExpr::Bool(value), SyntaxKind::Literal) => {
+                if token(SyntaxKind::Name)?.text(text) != if *value { "true" } else { "false" } {
+                    return None;
+                }
+            }
+            (IrExpr::Null, SyntaxKind::Literal) => {
+                if token(SyntaxKind::Name)?.text(text) != "null" {
+                    return None;
+                }
+            }
+            (IrExpr::Int(value), SyntaxKind::Literal) => {
+                if token(SyntaxKind::Integer)?.text(text).parse::<i128>().ok()? != *value {
+                    return None;
+                }
+            }
+            (IrExpr::Decimal(value), SyntaxKind::Literal) => {
+                if token(SyntaxKind::Decimal)?.text(text) != value.as_str() {
+                    return None;
+                }
+            }
+            (IrExpr::Text(value), SyntaxKind::Literal) => {
+                let string = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::String)?;
+                if string.token()?.string_value.as_ref()? != value {
+                    return None;
+                }
+            }
+            (IrExpr::Name(name), SyntaxKind::NameRef) | (IrExpr::Name(name), SyntaxKind::Name) => {
+                if single_name(node, text)? != *name {
+                    return None;
+                }
+            }
+            (IrExpr::Member { base, field }, SyntaxKind::Member) => {
+                let field_name = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Name)
+                    .last()?;
+                if field_name.token()?.text(text) != field.as_str() {
+                    return None;
+                }
+                let base_nodes = expressions(node);
+                let [base_node] = base_nodes.as_slice() else {
+                    return None;
+                };
+                self.derive_body_corresponds(base, base_node, text, depth + 1, reached, membership)?;
+            }
+            (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
+                let spelling = match op {
+                    IrBinOp::Add => "+",
+                    IrBinOp::Sub => "-",
+                    IrBinOp::Mul => "*",
+                    IrBinOp::Div => "/",
+                    IrBinOp::Mod => "%",
+                    IrBinOp::Eq => "==",
+                    IrBinOp::Ne => "!=",
+                    IrBinOp::Lt => "<",
+                    IrBinOp::Le => "<=",
+                    IrBinOp::Gt => ">",
+                    IrBinOp::Ge => ">=",
+                    IrBinOp::And => "and",
+                    IrBinOp::Or => "or",
+                    IrBinOp::Coalesce => "??",
+                    IrBinOp::In => "in",
+                };
+                let operator = node
+                    .children
+                    .iter()
+                    .find(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
+                if operator.token()?.text(text) != spelling {
+                    return None;
+                }
+                let operand_nodes = expressions(node);
+                let [left_node, right_node] = operand_nodes.as_slice() else {
+                    return None;
+                };
+                self.derive_body_corresponds(left, left_node, text, depth + 1, reached, membership)?;
+                self.derive_body_corresponds(right, right_node, text, depth + 1, reached, membership)?;
+            }
+            (IrExpr::Unary { op, operand }, SyntaxKind::Unary) => {
+                let spelling = match op {
+                    IrUnOp::Not => "not",
+                    IrUnOp::Neg => "-",
+                    _ => return None,
+                };
+                let operator = node
+                    .children
+                    .iter()
+                    .find(|child| matches!(child.kind, SyntaxKind::Name | SyntaxKind::Punct))?;
+                if operator.token()?.text(text) != spelling {
+                    return None;
+                }
+                let operand_nodes = expressions(node);
+                let [operand_node] = operand_nodes.as_slice() else {
+                    return None;
+                };
+                self.derive_body_corresponds(operand, operand_node, text, depth + 1, reached, membership)?;
+            }
+            (
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. },
+                SyntaxKind::Call,
+            ) => {
+                if let IrExpr::BoundCall { slots, .. } = &expr.expr {
+                    if slots.len() != args.len()
+                        || slots
+                            .iter()
+                            .enumerate()
+                            .any(|(index, slot)| *slot != Some(index))
+                    {
+                        return None;
+                    }
+                }
+                let callee = source_path(expressions(node).first()?, text)?;
+                match target {
+                    IrCallTarget::Builtin { id, .. } => {
+                        if callee != *id {
+                            return None;
+                        }
+                        if id == "active_member" {
+                            *membership = true;
+                        }
+                    }
+                    IrCallTarget::DeriveFn(canonical) => {
+                        let item = self
+                            .ir
+                            .items
+                            .iter()
+                            .find(|item| &item.canonical == canonical)?;
+                        if callee != item.name {
+                            return None;
+                        }
+                        reached.push(canonical.clone());
+                    }
+                    IrCallTarget::CapabilityOp(_) => return None,
+                }
+                let arguments: Vec<_> = node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Argument)
+                    .collect();
+                if arguments.len() != args.len() {
+                    return None;
+                }
+                for (argument, value) in arguments.iter().zip(args.iter()) {
+                    let values = expressions(argument);
+                    let [source_value] = values.as_slice() else {
+                        return None;
+                    };
+                    self.derive_body_corresponds(value, source_value, text, depth + 1, reached, membership)?;
+                }
+            }
+            _ => return None,
+        }
+        Some(())
     }
 
     /// The sealed authorization shape: the authenticated original derive
-    /// performs the catalog membership read. Such derives are the
-    /// authorization machinery itself; their calls keep the strict
-    /// authorization correspondence and never fall back to ordinary derive
-    /// matching. Unauthenticated declarations are treated as sealed, so a
-    /// missing original proof refuses rather than falling back.
+    /// performs the catalog membership read, directly or transitively.
+    /// Such derives are the authorization machinery itself; their calls
+    /// keep the strict authorization correspondence and never fall back
+    /// to ordinary derive matching. Unauthenticated declarations are
+    /// treated as sealed, so a missing original proof refuses rather
+    /// than falling back.
     fn authorization_shaped(&self, actual: &TypedExpr) -> bool {
         let target = match &actual.expr {
             IrExpr::Call {
@@ -1179,7 +1403,8 @@ impl SourceExpressions<'_> {
             } => target,
             _ => return true,
         };
-        self.authenticated_derive_membership(target).unwrap_or(true)
+        self.authenticated_derive(target, 0, &mut std::collections::HashSet::new())
+            .unwrap_or(true)
     }
 
     fn authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
@@ -2571,6 +2796,130 @@ mod tests {
             pending.extend(node.children.iter());
         }
         panic!("guard source node")
+    }
+
+    const ORDINARY_SOURCE: &str = "app OrdinaryDerive\nGiven\n Conversation {account:user,active:bool}\n Run {conversation:Conversation,label:text}\n policy Conversation read=members\n policy Run read=members\n derive can_use(person:user?,conversation:Conversation):bool = person!=null and conversation.account==person and conversation.active\nWhen\n crud Conversation by=members fields=account,active\n crud Run by=members fields=conversation,label\n scenario pick(conversation:Conversation,label:text=\"x\") -> Run by=members\n  require can_use(actor,conversation)\n  do\n   create Run {conversation,label} as run\n   return run\nThen\n";
+
+    const TRANSITIVE_SOURCE: &str = "app TransitiveDerive\nGiven\n Conversation {account:user,active:bool}\n Run {conversation:Conversation,label:text}\n policy Conversation read=members\n policy Run read=members\n derive inner(person:user?,conversation:Conversation):bool = person!=null and active_member(person,team) and conversation.account==person\n derive outer(person:user?,conversation:Conversation):bool = inner(person,conversation) and conversation.active\nWhen\n crud Conversation by=members fields=account,active\n crud Run by=members fields=conversation,label\n scenario pick(conversation:Conversation,label:text=\"x\") -> Run by=members\n  require outer(actor,conversation)\n  do\n   create Run {conversation,label} as run\n   return run\nThen\n";
+
+    fn fixture_for(source: &str, path: &str) -> (SourceDb, IrProgram) {
+        let mut db = SourceDb::new();
+        let file = db.add(path.into(), source.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let catalog_path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: &root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, ir)
+    }
+
+    fn guard_and_fact(
+        ir: &IrProgram,
+        owner_name: &str,
+    ) -> (TypedExpr, crate::source::Span, CheckedScenarioCreate) {
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == owner_name)
+            .unwrap();
+        let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+            panic!("scenario")
+        };
+        let [IrStmt::Require { cond, .. }] = guards.as_slice() else {
+            panic!("one leading require")
+        };
+        let fact = ir.scenario_disclosures[&owner.id]
+            .source_facts()
+            .unwrap()
+            .creates
+            .as_deref()
+            .unwrap()
+            .first()
+            .unwrap()
+            .clone();
+        (cond.clone(), cond.span, fact)
+    }
+
+    fn derive_mut<'a>(ir: &'a mut IrProgram, canonical: &'a str) -> &'a mut TypedExpr {
+        let derive = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == canonical)
+            .unwrap()
+            .id;
+        let IrItemKind::DeriveFn { expr, .. } = &mut ir.items[derive.0 as usize].kind else {
+            panic!("derive")
+        };
+        expr.as_mut().unwrap()
+    }
+
+    #[test]
+    fn ordinary_body_and_formal_mutations_refuse_at_create_source_boundary() {
+        let (db, ir) = fixture_for(ORDINARY_SOURCE, "ordinary-derive.can");
+        let (cond, span, original) = guard_and_fact(&ir, "OrdinaryDerive.pick");
+        let node = node_at(&db, span);
+        assert!(
+            checked_create_expression(&ir, &original, &cond, node, &db).is_some(),
+            "original ordinary derive keeps create-source correspondence"
+        );
+        // Body-only replacement: same call, result type and span, but the
+        // supplied body is no longer the authored body. The authenticated
+        // declaration/body correspondence refuses it.
+        let mut changed = ir.clone();
+        let body = derive_mut(&mut changed, "OrdinaryDerive.can_use");
+        assert_eq!(body.ty, ResolvedType::Scalar(Scalar::Bool));
+        body.expr = IrExpr::Bool(true);
+        let (cond, span, _) = guard_and_fact(&changed, "OrdinaryDerive.pick");
+        assert!(
+            checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
+                .is_none(),
+            "ordinary body-only replacement must refuse"
+        );
+        // Formal-ID swap: the supplied formal order no longer matches the
+        // authored declaration order.
+        let mut changed = ir.clone();
+        let derive = changed
+            .items
+            .iter()
+            .find(|item| item.canonical == "OrdinaryDerive.can_use")
+            .unwrap()
+            .id;
+        let IrItemKind::DeriveFn { params, .. } = &mut changed.items[derive.0 as usize].kind
+        else {
+            panic!("derive")
+        };
+        params.swap(0, 1);
+        let (cond, span, _) = guard_and_fact(&changed, "OrdinaryDerive.pick");
+        assert!(
+            checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
+                .is_none(),
+            "formal-ID swap must refuse"
+        );
+    }
+
+    #[test]
+    fn transitive_membership_seals_outer_derive() {
+        let (db, ir) = fixture_for(TRANSITIVE_SOURCE, "transitive-derive.can");
+        let (cond, span, original) = guard_and_fact(&ir, "TransitiveDerive.pick");
+        // The outer derive performs the membership read transitively, so
+        // it is sealed: the strict authorization lane refuses its call at
+        // this boundary instead of admitting it as an ordinary derive.
+        assert!(
+            checked_create_expression(&ir, &original, &cond, node_at(&db, span), &db).is_none(),
+            "transitively sealed derive must not take the ordinary lane"
+        );
     }
 
     #[test]
