@@ -7,7 +7,14 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import fs, {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rename,
+  writeFile,
+} from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -23,7 +30,7 @@ import {
   JournalError,
   type Replacement,
 } from "./journal.js";
-import { LeaseError } from "./leases.js";
+import { acquire, release, recoverStoppedWriter, LeaseError } from "./leases.js";
 
 async function freshRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "can-bgi04-journal-"));
@@ -64,6 +71,16 @@ async function validationErrorOf(promise: Promise<unknown>): Promise<{ code: str
     return error as { code: string };
   }
   assert.fail("expected a validation error");
+}
+
+async function leaseErrorOf(promise: Promise<unknown>): Promise<LeaseError> {
+  try {
+    await promise;
+  } catch (error) {
+    assert.ok(error instanceof LeaseError);
+    return error;
+  }
+  assert.fail("expected a LeaseError");
 }
 
 test("interruption before commit restores the whole old group", async () => {
@@ -236,6 +253,121 @@ test("repeated recovery is idempotent", async () => {
   assert.deepEqual(await recoverJournal(root, "r10"), { kind: "already-resolved" });
   assert.equal(await readTree(root, "can.generated/u1/style.css"), ".new{}");
   assert.deepEqual(await recoverJournal(root, "r-missing"), { kind: "already-resolved" });
+});
+
+test("the read gate runs while leases cover the consumed closure", async () => {
+  const root = await freshRoot();
+  await writeTree(root, [["can.generated/u1/a.css", "a-old"]]);
+  const writer = await acquire(root, ["can.generated/u1/a.css"], "write", "accept");
+  await stageJournal(root, "rg", ["u1"], [replacement("u1", "a.css", "a-new")]);
+  // Acquisition runs before the gate: the held write lease reports conflict.
+  const blocked = await leaseErrorOf(
+    snapshotInputs(root, "build", ["can.generated/u1/a.css"]),
+  );
+  assert.equal(blocked.code, "conflict");
+  await release(root, writer);
+  const refused = await journalErrorOf(
+    snapshotInputs(root, "build", ["can.generated/u1/a.css"]),
+  );
+  assert.equal(refused.code, "unresolved-journal");
+});
+
+test("a reader stalled before acquiring never serves a mixed snapshot", async () => {
+  // The reader stalls inside acquisition; the writer commits the first entry
+  // and stops with its leases recovered. The resumed read must refuse the
+  // unresolved journal instead of returning [a-new, b-old].
+  const root = await freshRoot();
+  const paths = ["can.generated/u1/a.css", "can.generated/u2/b.css"];
+  await writeTree(root, [
+    [paths[0] as string, "a-old"],
+    [paths[1] as string, "b-old"],
+  ]);
+  const mutable = fs as unknown as { mkdir: typeof mkdir; rename: typeof rename };
+  const realMkdir = fs.mkdir;
+  const realRename = fs.rename;
+  let entered!: () => void;
+  const enteredP = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let resume!: () => void;
+  const resumeP = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  let pause = true;
+  mutable.mkdir = (async (path: Parameters<typeof mkdir>[0], ...args: unknown[]) => {
+    if (pause && String(path) === join(root, ".can/gen/locks")) {
+      pause = false;
+      entered();
+      await resumeP;
+    }
+    return Reflect.apply(realMkdir, fs, [path, ...args]) as ReturnType<typeof mkdir>;
+  }) as typeof mkdir;
+  syncBuiltinESMExports();
+  try {
+    const reading = snapshotInputs(root, "build", paths);
+    await enteredP;
+    const writer = await acquire(root, paths, "write", "accept");
+    await stageJournal(root, "r", ["u1", "u2"], [
+      replacement("u1", "a.css", "a-new"),
+      replacement("u2", "b.css", "b-new"),
+    ]);
+    await markCommitted(root, "r");
+    let crashed = false;
+    mutable.rename = (async (...args: unknown[]) => {
+      await Reflect.apply(realRename, fs, args);
+      if (String(args[1]) === join(root, paths[0] as string) && !crashed) {
+        crashed = true;
+        throw new Error("simulated stop immediately after first target rename");
+      }
+    }) as typeof rename;
+    syncBuiltinESMExports();
+    let interruption = "";
+    try {
+      await applyCommitted(root, "r");
+    } catch (error) {
+      interruption = (error as Error).message;
+    }
+    assert.match(interruption, /simulated stop/);
+    mutable.rename = realRename;
+    syncBuiltinESMExports();
+    await recoverStoppedWriter(root, writer.holder, writer.token, true);
+    resume();
+    const refused = await journalErrorOf(reading);
+    assert.equal(refused.code, "unresolved-journal");
+    assert.deepEqual(await unresolvedJournals(root), ["r"]);
+    // Whole-set recovery finishes the new group; then reads serve all-new.
+    assert.deepEqual(await recoverJournal(root, "r"), { kind: "completed-new", files: 2 });
+    const snapshot = await snapshotInputs(root, "build", paths);
+    assert.deepEqual(
+      snapshot.map((input) => input.bytes.toString()),
+      ["a-new", "b-new"],
+    );
+  } finally {
+    mutable.mkdir = realMkdir;
+    mutable.rename = realRename;
+    syncBuiltinESMExports();
+  }
+});
+
+test("replacement temp never touches an unrequested sibling", async () => {
+  const root = await freshRoot();
+  await writeTree(root, [
+    ["can.generated/u1/a.css", "a-old"],
+    ["can.generated/u1/a.css.can-new", "saved-helper"],
+  ]);
+  const held = await acquire(
+    root,
+    ["can.generated/u1/a.css", "can.generated/u1/a.css.can-new"],
+    "write",
+    "accept",
+  );
+  await stageJournal(root, "r", ["u1"], [replacement("u1", "a.css", "a-new")]);
+  assert.deepEqual(await commitJournal(root, "r"), { kind: "committed", files: 1 });
+  assert.equal(await readTree(root, "can.generated/u1/a.css"), "a-new");
+  assert.equal(await readTree(root, "can.generated/u1/a.css.can-new"), "saved-helper");
+  assert.deepEqual(await groupFiles(root, "u1"), ["a.css", "a.css.can-new"]);
+  assert.equal(await readTree(root, ".can/gen/previous/u1/a.css.can-new"), "saved-helper");
+  await release(root, held);
 });
 
 test("journal scope and replacements are validated", async () => {

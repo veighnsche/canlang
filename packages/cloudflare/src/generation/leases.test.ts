@@ -7,7 +7,8 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readFile, readdir } from "node:fs/promises";
+import fs, { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -38,7 +39,7 @@ async function errorOf(promise: Promise<unknown>): Promise<LeaseError> {
   assert.fail("expected a LeaseError");
 }
 
-test("shared protocol vectors match both hosts", () => {
+test("shared protocol vectors match both hosts", async () => {
   assert.equal(escapeRel("can.generated/u1/style.css"), "can.generated%2Fu1%2Fstyle.css");
   assert.equal(escapeRel("app.can"), "app.can");
   assert.equal(escapeRel("a b/c+d"), "a%20b%2Fc%2Bd");
@@ -61,6 +62,19 @@ test("shared protocol vectors match both hosts", () => {
   validateLeaseId("run id", "r42");
   const durability = platformDurability();
   assert.ok(durability.includes("not filesystem CAS"), durability);
+  // Read-lock files pin the shared admission shape too: exact filename and
+  // byte-identical body, so the other host's locks arbitrate this host.
+  const root = await freshRoot();
+  const reader = await acquire(root, ["app.can"], "read", "build");
+  const lockText = await readFile(
+    join(root, ".can/gen/locks", `app.can.read.${reader.token}.lock`),
+    "utf8",
+  );
+  assert.equal(
+    lockText,
+    `{"version":1,"holder":"build","token":"${reader.token}","mode":"read","path":"app.can"}`,
+  );
+  await release(root, reader);
 });
 
 test("participating edits conflict and lock files match the shared shape", async () => {
@@ -138,4 +152,79 @@ test("stopped-writer recovery needs confirmation and never steals", async () => 
   const next = await acquire(root, ["can.generated/u1/style.css"], "write", "next");
   await release(root, next);
   await release(root, live);
+});
+
+test("simultaneous read/write acquisitions cannot both be admitted", async () => {
+  // Both creators wait after their existing checks, before create: shared
+  // atomic admission must refuse at least one side, never both.
+  const root = await freshRoot();
+  const mutable = fs as unknown as { writeFile: typeof writeFile };
+  const realWriteFile = fs.writeFile;
+  let arrivals = 0;
+  let unblock!: () => void;
+  const both = new Promise<void>((resolve) => {
+    unblock = resolve;
+  });
+  mutable.writeFile = (async (
+    path: Parameters<typeof writeFile>[0],
+    ...args: unknown[]
+  ) => {
+    const options = args[1] as { flag?: string } | undefined;
+    if (String(path).includes("/.can/gen/locks/") && options?.flag === "wx") {
+      arrivals += 1;
+      if (arrivals === 2) {
+        unblock();
+      }
+      await both;
+    }
+    return Reflect.apply(realWriteFile, fs, [path, ...args]) as ReturnType<
+      typeof writeFile
+    >;
+  }) as typeof writeFile;
+  syncBuiltinESMExports();
+  try {
+    const results = await Promise.allSettled([
+      acquire(root, ["app.can"], "read", "build"),
+      acquire(root, ["app.can"], "write", "accept"),
+    ]);
+    const admitted = results.filter((result) => result.status === "fulfilled");
+    assert.ok(
+      admitted.length < 2,
+      `incompatible leases co-admitted: ${results.map((result) => (result.status === "fulfilled" ? result.value.mode : result.reason.code)).join(", ")}`,
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        await release(root, result.value);
+      } else {
+        assert.ok(result.reason instanceof LeaseError);
+        assert.equal(result.reason.code, "conflict");
+      }
+    }
+  } finally {
+    mutable.writeFile = realWriteFile;
+    syncBuiltinESMExports();
+  }
+});
+
+test("foreign lock files arbitrate admission", async () => {
+  // Hand-write the exact bytes the Rust host emits; this host must honor
+  // them (shared admission interoperability across hosts).
+  const root = await freshRoot();
+  await mkdir(join(root, ".can/gen/locks"), { recursive: true });
+  await writeFile(
+    join(root, ".can/gen/locks/app.can.read.v1-0123456789abcdef.lock"),
+    '{"version":1,"holder":"rust-build","token":"v1-0123456789abcdef","mode":"read","path":"app.can"}',
+  );
+  const blocked = await errorOf(acquire(root, ["app.can"], "write", "accept"));
+  assert.equal(blocked.code, "conflict");
+  const reader = await acquire(root, ["app.can"], "read", "build");
+  await release(root, reader);
+  const recovered = await recoverStoppedWriter(root, "rust-build", "v1-0123456789abcdef", true);
+  assert.deepEqual(recovered, ["app.can"]);
+  await writeFile(
+    join(root, ".can/gen/locks/app.can.write.lock"),
+    '{"version":1,"holder":"rust-accept","token":"v1-fedcba9876543210","mode":"write","path":"app.can"}',
+  );
+  assert.equal((await errorOf(acquire(root, ["app.can"], "write", "next"))).code, "conflict");
+  assert.equal((await errorOf(acquire(root, ["app.can"], "read", "build"))).code, "conflict");
 });

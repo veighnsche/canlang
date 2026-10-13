@@ -24,7 +24,7 @@
  * `journal.json` is unresolved, so builds never serve a mixed group.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   cp,
   mkdir,
@@ -36,7 +36,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, relative, sep } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { GENERATED_DIR } from "./records.js";
 import {
   PROTOCOL_VERSION,
@@ -184,6 +184,56 @@ async function persistFile(path: string, bytes: Uint8Array): Promise<void> {
   } catch {
     // Best-effort directory fsync; ignored where unsupported.
   }
+}
+
+/**
+ * Write replacement bytes to a collision-safe temporary sibling of
+ * `target` and return its path. The name is unique per attempt and the
+ * file is created exclusively, so a stale or saved sibling (including a
+ * literal `*.can-new` file) is never overwritten; only the file this call
+ * created is ever removed. The caller renames it onto `target`.
+ */
+async function createReplaceTemp(target: string, bytes: Uint8Array): Promise<string> {
+  const dir = dirname(target);
+  await mkdir(dir, { recursive: true });
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const candidate = join(
+      dir,
+      `.${basename(target)}.tmp-${process.pid}-${(tmpCounter += 1)}-${randomBytes(4).toString("hex")}`,
+    );
+    let handle;
+    try {
+      handle = await open(candidate, "wx");
+    } catch (error) {
+      if (isErrno(error, "EEXIST")) {
+        continue;
+      }
+      throw error;
+    }
+    try {
+      await handle.writeFile(bytes);
+      await handle.sync();
+    } catch (error) {
+      await rm(candidate, { force: true });
+      throw error;
+    } finally {
+      await handle.close();
+    }
+    return candidate;
+  }
+  throw new JournalError(
+    "io",
+    `could not create a unique replace temp for \`${target}\``,
+  );
+}
+
+function isErrno(error: unknown, code: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: unknown }).code === code
+  );
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -473,9 +523,13 @@ export async function applyCommitted(root: string, runId: string): Promise<Apply
         `staged payload for \`${entry.path}\` in unit \`${entry.unit}\` no longer matches the journal`,
       );
     }
-    const tmp = `${target}.can-new`;
-    await persistFile(tmp, stagedBytes);
-    await rename(tmp, target);
+    const tmp = await createReplaceTemp(target, stagedBytes);
+    try {
+      await rename(tmp, target);
+    } catch (error) {
+      await rm(tmp, { force: true });
+      throw error;
+    }
     files += 1;
   }
   await resolveJournal(root, runId);
@@ -559,27 +613,29 @@ export async function unresolvedJournals(root: string): Promise<string[]> {
 }
 
 /**
- * Snapshot consumed build inputs under brief read leases: refuse when any
- * journal is unresolved, then acquire read leases in canonical order, copy
- * every byte, and release. The build compiles the returned immutable
- * snapshot, not live files.
+ * Snapshot consumed build inputs under brief read leases: acquire read
+ * leases in canonical order, then refuse when any journal is unresolved,
+ * then copy every byte and release. The gate runs while acquired leases
+ * cover the consumed closure, so a writer interruption that lands after a
+ * pre-acquire check can never surface as mixed bytes. The build compiles
+ * the returned immutable snapshot, not live files.
  */
 export async function snapshotInputs(
   root: string,
   holder: string,
   paths: readonly string[],
 ): Promise<ConsumedInput[]> {
-  const unresolved = await unresolvedJournals(root);
-  if (unresolved.length > 0) {
-    throw new JournalError(
-      "unresolved-journal",
-      `refusing to read while run journal(s) ${unresolved.join(", ")} are unresolved`,
-    );
-  }
   const ordered = canonicalOrder(paths);
   const set = await acquire(root, paths, "read", holder);
   const inputs: ConsumedInput[] = [];
   try {
+    const unresolved = await unresolvedJournals(root);
+    if (unresolved.length > 0) {
+      throw new JournalError(
+        "unresolved-journal",
+        `refusing to read while run journal(s) ${unresolved.join(", ")} are unresolved`,
+      );
+    }
     for (const rel of ordered) {
       let bytes: Buffer;
       try {
