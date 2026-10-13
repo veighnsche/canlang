@@ -7,11 +7,11 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 const tick = async () => { for (let n = 0; n < 12; n++) await Promise.resolve(); };
-const document = () => ({ languageId: 'can', version: 1,
+const document = () => ({ languageId: 'can', version: 1, isClosed: false,
   uri: { scheme: 'file', fsPath: '/test.can', toString: () => 'file:///test.can' },
   getText() { return `version ${this.version}`; } });
 function fixture(spawnOverride, realTimers = false) {
-  const state = { children: [], handlers: {}, commands: {}, errors: [], disposals: 0, timers: new Map() };
+  const state = { children: [], handlers: {}, commands: {}, errors: [], logs: [], disposals: 0, timers: new Map() };
   let clock = 0, timerId = 0;
   const disposable = { dispose() {} };
   state.advance = async (ms) => {
@@ -22,7 +22,8 @@ function fixture(spawnOverride, realTimers = false) {
     await tick();
   };
   const vscode = {
-    workspace: { textDocuments: [], workspaceFolders: [], getWorkspaceFolder() {},
+    workspace: { isTrusted: true, onDidGrantWorkspaceTrust: () => disposable,
+      textDocuments: [], workspaceFolders: [], getWorkspaceFolder() {},
       createFileSystemWatcher: () => ({ ...disposable, onDidCreate: () => disposable, onDidChange: () => disposable, onDidDelete: () => disposable }),
       onDidChangeWorkspaceFolders: () => disposable,
       getConfiguration: () => ({ get: (_key, fallback) => fallback }),
@@ -30,15 +31,18 @@ function fixture(spawnOverride, realTimers = false) {
         `onDid${name}TextDocument`, (callback) => { state.handlers[name] = callback; return disposable; }])),
       onDidChangeConfiguration(callback) { state.handlers.Configuration = callback; return disposable; },
     },
-    window: { createOutputChannel: () => ({ ...disposable, appendLine() {} }),
+    window: { createOutputChannel: () => ({ ...disposable, show() {}, appendLine(line) { state.logs.push(line); } }),
+      createStatusBarItem: () => ({ ...disposable, show() {}, hide() {} }),
+      onDidChangeActiveTextEditor: () => disposable, showQuickPick: async () => undefined,
       showErrorMessage: (message) => state.errors.push(message) },
-    commands: { registerCommand(name, callback) { state.commands[name] = callback; return disposable; } },
+    commands: { executeCommand: async () => undefined,
+      registerCommand(name, callback) { state.commands[name] = callback; return disposable; } },
     languages: { createDiagnosticCollection: () => ({ set() {}, delete() {},
       dispose() { state.disposals++; } }),
       ...Object.fromEntries(['Hover', 'CompletionItem', 'Definition', 'Reference', 'Rename',
-        'DocumentSemanticTokens', 'CodeActions', 'DocumentFormattingEdit', 'DocumentSymbol'].map((name) => [`register${name}Provider`, () => disposable])),
+        'DocumentSemanticTokens', 'CodeActions', 'DocumentFormattingEdit', 'DocumentSymbol', 'FoldingRange', 'SelectionRange'].map((name) => [`register${name}Provider`, () => disposable])),
     },
-    SymbolKind: {}, CompletionItemKind: {}, SemanticTokensLegend: class {}, CodeActionKind: { QuickFix: 'quickfix' },
+    StatusBarAlignment: { Right: 2, Left: 1 }, SymbolKind: {}, CompletionItemKind: {}, SemanticTokensLegend: class {}, CodeActionKind: { QuickFix: 'quickfix' },
   };
   const childApi = { spawn() {
     if (spawnOverride) { const child = spawnOverride(); state.children.push(child); return child; }
@@ -77,6 +81,51 @@ function fixture(spawnOverride, realTimers = false) {
   return state;
 }
 async function main() {
+  const cancellation = () => {
+    const listeners = new Set();
+    return { isCancellationRequested: false,
+      onCancellationRequested(callback) { listeners.add(callback); return { dispose() { listeners.delete(callback); } }; },
+      cancel() { this.isCancellationRequested = true; for (const callback of [...listeners]) callback(); },
+      get listenerCount() { return listeners.size; },
+    };
+  };
+  for (const mode of ['current', 'edited', 'closed', 'cancelled']) {
+    const f = fixture(), c = f.client(), doc = document(), token = cancellation();
+    const started = c.start(), child = f.children[0];
+    const pending = c.requestDocument(doc, token, 'textDocument/hover', {}, result => result);
+    let settled = false; pending.then(() => { settled = true; });
+    await tick(); assert(!settled, 'initial request waits for handshake');
+    if (mode === 'edited') { doc.version++; c.didChange(doc); }
+    if (mode === 'closed') { doc.isClosed = true; c.didClose(doc); }
+    if (mode === 'cancelled') {
+      token.cancel(); await tick(); assert(settled, 'cancellation settles before initialize');
+      assert.equal(token.listenerCount, 0);
+    }
+    child.reply('initialize'); await started; await tick();
+    const requests = child.messages.filter(message => message.method === 'textDocument/hover');
+    if (mode === 'current') {
+      assert.equal(requests.length, 1, 'one initial gesture dispatches once');
+      assert.equal(child.messages.filter(message => message.method === 'textDocument/didOpen').length, 1);
+      child.reply('textDocument/hover', 'current'); assert.equal(await pending, 'current');
+    } else { assert.equal(await pending, undefined); assert.equal(requests.length, 0); }
+    assert.equal(token.listenerCount, 0);
+    child.emit('exit', 0); assert.equal(f.timers.size, 0);
+    console.log(`PASS startup request ${mode} preserves revision, close and cancellation admission`);
+  }
+  {
+    const f = fixture(), c = f.client(), doc = document(), token = cancellation();
+    const started = c.start(), child = f.children[0]; child.reply('initialize'); await started; c.didOpen(doc);
+    const pending = c.requestDocument(doc, token, 'textDocument/hover', {}, result => result);
+    assert.equal(token.listenerCount, 1);
+    await f.advance(9999); assert.equal(token.listenerCount, 1);
+    await f.advance(1); assert.equal(await pending, null);
+    assert.equal(token.listenerCount, 0); assert.equal(f.timers.size, 0);
+    assert(f.logs.some(line => line.includes("'textDocument/hover'") && line.includes('timed out')));
+    assert.equal(child.kills.length, 0, 'timeout does not respawn or kill server');
+    child.reply('textDocument/hover', 'late'); await tick();
+    child.emit('exit', 0);
+    console.log('PASS silent live server request deadline settles and releases listener; late reply ignored');
+  }
   {
     const f = fixture(), c = f.client(), doc = document();
     const started = c.start(); assert.equal(c.start(), started, 'concurrent starts share handshake');

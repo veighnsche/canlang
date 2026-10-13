@@ -268,6 +268,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
  * stays in package metadata, never copied per page.
  */
 export interface PageDescriptor {
+  /** Compiler-owned style hooks for the canonical page main and its interior. */
+  readonly style?: { readonly unitId: string; readonly useId: string };
   /** Optional authorized page reread cadence in integer milliseconds (1s–1h). */
   readonly poll?: bigint;
   /** Canonical declaring package. */
@@ -2232,6 +2234,8 @@ export interface GeneratedViewDescriptor {
   readonly controls: ReadonlyArray<GeneratedViewControl>;
   /** Style unit id styling the renderer root, when declared. */
   readonly rootStyle?: string;
+  /** Owning renderer unit when its saved implementation supplies CSS. */
+  readonly rendererStyle?: string;
 }
 
 /** Pre-rendered canonical control HTML the renderer arranges. */
@@ -2306,8 +2310,13 @@ export function assertGeneratedViewInstanceProps(props: GeneratedViewInstancePro
       `generated view ${JSON.stringify(props.descriptor.view)}: unsupported contract ${JSON.stringify(props.descriptor.version)}`,
     );
   }
-  if (!/^can-view-m\d+-f\d+-s\d+$/.test(props.useId)) {
+  if (!/^can-view-m\d+-f\d+-s\d+(?:-o[0-9a-f]+)?$/.test(props.useId)) {
     throw new Error(`generated view ${JSON.stringify(props.descriptor.view)}: invalid use id ${JSON.stringify(props.useId)}`);
+  }
+  for (const style of [props.descriptor.rootStyle, props.descriptor.rendererStyle]) {
+    if (style !== undefined && !/^[a-z0-9][a-z0-9-]*$/.test(style)) {
+      throw new Error(`generated view ${JSON.stringify(props.descriptor.view)}: invalid style identity`);
+    }
   }
   const seen = new Set<string>();
   for (const binding of props.bindings) {

@@ -14,6 +14,7 @@ import {
   assertLinksResolve,
   assertWorkerdLoadable,
   bundleMixedSha256,
+  generatedStyleResources,
   inventorizeAssets,
   type PackageDeployBundle,
 } from "../deploy/bundle.js";
@@ -275,8 +276,9 @@ function verifyBundle(artifact: CompileArtifact, capture: SingleFileCapture, evi
       !staged.split("\n").includes('export const verdict = {"active":true};')) {
     fail("BUNDLE_ARTIFACT_MISMATCH", "portable bundle does not stage the admitted artifact and verdict");
   }
+  const generatedResources = generatedStyleResources(artifact);
   const keys = Object.keys(bundle.resources).sort();
-  if (keys.join("\n") !== [...BROWSER_KEYS].sort().join("\n") ||
+  if (keys.join("\n") !== [...BROWSER_KEYS, ...Object.keys(generatedResources)].sort().join("\n") ||
       bundle.resourcesSha256 !== resourcesSha256(bundle.resources) ||
       !staged.includes(`"resourcesSha256":"${bundle.resourcesSha256}"`)) {
     fail("RESOURCE_INVALID", "portable bundle lacks exact packaged browser resource evidence");
@@ -285,6 +287,12 @@ function verifyBundle(artifact: CompileArtifact, capture: SingleFileCapture, evi
     const contentType = key.endsWith(".css") ? "text/css" : "application/javascript";
     if (bundle.resources[key]?.contentType !== contentType || bundle.resources[key]!.bytes.length === 0) {
       fail("RESOURCE_INVALID", `packaged browser resource ${key} is invalid`);
+    }
+  }
+  for (const [key, expected] of Object.entries(generatedResources)) {
+    const actual = bundle.resources[key];
+    if (actual?.contentType !== expected.contentType || sha256(actual.bytes) !== sha256(expected.bytes)) {
+      fail("RESOURCE_INVALID", `portable bundle changed owning stylesheet asset ${key}`);
     }
   }
   assertWorkerdLoadable(bundle.modules);
@@ -396,8 +404,9 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
   if (mcp.status !== 401 || !(mcp.headers.get("content-type") ?? "").startsWith("application/json")) {
     fail("MCP_UNAVAILABLE", `installed business MCP route did not refuse an anonymous caller (HTTP ${mcp.status})`);
   }
-  for (const key of BROWSER_KEYS) {
-    const response = await dev.dispatchUrl(`${origin}/assets/${key}`, { method: "GET" });
+  for (const key of Object.keys(bundle.resources)) {
+    const assetPath = key.split("/").map(encodeURIComponent).join("/");
+    const response = await dev.dispatchUrl(`${origin}/assets/${assetPath}`, { method: "GET" });
     const expected = bundle.resources[key]!;
     if (response.status !== 200 || !(response.headers.get("content-type") ?? "").startsWith(expected.contentType) ||
         sha256(new Uint8Array(await response.arrayBuffer())) !== sha256(expected.bytes)) {

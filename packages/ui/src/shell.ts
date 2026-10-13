@@ -22,6 +22,7 @@ import type {
   RenderPageFn,
   ShellData,
 } from "@canlang/contracts";
+import { styledComponent } from "./components.js";
 import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import {
   canonicalDefaultTag,
@@ -215,13 +216,18 @@ export const renderPage: RenderPageFn = async (
     }
     pollAttrs = ` data-can-poll data-can-poll-url="${escapeAttr(href)}" data-can-poll-interval="${descriptor.poll / 1000n}" data-can-poll-context="${escapeAttr(contextKey)}"`;
   }
+  const style = descriptor.style;
+  const styleUnit = style?.unitId, styleUse = style?.useId;
+  if (style !== undefined && (typeof styleUnit !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(styleUnit) ||
+      typeof styleUse !== "string" || !styleUse)) throw new Error("renderPage: invalid compiler page style hook");
   // Validate applicable protected account actions before authored child effects.
   const accountHtml = !context.isPartial && shell?.account.authenticated === true
     ? renderAccount(shell, context) : undefined;
   const body = await renderChildren(children);
   const pageHeading = `<header class="can-page-heading"><h1 class="text-3xl font-bold">${escapeHtml(resolveText(descriptor.title, context))}</h1>` +
     (descriptor.description === undefined ? "" : `<p>${escapeHtml(resolveText(descriptor.description, context))}</p>`) + `</header>`;
-  const main = `<main id="can-main"${contextAttr}${pollAttrs}>${pageHeading}${body}</main>`;
+  const mainHtml = `<main id="can-main"${contextAttr}${pollAttrs}>${pageHeading}${body}</main>`;
+  const main = styleUnit === undefined || styleUse === undefined ? mainHtml : styledComponent(mainHtml, styleUnit, styleUse);
   if (context.isPartial) {
     return main;
   }

@@ -15,9 +15,8 @@
  * completion, never acceptance (BGI-11/12 own validation/promotion).
  *
  * Real launches stay preflight-gated through BGI-03's released
- * `preflightRecipe`/`preflightResume`, which refuse every adapter
- * until the external gate qualifies its MCP transport and no-write
- * enforcement. The injectable `preflight`/`resolveExecutable` hooks
+ * `preflightRecipe`/`preflightResume`, which admit only qualified
+ * MCP/write restrictions and independently supported resume. The injectable `preflight`/`resolveExecutable` hooks
  * exist so fake-executable tests can exercise the bounded-execution
  * mechanism; production callers leave them at their secure defaults.
  */
@@ -71,7 +70,7 @@ export const DEFAULT_OUTPUT_SCHEMA = JSON.stringify({
   type: "object",
   properties: { status: { type: "string" } },
   required: ["status"],
-  additionalProperties: true,
+  additionalProperties: false,
 });
 
 /** One unit prompt inside the active app/build closure. */
@@ -517,11 +516,9 @@ export interface SessionBinding {
 export type RunRegistry = Map<string, AbortController>;
 
 /**
- * Production Codex home for the bounded per-attempt MCP profile
- * layer: explicit `CODEX_HOME` wins, else the operator's real
- * `~/.codex` (auth stays there; only the attempt's MCP entry is
- * layered and later removed). Callers that need an isolated home
- * (tests) pass `codexHome` explicitly.
+ * Native authentication home: explicit CODEX_HOME wins, otherwise
+ * ~/.codex. The Codex adapter isolates housekeeping under each attempt
+ * and links native auth without reading or copying credential bytes.
  */
 export function defaultCodexHome(): string {
   const env = process.env["CODEX_HOME"];
@@ -644,7 +641,7 @@ async function spawnBounded(
   try {
     child = spawn(launch.file, launch.args, {
       cwd: launch.cwd,
-      env: { ...process.env, ...launch.env },
+      env: launch.inheritEnv === false ? launch.env : { ...process.env, ...launch.env },
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
       timeout: 0,
@@ -900,6 +897,7 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
     attempt,
     source_digest: options.source_digest,
     allowed: options.allowed,
+    instructions: options.prompt,
     candidateRoot,
     ...(options.required === undefined ? {} : { required: options.required }),
     now,

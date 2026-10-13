@@ -1617,7 +1617,7 @@ function foldGivenTraitContributions(
     const what = `${label} on ${target}`;
     if (modelNames.has(target)) {
       foldGivenModelAttachment(
-        what, target, fields as unknown[], fieldsOf, contributorOf(target),
+        what, target, fields as unknown[], fieldsOf, contributorOf(target), byName.get(target)?.['uniqueKeys'],
       );
       return;
     }
@@ -1650,6 +1650,7 @@ function foldGivenModelAttachment(
   fields: unknown[],
   fieldsOf: (modelName: string, what: string) => Array<Record<string, unknown>>,
   contributedBy: Map<string, string>,
+  uniqueKeys: unknown,
 ): void {
   const target = fieldsOf(modelName, what);
   for (const entry of fields) {
@@ -1715,19 +1716,40 @@ function foldGivenModelAttachment(
         `Invalid ${fieldWhat}: bounds contradict: min=${min} exceeds max=${max}.`,
       );
     }
-    const authored = target.find((candidate) => candidate['name'] === name);
-    if (authored !== undefined && !contributedBy.has(name)) {
-      fail(
-        'duplicate_name',
-        `Invalid ${what}: contributes \`${name}\`, already declared on model ${JSON.stringify(modelName)}.`,
-      );
-    }
     const first = contributedBy.get(name);
     if (first !== undefined) {
       fail(
         'duplicate_name',
         `Invalid ${what}: contributes \`${name}\`, already contributed by ${first}.`,
       );
+    }
+    const authored = target.find((candidate) => candidate['name'] === name);
+    if (authored !== undefined) {
+      // Compiler artifacts carry effective schemas for migrations/UI and
+      // checked Given provenance. Reuse that field once only when all of
+      // its admitted runtime behavior matches; raw descriptor consumers
+      // still fold missing fields below, and sibling contributions refuse.
+      const field = authored['field'];
+      const value = authored['default'];
+      const valueType = kind === 'boolean' ? 'bool' : kind === 'string' ? 'text' : 'int';
+      const allowed = new Set(['name', 'field', 'required', 'serverOnly', 'valueType',
+        'nullable', 'array', 'default', 'trim', 'min', 'max', 'machine', 'description']);
+      const matches = Object.keys(authored).every(key => allowed.has(key)) &&
+        !(Array.isArray(uniqueKeys) && uniqueKeys.includes(name)) &&
+        isRecord(field) && Object.keys(field).length === 1 && field['kind'] === kind &&
+        authored['required'] === false && authored['serverOnly'] === false &&
+        (authored['nullable'] === undefined || authored['nullable'] === false) &&
+        authored['array'] === undefined && authored['machine'] === undefined &&
+        (authored['valueType'] === undefined || authored['valueType'] === valueType) &&
+        (authored['trim'] === undefined ? false : authored['trim']) === trim &&
+        authored['min'] === min && authored['max'] === max &&
+        isRecord(value) && Object.keys(value).length === 2 &&
+        value['kind'] === 'literal' && Object.is(value['value'], literal);
+      if (!matches) {
+        fail('duplicate_name', `Invalid ${what}: contributes \`${name}\`, already declared on model ${JSON.stringify(modelName)} with a conflicting runtime schema.`);
+      }
+      contributedBy.set(name, what);
+      continue;
     }
     contributedBy.set(name, what);
     target.push({

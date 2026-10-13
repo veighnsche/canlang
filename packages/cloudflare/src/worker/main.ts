@@ -63,7 +63,7 @@
 import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort, WorkScope } from "@canlang/contracts";
 import type { IdentityStore } from '@canlang/identity';
 import type { StateTeamBinding, StateTeamBindings } from '../runtime/env-assembly.js';
-import type { PagePreferenceStore, caughtToBusinessError, isBusinessThrow, jsonErrorResponse,
+import type { PagePreferenceStore, ExportDownloadStore, caughtToBusinessError, isBusinessThrow, jsonErrorResponse,
   httpStatusFor, logInternalError } from '@canlang/interfaces';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { AssembledModules } from "../runtime/modules.js";
@@ -75,6 +75,7 @@ import type {
   BrowserAssetsHandler,
   HttpOperationHandlerFactory,
   HttpCsvHandlerFactory,
+  HttpExportHandlerFactory,
   HttpAuthConfiguration,
   HttpAuthJoin,
   HttpPageHandlerFactory,
@@ -144,6 +145,7 @@ export interface ProductionDeps {
   readonly store: StoragePort;
   readonly identityStore: unknown;
   readonly preferences?: PagePreferenceStore;
+  readonly exportDownloads?: ExportDownloadStore;
   readonly stateTeam?: StateTeamBinding;
   readonly stateTeams?: StateTeamBindings;
 }
@@ -224,6 +226,7 @@ export interface MainLoaders {
   readonly loadHttpOperationsFactory?: () => Promise<HttpOperationHandlerFactory | undefined>;
   /** Absent bundle or CSV export retains assembly's unavailable CSV join. */
   readonly loadHttpCsvFactory?: () => Promise<HttpCsvHandlerFactory | undefined>;
+  readonly loadHttpExportFactory?: () => Promise<HttpExportHandlerFactory | undefined>;
   readonly loadHttpAuthJoin?: () => Promise<HttpAuthJoin | undefined>;
   readonly loadHttpPageFactory?: () => Promise<HttpPageHandlerFactory | undefined>;
   readonly loadCohortTickFactory?: () => Promise<CreateCohortTickFn>;
@@ -390,7 +393,7 @@ async function loadBrowserAssetsHandler(
     pages: readonly PageDescriptor[], manifest: BrowserAssetsManifest,
   ) => Promise<BrowserAssetsHandler>)(pages, manifest);
   if (!isRecord(handler) || typeof handler["fetch"] !== "function" || !Array.isArray(handler["paths"]) ||
-      JSON.stringify(handler["paths"]) !== JSON.stringify(manifest.resources.map((row) => `/assets/${row.key}`))) {
+      JSON.stringify(handler["paths"]) !== JSON.stringify(manifest.resources.map((row) => `/assets/${row.key.split("/").map(part => encodeURIComponent(part).replace(/[!'()*]/g, character => "%" + character.charCodeAt(0).toString(16).toUpperCase())).join("/")}`))) {
     throw new Error("deploy main: selected browser assets handler has invalid canonical paths or fetch");
   }
   return handler as unknown as BrowserAssetsHandler;
@@ -508,6 +511,18 @@ async function defaultLoadHttpCsvFactory(): Promise<HttpCsvHandlerFactory | unde
   if (typeof handle !== 'function') {
     throw new Error('deploy main: worker sibling ./http-operations.js has no function export "handleCsvRequest"');
   }
+  const chain = handle as (deps: unknown, request: Request) => Promise<Response>;
+  return deps => request => chain(deps, request);
+}
+
+async function defaultLoadHttpExportFactory(): Promise<HttpExportHandlerFactory | undefined> {
+  let mod: unknown;
+  try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
+  catch { return undefined; }
+  if (!isRecord(mod)) throw new Error('deploy main: HTTP sibling imported a non-module namespace');
+  if (!Object.hasOwn(mod, 'handleExportRequest')) return undefined;
+  const handle = mod['handleExportRequest'];
+  if (typeof handle !== 'function') throw new Error('deploy main: HTTP sibling has no function export "handleExportRequest"');
   const chain = handle as (deps: unknown, request: Request) => Promise<Response>;
   return deps => request => chain(deps, request);
 }
@@ -698,6 +713,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
   const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
   const loadHttpCsv = loaders.loadHttpCsvFactory ?? defaultLoadHttpCsvFactory;
+  const loadHttpExport = loaders.loadHttpExportFactory ?? defaultLoadHttpExportFactory;
   const loadHttpAuth = loaders.loadHttpAuthJoin ?? defaultLoadHttpAuthJoin;
   const loadHttpPages = loaders.loadHttpPageFactory ?? defaultLoadHttpPageFactory;
   const loadFormBindings = loaders.loadSourceFormBindingsFactory ?? defaultLoadSourceFormBindingsFactory;
@@ -716,6 +732,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const getDerivedInputs = memoize(() => loadDerived());
   const getHttpOpsFactory = memoize(() => loadHttpOps());
   const getHttpCsvFactory = memoize(() => loadHttpCsv());
+  const getHttpExportFactory = memoize(() => loadHttpExport());
   const getHttpAuthJoin = memoize(() => loadHttpAuth());
   const getHttpPageFactory = memoize(() => loadHttpPages());
   const getFormBindingsFactory = memoize(() => loadFormBindings());
@@ -748,11 +765,12 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
     const csvFactory = await getHttpCsvFactory();
+    const exportFactory = await getHttpExportFactory();
     const pageFactory = await getHttpPageFactory();
     const authJoin = await getHttpAuthJoin();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const derivedInputs =
-      factory === undefined && httpFactory === undefined && csvFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
+      factory === undefined && httpFactory === undefined && csvFactory === undefined && exportFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
     const browserAssets = staged.browserAssets;
     const cohortRequirement = staged.artifact.requires.find(requirement => requirement.capability === 'state.cohorts');
@@ -830,16 +848,18 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
               ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           }),
-      ...(httpFactory === undefined && csvFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
+      ...(httpFactory === undefined && csvFactory === undefined && exportFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
         ? null
         : {
             http: {
               ...(deps.auth === undefined ? {} : { auth: deps.auth }),
               ...(deps.preferences === undefined ? {} : { preferences: deps.preferences }),
+              ...(deps.exportDownloads === undefined ? {} : { exportDownloads: deps.exportDownloads }),
               ...(authJoin === undefined ? {} : { authHandler: authJoin }),
               ...(formBindings === undefined ? {} : { formBindings }),
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
               ...(csvFactory === undefined ? {} : { createCsvHandler: csvFactory }),
+              ...(exportFactory === undefined ? {} : { createExportHandler: exportFactory }),
               ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
               ...(derivedInputs === undefined ? null : { derivedInputs }),
               ...(browserAssets === undefined ? {} : {

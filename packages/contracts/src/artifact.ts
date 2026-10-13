@@ -629,8 +629,20 @@ export interface ArtifactOwnerLink {
   end: number;
 }
 
+/** One compiler-resolved asset referenced by scoped saved CSS. */
+export interface ArtifactStyleAsset {
+  /** Staged resource key, inside this stylesheet's owning generated unit. */
+  path: string;
+  /** Exact file bytes encoded as canonical base64. */
+  contentBase64: string;
+  sha256: string;
+  contentType: string;
+}
+
 /** One packed scoped stylesheet: the BGI-10 scoped output of a style unit. */
 export interface ArtifactStylesheet {
+  /** Only assets actually referenced by the checked scoped CSS. */
+  assets?: ArtifactStyleAsset[];
   /** Staged artifact path (`can.generated/<id>/style.css`). */
   path: string;
   /** Scoped CSS bytes (the ownership guards). */
@@ -639,6 +651,14 @@ export interface ArtifactStylesheet {
   sha256: string;
   /** Owning `.can` intent link. */
   owner: ArtifactOwnerLink;
+}
+
+/** Derived checked saved renderer registration; absent mount is browser-inert. */
+export interface ArtifactGeneratedView {
+  view: string;
+  module: string;
+  renderExport: "render";
+  mountExport?: "mount";
 }
 
 /** Root artifact emitted by `can compile` for one program. */
@@ -692,6 +712,8 @@ export interface CompileArtifact {
    * loaders must treat absence as "no stylesheets", never as an error.
    */
   stylesheets?: ArtifactStylesheet[];
+  /** Checked consumed view modules; omission registers no browser enhancement. */
+  generatedViews?: ArtifactGeneratedView[];
   /** Checked source nominal definitions used by field/input/result claims. */
   valueTypes?: CanonicalValueTypes;
   /** Page descriptors in source order. */

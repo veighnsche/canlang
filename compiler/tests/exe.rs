@@ -357,3 +357,88 @@ fn lsp_eof_and_shutdown_exit_cleanly() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr_text(&output));
     assert!(!stderr_text(&output).contains("panicked"));
 }
+
+#[cfg(unix)]
+#[test]
+fn public_generation_delegates_to_host_and_compiler_owner_stays_native() {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().unwrap();
+    let platform = dir.path().join("platform");
+    std::fs::write(&platform, r#"#!/bin/sh
+[ "$1" = gen ] || exit 90
+[ -n "$CAN_COMPILER_BIN" ] || exit 91
+if [ "$2" = --request ]; then
+  cat "$3" > "$GEN_TEST_REQUEST"
+else
+  cat > "$GEN_TEST_REQUEST"
+fi
+printf '%s\n' '{"version":1,"request_id":"forward","operation":"retry","ok":false,"state":"host-test"}'
+exit 5
+"#).unwrap();
+    std::fs::set_permissions(&platform, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let payload = serde_json::json!({"version":1,"request_id":"forward","operation":"retry","root":dir.path().to_string_lossy(),"files":["app.can"],"runner":"codex","model":"gpt-6.1-sol"}).to_string();
+    let request = dir.path().join("request.json");
+    let received = dir.path().join("received.json");
+    std::fs::write(&request, &payload).unwrap();
+    let file_run = can()
+        .args(["gen", "--request"])
+        .arg(&request)
+        .env("CAN_PLATFORM_BIN", &platform)
+        .env("GEN_TEST_REQUEST", &received)
+        .env_remove("CAN_GENERATION_COMPILER_ONLY")
+        .env_remove("CAN_COMPILER_BIN")
+        .output()
+        .unwrap();
+    assert_eq!(
+        file_run.status.code(),
+        Some(5),
+        "{}",
+        stderr_text(&file_run)
+    );
+    assert_eq!(std::fs::read_to_string(&received).unwrap(), payload);
+    assert!(stdout_text(&file_run).contains("host-test"));
+    let mut child = can()
+        .arg("gen")
+        .env("CAN_PLATFORM_BIN", &platform)
+        .env("GEN_TEST_REQUEST", &received)
+        .env_remove("CAN_GENERATION_COMPILER_ONLY")
+        .env_remove("CAN_COMPILER_BIN")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(payload.as_bytes())
+        .unwrap();
+    let stdin_run = child.wait_with_output().unwrap();
+    assert_eq!(
+        stdin_run.status.code(),
+        Some(5),
+        "{}",
+        stderr_text(&stdin_run)
+    );
+    assert_eq!(std::fs::read_to_string(&received).unwrap(), payload);
+    // Native compiler child requests must never recurse into the host.
+    let source = dir.path().join("app.can");
+    std::fs::write(
+        &source,
+        "app Tasks\nGiven\n Todo {title:text}\nWhen\nThen\n",
+    )
+    .unwrap();
+    std::fs::write(&request, serde_json::json!({"version":1,"request_id":"internal","operation":"status","root":dir.path().to_string_lossy(),"files":[source.to_string_lossy()]}).to_string()).unwrap();
+    let internal = can()
+        .args(["gen", "--request"])
+        .arg(&request)
+        .env("CAN_GENERATION_COMPILER_ONLY", "1")
+        .env("CAN_PLATFORM_BIN", "/missing-host")
+        .output()
+        .unwrap();
+    assert!(!stderr_text(&internal).contains("missing-host"));
+    assert!(!stdout_text(&internal).contains("host-test"));
+    assert!(stdout_text(&internal).contains("internal"));
+}

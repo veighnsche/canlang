@@ -49,6 +49,9 @@ import type {
   OperationRegistry,
   PageRegistry,
   RateLimiter,
+  ExportDownloadRecord,
+  ExportDownloadStore,
+  InterfacesClock,
   ReadOutcome,
   SchemaCatalog,
   UploadBinding,
@@ -57,6 +60,7 @@ import type {
   VerifiedIngressEnvelope,
 } from './ports.js';
 import { systemInterfacesClock } from './ports.js';
+import { canonicalJson } from './http/canonical-json.js';
 
 /** Scripted invoker: per-operation handlers with a call log. */
 export function createFakeInvoker(handlers: {
@@ -110,6 +114,41 @@ export function createFakeCatalog(
   shapes: Record<string, OperationInputShape>,
 ): SchemaCatalog {
   return { shapeFor: (operation: string) => shapes[operation] ?? null };
+}
+
+/** Memory large-output download store (per-isolate; production persists at B1). */
+export function createMemoryExportDownloadStore(clock: InterfacesClock = systemInterfacesClock): ExportDownloadStore {
+  const records = new Map<string, ExportDownloadRecord>();
+  return {
+    async read(handle: string) {
+      const record = records.get(handle);
+      return record === undefined ? null : structuredClone(record);
+    },
+    async save(record: ExportDownloadRecord, expectedDigest: string | null) {
+      if (!Number.isFinite(Date.parse(record.expiresAt)) || clock.nowMs() >= Date.parse(record.expiresAt)) return false;
+      const current = records.get(record.handle);
+      if (expectedDigest === null) {
+        if (current !== undefined || record.status !== 'pending') return false;
+      } else {
+        if (current === undefined || current.status !== 'pending' ||
+            current.digest !== expectedDigest || record.status !== 'ready') return false;
+        const identity = (value: ExportDownloadRecord) => canonicalJson([
+          value.handle, value.appId, value.teamId, value.principal, value.operation,
+          value.args, value.createdAt, value.expiresAt,
+        ]);
+        if (identity(current) !== identity(record)) return false;
+      }
+      records.set(record.handle, structuredClone(record));
+      return true;
+    },
+    async revoke(handle: string) {
+      const current = records.get(handle);
+      if (current === undefined) return false;
+      const { csv: _droppedCsv, rowCount: _droppedCount, ...kept } = current;
+      records.set(handle, { ...kept, status: 'revoked' });
+      return true;
+    },
+  };
 }
 
 /** Fixed-window memory limiter (per-isolate; production counters differ). */

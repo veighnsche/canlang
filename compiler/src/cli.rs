@@ -215,7 +215,14 @@ impl Analyzer for CatalogAnalyzer {
 /// A closed stdout/stderr pipe (`EPIPE`, e.g. `can check f.can | head`)
 /// is ignored rather than panicking; any other I/O error still panics.
 pub fn run(argv: &[String]) -> i32 {
-    let result = dispatch(argv);
+    let args = if argv.is_empty() { &[][..] } else { &argv[1..] };
+    let flag = parse_args(args)
+        .ok()
+        .and_then(|parsed| parsed.catalog)
+        .map(PathBuf::from);
+    let analyzer = CatalogAnalyzer::from_process(flag);
+    let public_generation = std::env::var("CAN_GENERATION_COMPILER_ONLY").as_deref() != Ok("1");
+    let result = dispatch_with_route(argv, &analyzer, public_generation);
     write_ignoring_broken_pipe(std::io::stdout().lock(), result.stdout.as_bytes(), "stdout");
     write_ignoring_broken_pipe(std::io::stderr().lock(), result.stderr.as_bytes(), "stderr");
     if result.run_lsp {
@@ -256,6 +263,14 @@ pub fn dispatch(argv: &[String]) -> DispatchResult {
 /// flag is inert here (production [`dispatch`] threads it into its own
 /// [`CatalogAnalyzer`]).
 pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult {
+    dispatch_with_route(argv, analyzer, false)
+}
+
+fn dispatch_with_route(
+    argv: &[String],
+    analyzer: &dyn Analyzer,
+    public_generation: bool,
+) -> DispatchResult {
     // Test-only hook for the panic path (`tests/exe.rs` drives the real
     // binary with this set): this qualifies the E7005/exit-2 mapping for
     // ordinary unwinds, not aborts. Production `main` catches this into
@@ -409,6 +424,7 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
                 parsed.format,
                 parsed.format_set,
                 parsed.request.as_deref(),
+                public_generation,
             )
         }
         unknown => DispatchResult::tool_error(
@@ -699,7 +715,7 @@ Options:
 
 Environment:
   CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
-  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)
+  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs|gen)
   CAN_DEV_BIN       Override path to the can-dev JSON control binary
 
 Exit codes: 0 clean, 10 errors reported, 2 tool failure.
@@ -785,7 +801,11 @@ fn run_check_like(
             return error;
         }
     }
-    let mut result = analyzer.analyze(&db, tool_version());
+    let mut owned = analyzer.analyze_owned(&db, tool_version());
+    if let Some(program) = &mut owned.program {
+        prepare_saved_given(&mut db, program, owned.catalog.as_ref(), &compile_saved_roots(operands), &mut owned.result);
+    }
+    let mut result = owned.result;
     result.finish();
     let code = if result.has_errors() {
         exit::DIAGNOSTICS
@@ -837,14 +857,8 @@ fn run_compile(
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
-    // First sort covers the early analysis-error return below
-    // (`emit_diagnostics` does not sort); the second covers the merged
-    // analysis+emission diagnostics. `finish` is an idempotent sort.
     result.finish();
-    if result.has_errors() {
-        return emit_diagnostics(&result, &db, format);
-    }
-    let Some(program) = owned.program else {
+    let Some(mut program) = owned.program else {
         return DispatchResult::tool_error(
             "E7001",
             "can compile needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
@@ -857,7 +871,7 @@ fn run_compile(
     // zero-AI: this path never invokes generation, it only reads
     // current saved bytes.
     let saved_roots = compile_saved_roots(operands);
-    let given_join = join_saved_given(&mut db, &program, &saved_roots, &mut result);
+    let given_join = prepare_saved_given(&mut db, &mut program, owned.catalog.as_ref(), &saved_roots, &mut result);
     // The Then join resolves here for coverage and packing; emission
     // re-resolves the same inputs deterministically for renderer
     // calls. Coverage failures block before emission.
@@ -978,6 +992,31 @@ struct GivenJoin {
         crate::analysis::generation_intake::AssociationKey,
         crate::analysis::types::GivenSavedUnit,
     >,
+}
+
+/// Reuse checked saved declarations for semantic checking and emission.
+/// This reads owning saved inputs only; it neither generates nor emits JS.
+fn prepare_saved_given(
+    db: &mut SourceDb,
+    program: &mut crate::analysis::CheckedProgram,
+    catalog: Option<&crate::analysis::catalog::Catalog>,
+    roots: &[PathBuf],
+    result: &mut DiagnosticResult,
+) -> Option<GivenJoin> {
+    let mut given_result = DiagnosticResult::new(tool_version(), crate::LANGUAGE_VERSION, crate::SCHEMA_VERSION);
+    let join = join_saved_given(db, program, roots, &mut given_result);
+    if let Some(join) = &join
+        && catalog.is_some()
+        && !given_result.has_errors() {
+        let files = program.checked_files().to_vec();
+        let (joined, diagnostics) = crate::analysis::check_program_with_given(db, &files, catalog, Some(&join.tables));
+        *program = joined;
+        result.diagnostics = diagnostics;
+        result.sources.clear();
+        result.add_sources(db);
+    }
+    result.diagnostics.extend(given_result.diagnostics);
+    join
 }
 
 /// Join consumed Given definitions to their current saved groups and
@@ -1200,8 +1239,9 @@ fn given_saved_unit(
     }
     let mut declaration = None;
     if def.kind == GenerationKind::KeywordDefinition {
-        declaration =
-            Some(read_saved_declaration(id, group).map_err(|failure| failure.message.clone())?);
+        declaration = Some(
+            read_saved_declaration(id, group, def).map_err(|failure| failure.message.clone())?,
+        );
     }
     Ok(crate::analysis::types::GivenSavedUnit {
         unit_id: id.as_str().to_string(),
@@ -1236,14 +1276,30 @@ fn attach_saved_given(
         artifact.given_contracts = Some(art::assemble_given_contracts(&given_ir, tool_version()));
     }
     if let Some(contracts) = artifact.given_contracts.as_ref() {
-        art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
+        for instance in &contracts.traits {
+        if instance.target.split('.').count() == 2 {
+            if let Some(model) = artifact.models.iter_mut().find(|model| model.name == instance.target) {
+                model.fields.retain(|field| !instance.fields.iter().any(|contributed| contributed.name == field.name));
+            }
+        }
+    }
+    art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
             .map_err(|detail| fail(format!("cannot lower saved trait contributions: {detail}")))?;
     }
     // Keyword server modules pack per checked contract: the expected
     // fingerprint is the contract's own closure hash, so pack refuses
     // any pairing skew between check and staging.
     if let Some(contracts) = artifact.given_contracts.as_ref() {
+        let mut packed_units = std::collections::HashMap::<&str, &str>::new();
         for rule in &contracts.keywords {
+            // Applications retain independent checked rules, while the
+            // declaration owns one implementation and import closure.
+            if let Some(previous) = packed_units.insert(&rule.unit_id, &rule.fingerprint) {
+                if previous != rule.fingerprint {
+                    return Err(fail(format!("keyword unit `{}` has inconsistent checked implementation fingerprints", rule.unit_id)));
+                }
+                continue;
+            }
             let Some(group) = join.groups.get(&rule.unit_id) else {
                 return Err(fail(format!(
                     "cannot lower keyword rule `{}`: saved unit `{}` was not consumed by this build",
@@ -1344,7 +1400,7 @@ fn attach_saved_then(
             ))
         })?;
         sheets.push(
-            art::pack_saved_stylesheet(group.record.source.kind, owner_of(group), &css)
+            art::pack_saved_stylesheet_with_assets(group.record.source.kind, owner_of(group), &css, &group.files)
                 .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
         );
     }
@@ -1367,6 +1423,31 @@ fn attach_saved_then(
                 "unit `{unit_id}` `implementation.js` is not valid UTF-8; repair the file or reconcile with adopt"
             ))
         })?;
+        let scan = scan_js_module(&root_text);
+        if !scan.exports.iter().any(|name| name == "render") {
+            return Err(fail(format!("view `{unit_id}` must export render")));
+        }
+        let module =
+            art::saved_unit_module_path(group.record.source.kind, unit_id).map_err(&fail)?;
+        let mut names: Vec<String> = join
+            .resolved_shows()
+            .filter(|show| show.unit_id == *unit_id)
+            .map(|show| show.view_name.clone())
+            .collect();
+        names.sort();
+        names.dedup();
+        for view in names {
+            artifact.generated_views.push(art::ArtifactGeneratedView {
+                view,
+                module: module.clone(),
+                render_export: "render".to_string(),
+                mount_export: scan
+                    .exports
+                    .iter()
+                    .any(|name| name == "mount")
+                    .then(|| "mount".to_string()),
+            });
+        }
         let closure =
             resolve_saved_js_closure(&id, group, "implementation.js", &root_text, "workerd/browser")
                 .map_err(|detail| {
@@ -1405,7 +1486,7 @@ fn attach_saved_then(
                 ))
             })?;
             sheets.push(
-                art::pack_saved_stylesheet(group.record.source.kind, owner_of(group), &css)
+                art::pack_saved_stylesheet_with_assets(group.record.source.kind, owner_of(group), &css, &group.files)
                     .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
             );
         }
@@ -2495,9 +2576,10 @@ fn run_gen(
     format: OutputFormat,
     format_set: bool,
     request: Option<&str>,
+    public_generation: bool,
 ) -> DispatchResult {
     if request.is_some() || operands.is_empty() {
-        return run_gen_request(operands, format_set, request);
+        return run_gen_request(operands, format_set, request, public_generation);
     }
     let [operation, rest @ ..] = operands else {
         return DispatchResult::tool_error(
@@ -2524,7 +2606,12 @@ fn run_gen(
 /// admission emits no progress itself. Unreadable or invalid
 /// requests still answer with the error envelope (never a bare
 /// tool error), echoing the request id/operation when they parsed.
-fn run_gen_request(operands: &[String], format_set: bool, request: Option<&str>) -> DispatchResult {
+fn run_gen_request(
+    operands: &[String],
+    format_set: bool,
+    request: Option<&str>,
+    public_generation: bool,
+) -> DispatchResult {
     use crate::analysis::generation_protocol as proto;
     if format_set {
         return DispatchResult::tool_error(
@@ -2590,7 +2677,74 @@ fn run_gen_request(operands: &[String], format_set: bool, request: Option<&str>)
             );
         }
     };
+    if public_generation {
+        return run_gen_platform(&text, request);
+    }
     dispatch_gen_operation(&validated, from_stdin)
+}
+
+/// The executable's public generation requests use the existing Node host.
+/// Compiler-owner child requests select the native handlers explicitly.
+fn run_gen_platform(text: &str, request: Option<&str>) -> DispatchResult {
+    let bin = match locate_platform_bin(std::env::var("CAN_PLATFORM_BIN").ok(), "gen") {
+        Ok(bin) => bin,
+        Err(error) => return error,
+    };
+    let mut command = std::process::Command::new(&bin);
+    command.arg("gen");
+    if std::env::var_os("CAN_COMPILER_BIN").is_none()
+        && let Ok(executable) = std::env::current_exe()
+    {
+        command.env("CAN_COMPILER_BIN", executable);
+    }
+    if let Some(path) = request {
+        // Refinement instructions may still arrive on the inherited stdin.
+        command.args(["--request", path]);
+        return match command.status() {
+            Ok(status) => {
+                gen_envelope_result(status.code().unwrap_or(exit::TOOL_FAILURE), String::new())
+            }
+            Err(error) => DispatchResult::tool_error(
+                "E7004",
+                format!("failed to exec generation host '{bin}': {error}"),
+            ),
+        };
+    }
+    command.stdin(std::process::Stdio::piped());
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return DispatchResult::tool_error(
+                "E7004",
+                format!("failed to exec generation host '{bin}': {error}"),
+            );
+        }
+    };
+    if let Some(mut input) = child.stdin.take() {
+        use std::io::Write;
+        if let Err(error) = input.write_all(text.as_bytes()) {
+            drop(input);
+            let _ = child.kill();
+            let _ = child.wait();
+            return DispatchResult::tool_error(
+                "E7004",
+                format!("failed to pipe generation request to '{bin}': {error}"),
+            );
+        }
+    }
+    match child.wait() {
+        Ok(status) => {
+            gen_envelope_result(status.code().unwrap_or(exit::TOOL_FAILURE), String::new())
+        }
+        Err(error) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            DispatchResult::tool_error(
+                "E7004",
+                format!("failed to wait for generation host '{bin}': {error}"),
+            )
+        }
+    }
 }
 
 /// Wrap a final JSON envelope as the dispatcher result: envelope on
@@ -2770,6 +2924,18 @@ fn run_gen_not_implemented(
 }
 
 /// Load one source file for generation discovery, with CLI error mapping.
+fn generation_source_path(root: &Path, file: &str) -> String {
+    std::fs::canonicalize(root).ok().and_then(|root| {
+        std::fs::canonicalize(file).ok().and_then(|source| source.strip_prefix(root).ok().map(|path| path.to_string_lossy().replace('\\', "/")))
+    }).unwrap_or_else(|| file.to_string())
+}
+
+fn generation_source_file(root: &Path, file: &str) -> String {
+    let path = Path::new(file);
+    if path.is_absolute() { file.to_string() }
+    else { let rooted = root.join(path); if rooted.is_file() { rooted.to_string_lossy().to_string() } else { file.to_string() } }
+}
+
 fn read_gen_source(path: &str) -> Result<(SourceDb, SourceId, String), DispatchResult> {
     let text = match read_source_file(path) {
         Ok(text) => text,
@@ -2870,7 +3036,8 @@ fn run_gen_bind(operands: &[String]) -> DispatchResult {
             }
         }
     };
-    let (_db, _id, text) = match read_gen_source(file) {
+    let source_file = generation_source_file(Path::new(root), file);
+    let (_db, _id, text) = match read_gen_source(&source_file) {
         Ok(loaded) => loaded,
         Err(error) => return error,
     };
@@ -2892,12 +3059,13 @@ fn run_gen_bind(operands: &[String]) -> DispatchResult {
     };
     let root_path = Path::new(root);
     let (saved, _) = load_gen_saved(root_path);
+    let source_path = generation_source_path(root_path, &source_file);
     let request = intake::BindRequest {
-        path: file.clone(),
+        path: source_path.clone(),
         revision: revision.clone(),
         start,
         end,
-        source: match intake::association_for(descriptor, file, revision) {
+        source: match intake::association_for(descriptor, &source_path, revision) {
             Some(source) => source,
             None => {
                 return DispatchResult::tool_error(
@@ -2966,14 +3134,15 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
     let mut units_json: Vec<serde_json::Value> = Vec::new();
     let mut matched: std::collections::HashSet<String> = std::collections::HashSet::new();
     for file in files {
-        let (_db, _id, text) = read_gen_source(file)?;
+        let source_file = generation_source_file(root_path, file);
+        let (_db, _id, text) = read_gen_source(&source_file)?;
         let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
         let found = crate::analysis::generation::discover_generation(&tree, &text);
         // Current captured file/revision evidence: explicit binds are
         // honored for their exact location, while changed/stale input
         // still refuses conservatively (BGI02-repair join).
         let evidence = intake::AssociationSource {
-            path: file.clone(),
+            path: generation_source_path(root_path, &source_file),
             revision: crate::source::sha256_hex(text.as_bytes()),
         };
         for (index, association) in
@@ -2994,7 +3163,47 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                         ""
                     };
                     match group {
-                        Ok(_) => {
+                        Ok(group) => {
+                            let prefix = format!("{}/{id}/", intake::GENERATED_DIR);
+                            let source_path = generation_source_path(root_path, &source_file);
+                            let mut paths = vec![format!("{prefix}{}", intake::UNIT_FILE)];
+                            paths.extend(
+                                group
+                                    .files
+                                    .iter()
+                                    .map(|f| format!("{prefix}{}", f.rel_path)),
+                            );
+                            let inputs =
+                                match crate::source::ValidationInputs::bind(root_path, &paths) {
+                                    Ok(inputs) => inputs,
+                                    Err(error) => {
+                                        issues.push(intake::IntakeIssue {
+                                            unit: id.as_str().to_string(),
+                                            action: intake::IntakeAction::Bind,
+                                            detail: error.to_string(),
+                                        });
+                                        continue;
+                                    }
+                                };
+                            let mut current_files: Vec<serde_json::Value> = inputs
+                                .files
+                                .iter()
+                                .map(|f| serde_json::json!({"path": f.path, "sha256": f.sha256}))
+                                .collect();
+                            current_files.push(serde_json::json!({"path": source_path, "sha256": crate::source::sha256_hex(text.as_bytes())}));
+                            current_files
+                                .sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+                            let mut compiler_sources = vec![source_path];
+                            if matches!(
+                                group.record.source.kind,
+                                intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait
+                            ) && group
+                                .files
+                                .iter()
+                                .any(|f| f.rel_path == "contributions.can")
+                            {
+                                compiler_sources.push(format!("{prefix}contributions.can"));
+                            }
                             lines.push(format!(
                                 "unit {} {}/{}/{label} {file}{stale}",
                                 id, descriptor.owner, kind
@@ -3006,6 +3215,8 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                                 "label": descriptor.label,
                                 "path": file,
                                 "association": "retained",
+                                "current_files": current_files,
+                                "compiler_sources": compiler_sources,
                                 // BGI-12 capture seam (additive): the live
                                 // prompt text, the fresh descriptor
                                 // contract, and the descriptor span for
@@ -3468,7 +3679,8 @@ fn run_gen_inspect(
                 ),
             );
         };
-        let (_db, _id, text) = match read_gen_source(&file) {
+        let source_file = generation_source_file(root_path, &file);
+        let (_db, _id, text) = match read_gen_source(&source_file) {
             Ok(loaded) => loaded,
             Err(error) => {
                 return gen_envelope_result(
@@ -3487,7 +3699,7 @@ fn run_gen_inspect(
         let found = crate::analysis::generation::discover_generation(&tree, &text);
         // Current captured file/revision evidence, as in status.
         let evidence = intake::AssociationSource {
-            path: file.clone(),
+            path: generation_source_path(root_path, &source_file),
             revision: crate::source::sha256_hex(text.as_bytes()),
         };
         let associations = intake::associate_with_source(&found.descriptors, &saved, &evidence);
@@ -3724,7 +3936,8 @@ fn run_gen_bind_json(
             }
         }
     };
-    let (_db, _id, text) = match read_gen_source(&params.file) {
+    let source_file = generation_source_file(Path::new(&params.root), &params.file);
+    let (_db, _id, text) = match read_gen_source(&source_file) {
         Ok(loaded) => loaded,
         Err(error) => {
             return gen_envelope_result(
@@ -3764,7 +3977,8 @@ fn run_gen_bind_json(
     };
     let root_path = Path::new(&params.root);
     let (saved, _) = load_gen_saved(root_path);
-    let source = match intake::association_for(descriptor, &params.file, &params.revision) {
+    let source_path = generation_source_path(root_path, &source_file);
+    let source = match intake::association_for(descriptor, &source_path, &params.revision) {
         Some(source) => source,
         None => {
             return gen_envelope_result(
@@ -3795,7 +4009,7 @@ fn run_gen_bind_json(
         }
     };
     let request = intake::BindRequest {
-        path: params.file.clone(),
+        path: source_path,
         revision: params.revision.clone(),
         start: params.start,
         end: params.end,
@@ -4662,9 +4876,10 @@ fn modified_since_generation(
 /// producer, the saved export implementing the behavior, and the
 /// declared reads/effects/authority the BGI-07 check admits.
 ///
-/// No other disk carrier exists for [`GivenSavedDeclaration`](crate::analysis::types::GivenSavedDeclaration):
-/// `unit.json` holds association and contract refs only, and schema
-/// or authority is never read out of the JavaScript module itself.
+/// This legacy sidecar is optional: fresh v1 units derive their pure
+/// producer/export binding from the owning checked source signature.
+/// `unit.json` holds association and contract refs only; schema and
+/// authority are never discovered by executing JavaScript.
 /// Strict shape — unknown fields refuse — so a drifted declaration
 /// diagnoses instead of validating against stale fields.
 const DECLARATION_FILE: &str = "declaration.json";
@@ -4688,17 +4903,12 @@ struct SavedDeclarationFile {
 fn read_saved_declaration(
     id: &crate::analysis::generation_intake::GenerationUnitId,
     group: &crate::analysis::generation_intake::SavedGroup,
+    descriptor: &crate::analysis::generation::GenerationDescriptor,
 ) -> Result<crate::analysis::types::GivenSavedDeclaration, ValidationFailure> {
     let Some(file) = group.files.iter().find(|f| f.rel_path == DECLARATION_FILE) else {
-        return Err(ValidationFailure::new(
-            format!(
-                "unit `{}` declares no saved interface: `{DECLARATION_FILE}` is missing; reconcile the interface with adopt or regenerate the unit",
-                id.as_str(),
-            ),
-            vec![
-                "send an adopt request to reconcile the unit's declared interface (BGI-12)"
-                    .to_string(),
-            ],
+        return crate::analysis::types::given_declaration_for_source(descriptor).ok_or_else(|| ValidationFailure::new(
+            format!("unit `{id}` has no admitted source-derived producer for its keyword signature; v1 admits exactly (target:model, field:field(target,text))"),
+            vec!["use an admitted keyword signature; a new producer requires its defining compiler/owner integration".to_string()],
         ));
     };
     let text = String::from_utf8(file.bytes.clone()).map_err(|_| {
@@ -4796,6 +5006,12 @@ fn check_one_given_unit(
 ) -> Result<crate::analysis::types::GivenContractTables, ValidationFailure> {
     use crate::analysis::generation_intake::AssociationKey;
     let (mut db, program, base) = check_validation_source(&group.record.source.path, source_text);
+    // Unit validation owns the generated Given interface. Ordinary bodies
+    // may reference sibling contributions which are still pending; their
+    // complete semantic check belongs to the saved compile join.
+    let (source_tree, _) = crate::syntax::parse_source(SourceId(0), source_text);
+    let given_sections: Vec<Span> = source_tree.descendants().filter(|node| node.kind == crate::syntax::SyntaxKind::Section && node.children.iter().any(|child| child.token().is_some_and(|token| token.text(source_text) == "Given"))).map(|node| node.span).collect();
+    let base: Vec<_> = base.into_iter().filter(|diagnostic| diagnostic.code.starts_with("E1") || given_sections.iter().any(|span| span.start <= diagnostic.primary.start && diagnostic.primary.end <= span.end)).collect();
     if !base.is_empty() {
         return Err(ValidationFailure::new(
             format!(
@@ -4875,10 +5091,10 @@ fn validate_keyword_unit(
     id: &crate::analysis::generation_intake::GenerationUnitId,
     group: &crate::analysis::generation_intake::SavedGroup,
     source_text: &str,
-    _descriptor: &crate::analysis::generation::GenerationDescriptor,
+    descriptor: &crate::analysis::generation::GenerationDescriptor,
     checks: &mut Vec<serde_json::Value>,
 ) -> Result<String, ValidationFailure> {
-    let declaration = read_saved_declaration(id, group)?;
+    let declaration = read_saved_declaration(id, group, descriptor)?;
     checks.push(validation_check(
         "declaration",
         format!(
@@ -5130,6 +5346,10 @@ fn validate_style_unit(
             ));
         }
     }
+    for asset in &scoped.assets {
+        let file = group.files.iter().find(|file| &file.rel_path == asset).expect("asset existence checked");
+        crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(|detail| ValidationFailure::new(detail, vec!["replace the asset with supported matching image/font bytes and resend validate".to_string()]))?;
+    }
     if !scoped.assets.is_empty() {
         checks.push(validation_check(
             "assets",
@@ -5247,25 +5467,7 @@ fn validate_view_unit(
         },
     ));
     if group.files.iter().any(|f| f.rel_path == "style.css") {
-        let css = require_group_text(id, group, "style.css")?;
-        crate::css_scope::scope_stylesheet(id.as_str(), &css).map_err(|errors| {
-            let first = &errors[0];
-            ValidationFailure::new(
-                format!(
-                    "unit `{}` colocated `style.css` failed scope checks: {} {} (line {}, column {})",
-                    id.as_str(),
-                    first.code,
-                    first.message,
-                    first.line,
-                    first.column,
-                ),
-                vec!["fix the CSS and resend validate".to_string()],
-            )
-        })?;
-        checks.push(validation_check(
-            "scope",
-            "colocated style.css scopes".to_string(),
-        ));
+        validate_style_unit(id, group, checks)?;
     }
     let closure_refs: Vec<(&str, &[u8])> = closure
         .iter()
@@ -6253,6 +6455,10 @@ fn validate_one_saved_file(
                     vec![ValidationFailure::drift(String::new()).next.remove(0)],
                 ));
             }
+        }
+        for asset in &scoped.assets {
+            let file = group.files.iter().find(|file| &file.rel_path == asset).expect("asset existence checked");
+            crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(|detail| ValidationFailure::new(detail, vec!["replace the asset with matching supported bytes".to_string()]))?;
         }
         checks.push(validation_check(
             "scope",

@@ -1079,6 +1079,8 @@ pub struct GenerationContext {
     pub source_digest: String,
     /// Server-issued allowed output handles/roles.
     pub allowed: Vec<AllowedTarget>,
+    /// Frozen source/ABI/theme instructions owned by the captured host context.
+    pub instructions: Option<String>,
 }
 
 /// One `{target, role, content}` submission entry. Content is UTF-8
@@ -1124,8 +1126,8 @@ impl std::error::Error for McpError {}
 /// Admitted (role, logical filename) outputs per identity-carrying
 /// unit kind, derived from checked descriptors. Views admit server,
 /// browser, style, and asset outputs; styles (including view-root
-/// inline styles) admit style and asset; traits and custom keywords
-/// admit server implementation plus compiler-readable contributions.
+/// inline styles) admit style and asset; traits admit checked contributions
+/// and pure custom keywords admit only their server implementation.
 /// Asset filenames stay
 /// server-issued: callers never choose them.
 pub fn allowed_outputs_for(
@@ -1142,10 +1144,10 @@ pub fn allowed_outputs_for(
             (McpRole::Style, "style.css"),
             (McpRole::Asset, "asset.bin"),
         ],
-        UnitKind::NamedTrait | UnitKind::InlineTrait | UnitKind::Keyword => &[
-            (McpRole::Server, "server.js"),
-            (McpRole::Contributions, "contributions.can"),
-        ],
+        UnitKind::NamedTrait | UnitKind::InlineTrait => {
+            &[(McpRole::Contributions, "contributions.can")]
+        }
+        UnitKind::Keyword => &[(McpRole::Server, "server.js")],
     }
 }
 

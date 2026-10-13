@@ -713,10 +713,10 @@ fn capability_tables_advertise_all_required_adapters() {
         let adapter = adapter_capabilities(runner).unwrap_or_else(|| panic!("{runner}"));
         assert_eq!(adapter.id, runner);
         assert!(!adapter.probe_binaries.is_empty(), "{runner}");
-        // BGI-03 honesty: nothing is qualified yet, so every launch
-        // gate names its owning BGI-05/06 qualification.
-        assert_eq!(adapter.mcp_attachment.state(), "unqualified");
-        assert_eq!(adapter.write_restriction.state(), "unqualified");
+        // Only the actually qualified Codex adapter may launch.
+        let state = if runner == "codex" { "supported" } else { "unqualified" };
+        assert_eq!(adapter.mcp_attachment.state(), state);
+        assert_eq!(adapter.write_restriction.state(), state);
         assert!(
             adapter.mcp_attachment.note().contains("BGI-0"),
             "{}",
@@ -729,13 +729,15 @@ fn capability_tables_advertise_all_required_adapters() {
 #[test]
 fn preflight_refuses_before_launch() {
     let loaded = loaded_settings(SETTINGS);
-    let resolved = resolve_recipe(
+    let mut resolved = resolve_recipe(
         Some(&loaded),
         RecipeCategory::Given,
         None,
         &RunOverrides::default(),
     )
     .unwrap();
+    assert!(preflight_recipe(&resolved).is_ok());
+    resolved.runner = "muse".into();
     // Unqualified MCP attachment fails before launch, without fallback.
     let err = preflight_recipe(&resolved).unwrap_err();
     assert_eq!(err.code(), "unsupported-capability");
@@ -772,6 +774,7 @@ fn mcp_contract_names_server_issued_targets_only() {
         session: "s1".to_string(),
         attempt: "a1".to_string(),
         source_digest: "d0".to_string(),
+        instructions: None,
         allowed: vec![
             AllowedTarget {
                 handle: "t-style-1".to_string(),
@@ -930,7 +933,13 @@ fn mcp_contract_names_server_issued_targets_only() {
         .iter()
         .map(|(role, _)| *role)
         .collect();
-    assert_eq!(keyword, vec![McpRole::Server, McpRole::Contributions]);
+    assert_eq!(keyword, vec![McpRole::Server]);
+    for kind in [UnitKind::NamedTrait, UnitKind::InlineTrait] {
+        assert_eq!(
+            allowed_outputs_for(kind),
+            &[(McpRole::Contributions, "contributions.can")]
+        );
+    }
 }
 
 #[test]
@@ -1614,6 +1623,8 @@ fn run_binary(args: &[&str], stdin_text: Option<&str>) -> std::process::Output {
     use std::io::Write;
     use std::process::{Command, Stdio};
     let mut child = Command::new(env!("CARGO_BIN_EXE_can"))
+        // These are compiler-owner admission checks; public requests use Node.
+        .env("CAN_GENERATION_COMPILER_ONLY", "1")
         .args(args)
         .stdin(if stdin_text.is_some() {
             Stdio::piped()
@@ -1851,7 +1862,8 @@ fn zero_run_limits_refuse_before_recipe() {
             ..RunOverrides::default()
         },
     ] {
-        let err = resolve_recipe(Some(&loaded), RecipeCategory::Given, None, &overrides).unwrap_err();
+        let err =
+            resolve_recipe(Some(&loaded), RecipeCategory::Given, None, &overrides).unwrap_err();
         assert_eq!(err.code(), "invalid-settings", "{overrides:?}");
         assert!(err.to_string().contains("positive finite integer"), "{err}");
     }
@@ -1971,4 +1983,35 @@ fn spanned_inspect_resolves_current_profile() {
     let receipt = std::fs::read_to_string(dir.path().join("can.generated/u1/unit.json")).unwrap();
     let saved: serde_json::Value = serde_json::from_str(&receipt).unwrap();
     assert_eq!(saved["contract"]["profile"], "slow");
+}
+
+#[test]
+fn codex_native_reasoning_validates_explicit_effort_before_capabilities() {
+    let loaded = loaded_settings(SETTINGS);
+    let mut resolved = resolve_recipe(
+        Some(&loaded),
+        RecipeCategory::Given,
+        None,
+        &RunOverrides::default(),
+    )
+    .unwrap();
+    resolved.runner = "codex".into();
+    resolved.model = "gpt-6.1-sol".into();
+    for value in [
+        serde_json::json!(true),
+        serde_json::json!(2),
+        serde_json::json!("turbo"),
+        serde_json::json!(""),
+    ] {
+        resolved.native = BTreeMap::from([("model_reasoning_effort".into(), value)]);
+        assert_eq!(
+            preflight_recipe(&resolved).unwrap_err().code(),
+            "invalid-native-option"
+        );
+    }
+    for value in ["low", "medium", "high", "xhigh", "max", "ultra"] {
+        resolved.native =
+            BTreeMap::from([("model_reasoning_effort".into(), serde_json::json!(value))]);
+        assert!(preflight_recipe(&resolved).is_ok());
+    }
 }

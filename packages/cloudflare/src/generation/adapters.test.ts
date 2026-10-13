@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readFile, writeFile, chmod } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readlink, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
 import type { EffectiveRecipe } from "./config.js";
@@ -70,24 +70,21 @@ test("codex launch argv matches the verified exec shape", async () => {
   const root = await freshRoot();
   const launch = await codexAdapter.buildLaunch(job(root));
   assert.equal(launch.file, "codex");
-  assert.deepEqual(launch.args, [
-    "exec",
-    "--json",
-    "--color",
-    "never",
-    "-s",
-    "read-only",
-    "-C",
-    join(root, "snapshot"),
-    "-m",
-    "test-model",
-    "--output-schema",
-    join(root, "attempt", "output-schema.json"),
-    "-",
-  ]);
+  assert.deepEqual(launch.args.slice(0, 6), ["exec", "--json", "--color", "never", "-s", "read-only"]);
+  for (const flag of ["--ignore-rules", "--ephemeral"]) assert.ok(launch.args.includes(flag));
+  assert.equal(launch.args[launch.args.indexOf("-m") + 1], "test-model");
+  assert.equal(launch.args[launch.args.indexOf("-C") + 1], join(root, "snapshot"));
+  assert.ok(launch.args.includes('approval_policy="never"'));
+  assert.ok(launch.args.includes('web_search="disabled"'));
+  for (const feature of ["plugins", "apps", "hooks", "shell_tool", "unified_exec", "browser_use", "computer_use"]) {
+    assert.ok(launch.args.some((arg, index) => arg === "--disable" && launch.args[index + 1] === feature));
+  }
+  assert.equal(launch.args.at(-1), "-");
   assert.equal(launch.cwd, join(root, "attempt"));
   assert.equal(launch.stdin, "Generate the style.");
-  assert.deepEqual(launch.env, { [SESSION_FILE_ENV]: join(root, "attempt", "session.json") });
+  assert.equal(launch.inheritEnv, false);
+  assert.equal(launch.env.CODEX_HOME, join(root, "attempt", "codex-home"));
+  assert.equal(launch.env[SESSION_FILE_ENV], join(root, "attempt", "session.json"));
   assert.deepEqual(launch.cleanupFiles, []);
   const schema = JSON.parse(await readFile(join(root, "attempt", "output-schema.json"), "utf8"));
   assert.deepEqual(schema, { type: "object" });
@@ -107,25 +104,34 @@ test("restriction flags are always present and never bypassable", async () => {
   ]) {
     assert.equal(launch.args.includes(forbidden), false);
   }
-  // No job field relaxes the sandbox: native options only add `-c`.
-  const native = await codexAdapter.buildLaunch(
-    job(root, { recipe: recipe({ native: { "sandbox_mode": "x" } }) }),
-  );
-  assert.ok(native.args.includes("-s"));
-  assert.equal(native.args[native.args.indexOf("-s") + 1], "read-only");
-  assert.ok(native.args.includes("-c"));
+  await assert.rejects(codexAdapter.buildLaunch(job(root, { recipe: recipe({ native: { sandbox_mode: "danger-full-access" } }) })), /unsupported native option/);
 });
 
-test("native options render as preflight-accepted -c pairs", async () => {
+test("explicit reasoning is rendered and unsafe native overrides refuse", async () => {
   const root = await freshRoot();
-  const launch = await codexAdapter.buildLaunch(
-    job(root, { recipe: recipe({ native: { tries: 2, strict: true, label: "a b" } }) }),
-  );
-  const pairs: string[] = [];
-  for (let i = 0; i < launch.args.length; i += 1) {
-    if (launch.args[i] === "-c") pairs.push(launch.args[i + 1] as string);
+  const launch = await codexAdapter.buildLaunch(job(root, { recipe: recipe({ model: "gpt-6.1-sol", native: { model_reasoning_effort: "medium" } }) }));
+  assert.ok(launch.args.includes('model_reasoning_effort="medium"'));
+  assert.equal(launch.args[launch.args.indexOf("-m") + 1], "gpt-6.1-sol");
+  for (const value of [true, 2, "turbo", ""]) {
+    await assert.rejects(codexAdapter.buildLaunch(job(root, { recipe: recipe({ native: { model_reasoning_effort: value } }) })), /model_reasoning_effort must be/);
   }
-  assert.deepEqual(pairs.sort(), ['label="a b"', "strict=true", "tries=2"]);
+});
+
+test("isolated housekeeping reuses native authentication without copying it or inherited secrets", async () => {
+  const root = await freshRoot();
+  const source = join(root, "codex-home", "auth.json");
+  await mkdir(join(root, "codex-home"), { recursive: true });
+  await writeFile(source, "fixture-native-auth");
+  await writeFile(join(root, "codex-home", "config.toml"), '[mcp_servers.unrelated]\ncommand="/bin/true"\n');
+  const launch = await codexAdapter.buildLaunch(job(root));
+  const link = join(root, "attempt", "codex-home", "auth.json");
+  assert.equal(await readlink(link), source);
+  await assert.rejects(readFile(join(root, "attempt", "codex-home", "config.toml")), /ENOENT/);
+  assert.equal(launch.env.OPENAI_API_KEY, undefined);
+  assert.equal(launch.env.CODEX_CONFIG, undefined);
+  assert.ok(launch.cleanupFiles.includes(link));
+  await removeCodexMcpProfile(link);
+  assert.equal(await readFile(source, "utf8"), "fixture-native-auth");
 });
 
 test("invalid jobs refuse before any launch", async () => {
@@ -144,10 +150,16 @@ test("a qualified bridge attaches a bounded MCP profile layer", async () => {
   assert.deepEqual(launch.args.slice(-3), ["-p", "can-gen-test", "-"]);
   assert.equal(launch.cleanupFiles.length, 1);
   const profile = launch.cleanupFiles[0] as string;
-  assert.equal(profile, join(root, "codex-home", "can-gen-test.config.toml"));
+  assert.equal(profile, join(root, "attempt", "codex-home", "can-gen-test.config.toml"));
   const text = await readFile(profile, "utf8");
   assert.ok(text.includes(`[mcp_servers.${JSON.stringify(CODEX_MCP_SERVER_NAME)}]`));
   assert.ok(text.includes('command = "/opt/can/mcp-bridge"'));
+  assert.ok(text.includes("required = true"));
+  assert.ok(text.includes('enabled_tools = ["generation_context", "generation_submit"]'));
+  assert.ok(text.includes('default_tools_approval_mode = "prompt"'));
+  for (const tool of ["generation_context", "generation_submit"]) {
+    assert.ok(text.includes(`[mcp_servers.${JSON.stringify(CODEX_MCP_SERVER_NAME)}.tools.${tool}]\napproval_mode = "approve"`));
+  }
   assert.ok(text.includes(`${SESSION_FILE_ENV} = `));
   await removeCodexMcpProfile(profile);
   await assert.rejects(readFile(profile, "utf8"));
@@ -168,15 +180,9 @@ test("profile names cannot traverse into other config files", async () => {
   );
 });
 
-test("resume argv keeps the recorded root and sandbox", async () => {
+test("ephemeral Codex resume refuses without a fresh-job fallback", async () => {
   const root = await freshRoot();
-  const launch = await codexAdapter.buildResumeLaunch(job(root), "thread-123");
-  assert.deepEqual(launch.args.slice(0, 3), ["exec", "resume", "thread-123"]);
-  assert.equal(launch.args.includes("-C"), false);
-  assert.equal(launch.args.includes("-s"), false);
-  assert.ok(launch.args.includes("--json"));
-  assert.ok(launch.args.includes("--output-schema"));
-  assert.equal(launch.args[launch.args.length - 1], "-");
+  await assert.rejects(codexAdapter.buildResumeLaunch(job(root), "thread-123"), /ephemeral jobs.*resume is unsupported/);
   await assert.rejects(codexAdapter.buildResumeLaunch(job(root), ""), AdapterError);
 });
 
@@ -666,4 +672,41 @@ test("claude mcp writer stores one stdio entry in attempt scratch", async () => 
     attemptDir: join(root, "attempt"),
   });
   assert.equal(path, join(root, "attempt", CLAUDE_MCP_FILE));
+});
+
+
+test("host Codex executable selection accepts absolute executable files without fallback", async () => {
+  const root = await freshRoot();
+  const selected = join(root, "selected-codex");
+  await writeFile(selected, "#!/bin/sh\nexit 0\n");
+  await chmod(selected, 0o755);
+  const previous = process.env.CAN_CODEX_BIN;
+  try {
+    process.env.CAN_CODEX_BIN = selected;
+    assert.deepEqual(codexAdapter.probeBinaries(), [selected]);
+    assert.equal(await probeExecutable(codexAdapter.probeBinaries()), selected);
+    process.env.CAN_CODEX_BIN = "relative/codex";
+    assert.throws(() => codexAdapter.probeBinaries(), /absolute executable path/);
+    process.env.CAN_CODEX_BIN = root;
+    await assert.rejects(probeExecutable(codexAdapter.probeBinaries()), /executable-not-found/);
+    await chmod(selected, 0o644);
+    process.env.CAN_CODEX_BIN = selected;
+    await assert.rejects(probeExecutable(codexAdapter.probeBinaries()), /executable-not-found/);
+  } finally {
+    if (previous === undefined) delete process.env.CAN_CODEX_BIN;
+    else process.env.CAN_CODEX_BIN = previous;
+  }
+});
+
+
+test("long dotted request-derived Codex profiles use a bounded plain name", async () => {
+  const root = await freshRoot();
+  const launch = await codexAdapter.buildLaunch(job(root, {
+    profileName: "can-gen-prompt-pipeline-9d83d3ab-264c-46cc-ab99-b93885694b6a.job0.g0.run",
+    mcpBridge: { command: "/bin/true", args: [] },
+  }));
+  const name = launch.args[launch.args.indexOf("-p") + 1]!;
+  assert.match(name, /^can-gen-[a-f0-9]{24}$/);
+  assert.ok(name.length <= 64);
+  assert.ok(launch.cleanupFiles.includes(join(root, "attempt", "codex-home", `${name}.config.toml`)));
 });

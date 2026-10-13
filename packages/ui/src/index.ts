@@ -64,6 +64,7 @@ export {
   card,
   content,
   generatedViewInstance,
+  styledComponent,
   renderState,
   renderTextValue,
   rowHeading,

@@ -151,6 +151,53 @@ function fullEnv(): Record<string, unknown> {
 }
 
 describe("deploy worker main", () => {
+  it("loads the deployed export handler and forwards the exact durable backend without a fallback", async () => {
+    // Loader/forwarding controls only; physical D1 and authorized bodies have separate owning cases.
+    for (const control of [
+      { source: undefined, available: false },
+      { source: 'export const legacy = true;', available: false },
+      { source: 'export const handleExportRequest = 42;', invalid: true },
+      { source: 'export async function handleExportRequest(deps,request){return new Response((await deps.exportDownloads.read("probe"))+":"+new URL(request.url).pathname);}', available: true },
+    ]) {
+      const dir = tempDir();
+      const source = ts.transpileModule(readFileSync(new URL('../src/worker/main.ts', import.meta.url), 'utf8'), {
+        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+      }).outputText;
+      writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
+      if (control.source !== undefined) writeFileSync(join(dir, 'http-operations.js'), control.source);
+      const deployed = await import(/* @vite-ignore */ writeModule(dir, 'export-main.mjs', source)) as typeof import('../src/worker/main.js');
+      const staged = stagedDeployment(); staged.artifact.pages = [];
+      const backend = { read: async () => 'installed-backend' };
+      const baked = {};
+      let assembled = false;
+      const fetch = deployed.createMainFetch({
+        loadEntry: async () => createWorkerApp,
+        loadStagedDeployment: async () => staged,
+        loadProductionDeps: async () => ({ ...productionDeps({}), exportDownloads: backend as never }),
+        loadMcpHandlerFactory: async () => undefined,
+        loadHttpOperationsFactory: async () => undefined,
+        loadHttpCsvFactory: async () => undefined,
+        loadHttpPageFactory: async () => undefined,
+        loadHttpAuthJoin: async () => undefined,
+        loadDerivedInputs: async () => baked,
+        loadAssembleWorker: async () => async (_artifact, _modules, deps) => {
+          assembled = true;
+          expect(deps.http?.exportDownloads).toBe(control.available ? backend : undefined);
+          expect(deps.http?.derivedInputs).toBe(control.available ? baked : undefined);
+          const handler = deps.http?.createExportHandler;
+          return { pageCount: 0, opCount: 0, fetch: handler === undefined
+            ? async () => new Response('export join absent', { status: 501 })
+            : handler({ exportDownloads: backend } as never) };
+        },
+      });
+      const result = await fetch(new Request('http://localhost/api/exports/status/probe'), fullEnv());
+      expect(result.status).toBe(control.invalid ? 500 : control.available ? 200 : 501);
+      expect(assembled).toBe(!control.invalid);
+      if (control.invalid) expect(await result.json()).toMatchObject({ code: 'deploy-join-missing', message: expect.stringContaining('handleExportRequest') });
+      else expect(await result.text()).toBe(control.available ? 'installed-backend:/api/exports/status/probe' : 'export join absent');
+    }
+  });
+
   it("loads the deployed CSV export, preserves absent legacy joins and refuses malformed exports", async () => {
     // Hand-written loader controls only; these responses make no CSV or native business claim.
     const controls = [

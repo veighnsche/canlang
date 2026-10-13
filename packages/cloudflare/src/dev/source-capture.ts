@@ -71,6 +71,9 @@ export interface SingleFileCapture {
   semanticOptions: Readonly<Record<string, string>>;
   inputs: readonly CapturedFileIdentity[];
   inputInventory?: "installed-local-preview";
+  /** Compiler-owned generated closure copied under cooperative read leases. */
+  generatedClosure?: import("./generated-capture.js").GeneratedClosure;
+  sourceSnapshot?: readonly import("../generation/journal.js").ConsumedInput[];
 }
 
 export interface CompilerSourceEntry {
@@ -279,7 +282,21 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
   if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
     throw new Error("installed preview input membership changed before capture");
   }
-  const inputs = await captureInputs(root, declaredPaths);
+  let inputs = await captureInputs(root, declaredPaths);
+  let generatedClosure: import("./generated-capture.js").GeneratedClosure | undefined;
+  let sourceSnapshot: readonly import("../generation/journal.js").ConsumedInput[] | undefined;
+  if (request.inputInventory === "installed-local-preview" && /\$(?:"|[A-Za-z_])/.test(sourceText)) {
+    const generation = await import("./generated-capture.js");
+    generatedClosure = await generation.discoverGeneratedClosure(resolve(root, request.compilerPath), root, appPath);
+    sourceSnapshot = await generation.snapshotGeneratedClosure(root, appPath, generatedClosure);
+    if (sourceSnapshot.find(input => input.path === compilerOperand)?.sha256 !== sourceSha256) throw new Error("Source changed during generated capture");
+    const generatedInputs = await captureInputs(root, generatedClosure.files.filter(input => input.path !== compilerOperand)
+      .map(input => ({name: `generated:${input.path}`, path: input.path})));
+    if (generatedInputs.some(input => sourceSnapshot!.find(saved => saved.path === input.name.slice("generated:".length))?.sha256 !== input.sha256)) {
+      throw new Error("Saved generation inputs changed during capture");
+    }
+    inputs = Object.freeze([...inputs, ...generatedInputs]);
+  }
   if ((await realpath(request.checkoutRoot)) !== root || (await realpath(requestedAppPath)) !== appPath) {
     throw new Error("selected checkout or app path changed during capture");
   }
@@ -297,6 +314,7 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
     profile: request.profile,
     semanticOptions,
     inputs,
+    ...(generatedClosure === undefined || sourceSnapshot === undefined ? {} : { generatedClosure, sourceSnapshot }),
     ...(request.inputInventory === undefined ? {} : { inputInventory: request.inputInventory }),
   };
   if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
@@ -328,7 +346,7 @@ async function inventoryMatches(
         .filter(item => !runtimeOnly || item.name.startsWith("source:"))
         .map(item => ({ name: `extra:${item.name}`, path: item.path })),
     ];
-    const actual = runtimeOnly ? selected.filter(isRuntimeInput) : selected.filter(isCapturedInput);
+    const actual = runtimeOnly ? selected.filter(input => isRuntimeInput(input) && !input.name.startsWith("generated:")) : selected.filter(isCapturedInput);
     if (actual.length !== expected.length) return false;
     const byName = new Map(actual.map(item => [item.name, item.path]));
     const matches = await mapInputs(expected, async (item): Promise<boolean> => {
@@ -343,7 +361,7 @@ async function inventoryMatches(
 }
 
 function isRuntimeInput(input: Pick<CapturedFileIdentity, "name">): boolean {
-  return input.name.startsWith("package:") || input.name.startsWith("extra:source:");
+  return input.name.startsWith("package:") || input.name.startsWith("extra:source:") || input.name.startsWith("generated:");
 }
 
 function isCapturedInput(input: Pick<CapturedFileIdentity, "name">): boolean {
@@ -357,13 +375,22 @@ function isCapturedInput(input: Pick<CapturedFileIdentity, "name">): boolean {
  */
 export function verifyCompilerSources(capture: SingleFileCapture, report: CompilerSourceReport): CompilerCaptureVerdict {
   if (report.complete !== true) return { ok: false, reason: "analysis_incomplete" };
-  if (!Array.isArray(report.sources) || report.sources.length !== 1) {
+  const expected = new Map([[capture.compilerOperand, capture.sourceSha256]]);
+  for (const path of capture.generatedClosure?.compilerSources ?? []) {
+    if (path === capture.compilerOperand) continue;
+    const physical = relative(capture.root, resolve(capture.generatedClosure!.root, path)).split(sep).join("/");
+    const input = capture.inputs.find(input => input.name === `generated:${physical}`);
+    if (input?.sha256 === null || input?.sha256 === undefined) return {ok: false, reason: "source_membership_mismatch"};
+    expected.set(path, input.sha256);
+  }
+  if (!Array.isArray(report.sources) || report.sources.length !== expected.size) {
     return { ok: false, reason: "source_membership_mismatch" };
   }
-  const source = report.sources[0];
-  if (source?.path !== capture.compilerOperand) return { ok: false, reason: "source_path_mismatch" };
-  if (!SHA256.test(source.sha256) || source.sha256 !== capture.sourceSha256) {
-    return { ok: false, reason: "source_hash_mismatch" };
+  const seen = new Set<string>();
+  for (const source of report.sources) {
+    if (!expected.has(source.path) || seen.has(source.path)) return { ok: false, reason: "source_path_mismatch" };
+    seen.add(source.path);
+    if (!SHA256.test(source.sha256) || source.sha256 !== expected.get(source.path)) return { ok: false, reason: "source_hash_mismatch" };
   }
   return { ok: true };
 }
@@ -402,6 +429,11 @@ async function capturedInputsAreCurrent(
           capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
           capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? "",
           runtimeOnly))) return false;
+    if (capture.generatedClosure !== undefined) {
+      const discovered = await (await import("./generated-capture.js")).discoverGeneratedClosure(
+        capture.inputs.find(input => input.name === "compiler")!.requestedPath!, capture.root, capture.appPath);
+      if (JSON.stringify(discovered) !== JSON.stringify(capture.generatedClosure)) return false;
+    }
     const current = await mapInputs(inputs, async (input): Promise<boolean> => {
       if (input.requestedPath === null) {
         return input.state === "missing";

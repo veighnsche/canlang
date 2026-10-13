@@ -110,6 +110,7 @@ import type {
 } from "@canlang/contracts";
 import { ASSET_DIGEST_V2 } from "@canlang/contracts";
 import { catalogFromArtifactOperations } from "@canlang/interfaces";
+import { assetContentType } from "@canlang/interfaces/http/assets";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
 import { assertSavedUnitImports, isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
 import { composeModuleMap } from "./module-maps.js";
@@ -154,6 +155,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "mcp-registry.js",
   "prepared-validation.js",
   "env-assembly.js",
+  "export-downloads.js",
   "page-preferences.js",
   "auth-rate-limiter.js",
   "cohort-tick.js",
@@ -1069,6 +1071,8 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
       entryFile,
       `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
+      `export { handleExportRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "export.js")))};\n` +
+      `export { canonicalJson } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "canonical-json.js")))};\n` +
       `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
       `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
       `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +
@@ -1745,7 +1749,7 @@ function buildBrowserAssetsModule(
     `export async function createHandler(pages, expected) {\n` +
     `  if (JSON.stringify(expected) !== JSON.stringify(manifest)) throw new Error("browser assets: staged manifest mismatch");\n` +
     `  if (await sha256(new TextEncoder().encode(JSON.stringify({ version: 1, resources: manifest.resources }))) !== manifest.resourcesSha256) throw new Error("browser assets: resource manifest digest mismatch");\n` +
-    `  const paths = manifest.resources.map(row => "/assets/" + row.key);\n` +
+    `  const paths = manifest.resources.map(row => "/assets/" + row.key.split("/").map(part => encodeURIComponent(part).replace(/[!\'()*]/g, character => "%" + character.charCodeAt(0).toString(16).toUpperCase())).join("/"));\n` +
     `  for (const path of paths) if (matchDescriptor(pages, path) !== null) throw new Error("browser assets: selected page collides with " + path);\n` +
     `  const rows = [];\n` +
     `  for (const [index, row] of manifest.resources.entries()) {\n` +
@@ -1776,6 +1780,59 @@ function buildBrowserAssetsModule(
   }
 }
 
+/** Exact compiler-owned CSS asset bytes, checked before deployment or preview. */
+export function generatedStyleResources(artifact: CompileArtifact): Record<string, PackageResource> {
+  const resources: Record<string, PackageResource> = Object.create(null);
+  for (const sheet of artifact.stylesheets ?? []) {
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(sheet.owner.unitId)) throw new Error("deploy bundle: invalid owning stylesheet identity");
+    for (const asset of sheet.assets ?? []) {
+      const prefix = `can.generated/${sheet.owner.unitId}/`;
+      const relative = asset.path.slice(prefix.length);
+      if (!asset.path.startsWith(prefix) || !relative || relative.includes("\\") ||
+          relative.split("/").some(part => !part || part === "." || part === "..") ||
+          Object.hasOwn(resources, asset.path)) throw new Error("deploy bundle: invalid owning stylesheet asset path");
+      const bytes = new Uint8Array(Buffer.from(asset.contentBase64, "base64"));
+      if (Buffer.from(bytes).toString("base64") !== asset.contentBase64 || sha256Bytes(bytes) !== asset.sha256 ||
+          assetContentType(asset.path, bytes) !== asset.contentType) {
+        throw new Error(`deploy bundle: invalid owning stylesheet asset bytes ${JSON.stringify(asset.path)}`);
+      }
+      resources[asset.path] = { bytes, contentType: asset.contentType };
+    }
+  }
+  return resources;
+}
+
+/** Bundle saved mounts with the defining browser registry, preserving one client. */
+function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: LocalCommandLifetime): Uint8Array | null {
+  const views = (artifact.generatedViews ?? []).filter(view => view.mountExport !== undefined);
+  if (views.length === 0) return null;
+  const workDir = mkdtempSync(join(tmpdir(), "can-generated-browser-"));
+  try {
+    for (const module of artifact.modules.filter(module => module.path.startsWith("can.generated/"))) {
+      const path = join(workDir, module.path);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, module.js, "utf8");
+    }
+    const bootstrap = join(fileURLToPath(uiDistribution.modules), "browser", "bootstrap.js");
+    const entry = join(workDir, "entry.js"), output = join(workDir, "bootstrap.js");
+    const lines = [`import { registerGeneratedViewMount, startNativeBrowserClient } from ${JSON.stringify(bootstrap)};`];
+    for (const [index, view] of views.entries()) {
+      if (!/^can\.generated\/[^/]+\/view\.js$/.test(view.module) ||
+          view.mountExport !== "mount" || !artifact.modules.some(module => module.path === view.module)) {
+        throw new Error("deploy bundle: invalid checked generated browser mount");
+      }
+      lines.push(`import { mount as mount${index} } from ${JSON.stringify(`./${view.module}`)};`);
+      lines.push(`registerGeneratedViewMount(${JSON.stringify(view.view)}, mount${index});`);
+    }
+    // The defining bootstrap may have started on an already parsed document.
+    // Restart its own client after registration so that inert bindings mount.
+    lines.push('if (typeof window !== "undefined" && window.document.readyState !== "loading") { startNativeBrowserClient(window).stop(); startNativeBrowserClient(window); }');
+    writeFileSync(entry, lines.join("\n"), "utf8");
+    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], bunBuildOptions(lifetime));
+    return new Uint8Array(readFileSync(output));
+  } finally { rmSync(workDir, { recursive: true, force: true }); }
+}
+
 /**
  * Resolve explicit assets from the installed owning packages. Binding JS uses
  * the same vendor rewrite/link checks as ordinary producers. Browser resources
@@ -1790,11 +1847,32 @@ export function buildDeployBundleWithAssets(
   const base = buildDeployBundle(artifact, options);
   const modules = { ...base.modules };
   const resources = snapshotResources(assets.resources);
+  if (options.assets?.browser === true) Object.assign(resources, generatedStyleResources(artifact));
+  if (options.assets?.browser === true && (artifact.stylesheets?.length ?? 0) > 0) {
+    const baseCss = resources["browser/can-style.css"];
+    if (baseCss === undefined) throw new Error("deploy bundle: generated styles need the canonical browser stylesheet");
+    const paths = new Set<string>();
+    const css: string[] = [];
+    for (const sheet of artifact.stylesheets ?? []) {
+      if (paths.has(sheet.path) || sheet.path !== `can.generated/${sheet.owner.unitId}/style.css` ||
+          sha256Bytes(new TextEncoder().encode(sheet.css)) !== sheet.sha256) {
+        throw new Error(`deploy bundle: invalid generated stylesheet ${JSON.stringify(sheet.path)}`);
+      }
+      paths.add(sheet.path);
+      css.push(sheet.css);
+    }
+    resources["browser/can-style.css"] = { ...baseCss,
+      bytes: new TextEncoder().encode(`${new TextDecoder().decode(baseCss.bytes)}\n${css.join("\n")}\n`) };
+  }
+  if (options.assets?.browser === true) {
+    const generatedClient = buildGeneratedBrowserClient(artifact, options.commandLifetime);
+    if (generatedClient !== null) resources["browser/bootstrap.js"] = { bytes: generatedClient, contentType: "application/javascript" };
+  }
   const resourceDigest = resourcesSha256(resources);
   if (options.assets?.browser === true) {
     const entries = resourceEntries(resources);
-    if (entries.map((row) => row.key).join(",") !== "browser/bootstrap.js,browser/can-style.css,browser/polling.js") {
-      throw new Error("deploy bundle: selected browser resource inventory is not the finite shared producer");
+    if (!["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"].every(key => Object.hasOwn(resources,key))) {
+      throw new Error("deploy bundle: selected browser resource inventory lacks the canonical shared producer");
     }
     const manifest = { version: 1 as const, module: "./http-assets.js" as const, resourcesSha256: resourceDigest, resources: entries };
     modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest, options.commandLifetime);

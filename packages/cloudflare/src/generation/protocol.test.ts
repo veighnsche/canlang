@@ -277,9 +277,9 @@ test("capability tables advertise all required adapters", () => {
     assert.ok(adapter !== undefined, id);
     assert.equal(adapter.id, id);
     assert.ok(adapter.probe_binaries.length > 0, id);
-    // BGI-03 honesty: nothing is qualified yet.
-    assert.equal(adapter.mcp_attachment.state, "unqualified");
-    assert.equal(adapter.write_restriction.state, "unqualified");
+    // Only the actually qualified Codex adapter may launch.
+    assert.equal(adapter.mcp_attachment.state, id === "codex" ? "supported" : "unqualified");
+    assert.equal(adapter.write_restriction.state, id === "codex" ? "supported" : "unqualified");
     assert.match(adapter.mcp_attachment.note, /BGI-0/);
   }
   assert.equal(adapterCapabilities("teleport"), undefined);
@@ -287,7 +287,8 @@ test("capability tables advertise all required adapters", () => {
 
 test("preflight refuses before launch", () => {
   const resolved = resolveRecipe(loaded(), "given", null, {});
-  assert.throws(() => preflightRecipe(resolved), (error: unknown) => {
+  assert.doesNotThrow(() => preflightRecipe(resolved));
+  assert.throws(() => preflightRecipe({ ...resolved, runner: "muse" }), (error: unknown) => {
     assert.ok(error instanceof PreflightError);
     assert.equal(error.code, "unsupported-capability");
     assert.match(error.detail, /MCP/);
@@ -422,6 +423,19 @@ test("MCP contract names server-issued targets only", () => {
   );
   assert.deepEqual(
     allowedOutputsFor("keyword").map(([role]) => role),
-    ["server", "contributions"],
+    ["server"],
   );
+  assert.deepEqual(allowedOutputsFor("named-trait").map(([role]) => role), ["contributions"]);
+  assert.deepEqual(allowedOutputsFor("inline-trait").map(([role]) => role), ["contributions"]);
+});
+
+
+test("Codex native reasoning accepts only supported explicit effort values", () => {
+  const resolved = resolveRecipe(loaded(), "given", null, { runner: "codex", model: "gpt-6.1-sol" });
+  for (const value of [true, 2, "turbo", ""]) {
+    assert.throws(() => preflightRecipe({ ...resolved, native: { model_reasoning_effort: value } }), (error: unknown) => error instanceof PreflightError && error.code === "invalid-native-option");
+  }
+  for (const value of ["low", "medium", "high", "xhigh", "max", "ultra"]) {
+    assert.doesNotThrow(() => preflightRecipe({ ...resolved, native: { model_reasoning_effort: value } }));
+  }
 });

@@ -224,7 +224,7 @@
     {
       "id": "T18",
       "title": "T18 \u2014 Execute defaults and server initialization correctly",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T09/T16/T17.",
       "recorded_owner_files": "L2 acceptance; L3 execution; L1 emission; packages/state/src/invocation/registry.ts, packages/state/src/invocation/admission.ts, packages/state/src/invocation/invoke.ts, packages/state/src/mutation/models.ts, packages/state/src/mutation/pipeline.ts, packages/state/src/mutation/crud.ts; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs (L1 writes); packages/values/src/schema.ts (L2 writes). Serialize overlapping producer-owned writes.",
       "slices": [
@@ -239,7 +239,7 @@
     {
       "id": "T19",
       "title": "T19 \u2014 Derive forms and MCP inputs from checked operations",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T19a: T15a/T16/T18 and pilot types; T19b: exact/bound/file scope.",
       "recorded_owner_files": "L6 with L1/L2/L3/L5 input; packages/interfaces/src/http/operations.ts, packages/interfaces/src/mcp/schemas.ts, packages/interfaces/src/mcp/tools.ts, packages/contracts/src/identity.ts, packages/contracts/src/wire.ts; packages/ui/src/forms.ts (L5 writes). Serialize overlapping producer-owned writes.",
       "slices": [
@@ -318,7 +318,7 @@
     {
       "id": "T25",
       "title": "T25 \u2014 Implement authorized selected receipt access",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T24 and matching T14.",
       "recorded_owner_files": "L4 with L1/L3; packages/work/src/receipt/index.ts, packages/work/src/observation/association.ts, packages/work/src/observation/observation.ts, packages/work/src/observation/ports.ts, packages/contracts/src/work.ts; compiler analysis L1, state L3. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -331,7 +331,7 @@
     {
       "id": "T26",
       "title": "T26 \u2014 Implement associated observable progress",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "matching T13 relations and T25.",
       "recorded_owner_files": "L4 with L1/L3; packages/work/src/receipt/index.ts, packages/work/src/observation/association.ts, packages/work/src/observation/observation.ts, packages/work/src/observation/ports.ts, packages/contracts/src/work.ts, packages/work/src/event/index.ts, packages/work/src/recovery/index.ts. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -344,7 +344,7 @@
     {
       "id": "T27",
       "title": "T27 \u2014 Prove generated image finalization",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "image-relevant T26 and actual file lifecycle.",
       "recorded_owner_files": "L4 with L3/L6; packages/services/src/media/mapping.ts, packages/services/src/media/harness.ts, packages/files/src/finalize/index.ts, packages/files/src/provenance/index.ts, packages/files/src/bridge.ts, packages/contracts/src/files.ts. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -369,7 +369,7 @@
     {
       "id": "T29",
       "title": "T29 \u2014 Implement imported containment",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "accepted T28.",
       "recorded_owner_files": "L3 with L1/L7; packages/state/src/mutation/models.ts, packages/state/src/mutation/pipeline.ts, packages/state/src/query/engine.ts, packages/contracts/src/state.ts; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs (L1 writes). Serialize overlapping producer-owned writes.",
       "slices": [
@@ -410,7 +410,7 @@
     {
       "id": "T32",
       "title": "T32 \u2014 Define and implement authoritative predicate reads",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T32a decision at M00 with JEV; T32b T16/T17; spent effects also T24.",
       "recorded_owner_files": "L3 with L4/L6/L7; packages/state/src/ports/read.ts, packages/state/src/query/engine.ts, packages/state/src/invocation/admission.ts; packages/identity/src/authentication/revocation.ts (L6); packages/work/src/dispatch/index.ts (L4); implementation/challenge-audit-run/evidence/read-decision.md. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -425,7 +425,7 @@
     {
       "id": "T33",
       "title": "T33 \u2014 Decide scoped durable fanout",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "Prepare alternatives early; final decision matching T28/T24 evidence and JEV.",
       "recorded_owner_files": "L4 with L1/L3/L7; implementation/challenge-audit-run/evidence/fanout-decision.md, packages/contracts/src/work.ts; shared normative docs reserved. Serialize overlapping producer-owned writes.",
       "slices": [

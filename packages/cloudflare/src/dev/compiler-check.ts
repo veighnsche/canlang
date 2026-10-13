@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { CompileArtifact } from "@canlang/contracts";
 import { parseArtifactText } from "../runtime/artifact.js";
 import {
@@ -73,7 +73,7 @@ function runStagedCompiler(executable: string, catalog: string, capture: SingleF
     const child = spawn(executable, [
       "compile", "--format=json", "--native-scenario-receipts", `--catalog=${catalog}`, capture.compilerOperand,
     ], {
-      cwd: capture.root,
+      cwd: capture.sourceSnapshot === undefined ? capture.root : dirname(executable),
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, CAN_CATALOG: catalog },
@@ -163,6 +163,13 @@ export async function compileCapturedSingleFile(capture: SingleFileCapture, sign
     const catalog = join(staging, "catalog.json");
     await writeFile(executable, compilerBytes, { mode: 0o700 });
     await writeFile(catalog, catalogBytes, { mode: 0o600 });
+    if (capture.sourceSnapshot !== undefined) {
+      for (const input of capture.sourceSnapshot) {
+        const path = join(staging, input.path);
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, input.bytes);
+      }
+    }
     let run: Awaited<ReturnType<typeof runStagedCompiler>>;
     try {
       run = await runStagedCompiler(executable, catalog, capture, signal);

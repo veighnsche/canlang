@@ -7,13 +7,13 @@
  * parses the bounded process outcome into ok / known-failure /
  * unknown. All four adapters remain required.
  *
- * Codex argv follows the locally verified `codex-cli 0.157.1` help:
- * `exec --json -s read-only -C DIR -m MODEL --output-schema FILE -`
- * with the prompt on stdin, MCP stdio servers through
- * `[mcp_servers."can-generation"]` profile config, and
- * `exec resume SESSION_ID` (which keeps its recorded root/sandbox,
- * so resume argv carries no `-C`/`-s`). Real authenticated runs and
- * actual no-write qualification stay on the held external gate.
+ * Codex uses explicit model/effort, read-only/never permissions, no
+ * inherited user configuration or executable rules, and ephemeral
+ * housekeeping in attempt scratch. Native authentication is reused
+ * without reading/copying its bytes; filesystem-reading model tools,
+ * plugins, apps, hooks and browser/computer tools are disabled. The
+ * only admitted MCP tools are generation_context/generation_submit.
+ * Recorded-session resume refuses instead of silently starting anew.
  *
  * BGI-06 argv follows the locally installed tools plus their primary
  * documentation. Muse (`muse` 1.4.7, verified live with the echo
@@ -42,10 +42,11 @@
  * external gate per adapter.
  */
 
-import { access, constants, mkdir, rm, writeFile } from "node:fs/promises";
-import { delimiter, join } from "node:path";
+import { access, constants, lstat, mkdir, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { delimiter, isAbsolute, join } from "node:path";
+import { createHash } from "node:crypto";
 import type { EffectiveRecipe, NativeMap } from "./config.js";
-import { MCP_CONTEXT_TOOL, MCP_SUBMIT_TOOL } from "./protocol.js";
+import { checkNativeOptions, MCP_CONTEXT_TOOL, MCP_SUBMIT_TOOL } from "./protocol.js";
 
 /** Name of the Can generation MCP server in Codex profile config. */
 export const CODEX_MCP_SERVER_NAME = "can-generation";
@@ -108,7 +109,7 @@ export interface RunnerJobInput {
   outputSchema: string;
   /** Qualified stdio bridge, or null while the gate is held. */
   mcpBridge: McpBridge | null;
-  /** Codex home receiving the bounded per-attempt profile layer. */
+  /** Native authentication home; profiles and housekeeping use attempt scratch. */
   codexHome: string;
   /** Per-attempt profile name (`<name>.config.toml` under codexHome). */
   profileName: string;
@@ -124,6 +125,8 @@ export interface AdapterLaunch {
   cwd: string;
   /** Extra env over the inherited environment. */
   env: Record<string, string>;
+  /** Codex uses only the host allowlist; other adapters retain their native environment. */
+  inheritEnv?: boolean;
   /** Prompt bytes for the child's stdin. */
   stdin: string;
   /** Host-written files the lifecycle must remove after the run. */
@@ -182,20 +185,17 @@ export async function probeExecutable(
   const pathValue = pathEnv ?? process.env["PATH"] ?? "";
   const tried: string[] = [];
   for (const binary of binaries) {
-    if (binary.includes("/") || binary.includes("\\")) {
-      tried.push(binary);
-      continue;
-    }
-    for (const dir of pathValue.split(delimiter)) {
-      if (dir.length === 0) continue;
-      const candidate = join(dir, binary);
+    const candidates = isAbsolute(binary) ? [binary]
+      : binary.includes("/") || binary.includes("\\") ? []
+      : pathValue.split(delimiter).filter(Boolean).map((dir) => join(dir, binary));
+    if (candidates.length === 0) tried.push(binary);
+    for (const candidate of candidates) {
       tried.push(candidate);
       try {
+        if (!(await stat(candidate)).isFile()) continue;
         await access(candidate, constants.X_OK);
         return candidate;
-      } catch {
-        continue;
-      }
+      } catch { continue; }
     }
   }
   throw new AdapterError(
@@ -413,10 +413,9 @@ function parseHeadlessResult(outcome: RawOutcome, scanned: string | null): Runne
 }
 
 /**
- * Write the bounded per-attempt Codex profile layer carrying the
- * `[mcp_servers."can-generation"]` stdio entry. Returns the profile
- * path for lifecycle cleanup. Auth still uses the real codex home;
- * only this attempt's MCP entry is layered and later removed.
+ * Write the bounded per-attempt Codex profile in isolated housekeeping,
+ * carrying only the required generation MCP stdio server and tools.
+ * Returns the profile path for lifecycle cleanup.
  */
 export async function writeCodexMcpProfile(options: {
   codexHome: string;
@@ -425,10 +424,10 @@ export async function writeCodexMcpProfile(options: {
   sessionFile: string;
   attemptDir: string;
 }): Promise<string> {
-  if (options.profileName.length === 0 || !/^[A-Za-z0-9_.-]+$/.test(options.profileName)) {
+  if (options.profileName.length === 0 || !/^[A-Za-z0-9_-]{1,64}$/.test(options.profileName)) {
     throw new AdapterError(
       "invalid-profile",
-      `profile names are bare [A-Za-z0-9_.-]+ names, got ${JSON.stringify(options.profileName)}`,
+      `profile names are bare [A-Za-z0-9_-] names of at most 64 characters, got ${JSON.stringify(options.profileName)}`,
     );
   }
   const lines = [
@@ -438,9 +437,18 @@ export async function writeCodexMcpProfile(options: {
     `args = [${options.bridge.args.map((arg) => tomlString(arg)).join(", ")}]`,
     `cwd = ${tomlString(options.attemptDir)}`,
     `startup_timeout_sec = 60`,
+    `required = true`,
+    `enabled_tools = ["generation_context", "generation_submit"]`,
+    `default_tools_approval_mode = "prompt"`,
     ``,
     `[mcp_servers.${JSON.stringify(CODEX_MCP_SERVER_NAME)}.env]`,
     `${SESSION_FILE_ENV} = ${tomlString(options.sessionFile)}`,
+    ``,
+    `[mcp_servers.${JSON.stringify(CODEX_MCP_SERVER_NAME)}.tools.generation_context]`,
+    `approval_mode = "approve"`,
+    ``,
+    `[mcp_servers.${JSON.stringify(CODEX_MCP_SERVER_NAME)}.tools.generation_submit]`,
+    `approval_mode = "approve"`,
     ``,
   ];
   const path = join(options.codexHome, `${options.profileName}.config.toml`);
@@ -576,108 +584,90 @@ function checkJob(job: RunnerJobInput): void {
   }
 }
 
-/** The Codex adapter: verified `codex exec` / `exec resume` argv. */
+/** Host-owned ephemeral housekeeping; authentication bytes are never read or copied. */
+async function isolatedCodexHome(job: RunnerJobInput): Promise<{ home: string; cleanup: string[] }> {
+  const home = join(job.attemptDir, "codex-home");
+  await mkdir(home, { recursive: true });
+  const auth = join(home, "auth.json");
+  const cleanup: string[] = [];
+  try {
+    await lstat(join(job.codexHome, "auth.json"));
+    // Only native CLI authentication follows this link. Filesystem-reading
+    // model tools are disabled, and all model filesystem writes are sandboxed.
+    await rm(auth, { force: true });
+    await symlink(join(job.codexHome, "auth.json"), auth);
+    cleanup.push(auth);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    // No credential fallback: the native CLI reports its authentication gate.
+  }
+  return { home, cleanup };
+}
+
+/** Features that could expose host tools, configuration, secrets or subprocesses. */
+const CODEX_DISABLED_FEATURES = [
+  "plugins", "remote_plugin", "apps", "hooks", "browser_use", "browser_use_external",
+  "computer_use", "multi_agent", "memories", "image_generation", "workspace_dependencies",
+  "shell_tool", "unified_exec", "shell_snapshot", "skill_search", "skill_mcp_dependency_install",
+  "code_mode", "view_image", "goals", "realtime_conversation",
+];
+
+/** Codex fresh jobs are ephemeral; resumptions refuse rather than start a new job. */
 export const codexAdapter: RunnerAdapter = {
   id: "codex",
-
   probeBinaries(): readonly string[] {
-    return ["codex"];
+    const selected = process.env["CAN_CODEX_BIN"];
+    // A host override selects exactly one absolute executable; no hidden fallback.
+    if (selected === undefined || selected.length === 0) return ["codex"];
+    if (!isAbsolute(selected)) throw new AdapterError("invalid-executable", "CAN_CODEX_BIN must select an absolute executable path");
+    return [selected];
   },
 
   async buildLaunch(job: RunnerJobInput): Promise<AdapterLaunch> {
     checkJob(job);
+    checkNativeOptions(job.recipe);
     await mkdir(job.attemptDir, { recursive: true });
     const schemaPath = join(job.attemptDir, OUTPUT_SCHEMA_FILE);
     await writeFile(schemaPath, job.outputSchema);
-    const cleanupFiles: string[] = [];
+    // Isolated CODEX_HOME contains no inherited base configuration. Do not use
+    // --ignore-user-config: native exec also skips the explicitly selected MCP profile.
+    const isolated = await isolatedCodexHome(job);
+    const cleanupFiles = isolated.cleanup;
     const extra: string[] = [];
     if (job.mcpBridge !== null) {
+      const profileName = /^[A-Za-z0-9_-]{1,64}$/.test(job.profileName) ? job.profileName
+        : `can-gen-${createHash("sha256").update(job.profileName).digest("hex").slice(0, 24)}`;
       const profile = await writeCodexMcpProfile({
-        codexHome: job.codexHome,
-        profileName: job.profileName,
-        bridge: job.mcpBridge,
-        sessionFile: job.sessionFile,
-        attemptDir: job.attemptDir,
+        codexHome: isolated.home, profileName,
+        bridge: job.mcpBridge, sessionFile: job.sessionFile, attemptDir: job.attemptDir,
       });
       cleanupFiles.push(profile);
-      extra.push("-p", job.profileName);
+      extra.push("-p", profileName);
     }
-    // Verified `codex exec` shape: structured JSONL events, a
-    // read-only shell sandbox that no parameter relaxes, the
-    // captured snapshot as working root, explicit model, schema
-    // constrained final message, prompt on stdin (`-`).
+    const env: Record<string, string> = { CODEX_HOME: isolated.home, [SESSION_FILE_ENV]: job.sessionFile };
+    for (const key of ["PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "LC_ALL", "TZ", "TERM"]) {
+      if (process.env[key] !== undefined) env[key] = process.env[key]!;
+    }
     return {
       file: "codex",
       args: [
-        "exec",
-        "--json",
-        "--color",
-        "never",
-        "-s",
-        "read-only",
-        "-C",
-        job.snapshotDir,
-        "-m",
-        job.recipe.model,
-        "--output-schema",
-        schemaPath,
+        "exec", "--json", "--color", "never", "-s", "read-only",
+        "--ignore-rules", "--ephemeral",
+        "-C", job.snapshotDir, "-m", job.recipe.model,
+        "--output-schema", schemaPath,
         ...nativeArgs(job.recipe.native),
-        ...extra,
-        "-",
+        "-c", 'approval_policy="never"', "-c", 'web_search="disabled"',
+        "-c", 'cli_auth_credentials_store="file"', "-c", "project_doc_max_bytes=0",
+        "-c", 'project_root_markers=["manifest.json"]', "-c", "allow_login_shell=false",
+        ...CODEX_DISABLED_FEATURES.flatMap((feature) => ["--disable", feature]),
+        "--enable", "skip_host_skill_discovery", ...extra, "-",
       ],
-      cwd: job.attemptDir,
-      env: { [SESSION_FILE_ENV]: job.sessionFile },
-      stdin: job.prompt,
-      cleanupFiles,
+      cwd: job.attemptDir, env, inheritEnv: false, stdin: job.prompt, cleanupFiles,
     };
   },
 
-  async buildResumeLaunch(job: RunnerJobInput, recordedSessionId: string): Promise<AdapterLaunch> {
-    checkJob(job);
-    if (recordedSessionId.length === 0) {
-      throw new AdapterError("invalid-resume", "resume needs the recorded runner session id");
-    }
-    await mkdir(job.attemptDir, { recursive: true });
-    const schemaPath = join(job.attemptDir, OUTPUT_SCHEMA_FILE);
-    await writeFile(schemaPath, job.outputSchema);
-    const cleanupFiles: string[] = [];
-    const extra: string[] = [];
-    if (job.mcpBridge !== null) {
-      const profile = await writeCodexMcpProfile({
-        codexHome: job.codexHome,
-        profileName: job.profileName,
-        bridge: job.mcpBridge,
-        sessionFile: job.sessionFile,
-        attemptDir: job.attemptDir,
-      });
-      cleanupFiles.push(profile);
-      extra.push("-p", job.profileName);
-    }
-    // Verified `codex exec resume` shape: no `-C`/`-s` (the recorded
-    // session keeps its root/sandbox), same JSONL/model/schema/stdin
-    // handling as a fresh launch.
-    return {
-      file: "codex",
-      args: [
-        "exec",
-        "resume",
-        recordedSessionId,
-        "--json",
-        "--color",
-        "never",
-        "-m",
-        job.recipe.model,
-        "--output-schema",
-        schemaPath,
-        ...nativeArgs(job.recipe.native),
-        ...extra,
-        "-",
-      ],
-      cwd: job.attemptDir,
-      env: { [SESSION_FILE_ENV]: job.sessionFile },
-      stdin: job.prompt,
-      cleanupFiles,
-    };
+  async buildResumeLaunch(_job: RunnerJobInput, _recordedSessionId: string): Promise<AdapterLaunch> {
+    throw new AdapterError("unsupported-capability", "Codex generation uses isolated ephemeral jobs; recorded-session resume is unsupported, without a fresh-job fallback");
   },
 
   parseResult(outcome: RawOutcome): RunnerResult {

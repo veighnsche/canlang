@@ -914,26 +914,28 @@ impl AdapterCapabilities {
     }
 }
 
-/// BGI-03 native table: all four required adapters advertise their
-/// launch gates, but none is qualified yet, so every execution
-/// preflight fails before launch until BGI-05/06 qualify the real
-/// MCP transport and no-write enforcement per adapter. No adapter
-/// documents native controls yet, so any native key fails preflight.
+/// Codex is qualified by retained native MCP and protected-write observations.
+/// Other required adapters remain gated until their own qualification; unknown
+/// native keys refuse before launch. See output/prompt-pipeline/codex-qualification.json.
 pub static ADAPTERS: &[AdapterCapabilities] = &[
     AdapterCapabilities {
         id: "codex",
         label: "Codex CLI",
         probe_binaries: &["codex"],
-        mcp_attachment: CapabilityStatus::Unqualified {
-            gate: "BGI-05 qualifies the Codex MCP attachment with observed bounded runs",
+        mcp_attachment: CapabilityStatus::Supported {
+            detail: "BGI-05 native macOS Codex 0.162.0-alpha.17.2, gpt-6.1-sol/medium: three host MCP submissions; output/prompt-pipeline/codex-qualification.json",
         },
-        write_restriction: CapabilityStatus::Unqualified {
-            gate: "BGI-05 qualifies Codex no-write enforcement over protected roots",
+        write_restriction: CapabilityStatus::Supported {
+            detail: "BGI-05 native read-only sandbox denies source/current/candidate writes; isolated host tools; output/prompt-pipeline/codex-qualification.json",
         },
-        session_resume: CapabilityStatus::Unqualified {
-            gate: "BGI-05 qualifies Codex recorded-session resume",
+        session_resume: CapabilityStatus::Unsupported {
+            reason: "Isolated ephemeral Codex generation has no persisted session; explicit new work is required",
         },
-        native_options: &[],
+        native_options: &[NativeOptionSpec {
+            name: "model_reasoning_effort",
+            kind: "string",
+            description: "Explicit Codex reasoning effort: low, medium, high, xhigh, max or ultra; model support remains a native CLI gate.",
+        }],
     },
     AdapterCapabilities {
         id: "muse",
@@ -1028,6 +1030,13 @@ pub fn preflight_recipe(recipe: &EffectiveRecipe) -> Result<(), ConfigError> {
                     recipe.runner,
                 ),
             ));
+        }
+    }
+    if recipe.runner == "codex" {
+        if let Some(value) = recipe.native.get("model_reasoning_effort") {
+            if !matches!(value.as_str(), Some("low" | "medium" | "high" | "xhigh" | "max" | "ultra")) {
+                return Err(ConfigError::new("invalid-native-option", "Codex model_reasoning_effort must be low, medium, high, xhigh, max or ultra"));
+            }
         }
     }
     check_launch_capability(

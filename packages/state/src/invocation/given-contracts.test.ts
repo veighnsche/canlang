@@ -253,6 +253,33 @@ describe('BGI-08 loader: trait fold', () => {
     assert.ok(names.get(QUOTE)!.includes('archived'));
   });
 
+  it('reuses exactly matching compiler-materialized fields once and refuses corruptions', () => {
+    const done = modelField('done', { kind: 'boolean' }, {
+      valueType: 'bool', default: { kind: 'literal', value: false },
+    });
+    const model: ArtifactModel = { name: TODO, fields: [done], deleteMode: 'archive' };
+    const contribution = traitInstance({ target: TODO, trait: 'completable',
+      fields: [{ name: 'done', type: 'bool', default: 'false', trim: false }] });
+    const loaded = loadArtifactDescriptors(sliceWith([model], { traits: [contribution], keywords: [] }), { by: 'members' });
+    assert.deepEqual(Object.keys(loaded.models[0]!.fields), ['done']);
+    assert.deepEqual(loaded.models[0]!.fields['done']!.default, { kind: 'literal', value: false });
+    const changes: Array<Partial<ArtifactModelField>> = [
+      { default: { kind: 'literal', value: true } }, { required: true }, { serverOnly: true },
+      { nullable: true }, { array: { required: false } }, { field: { kind: 'integer' } },
+      { valueType: 'text' }, { trim: true }, { min: 0 }, { max: 5 },
+    ];
+    for (const change of changes) {
+      assert.throws(() => loadArtifactDescriptors(sliceWith([{ ...model, fields: [{ ...done, ...change }] }],
+        { traits: [contribution], keywords: [] }), { by: 'members' }), /conflicting runtime schema/);
+    }
+    assert.throws(() => loadArtifactDescriptors(sliceWith([model], {
+      traits: [contribution, { ...contribution, unitId: 'u2', trait: 'other' }], keywords: [],
+    }), { by: 'members' }), /already contributed by/);
+    assert.throws(() => loadArtifactDescriptors(sliceWith([{ ...model, uniqueKeys: ['done'] }], {
+      traits: [contribution], keywords: [],
+    }), { by: 'members' }), /conflicting runtime schema/);
+  });
+
   it('merges field-attachment constraints with strongest-wins bounds', () => {
     const quote: ArtifactModel = {
       name: QUOTE,

@@ -1,0 +1,32 @@
+{
+  "abi_version": 1,
+  "id": "u6",
+  "source": {
+    "owner": "PromptStudio",
+    "kind": "style",
+    "label": "Surface",
+    "anchor": "PromptStudio:style:Surface:",
+    "path": "PromptStudio.can",
+    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
+    "start": 1250,
+    "end": 1585
+  },
+  "contract": {
+    "target": null,
+    "profile": null,
+    "prompt_sha256": "0b67c4ff59de3330e0965879ceff36368aa6036c29126343c1e0d8196ca5268d",
+    "signature": null
+  },
+  "original": {
+    "prompt_sha256": "0b67c4ff59de3330e0965879ceff36368aa6036c29126343c1e0d8196ca5268d",
+    "files": {
+      "style.css": "8c238b8bb89df6758d0b1f9fd1a90ef59a39c434d509f4c5731af2095d40ee8f"
+    }
+  },
+  "provenance": {
+    "origin": "generated",
+    "runner": "codex",
+    "model": "gpt-6.1-sol",
+    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j1 (retry retry)"
+  }
+}

@@ -94,6 +94,15 @@ struct ScopeError {
 /// (`u7`); it lands in attribute guards and local namespaces, so only
 /// `[a-z0-9][a-z0-9-]*` is admitted.
 pub fn scope_stylesheet(unit_id: &str, css: &str) -> Result<ScopedStylesheet, Vec<CssError>> {
+    scope_stylesheet_with_asset_routes(unit_id, css, false)
+}
+
+/// Emit host-owned deployment routes after ordinary owned-URL admission.
+pub fn scope_deployed_stylesheet(unit_id: &str, css: &str) -> Result<ScopedStylesheet, Vec<CssError>> {
+    scope_stylesheet_with_asset_routes(unit_id, css, true)
+}
+
+fn scope_stylesheet_with_asset_routes(unit_id: &str, css: &str, deploy_assets: bool) -> Result<ScopedStylesheet, Vec<CssError>> {
     if !is_unit_id(unit_id) {
         return Err(vec![CssError {
             code: "E2101",
@@ -106,6 +115,7 @@ pub fn scope_stylesheet(unit_id: &str, css: &str) -> Result<ScopedStylesheet, Ve
     // references rewrite even when they precede their definition.
     let keyframes = collect_keyframe_names(css)?;
     let mut scoper = Scoper::new(unit_id, keyframes);
+    scoper.deploy_assets = deploy_assets;
     let mut parser = Parser::new(css);
     let mut out = String::new();
     let mut errors: Vec<CssError> = Vec::new();
@@ -237,6 +247,7 @@ struct Scoper {
     properties_defined: HashSet<String>,
     theme_reads: HashSet<String>,
     assets: HashSet<String>,
+    deploy_assets: bool,
     /// Declaration/nesting failures inside otherwise kept rules.
     errors: Vec<CssError>,
     mode: BodyMode,
@@ -262,6 +273,7 @@ impl Scoper {
             properties_defined: HashSet::new(),
             theme_reads: HashSet::new(),
             assets: HashSet::new(),
+            deploy_assets: false,
             errors: Vec::new(),
             mode: BodyMode::Style,
             keyframe_prelude: false,
@@ -283,7 +295,7 @@ impl Scoper {
     }
 
     fn root_marker(&self) -> String {
-        format!("[{STYLE_ROOT_ATTR}^=\"{}:\"]{}", self.unit, self.guard)
+        format!(":is([{STYLE_ROOT_ATTR}^=\"{0}:\"],[{STYLE_ROOT_ATTR}*=\" {0}:\"]){1}", self.unit, self.guard)
     }
 }
 
@@ -1065,7 +1077,7 @@ fn transform_value(
             }
             Token::UnquotedUrl(url) => {
                 maybe_space(&mut out, &mut needs_space);
-                check_owned_url(input, scope, &url)?;
+                let url = check_owned_url(input, scope, &url)?;
                 write!(out, "url({url})").expect("value push");
             }
             Token::Function(name) => {
@@ -1178,7 +1190,7 @@ fn transform_url_function(
         _ => return custom(input, "E2100", "url() needs a string".to_string()),
     };
     input.expect_exhausted()?;
-    check_owned_url(input, scope, &url)?;
+    let url = check_owned_url(input, scope, &url)?;
     let mut rendered = String::from("url(");
     cssparser::serialize_string(&url, &mut rendered).expect("url push");
     rendered.push(')');
@@ -1192,17 +1204,13 @@ fn check_owned_url(
     input: &Parser,
     scope: &mut Scoper,
     url: &str,
-) -> Result<(), ParseError<ScopeError>> {
+) -> Result<String, ParseError<ScopeError>> {
     let url = url.trim();
     if url.is_empty() {
         return custom(input, "E2107", "empty url() is not admitted".to_string());
     }
-    if url.starts_with('#') {
-        return Ok(());
-    }
-    if url.len() >= 5 && url[..5].eq_ignore_ascii_case("data:") {
-        return Ok(());
-    }
+    if url.starts_with('#') { return Ok(url.to_string()); }
+    if url.get(..5).is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:")) { return Ok(url.to_string()); }
     if url.contains('\\') || url.starts_with('/') || url.contains("://") || url.starts_with("//") {
         return custom(
             input,
@@ -1233,10 +1241,17 @@ fn check_owned_url(
             format!("url({url:?}) traverses outside the style unit"),
         );
     }
-    scope
-        .assets
-        .insert(url.split(['?', '#']).next().unwrap_or(url).to_string());
-    Ok(())
+    let end = url.find(['?', '#']).unwrap_or(url.len());
+    let path = url[..end].split('/').filter(|segment| !segment.is_empty() && *segment != ".").collect::<Vec<_>>().join("/");
+    if path.is_empty() { return custom(input, "E2107", "owned asset path is empty".to_string()); }
+    scope.assets.insert(path.clone());
+    if scope.deploy_assets {
+        let encoded = path.as_bytes().iter().map(|byte| {
+            if byte.is_ascii_alphanumeric() || matches!(*byte, b'-' | b'.' | b'_' | b'~' | b'/') { char::from(*byte).to_string() }
+            else { format!("%{byte:02X}") }
+        }).collect::<String>();
+        Ok(format!("/assets/can.generated/{}/{encoded}{}", scope.unit, &url[end..]))
+    } else { Ok(url.to_string()) }
 }
 
 /// Serialize a `@media`/`@supports`/`@container` prelude. Conditions pass

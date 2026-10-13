@@ -796,6 +796,9 @@ pub struct TypeTable {
     pub value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
     /// Derived symbols have ordinary identities but no authored emission body.
     pub judgment_generated_symbols: HashSet<SymbolId>,
+    /// Source-owned checked model-trait fields and their default/constraint metadata.
+    pub given_fields: HashMap<SymbolId, GivenContributedField>,
+    pub given_constraints: HashMap<SymbolId, Vec<GivenContributedField>>,
     /// Checked required-array field presence, independent of value cardinality.
     pub judgment_required_arrays: HashSet<SymbolId>,
     /// Exact earlier-parameter identity claimed by an authored bare default.
@@ -11730,6 +11733,14 @@ impl<'a> Typer<'a> {
     /// targets, non-type annotations) are `E3008`/`E3009`/`E3010`.
     fn phase1(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         self.decl.extend(self.tables.judgment_types.clone());
+        self.types.given_fields = self.tables.given_fields.clone();
+        self.types.given_constraints = self.tables.given_constraints.clone();
+        for (id, field) in &self.tables.given_fields {
+            if let Some(ty) = std_schema_type(&field.type_name) {
+                self.decl.insert(*id, ty);
+                self.shapes.insert(*id, (field.default.is_some(), false, false));
+            }
+        }
         self.types.value_constraints = self.tables.judgment_value_constraints.clone();
         for field in self.tables.judgment_types.keys() {
             self.shapes.insert(
@@ -11806,6 +11817,13 @@ impl<'a> Typer<'a> {
         self.types
             .unresolved_members
             .retain(|m| seen.insert((m.node, m.name.clone())));
+        // Existing fields keep their authored shape, while an admitted
+        // field-trait default makes omission legal before body checking.
+        for (field, constraints) in &self.tables.given_constraints {
+            if constraints.iter().any(|constraint| constraint.default.is_some()) {
+                self.shapes.entry(*field).or_insert((false, false, false)).0 = true;
+            }
+        }
         self.check_field_reuse_cycles();
     }
 
@@ -20532,6 +20550,32 @@ pub struct GivenSavedDeclaration {
     pub authority: Vec<String>,
 }
 
+/// Fixed export in the source-derived initial pure producer contract.
+pub const GIVEN_UNIQUE_KEY_EXPORT: &str = "canonicalKey";
+
+/// Derive the admitted v1 pure binding from the owning source signature.
+/// Other producers require explicit compiler/owner admission; generated code
+/// cannot choose a producer, claim namespace or authority through metadata.
+pub fn given_declaration_for_source(
+    definition: &super::generation::GenerationDescriptor,
+) -> Option<GivenSavedDeclaration> {
+    use super::generation::GenerationKind;
+    let params = &definition.params;
+    (definition.kind == GenerationKind::KeywordDefinition
+        && params.len() == 2
+        && params[0].kind == "model"
+        && params[1].kind == "field"
+        && params[1].target_param.as_deref() == Some(params[0].name.as_str())
+        && params[1].type_name.as_deref() == Some("text"))
+        .then(|| GivenSavedDeclaration {
+            producer: GIVEN_PRODUCER_UNIQUE_KEY.to_string(),
+            export: GIVEN_UNIQUE_KEY_EXPORT.to_string(),
+            reads: Vec::new(),
+            effects: Vec::new(),
+            authority: Vec::new(),
+        })
+}
+
 /// One consumed unit-local import of a saved implementation: the
 /// resolved unit-relative path plus its exact bytes. The host resolves
 /// the transitive closure (see `can gen validate`); this layer only
@@ -20871,7 +20915,7 @@ fn given_const_matches_type(type_text: &str, const_text: &str) -> bool {
 }
 
 /// Split a bracket body on top-level commas (string/nesting aware).
-fn split_given_consts(inner: &str) -> Vec<String> {
+pub(crate) fn split_given_consts(inner: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut depth = 0usize;
     let mut in_str = false;

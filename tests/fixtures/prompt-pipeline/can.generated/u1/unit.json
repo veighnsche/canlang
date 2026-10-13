@@ -1,0 +1,32 @@
+{
+  "abi_version": 1,
+  "id": "u1",
+  "source": {
+    "owner": "PromptStudio",
+    "kind": "named-trait",
+    "label": "completable",
+    "anchor": "PromptStudio:trait:completable:",
+    "path": "PromptStudio.can",
+    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
+    "start": 94,
+    "end": 209
+  },
+  "contract": {
+    "target": null,
+    "profile": null,
+    "prompt_sha256": "2c2abea238a1230a0da436562637f8d0c22f95aeaf07055b49ff6c23b9d65865",
+    "signature": null
+  },
+  "original": {
+    "prompt_sha256": "2c2abea238a1230a0da436562637f8d0c22f95aeaf07055b49ff6c23b9d65865",
+    "files": {
+      "contributions.can": "9822c4a43d46140f57720f9880ead495e18748f51128121a27f6bbd2cc9688c6"
+    }
+  },
+  "provenance": {
+    "origin": "generated",
+    "runner": "codex",
+    "model": "gpt-6.1-sol",
+    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j0 (retry retry)"
+  }
+}

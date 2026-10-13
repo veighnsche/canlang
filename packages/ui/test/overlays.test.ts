@@ -510,7 +510,7 @@ describe("drawer", () => {
     assert.ok(html.startsWith(`<div class="drawer">`), html);
     assert.ok(html.includes(`<input id="filters" type="checkbox" class="drawer-toggle">`), html);
     assert.ok(html.includes(`<div class="drawer-content">`), html);
-    assert.ok(html.includes(`<div class="drawer-side">`), html);
+    assert.ok(html.includes(`<div class="drawer-side can-drawer-panel">`), html);
     assert.ok(html.includes(`class="drawer-overlay" aria-label="Close"`), html);
     assert.ok(html.includes(`<aside`), html);
     assert.ok(html.includes(`<footer><button class="btn">Apply</button></footer>`), html);

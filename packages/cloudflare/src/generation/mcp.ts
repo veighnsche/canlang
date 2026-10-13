@@ -48,6 +48,8 @@ export interface McpSessionOptions {
   source_digest: string;
   /** Server-issued allowed output targets for this session. */
   allowed: AllowedTarget[];
+  /** Frozen source/contract/theme context supplied by the owning host. */
+  instructions?: string;
   /** Host-owned candidate root; the only writable location. */
   candidateRoot: string;
   /**
@@ -335,6 +337,7 @@ export async function createMcpSession(options: McpSessionOptions): Promise<McpS
     attempt: options.attempt,
     source_digest: options.source_digest,
     allowed: options.allowed.map((target) => ({ ...target })),
+    ...(options.instructions === undefined ? {} : { instructions: options.instructions }),
   });
 
   const completionShape = (): SessionCompletion => {
@@ -647,6 +650,7 @@ export async function openMcpSessionFromBinding(
     attempt,
     source_digest,
     allowed,
+    ...(typeof captureRaw["instructions"] === "string" ? { instructions: captureRaw["instructions"] } : {}),
     candidateRoot: join(attemptDir, BRIDGE_CANDIDATES_DIR),
     required,
     ...(now === undefined ? {} : { now }),
@@ -675,6 +679,7 @@ function contextToolSchema(): Record<string, unknown> {
   return {
     name: MCP_CONTEXT_TOOL,
     description: "Return the immutable generation context and server-issued allowed output handles.",
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   };
 }
@@ -683,6 +688,7 @@ function submitToolSchema(): Record<string, unknown> {
   return {
     name: MCP_SUBMIT_TOOL,
     description: "Submit generated outputs against the session-issued handles; the host writes candidates.",
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     inputSchema: {
       type: "object",
       properties: {

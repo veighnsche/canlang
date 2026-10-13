@@ -90,7 +90,7 @@ fn first_name(node: &SyntaxNode, text: &str) -> Option<String> {
 }
 
 fn prompt_of(node: &SyntaxNode) -> Option<(String, Span)> {
-    if matches!(node.kind, SyntaxKind::GenPrompt | SyntaxKind::StyleSuffix) {
+    if matches!(node.kind, SyntaxKind::GenPrompt | SyntaxKind::StyleSuffix | SyntaxKind::ViewStyle) {
         for part in sig(node) {
             if let Some(tok) = part.token()
                 && let Some(v) = &tok.string_value {
@@ -498,7 +498,7 @@ impl<'a> Collector<'a> {
                         kind: GenerationKind::ViewRootStyleInline,
                         label: Some(view.clone()),
                         prompt: Some(p),
-                        profile: profile_of(node, text),
+                        profile: self.host_profile.clone(),
                         span: node.span,
                         anchor: self.anchor("view-style-inline", &view, &view),
                         target: Some(view),
@@ -507,7 +507,7 @@ impl<'a> Collector<'a> {
                         args: Vec::new(),
                         use_sites: Vec::new(),
                     });
-                } else if let Some(name) = names(node, text).into_iter().nth(1) {
+                } else if let Some(name) = names(node, text).into_iter().next() {
                     self.descriptors.push(GenerationDescriptor {
                         owner: self.owner.clone(),
                         kind: GenerationKind::ViewRootStyleNamed,

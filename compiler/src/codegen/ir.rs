@@ -9774,6 +9774,13 @@ impl<'a> Cx<'a> {
         Option<String>,
     ) {
         let empty = (false, None, None, IrModifiers::default(), None, None);
+        if let Some(field) = self.program.types.given_fields.get(&symbol.id) {
+            let ty = self.program.types.symbol_types.get(&symbol.id).cloned().unwrap_or(ResolvedType::Error);
+            let default = field.default.as_ref().map(|value| IrDefault::Literal(given_constant_expr(value, &ty, symbol.span)));
+            let bound_ty = if matches!(ty, ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)) { ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal) } else { ResolvedType::Scalar(crate::analysis::types::Scalar::Int) };
+            let modifiers = IrModifiers { trim: field.trim, min: field.min.as_ref().map(|value| given_constant_expr(value, &bound_ty, symbol.span)), max: field.max.as_ref().map(|value| given_constant_expr(value, &bound_ty, symbol.span)), ..IrModifiers::default() };
+            return (false, default, None, modifiers, None, None);
+        }
         let data = self
             .program
             .effects
@@ -9791,7 +9798,7 @@ impl<'a> Cx<'a> {
             });
         let Some(data) = data else { return empty };
         let scope = Scope::module(symbol.module);
-        let default = data.default.as_ref().map(|key| {
+        let mut default = data.default.as_ref().map(|key| {
             let expr = self.decode_anchored(&scope, key, "field default");
             if is_literal_default(&expr) {
                 IrDefault::Literal(expr)
@@ -9848,6 +9855,10 @@ impl<'a> Cx<'a> {
             }
         }
         self.inherit_field_modifiers(symbol, &mut modifiers);
+        self.apply_given_field_constraints(symbol.id, &mut modifiers);
+        if default.is_none() {
+            default = self.program.types.given_constraints.get(&symbol.id).and_then(|constraints| constraints.iter().find_map(|field| field.default.as_ref())).map(|value| IrDefault::Literal(given_constant_expr(value, &self.program.types.symbol_types[&symbol.id], symbol.span)));
+        }
         let label = data
             .label
             .as_ref()
@@ -9871,6 +9882,21 @@ impl<'a> Cx<'a> {
             label,
             description,
         )
+    }
+
+    fn apply_given_field_constraints(&self, field: SymbolId, modifiers: &mut IrModifiers) {
+        let Some(constraints) = self.program.types.given_constraints.get(&field) else { return; };
+        let symbol = &self.program.symbols[field.0 as usize];
+        let ty = if matches!(self.program.types.symbol_types.get(&field), Some(ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal))) { ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal) } else { ResolvedType::Scalar(crate::analysis::types::Scalar::Int) };
+        for constraint in constraints {
+            modifiers.trim |= constraint.trim;
+            for (slot, value, minimum) in [(&mut modifiers.min, &constraint.min, true), (&mut modifiers.max, &constraint.max, false)] {
+                if let Some(value) = value {
+                    let bound = given_constant_expr(value, &ty, symbol.span);
+                    if slot.as_ref().is_none_or(|old| compare_literal_bounds(&bound, old).is_some_and(|order| if minimum { order == std::cmp::Ordering::Greater } else { order == std::cmp::Ordering::Less })) { *slot = Some(bound); }
+                }
+            }
+        }
     }
 
     /// Fold only representation normalization and value bounds through the
@@ -10030,6 +10056,7 @@ impl<'a> Cx<'a> {
                     max_owner = Some(field);
                 }
             }
+            self.apply_given_field_constraints(field, &mut effective);
         }
         if let (Some(min), Some(max)) = (&effective.min, &effective.max) {
             let order = compare_literal_bounds(min, max);
@@ -18276,6 +18303,28 @@ pub struct GivenContractIr {
     pub keywords: Vec<GivenKeywordRuleIr>,
 }
 
+/// Decode a constant already admitted by the Given field owner checker.
+fn given_constant_expr(value: &str, ty: &ResolvedType, span: Span) -> TypedExpr {
+    use crate::analysis::types::Scalar;
+    let text = value.trim();
+    let expr = if text == "null" { IrExpr::Null } else {
+        match ty {
+            ResolvedType::Nullable(inner) => return given_constant_expr(text, inner, span),
+            ResolvedType::Array { element, .. } => {
+                let body = text.strip_prefix('[').and_then(|v| v.strip_suffix(']')).unwrap_or("");
+                IrExpr::Array(crate::analysis::types::split_given_consts(body).iter().filter(|v| !v.is_empty()).map(|v| given_constant_expr(v, element, span)).collect())
+            }
+            ResolvedType::Scalar(Scalar::Bool) => IrExpr::Bool(text == "true"),
+            ResolvedType::Scalar(Scalar::Int) => IrExpr::Int(text.parse().expect("checked Given integer")),
+            ResolvedType::Scalar(Scalar::Decimal) => IrExpr::Decimal(text.to_string()),
+            ResolvedType::Scalar(Scalar::Date) => IrExpr::Date(serde_json::from_str(text).unwrap_or_else(|_| text.to_string())),
+            ResolvedType::Scalar(Scalar::Datetime) => IrExpr::Datetime(serde_json::from_str(text).unwrap_or_else(|_| text.to_string())),
+            _ => IrExpr::Text(serde_json::from_str(text).unwrap_or_else(|_| text.to_string())),
+        }
+    };
+    TypedExpr::new(expr, ty.clone(), span)
+}
+
 /// Lower checked Given contracts to per-application emission records.
 /// Trait definitions flatten to one instance per application (all
 /// sharing the saved unit); keyword definitions flatten to one rule
@@ -18317,7 +18366,7 @@ pub fn lower_given_contracts(
                 anchor: contract.anchor.clone(),
                 unit_id: contract.unit_id.clone(),
                 target: app.target_canonical.clone(),
-                fields: fields.clone(),
+                fields: fields.iter().cloned().map(|mut field| { if let Some(target) = &app.target_field { field.name = target.clone(); } field }).collect(),
                 fingerprint: contract.fingerprint.clone(),
                 order: app.order,
                 span: app.span,

@@ -964,6 +964,87 @@ fn real_clean_rename_includes_mutation_targets_and_rechecks() {
 }
 
 #[test]
+fn real_editor_structure_uses_utf16_current_buffers_and_validates_positions() {
+    let uri = "untitled:structure";
+    let text = "app Tasks\r\nGiven\r\n message greet = \"😀 hello\"\r\n Todo {\r\n  title:text }\r\n\r\nWhen\r\n scenario done(task:Todo) by=members\r\n  do\r\n   return task.title\r\nThen\r\n";
+    let mut messages = start();
+    messages.push(open(uri, 1, text));
+    messages.push(request(2, "textDocument/foldingRange", doc(uri)));
+    messages.push(request(
+        3,
+        "textDocument/selectionRange",
+        json!({
+            "textDocument":{"uri":uri},
+            "positions":[{"line":2,"character":21},{"line":8,"character":0}]
+        }),
+    ));
+    messages.push(change(uri, 2, "app Tasks\nGiven\nWhen\nThen\n"));
+    messages.push(request(4, "textDocument/foldingRange", doc(uri)));
+    messages.push(request(
+        5,
+        "textDocument/selectionRange",
+        json!({
+            "textDocument":{"uri":uri},"positions":[{"line":0,"character":-1}]
+        }),
+    ));
+    messages.push(request(
+        6,
+        "textDocument/selectionRange",
+        json!({
+            "textDocument":{"uri":uri},"positions":[]
+        }),
+    ));
+    finish(&mut messages);
+    let frames = session(messages);
+    let capabilities = &response(&frames, 1)["capabilities"];
+    assert_eq!(capabilities["foldingRangeProvider"], true);
+    assert_eq!(capabilities["selectionRangeProvider"], true);
+    assert_eq!(
+        response(&frames, 2),
+        &json!([
+            {"startLine":1,"endLine":4},
+            {"startLine":3,"endLine":4},
+            {"startLine":6,"endLine":9},
+            {"startLine":7,"endLine":9},
+            {"startLine":8,"endLine":9}
+        ])
+    );
+    let selections = response(&frames, 3).as_array().unwrap();
+    assert_eq!(selections.len(), 2);
+    assert_eq!(
+        selections[0]["range"],
+        json!({
+            "start":{"line":2,"character":17},"end":{"line":2,"character":27}
+        })
+    );
+    for selection in selections {
+        let mut child = selection;
+        while let Some(parent) = child.get("parent") {
+            let coord = |value: &Value| {
+                (
+                    value["line"].as_u64().unwrap(),
+                    value["character"].as_u64().unwrap(),
+                )
+            };
+            assert!(coord(&parent["range"]["start"]) <= coord(&child["range"]["start"]));
+            assert!(coord(&child["range"]["end"]) <= coord(&parent["range"]["end"]));
+            assert_ne!(parent["range"], child["range"]);
+            child = parent;
+        }
+        assert_eq!(
+            child["range"],
+            json!({
+                "start":{"line":0,"character":0},"end":{"line":11,"character":0}
+            })
+        );
+    }
+    assert_eq!(response(&frames, 4), &json!([]));
+    assert_eq!(response(&frames, 6), &json!([]));
+    let rejected = frames.iter().find(|frame| frame["id"] == 5).unwrap();
+    assert_eq!(rejected["error"]["code"], -32602);
+}
+
+#[test]
 fn real_editor_outline_and_formatting_preserve_source_and_refuse_invalid_input() {
     let uri = "untitled:editor-tools";
     let text = "app Tasks\r\nGiven\r\n Todo {title : text}  \r\nWhen\r\n scenario complete(task : Todo) by=members\r\n  do return task.title\r\nThen\r\n";

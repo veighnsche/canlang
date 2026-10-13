@@ -17,10 +17,9 @@ When
   do set task {title="Done"}
 Then
  style TaskSurface $"Readable task surfaces."
- view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls."
+ view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls." $TaskSurface
   edit fields=title
   delete
-  style TaskSurface
  page / title="Todos" $"A calm workspace."
   card "Add a task" $"A compact entry area."
    form Todo.create fields=title
@@ -626,4 +625,59 @@ fn negative_discovery_diagnostics() {
         ),
         "unknown trait",
     );
+}
+
+#[test]
+fn view_header_keeps_renderer_and_root_style_ownership_separate() {
+    let source = wrap(
+        " Todo {title:text}\n",
+        "",
+        " style Surface $\"Shared appearance.\"\n view Named(row:Todo) $\"Arrange title.\" $Surface\n  text row.title\n view Inline(row:Todo) agent=frontend $\"Arrange title.\" $\"Quiet root.\"\n  text row.title\n page / title=\"T\"\n  card \"Entry\" $Surface\n   text \"Hi\"\n",
+    );
+    let (tree, diagnostics) = parse(&source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let found = discover_generation(&tree, &source);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    let renderer = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::ViewDefinition && d.label.as_deref() == Some("Inline"))
+        .unwrap();
+    assert_eq!(renderer.prompt.as_deref(), Some("Arrange title."));
+    let root = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::ViewRootStyleInline)
+        .unwrap();
+    assert_eq!(root.prompt.as_deref(), Some("Quiet root."));
+    assert_eq!(root.profile.as_deref(), Some("frontend"));
+    assert_eq!(root.anchor, "Tasks:view-style-inline:Inline:Inline");
+    assert_eq!(root.target.as_deref(), Some("Inline"));
+    let named = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::ViewRootStyleNamed)
+        .unwrap();
+    assert_eq!(named.label.as_deref(), Some("Surface"));
+    let once = format_source(SourceId(0), &source).expect("format");
+    assert!(once.text.contains("$\"Arrange title.\" $Surface"));
+    assert!(once.text.contains("$\"Arrange title.\" $\"Quiet root.\""));
+    let twice = format_source(SourceId(0), &once.text).expect("format again");
+    assert_eq!(once.text, twice.text);
+}
+
+#[test]
+fn style_leaf_wrapper_and_multiple_suffixes_refuse() {
+    for then in [
+        " view Tile(row:Todo) $\"Arrange.\"\n  style $\"Quiet.\"\n",
+        " style $\"Quiet.\"\n  page / title=\"T\"\n   text \"Hi\"\n",
+        " view Tile(row:Todo) $\"Arrange.\" $\"Quiet.\" $\"Extra.\"\n",
+        " page / title=\"T\" $\"Quiet.\" $\"Extra.\"\n  text \"Hi\"\n",
+    ] {
+        let source = wrap(" Todo {title:text}\n", "", then);
+        assert!(
+            !parse(&source).1.is_empty(),
+            "unexpected admission: {source}"
+        );
+    }
 }

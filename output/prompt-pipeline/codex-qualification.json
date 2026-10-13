@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-13",
+  "scope": "Codex generation adapter: actual native MCP submissions and protected filesystem writes; candidate semantics and promotion are separate owner checks.",
+  "native_client": {
+    "executable": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
+    "version": "0.162.0-alpha.17.2",
+    "platform": "macos-aarch64",
+    "selection": "explicit CAN_CODEX_BIN; no automatic executable or model substitution"
+  },
+  "request": {
+    "runner": "codex",
+    "model": "gpt-6.1-sol",
+    "model_reasoning_effort": "medium"
+  },
+  "provider_report": {
+    "model": null,
+    "reasoning_effort": null,
+    "reason": "Native JSONL exposes no authoritative provider model/effort fields; request is pinned in argv and model self-report is not used."
+  },
+  "native_run": {
+    "exit": 0,
+    "timed_out": false,
+    "mcp_complete": true,
+    "submissions": [
+      {
+        "handle": "h-field-style",
+        "role": "style",
+        "filename": "field.css",
+        "bytes": 607,
+        "submitted_at": "2026-10-13T18:06:26.576Z"
+      },
+      {
+        "handle": "h-page-style",
+        "role": "style",
+        "filename": "page.css",
+        "bytes": 1324,
+        "submitted_at": "2026-10-13T18:06:26.578Z"
+      },
+      {
+        "handle": "h-renderer",
+        "role": "browser",
+        "filename": "renderer.js",
+        "bytes": 3058,
+        "submitted_at": "2026-10-13T18:06:26.579Z"
+      }
+    ],
+    "host_chose_candidate_paths": true,
+    "source_current_candidate_sentinels_unchanged": [
+      true,
+      true,
+      true
+    ]
+  },
+  "write_denial": {
+    "method": "The installed native Codex sandbox -P :read-only ran Node fs.writeFileSync against controlled source/current/candidate sentinels. Reused the passed boundary check after MCP-only policy corrections; no unchanged probe rerun.",
+    "exit": 0,
+    "results": [
+      {
+        "root": "source",
+        "denied": true,
+        "error": "EPERM",
+        "bytes_unchanged": true
+      },
+      {
+        "root": "current",
+        "denied": true,
+        "error": "EPERM",
+        "bytes_unchanged": true
+      },
+      {
+        "root": "candidate",
+        "denied": true,
+        "error": "EPERM",
+        "bytes_unchanged": true
+      }
+    ],
+    "model_patch_report": "Model reported read-only/never rejection; ephemeral JSONL omits tool traces, so that self-report is not the authoritative denial evidence."
+  },
+  "isolation": {
+    "native_home": "host-owned per-attempt scratch; native auth linked without reading/copying bytes",
+    "environment": "host allowlist; no inherited provider key or hidden config",
+    "native_tools": "shell, unified execution, plugins/apps/hooks, browser/computer and other external surfaces disabled; native code-mode dispatcher retained for MCP",
+    "mcp": "only required generation_context and generation_submit; scoped preapproval of the user-authorized private host tools",
+    "filesystem_policy": "read-only",
+    "approval_policy": "never",
+    "housekeeping": "ephemeral, isolated; recorded-session resume explicitly unsupported"
+  },
+  "observed_gaps_resolved": [
+    "PATH CLI 0.157.1 rejects the exact model for this ChatGPT login; explicit installed 0.162.0-alpha.17.2 accepts it.",
+    "Native code-mode dispatcher must remain enabled for MCP tool execution.",
+    "--ignore-user-config also omits the selected MCP profile; isolated home instead excludes inherited configuration.",
+    "Private host MCP calls need truthful annotations and explicit per-tool approval under global never policy."
+  ],
+  "verification": {
+    "affected_fake_cases": "16 passed; later changed isolation cases 5 passed; scoped profile/stdio cases 3 passed. Unchanged results reused.",
+    "limitations": [
+      "Qualification applies to the named installed macOS native client.",
+      "No provider-reported model/effort claim.",
+      "No recorded-session resume claim.",
+      "Other required CLI adapters remain unqualified."
+    ]
+  }
+}

@@ -18,7 +18,7 @@
 
 use crate::analysis::catalog::{CATALOG_ENV_VAR, Catalog, CatalogRequest, load_catalog};
 use crate::diagnostic::{Diagnostic, Severity};
-use crate::ide::{fixes, queries, tokens};
+use crate::ide::{fixes, queries, structure, tokens};
 use crate::lint::{DeprecatedSet, LintConfig, RuleSet, collect_fixes, lint_program};
 use crate::lsp::output;
 use crate::lsp::transport as t;
@@ -191,6 +191,19 @@ pub trait LanguageAnalysis {
     }
     /// Canonical formatting edits; unparseable input is left untouched.
     fn formatting(&self, _db: &SourceDb, _id: SourceId) -> Vec<TextEdit> {
+        Vec::new()
+    }
+    /// Multiline source blocks for editor folding.
+    fn folding_ranges(&self, _db: &SourceDb, _id: SourceId) -> Vec<lsp::FoldingRange> {
+        Vec::new()
+    }
+    /// Expanding syntax selections, one per requested position.
+    fn selection_ranges(
+        &self,
+        _db: &SourceDb,
+        _id: SourceId,
+        _positions: &[lsp::Position],
+    ) -> Vec<lsp::SelectionRange> {
         Vec::new()
     }
     /// Code actions for a range.
@@ -569,6 +582,19 @@ impl LanguageAnalysis for RealAnalysis {
             .into_iter()
             .map(|node| outline_symbol(node, &index, text))
             .collect()
+    }
+
+    fn folding_ranges(&self, db: &SourceDb, id: SourceId) -> Vec<lsp::FoldingRange> {
+        structure::folding_ranges(&self.snapshot(db, id))
+    }
+
+    fn selection_ranges(
+        &self,
+        db: &SourceDb,
+        id: SourceId,
+        positions: &[lsp::Position],
+    ) -> Vec<lsp::SelectionRange> {
+        structure::selection_ranges(&self.snapshot(db, id), positions)
     }
 
     fn formatting(&self, db: &SourceDb, id: SourceId) -> Vec<TextEdit> {
@@ -1373,6 +1399,30 @@ impl<A: LanguageAnalysis> Server<A> {
                     None => t::response_ok(id, Json::Null),
                 }
             }
+            "textDocument/foldingRange" => match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                Some(doc_id) => {
+                    output::response(id, self.analysis.folding_ranges(&self.db, doc_id))
+                }
+                None => {
+                    t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
+                }
+            },
+            "textDocument/selectionRange" => {
+                match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
+                    Some(doc_id) => output::response(
+                        id,
+                        self.analysis.selection_ranges(
+                            &self.db,
+                            doc_id,
+                            &parse_selection_positions(params)
+                                .expect("validated selection positions"),
+                        ),
+                    ),
+                    None => {
+                        t::response_err(Some(id), t::error_code::INVALID_PARAMS, "unknown document")
+                    }
+                }
+            }
             "textDocument/documentSymbol" | "textDocument/formatting" => {
                 match doc_of(params).and_then(|uri| self.doc_id(&uri)) {
                     Some(doc_id) if method == "textDocument/documentSymbol" => {
@@ -1767,6 +1817,8 @@ fn capabilities() -> lsp::InitializeResult {
             }),
             document_symbol_provider: Some(lsp::OneOf::Left(true)),
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
+            folding_range_provider: Some(lsp::FoldingRangeProviderCapability::Simple(true)),
+            selection_range_provider: Some(lsp::SelectionRangeProviderCapability::Simple(true)),
             definition_provider: Some(lsp::OneOf::Left(true)),
             references_provider: Some(lsp::OneOf::Left(true)),
             rename_provider: Some(lsp::OneOf::Left(true)),
@@ -1844,6 +1896,8 @@ fn known_request(method: &str) -> bool {
             | "textDocument/codeAction"
             | "textDocument/documentSymbol"
             | "textDocument/formatting"
+            | "textDocument/foldingRange"
+            | "textDocument/selectionRange"
     )
 }
 
@@ -1888,7 +1942,11 @@ fn valid_params(method: &str, params: Option<&Json>) -> bool {
         }
         "textDocument/semanticTokens/full"
         | "textDocument/didClose"
+        | "textDocument/foldingRange"
         | "textDocument/documentSymbol" => doc_of(params).is_some(),
+        "textDocument/selectionRange" => {
+            doc_of(params).is_some() && parse_selection_positions(params).is_some()
+        }
         "textDocument/formatting" => {
             doc_of(params).is_some()
                 && params.get("options").is_some_and(|options| {
@@ -1981,6 +2039,20 @@ fn parse_range(value: &Json) -> Option<LspRange> {
 
 fn parse_pos_request(params: &Json) -> Option<(String, TextPos)> {
     Some((doc_of(params)?, parse_pos(params)?))
+}
+
+fn parse_selection_positions(params: &Json) -> Option<Vec<lsp::Position>> {
+    params
+        .get("positions")?
+        .as_arr()?
+        .iter()
+        .map(|position| {
+            Some(lsp::Position {
+                line: parse_coord(position.get("line").and_then(t::integer_value))?,
+                character: parse_coord(position.get("character").and_then(t::integer_value))?,
+            })
+        })
+        .collect()
 }
 
 /// Map a document URI to a [`SourceDb`] display path.

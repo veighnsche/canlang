@@ -243,6 +243,45 @@ export interface PagePreferenceStore {
   save(key: PagePreferenceKey & { readonly value: string; readonly expectedVersion: string }): Promise<boolean>;
 }
 
+/** Durable large-output download record (DEL-B02). The digest covers every
+ * other member; verifiers recompute it and refuse on mismatch. `csv` is
+ * present exactly when `status` is `'ready'`; `revoked` is a tombstone that
+ * keeps the identity fields for principal-scoped refusal. */
+export interface ExportDownloadRecord {
+  readonly handle: string;
+  readonly appId: string;
+  readonly teamId: string | null;
+  readonly principal: string;
+  readonly operation: string;
+  readonly args: {
+    readonly parent: unknown;
+    readonly filters: unknown;
+    readonly columns: readonly string[] | null;
+    readonly limit: number;
+    readonly cursor: string | null;
+  };
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  readonly status: 'pending' | 'ready' | 'revoked';
+  readonly csv?: string;
+  readonly rowCount?: number;
+  readonly digest: string;
+}
+
+/** Durable large-output download store (DEL-B02). Production bindings persist
+ * at B1; the memory double is per-isolate only. Reads and writes detach
+ * records. Compare-and-set is atomic in the store, including revocation. */
+export interface ExportDownloadStore {
+  read(handle: string): Promise<ExportDownloadRecord | null>;
+  /** Absent-only creation for null; otherwise replace the exact pending digest.
+   * Query/scope/lifetime identity cannot change; ready/revoked are terminal.
+   * Refuse expired records at the atomic write boundary using the store clock. */
+  save(record: ExportDownloadRecord, expectedDigest: string | null): Promise<boolean>;
+  /** Atomically mark revoked, preserving identity fields; false when unknown.
+   * A tombstone retains its prior digest and is refused before body verification. */
+  revoke(handle: string): Promise<boolean>;
+}
+
 /** Defining auth dependencies; absent mail refuses mail-producing flows before effects. */
 export interface AuthHttpDeps extends Pick<HttpDeps, 'clock' | 'logger' | 'limiter' | 'secureCookies' | 'authOrigin'> {
   readonly identity: Omit<IdentityDeps, 'mail'> & { readonly mail?: MailPort };
@@ -260,6 +299,8 @@ export interface HttpDeps extends PageHttpDeps {
   readonly identity: IdentityDeps;
   /** Secure cookie flag; false only for local http:// development. */
   readonly secureCookies: boolean;
+  /** Large-output download backend (DEL-B02); absent leaves status/download `not_found`. */
+  readonly exportDownloads?: ExportDownloadStore;
   /** Upload-transport bindings (S6). L7 assembles; L4 kernel at B1. */
   readonly uploads: {
     readonly files: FileUseInfo;

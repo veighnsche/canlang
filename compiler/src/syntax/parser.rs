@@ -1804,51 +1804,6 @@ impl<'a> Parser<'a> {
         self.builder.push_inner(kids, node);
         Ok(())
     }
-
-    fn parse_view_style_child(
-        &mut self,
-        cursor: &mut Cursor<'a>,
-        kids: &mut Vec<SyntaxNode>,
-        children: &'a [LogicalLine],
-    ) -> Result<(), Fail> {
-        let mut inner = Vec::new();
-        let head = cursor.expect_name_is("style")?;
-        self.builder.leaf(&mut inner, &head);
-        if self.at_gen_prompt(cursor) {
-            self.parse_optional_agent(cursor, &mut inner)?;
-            let prompt = self.parse_gen_prompt(cursor)?;
-            self.builder.push_inner(&mut inner, prompt);
-        } else if cursor.at_any_name() {
-            // `style Name` named reference; an agent attr here would try to
-            // override a shared definition, which is not admitted.
-            let name = cursor.next().expect("style name");
-            self.builder.leaf(&mut inner, &name);
-            if cursor.at_name("agent") {
-                return Err(Fail::new(
-                    "E1200",
-                    "a named style use cannot override its definition profile (agent=)".to_string(),
-                    cursor.span_here(),
-                ));
-            }
-        } else {
-            return Err(Fail::new(
-                "E1200",
-                "view root style requires style $\"...\" or style Name".to_string(),
-                cursor.span_here(),
-            ));
-        }
-        cursor.end()?;
-        if !children.is_empty() {
-            return Err(Fail::new(
-                "E1200",
-                "view root style is a leaf and cannot own children".to_string(),
-                head.span,
-            ));
-        }
-        let node = SyntaxNode::enclosing(SyntaxKind::ViewStyle, inner);
-        self.builder.push_inner(kids, node);
-        Ok(())
-    }
 }
 
 // Expressions, types, labels, fields ----------------------------------------
@@ -6732,7 +6687,7 @@ impl<'a> Parser<'a> {
         if word == "style" {
             return Err(Fail::new(
                 "E1200",
-                "style definitions belong directly in Then and a view root style belongs directly in a prompted view".to_string(),
+                "style definitions belong directly in Then; attach a root style with $Name or $\"...\" on the view header".to_string(),
                 head.span,
             ));
         }
@@ -6770,6 +6725,14 @@ impl<'a> Parser<'a> {
                     let prompt = self.parse_gen_prompt(cursor)?;
                     self.builder.push_inner(&mut inner, prompt);
                     prompted = true;
+                    // The first prompt owns the renderer. A second suffix
+                    // owns the view root's style, without a child declaration.
+                    let mut root_style = Vec::new();
+                    if self.parse_optional_style_suffix(cursor, &mut root_style)? {
+                        let mut suffix = root_style.pop().expect("root style suffix");
+                        suffix.kind = SyntaxKind::ViewStyle;
+                        self.builder.push_inner(&mut inner, suffix);
+                    }
                 }
                 cursor.end()?;
                 if children.is_empty() && !prompted {
@@ -6779,7 +6742,6 @@ impl<'a> Parser<'a> {
                         head.span,
                     ));
                 }
-                let mut style_children = 0usize;
                 for child in children {
                     if child.tokens.is_empty() {
                         self.push_dangling(&mut inner, child);
@@ -6787,45 +6749,12 @@ impl<'a> Parser<'a> {
                     }
                     let child_word = child.tokens[0].text(self.text).to_string();
                     if child_word == "style" {
-                        style_children += 1;
-                        if style_children > 1 {
-                            self.diags.push(
-                                Fail::new(
-                                    "E1202",
-                                    "a prompted view accepts at most one root style child"
-                                        .to_string(),
-                                    child.tokens[0].span,
-                                )
-                                .diag(),
-                            );
-                            self.error_for_line(&mut inner, child);
-                            continue;
-                        }
-                        if !prompted {
-                            self.diags.push(
-                                Fail::new(
-                                    "E1200",
-                                    "a view root style child requires a prompted view header"
-                                        .to_string(),
-                                    child.tokens[0].span,
-                                )
-                                .diag(),
-                            );
-                            self.error_for_line(&mut inner, child);
-                            continue;
-                        }
-                        // Parse the leaf style child in place.
-                        self.push_description(&mut inner, child);
-                        let eof2 = piece_eof(&child.tokens, self.file, Span::new(self.file, 0, 0));
-                        let mut c2 = self.cursor(&child.tokens, eof2);
-                        let r = self.attempt(&mut inner, |p, s| {
-                            p.parse_view_style_child(&mut c2, s, &child.children)
-                        });
-                        if let Err(fail) = r {
-                            self.diags.push(fail.diag());
-                            self.error_for_tokens(&mut inner, &child.tokens);
-                            self.error_for_children(&mut inner, &child.children);
-                        }
+                        self.diags.push(Fail::new(
+                            "E1200",
+                            "style declarations belong directly in Then; put the view root style suffix on its header".to_string(),
+                            child.tokens[0].span,
+                        ).diag());
+                        self.error_for_line(&mut inner, child);
                         continue;
                     }
                     if prompted
@@ -6846,7 +6775,7 @@ impl<'a> Parser<'a> {
                             Fail::new(
                                 "E1200",
                                 format!(
-                                    "prompted view accepts only canonical controls and one root style child; `{child_word}` is not admitted"
+                                    "prompted view accepts only canonical controls and presentation leaves; `{child_word}` is not admitted"
                                 ),
                                 child.tokens[0].span,
                             )

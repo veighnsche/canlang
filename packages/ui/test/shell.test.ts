@@ -14,6 +14,7 @@ import type {
   ShellData,
 } from "@canlang/contracts";
 import type { Element } from "happy-dom";
+import { styledComponent } from "../src/components.js";
 import { message } from "../src/messages.js";
 import { buildNavigation, selectDiscoveryCandidates } from "../src/navigation.js";
 import { pageDirection, pageLocale, renderLogin, renderPage } from "../src/shell.js";
@@ -1179,5 +1180,25 @@ describe("chrome XSS gaps", () => {
     );
     assert.ok(!hostile.includes(`"><script>alert(1)</script>`));
     assert.match(hostile, /aria-label="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
+  });
+});
+
+
+describe("compiler page style root", () => {
+  it("marks actual main and heading while preserving styled child interiors", async () => {
+    const child = styledComponent('<section><h2>Card</h2><input></section>', 'u-card', 'card');
+    const html = await renderPage(makeContext({isPartial:true}), {...makeDescriptor(),style:{unitId:'u-page',useId:'can-style-f0-s1'}}, [child]);
+    const page = await loadHtml(html);
+    try {
+      const main = page.document.querySelector('#can-main')!;
+      assert.equal(main.getAttribute('data-can-style'),'u-page');
+      assert.equal(main.getAttribute('data-can-style-root'),'u-page:can-style-f0-s1');
+      assert.equal(main.querySelector('h1')!.getAttribute('data-can-style'),'u-page');
+      const card = main.querySelector('section')!;
+      assert.equal(card.getAttribute('data-can-style'),'u-card');
+      assert.equal(card.getAttribute('data-can-style-host'),'u-page');
+      assert.equal(card.querySelector('input')!.getAttribute('data-can-style'),'u-card');
+      assert.equal(card.querySelector('input')!.getAttribute('data-can-style-host'),null);
+    } finally { await page.close(); }
   });
 });

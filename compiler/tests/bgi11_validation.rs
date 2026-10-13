@@ -174,10 +174,9 @@ When
   do set task {title="Done"}
 Then
  style TaskSurface $"Readable task surfaces."
- view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls."
+ view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls." $TaskSurface
   edit fields=title
   delete
-  style TaskSurface
  page / title="Todos" $"A calm workspace."
   card "Add a task" $"A compact entry area."
    form Todo.create fields=title
@@ -243,7 +242,7 @@ fn keyword_unit_validates_for_workerd() {
     assert!(checks.iter().all(|c| c["ok"] == true));
     // Validation binds to captured inputs and current bytes: the exact
     // consumed closure is in the envelope for promotion comparison.
-    assert_eq!(body["inputs"]["source"]["path"], serde_json::json!(file));
+    assert_eq!(body["inputs"]["source"]["path"], serde_json::json!("app.can"));
     assert_eq!(
         body["inputs"]["source"]["revision"],
         serde_json::json!(sha256_hex(GIVEN_APP.as_bytes()))
@@ -263,7 +262,7 @@ fn keyword_unit_validates_for_workerd() {
         assert_eq!(&sha256_hex(&bytes), hash, "{path}");
     }
     let paths: Vec<&&str> = bound.iter().map(|(p, _)| p).collect();
-    assert!(paths.contains(&&file.as_str()), "{paths:?}");
+    assert!(paths.contains(&&"app.can"), "{paths:?}");
     assert!(paths.iter().any(|p| p.ends_with("/unit.json")), "{paths:?}");
     assert!(
         bound
@@ -383,11 +382,9 @@ fn style_unit_validates_and_owned_assets_resolve() {
     let (code, message) = error_of(&missing.stdout);
     assert_eq!(code, "validation-failure");
     assert!(message.contains("assets/bg.png"), "{message}");
-    write_file(
-        dir.path(),
-        &format!("can.generated/{unit}/assets/bg.png"),
-        "fake-png-bytes",
-    );
+    let png = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=").unwrap();
+    std::fs::create_dir_all(dir.path().join(format!("can.generated/{unit}/assets"))).unwrap();
+    std::fs::write(dir.path().join(format!("can.generated/{unit}/assets/bg.png")), png).unwrap();
     let present = validate_unit(&root, dir.path(), "v3.json", &unit);
     assert_eq!(present.code, 0, "stdout: {}", present.stdout);
     let body = envelope(&present.stdout);
@@ -554,7 +551,7 @@ fn missing_export_names_unit_and_export() {
 }
 
 #[test]
-fn missing_declaration_and_strict_shape_diagnose() {
+fn source_derived_declaration_and_legacy_strict_shape() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", GIVEN_APP);
@@ -570,11 +567,14 @@ fn missing_declaration_and_strict_shape_diagnose() {
         &format!("can.generated/{unit}/implementation.js"),
         KEYWORD_JS,
     );
-    // No declaration sidecar.
-    let missing = validate_unit(&root, dir.path(), "v.json", &unit);
-    assert_eq!(missing.code, 4, "stdout: {}", missing.stdout);
-    let (_, message) = error_of(&missing.stdout);
-    assert!(message.contains("declaration.json"), "{message}");
+    // Fresh units derive the admitted pure binding; no authored registry.
+    let derived = validate_unit(&root, dir.path(), "v.json", &unit);
+    assert_eq!(derived.code, 0, "stdout: {}", derived.stdout);
+    assert!(
+        !dir.path()
+            .join(format!("can.generated/{unit}/declaration.json"))
+            .exists()
+    );
     // Unknown fields refuse: validation never checks stale metadata.
     write_file(
         dir.path(),
@@ -1011,6 +1011,7 @@ fn packed_maps_locate_saved_js_with_owner_links() {
         models: vec![],
         given_contracts: None,
         stylesheets: vec![],
+        generated_views: vec![],
         value_types: None,
         model_policies: None,
         committed_changes: None,
@@ -1337,6 +1338,7 @@ fn closure_pack_stages_root_and_siblings() {
         models: vec![],
         given_contracts: None,
         stylesheets: vec![],
+        generated_views: vec![],
         value_types: None,
         model_policies: None,
         committed_changes: None,
@@ -1415,10 +1417,11 @@ fn compile_joins_saved_given_contributions_and_server_modules() {
         GenerationKind::KeywordDefinition,
         Some("canonical_identity"),
     );
-    write_file(
-        dir.path(),
-        &format!("can.generated/{u_kw}/declaration.json"),
-        JOIN_DECLARATION,
+    // The compiler derives the keyword contract from source; no sidecar.
+    assert!(
+        !dir.path()
+            .join(format!("can.generated/{u_kw}/declaration.json"))
+            .exists()
     );
     write_file(
         dir.path(),
@@ -1603,4 +1606,186 @@ fn clean_checkout_saved_build_needs_no_settings_or_mcp() {
     // this suite qualifies interfaces, contracts, maps, and saved
     // builds here; execution on workerd/browser hardware is a held
     // external gate, reported rather than claimed.
+}
+
+#[test]
+fn saved_model_trait_fields_check_before_when_and_then_bodies() {
+    let source = "app Tasks\nGiven\n trait completable $\"Add done:bool=false.\"\n Item {title:text} completable\n Note {title:text} completable trait $\"Add pinned:bool=false.\"\nWhen\n scenario mark(note:Note) by=members\n  do set note {done=true,pinned=true}\nThen\n page / title=\"Tasks\"\n  table Note columns=title,done,pinned\n  list Item\n   text row.done\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let named = bind_new(&root, &file, source, GenerationKind::NamedTrait, Some("completable"));
+    let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
+    write_file(dir.path(), &format!("can.generated/{named}/contributions.can"), "app Tasks\nGiven\n completable {done:bool=false}\n");
+    write_file(dir.path(), &format!("can.generated/{inline}/contributions.can"), "app Tasks\nGiven\n Note {pinned:bool=false}\n");
+    // Unit preparation is independent of ordinary consumers of sibling fields.
+    let validated = validate_unit(&root, dir.path(), "validation.json", &named);
+    assert_eq!(validated.code, 0, "{}", validated.stdout);
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = envelope(&compiled.stdout);
+    let models = artifact["models"].as_array().unwrap();
+    let catalog = dir.path().join("catalog.json").to_string_lossy().to_string();
+    let checked = dispatch(&argv(&["check", "--format=json", &format!("--catalog={catalog}"), &file]));
+    assert_eq!(checked.code, 0, "{}", checked.stdout);
+    assert!(envelope(&checked.stdout).get("modules").is_none(), "check emits no JS artifact");
+    let note = models.iter().find(|model| model["name"] == "Tasks.Note").unwrap();
+    let fields = note["fields"].as_array().unwrap();
+    assert_eq!(fields.iter().filter(|field| field["name"] == "done").count(), 1);
+    assert_eq!(fields.iter().filter(|field| field["name"] == "pinned").count(), 1);
+    assert!(artifact["modules"][0]["js"].as_str().unwrap().contains("done:true"));
+    // A real unresolved field still refuses; successful contributions cannot hide it.
+    let broken = source.replace("columns=title,done,pinned", "columns=title,done,pinned,absent");
+    write_file(dir.path(), "app.can", &broken);
+    let refused = compile_json(dir.path(), &file);
+    assert_eq!(refused.code, 10, "{}", refused.stdout);
+    assert!(refused.stdout.contains("absent"), "{}", refused.stdout);
+    let refused = dispatch(&argv(&["check", "--format=json", &format!("--catalog={catalog}"), &file]));
+    assert_eq!(refused.code, 10, "{}", refused.stdout);
+    assert!(refused.stdout.contains("absent"), "{}", refused.stdout);
+}
+
+#[test]
+fn reused_keyword_keeps_two_rules_and_stages_one_owned_implementation_closure() {
+    let source = "app Shared\nGiven\n keyword canonical_identity(target:model,field:field(target,text)) $\"Compute canonical keys.\"\n Account {handle:text}\n Alias {handle:text}\n canonical_identity target=Account field=Account.handle\n canonical_identity target=Alias field=Alias.handle\nWhen\nThen\n page / title=\"Accounts\"\n  text \"Shared keyword\"\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let unit = bind_new(&root, &file, source, GenerationKind::KeywordDefinition, Some("canonical_identity"));
+    write_file(dir.path(), &format!("can.generated/{unit}/implementation.js"), JOIN_ROOT_JS);
+    write_file(dir.path(), &format!("can.generated/{unit}/fold.js"), JOIN_FOLD_JS);
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = envelope(&compiled.stdout);
+    let rules = artifact["givenContracts"]["keywords"].as_array().unwrap();
+    assert_eq!(rules.len(), 2);
+    assert!(rules.iter().all(|rule| rule["unitId"] == unit));
+    let modules = artifact["modules"].as_array().unwrap();
+    assert_eq!(modules.iter().filter(|module| module["path"] == format!("can.generated/{unit}/server.js")).count(), 1);
+    assert_eq!(modules.iter().filter(|module| module["path"] == format!("can.generated/{unit}/fold.js")).count(), 1);
+}
+
+#[test]
+fn existing_field_trait_defaults_allow_omission_and_preserve_authored_labels_and_defaults() {
+    let source = "app Tasks\nGiven\n trait pending_review $\"Default boolean to true.\"\n Item {title:text,hidden:bool pending_review label=\"Hidden\",pinned:bool trait $\"Default pinned to true.\" label=\"Pinned\",locked:bool=false label=\"Locked\"}\nWhen\n scenario add() by=members\n  do create Item {title=\"New\"} as created\n crud Item by=members fields=title\nThen\n page / title=\"Tasks\"\n  form Item.create fields=title\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let named = bind_new(&root, &file, source, GenerationKind::NamedTrait, Some("pending_review"));
+    let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
+    write_file(dir.path(), &format!("can.generated/{named}/contributions.can"), "app Tasks\nGiven\n pending_review {value:bool=true}\n");
+    write_file(dir.path(), &format!("can.generated/{inline}/contributions.can"), "app Tasks\nGiven\n Item {pinned:bool=true}\n");
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let generated = envelope(&compiled.stdout);
+    let fields = generated["models"][0]["fields"].as_array().unwrap();
+    for (name, expected) in [("hidden", true), ("pinned", true), ("locked", false)] {
+        let field = fields.iter().find(|field| field["name"] == name).unwrap();
+        assert_eq!(field["default"]["value"], expected, "{field}");
+        assert_eq!(field["required"], false, "{field}");
+    }
+    let direct = source.replace(" trait pending_review $\"Default boolean to true.\"\n", "")
+        .replace("hidden:bool pending_review", "hidden:bool=true")
+        .replace("pinned:bool trait $\"Default pinned to true.\"", "pinned:bool=true")
+        .replace("locked:bool=false pending_review", "locked:bool=false");
+    write_file(dir.path(), "app.can", &direct);
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let authored = envelope(&compiled.stdout);
+    assert_eq!(generated["models"], authored["models"]);
+    assert_eq!(generated["operations"], authored["operations"]);
+}
+
+#[test]
+fn saved_field_traits_reach_model_and_crud_input_constraints() {
+    let source = "app Tasks\nGiven\n trait clean $\"Trim text with length bounds.\"\n Item {title:text clean,handle:text trait $\"Trim and bound the handle.\"}\n Note {body:text clean}\nWhen\n crud Item by=members fields=title,handle\n crud Note by=members fields=body\nThen\n page / title=\"Tasks\"\n  form Item.create fields=title,handle\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let named = bind_new(&root, &file, source, GenerationKind::NamedTrait, Some("clean"));
+    let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
+    write_file(dir.path(), &format!("can.generated/{named}/contributions.can"), "app Tasks\nGiven\n clean {value:text trim min=1 max=80}\n");
+    write_file(dir.path(), &format!("can.generated/{inline}/contributions.can"), "app Tasks\nGiven\n Item {handle:text trim min=1 max=40}\n");
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = envelope(&compiled.stdout);
+    let item = artifact["models"].as_array().unwrap().iter().find(|model| model["name"] == "Tasks.Item").unwrap();
+    for (name, maximum) in [("title", 80), ("handle", 40)] {
+        let field = item["fields"].as_array().unwrap().iter().find(|field| field["name"] == name).unwrap();
+        assert_eq!(field["trim"], true);
+        assert_eq!(field["min"], 1);
+        assert_eq!(field["max"], maximum);
+    }
+    // Compare the existing admission split fairly with equivalent authored fields:
+    // canonical model decoding owns scalar normalization/bounds, not the input schema.
+    let handwritten = source.replace(" trait clean $\"Trim text with length bounds.\"\n", "")
+        .replace("title:text clean", "title:text trim min=1 max=80")
+        .replace("handle:text trait $\"Trim and bound the handle.\"", "handle:text trim min=1 max=40")
+        .replace("body:text clean", "body:text trim min=1 max=80");
+    write_file(dir.path(), "app.can", &handwritten);
+    let direct = compile_json(dir.path(), &file);
+    assert_eq!(direct.code, 0, "{}", direct.stdout);
+    let direct = envelope(&direct.stdout);
+    assert_eq!(artifact["operations"], direct["operations"]);
+    assert_eq!(artifact["models"], direct["models"]);
+}
+
+#[test]
+fn saved_binding_relocates_without_old_source_or_ai() {
+    let old = tempfile::tempdir().unwrap();
+    let root = old.path().to_string_lossy().to_string();
+    let source = GIVEN_APP.replace(" trait completable $\"Add done:bool=false with Open/Done labels.\"\n", "")
+        .replace("} completable", "}")
+        .replace(" trait $\"Add pinned:bool=false.\"", "");
+    let file = write_file(old.path(), "app.can", &source);
+    let unit = bind_new(&root, &file, &source, GenerationKind::KeywordDefinition, Some("canonical_identity"));
+    write_file(old.path(), &format!("can.generated/{unit}/implementation.js"), KEYWORD_JS);
+    let record: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(old.path().join(format!("can.generated/{unit}/unit.json"))).unwrap()).unwrap();
+    assert_eq!(record["source"]["path"], "app.can");
+    let fresh = tempfile::tempdir().unwrap();
+    for name in ["app.can".to_string(), format!("can.generated/{unit}/unit.json"), format!("can.generated/{unit}/implementation.js")] {
+        let target = fresh.path().join(&name);
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::copy(old.path().join(&name), target).unwrap();
+    }
+    drop(old);
+    let fresh_root = fresh.path().to_string_lossy().to_string();
+    let status = dispatch(&argv(&["gen", "status", "--format=json", &fresh_root, "app.can"]));
+    assert_eq!(status.code, 0, "{}", status.stdout);
+    assert!(status.stdout.contains("\"retained\""), "{}", status.stdout);
+    let validated = validate_unit(&fresh_root, fresh.path(), "validate.json", &unit);
+    assert_eq!(validated.code, 0, "{}", validated.stdout);
+    let compiled = compile_json(fresh.path(), &fresh.path().join("app.can").to_string_lossy());
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    assert!(compiled.stdout.contains("givenContracts"));
+}
+
+#[test]
+fn owned_css_assets_pack_checked_bytes_and_encoded_routes_only() {
+    let source = "app Tasks\nGiven\n Todo {title:text}\nWhen\nThen\n style Surface $\"Use an owned texture.\"\n page / title=\"Assets\" $Surface\n  text \"Body\"\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let unit = bind_new(&root, &file, source, GenerationKind::StyleDefinition, Some("Surface"));
+    write_file(dir.path(), &format!("can.generated/{unit}/style.css"), "section {background:url(\"asset with space.bin?rev=2#texture\");}\n");
+    let png = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=").unwrap();
+    std::fs::write(dir.path().join(format!("can.generated/{unit}/asset with space.bin")), &png).unwrap();
+    std::fs::write(dir.path().join(format!("can.generated/{unit}/unused.bin")), b"unused").unwrap();
+    let validated = validate_unit(&root, dir.path(), "validate.json", &unit);
+    assert_eq!(validated.code, 0, "{}", validated.stdout);
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = envelope(&compiled.stdout);
+    let sheet = &artifact["stylesheets"][0];
+    assert!(sheet["css"].as_str().unwrap().contains(&format!("/assets/can.generated/{unit}/asset%20with%20space.bin?rev=2#texture")));
+    let assets = sheet["assets"].as_array().unwrap();
+    assert_eq!(assets.len(), 1);
+    assert_eq!(assets[0]["path"], format!("can.generated/{unit}/asset with space.bin"));
+    assert_eq!(assets[0]["contentType"], "image/png");
+    assert_eq!(assets[0]["sha256"], sha256_hex(&png));
+    assert_eq!(base64::Engine::decode(&base64::engine::general_purpose::STANDARD, assets[0]["contentBase64"].as_str().unwrap()).unwrap(), png);
+    std::fs::write(dir.path().join(format!("can.generated/{unit}/asset with space.bin")), b"<html>not an image</html>").unwrap();
+    let refused = validate_unit(&root, dir.path(), "invalid.json", &unit);
+    assert_eq!(refused.code, 4, "{}", refused.stdout);
+    assert!(refused.stdout.contains("unsupported or mismatched owned asset type"));
 }

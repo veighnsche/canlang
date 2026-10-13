@@ -103,7 +103,7 @@ import type {
   VerifiedIngressEnvelope,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
-import type { InputChoiceLookup, PagePreferenceStore } from '@canlang/interfaces';
+import type { InputChoiceLookup, PagePreferenceStore, ExportDownloadStore } from '@canlang/interfaces';
 import type { IdentityStore } from '@canlang/identity';
 import type { WorkScope } from '@canlang/contracts';
 import type { HandlerContext } from "../runtime/context.js";
@@ -367,6 +367,7 @@ export interface SourceFormBindings {
 }
 
 export interface HttpDeps {
+  readonly exportDownloads?: ExportDownloadStore;
   /** Explicit installed host root base; never request or authentication derived. */
   readonly deploymentBase?: string;
   readonly formBindings?: SourceFormBindings;
@@ -406,6 +407,8 @@ export type HttpOperationHandlerFactory = (
 export type VersionedHttpOperationHandlerFactory = HttpOperationHandlerFactory & { readonly inputChoicesVersion?: number };
 /** Published Interfaces CSV review/commit handler over the same operation deps. */
 export type HttpCsvHandlerFactory = (deps: HttpDeps) => (req: Request) => Promise<Response>;
+/** The same canonical read dependencies feed the defining export handler. */
+export type HttpExportHandlerFactory = (deps: HttpDeps) => (req: Request) => Promise<Response>;
 
 /**
  * HTTP op-route join inputs. `createOperationHandler` absent ->
@@ -458,6 +461,7 @@ export interface HttpAuthJoin {
 }
 
 export interface HttpJoin {
+  readonly exportDownloads?: ExportDownloadStore;
   readonly auth?: HttpAuthConfiguration;
   readonly authHandler?: HttpAuthJoin;
   readonly formBindings?: SourceFormBindings;
@@ -465,6 +469,7 @@ export interface HttpJoin {
   readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: VersionedHttpOperationHandlerFactory;
   readonly createCsvHandler?: HttpCsvHandlerFactory;
+  readonly createExportHandler?: HttpExportHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
   readonly derivedInputs?: BakedDerivedInputs;
   /** Selected static resources load only after the existing serving gates. */
@@ -1507,6 +1512,7 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
     throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the operation/CSV routes)`);
   };
   const deps: HttpDeps = {
+    ...(ctx.http?.exportDownloads === undefined ? {} : { exportDownloads: ctx.http.exportDownloads }),
     ...(ctx.deploymentBase === undefined ? {} : { deploymentBase: ctx.deploymentBase }),
     ...(ctx.http?.formBindings === undefined ? {} : { formBindings: ctx.http.formBindings }),
     inputChoices: async ({ identity, ...draft }) => {
@@ -1618,6 +1624,17 @@ async function handleHttpCsvRequest(req: Request, ctx: InterimDispatchContext): 
   return factory(deps)(req);
 }
 
+async function handleHttpExportRequest(req: Request, ctx: InterimDispatchContext): Promise<Response> {
+  const factory = ctx.http?.createExportHandler;
+  if (factory === undefined) return interimUnavailable('Exports need the defining handleExportRequest join');
+  let deps: HttpDeps;
+  try { deps = await buildHttpTransportDeps(ctx); }
+  catch (err) {
+    return jsonResponse({ code: 'http-catalog', message: err instanceof Error ? err.message : String(err) }, 500);
+  }
+  return factory(deps)(req);
+}
+
 function buildInterimFetch(
   ctx: InterimDispatchContext,
 ): (req: Request) => Promise<Response> {
@@ -1638,6 +1655,9 @@ function buildInterimFetch(
     }
     if (pathname === "/api/csv/review" || pathname === "/api/csv/commit") {
       return handleHttpCsvRequest(req, ctx);
+    }
+    if (pathname === '/api/exports' || pathname.startsWith('/api/exports/')) {
+      return handleHttpExportRequest(req, ctx);
     }
     if (pathname.startsWith("/auth/")) {
       const config = ctx.http?.auth;

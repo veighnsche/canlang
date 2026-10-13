@@ -122,13 +122,35 @@ does not establish other hosts or original native application acceptance.
 
 ## Run one example app locally
 
-No compiled-app serving yet: the B1 join (`tests/integration/b1-team-tasks.md`)
-is blocked on lane-1 emission. Until then, the closest local proof is the
-testkit isolation test, which serves a fixture Worker with per-row D1:
+For current protected dev-preview screenshots and the complete draft inventory,
+use the [draft frontend validation runbook](draft-frontend-validation.md).
+It separates source checking, live browser smoke checks and still-open full-app acceptance.
+
+The [prompt pipeline fixture](../tests/fixtures/prompt-pipeline/README.md)
+uses the public native `can gen` command for explicit generation, then the real
+protected dev preview and Playwright for saved-output acceptance:
 
 ```sh
-bunx vitest run packages/testkit/test/isolation.test.ts
+bun run catalog
+bun run build:compiler
+node tests/fixtures/prompt-pipeline/generate.mjs --dry-run
+bun run generate:prompts
+bun run test:e2e:prompts
 ```
+
+Its committed recipes request Codex `gpt-6.1-sol` with medium reasoning for
+Given contributions and frontend code. Generation requires native Codex login.
+Set `CAN_CODEX_BIN` to an absolute executable path when selecting a supported
+installed client explicitly; doctor and execution use the same selection.
+There is no automatic model substitution. Ordinary compilation and the dev
+server consume saved outputs without invoking a coding agent.
+
+The generator receives an immutable source snapshot and submits logical outputs
+through the private generation MCP server. The host validates candidates and
+promotes a complete set; submissions alone never overwrite working code.
+`node tests/fixtures/prompt-pipeline/generate.mjs --retry` deliberately
+regenerates all prompts in this app.
+Screenshots are saved under the fixture's `playwright/screenshots/` folder.
 
 ## Troubleshooting
 
