@@ -97,7 +97,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-06 — Other required CLI adapters
 
-- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a13432-6015 dispatched isolated from 7715dbb7 with BGI05 accepted). Evidence/handoff: owns adapters.ts + colocated tests only; awaiting adapter tests green (installed-tool availability reported honestly, external gate held).
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a13432-6015 release 05ab4b1e5 integrated as eafc51402 (adapters.ts + 20 tests, DECISIONS.md entry; BGI05 interface untouched). Coordinator verified on main: node dist/generation 111/111 (20 new), bgi03 29/29 retained; zero new tsc errors. Installed-tool availability reported by worker; real-auth runs stay on external gate. BGI06 writer released.
 
 **Owner / targets:** Node generation runner adapters. **Needs:** BGI-05 common execution/capture contract, not its entire integration programme.
 
