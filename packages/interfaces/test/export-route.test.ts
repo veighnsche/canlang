@@ -32,6 +32,9 @@ import type { PrintViewRegistry } from '../src/http/print.js';
 import { createHttpHandler } from '../src/http/routes.js';
 import type { HttpSubHandlers } from '../src/http/routes.js';
 import { createTestDeps, testRequest } from '../src/testing.js';
+import { createMemoryExportDownloadStore } from '../src/testing.js';
+import { canonicalJson } from '../src/http/canonical-json.js';
+import { createHash } from 'node:crypto';
 
 const OPERATION = 'Billing.Invoice.list';
 
@@ -307,4 +310,194 @@ test('FP.EXPORT-DISPATCH: pre-existing routes unchanged — operations, csv, aut
   );
   assert.equal(emptyOp.status, 404);
   assert.equal(t.invoker.mutations.length, 1);
+});
+
+/* DEL-B02 durable large-output backend: same dispatch join plus an injected store. */
+
+async function exportDownloadDeps(overrides: Parameters<typeof createTestDeps>[0] = {}) {
+  const t = await exportRouteDeps(overrides);
+  const store = createMemoryExportDownloadStore();
+  const deps = { ...t.deps, exportDownloads: store };
+  const sub: HttpSubHandlers = {
+    operations: (req, op) => handleOperationRequest(deps, req, op),
+    auth: (req) => handleAuthRequest(deps, req),
+    uploads: () => Promise.resolve(new Response('unused', { status: 500 })),
+    ingress: () => Promise.resolve(new Response('unused', { status: 500 })),
+    oauth: () => Promise.resolve(new Response('unused', { status: 500 })),
+    exports: (req) => handleExportRequest(deps, req),
+    print: (req) => handlePrintRequest(deps, VIEWS, req),
+  };
+  return { ...t, deps, store, http: createHttpHandler(deps, sub) };
+}
+
+function getDownload(t: { http: (req: Request) => Promise<Response>; identity: { cookie: string } }, path: string) {
+  return t.http(testRequest(path, { method: 'GET', cookie: t.identity.cookie }));
+}
+
+const PAGE_ROWS = [
+  { id: 'e-1', version: '1', fields: { customer: 'a', total: '10' } },
+  { id: 'e-2', fields: { customer: 'b', total: '20' } },
+];
+
+function pagedReads(pages: ListQueryResult['rows'][]) {
+  return {
+    [OPERATION]: (envelope: { inputs: { cursor?: string } }) => {
+      const index = envelope.inputs.cursor === undefined ? 0 : Number(envelope.inputs.cursor);
+      const rows = pages[index] ?? [];
+      const next = index + 1;
+      return { result: listResult(rows, next < pages.length ? String(next) : undefined) };
+    },
+  };
+}
+
+test('DEL-B02: truncated export registers; status pending then ready; download serves the full output', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.equal(outcome.truncated, true);
+  const descriptor = outcome.descriptor!;
+  const statusBefore = await getDownload(t, `/api/exports/status/${descriptor.handle}`);
+  assert.equal(statusBefore.status, 200);
+  const pending = (await statusBefore.json()) as Record<string, unknown>;
+  assert.equal(pending['status'], 'pending');
+  assert.equal(pending['handle'], descriptor.handle);
+  assert.equal(pending['expires_at'], descriptor.expires_at);
+  assert.ok(!('row_count' in pending));
+  const download = await getDownload(t, `/api/exports/download/${descriptor.handle}`);
+  assert.equal(download.status, 200);
+  assert.match(download.headers.get('content-type') ?? '', /text\/csv/);
+  assert.equal(await download.text(), 'id,version,customer,total\ne-1,1,a,10\ne-2,,b,20\n');
+  const statusAfter = await getDownload(t, `/api/exports/status/${descriptor.handle}`);
+  const ready = (await statusAfter.json()) as Record<string, unknown>;
+  assert.equal(ready['status'], 'ready');
+  assert.equal(ready['row_count'], 2);
+  const again = await getDownload(t, `/api/exports/download/${descriptor.handle}`);
+  assert.equal(await again.text(), 'id,version,customer,total\ne-1,1,a,10\ne-2,,b,20\n');
+});
+
+test('DEL-B02: replay converges on the same handle, expiry and completed body', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const first = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const download = await getDownload(t, `/api/exports/download/${first.descriptor!.handle}`);
+  assert.equal(download.status, 200);
+  const second = await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.equal(second.descriptor!.handle, first.descriptor!.handle);
+  assert.equal(second.descriptor!.expires_at, first.descriptor!.expires_at);
+  const again = await getDownload(t, `/api/exports/download/${first.descriptor!.handle}`);
+  assert.equal(again.status, 200);
+  assert.equal(await again.text(), await download.clone().text());
+});
+
+test('DEL-B02: unknown handles and missing store answer not_found', async () => {
+  const t = await exportDownloadDeps({ reads: { [OPERATION]: () => ({ result: TWO_ROWS }) } });
+  const guessed = await getDownload(t, '/api/exports/download/exp-0123456789abcdef');
+  assert.equal(guessed.status, 404);
+  assert.equal(((await guessed.json()) as { code: string }).code, 'not_found');
+  const status = await getDownload(t, '/api/exports/status/exp-0123456789abcdef');
+  assert.equal(status.status, 404);
+  const malformed = await getDownload(t, '/api/exports/download/not-a-handle!');
+  assert.equal(malformed.status, 404);
+  const plain = await exportRouteDeps({ reads: { [OPERATION]: () => ({ result: TWO_ROWS }) } });
+  const outcome = await exportOk(plain, { operation: OPERATION });
+  assert.equal(outcome.truncated, false);
+});
+
+test('DEL-B02: storeless truncated export emits an unregistered descriptor', async () => {
+  const t = await exportRouteDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.equal(outcome.truncated, true);
+  const descriptor = outcome.descriptor!;
+  assert.equal((await getDownload(t, `/api/exports/status/${descriptor.handle}`)).status, 404);
+  assert.equal((await getDownload(t, `/api/exports/download/${descriptor.handle}`)).status, 404);
+});
+
+test('DEL-B02: expired records answer not_found on status and download', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const handle = outcome.descriptor!.handle;
+  const stored = (await t.store.read(handle))!;
+  await t.store.save({ ...stored, expiresAt: new Date(Date.now() - 1000).toISOString() });
+  assert.equal((await getDownload(t, `/api/exports/status/${handle}`)).status, 404);
+  assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 404);
+});
+
+test('DEL-B02: foreign principal and revoked records answer forbidden', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const handle = outcome.descriptor!.handle;
+  const stored = (await t.store.read(handle))!;
+  await t.store.save({ ...stored, principal: 'mallory' });
+  const foreign = await getDownload(t, `/api/exports/download/${handle}`);
+  assert.equal(foreign.status, 403);
+  await t.store.save(stored);
+  assert.equal(await t.store.revoke(handle), true);
+  const status = await getDownload(t, `/api/exports/status/${handle}`);
+  assert.equal(status.status, 403);
+  const download = await getDownload(t, `/api/exports/download/${handle}`);
+  assert.equal(download.status, 403);
+  assert.equal(await t.store.revoke('exp-0123456789abcdef'), false);
+});
+
+test('DEL-B02: tainted bodies refuse validation without serving bytes', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const handle = outcome.descriptor!.handle;
+  assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 200);
+  const stored = (await t.store.read(handle))!;
+  await t.store.save({ ...stored, csv: `${stored.csv}tampered,row\n` });
+  const download = await getDownload(t, `/api/exports/download/${handle}`);
+  assert.equal(download.status, 400);
+  assert.equal(((await download.json()) as { code: string }).code, 'validation');
+});
+
+test('DEL-B02: missing bodies and store read failures answer generic internal without bytes', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const handle = outcome.descriptor!.handle;
+  const stored = (await t.store.read(handle))!;
+  const { digest: _stale, ...rest } = stored;
+  const crafted = { ...rest, status: 'ready' as const };
+  const digest = createHash('sha256').update(canonicalJson(crafted), 'utf8').digest('hex');
+  await t.store.save({ ...crafted, digest });
+  const missing = await getDownload(t, `/api/exports/download/${handle}`);
+  assert.equal(missing.status, 422);
+  assert.equal(((await missing.json()) as { code: string }).code, 'rule_failed');
+  const failing = {
+    read: async (_handle: string): Promise<never> => { throw new Error('boom'); },
+    save: async (): Promise<void> => {},
+    revoke: async (): Promise<boolean> => false,
+  };
+  const brokenDeps = { ...t.deps, exportDownloads: failing };
+  const brokenHttp = createHttpHandler(brokenDeps, {
+    operations: (req, op) => handleOperationRequest(brokenDeps, req, op),
+    auth: (req) => handleAuthRequest(brokenDeps, req),
+    uploads: () => Promise.resolve(new Response('unused', { status: 500 })),
+    ingress: () => Promise.resolve(new Response('unused', { status: 500 })),
+    oauth: () => Promise.resolve(new Response('unused', { status: 500 })),
+    exports: (req) => handleExportRequest(brokenDeps, req),
+    print: (req) => handlePrintRequest(brokenDeps, VIEWS, req),
+  });
+  const failed = await brokenHttp(testRequest(`/api/exports/status/${handle}`, { method: 'GET', cookie: t.identity.cookie }));
+  assert.equal(failed.status, 422);
+  assert.equal(((await failed.json()) as { code: string }).code, 'rule_failed');
+});
+
+test('DEL-B02: download serves current rows, not the export-time snapshot', async () => {
+  let current = [PAGE_ROWS[0]!, PAGE_ROWS[1]!];
+  const t = await exportDownloadDeps({ reads: { [OPERATION]: () => ({ result: listResult([...current]) }) } });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.equal(outcome.truncated, true);
+  current = [{ id: 'e-3', fields: { customer: 'c', total: '30' } }];
+  const download = await getDownload(t, `/api/exports/download/${outcome.descriptor!.handle}`);
+  assert.equal(download.status, 200);
+  assert.equal(await download.text(), 'id,version,customer,total\ne-3,,c,30\n');
+});
+
+test('DEL-B02: secret values in later pages refuse the download closed', async () => {
+  const secretPage = [{ id: 'e-9', fields: { customer: { kind: 'secret' }, total: '1' } }];
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], secretPage]) });
+  const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.equal(outcome.truncated, true);
+  const download = await getDownload(t, `/api/exports/download/${outcome.descriptor!.handle}`);
+  assert.equal(download.status, 400);
+  assert.equal(((await download.json()) as { code: string }).code, 'validation');
 });
