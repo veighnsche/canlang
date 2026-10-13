@@ -157,7 +157,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-12 — Join validation, acceptance and recovery controls
 
-- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a134d5 running clean reading phase at fire 66, 2026-10-13T10:47Z). Evidence/handoff: owns Node dispatcher/lifecycle composition (serial transfer from released BGI05) + new controls/join modules + compiler inspection seams only; awaiting control-layer handoff. Single active lane.
+- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a134d5 editing cli.rs + mcp.ts + bgi12 test at fire 67, 2026-10-13T10:52Z). Evidence/handoff: owns Node dispatcher/lifecycle composition (serial transfer from released BGI05) + new controls/join modules + compiler inspection seams only; awaiting control-layer handoff. Single active lane.
 
 **Owner / targets:** Node generation dispatcher/lifecycle with BGI-04 promotion; compiler inspection/check integration. **Needs:** BGI-03/05 operations, BGI-04 full-run journal promotion and BGI-11 applicable validator.
 
