@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -124,6 +124,105 @@ test("missing and incompatible groups identify exact unit and action", async () 
   }
 });
 
+test("missing primary output refuses while edits and optional assets pass", async () => {
+  const root = await mkdtemp(join(tmpdir(), "can-bgi02-records-"));
+  try {
+    const record = styleRecord("u1");
+    record.original.files["assets/old-logo.bin"] = sha256HexText("old logo bytes");
+    const unitDir = join(root, GENERATED_DIR, "u1");
+    await mkdir(unitDir, { recursive: true });
+    await writeFile(join(unitDir, UNIT_FILE), JSON.stringify(record));
+    // Current style.css missing: exact unit plus its generation action.
+    const missing = await readSavedGroup(root, "u1");
+    assert.equal(missing.ok, false);
+    assert(!missing.ok);
+    assert.equal(missing.issue.unit, "u1");
+    assert.equal(missing.issue.action, "generate");
+    assert.match(missing.issue.detail, /style\.css/);
+    // A direct edit (bytes differ from the historical hash) is usable,
+    // and the missing historical optional asset is not required.
+    await writeFile(join(unitDir, "style.css"), ".TaskSurface{color:new}");
+    const edited = await readSavedGroup(root, "u1");
+    assert.equal(edited.ok, true);
+    assert(edited.ok);
+    assert.equal(edited.group.files.length, 1);
+    assert.notEqual(
+      edited.group.files[0]?.sha256,
+      edited.group.record.original.files["style.css"],
+      "edited bytes are current inputs, not hash failures",
+    );
+    // A fresh preparation group (bound, no recorded outputs) may still be
+    // allocated without outputs.
+    const fresh: UnitRecord = {
+      ...record,
+      id: "u2",
+      original: { prompt_sha256: record.original.prompt_sha256, files: {} },
+      provenance: { origin: "bound", runner: null, model: null, note: "explicit bind" },
+    };
+    const freshDir = join(root, GENERATED_DIR, "u2");
+    await mkdir(freshDir, { recursive: true });
+    await writeFile(join(freshDir, UNIT_FILE), JSON.stringify(fresh));
+    const prepared = await readSavedGroup(root, "u2");
+    assert.equal(prepared.ok, true);
+    assert(prepared.ok);
+    assert.deepEqual(prepared.group.files, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("symlink entries refuse with the exact affected unit", async () => {
+  const root = await mkdtemp(join(tmpdir(), "can-bgi02-records-"));
+  try {
+    const unitDir = join(root, GENERATED_DIR, "u1");
+    await mkdir(unitDir, { recursive: true });
+    await writeFile(join(unitDir, UNIT_FILE), JSON.stringify(styleRecord("u1")));
+    const outside = join(root, "outside.css");
+    await writeFile(outside, "external bytes");
+    // A current file symlinking outside refuses; external bytes never
+    // serve as the unit's own output.
+    await symlink(outside, join(unitDir, "style.css"));
+    const linked = await readSavedGroup(root, "u1");
+    assert.equal(linked.ok, false);
+    assert(!linked.ok);
+    assert.equal(linked.issue.unit, "u1");
+    assert.equal(linked.issue.action, "bind");
+    assert.match(linked.issue.detail, /style\.css/);
+    assert.match(linked.issue.detail, /symlink/);
+    await rm(join(unitDir, "style.css"));
+    await writeFile(join(unitDir, "style.css"), ".TaskSurface{}");
+    assert((await readSavedGroup(root, "u1")).ok);
+
+    // A symlinked unit record refuses with the affected unit.
+    const unit2 = join(root, GENERATED_DIR, "u2");
+    await mkdir(unit2, { recursive: true });
+    const externalRecord = join(root, "external-unit.json");
+    await writeFile(externalRecord, JSON.stringify(styleRecord("u2")));
+    await symlink(externalRecord, join(unit2, UNIT_FILE));
+    const recordLink = await readSavedGroup(root, "u2");
+    assert.equal(recordLink.ok, false);
+    assert(!recordLink.ok);
+    assert.equal(recordLink.issue.unit, "u2");
+    assert.equal(recordLink.issue.action, "bind");
+    assert.match(recordLink.issue.detail, /symlink/);
+
+    // A symlinked unit directory refuses with the affected unit.
+    const real = join(root, "real-u3");
+    await mkdir(real, { recursive: true });
+    await writeFile(join(real, UNIT_FILE), JSON.stringify(styleRecord("u3")));
+    await writeFile(join(real, "style.css"), ".TaskSurface{}");
+    await symlink(real, join(root, GENERATED_DIR, "u3"));
+    const dirLink = await readSavedGroup(root, "u3");
+    assert.equal(dirLink.ok, false);
+    assert(!dirLink.ok);
+    assert.equal(dirLink.issue.unit, "u3");
+    assert.equal(dirLink.issue.action, "bind");
+    assert.match(dirLink.issue.detail, /symlink/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("saved intake consults no provider config or login", async () => {
   const root = await mkdtemp(join(tmpdir(), "can-bgi02-records-"));
   const priorCatalog = process.env["CAN_CATALOG"];
@@ -135,6 +234,7 @@ test("saved intake consults no provider config or login", async () => {
     const unitDir = join(root, GENERATED_DIR, "u1");
     await mkdir(unitDir, { recursive: true });
     await writeFile(join(unitDir, UNIT_FILE), JSON.stringify(styleRecord("u1")));
+    await writeFile(join(unitDir, "style.css"), ".TaskSurface{}");
     const result = await readSavedGroup(root, "u1");
     assert.equal(result.ok, true);
     assert(result.ok);

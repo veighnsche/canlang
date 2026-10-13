@@ -21,6 +21,18 @@ import type {
 import { UNIT_ABI_VERSION, sha256HexText } from "./records.js";
 
 /**
+ * Current inspected location of one discovered unit: the
+ * workspace-relative path, source revision (SHA-256 of the file text),
+ * and byte span the descriptor was discovered from.
+ */
+export interface DescriptorLocation {
+  path: string;
+  revision: string;
+  start: number;
+  end: number;
+}
+
+/**
  * One discovered identity-carrying unit, as exported by compiler
  * discovery. Applications and named uses never reach association: they
  * reuse their definition without an independent identity.
@@ -31,6 +43,12 @@ export interface DescriptorInput {
   label: string | null;
   anchor: string;
   prompt: string;
+  /**
+   * Current location evidence for explicit-bind honor. Absent locations
+   * keep the conservative refusal: duplicate keys never reuse ownership
+   * without an exact captured bind to honor.
+   */
+  location?: DescriptorLocation;
 }
 
 /**
@@ -90,12 +108,55 @@ export type UnitAssociation =
     };
 
 /**
+ * An explicit bind honored for one descriptor: exactly one same-key
+ * record captured this exact source revision/location.
+ */
+function boundMatch(
+  group: readonly UnitRecord[],
+  location: DescriptorLocation | undefined,
+): UnitRecord | null {
+  if (location === undefined) {
+    return null;
+  }
+  let hit: UnitRecord | null = null;
+  for (const record of group) {
+    if (
+      record.source.path === location.path &&
+      record.source.revision === location.revision &&
+      record.source.start === location.start &&
+      record.source.end === location.end
+    ) {
+      if (hit !== null) {
+        return null;
+      }
+      hit = record;
+    }
+  }
+  return hit;
+}
+
+function retained(descriptor: DescriptorInput, record: UnitRecord): UnitAssociation {
+  return {
+    type: "retained",
+    id: record.id,
+    promptChanged: sha256HexText(descriptor.prompt) !== record.contract.prompt_sha256,
+  };
+}
+
+/**
  * Conservatively associate discovered units with saved records. A
  * descriptor retains its ID only when its key is unique on both sides
  * and exactly one saved record matches. Copies (duplicate keys on the
  * descriptor side) and duplicate saved records both refuse; relocated
  * units whose anchor changed are `new` rather than silently reusing
  * ownership.
+ *
+ * The one exception honors an explicit bind: when a descriptor carries
+ * its current `location` and exactly one same-key record captured that
+ * exact source revision/location, the descriptor retains that record's
+ * ID. Changed or stale source never guesses: a revision or span that no
+ * longer matches refuses as before, as do two records claiming the same
+ * location.
  */
 export function associate(
   descriptors: readonly DescriptorInput[],
@@ -122,23 +183,29 @@ export function associate(
     const descriptor = descriptors[index] as DescriptorInput;
     let association: UnitAssociation;
     if ((keyCounts.get(key) ?? 0) > 1) {
-      // A copied definition shares its whole key: refuse reuse.
-      const candidates = (savedByKey.get(key) ?? []).map((record) => record.id).sort();
-      association = { type: "ambiguous", candidates };
+      // A copied definition shares its whole key: refuse reuse, unless
+      // an explicit bind captured this exact location.
+      const group = savedByKey.get(key) ?? [];
+      const bound = boundMatch(group, descriptor.location);
+      association =
+        bound !== null
+          ? retained(descriptor, bound)
+          : { type: "ambiguous", candidates: group.map((record) => record.id).sort() };
     } else {
       const group = savedByKey.get(key);
       if (group === undefined) {
         association = { type: "new" };
       } else if (group.length === 1) {
         const only = group[0] as UnitRecord;
-        association = {
-          type: "retained",
-          id: only.id,
-          promptChanged: sha256HexText(descriptor.prompt) !== only.contract.prompt_sha256,
-        };
+        association = retained(descriptor, only);
       } else {
-        // Duplicate saved records: refuse to pick one.
-        association = { type: "ambiguous", candidates: group.map((record) => record.id).sort() };
+        // Duplicate saved records: refuse to pick one, unless an
+        // explicit bind captured this exact location.
+        const bound = boundMatch(group, descriptor.location);
+        association =
+          bound !== null
+            ? retained(descriptor, bound)
+            : { type: "ambiguous", candidates: group.map((record) => record.id).sort() };
       }
     }
     return { index, association };

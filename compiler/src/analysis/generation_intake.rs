@@ -123,6 +123,22 @@ impl UnitKind {
             Self::ViewStyleInline => "view-style-inline",
         }
     }
+
+    /// Required primary outputs for this kind: unit-relative paths that
+    /// must exist among current files before saved intake is usable.
+    ///
+    /// Style-family units produce CSS; trait units produce the
+    /// compiler-visible contributions carrier; keyword and view units
+    /// produce their saved JS module export. Owned assets and any other
+    /// historical files are never required: only these declared primaries
+    /// gate intake, and only by presence, never by hash equality.
+    pub fn required_primary_outputs(&self) -> &'static [&'static str] {
+        match self {
+            Self::Style | Self::StyleInline | Self::ViewStyleInline => &["style.css"],
+            Self::NamedTrait | Self::InlineTrait => &["contributions.can"],
+            Self::Keyword | Self::View => &["implementation.js"],
+        }
+    }
 }
 
 /// Source side of a unit association: owner/kind/label/normalized-structure
@@ -334,6 +350,15 @@ pub enum UnitAssociation {
     Ambiguous { candidates: Vec<GenerationUnitId> },
 }
 
+/// Current source evidence for one association pass: the workspace-relative
+/// path and revision (SHA-256 of the file text) every `descriptor` span was
+/// discovered from. Spans come from the descriptors themselves.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssociationSource {
+    pub path: String,
+    pub revision: String,
+}
+
 /// Conservatively associate discovered units with saved records.
 ///
 /// Both sides group by [`AssociationKey`]. A descriptor retains its ID only
@@ -343,9 +368,40 @@ pub enum UnitAssociation {
 /// units whose anchor changed yield [`UnitAssociation::New`] rather than
 /// silently reusing ownership. Descriptors without generation identity
 /// (applications, named uses) are skipped: they reuse their definition.
+///
+/// This form carries no current-location evidence, so every duplicate key
+/// refuses. Use [`associate_with_source`] when the caller can name the
+/// inspected path/revision: an explicit bind is then honored for its exact
+/// captured source revision/location, and only there.
 pub fn associate(
     descriptors: &[GenerationDescriptor],
     saved: &[UnitRecord],
+) -> Vec<(usize, UnitAssociation)> {
+    associate_inner(descriptors, saved, None)
+}
+
+/// Associate with current source evidence, honoring explicit binds.
+///
+/// Behaves exactly like [`associate`] except under duplicate keys: when a
+/// descriptor's current location (this pass's path/revision plus the
+/// descriptor's own span) exactly equals one saved record's captured bind
+/// evidence (`source.path/revision/start/end` for the same key), that
+/// descriptor retains that record's ID. Changed or stale source never
+/// guesses: a revision or span that no longer matches refuses with
+/// [`UnitAssociation::Ambiguous`] as before, as do two records claiming
+/// the same location.
+pub fn associate_with_source(
+    descriptors: &[GenerationDescriptor],
+    saved: &[UnitRecord],
+    source: &AssociationSource,
+) -> Vec<(usize, UnitAssociation)> {
+    associate_inner(descriptors, saved, Some(source))
+}
+
+fn associate_inner(
+    descriptors: &[GenerationDescriptor],
+    saved: &[UnitRecord],
+    source: Option<&AssociationSource>,
 ) -> Vec<(usize, UnitAssociation)> {
     let mut saved_by_key: HashMap<AssociationKey, Vec<&UnitRecord>> = HashMap::new();
     for record in saved {
@@ -369,38 +425,79 @@ pub fn associate(
         *key_counts.entry(key.clone()).or_default() += 1;
         keyed.push((index, key));
     }
+    /// An explicit bind honored for one descriptor: exactly one same-key
+    /// record captured this exact source revision/location.
+    fn bound_match<'s>(
+        descriptors: &[GenerationDescriptor],
+        group: &[&'s UnitRecord],
+        index: usize,
+        source: &AssociationSource,
+    ) -> Option<&'s UnitRecord> {
+        let span = &descriptors[index].span;
+        let mut hit: Option<&UnitRecord> = None;
+        for record in group {
+            if record.source.path == source.path
+                && record.source.revision == source.revision
+                && record.source.start == span.start
+                && record.source.end == span.end
+            {
+                if hit.is_some() {
+                    return None;
+                }
+                hit = Some(record);
+            }
+        }
+        hit
+    }
+    fn retained(
+        descriptors: &[GenerationDescriptor],
+        index: usize,
+        record: &UnitRecord,
+    ) -> UnitAssociation {
+        let current = sha256_hex(
+            descriptors[index]
+                .prompt
+                .as_deref()
+                .unwrap_or_default()
+                .as_bytes(),
+        );
+        UnitAssociation::Retained {
+            id: record.id.clone(),
+            prompt_changed: current != record.contract.prompt_sha256,
+        }
+    }
     keyed
         .into_iter()
         .map(|(index, key)| {
             let association = if key_counts.get(&key).copied().unwrap_or(0) > 1 {
-                // A copied definition shares its whole key: refuse reuse.
-                let mut candidates: Vec<GenerationUnitId> = saved_by_key
-                    .get(&key)
-                    .map(|rs| rs.iter().map(|r| r.id.clone()).collect())
-                    .unwrap_or_default();
-                candidates.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                UnitAssociation::Ambiguous { candidates }
-            } else {
-                match saved_by_key.get(&key).map(Vec::as_slice) {
-                    Some([record]) => {
-                        let current = sha256_hex(
-                            descriptors[index]
-                                .prompt
-                                .as_deref()
-                                .unwrap_or_default()
-                                .as_bytes(),
-                        );
-                        UnitAssociation::Retained {
-                            id: record.id.clone(),
-                            prompt_changed: current != record.contract.prompt_sha256,
-                        }
-                    }
-                    Some(many) => {
-                        // Duplicate saved records: refuse to pick one.
+                // A copied definition shares its whole key: refuse reuse,
+                // unless an explicit bind captured this exact location.
+                let group: &[&UnitRecord] =
+                    saved_by_key.get(&key).map(Vec::as_slice).unwrap_or(&[]);
+                match source.and_then(|s| bound_match(descriptors, group, index, s)) {
+                    Some(record) => retained(descriptors, index, record),
+                    None => {
                         let mut candidates: Vec<GenerationUnitId> =
-                            many.iter().map(|r| r.id.clone()).collect();
+                            group.iter().map(|r| r.id.clone()).collect();
                         candidates.sort_by(|a, b| a.as_str().cmp(b.as_str()));
                         UnitAssociation::Ambiguous { candidates }
+                    }
+                }
+            } else {
+                match saved_by_key.get(&key).map(Vec::as_slice) {
+                    Some([record]) => retained(descriptors, index, record),
+                    Some(many) => {
+                        // Duplicate saved records: refuse to pick one,
+                        // unless an explicit bind captured this exact location.
+                        match source.and_then(|s| bound_match(descriptors, many, index, s)) {
+                            Some(record) => retained(descriptors, index, record),
+                            None => {
+                                let mut candidates: Vec<GenerationUnitId> =
+                                    many.iter().map(|r| r.id.clone()).collect();
+                                candidates.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+                                UnitAssociation::Ambiguous { candidates }
+                            }
+                        }
                     }
                     None => UnitAssociation::New,
                 }
@@ -663,9 +760,42 @@ impl std::error::Error for IntakeIssue {}
 /// state is consulted; the `$` marker never launches a CLI here. Current
 /// bytes are returned as-is with fresh fingerprints; the original
 /// fingerprints in `unit.json` are preserved untouched for comparison.
+///
+/// Intake is exactly the owning unit: symlinks (which could escape to
+/// outside bytes) refuse with the affected unit, and the kind's required
+/// primary outputs must be present before the group is usable. Fresh
+/// preparation groups (a `bound` record with no recorded original outputs)
+/// may still be allocated without outputs; direct edits remain current
+/// inputs and historical optional assets are never required.
 pub fn read_saved_group(root: &Path, id: &GenerationUnitId) -> Result<SavedGroup, IntakeIssue> {
     let dir = root.join(GENERATED_DIR).join(id.as_str());
+    if std::fs::symlink_metadata(&dir)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        return Err(IntakeIssue {
+            unit: id.as_str().to_string(),
+            action: IntakeAction::Bind,
+            detail: format!(
+                "saved group at {} is a symlink; intake reads only the owning unit's own directory — reconcile with an explicit bind",
+                dir.display()
+            ),
+        });
+    }
     let record_path = dir.join(UNIT_FILE);
+    if std::fs::symlink_metadata(&record_path)
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        return Err(IntakeIssue {
+            unit: id.as_str().to_string(),
+            action: IntakeAction::Bind,
+            detail: format!(
+                "saved group `{id}` record at {} is a symlink; intake reads only the owning unit's own files — reconcile with an explicit bind",
+                record_path.display()
+            ),
+        });
+    }
     let text = std::fs::read_to_string(&record_path).map_err(|_| IntakeIssue {
         unit: id.as_str().to_string(),
         action: IntakeAction::Generate,
@@ -686,6 +816,33 @@ pub fn read_saved_group(root: &Path, id: &GenerationUnitId) -> Result<SavedGroup
         detail: format!("saved group at {} is unreadable: {reason}", dir.display()),
     })?;
     files.sort_by(|a: &SavedFile, b: &SavedFile| a.rel_path.cmp(&b.rel_path));
+    let fresh_preparation =
+        record.provenance.origin == ProvenanceOrigin::Bound && record.original.files.is_empty();
+    if !fresh_preparation {
+        let missing: Vec<&&str> = record
+            .source
+            .kind
+            .required_primary_outputs()
+            .iter()
+            .filter(|wanted| !files.iter().any(|f| &f.rel_path == *wanted))
+            .collect();
+        if !missing.is_empty() {
+            let names: Vec<&str> = missing.into_iter().copied().collect();
+            return Err(IntakeIssue {
+                unit: id.as_str().to_string(),
+                action: IntakeAction::Generate,
+                detail: format!(
+                    "saved group `{id}` ({}) is missing required primary output {}; prepare generation for the unit",
+                    record.source.kind.as_str(),
+                    names
+                        .iter()
+                        .map(|n| format!("`{n}`"))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                ),
+            });
+        }
+    }
     Ok(SavedGroup { record, dir, files })
 }
 
@@ -699,9 +856,17 @@ fn collect_current_files(
     for entry in entries {
         let entry = entry.map_err(|err| format!("cannot read entry: {err}"))?;
         let path = entry.path();
+        // DirEntry file types never follow symlinks: a link reads as a
+        // link, never as its target.
         let file_type = entry
             .file_type()
             .map_err(|err| format!("cannot stat entry: {err}"))?;
+        if file_type.is_symlink() {
+            let rel = rel_path(&path, unit_dir)?;
+            return Err(format!(
+                "entry `{rel}` is a symlink; saved groups hold only regular files owned by the unit — reconcile with an explicit bind"
+            ));
+        }
         if file_type.is_dir() {
             collect_current_files(&path, unit_dir, out)?;
             continue;
@@ -712,13 +877,7 @@ fn collect_current_files(
         if path.file_name().is_some_and(|n| n == UNIT_FILE) && path.parent() == Some(unit_dir) {
             continue; // unit.json is parsed, not a current input file.
         }
-        let rel = path
-            .strip_prefix(unit_dir)
-            .map_err(|_| "unit path escapes its directory".to_string())?
-            .components()
-            .map(|c| c.as_os_str().to_string_lossy())
-            .collect::<Vec<_>>()
-            .join("/");
+        let rel = rel_path(&path, unit_dir)?;
         let bytes =
             std::fs::read(&path).map_err(|err| format!("cannot read {}: {err}", path.display()))?;
         let sha256 = sha256_hex(&bytes);
@@ -729,6 +888,17 @@ fn collect_current_files(
         });
     }
     Ok(())
+}
+
+/// Unit-relative `/`-joined path for a collected entry.
+fn rel_path(path: &Path, unit_dir: &Path) -> Result<String, String> {
+    Ok(path
+        .strip_prefix(unit_dir)
+        .map_err(|_| "unit path escapes its directory".to_string())?
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/"))
 }
 
 /// Intake every associated unit: retained associations load their saved

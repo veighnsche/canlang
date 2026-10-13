@@ -3,10 +3,11 @@ use canlang_compiler::analysis::generation::{
     GenerationDescriptor, GenerationKind, discover_generation,
 };
 use canlang_compiler::analysis::generation_intake::{
-    AssociationKey, BindError, BindRequest, BindTarget, GENERATED_DIR, GenerationUnitId,
-    IntakeAction, OriginalOutput, ProvenanceOrigin, UNIT_ABI_VERSION, UNIT_FILE, UnitAssociation,
-    UnitKind, UnitProvenance, UnitRecord, apply_bind, associate, association_for, contract_for,
-    intake_associated, next_unit_id, read_saved_group, scan_unit_ids,
+    AssociationKey, AssociationSource, BindError, BindRequest, BindTarget, GENERATED_DIR,
+    GenerationUnitId, IntakeAction, OriginalOutput, ProvenanceOrigin, UNIT_ABI_VERSION, UNIT_FILE,
+    UnitAssociation, UnitKind, UnitProvenance, UnitRecord, apply_bind, associate,
+    associate_with_source, association_for, contract_for, intake_associated, next_unit_id,
+    read_saved_group, scan_unit_ids,
 };
 use canlang_compiler::cli::dispatch;
 use canlang_compiler::format::format_source;
@@ -579,6 +580,7 @@ fn saved_intake_consults_no_provider_config_or_login() {
     let unit_dir = root.join(GENERATED_DIR).join("u1");
     std::fs::create_dir_all(&unit_dir).unwrap();
     std::fs::write(unit_dir.join(UNIT_FILE), record.to_json()).unwrap();
+    std::fs::write(unit_dir.join("implementation.js"), b"// current renderer").unwrap();
     // No can.gen.toml anywhere under the root, no network, no login.
     let group = read_saved_group(root, &GenerationUnitId::parse("u1").unwrap()).unwrap();
     assert_eq!(group.record.id.as_str(), "u1");
@@ -692,6 +694,218 @@ fn cli_bind_round_trip_then_status_retains() {
         "{}",
         result.stderr
     );
+}
+
+/// Two inline text styles sharing one structural key, as in the probe:
+/// `text "one" $"Readable"` and `text "two" $"Readable"` in page/UiLeaf.
+fn copied_inline_styles() -> Vec<GenerationDescriptor> {
+    [("one", 1u32, 10u32), ("two", 20u32, 30u32)]
+        .into_iter()
+        .map(|(_text, start, end)| GenerationDescriptor {
+            owner: "Test".to_string(),
+            kind: GenerationKind::StyleInline,
+            label: Some("UiLeaf".to_string()),
+            prompt: Some("Readable".to_string()),
+            profile: None,
+            span: canlang_compiler::source::Span {
+                file: SourceId(0),
+                start,
+                end,
+            },
+            anchor: "Test:style-inline:UiLeaf:UiLeaf".to_string(),
+            target: Some("UiLeaf".to_string()),
+            has_generation_identity: true,
+            params: Vec::new(),
+            args: Vec::new(),
+            use_sites: Vec::new(),
+        })
+        .collect()
+}
+
+#[test]
+fn explicit_bind_honored_for_exact_captured_location_only() {
+    let descriptors = copied_inline_styles();
+    let revision = "rev";
+    // Bind the original location to u1, then the copy with new=true to u2.
+    let first = &descriptors[0];
+    let seed = saved_record("u1", first, "app.can", revision);
+    let bind_original = BindRequest {
+        path: "app.can".to_string(),
+        revision: revision.to_string(),
+        start: first.span.start,
+        end: first.span.end,
+        source: association_for(first, "app.can", revision).unwrap(),
+        contract: contract_for(first).unwrap(),
+        target: BindTarget::Existing(GenerationUnitId::parse("u1").unwrap()),
+    };
+    let bound_original = apply_bind(&[seed], &bind_original, revision).unwrap();
+    let second = &descriptors[1];
+    let bind_copy = BindRequest {
+        path: "app.can".to_string(),
+        revision: revision.to_string(),
+        start: second.span.start,
+        end: second.span.end,
+        source: association_for(second, "app.can", revision).unwrap(),
+        contract: contract_for(second).unwrap(),
+        target: BindTarget::New,
+    };
+    let bound_copy = apply_bind(&[bound_original.clone()], &bind_copy, revision).unwrap();
+    assert_eq!(bound_copy.id.as_str(), "u2");
+    let saved = vec![bound_original, bound_copy];
+
+    // Without current-location evidence the shared key still refuses.
+    for (_, association) in associate(&descriptors, &saved) {
+        match association {
+            UnitAssociation::Ambiguous { candidates } => {
+                assert_eq!(candidates.len(), 2);
+            }
+            other => panic!("evidence-free copies must refuse, got {other:?}"),
+        }
+    }
+    // With exact evidence each location retains its own bound ID.
+    let source = AssociationSource {
+        path: "app.can".to_string(),
+        revision: revision.to_string(),
+    };
+    let honored: Vec<_> = associate_with_source(&descriptors, &saved, &source);
+    assert_eq!(honored.len(), 2);
+    assert!(matches!(
+        honored[0].1,
+        UnitAssociation::Retained { ref id, prompt_changed: false }
+        if id.as_str() == "u1"
+    ));
+    assert!(matches!(
+        honored[1].1,
+        UnitAssociation::Retained { ref id, prompt_changed: false }
+        if id.as_str() == "u2"
+    ));
+    // Changed or stale source never guesses: a new revision refuses both.
+    let stale = AssociationSource {
+        path: "app.can".to_string(),
+        revision: "rev-edited".to_string(),
+    };
+    for (_, association) in associate_with_source(&descriptors, &saved, &stale) {
+        assert!(
+            matches!(association, UnitAssociation::Ambiguous { .. }),
+            "stale revision must not guess, got {association:?}"
+        );
+    }
+    // A moved span refuses while its untouched sibling still retains:
+    // only the exact captured location honors.
+    let mut moved = descriptors.clone();
+    moved[0].span.start = 2;
+    let rematched = associate_with_source(&moved, &saved, &source);
+    assert_eq!(rematched.len(), 2);
+    assert!(
+        matches!(rematched[0].1, UnitAssociation::Ambiguous { .. }),
+        "moved span must not guess, got {:?}",
+        rematched[0].1
+    );
+    assert!(matches!(
+        rematched[1].1,
+        UnitAssociation::Retained { ref id, prompt_changed: false }
+        if id.as_str() == "u2"
+    ));
+}
+
+#[test]
+fn missing_primary_output_refuses_while_edits_and_optional_assets_pass() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let descriptors = copied_inline_styles();
+    let mut record = saved_record("u1", &descriptors[0], "app.can", "rev");
+    record.original.files.insert(
+        "assets/old-logo.bin".to_string(),
+        sha256_hex(b"old logo bytes"),
+    );
+    let unit_dir = root.join(GENERATED_DIR).join("u1");
+    std::fs::create_dir_all(&unit_dir).unwrap();
+    std::fs::write(unit_dir.join(UNIT_FILE), record.to_json()).unwrap();
+    // Current style.css missing: exact unit plus its generation action.
+    let issue = read_saved_group(root, &GenerationUnitId::parse("u1").unwrap()).unwrap_err();
+    assert_eq!(issue.unit, "u1");
+    assert_eq!(issue.action, IntakeAction::Generate);
+    assert!(issue.detail.contains("style.css"), "{issue}");
+    // A direct edit (bytes differ from the historical hash) is usable,
+    // and the missing historical optional asset is not required.
+    std::fs::write(unit_dir.join("style.css"), b".UiLeaf{color:new}").unwrap();
+    let group = read_saved_group(root, &GenerationUnitId::parse("u1").unwrap()).unwrap();
+    assert_eq!(group.record.id.as_str(), "u1");
+    assert_eq!(group.files.len(), 1);
+    assert_ne!(
+        group.files[0].sha256, group.record.original.files["style.css"],
+        "edited bytes are current inputs, not hash failures"
+    );
+    // A fresh preparation group (bound, no recorded outputs) may still be
+    // allocated without outputs.
+    let fresh = apply_bind(
+        &[record],
+        &BindRequest {
+            path: "app.can".to_string(),
+            revision: "rev".to_string(),
+            start: 20,
+            end: 30,
+            source: association_for(&descriptors[1], "app.can", "rev").unwrap(),
+            contract: contract_for(&descriptors[1]).unwrap(),
+            target: BindTarget::New,
+        },
+        "rev",
+    )
+    .unwrap();
+    let fresh_dir = root.join(GENERATED_DIR).join(fresh.id.as_str());
+    std::fs::create_dir_all(&fresh_dir).unwrap();
+    std::fs::write(fresh_dir.join(UNIT_FILE), fresh.to_json()).unwrap();
+    let group = read_saved_group(root, &fresh.id).unwrap();
+    assert!(group.files.is_empty());
+}
+
+#[test]
+#[cfg(unix)]
+fn symlink_entries_refuse_with_exact_affected_unit() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let descriptors = copied_inline_styles();
+    let record = saved_record("u1", &descriptors[0], "app.can", "rev");
+    let unit_dir = root.join(GENERATED_DIR).join("u1");
+    std::fs::create_dir_all(&unit_dir).unwrap();
+    std::fs::write(unit_dir.join(UNIT_FILE), record.to_json()).unwrap();
+    let outside = dir.path().join("outside.css");
+    std::fs::write(&outside, b"external bytes").unwrap();
+    // A current file symlinking outside refuses; external bytes never
+    // serve as the unit's own output.
+    std::os::unix::fs::symlink(&outside, unit_dir.join("style.css")).unwrap();
+    let issue = read_saved_group(root, &GenerationUnitId::parse("u1").unwrap()).unwrap_err();
+    assert_eq!(issue.unit, "u1");
+    assert_eq!(issue.action, IntakeAction::Bind);
+    assert!(issue.detail.contains("style.css"), "{issue}");
+    assert!(issue.detail.contains("symlink"), "{issue}");
+    std::fs::remove_file(unit_dir.join("style.css")).unwrap();
+    std::fs::write(unit_dir.join("style.css"), b".UiLeaf{}").unwrap();
+    assert!(read_saved_group(root, &GenerationUnitId::parse("u1").unwrap()).is_ok());
+
+    // A symlinked unit record refuses with the affected unit.
+    let record2 = saved_record("u2", &descriptors[1], "app.can", "rev");
+    let unit2 = root.join(GENERATED_DIR).join("u2");
+    std::fs::create_dir_all(&unit2).unwrap();
+    let external_record = dir.path().join("external-unit.json");
+    std::fs::write(&external_record, record2.to_json()).unwrap();
+    std::os::unix::fs::symlink(&external_record, unit2.join(UNIT_FILE)).unwrap();
+    let issue = read_saved_group(root, &GenerationUnitId::parse("u2").unwrap()).unwrap_err();
+    assert_eq!(issue.unit, "u2");
+    assert_eq!(issue.action, IntakeAction::Bind);
+    assert!(issue.detail.contains("symlink"), "{issue}");
+
+    // A symlinked unit directory refuses with the affected unit.
+    let real = dir.path().join("real-u3");
+    std::fs::create_dir_all(&real).unwrap();
+    let record3 = saved_record("u3", &descriptors[0], "app.can", "rev");
+    std::fs::write(real.join(UNIT_FILE), record3.to_json()).unwrap();
+    std::fs::write(real.join("style.css"), b".UiLeaf{}").unwrap();
+    std::os::unix::fs::symlink(&real, root.join(GENERATED_DIR).join("u3")).unwrap();
+    let issue = read_saved_group(root, &GenerationUnitId::parse("u3").unwrap()).unwrap_err();
+    assert_eq!(issue.unit, "u3");
+    assert_eq!(issue.action, IntakeAction::Bind);
+    assert!(issue.detail.contains("symlink"), "{issue}");
 }
 
 #[test]

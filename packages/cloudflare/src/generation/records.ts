@@ -12,7 +12,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { lstat, readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
 /** ABI version every `unit.json` must carry (frozen v1 record shape). */
@@ -49,6 +49,31 @@ const UNIT_KINDS: readonly UnitKind[] = [
 
 export function isUnitKind(value: unknown): value is UnitKind {
   return typeof value === "string" && (UNIT_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * Required primary outputs for a kind: unit-relative paths that must
+ * exist among current files before saved intake is usable. Mirrors the
+ * Rust `UnitKind::required_primary_outputs` exactly: style-family units
+ * produce CSS, trait units produce the compiler-visible contributions
+ * carrier, keyword and view units produce their saved JS module export.
+ * Owned assets and any other historical files are never required: only
+ * these declared primaries gate intake, and only by presence, never by
+ * hash equality.
+ */
+export function requiredPrimaryOutputs(kind: UnitKind): readonly string[] {
+  switch (kind) {
+    case "style":
+    case "style-inline":
+    case "view-style-inline":
+      return ["style.css"];
+    case "named-trait":
+    case "inline-trait":
+      return ["contributions.can"];
+    case "keyword":
+    case "view":
+      return ["implementation.js"];
+  }
 }
 
 /**
@@ -326,7 +351,15 @@ async function collectCurrentFiles(dir: string, unitDir: string, out: SavedFile[
   const entries = await readdir(dir);
   for (const entry of entries) {
     const path = join(dir, entry);
-    const info = await stat(path);
+    // lstat never follows symlinks: a link reads as a link, never as
+    // its target.
+    const info = await lstat(path);
+    if (info.isSymbolicLink()) {
+      const relPath = relative(unitDir, path).split(sep).join("/");
+      throw new Error(
+        `entry \`${relPath}\` is a symlink; saved groups hold only regular files owned by the unit — reconcile with an explicit bind`,
+      );
+    }
     if (info.isDirectory()) {
       await collectCurrentFiles(path, unitDir, out);
       continue;
@@ -343,12 +376,27 @@ async function collectCurrentFiles(dir: string, unitDir: string, out: SavedFile[
   }
 }
 
+async function isSymlink(path: string): Promise<boolean> {
+  try {
+    return (await lstat(path)).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Read one saved group: `unit.json` plus the owning unit's current files.
  * Only the unit's own directory is read (recursively, so owned assets
  * travel with their unit). No provider, configuration, login, or ambient
  * state is consulted. Current bytes return as-is with fresh fingerprints;
  * the original fingerprints in `unit.json` stay untouched for comparison.
+ *
+ * Intake is exactly the owning unit: symlinks (which could escape to
+ * outside bytes) refuse with the affected unit, and the kind's required
+ * primary outputs must be present before the group is usable. Fresh
+ * preparation groups (a `bound` record with no recorded original outputs)
+ * may still be allocated without outputs; direct edits remain current
+ * inputs and historical optional assets are never required.
  */
 export async function readSavedGroup(
   root: string,
@@ -356,7 +404,31 @@ export async function readSavedGroup(
 ): Promise<IntakeResult> {
   validateUnitId(id);
   const dir = join(root, GENERATED_DIR, id);
+  if (await isSymlink(dir)) {
+    return {
+      ok: false,
+      issue: {
+        unit: id,
+        action: "bind",
+        detail:
+          `saved group at ${dir} is a symlink; intake reads only the owning unit's own directory` +
+          ` — reconcile with an explicit bind`,
+      },
+    };
+  }
   const recordPath = join(dir, UNIT_FILE);
+  if (await isSymlink(recordPath)) {
+    return {
+      ok: false,
+      issue: {
+        unit: id,
+        action: "bind",
+        detail:
+          `saved group \`${id}\` record at ${recordPath} is a symlink;` +
+          ` intake reads only the owning unit's own files — reconcile with an explicit bind`,
+      },
+    };
+  }
   let text: string;
   try {
     text = await readFile(recordPath, "utf8");
@@ -399,5 +471,24 @@ export async function readSavedGroup(
     };
   }
   files.sort((a, b) => (a.relPath < b.relPath ? -1 : a.relPath > b.relPath ? 1 : 0));
+  const freshPreparation =
+    record.provenance.origin === "bound" && Object.keys(record.original.files).length === 0;
+  if (!freshPreparation) {
+    const missing = requiredPrimaryOutputs(record.source.kind).filter(
+      (wanted) => !files.some((file) => file.relPath === wanted),
+    );
+    if (missing.length > 0) {
+      return {
+        ok: false,
+        issue: {
+          unit: id,
+          action: "generate",
+          detail:
+            `saved group \`${id}\` (${record.source.kind}) is missing required primary output` +
+            ` ${missing.map((name) => `\`${name}\``).join(", ")}; prepare generation for the unit`,
+        },
+      };
+    }
+  }
   return { ok: true, group: { record, dir, files } };
 }
