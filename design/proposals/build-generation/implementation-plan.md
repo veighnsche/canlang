@@ -47,7 +47,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-01 — Source carriers and unit descriptors
 
-- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133b4 release 0acf13582 integrated as e6780134c (lexer $ marker, CST carriers, trait/keyword/style/view parsers, format, analysis/generation.rs descriptors, tests/bgi01_generation.rs 7 tests). Coordinator verified on main: bgi01_generation 7/7, b4_parse 20/20, check 38/38 pass; format 20/21 with only pre-existing draft-missing corpus failure (identical on base cffce560); lib/view_reuse/authoring full runs blocked by missing draft submodule (pre-existing, untouched files, out of scope). BGI02 unblocked.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133b4 release 0acf13582 integrated as e6780134c (lexer $ marker, CST carriers, trait/keyword/style/view parsers, format, analysis/generation.rs descriptors, tests/bgi01_generation.rs 7 tests). Coordinator verified on main: bgi01_generation 7/7, b4_parse 20/20, check 38/38 pass; format 20/21 with only pre-existing draft-missing corpus failure (identical on base cffce560); lib/view_reuse/authoring full runs blocked by missing draft submodule (pre-existing, untouched files, out of scope). BGI02 unblocked. Queued finite repair per Codex check can-bg-56271b11-codex-check-20261013T055635Z (6 probe findings: field-trait targets, keyword arg admission, literal normalization, namespace collision, nonvisual suffix refusal, inline agent propagation) AFTER BGI02 handoff/writer release, before BGI03/BGI04; serialize shared generation.rs/CLI files; reuse BGI02 worker continuation if safe else one replacement owner.
 
 **Owner / targets:** compiler `syntax/{cst,parser,construct_help}.rs`, `format.rs`, `analysis/{mod,resolve,types}.rs`, `codegen/ir.rs`; owning additions to `packages/contracts/src/{artifact,presentation}.ts`. Update grammar/help/editor vocabulary with the relevant language change.
 
@@ -57,7 +57,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-02 — Stable associations and saved-group intake
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 253ed4d5 with BGI01 accepted). Evidence/handoff: worker 01a133c5 running, worktree clean (reading phase); timer fire 5 observed 2026-10-13T05:41Z, ping can-bg-56271b11-bgi02-ping-1 queued awaiting ACK; awaiting opaque-ID/unit.json/association handoff with bgi02+bgi01 green.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 3e998b5d with BGI01 accepted). Evidence/handoff: BGI02 v1 worker 01a133c5 terminated read-only after ping ACK (no code); redispatched v2 worker 01a133c8 with continue-to-commit brief; timer fire 8 observed 2026-10-13T05:56Z, v2 added packages/cloudflare/src/generation/ (Node records/association) alongside Rust intake/CLI work, still running uncommitted; awaiting committed handoff with bgi02+bgi01 green.
 
 **Owner / targets:** compiler `source.rs`, `analysis/mod.rs`, `cli.rs` and focused generation intake; Node generation record/association modules. **Needs:** BGI-01 structural descriptors and the frozen output grouping/record shape; existing unit-level sketches are not a provider-job requirement.
 
