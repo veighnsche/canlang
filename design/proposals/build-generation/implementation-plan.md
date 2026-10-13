@@ -47,7 +47,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-01 — Source carriers and unit descriptors
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac, goal goal-01a133b1, freeze cffce560). Evidence/handoff: BGI01 v1 worker 01a133b2 terminated read-only (isolated worktree excluded dirty contract); redispatched v2 worker 01a133b4 from cffce560 with contract visible; timer 5b3b506a fire 4 observed 2026-10-13T05:36Z; v2 still running, parser/lexer expanded (+801 tracked lines uncommitted) plus generation.rs and bgi01 test file; awaiting committed handoff with test evidence.
 
 **Owner / targets:** compiler `syntax/{cst,parser,construct_help}.rs`, `format.rs`, `analysis/{mod,resolve,types}.rs`, `codegen/ir.rs`; owning additions to `packages/contracts/src/{artifact,presentation}.ts`. Update grammar/help/editor vocabulary with the relevant language change.
 
