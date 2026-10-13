@@ -12,15 +12,14 @@
  *
  * BGI-03 scope: full request validation plus the `doctor` provider
  * check (adapter availability, effective recipe with origins,
- * pre-launch preflight, launch verdict). Every other operation
- * passes admission and then fails closed with a typed
- * `not-implemented` envelope naming its joining task: saved-intake
- * operations (`status`, `inspect`, `bind`) are served by `can gen`
- * (the Rust dispatcher) in BGI-03, while execution, lifecycle, and
- * lease handlers join the host through BGI-04, BGI-05, BGI-11, and
- * BGI-12. The shared contract modules (`generation/config.ts`,
- * `generation/protocol.ts`) are the BGI-03 deliverable those
- * handlers build on.
+ * pre-launch preflight, launch verdict). BGI-12 routes every other
+ * admitted operation to the control layer
+ * (`generation/controls.ts`), which composes the accepted producer
+ * mechanisms: compiler inspection/validation through the `can`
+ * binary, BGI-05 execution/lifecycle, BGI-04 journals/leases, and
+ * BGI-11 validation-to-promotion joins. The shared contract modules
+ * (`generation/config.ts`, `generation/protocol.ts`) stay the
+ * deliverable those handlers build on.
  */
 
 import { readFile } from "node:fs/promises";
@@ -33,6 +32,7 @@ import {
   type LoadedSettings,
   type RunOverrides,
 } from "../generation/config.js";
+import { dispatchControl } from "../generation/controls.js";
 import {
   ADAPTERS,
   EXIT_INVALID,
@@ -44,6 +44,7 @@ import {
   okEnvelope,
   parseRequest,
   preflightRecipe,
+  progressEvent,
   type DoctorParams,
   type RequestHeader,
   type ValidatedRequest,
@@ -111,51 +112,7 @@ function echoHeader(text: string): { request_id: string; operation: string } {
   return { request_id: "", operation: "unknown" };
 }
 
-function notImplemented(header: RequestHeader, join: string): { code: number; envelope: string } {
-  return {
-    code: EXIT_INVALID,
-    envelope: errorEnvelope(
-      header.request_id,
-      header.operation,
-      "not-implemented",
-      `operation '${header.operation}' passed admission, but its handler joins through ${join}; nothing launched and nothing changed`,
-      [`resend after ${join} lands`],
-    ),
-  };
-}
 
-/** Host join map for operations the BGI-03 host does not handle yet. */
-function hostJoinFor(operation: string): string {
-  switch (operation) {
-    case "status":
-    case "inspect":
-    case "bind":
-      return "`can gen` (the Rust dispatcher serves saved-intake operations in BGI-03)";
-    case "generate":
-    case "refine":
-    case "retry":
-    case "resume":
-      return "BGI-05 (capture, compatible-recipe job grouping, and execution)";
-    case "diff":
-    case "preview":
-      return "BGI-05 (candidate inventory and machine diffs/previews)";
-    case "validate":
-      return "BGI-11 (interface/contract/target validators)";
-    case "adopt":
-    case "accept":
-    case "rollback":
-      return "BGI-12 (validation-to-promotion joins)";
-    case "cancel":
-    case "reset":
-      return "BGI-05 (execution fencing) with BGI-12 (controls)";
-    case "edit.begin":
-    case "edit.end":
-    case "lease.recover":
-      return "BGI-04 (write leases)";
-    default:
-      return "a later BGI task";
-  }
-}
 
 async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promise<string> {
   const root = params.root ?? ".";
@@ -288,8 +245,11 @@ async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promis
 
 /**
  * Run one `gen` request: read via `--request FILE` or stdin, validate
- * against the v1 protocol, serve `doctor`, and fail closed with typed
- * `not-implemented` envelopes for every other admitted operation.
+ * against the v1 protocol, serve `doctor` here, and route every other
+ * admitted operation to the BGI-12 control layer. Refine requests
+ * selecting the stdin instruction carrier beside `--request FILE`
+ * read the instruction from stdin here; the control layer owns the
+ * exclusive-carrier refusal when the request itself rode stdin.
  */
 export async function runGen(genRequest: string | null): Promise<void> {
   let text: string;
@@ -347,7 +307,34 @@ export async function runGen(genRequest: string | null): Promise<void> {
     writeEnvelope(await runGenDoctor(validated.header, validated.params.params));
     return;
   }
-  const { code, envelope } = notImplemented(validated.header, hostJoinFor(validated.header.operation));
+  let stdinText: string | undefined;
+  if (
+    validated.params.kind === "refine" &&
+    validated.params.params.instruction_stdin === true &&
+    genRequest !== null
+  ) {
+    try {
+      stdinText = await readStdinText();
+    } catch (error) {
+      process.exitCode = EXIT_INVALID;
+      writeEnvelope(
+        errorEnvelope(
+          validated.header.request_id,
+          validated.header.operation,
+          "request-unreadable",
+          error instanceof Error ? error.message : String(error),
+          ["pipe a non-empty instruction on stdin and resend"],
+        ),
+      );
+      return;
+    }
+  }
+  const { code, envelope } = await dispatchControl(text, {
+    ...(stdinText === undefined ? {} : { stdinText }),
+    onEvent: (phase, detail) => {
+      process.stderr.write(progressEvent(validated.header.request_id, validated.header.operation, phase, detail));
+    },
+  });
   process.exitCode = code;
   writeEnvelope(envelope);
 }

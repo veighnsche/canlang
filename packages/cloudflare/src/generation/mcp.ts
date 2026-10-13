@@ -248,6 +248,69 @@ async function scanPriorSubmissions(
   return found;
 }
 
+/** One recorded candidate submission read back from disk. */
+export interface CandidateSubmission {
+  /** Issued handle that was submitted. */
+  handle: string;
+  /** Role admitted for the handle. */
+  role: string;
+  /** Server-chosen logical filename. */
+  filename: string;
+  /** Accepted payload bytes. */
+  bytes: number;
+  /** SHA-256 hex of the accepted payload. */
+  sha256: string;
+  /** Host-bound MCP session id that recorded it. */
+  session: string;
+  /** Captured attempt id that recorded it. */
+  attempt: string;
+  /** Submission stamp. */
+  submitted_at: string;
+  /** Host-resolved candidate file path. */
+  candidate: string;
+}
+
+/**
+ * Read every well-formed recorded submission under a candidate
+ * root, in handle order. Only host metadata counts: a directory
+ * whose name is not its stored handle, or whose metadata is
+ * malformed, is ignored, never collected as output. BGI-12
+ * status/diff/preview/accept inventory flows through this reader;
+ * the live session remains the only writer.
+ */
+export async function readCandidateInventory(candidateRoot: string): Promise<CandidateSubmission[]> {
+  let entries: string[];
+  try {
+    entries = await readdir(candidateRoot);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return [];
+    throw error;
+  }
+  const found: CandidateSubmission[] = [];
+  for (const entry of entries.sort()) {
+    if (!handleGrammarValid(entry)) continue;
+    let text: string;
+    try {
+      text = await readFile(join(candidateRoot, entry, SUBMISSION_FILE), "utf8");
+    } catch {
+      continue;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      continue;
+    }
+    if (!isStoredSubmission(parsed)) continue;
+    if (parsed.handle !== entry) continue;
+    // Foreign metadata never escapes the handle dir: only bare
+    // server-chosen names resolve to a candidate path.
+    if (!filenameSafe(parsed.filename)) continue;
+    found.push({ ...parsed, candidate: join(candidateRoot, entry, parsed.filename) });
+  }
+  return found;
+}
+
 /**
  * Create one host-bound MCP session. The candidate root is created
  * when missing; current saved files are never consulted or written.

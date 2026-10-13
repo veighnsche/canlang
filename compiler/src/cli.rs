@@ -2481,6 +2481,16 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                                 "label": descriptor.label,
                                 "path": file,
                                 "association": "retained",
+                                // BGI-12 capture seam (additive): the live
+                                // prompt text, the fresh descriptor
+                                // contract, and the descriptor span for
+                                // bind-new selection. Saved history stays
+                                // in unit.json; prompt_changed flags drift.
+                                "prompt": descriptor.prompt,
+                                "contract": intake::contract_for(descriptor)
+                                    .map(|contract| contract_json(&contract))
+                                    .unwrap_or(serde_json::Value::Null),
+                                "span": serde_json::json!({"start": descriptor.span.start, "end": descriptor.span.end}),
                                 "prompt_changed": prompt_changed,
                                 "current": format!(
                                     "{}/{}/{id}",
@@ -2512,6 +2522,12 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                         "label": descriptor.label,
                         "path": file,
                         "association": "new",
+                        // BGI-12 capture seam (additive): see retained.
+                        "prompt": descriptor.prompt,
+                        "contract": intake::contract_for(descriptor)
+                            .map(|contract| contract_json(&contract))
+                            .unwrap_or(serde_json::Value::Null),
+                        "span": serde_json::json!({"start": descriptor.span.start, "end": descriptor.span.end}),
                         "action": "generate",
                     }));
                 }
@@ -2532,6 +2548,12 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                         "label": descriptor.label,
                         "path": file,
                         "association": "ambiguous",
+                        // BGI-12 capture seam (additive): see retained.
+                        "prompt": descriptor.prompt,
+                        "contract": intake::contract_for(descriptor)
+                            .map(|contract| contract_json(&contract))
+                            .unwrap_or(serde_json::Value::Null),
+                        "span": serde_json::json!({"start": descriptor.span.start, "end": descriptor.span.end}),
                         "candidates": candidates.iter().map(intake::GenerationUnitId::as_str).collect::<Vec<_>>(),
                         "action": "bind",
                     }));
@@ -2550,6 +2572,11 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
         units_json.push(serde_json::json!({
             "id": record.id.as_str(),
             "association": "orphaned",
+            // BGI-12 capture seam (additive): orphaned units have no
+            // live descriptor, so the seam fields stay null.
+            "prompt": serde_json::Value::Null,
+            "contract": serde_json::Value::Null,
+            "span": serde_json::Value::Null,
             "action": "bind",
         }));
     }
