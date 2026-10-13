@@ -690,3 +690,41 @@ test('DEL-B02: revocation at any awaited current-membership read withholds ready
     }
   }
 });
+
+
+test('DEL-B02: every admitted export limit remains valid for status and download', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  for (const limit of [100, 101, 500]) {
+    const outcome = await exportOk(t, { operation: OPERATION, limit });
+    const handle = outcome.descriptor!.handle;
+    assert.equal((await getDownload(t, `/api/exports/status/${handle}`)).status, 200);
+    const download = await getDownload(t, `/api/exports/download/${handle}`);
+    assert.equal(download.status, 200);
+    assert.equal(await download.text(), 'id,version,customer,total\ne-1,1,a,10\ne-2,,b,20\n');
+  }
+  const reads = t.invoker.reads.length;
+  const over = await t.http(postExport(t.identity.cookie, t.csrf, { operation: OPERATION, limit: 501 }));
+  assert.equal(over.status, 400);
+  assert.equal(t.invoker.reads.length, reads);
+});
+
+test('DEL-B02: the installed GET export handler contains and journals backend failures', async () => {
+  const t = await exportDownloadDeps();
+  const deps = { ...t.deps, exportDownloads: {
+    read: async (): Promise<never> => { throw new Error('private SQL/password/token failure'); },
+    save: async (): Promise<boolean> => false,
+    revoke: async (): Promise<boolean> => false,
+  } };
+  for (const endpoint of ['status', 'download']) {
+    const before = t.logger.calls.length;
+    // Direct handler: production assembly does not use the test's outer HTTP router.
+    const response = await handleExportRequest(deps, testRequest(`/api/exports/${endpoint}/exp-0123456789abcdef`,
+      { cookie: t.identity.cookie }));
+    assert.equal(response.status, 422);
+    const body = await response.text();
+    assert.equal(JSON.parse(body).code, 'rule_failed');
+    assert.ok(!body.includes('private') && !body.includes('password') && !body.includes('token'));
+    assert.equal(t.logger.calls.length, before + 1);
+    assert.equal(t.logger.calls.at(-1)!.level, 'error');
+  }
+});
