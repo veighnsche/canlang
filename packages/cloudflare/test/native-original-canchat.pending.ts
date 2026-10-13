@@ -272,8 +272,33 @@ test('unchanged original CanChat retains Files and exercises original empty term
         claimOperationId:uuidv7(now,++sequence) as OperationId,recordOperationId:uuidv7(now,++sequence) as OperationId,
         classifyFailure,evaluateGuard:()=>{throw new Error('Original SEND must use its installed native guard.');},
         readStateSnapshot:()=>null,fence:fenceFor(intent)});
-      const beforeUnsupported=await rows();assert.equal((await drive(pending[0]!)).status,'unavailable');
-      assert.equal(provider.requests.length,0);assert.deepEqual(await rows(),beforeUnsupported);
+      const beforeUnsupported=await rows();
+      const unsupportedStartMs=Date.now();assert.equal((await drive(pending[0]!)).status,'unavailable');const unsupportedEndMs=Date.now();
+      assert.equal(provider.requests.length,0);
+      const afterUnsupported=await rows();
+      assert.deepEqual(afterUnsupported.identity,beforeUnsupported.identity);
+      assert.deepEqual(afterUnsupported.files,beforeUnsupported.files);
+      assert.deepEqual(afterUnsupported.intents,beforeUnsupported.intents);
+      // The receipt-free unavailable verdict commits one empty System batch: exactly one fence
+      // revision plus one appended unknown fence_log entry; every other table stays byte-identical.
+      const beforeFence=beforeUnsupported.owner['fence'],afterFence=afterUnsupported.owner['fence'];
+      assert.equal(beforeFence.length,1);assert.equal(afterFence.length,1);
+      assert.deepEqual({...afterFence[0],revision:beforeFence[0]!.revision},beforeFence[0]);
+      assert.equal(afterFence[0]!.revision,(beforeFence[0]!.revision as number)+1);
+      const beforeLog=beforeUnsupported.owner['fence_log'],afterLog=afterUnsupported.owner['fence_log'];
+      assert.equal(afterLog.length,beforeLog.length+1);
+      const remaining=[...afterLog];
+      for (const prior of beforeLog) {
+        const at=remaining.findIndex(row=>JSON.stringify(row)===JSON.stringify(prior));
+        assert.ok(at>=0);remaining.splice(at,1);
+      }
+      assert.equal(remaining.length,1);
+      const [entry]=remaining;
+      assert.deepEqual(Object.keys(entry!).sort(),['at','operation','revision']);
+      assert.equal(entry!.operation,'unknown');
+      assert.equal(entry!.revision,afterFence[0]!.revision);
+      assert.ok(Number.isSafeInteger(entry!.at) && (entry!.at as number)>=unsupportedStartMs && (entry!.at as number)<=unsupportedEndMs);
+      assert.deepEqual({...afterUnsupported.owner,fence:beforeFence,'fence_log':beforeLog},beforeUnsupported.owner);
 
       // Separate full ORIGINAL empty-attachment branch, with an actual local
       // Ollama protocol/tokenizer. No authored operation, callback or progress
