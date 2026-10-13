@@ -144,6 +144,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "scenario-receipt-frame.js",
   "assembly-verification.js",
   "invoke.js",
+  "given-unique-keys.js",
   "bound-judgment.js",
   "input-choices.js",
   "receipt-staging.js",

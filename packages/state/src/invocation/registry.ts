@@ -54,8 +54,11 @@ import {
   type ModelName,
   type OperationName,
   type QueryPredicate,
+  type StateUniqueKeyProducerBinding,
 } from '@canlang/contracts';
 import type {
+  ArtifactGivenKeyword,
+  ArtifactGivenTrait,
   ArtifactModel,
   ArtifactCallable,
   ArtifactOperation,
@@ -146,7 +149,9 @@ export type IncompatibleArtifactReason =
   | 'duplicate_name'
   | 'dangling_reference'
   | 'unsupported_composite_unique'
-  | 'unsupported_server_init';
+  | 'unsupported_server_init'
+  | 'unknown_producer'
+  | 'unsupported_given_contribution';
 
 /**
  * Precise incompatible-artifact failure: the descriptor set (or artifact
@@ -213,7 +218,7 @@ export interface LoadedDescriptorSet {
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
-> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules' | 'callables'>>;
+> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules' | 'callables' | 'givenContracts'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -252,6 +257,13 @@ export interface ConvertedArtifactDescriptors {
   readonly secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
   readonly deliveryFields: DeliveryFieldSchema;
+  /**
+   * BGI-08 checked `state.unique-key@1` bindings in artifact order. Trait
+   * instantiations fold into `set.models` above; keyword rules arrive here
+   * for the seam to resolve against saved implementations. Empty when the
+   * artifact carries no keyword rules — never inferred, never partial.
+   */
+  readonly givenUniqueKeys: ReadonlyArray<StateUniqueKeyProducerBinding>;
 }
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
@@ -267,6 +279,13 @@ export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
   readonly secretFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
   readonly deliveryFields: DeliveryFieldSchema;
+  /**
+   * BGI-08 checked `state.unique-key@1` bindings in artifact order (see
+   * `ConvertedArtifactDescriptors.givenUniqueKeys`). Intake-direct sets
+   * (`loadExecutionDescriptorSet`) carry no checked source and expose no
+   * member: generated behavior never loads without its checked contract.
+   */
+  readonly givenUniqueKeys: ReadonlyArray<StateUniqueKeyProducerBinding>;
 }
 
 const KNOWN_OPERATION_KINDS: ReadonlySet<string> = new Set([
@@ -1453,6 +1472,539 @@ function loadCheckedDescriptorSet(
  * beside the intake like refs). Unknown operation/input/default kinds —
  * or any malformed/dangling member — reject the WHOLE conversion.
  */
+/**
+ * BGI-08 checked Given-contract join: trait instantiations fold into the
+ * effective models (contributed fields face the uniform loop below), and
+ * keyword rules validate into `StateUniqueKeyProducerBinding` entries the
+ * seam resolves against saved implementations. Bindings derive ONLY from
+ * the artifact's checked `givenContracts` — the loader invents no anonymous
+ * applications, and any unknown producer, hidden authority or unsupported
+ * contribution rejects the WHOLE set.
+ */
+
+/** BGI-08 v1 runtime-supported contributed leaf types (compiler spellings). */
+function givenRuntimeFieldKind(typeText: unknown): 'boolean' | 'string' | 'integer' | undefined {
+  if (typeText === 'bool' || typeText === 'boolean') return 'boolean';
+  if (typeText === 'text') return 'string';
+  if (typeText === 'int' || typeText === 'integer') return 'integer';
+  return undefined;
+}
+
+/**
+ * BGI-08 parse one contributed literal default into its artifact wire
+ * value (mirroring the compiler's inhabitance rule: bool literals,
+ * i64 decimal text kept as wire text per integer fixtures, JSON text).
+ */
+function givenRuntimeLiteral(typeText: string, defaultText: string, what: string): unknown {
+  const kind = givenRuntimeFieldKind(typeText);
+  if (kind === 'boolean') {
+    if (defaultText === 'true') return true;
+    if (defaultText === 'false') return false;
+  } else if (kind === 'integer') {
+    const value = defaultText.trim();
+    try {
+      const parsed = BigInt(value);
+      if (parsed >= -(1n << 63n) && parsed <= ((1n << 63n) - 1n)) return value;
+    } catch { /* Fall through to the precise refusal below. */ }
+  } else if (kind === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(defaultText);
+      if (typeof parsed === 'string') return parsed;
+    } catch { /* Fall through to the precise refusal below. */ }
+  }
+  fail(
+    'malformed_descriptor',
+    `Invalid ${what}: default ${JSON.stringify(defaultText)} does not inhabit ${JSON.stringify(typeText)}.`,
+  );
+}
+
+/** BGI-08 parse one contributed bound into its wire number (v1: safe ints). */
+function givenRuntimeBound(bound: string, what: string): number {
+  const value = bound.trim();
+  if (/^-?[0-9]+$/.test(value)) {
+    const parsed = Number(value);
+    if (Number.isSafeInteger(parsed)) return parsed;
+  }
+  fail(
+    'unsupported_given_contribution',
+    `Invalid ${what}: bound ${JSON.stringify(bound)} is outside the v1 runtime set ` +
+      '(integer bounds on bool/text/int leaves); this contribution needs explicit owner integration.',
+  );
+}
+
+interface GivenContractsShape {
+  readonly traits: ArtifactGivenTrait[];
+  readonly keywords: ArtifactGivenKeyword[];
+}
+
+/** BGI-08 read the optional `givenContracts` member (absent reads as none). */
+function checkGivenContractsShape(artifact: Record<string, unknown>): GivenContractsShape {
+  if (!Object.hasOwn(artifact, 'givenContracts') || artifact['givenContracts'] === undefined) {
+    return { traits: [], keywords: [] };
+  }
+  const claimed = artifact['givenContracts'];
+  if (!isRecord(claimed) || !Array.isArray(claimed['traits']) || !Array.isArray(claimed['keywords'])) {
+    fail('malformed_descriptor', 'Invalid artifact givenContracts: traits and keywords must be arrays.');
+  }
+  return {
+    traits: claimed['traits'] as ArtifactGivenTrait[],
+    keywords: claimed['keywords'] as ArtifactGivenKeyword[],
+  };
+}
+
+/**
+ * BGI-08 fold checked trait instantiations into effective models. Model
+ * attachments append synthesized leaf fields (new fields require their
+ * checked default, mirroring the compiler); field attachments merge
+ * trim/min/max/default constraints onto the existing field with
+ * strongest-wins bound intersection. Contributed fields return to the
+ * uniform loop, so duplicate/conflict/contradiction outcomes match
+ * authored validation — with trait attribution on the refusal.
+ */
+function foldGivenTraitContributions(
+  rawModels: unknown[],
+  traits: ArtifactGivenTrait[],
+  modelNames: Set<string>,
+): unknown[] {
+  if (traits.length === 0) return rawModels;
+  const byName = new Map<string, Record<string, unknown>>();
+  for (const model of rawModels) {
+    if (isRecord(model) && typeof model['name'] === 'string') byName.set(model['name'], model);
+  }
+  // Copied field arrays per touched model; untouched models keep their refs.
+  const foldedFields = new Map<string, Array<Record<string, unknown>>>();
+  const foldedBy = new Map<string, Map<string, string>>();
+  const fieldsOf = (modelName: string, what: string): Array<Record<string, unknown>> => {
+    const cached = foldedFields.get(modelName);
+    if (cached !== undefined) return cached;
+    const model = byName.get(modelName);
+    const fields = model?.['fields'];
+    if (!isRecord(model) || !Array.isArray(fields)) {
+      fail(
+        'malformed_descriptor',
+        `Invalid artifact model ${JSON.stringify(modelName)}: fields must be an array.`,
+      );
+    }
+    const copy = (fields as unknown[]).map((entry) =>
+      (isRecord(entry) ? { ...entry } : entry) as Record<string, unknown>,
+    );
+    foldedFields.set(modelName, copy);
+    return copy;
+  };
+  const contributorOf = (modelName: string): Map<string, string> => {
+    const cached = foldedBy.get(modelName);
+    if (cached !== undefined) return cached;
+    const fresh = new Map<string, string>();
+    foldedBy.set(modelName, fresh);
+    return fresh;
+  };
+  traits.forEach((item, index) => {
+    if (!isRecord(item)) {
+      fail('malformed_descriptor', `Invalid given trait instantiation #${index}: expected an object.`);
+    }
+    const trait = item as Record<string, unknown>;
+    const label = typeof trait['trait'] === 'string' && trait['trait'] !== ''
+      ? `trait \`${trait['trait'] as string}\``
+      : 'inline trait';
+    const target = trait['target'];
+    const fields = trait['fields'];
+    if (typeof target !== 'string' || target === '' || !Array.isArray(fields)) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${label} instantiation #${index}: target and fields are required.`,
+      );
+    }
+    const what = `${label} on ${target}`;
+    if (modelNames.has(target)) {
+      foldGivenModelAttachment(
+        what, target, fields as unknown[], fieldsOf, contributorOf(target),
+      );
+      return;
+    }
+    const dot = target.lastIndexOf('.');
+    const head = dot < 0 ? '' : target.slice(0, dot);
+    const tail = dot < 0 ? '' : target.slice(dot + 1);
+    if (head === '' || tail === '' || tail.includes('.') || !modelNames.has(head)) {
+      fail(
+        'dangling_reference',
+        `Invalid ${what}: model ${JSON.stringify(dot < 0 ? target : head)} has no descriptor in this set.`,
+      );
+    }
+    foldGivenFieldAttachment(
+      what, head, tail, fields as unknown[], fieldsOf(head, what),
+    );
+  });
+  if (foldedFields.size === 0) return rawModels;
+  return rawModels.map((model) => {
+    if (!isRecord(model) || typeof model['name'] !== 'string') return model;
+    const folded = foldedFields.get(model['name']);
+    if (folded === undefined) return model;
+    return { ...model, fields: folded };
+  });
+}
+
+/** BGI-08 one model attachment: append synthesized leaf fields. */
+function foldGivenModelAttachment(
+  what: string,
+  modelName: string,
+  fields: unknown[],
+  fieldsOf: (modelName: string, what: string) => Array<Record<string, unknown>>,
+  contributedBy: Map<string, string>,
+): void {
+  const target = fieldsOf(modelName, what);
+  for (const entry of fields) {
+    if (!isRecord(entry)) {
+      fail('malformed_descriptor', `Invalid ${what}: contributed fields must be objects.`);
+    }
+    const name = entry['name'];
+    const typeText = entry['type'];
+    if (typeof name !== 'string' || name === '' || typeof typeText !== 'string') {
+      fail('malformed_descriptor', `Invalid ${what}: contributed fields need a name and a type.`);
+    }
+    const kind = givenRuntimeFieldKind(typeText);
+    if (kind === undefined) {
+      fail(
+        'unsupported_given_contribution',
+        `Invalid ${what}: contributed field ${JSON.stringify(name)} has type ` +
+          `${JSON.stringify(typeText)}; v1 runtime folds bool/text/int leaves — ` +
+          'this contribution needs explicit owner integration.',
+      );
+    }
+    const fieldWhat = `${what} contributes \`${name}\``;
+    const rawDefault = entry['default'];
+    if (rawDefault === undefined) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${fieldWhat} with no default; existing creates and fixtures stay valid only with one.`,
+      );
+    }
+    if (typeof rawDefault !== 'string') {
+      fail('malformed_descriptor', `Invalid ${fieldWhat}: defaults are source-text constants.`);
+    }
+    const literal = givenRuntimeLiteral(typeText, rawDefault, fieldWhat);
+    const trim = entry['trim'] === undefined ? false : entry['trim'];
+    if (trim !== true && trim !== false) {
+      fail('malformed_descriptor', `Invalid ${fieldWhat}: trim must be a boolean.`);
+    }
+    if (trim === true && kind !== 'string') {
+      fail('malformed_descriptor', `Invalid ${fieldWhat}: trim needs a text field.`);
+    }
+    let min: number | undefined;
+    let max: number | undefined;
+    if (entry['min'] !== undefined) {
+      if (typeof entry['min'] !== 'string') {
+        fail('malformed_descriptor', `Invalid ${fieldWhat}: bounds are source-text constants.`);
+      }
+      if (kind === 'boolean') {
+        fail('malformed_descriptor', `Invalid ${fieldWhat}: boolean fields take no bounds.`);
+      }
+      min = givenRuntimeBound(entry['min'], fieldWhat);
+    }
+    if (entry['max'] !== undefined) {
+      if (typeof entry['max'] !== 'string') {
+        fail('malformed_descriptor', `Invalid ${fieldWhat}: bounds are source-text constants.`);
+      }
+      if (kind === 'boolean') {
+        fail('malformed_descriptor', `Invalid ${fieldWhat}: boolean fields take no bounds.`);
+      }
+      max = givenRuntimeBound(entry['max'], fieldWhat);
+    }
+    if (min !== undefined && max !== undefined && min > max) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${fieldWhat}: bounds contradict: min=${min} exceeds max=${max}.`,
+      );
+    }
+    const authored = target.find((candidate) => candidate['name'] === name);
+    if (authored !== undefined && !contributedBy.has(name)) {
+      fail(
+        'duplicate_name',
+        `Invalid ${what}: contributes \`${name}\`, already declared on model ${JSON.stringify(modelName)}.`,
+      );
+    }
+    const first = contributedBy.get(name);
+    if (first !== undefined) {
+      fail(
+        'duplicate_name',
+        `Invalid ${what}: contributes \`${name}\`, already contributed by ${first}.`,
+      );
+    }
+    contributedBy.set(name, what);
+    target.push({
+      name,
+      field: { kind },
+      required: false,
+      serverOnly: false,
+      ...(kind === 'string' ? { valueType: 'text' } : {}),
+      default: { kind: 'literal', value: literal },
+      ...(trim === true ? { trim: true } : {}),
+      ...(min !== undefined ? { min } : {}),
+      ...(max !== undefined ? { max } : {}),
+    });
+  }
+}
+
+/** BGI-08 one field attachment: merge constraints onto the existing field. */
+function foldGivenFieldAttachment(
+  what: string,
+  modelName: string,
+  fieldName: string,
+  fields: unknown[],
+  target: Array<Record<string, unknown>>,
+): void {
+  if (fields.length !== 1) {
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: needs a single-field constraint template for a field attachment.`,
+    );
+  }
+  const entry = fields[0];
+  if (!isRecord(entry)) {
+    fail('malformed_descriptor', `Invalid ${what}: contributed fields must be objects.`);
+  }
+  const typeText = entry['type'];
+  const kind = givenRuntimeFieldKind(typeText);
+  if (kind === undefined) {
+    fail(
+      'unsupported_given_contribution',
+      `Invalid ${what}: constraint type ${JSON.stringify(typeText)} is outside the v1 runtime set ` +
+        '(bool/text/int leaves); this contribution needs explicit owner integration.',
+    );
+  }
+  const index = target.findIndex((candidate) => candidate['name'] === fieldName);
+  if (index < 0) {
+    fail(
+      'dangling_reference',
+      `Invalid ${what}: field ${JSON.stringify(fieldName)} has no descriptor on model ${JSON.stringify(modelName)}.`,
+    );
+  }
+  const authored = target[index] as Record<string, unknown>;
+  // A well-shaped authored tag must agree with the template kind; an
+  // ill-shaped tag stays the uniform loop's refusal, not the fold's.
+  const tag = authored['field'];
+  if (isRecord(tag) && typeof tag['kind'] === 'string' && tag['kind'] !== kind) {
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: has type ${JSON.stringify(typeText)}, cannot change ` +
+        `\`${fieldName}\` from kind ${JSON.stringify(tag['kind'])}.`,
+    );
+  }
+  if (authored['array'] !== undefined || authored['nullable'] === true ||
+      (typeof authored['valueType'] === 'string' && authored['valueType'].endsWith('?'))) {
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: has type ${JSON.stringify(typeText)}, cannot change ` +
+        `\`${fieldName}\` from an array or nullable field.`,
+    );
+  }
+  const merged: Record<string, unknown> = { ...authored };
+  const rawDefault = entry['default'];
+  if (rawDefault !== undefined) {
+    if (typeof rawDefault !== 'string') {
+      fail('malformed_descriptor', `Invalid ${what}: defaults are source-text constants.`);
+    }
+    const literal = givenRuntimeLiteral(typeText as string, rawDefault, what);
+    const declared = authored['default'];
+    if (declared === undefined) {
+      merged['default'] = { kind: 'literal', value: literal };
+      merged['required'] = false;
+    } else if (isRecord(declared) && declared['kind'] === 'literal' && declared['value'] === literal) {
+      // Agreement: the authored default already carries the constraint.
+    } else {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${what}: default ${JSON.stringify(rawDefault)} contradicts the declared default.`,
+      );
+    }
+  }
+  const trim = entry['trim'] === undefined ? false : entry['trim'];
+  if (trim !== true && trim !== false) {
+    fail('malformed_descriptor', `Invalid ${what}: trim must be a boolean.`);
+  }
+  if (trim === true && kind !== 'string') {
+    fail('malformed_descriptor', `Invalid ${what}: trim needs a text field.`);
+  }
+  if (trim === true || authored['trim'] === true) merged['trim'] = true;
+  else delete merged['trim'];
+  for (const bound of ['min', 'max'] as const) {
+    const contributed = entry[bound];
+    if (contributed === undefined) continue;
+    if (typeof contributed !== 'string') {
+      fail('malformed_descriptor', `Invalid ${what}: bounds are source-text constants.`);
+    }
+    if (kind === 'boolean') {
+      fail('malformed_descriptor', `Invalid ${what}: boolean fields take no bounds.`);
+    }
+    const parsed = givenRuntimeBound(contributed, what);
+    const declared = authored[bound];
+    if (declared === undefined) {
+      merged[bound] = parsed;
+    } else if (typeof declared !== 'number' || !Number.isSafeInteger(declared)) {
+      fail('malformed_descriptor', `Invalid ${what}: cannot merge bound ${bound} onto its declared bound.`);
+    } else {
+      merged[bound] = bound === 'min' ? Math.max(declared, parsed) : Math.min(declared, parsed);
+    }
+  }
+  const mergedMin = merged['min'];
+  const mergedMax = merged['max'];
+  if (typeof mergedMin === 'number' && typeof mergedMax === 'number' && mergedMin > mergedMax) {
+    fail('malformed_descriptor', `Invalid ${what}: bounds contradict the declared bounds.`);
+  }
+  target[index] = merged;
+}
+
+/**
+ * BGI-08 validate keyword rules into checked `state.unique-key@1` bindings:
+ * exact producer/semantics/lifecycle match, text in/out, no admitted
+ * reads/effects/authority (the pure producer admits none — anything
+ * declared is hidden authority), and a target naming an existing singular
+ * non-nullable text field with no builtin unique. The compiler owns the
+ * rule identity; the loader re-derives it from target+keyword and refuses
+ * anything that does not match exactly.
+ */
+function checkGivenKeywordBindings(
+  keywords: ArtifactGivenKeyword[],
+  models: CanonicalModelDescriptor[],
+): StateUniqueKeyProducerBinding[] {
+  if (keywords.length === 0) return [];
+  const byName = new Map(models.map((model) => [model.name as string, model]));
+  const seen = new Set<string>();
+  const bindings: StateUniqueKeyProducerBinding[] = [];
+  keywords.forEach((item, index) => {
+    if (!isRecord(item)) {
+      fail('malformed_descriptor', `Invalid given keyword rule #${index}: expected an object.`);
+    }
+    const rule = item as unknown as Record<string, unknown>;
+    const producer = rule['producer'];
+    if (producer !== 'state.unique-key@1') {
+      fail(
+        'unknown_producer',
+        `Invalid given keyword rule #${index}: unknown producer ${JSON.stringify(producer)}; ` +
+          'v1 admits state.unique-key@1 — generated code never self-registers producers.',
+      );
+    }
+    const where = typeof rule['ruleId'] === 'string' && rule['ruleId'] !== ''
+      ? `keyword rule ${JSON.stringify(rule['ruleId'])}`
+      : `given keyword rule #${index}`;
+    if (rule['semantics'] !== 'nfkc-ascii-lowercase' || rule['lifecycle'] !== 'commit-keys') {
+      fail(
+        'unknown_producer',
+        `Invalid ${where}: semantics ${JSON.stringify(rule['semantics'])} / lifecycle ` +
+          `${JSON.stringify(rule['lifecycle'])} is not the checked state.unique-key@1 contract.`,
+      );
+    }
+    const input = rule['input'];
+    const result = rule['result'];
+    if (!isRecord(input) || typeof input['name'] !== 'string' || input['name'] === '' ||
+        input['type'] !== 'text' || !isRecord(result) || result['type'] !== 'text') {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: the producer binds checked text input to checked text result.`,
+      );
+    }
+    for (const admitted of ['reads', 'effects', 'authority'] as const) {
+      const declared = rule[admitted];
+      if (!Array.isArray(declared)) {
+        fail('malformed_descriptor', `Invalid ${where}: ${admitted} must be an array.`);
+      }
+      if (declared.length !== 0) {
+        fail(
+          'malformed_descriptor',
+          `Invalid ${where}: declares ${admitted} the pure producer does not admit — hidden authority refuses.`,
+        );
+      }
+    }
+    const ruleId = rule['ruleId'];
+    const keyword = rule['keyword'];
+    const targetModel = rule['targetModel'];
+    const targetField = rule['targetField'];
+    if (typeof ruleId !== 'string' || ruleId === '' || typeof keyword !== 'string' || keyword === '' ||
+        typeof targetModel !== 'string' || targetModel === '' ||
+        typeof targetField !== 'string' || targetField === '') {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: rule, keyword, targetModel and targetField are required.`,
+      );
+    }
+    if (ruleId !== `${targetField}#${keyword}`) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: rule identity must be its target field plus its keyword.`,
+      );
+    }
+    const model = byName.get(targetModel);
+    if (model === undefined) {
+      fail(
+        'dangling_reference',
+        `Invalid ${where}: model ${JSON.stringify(targetModel)} has no descriptor in this set.`,
+      );
+    }
+    const prefix = `${targetModel}.`;
+    const fieldName = targetField.startsWith(prefix) ? targetField.slice(prefix.length) : '';
+    if (fieldName === '' || fieldName.includes('.')) {
+      fail('malformed_descriptor', `Invalid ${where}: target field names one model-local field.`);
+    }
+    const field = model.fields[fieldName];
+    if (field === undefined) {
+      fail(
+        'dangling_reference',
+        `Invalid ${where}: field ${JSON.stringify(fieldName)} has no descriptor on model ${JSON.stringify(targetModel)}.`,
+      );
+    }
+    if (field.array !== undefined || field.nullable === true ||
+        (field.valueType !== undefined && field.valueType !== 'text')) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: needs a checked text field — nullable, array and non-text targets refuse.`,
+      );
+    }
+    if (model.uniqueKeys?.includes(fieldName) === true) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: conflicts with the declared builtin unique on ` +
+          `${JSON.stringify(targetField)} (canonical and builtin keys never share a field).`,
+      );
+    }
+    const dependencies = rule['dependencies'];
+    if (!Array.isArray(dependencies) || !dependencies.includes(targetField)) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: dependencies must name the bound field ${JSON.stringify(targetField)}.`,
+      );
+    }
+    const unit = rule['unitId'];
+    const exportName = rule['export'];
+    const fingerprint = rule['fingerprint'];
+    if (typeof unit !== 'string' || unit === '' ||
+        typeof exportName !== 'string' || exportName === '' ||
+        typeof fingerprint !== 'string' || !/^[0-9a-f]{64}$/.test(fingerprint)) {
+      fail(
+        'malformed_descriptor',
+        `Invalid ${where}: the saved implementation needs a unit, an export and a lowercase SHA-256 fingerprint.`,
+      );
+    }
+    if (seen.has(ruleId)) {
+      fail(
+        'duplicate_name',
+        `Invalid ${where}: duplicate keyword rule ${JSON.stringify(ruleId)}.`,
+      );
+    }
+    seen.add(ruleId);
+    bindings.push({
+      abi: 'state.unique-key@1',
+      rule: ruleId,
+      model: targetModel as ModelName,
+      field: fieldName,
+      semantics: 'nfkc-ascii-lowercase',
+      lifecycle: 'commit-keys',
+      input: { name: input['name'] as string, type: 'text' },
+      result: { type: 'text' },
+      implementation: { unit, export: exportName, fingerprint },
+    });
+  });
+  return bindings;
+}
+
 export function artifactToDescriptorSet(
   artifact: ArtifactDescriptorSlice,
 ): ConvertedArtifactDescriptors {
@@ -1500,7 +2052,13 @@ export function artifactToDescriptorSet(
   const containment = new Map<ModelName, InterimContainment>();
   const deliveryEntries: Array<readonly [string, ReadonlyArray<string>]> = [];
   const models: CanonicalModelDescriptor[] = [];
-  for (const model of rawModels as ArtifactModel[]) {
+  // BGI-08: fold checked trait instantiations into the effective models
+  // before the uniform loop validates them (contributed fields face the
+  // same checks as authored ones); keyword rules validate after, against
+  // the folded descriptors.
+  const givenContracts = checkGivenContractsShape(artifact);
+  const effectiveModels = foldGivenTraitContributions(rawModels, givenContracts.traits, modelNames);
+  for (const model of effectiveModels as ArtifactModel[]) {
     if (!Array.isArray(model.fields)) {
       fail(
         'malformed_descriptor',
@@ -1891,6 +2449,9 @@ export function artifactToDescriptorSet(
       inputArrays[operation.name] = opArrays;
     }
   }
+  // BGI-08: keyword rules bind against the folded models (a rule may
+  // target a trait-contributed text field; builtin-unique clashes refuse).
+  const givenUniqueKeys = checkGivenKeywordBindings(givenContracts.keywords, models);
   // uniqueKeys/composite checks and CRUD executability run in the shared
   // intake loader; conversion folds shapes only. Reuse it via a synthetic
   // set so the rules live in exactly one place.
@@ -1918,6 +2479,7 @@ export function artifactToDescriptorSet(
   return {
     ...(valueSchema !== undefined ? { valueSchema } : {}),
     set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields,
+    givenUniqueKeys,
     ...(modelPolicies !== undefined ? { modelPolicies } : {}),
     ...(sources !== undefined ? { sources } : {}),
   };
@@ -1991,5 +2553,6 @@ export function loadArtifactDescriptors(
     secretFields,
     containment,
     deliveryFields,
+    givenUniqueKeys: deepFreezeLoaded([...converted.givenUniqueKeys]),
   };
 }

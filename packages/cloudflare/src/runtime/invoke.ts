@@ -165,6 +165,7 @@ import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, importVerifi
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
+import { joinGivenUniqueKeys } from "./given-unique-keys.js";
 import { freezeBoundJudgmentRequest } from './bound-judgment.js';
 import { freezeJudgmentSource } from '@canlang/services/judgments/specification';
 import type { StaticJudgmentDescriptor } from '@canlang/services';
@@ -1400,6 +1401,11 @@ interface StateModelsProducer {
       readonly nullableFields?: ReadonlyMap<string, ReadonlySet<string>>;
       readonly containment?: ReadonlyMap<string, unknown>;
       readonly valueSchema?: NormalizedSchema;
+      /**
+       * BGI-08 checked computed-key rules per model (the seam's resolved
+       * `state.unique-key@1` bindings). Omission keeps the legacy posture.
+       */
+      readonly givenUniqueKeys?: ReadonlyMap<ModelName, ReadonlyArray<import('@canlang/state/effects/staging').GivenUniqueKeyRule>>;
     },
   ): unknown;
 }
@@ -4380,6 +4386,11 @@ async function loadCanonicalDescriptorsInternal(
   if (owningUniques.uniqueGroups.size > 0 && producers.models.getUniqueGroupProfile === undefined) {
     throw new AssemblyCorrespondenceError('Installed State producer lacks checked composite unique groups.');
   }
+  // BGI-08: resolve checked computed-key bindings against their saved
+  // implementations (fingerprint-verified; refusals fail the load before
+  // any execution) and carry the rules on the one canonical table, so
+  // scenario staging and CRUD share the same checked join.
+  const givenUniqueKeys = await joinGivenUniqueKeys(asm, artifact, loaded.givenUniqueKeys);
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
     uniqueWhen: owningUniques.uniqueWhen,
     uniqueGroups: owningUniques.uniqueGroups,
@@ -4388,6 +4399,7 @@ async function loadCanonicalDescriptorsInternal(
     nullableFields: loaded.nullableFields,
     containment: loaded.containment,
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+    givenUniqueKeys,
   });
   for (const [model, groups] of owningUniques.uniqueGroups) for (const group of groups) {
     const def = (table as ModelTable).get(model);

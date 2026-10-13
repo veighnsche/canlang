@@ -38,7 +38,11 @@ import { StateError } from '../errors.js';
 import { stageOwnerMutationSources, retainOwnerMutationBusinessWrites, type OwnerMutationFinalChange, type OwnerMutationSourceStager } from './source-finalization.js';
 import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
 import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';
-import { STAGING_MAX_ID_LENGTH } from '../effects/staging.js';
+import {
+  STAGING_MAX_ID_LENGTH,
+  createGivenUniqueKeyScope,
+  diffGivenUniqueKeys,
+} from '../effects/staging.js';
 import { checkJsonSafe as checkJsonEncoding, jsonClone } from '../internal/json.js';
 import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
 import { queryRecords } from '../query/engine.js';
@@ -406,6 +410,25 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
   const resolvedDefaults: Record<string, unknown> = {};
   const outSchedules: ScheduleOp[] = [];
   const touchedDefs: InterimModelDef[] = [];
+  /**
+   * BGI-08 computed-key scope: one per pipeline run, closed when finalize
+   * completes. Staging pushes releases before claims, mirroring the
+   * builtin releases-then-claims call order the seam nets on.
+   */
+  const givenScope = createGivenUniqueKeyScope();
+  const stageGivenUniques = async (
+    def: InterimModelDef,
+    model: ModelName,
+    id: RecordId,
+    before: Readonly<Record<string, unknown>> | null,
+    after: Readonly<Record<string, unknown>> | null,
+  ): Promise<void> => {
+    const rules = def.givenUniqueKeys;
+    if (rules === undefined || rules.length === 0) return;
+    const diff = await diffGivenUniqueKeys(givenScope, rules, model, id, before, after);
+    outReleases.push(...diff.releases);
+    outClaims.push(...diff.claims);
+  };
   /**
    * B1: first-touch before-rows per record (committed state at batch
    * start, or null for batch-created rows). Hard removes release unique
@@ -1517,6 +1540,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           }
           outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
         }
+        // BGI-08: computed keys observe the hook-adjusted candidate, like builtins.
+        await stageGivenUniques(def, write.model, id, null, hooked);
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({ kind: 'insert', model: write.model, row });
@@ -1632,6 +1657,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             });
           }
         }
+        // BGI-08: computed keys diff before against the hook-adjusted candidate.
+        await stageGivenUniques(def, write.model, id, before.data, hooked);
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({
@@ -1760,6 +1787,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             });
           }
         }
+        // BGI-08: archive diffs computed keys like an update (claims stay
+        // reserved when the key is unchanged, move when hooks adjusted it).
+        await stageGivenUniques(def, write.model, id, before.data, hooked);
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({
@@ -1807,6 +1837,10 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             }
             outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
           }
+          // BGI-08: release the FIRST-touch committed keys (batch claims for
+          // this row were already dropped by the splice above, which matches
+          // model/recordId and never keyName, so computed claims net too).
+          await stageGivenUniques(def, write.model, id, committedBefore.data, null);
         }
         await beforeStage(write.model, id, null);
         provisional.set(keyOf(write.model, id), { status: 'removed' });
@@ -1914,6 +1948,17 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           if (previous !== null) outReleases.push({ model, keyName: key, keyValue: previous });
           if (final !== null) outClaims.push({ model, keyName: key, keyValue: final, recordId: id });
         }
+        // BGI-08: owner sessions net computed keys from the same
+        // first-before/final-after pair, with per-rule work accounting.
+        const givenRules = def.givenUniqueKeys;
+        if (givenRules !== undefined && givenRules.length !== 0) {
+          for (let ruleIndex = 0; ruleIndex < givenRules.length; ruleIndex += 1) consumeWork();
+          await stageGivenUniques(
+            def, model, id,
+            before === null ? null : before.data,
+            after === null ? null : after.data,
+          );
+        }
       }
     }
     let business: readonly DomainWrite[] | undefined;
@@ -2011,8 +2056,14 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       }
     }),
     finalize: () => serial(async () => {
-      const result = await finish();
-      return owner === undefined ? result : deepFreeze(result);
+      try {
+        const result = await finish();
+        return owner === undefined ? result : deepFreeze(result);
+      } finally {
+        // BGI-08: the pipeline run donated its staging; later evaluations
+        // are late calls and fail.
+        givenScope.close();
+      }
     }, true),
   });
 }
