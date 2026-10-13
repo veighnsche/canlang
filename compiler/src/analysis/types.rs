@@ -20532,6 +20532,18 @@ pub struct GivenSavedDeclaration {
     pub authority: Vec<String>,
 }
 
+/// One consumed unit-local import of a saved implementation: the
+/// resolved unit-relative path plus its exact bytes. The host resolves
+/// the transitive closure (see `can gen validate`); this layer only
+/// fingerprints what the host consumed.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GivenSavedImport {
+    /// Unit-relative path with `/` separators (e.g. `fold.js`).
+    pub rel_path: String,
+    /// Exact consumed bytes.
+    pub bytes: Vec<u8>,
+}
+
 /// Saved implementation inputs for one generation unit, keyed by its
 /// BGI-02 [`super::generation_intake::AssociationKey`]. The host
 /// supplies these from the associated saved group; a definition with
@@ -20548,8 +20560,46 @@ pub struct GivenSavedUnit {
     /// Saved implementation JavaScript bytes. Fingerprinted only, never
     /// parsed or executed.
     pub implementation_js: Option<String>,
+    /// Consumed unit-local import closure of the saved implementation
+    /// (transitively resolved by the host; empty when the root module
+    /// imports nothing). Fingerprinted with the root bytes, never
+    /// parsed or executed.
+    pub implementation_imports: Vec<GivenSavedImport>,
     /// Structured owner-visible declaration (keyword units require it).
     pub declaration: Option<GivenSavedDeclaration>,
+}
+
+/// Fingerprint one saved implementation plus its exact consumed
+/// unit-local import closure. This is the cross-host activation
+/// identity both the Rust check and the Node runtime share:
+///
+/// * no imports: `sha256_hex(root)` — the historical single-file
+///   fingerprint, unchanged;
+/// * otherwise: `sha256_hex` over `len(root)` as eight big-endian
+///   bytes, the root bytes, then one length-framed entry per import in
+///   byte-ascending `rel_path` order (`len(rel)` big-endian, the
+///   UTF-8 path, `len(bytes)` big-endian, the bytes).
+///
+/// Length framing keeps distinct closures distinct; path ordering
+/// keeps the hash independent of source order. Any consumed-byte
+/// change alters the fingerprint, so root-only equality can never
+/// hide changed behavior.
+pub fn given_closure_fingerprint(root: &[u8], imports: &[(&str, &[u8])]) -> String {
+    if imports.is_empty() {
+        return sha256_hex(root);
+    }
+    let mut ordered: Vec<(&str, &[u8])> = imports.to_vec();
+    ordered.sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
+    let mut input = Vec::new();
+    input.extend_from_slice(&(root.len() as u64).to_be_bytes());
+    input.extend_from_slice(root);
+    for (rel, bytes) in ordered {
+        input.extend_from_slice(&(rel.len() as u64).to_be_bytes());
+        input.extend_from_slice(rel.as_bytes());
+        input.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
+        input.extend_from_slice(bytes);
+    }
+    sha256_hex(&input)
 }
 
 /// One typed schema leaf of a checked Given contract.
@@ -21789,7 +21839,14 @@ fn given_check_keyword_definition(
             .collect::<std::collections::BTreeSet<_>>()
             .into_iter()
             .collect(),
-        fingerprint: sha256_hex(js.as_bytes()),
+        fingerprint: {
+            let closure: Vec<(&str, &[u8])> = unit
+                .implementation_imports
+                .iter()
+                .map(|import| (import.rel_path.as_str(), import.bytes.as_slice()))
+                .collect();
+            given_closure_fingerprint(js.as_bytes(), &closure)
+        },
         applications: apps,
     })
 }

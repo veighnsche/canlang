@@ -324,6 +324,8 @@ fn empty_artifact(db: &SourceDb) -> CompileArtifact {
         callables: Vec::new(),
         operations: Vec::new(),
         models: Vec::new(),
+        given_contracts: None,
+        stylesheets: Vec::new(),
         value_types: None,
         model_policies: None,
         committed_changes: None,

@@ -18,7 +18,9 @@ use crate::codegen::bdd::BddModule;
 use crate::codegen::ir::{
     GivenContractIr, IrItemKind, IrMigrationDirective, IrProgram, ReferencedBuiltin,
 };
-use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput};
+use crate::codegen::js::{
+    Emitter, JsFieldDefault, JsModel, JsModelField, JsModelFieldType, JsOperation, JsOutput,
+};
 use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::Diagnostic;
 use crate::source::SourceDb;
@@ -207,6 +209,15 @@ pub struct CompileArtifact {
     /// pinned contract version) this is the L3 `ExecutionDescriptorSet`
     /// content the T16 join loads.
     pub models: Vec<JsModel>,
+    /// Checked Given contracts (trait instantiations plus keyword
+    /// rules) in global source order, folded in by the production
+    /// compile join once saved intake feeds this layer. `None` when
+    /// the program has no Given generation units; the JSON envelope
+    /// omits the key then (loaders treat absence as "no descriptors").
+    pub given_contracts: Option<GivenContractsArtifact>,
+    /// Packed scoped stylesheets for the style units this build
+    /// consumes, in staged-path order. Empty omits the JSON key.
+    pub stylesheets: Vec<ArtifactStylesheet>,
     /// Checked standard/custom value type contracts and enum declarations,
     /// when the source program owns any such values.
     pub value_types: Option<crate::codegen::js::JsValueTypes>,
@@ -401,6 +412,10 @@ pub fn assemble(
         callables,
         operations: js.operations.clone(),
         models,
+        // Saved joins attach after assembly: `assemble` itself stays
+        // saved-free so direct emission keeps its exact prior posture.
+        given_contracts: None,
+        stylesheets: Vec::new(),
         value_types: js.value_types.clone(),
         model_policies: js.model_policies.clone(),
         committed_changes: js.committed_changes.clone(),
@@ -608,6 +623,17 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
             .collect(),
         operations: &artifact.operations,
         models: &artifact.models,
+        given_contracts: artifact.given_contracts.as_ref().map(|contracts| {
+            GivenContractsMemberWire {
+                traits: &contracts.traits,
+                keywords: &contracts.keywords,
+            }
+        }),
+        stylesheets: artifact
+            .stylesheets
+            .iter()
+            .map(StylesheetWire::new)
+            .collect(),
         value_types: artifact.value_types.as_ref(),
         model_policies: artifact.model_policies.as_deref(),
         committed_changes: artifact.committed_changes.as_deref(),
@@ -674,6 +700,10 @@ struct ArtifactWire<'a> {
     callables: Vec<CallableWire<'a>>,
     operations: &'a [JsOperation],
     models: &'a [JsModel],
+    #[serde(rename = "givenContracts", skip_serializing_if = "Option::is_none")]
+    given_contracts: Option<GivenContractsMemberWire<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    stylesheets: Vec<StylesheetWire<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "valueTypes")]
     value_types: Option<&'a crate::codegen::js::JsValueTypes>,
@@ -766,15 +796,70 @@ struct TestWire<'a> {
     fixtures: &'a [String],
 }
 
+/// Embedded `givenContracts` member per `artifact.ts`
+/// (`ArtifactGivenContracts`): trait instantiations plus keyword rules.
+/// Unlike the standalone [`given_contracts_to_json`] envelope this
+/// carries no versions; the artifact envelope owns those.
+#[derive(Serialize)]
+struct GivenContractsMemberWire<'a> {
+    traits: &'a [ArtifactGivenTrait],
+    keywords: &'a [ArtifactGivenKeyword],
+}
+
+/// Shared Can owner-link wire shape: the owner-link manifest and the
+/// packed `stylesheets` member render identically.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OwnerLinkWire<'a> {
+    unit_id: &'a str,
+    kind: &'a str,
+    can_path: &'a str,
+    can_revision: &'a str,
+    start: u32,
+    end: u32,
+}
+
+impl<'a> OwnerLinkWire<'a> {
+    fn new(owner: &'a CanOwnerLink) -> Self {
+        Self {
+            unit_id: &owner.unit_id,
+            kind: &owner.kind,
+            can_path: &owner.can_path,
+            can_revision: &owner.can_revision,
+            start: owner.start,
+            end: owner.end,
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct StylesheetWire<'a> {
+    path: &'a str,
+    css: &'a str,
+    sha256: &'a str,
+    owner: OwnerLinkWire<'a>,
+}
+
+impl<'a> StylesheetWire<'a> {
+    fn new(sheet: &'a ArtifactStylesheet) -> Self {
+        Self {
+            path: &sheet.path,
+            css: &sheet.css,
+            sha256: &sheet.sha256,
+            owner: OwnerLinkWire::new(&sheet.owner),
+        }
+    }
+}
+
 // --- BGI-07 Given contract emission ----------------------------------------
 // Checked Given contract emission: lowered trait instantiations and
 // keyword rules become typed artifact descriptors (schemas, producer
 // bindings, wrapper joins, derived references, fingerprints) rendered
 // as compact JSON per `packages/contracts/src/artifact.ts`
-// (`ArtifactGivenTrait`/`ArtifactGivenKeyword`). Standalone by lane
-// design: the BGI-11/12 join folds these descriptors into
-// `CompileArtifact` (`givenContracts`) once saved intake feeds this
-// layer; the JSON shapes below are already that member's content.
+// (`ArtifactGivenTrait`/`ArtifactGivenKeyword`). The production
+// compile join folds them into `CompileArtifact.givenContracts`
+// (embedded member wire above) and merges trait instantiations into
+// the stored model descriptors below.
 
 /// One emitted contributed field: the typed leaf a trait adds.
 #[derive(Debug, Clone, Serialize)]
@@ -1011,6 +1096,246 @@ struct GivenContractsWire<'a> {
     keywords: &'a [ArtifactGivenKeyword],
 }
 
+/// Merge checked trait instantiations into stored model descriptors.
+///
+/// Model targets (`Owner.Model`) push their instantiated template
+/// fields after the authored fields; field targets
+/// (`Owner.Model.field`) fill absent constraint slots (default, trim,
+/// bounds) on the existing field, never overriding authored values.
+/// The mapping mirrors the authored-field lowering exactly (tags,
+/// nullability, bounds, defaults), so a contributed field behaves
+/// like the same field written by hand. Targets come from checked
+/// contracts and always resolve; an unresolvable target is an
+/// internal inconsistency and refuses with its detail (the caller
+/// attaches the diagnostic span).
+pub fn merge_given_trait_fields(
+    models: &mut [JsModel],
+    traits: &[ArtifactGivenTrait],
+) -> Result<(), String> {
+    for instance in traits {
+        let mut parts = instance.target.split('.');
+        let (model_name, field_name) = match (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ) {
+            (Some(owner), Some(model), None, None) => (format!("{owner}.{model}"), None),
+            (Some(owner), Some(model), Some(field), None) => {
+                (format!("{owner}.{model}"), Some(field))
+            }
+            _ => {
+                return Err(format!(
+                    "trait instance `{}` targets `{}`: expected `Owner.Model` or `Owner.Model.field`",
+                    instance.id, instance.target,
+                ));
+            }
+        };
+        let Some(model) = models.iter_mut().find(|m| m.name == model_name) else {
+            return Err(format!(
+                "trait instance `{}` targets unknown model `{model_name}`",
+                instance.id,
+            ));
+        };
+        if let Some(field_name) = field_name {
+            let Some(field) = model.fields.iter_mut().find(|f| f.name == field_name) else {
+                return Err(format!(
+                    "trait instance `{}` targets unknown field `{}`",
+                    instance.id, instance.target,
+                ));
+            };
+            for contributed in &instance.fields {
+                merge_given_field_constraint(&instance.id, field, contributed)?;
+            }
+            continue;
+        }
+        for contributed in &instance.fields {
+            // The Given check refused duplicate/authored collisions, so
+            // any collision here is an internal inconsistency.
+            if model.fields.iter().any(|f| f.name == contributed.name) {
+                return Err(format!(
+                    "trait instance `{}` contributes field `{}` to `{model_name}` which already declares it",
+                    instance.id, contributed.name,
+                ));
+            }
+            model.fields.push(given_model_field(contributed));
+        }
+    }
+    Ok(())
+}
+
+/// Fill absent constraint slots of an authored field from a
+/// field-target contribution. The Given check already refused
+/// contradictions, so filling only absent slots cannot conflict.
+fn merge_given_field_constraint(
+    instance: &str,
+    field: &mut JsModelField,
+    contributed: &ArtifactGivenField,
+) -> Result<(), String> {
+    if field.name != contributed.name {
+        return Err(format!(
+            "trait instance `{instance}` contributes `{}` to field `{}`",
+            contributed.name, field.name,
+        ));
+    }
+    if field.default.is_none() {
+        field.default = contributed.default.clone().map(JsFieldDefault::Literal);
+    }
+    if field.trim.is_none() && contributed.trim {
+        field.trim = Some(true);
+    }
+    if field.min.is_none() {
+        field.min = given_bound(&contributed.type_name, contributed.min.as_deref());
+    }
+    if field.max.is_none() {
+        field.max = given_bound(&contributed.type_name, contributed.max.as_deref());
+    }
+    Ok(())
+}
+
+/// Map one contributed template field to a stored model field,
+/// mirroring the authored lowering (`model_field`): scalar tags,
+/// wrappers, bounds and defaults behave exactly like hand-written
+/// fields. Contributed model fields always carry checked defaults, so
+/// they never require the caller.
+fn given_model_field(contributed: &ArtifactGivenField) -> JsModelField {
+    let (tag, value_type, nullable, is_array) = given_field_tag(&contributed.type_name);
+    JsModelField {
+        name: contributed.name.clone(),
+        field: tag,
+        value_type,
+        required: false,
+        nullable,
+        trim: contributed.trim.then_some(true),
+        min: given_bound(&contributed.type_name, contributed.min.as_deref()),
+        max: given_bound(&contributed.type_name, contributed.max.as_deref()),
+        server_only: false,
+        array_required: is_array.then_some(false),
+        default: contributed.default.clone().map(JsFieldDefault::Literal),
+        machine: None,
+        description: None,
+    }
+}
+
+/// Split a checked contributed type into its tag, value type,
+/// nullability and array marker. Mirrors `model_field_parts`/
+/// `model_field_tag`/`model_value_type` over the carrier spellings the
+/// Given check admits (one `?`, any `[]` nesting, scalar/enum leaves).
+fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, bool) {
+    let mut rest = type_name;
+    let mut nullable = false;
+    if let Some(inner) = rest.strip_suffix('?') {
+        rest = inner;
+        nullable = true;
+    }
+    let mut array_levels = 0usize;
+    while let Some(elem) = rest.strip_suffix("[]") {
+        rest = elem;
+        array_levels += 1;
+    }
+    let is_array = array_levels > 0;
+    // Nested arrays have no element tag (mirrors the authored lowering).
+    if array_levels > 1 {
+        return (
+            JsModelFieldType::Other {
+                type_id: "array".to_string(),
+            },
+            None,
+            nullable,
+            true,
+        );
+    }
+    if let Some(cases) = rest
+        .strip_prefix("enum(")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        let values: Vec<String> = cases
+            .split(',')
+            .map(|case| case.trim().to_string())
+            .collect();
+        let mut value_type = format!("enum({})", values.join(","));
+        if is_array {
+            value_type.push_str("[]");
+        }
+        if nullable {
+            value_type.push('?');
+        }
+        return (
+            JsModelFieldType::Enum { values },
+            Some(value_type),
+            nullable,
+            is_array,
+        );
+    }
+    let tag = match rest {
+        "text" | "email" | "url" | "locale" | "timezone" | "currency" => JsModelFieldType::String,
+        "int" | "integer" => JsModelFieldType::Integer,
+        "decimal" => JsModelFieldType::Decimal,
+        "money" => JsModelFieldType::Money,
+        "datetime" => JsModelFieldType::Datetime,
+        "bool" | "boolean" => JsModelFieldType::Boolean,
+        "file" => JsModelFieldType::File,
+        "date" => JsModelFieldType::Date,
+        "duration" => JsModelFieldType::Duration,
+        "secret" => JsModelFieldType::Secret,
+        "user" => JsModelFieldType::User,
+        "member" => JsModelFieldType::Member,
+        "json" => JsModelFieldType::Json,
+        "bytes" => JsModelFieldType::Bytes,
+        _ => {
+            return (
+                JsModelFieldType::Other {
+                    type_id: type_name.to_string(),
+                },
+                None,
+                nullable,
+                is_array,
+            );
+        }
+    };
+    // Value-type selectivity mirrors `model_value_type`: only the
+    // ambiguous leaves carry their written identity (`boolean`
+    // normalizes to the canonical `bool` spelling authored fields use).
+    let value_type = match rest {
+        "bool" | "boolean" => Some(format!(
+            "bool{arr}{null}",
+            arr = if is_array { "[]" } else { "" },
+            null = if nullable { "?" } else { "" }
+        )),
+        "text" | "date" | "file" | "email" | "timezone" => Some(type_name.to_string()),
+        _ => None,
+    };
+    (tag, value_type, nullable, is_array)
+}
+
+/// Map one contributed bound to its wire value, mirroring the
+/// authored bound lowering: length bounds (arrays and string-like
+/// leaves) take integer values, everything else parses as JSON.
+fn given_bound(type_name: &str, bound: Option<&str>) -> Option<serde_json::Value> {
+    let bound = bound?;
+    let mut rest = type_name;
+    if let Some(inner) = rest.strip_suffix('?') {
+        rest = inner;
+    }
+    let mut is_array = false;
+    while let Some(elem) = rest.strip_suffix("[]") {
+        rest = elem;
+        is_array = true;
+    }
+    let string_like = matches!(
+        rest,
+        "text" | "email" | "url" | "locale" | "timezone" | "currency"
+    );
+    if is_array || string_like {
+        let value: i64 = bound.trim().parse().ok()?;
+        if !(0..=9_007_199_254_740_991).contains(&value) {
+            return None;
+        }
+        return Some(serde_json::Value::from(u64::try_from(value).ok()?));
+    }
+    serde_json::from_str(bound).ok()
+}
+
 /// BGI-11 Can owner link: the separate unit/span link identifying the
 /// owning `.can` intent beside a saved-JS map. Maps locate executable
 /// current saved JavaScript; this link attributes it to its source
@@ -1109,6 +1434,113 @@ pub fn pack_saved_unit(
     })
 }
 
+/// Pack one validated saved unit plus its consumed unit-local import
+/// closure into staged modules: the root stages at the unit's staged
+/// path (`server.js`/`view.js`), each closure member beside it as
+/// `can.generated/<id>/<rel>`, so saved relative imports resolve to
+/// staged siblings. `expected_sha256` is the closure fingerprint from
+/// the checked contract: pack verifies the exact consumed bytes before
+/// staging, and refuses changed code, non-UTF-8 members, traversal or
+/// colliding rel paths, and owner-link mismatches. Units without
+/// imports pack through [`pack_saved_unit`], which verifies the same
+/// fingerprint over the root alone.
+pub fn pack_saved_unit_closure(
+    kind: crate::analysis::generation_intake::UnitKind,
+    owner: CanOwnerLink,
+    root_js: &[u8],
+    imports: &[crate::analysis::types::GivenSavedImport],
+    expected_sha256: &str,
+) -> Result<Vec<SavedUnitModule>, String> {
+    if owner.unit_id.is_empty() || owner.kind != kind.as_str() {
+        return Err(format!(
+            "owner link names unit `{}` kind `{}` but packs a {} unit",
+            owner.unit_id,
+            owner.kind,
+            kind.as_str(),
+        ));
+    }
+    if root_js.is_empty() {
+        return Err(format!(
+            "unit `{}` packs empty implementation bytes; refusing an empty module",
+            owner.unit_id,
+        ));
+    }
+    let root = String::from_utf8(root_js.to_vec())
+        .map_err(|_| format!("unit `{}` implementation is not valid UTF-8", owner.unit_id))?;
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut staged: Vec<(String, &[u8])> = Vec::with_capacity(imports.len());
+    for import in imports {
+        let rel = import.rel_path.replace('\\', "/");
+        let clean = rel
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>();
+        if import.rel_path.is_empty()
+            || clean.is_empty()
+            || clean.iter().any(|part| *part == "." || *part == "..")
+        {
+            return Err(format!(
+                "unit `{}` closure member `{}` is not a unit-local relative path; refusing to stage it",
+                owner.unit_id, import.rel_path,
+            ));
+        }
+        let rel = clean.join("/");
+        if !seen.insert(rel.clone()) {
+            return Err(format!(
+                "unit `{}` closure stages `{rel}` twice; refusing the ambiguous closure",
+                owner.unit_id,
+            ));
+        }
+        staged.push((rel, import.bytes.as_slice()));
+    }
+    let root_name = saved_unit_module_path(kind, &owner.unit_id)
+        .map(|path| path.rsplit('/').next().unwrap_or_default().to_string())?;
+    for (rel, _) in &staged {
+        if rel == &root_name {
+            return Err(format!(
+                "unit `{}` closure member `{rel}` collides with the staged root module; refusing to pack it",
+                owner.unit_id,
+            ));
+        }
+    }
+    // The fingerprint covers exactly the staged rel paths and bytes.
+    let closure_refs: Vec<(&str, &[u8])> = staged
+        .iter()
+        .map(|(rel, bytes)| (rel.as_str(), *bytes))
+        .collect();
+    let actual = crate::analysis::types::given_closure_fingerprint(root_js, &closure_refs);
+    if actual != expected_sha256 {
+        return Err(format!(
+            "unit `{}` saved implementation changed (fingerprint mismatch): re-validate before packing; refusing to pack changed code silently",
+            owner.unit_id,
+        ));
+    }
+    let mut packed = Vec::with_capacity(1 + imports.len());
+    let root_path = saved_unit_module_path(kind, &owner.unit_id)?;
+    packed.push(SavedUnitModule {
+        map: crate::codegen::sourcemap::build_saved_js_map(&root_path, &root),
+        path: root_path,
+        js: root,
+        owner: owner.clone(),
+    });
+    for (rel, bytes) in &staged {
+        let js = String::from_utf8(bytes.to_vec()).map_err(|_| {
+            format!(
+                "unit `{}` closure member `{rel}` is not valid UTF-8; refusing to pack it",
+                owner.unit_id,
+            )
+        })?;
+        let path = format!("can.generated/{}/{rel}", owner.unit_id);
+        packed.push(SavedUnitModule {
+            map: crate::codegen::sourcemap::build_saved_js_map(&path, &js),
+            path,
+            js,
+            owner: owner.clone(),
+        });
+    }
+    Ok(packed)
+}
+
 /// Stage packed saved units into an artifact: appended after existing
 /// modules (the entrypoint stays first) in staged-path order, so the
 /// same packed set always stages identically. Duplicate or aliased
@@ -1143,20 +1575,10 @@ pub fn stage_saved_unit_modules(
 pub fn saved_unit_manifest_to_json(packed: &[SavedUnitModule]) -> String {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
-    struct OwnerWire<'a> {
-        unit_id: &'a str,
-        kind: &'a str,
-        can_path: &'a str,
-        can_revision: &'a str,
-        start: u32,
-        end: u32,
-    }
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
     struct EntryWire<'a> {
         path: &'a str,
         sha256: &'a str,
-        owner: OwnerWire<'a>,
+        owner: OwnerLinkWire<'a>,
     }
     let mut ordered: Vec<&SavedUnitModule> = packed.iter().collect();
     ordered.sort_by(|a, b| a.path.cmp(&b.path));
@@ -1165,15 +1587,79 @@ pub fn saved_unit_manifest_to_json(packed: &[SavedUnitModule]) -> String {
         .map(|unit| EntryWire {
             path: &unit.path,
             sha256: &unit.map.js_sha256,
-            owner: OwnerWire {
-                unit_id: &unit.owner.unit_id,
-                kind: &unit.owner.kind,
-                can_path: &unit.owner.can_path,
-                can_revision: &unit.owner.can_revision,
-                start: unit.owner.start,
-                end: unit.owner.end,
-            },
+            owner: OwnerLinkWire::new(&unit.owner),
         })
         .collect();
     crate::json::to_compact_string(&entries).expect("owner manifest serialization is infallible")
+}
+
+/// One packed scoped stylesheet: the BGI-10 scoped output of a style
+/// unit the build consumes, plus its Can owner link.
+#[derive(Debug, Clone)]
+pub struct ArtifactStylesheet {
+    /// Staged artifact path (`can.generated/<id>/style.css`).
+    pub path: String,
+    /// Scoped CSS bytes (the `scope_stylesheet` output guards).
+    pub css: String,
+    /// SHA-256 over the scoped CSS bytes.
+    pub sha256: String,
+    /// Owning `.can` intent link.
+    pub owner: CanOwnerLink,
+}
+
+/// Staged artifact path for one style unit's scoped CSS. Style-family
+/// units and view units (which may colocate their root `style.css`)
+/// pack stylesheets; trait and keyword units never do.
+pub fn saved_unit_style_path(
+    kind: crate::analysis::generation_intake::UnitKind,
+    unit_id: &str,
+) -> Result<String, String> {
+    use crate::analysis::generation_intake::UnitKind;
+    match kind {
+        UnitKind::Style | UnitKind::StyleInline | UnitKind::ViewStyleInline | UnitKind::View => {
+            Ok(format!("can.generated/{unit_id}/style.css"))
+        }
+        _ => Err(format!(
+            "unit `{unit_id}` ({}): only style and view units pack stylesheets",
+            kind.as_str(),
+        )),
+    }
+}
+
+/// Pack one consumed style unit's saved CSS: the bytes must scope
+/// through the same BGI-10 ownership guards validation uses, or
+/// packing refuses with the scope failure. The owner link must name
+/// this unit and kind. Returns the staged stylesheet entry.
+pub fn pack_saved_stylesheet(
+    kind: crate::analysis::generation_intake::UnitKind,
+    owner: CanOwnerLink,
+    css: &str,
+) -> Result<ArtifactStylesheet, String> {
+    if owner.unit_id.is_empty() || owner.kind != kind.as_str() {
+        return Err(format!(
+            "owner link names unit `{}` kind `{}` but packs a {} stylesheet",
+            owner.unit_id,
+            owner.kind,
+            kind.as_str(),
+        ));
+    }
+    let scoped = crate::css_scope::scope_stylesheet(&owner.unit_id, css).map_err(|errors| {
+        let first = &errors[0];
+        let mut message = format!(
+            "unit `{}` `style.css` failed scope checks: {} {} (line {}, column {})",
+            owner.unit_id, first.code, first.message, first.line, first.column,
+        );
+        if errors.len() > 1 {
+            message.push_str(&format!(" (+{} more)", errors.len() - 1));
+        }
+        message
+    })?;
+    let path = saved_unit_style_path(kind, &owner.unit_id)?;
+    let sha256 = crate::source::sha256_hex(scoped.css.as_bytes());
+    Ok(ArtifactStylesheet {
+        path,
+        css: scoped.css,
+        sha256,
+        owner,
+    })
 }

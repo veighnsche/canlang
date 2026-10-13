@@ -416,3 +416,188 @@ fn theme_allowlist_matches_the_shipped_theme_file() {
         );
     }
 }
+
+// ## Production join: ordinary compilation emits saved-renderer calls,
+// ownership hooks, saved imports, and packed scoped CSS.
+
+use canlang_compiler::cli::dispatch as then_dispatch;
+use canlang_compiler::source::sha256_hex as then_sha256;
+
+fn then_argv(parts: &[&str]) -> Vec<String> {
+    let mut args = vec!["can".to_string()];
+    args.extend(parts.iter().map(|part| part.to_string()));
+    args
+}
+
+fn then_write(dir: &std::path::Path, name: &str, text: &str) -> String {
+    let path = dir.join(name);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
+    std::fs::write(&path, text).unwrap();
+    path.to_string_lossy().to_string()
+}
+
+fn then_bind(root: &str, file: &str, text: &str, kind: GenerationKind, label: &str) -> String {
+    let revision = then_sha256(text.as_bytes());
+    let (tree, _) = parse_source(SourceId(0), text);
+    let found = discover_generation(&tree, text);
+    let descriptor = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == kind && d.label.as_deref() == Some(label))
+        .unwrap_or_else(|| panic!("no {kind:?} descriptor for {label:?}"));
+    let bound = then_dispatch(&then_argv(&[
+        "gen",
+        "bind",
+        root,
+        file,
+        &descriptor.span.start.to_string(),
+        &descriptor.span.end.to_string(),
+        &revision,
+        "new",
+    ]));
+    assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
+    bound.stdout.split_whitespace().nth(1).unwrap().to_string()
+}
+
+/// Release probe: a prompted row view plus a named style, each used.
+const THEN_JOIN_APP: &str = "app Tasks\nGiven\n Todo {title:text}\nWhen\nThen\n style TaskSurface $\"Readable task surfaces.\"\n view TaskTile(row:Todo) $\"Arrange admitted title.\"\n  text row.title\n  style TaskSurface\n page / title=\"Todos\"\n  list Todo as row $TaskSurface\n   show TaskTile {row=row} $TaskSurface\n";
+const THEN_JOIN_CSS: &str = "section { padding: 1rem; }\nsection h2 { font-weight: 600; }\n";
+const THEN_JOIN_VIEW_JS: &str = "export function render(row, bindings, context) {\n  return `<section><h2>${bindings.text}</h2></section>`;\n}\nexport function mount(root, context) {}\n";
+const THEN_JOIN_CATALOG: &str =
+    r#"{"language_version":"1.0","catalog_version":"1.0.0","entries":[]}"#;
+
+fn then_compile(dir: &std::path::Path, file: &str) -> canlang_compiler::cli::DispatchResult {
+    let catalog = then_write(dir, "catalog.json", THEN_JOIN_CATALOG);
+    then_dispatch(&then_argv(&[
+        "compile",
+        "--format=json",
+        &format!("--catalog={catalog}"),
+        file,
+    ]))
+}
+
+fn then_envelope(stdout: &str) -> serde_json::Value {
+    serde_json::from_str(stdout).unwrap()
+}
+
+#[test]
+fn compile_emits_saved_renderer_call_hooks_import_and_css() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = then_write(dir.path(), "app.can", THEN_JOIN_APP);
+    let u_style = then_bind(
+        &root,
+        &file,
+        THEN_JOIN_APP,
+        GenerationKind::StyleDefinition,
+        "TaskSurface",
+    );
+    then_write(
+        dir.path(),
+        &format!("can.generated/{u_style}/style.css"),
+        THEN_JOIN_CSS,
+    );
+    let u_view = then_bind(
+        &root,
+        &file,
+        THEN_JOIN_APP,
+        GenerationKind::ViewDefinition,
+        "TaskTile",
+    );
+    then_write(
+        dir.path(),
+        &format!("can.generated/{u_view}/implementation.js"),
+        THEN_JOIN_VIEW_JS,
+    );
+    let compiled = then_compile(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "stdout: {}", compiled.stdout);
+    let body = then_envelope(&compiled.stdout);
+    let modules = body["modules"].as_array().unwrap();
+    let entry = &modules[0];
+    let js = entry["js"].as_str().unwrap();
+    // The saved import and the UI factory arrive with the entry.
+    assert!(
+        js.contains(&format!("from \"./can.generated/{u_view}/view.js\"")),
+        "saved renderer import"
+    );
+    assert!(js.contains("generatedViewInstance"), "UI factory import");
+    // The child expansion calls the saved renderer with ownership
+    // hooks: descriptor, instance use id, root style, row, bindings.
+    assert!(
+        js.contains("version:\"canlang.presentation.generated-view/1\""),
+        "wire version"
+    );
+    assert!(js.contains("view:\"TaskTile\""), "view name");
+    assert!(
+        js.contains("rowModel:\"Tasks.Todo\""),
+        "canonical row model"
+    );
+    assert!(
+        js.contains(&format!("rootStyle:\"{u_style}\"")),
+        "root style hook"
+    );
+    assert!(js.contains("useId:\"can-view-m0-f0-s"), "instance hook");
+    assert!(
+        js.contains("{name:\"text\",html:"),
+        "pre-rendered leaf binding"
+    );
+    assert!(js.contains("render:$can$v$"), "renderer reference");
+    // The staged server+browser view module packs after the entry.
+    let paths: Vec<&str> = modules
+        .iter()
+        .map(|m| m["path"].as_str().unwrap())
+        .collect();
+    assert_eq!(paths.len(), 2);
+    assert_eq!(paths[1], format!("can.generated/{u_view}/view.js"));
+    assert_eq!(modules[1]["js"], THEN_JOIN_VIEW_JS);
+    // The scoped CSS packs with its owner link for the deploy host.
+    let sheets = body["stylesheets"].as_array().unwrap();
+    assert_eq!(sheets.len(), 1);
+    assert_eq!(
+        sheets[0]["path"],
+        format!("can.generated/{u_style}/style.css")
+    );
+    let css = sheets[0]["css"].as_str().unwrap();
+    assert!(
+        css.contains(&format!("[data-can-style~=\"{u_style}\"]")),
+        "{css}"
+    );
+    assert_eq!(sheets[0]["owner"]["unitId"], u_style);
+    assert_eq!(sheets[0]["owner"]["kind"], "style");
+    // Repeat saved builds are byte-identical with zero AI.
+    assert!(!dir.path().join("can.gen.toml").exists());
+    let again = then_compile(dir.path(), &file);
+    assert_eq!(again.code, 0, "stdout: {}", again.stdout);
+    assert_eq!(again.stdout, compiled.stdout);
+}
+
+#[test]
+fn compile_without_then_units_diagnoses_units_and_actions() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = then_write(dir.path(), "app.can", THEN_JOIN_APP);
+    let compiled = then_compile(dir.path(), &file);
+    assert_eq!(compiled.code, 10, "stdout: {}", compiled.stdout);
+    let body = then_envelope(&compiled.stdout);
+    let diags = body["diagnostics"].as_array().unwrap();
+    assert_eq!(diags.len(), 2);
+    for diag in diags {
+        assert_eq!(diag["code"], "E6008");
+        let message = diag["message"].as_str().unwrap();
+        assert!(message.contains("no saved unit"), "{message}");
+        assert!(message.contains("action: generate"), "{message}");
+    }
+    let joined: Vec<&str> = diags
+        .iter()
+        .map(|d| d["message"].as_str().unwrap())
+        .collect();
+    assert!(
+        joined.iter().any(|m| m.contains("view `TaskTile`")),
+        "{joined:?}"
+    );
+    assert!(
+        joined.iter().any(|m| m.contains("style `TaskSurface`")),
+        "{joined:?}"
+    );
+}

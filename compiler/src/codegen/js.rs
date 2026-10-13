@@ -29,7 +29,7 @@ use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, s
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEffectCallTarget, IrEventSource, IrExpr,
     IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated,
-    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
+    IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse,
     ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
@@ -1550,6 +1550,546 @@ fn emit_program_with_receipt_sources(
     )
 }
 
+// --- Saved Then production join ------------------------------------------
+// Checked Then descriptors (`then_views`, `css_scope`) joined to
+// emitted wrappers: prompted `show` sites call their saved renderer
+// through `generatedViewInstance` with compiler-owned instance roots
+// and hooks, importing the staged view module. Resolution runs here
+// (beside emission, from the driver database) so both the emitter
+// and the compile driver share one implementation: emission falls
+// back to the ordinary inline expansion when a site does not
+// resolve, while the driver diagnoses missing/incompatible inputs
+// and packs the consumed stylesheets and view modules.
+//
+// `GENERATED_VIEW_WIRE_VERSION` is the presentation contract the UI
+// factory asserts on the emitted descriptor. Note it differs from
+// the compiler-internal `then_views::THEN_VIEW_CONTRACT_VERSION`,
+// which names the lowering contract, not the instance wire shape.
+
+/// Presentation wire version carried by emitted view descriptors.
+pub(crate) const GENERATED_VIEW_WIRE_VERSION: &str = "canlang.presentation.generated-view/1";
+
+/// One resolved `show` site: the prompted view, its saved renderer
+/// unit, and the style unit styling the renderer root, if any.
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedShow {
+    /// Prompted view name (`TaskTile`).
+    pub view_name: String,
+    /// Canonical row model (`Owner.Model`).
+    pub row_model: String,
+    /// Saved view unit id (staged `can.generated/<id>/view.js`).
+    pub unit_id: String,
+    /// Declared canonical controls in source order.
+    pub controls: Vec<super::then_views::ThenControl>,
+    /// Style unit id styling the renderer root, when declared.
+    pub root_style: Option<String>,
+}
+
+/// Saved Then inputs resolved for one compilation: renderer plans
+/// per `show` site, consumed view/style groups for packing, and
+/// coverage failures the driver diagnoses.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ThenBuildJoin {
+    /// Renderer plans keyed by `show` use span.
+    shows: HashMap<Span, ResolvedShow>,
+    /// Consumed view units by unit id, for module packing.
+    views: HashMap<String, crate::analysis::generation_intake::SavedGroup>,
+    /// Consumed style units by unit id, for CSS packing.
+    styles: HashMap<String, crate::analysis::generation_intake::SavedGroup>,
+    /// Coverage failures: the use/definition span plus its detail
+    /// (missing unit, ambiguous association, incompatible group).
+    missing: Vec<(Span, String)>,
+}
+
+impl ThenBuildJoin {
+    /// Renderer plan for one `show` use span, if it resolves to a
+    /// prompted view with a usable saved unit.
+    pub(crate) fn show_at(&self, span: &Span) -> Option<&ResolvedShow> {
+        self.shows.get(span)
+    }
+
+    /// Consumed view units (saved groups by unit id).
+    pub(crate) fn views(&self) -> &HashMap<String, crate::analysis::generation_intake::SavedGroup> {
+        &self.views
+    }
+
+    /// Consumed style units (saved groups by unit id).
+    pub(crate) fn styles(
+        &self,
+    ) -> &HashMap<String, crate::analysis::generation_intake::SavedGroup> {
+        &self.styles
+    }
+
+    /// Coverage failures: `(span, detail)` pairs the driver reports.
+    pub(crate) fn missing(&self) -> &[(Span, String)] {
+        &self.missing
+    }
+
+    /// Resolve saved Then inputs over every database source: reparse,
+    /// lower prompted views, walk use edges, and bind consumed units
+    /// to their current saved groups. Consumed means emitted: uses
+    /// strictly inside an unconsumed (unshown) view's span resolve
+    /// nothing, and unresolvable sites stay absent so emission keeps
+    /// its ordinary inline shape.
+    pub(crate) fn resolve(db: &crate::source::SourceDb) -> Self {
+        use crate::analysis::generation::{GenerationKind, discover_generation};
+        use crate::analysis::generation_intake as intake;
+        struct FileThen {
+            owner: String,
+            descriptors: Vec<crate::analysis::generation::GenerationDescriptor>,
+            views: Vec<super::then_views::ThenView>,
+            edges: Vec<super::then_views::UseEdge>,
+            view_spans: Vec<(String, Span)>,
+            show_refs: Vec<(String, Span)>,
+        }
+        let mut files: Vec<FileThen> = Vec::new();
+        for (id, source) in db.iter() {
+            let (tree, _) = crate::syntax::parse_source(id, &source.text);
+            let found = discover_generation(&tree, &source.text);
+            let lowering = super::then_views::lower_then_views(&tree, &source.text);
+            let edges =
+                super::then_views::walk_generation_uses(&tree, &source.text, &found.descriptors);
+            let mut view_spans = Vec::new();
+            let mut show_refs = Vec::new();
+            let mut owner = String::new();
+            for node in tree.descendants() {
+                if matches!(
+                    node.kind,
+                    crate::syntax::SyntaxKind::App | crate::syntax::SyntaxKind::Package
+                ) {
+                    let ns: Vec<String> = node
+                        .children
+                        .iter()
+                        .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
+                        .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
+                        .collect();
+                    if ns.len() >= 2 {
+                        owner = ns[1].clone();
+                    }
+                } else if node.kind == crate::syntax::SyntaxKind::View {
+                    let name = node
+                        .children
+                        .iter()
+                        .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
+                        .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
+                        .nth(1)
+                        .unwrap_or_default();
+                    view_spans.push((name, node.span));
+                } else if node.kind == crate::syntax::SyntaxKind::Show {
+                    let name = node
+                        .children
+                        .iter()
+                        .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
+                        .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
+                        .nth(1)
+                        .unwrap_or_default();
+                    show_refs.push((name, node.span));
+                }
+            }
+            if owner.is_empty() {
+                owner = found
+                    .descriptors
+                    .first()
+                    .map(|d| d.owner.clone())
+                    .unwrap_or_default();
+            }
+            files.push(FileThen {
+                owner,
+                descriptors: found.descriptors,
+                views: lowering.views,
+                edges,
+                view_spans,
+                show_refs,
+            });
+        }
+        // A view is consumed when some `show` names it (prompted views
+        // through their checked edges, unprompted ones through raw
+        // references); anything strictly inside an unconsumed view's
+        // span emits nothing and consumes nothing.
+        let mut consumed_views: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
+        for file in &files {
+            for edge in &file.edges {
+                if edge.definition_kind == GenerationKind::ViewDefinition {
+                    consumed_views.insert((edge.owner.clone(), edge.definition_label.clone()));
+                }
+            }
+            for (name, _) in &file.show_refs {
+                consumed_views.insert((file.owner.clone(), name.clone()));
+            }
+        }
+        let inside_unconsumed = |file: &FileThen, span: &Span| -> bool {
+            file.view_spans.iter().any(|(name, view)| {
+                view.file == span.file
+                    && view.start <= span.start
+                    && span.end <= view.end
+                    && (view.start, view.end) != (span.start, span.end)
+                    && !consumed_views.contains(&(file.owner.clone(), name.clone()))
+            })
+        };
+        // Saved records by association key, across every source root.
+        let mut records: Vec<(std::path::PathBuf, intake::UnitRecord)> = Vec::new();
+        {
+            let mut roots: Vec<std::path::PathBuf> = Vec::new();
+            for (_, source) in db.iter() {
+                let root = std::path::Path::new(&source.path)
+                    .parent()
+                    .map(std::path::Path::to_path_buf)
+                    .unwrap_or_else(|| std::path::PathBuf::from("."));
+                let root = if root.as_os_str().is_empty() {
+                    std::path::PathBuf::from(".")
+                } else {
+                    root
+                };
+                if !roots.contains(&root) {
+                    roots.push(root);
+                }
+            }
+            for root in roots {
+                for name in intake::scan_unit_ids(&root) {
+                    let Ok(id) = intake::GenerationUnitId::parse(&name) else {
+                        continue;
+                    };
+                    let path = root
+                        .join(intake::GENERATED_DIR)
+                        .join(id.as_str())
+                        .join(intake::UNIT_FILE);
+                    let Ok(text) = std::fs::read_to_string(&path) else {
+                        continue;
+                    };
+                    // Unparseable records stay invisible here; `gen
+                    // status` reports the breakage, and group reads
+                    // below catch missing primaries precisely.
+                    if let Ok(record) = intake::UnitRecord::parse(&text, &id) {
+                        records.push((root.clone(), record));
+                    }
+                }
+            }
+        }
+        let mut join = ThenBuildJoin::default();
+        // Staged identities stay unambiguous: one unit id serves one
+        // association key, or the build refuses the skewed staging.
+        let mut staged_keys: HashMap<String, intake::AssociationKey> = HashMap::new();
+        let claim_staged = |join: &mut ThenBuildJoin,
+                            staged_keys: &mut HashMap<String, intake::AssociationKey>,
+                            key: &intake::AssociationKey,
+                            unit_id: &str,
+                            span: Span,
+                            what: &str|
+         -> bool {
+            if let Some(first) = staged_keys.get(unit_id) {
+                if first != key {
+                    join.missing.push((
+                        span,
+                        format!(
+                            "cannot lower {what}: saved unit `{unit_id}` is already staged for another definition; reconcile the association with an explicit bind (action: bind)",
+                        ),
+                    ));
+                    return false;
+                }
+                return true;
+            }
+            staged_keys.insert(unit_id.to_string(), key.clone());
+            true
+        };
+        let resolve_unit = |join: &mut ThenBuildJoin,
+                            key: &intake::AssociationKey,
+                            span: Span,
+                            what: &str|
+         -> Option<(String, intake::SavedGroup)> {
+            let matches: Vec<&(std::path::PathBuf, intake::UnitRecord)> = records
+                .iter()
+                .filter(|(_, record)| intake::AssociationKey::of(&record.source) == *key)
+                .collect();
+            if matches.is_empty() {
+                join.missing.push((
+                    span,
+                    format!(
+                        "cannot lower {what}: no saved unit is bound to {}; send a generate request to prepare the unit (action: generate)",
+                        key.describe(),
+                    ),
+                ));
+                return None;
+            }
+            if matches.len() > 1 {
+                join.missing.push((
+                    span,
+                    format!(
+                        "cannot lower {what}: {} saved units match {}; reconcile the association with an explicit bind (action: bind)",
+                        matches.len(),
+                        key.describe(),
+                    ),
+                ));
+                return None;
+            }
+            let (root, record) = matches[0];
+            match intake::read_saved_group(root, &record.id) {
+                Ok(group) => Some((record.id.as_str().to_string(), group)),
+                Err(issue) => {
+                    join.missing.push((
+                        span,
+                        format!("cannot lower {what}: saved group is incompatible: {issue}"),
+                    ));
+                    None
+                }
+            }
+        };
+        // Prompted `show` sites resolve to renderer plans.
+        for file in &files {
+            for edge in &file.edges {
+                if edge.definition_kind != GenerationKind::ViewDefinition
+                    || inside_unconsumed(file, &edge.use_span)
+                {
+                    continue;
+                }
+                let what = format!("view `{}`", edge.definition_label);
+                let Some(view) = file
+                    .views
+                    .iter()
+                    .find(|v| v.anchor == edge.definition_anchor)
+                else {
+                    join.missing.push((
+                        edge.use_span,
+                        format!(
+                            "cannot lower {what}: the prompted view does not lower from the current source; fix the view or reconcile with adopt"
+                        ),
+                    ));
+                    continue;
+                };
+                let key = intake::AssociationKey {
+                    owner: edge.owner.clone(),
+                    kind: intake::UnitKind::View,
+                    label: Some(edge.definition_label.clone()),
+                    anchor: edge.definition_anchor.clone(),
+                };
+                let Some((unit_id, group)) = resolve_unit(&mut join, &key, edge.use_span, &what)
+                else {
+                    continue;
+                };
+                if group
+                    .files
+                    .iter()
+                    .find(|f| f.rel_path == "implementation.js")
+                    .is_none_or(|f| String::from_utf8(f.bytes.clone()).is_err())
+                {
+                    join.missing.push((
+                        edge.use_span,
+                        format!(
+                            "cannot lower {what}: unit `{unit_id}` `implementation.js` is missing or not valid UTF-8; repair the file or reconcile with adopt"
+                        ),
+                    ));
+                    continue;
+                }
+                if !claim_staged(
+                    &mut join,
+                    &mut staged_keys,
+                    &key,
+                    &unit_id,
+                    edge.use_span,
+                    &what,
+                ) {
+                    continue;
+                }
+                // The renderer root style: the declared root child
+                // (named or inline) wins, then the use-site `$`
+                // attachment, then the view's colocated `style.css`.
+                let mut root_style: Option<String> = None;
+                if let Some(declared) = view.root_style.as_ref() {
+                    if let Some(name) = declared.named.as_deref() {
+                        let style_key = intake::AssociationKey {
+                            owner: edge.owner.clone(),
+                            kind: intake::UnitKind::Style,
+                            label: Some(name.to_string()),
+                            anchor: format!("{}:style:{name}:", edge.owner),
+                        };
+                        if let Some((style_id, style_group)) =
+                            resolve_unit(&mut join, &style_key, edge.use_span, &what)
+                            && claim_staged(
+                                &mut join,
+                                &mut staged_keys,
+                                &style_key,
+                                &style_id,
+                                edge.use_span,
+                                &what,
+                            )
+                        {
+                            join.styles.insert(style_id.clone(), style_group);
+                            root_style = Some(style_id);
+                        }
+                    } else if declared.inline_prompt.is_some() {
+                        let style_key = intake::AssociationKey {
+                            owner: edge.owner.clone(),
+                            kind: intake::UnitKind::ViewStyleInline,
+                            label: Some(view.name.clone()),
+                            anchor: format!(
+                                "{}:view-style-inline:{}:{}",
+                                edge.owner, view.name, view.name
+                            ),
+                        };
+                        if let Some((style_id, style_group)) =
+                            resolve_unit(&mut join, &style_key, edge.use_span, &what)
+                            && claim_staged(
+                                &mut join,
+                                &mut staged_keys,
+                                &style_key,
+                                &style_id,
+                                edge.use_span,
+                                &what,
+                            )
+                        {
+                            join.styles.insert(style_id.clone(), style_group);
+                            root_style = Some(style_id);
+                        }
+                    }
+                }
+                if root_style.is_none() {
+                    root_style = file
+                        .descriptors
+                        .iter()
+                        .filter(|d| {
+                            matches!(
+                                d.kind,
+                                GenerationKind::StyleNamedUse | GenerationKind::StyleInline
+                            ) && d.span.file == edge.use_span.file
+                                && d.span.start >= edge.use_span.start
+                                && d.span.end <= edge.use_span.end
+                        })
+                        .find_map(|d| {
+                            let kind = intake::UnitKind::of_descriptor(d.kind)?;
+                            let style_key = intake::AssociationKey {
+                                owner: d.owner.clone(),
+                                kind,
+                                label: d.label.clone(),
+                                anchor: d.anchor.clone(),
+                            };
+                            let (style_id, style_group) =
+                                resolve_unit(&mut join, &style_key, edge.use_span, &what)?;
+                            if !claim_staged(
+                                &mut join,
+                                &mut staged_keys,
+                                &style_key,
+                                &style_id,
+                                edge.use_span,
+                                &what,
+                            ) {
+                                return None;
+                            }
+                            join.styles.insert(style_id.clone(), style_group);
+                            Some(style_id)
+                        });
+                }
+                if root_style.is_none() && group.files.iter().any(|f| f.rel_path == "style.css") {
+                    root_style = Some(unit_id.clone());
+                }
+                join.views.insert(unit_id.clone(), group);
+                join.shows.insert(
+                    edge.use_span,
+                    ResolvedShow {
+                        view_name: view.name.clone(),
+                        row_model: format!("{}.{}", edge.owner, view.row_model),
+                        unit_id,
+                        controls: view.controls.clone(),
+                        root_style,
+                    },
+                );
+            }
+        }
+        // Consumed style definitions pack their CSS: a definition with
+        // at least one emitted named use.
+        for file in &files {
+            for descriptor in &file.descriptors {
+                if descriptor.kind != GenerationKind::StyleDefinition {
+                    continue;
+                }
+                let used = files.iter().any(|other| {
+                    other.edges.iter().any(|edge| {
+                        matches!(edge.definition_kind, GenerationKind::StyleDefinition)
+                            && edge.definition_anchor == descriptor.anchor
+                            && !inside_unconsumed(other, &edge.use_span)
+                    })
+                });
+                if !used {
+                    continue;
+                }
+                let what = format!(
+                    "style `{}`",
+                    descriptor.label.as_deref().unwrap_or_default()
+                );
+                let key = intake::AssociationKey {
+                    owner: descriptor.owner.clone(),
+                    kind: intake::UnitKind::Style,
+                    label: descriptor.label.clone(),
+                    anchor: descriptor.anchor.clone(),
+                };
+                let Some((unit_id, group)) = resolve_unit(&mut join, &key, descriptor.span, &what)
+                else {
+                    continue;
+                };
+                if !claim_staged(
+                    &mut join,
+                    &mut staged_keys,
+                    &key,
+                    &unit_id,
+                    descriptor.span,
+                    &what,
+                ) {
+                    continue;
+                }
+                join.styles.insert(unit_id, group);
+            }
+        }
+        // Inline attachments consume their own unit wherever their host
+        // emits; definition-owned inline root styles follow their view.
+        for file in &files {
+            for descriptor in &file.descriptors {
+                let consumed = match descriptor.kind {
+                    GenerationKind::StyleInline => !inside_unconsumed(file, &descriptor.span),
+                    GenerationKind::ViewRootStyleInline => {
+                        let view = descriptor.label.as_deref().unwrap_or_default();
+                        consumed_views.contains(&(descriptor.owner.clone(), view.to_string()))
+                    }
+                    _ => continue,
+                };
+                if !consumed {
+                    continue;
+                }
+                let what = match descriptor.kind {
+                    GenerationKind::ViewRootStyleInline => format!(
+                        "inline root style of view `{}`",
+                        descriptor.label.as_deref().unwrap_or_default()
+                    ),
+                    _ => "inline style".to_string(),
+                };
+                let Some(kind) = intake::UnitKind::of_descriptor(descriptor.kind) else {
+                    continue;
+                };
+                let key = intake::AssociationKey {
+                    owner: descriptor.owner.clone(),
+                    kind,
+                    label: descriptor.label.clone(),
+                    anchor: descriptor.anchor.clone(),
+                };
+                let Some((unit_id, group)) = resolve_unit(&mut join, &key, descriptor.span, &what)
+                else {
+                    continue;
+                };
+                if !claim_staged(
+                    &mut join,
+                    &mut staged_keys,
+                    &key,
+                    &unit_id,
+                    descriptor.span,
+                    &what,
+                ) {
+                    continue;
+                }
+                join.styles.insert(unit_id, group);
+            }
+        }
+        join
+    }
+}
+
 fn emit_program_with_sources(
     ir: &IrProgram,
     native_receipts: bool,
@@ -1562,6 +2102,12 @@ fn emit_program_with_sources(
     feasibility: Option<&super::scenario_feasibility::PreparedRequireReturns<'_>>,
 ) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    // Saved Then inputs resolve from the database sources: prompted
+    // `show` sites emit saved-renderer calls, and the compile driver
+    // reuses the same resolution for coverage and packing.
+    if let Some(db) = db {
+        emitter.then_join = Some(ThenBuildJoin::resolve(db));
+    }
     for original in ir.committed_sources.mailbox_event_handlers() {
         let index = original.id.0 as usize;
         if ir.items.get(index).is_none_or(|handler| {
@@ -2670,6 +3216,11 @@ pub struct Emitter<'a> {
     send_guards: Option<&'a HashMap<Span, super::send_guards::PreparedSendGuard>>,
     send_guard_owners: Option<&'a BTreeMap<String, serde_json::Value>>,
     send_guard_gap: Option<&'a super::send_guards::SendGuardGap>,
+    /// Resolved saved Then inputs (prompted-view renderers, style
+    /// units) for `show` emission. `Some` exactly when the driver
+    /// passed a source database, so database-free emission keeps its
+    /// exact prior posture.
+    then_join: Option<ThenBuildJoin>,
 }
 
 struct OriginalUiRow {
@@ -2754,6 +3305,7 @@ impl<'a> Emitter<'a> {
             send_guards: None,
             send_guard_owners: None,
             send_guard_gap: None,
+            then_join: None,
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -7658,6 +8210,105 @@ impl<'a> Emitter<'a> {
             .and_then(|row| row.binding.clone())
     }
 
+    /// Emit one prompted `show` site as a saved-renderer call: the
+    /// declaration children pre-render as named bindings (canonical
+    /// control kind or leaf factory in declaration order, repeats
+    /// taking a 2-based numeric suffix so names stay unique and
+    /// stable), the row still evaluates exactly once, and the
+    /// definition gate still omits the whole instance. The descriptor
+    /// carries the presentation wire version the UI factory asserts;
+    /// the renderer arrives as a relative import of the staged view
+    /// module the driver packs.
+    #[allow(clippy::too_many_arguments)]
+    fn lower_saved_view_instance(
+        &mut self,
+        node: &IrUi,
+        view: &IrViewUse,
+        ctx: &str,
+        argument: &str,
+        row: &str,
+        guard: &str,
+        lowered: &[String],
+        plan: &ResolvedShow,
+    ) -> String {
+        use super::then_views::ThenControl;
+        self.ui.insert("generatedViewInstance".to_string());
+        let factory = binding_ident("u", "generatedViewInstance");
+        let render = binding_ident("v", &plan.unit_id);
+        self.relative
+            .entry(format!("./can.generated/{}/view.js", plan.unit_id))
+            .or_default()
+            .insert(format!("render as {render}"));
+        let controls = plan
+            .controls
+            .iter()
+            .map(|control| match control {
+                ThenControl::Edit { fields } => format!(
+                    "{{kind:{},fields:[{}]}}",
+                    js_string("edit"),
+                    fields
+                        .iter()
+                        .map(|f| js_string(f))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                ThenControl::Delete => format!("{{kind:{}}}", js_string("delete")),
+                ThenControl::Form { operation, fields } => format!(
+                    "{{kind:{},operation:{},fields:[{}]}}",
+                    js_string("form"),
+                    js_string(operation),
+                    fields
+                        .iter()
+                        .map(|f| js_string(f))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                ThenControl::Action { operation } => format!(
+                    "{{kind:{},operation:{}}}",
+                    js_string("action"),
+                    js_string(operation)
+                ),
+                // The presentation descriptor carries one optional
+                // operation per control, so action groups name their
+                // kind only; the runtime does not consume controls.
+                ThenControl::Actions { .. } => format!("{{kind:{}}}", js_string("actions")),
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let root_style = plan
+            .root_style
+            .as_deref()
+            .map(|style| format!(",rootStyle:{}", js_string(style)))
+            .unwrap_or_default();
+        let descriptor = format!(
+            "{{version:{},view:{},rowModel:{},controls:[{controls}]{root_style}}}",
+            js_string(GENERATED_VIEW_WIRE_VERSION),
+            js_string(&plan.view_name),
+            js_string(&plan.row_model),
+        );
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        let bindings = node
+            .children
+            .iter()
+            .zip(lowered.iter())
+            .map(|(child, html)| {
+                let count = counts.entry(child.factory.as_str()).or_insert(0);
+                *count += 1;
+                let name = if *count == 1 {
+                    child.factory.clone()
+                } else {
+                    format!("{}{}", child.factory, *count)
+                };
+                format!("{{name:{},html:await ({html})}}", js_string(&name))
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "await (async({row})=>{{{guard}return await {factory}({{context:{ctx},descriptor:{descriptor},useId:{use_id},row:{row},bindings:[{bindings}],render:{render}}});}})({argument})",
+            use_id = js_string(&view.identity),
+        )
+    }
+
     /// Occurrence identities thread through enclosing collection rows so
     /// repeated tabsets never share their radio group or panel identifiers.
     fn lower_ui_occurrence(
@@ -7836,7 +8487,7 @@ impl<'a> Emitter<'a> {
                 .gate
                 .as_ref()
                 .map(|gate| self.lower_business_expr(gate, "view gate"));
-            let children = node
+            let lowered = node
                 .children
                 .iter()
                 .map(|child| {
@@ -7845,13 +8496,26 @@ impl<'a> Emitter<'a> {
                         sequence_children,
                     )
                 })
-                .collect::<Vec<_>>()
-                .join(",");
+                .collect::<Vec<_>>();
             self.original_ui_rows.pop();
             self.exit_scope();
             let guard = gate
                 .map(|gate| format!("if(!({gate}))return '';"))
                 .unwrap_or_default();
+            // Prompted views with a usable saved unit call their saved
+            // renderer; anything else keeps the ordinary declaration
+            // expansion (the driver diagnoses missing inputs loudly).
+            let plan = self
+                .then_join
+                .as_ref()
+                .and_then(|join| join.show_at(&node.span))
+                .cloned();
+            if let Some(plan) = plan {
+                return self.lower_saved_view_instance(
+                    node, view, ctx, &argument, &row, &guard, &lowered, &plan,
+                );
+            }
+            let children = lowered.join(",");
             return format!(
                 "await (async({row})=>{{{guard}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}})({argument})"
             );

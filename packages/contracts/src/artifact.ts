@@ -613,6 +613,34 @@ export interface ArtifactGivenContracts {
   keywords: ArtifactGivenKeyword[];
 }
 
+/** Can owner link carried by packed saved-unit entries. */
+export interface ArtifactOwnerLink {
+  /** Opaque saved unit id (`can.generated/<id>/`). */
+  unitId: string;
+  /** Saved unit kind (`keyword`, `view`, `style`, ...). */
+  kind: string;
+  /** Owning `.can` source path. */
+  canPath: string;
+  /** Owning source revision the unit was bound against. */
+  canRevision: string;
+  /** Owning definition span start (bytes). */
+  start: number;
+  /** Owning definition span end (bytes). */
+  end: number;
+}
+
+/** One packed scoped stylesheet: the BGI-10 scoped output of a style unit. */
+export interface ArtifactStylesheet {
+  /** Staged artifact path (`can.generated/<id>/style.css`). */
+  path: string;
+  /** Scoped CSS bytes (the ownership guards). */
+  css: string;
+  /** SHA-256 over the scoped CSS bytes (lowercase hex). */
+  sha256: string;
+  /** Owning `.can` intent link. */
+  owner: ArtifactOwnerLink;
+}
+
 /** Root artifact emitted by `can compile` for one program. */
 export interface CompileArtifact {
   artifact_version: typeof ARTIFACT_VERSION;
@@ -656,6 +684,14 @@ export interface CompileArtifact {
    * descriptors", never as an error.
    */
   givenContracts?: ArtifactGivenContracts;
+  /**
+   * Packed scoped stylesheets for the style units this build consumes,
+   * in staged-path order. Each entry carries the BGI-10 scoped CSS
+   * bytes plus its Can owner link, so the deploy host can serve the
+   * guards the emitted `data-can-style` hooks select. Optional:
+   * loaders must treat absence as "no stylesheets", never as an error.
+   */
+  stylesheets?: ArtifactStylesheet[];
   /** Checked source nominal definitions used by field/input/result claims. */
   valueTypes?: CanonicalValueTypes;
   /** Page descriptors in source order. */

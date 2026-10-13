@@ -850,6 +850,29 @@ fn run_compile(
             "can compile needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
         );
     };
+    // Saved production joins: consumed generation units resolve to
+    // their current saved groups before emission, so missing or
+    // incompatible inputs diagnose (exit 10, no artifact) instead of
+    // compiling silently without them. Repeat saved builds stay
+    // zero-AI: this path never invokes generation, it only reads
+    // current saved bytes.
+    let saved_roots = compile_saved_roots(operands);
+    let given_join = join_saved_given(&mut db, &program, &saved_roots, &mut result);
+    // The Then join resolves here for coverage and packing; emission
+    // re-resolves the same inputs deterministically for renderer
+    // calls. Coverage failures block before emission.
+    let then_join = crate::codegen::js::ThenBuildJoin::resolve(&db);
+    for (span, detail) in then_join.missing() {
+        result.push(crate::diagnostic::Diagnostic::error(
+            "E6008",
+            detail.clone(),
+            *span,
+        ));
+    }
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
     let sources = crate::codegen::EmitSources {
         db: &db,
         result: &result,
@@ -865,6 +888,37 @@ fn run_compile(
     }
     result.finish();
     if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let mut artifact = artifact;
+    // Saved modules stage once, in staged-path order, after both
+    // joins contribute their packed units.
+    let mut staged: Vec<crate::codegen::artifact::SavedUnitModule> = Vec::new();
+    if let Some(join) = given_join
+        && let Err(diagnostic) = attach_saved_given(&mut artifact, &join, &db, &mut staged)
+    {
+        result.push(diagnostic);
+        result.finish();
+        return emit_diagnostics(&result, &db, format);
+    }
+    if let Err(diagnostic) = attach_saved_then(&mut artifact, &then_join, &db, &mut staged) {
+        result.push(diagnostic);
+        result.finish();
+        return emit_diagnostics(&result, &db, format);
+    }
+    if let Err(detail) = crate::codegen::artifact::stage_saved_unit_modules(&mut artifact, &staged)
+    {
+        let primary = db
+            .iter()
+            .next()
+            .map(|(id, _)| Span::new(id, 0, 0))
+            .unwrap_or(Span::new(SourceId(0), 0, 0));
+        result.push(crate::diagnostic::Diagnostic::error(
+            "E6008",
+            format!("cannot lower saved implementations: {detail}"),
+            primary,
+        ));
+        result.finish();
         return emit_diagnostics(&result, &db, format);
     }
     let stdout = match format {
@@ -888,6 +942,477 @@ fn run_compile(
         stderr: String::new(),
         run_lsp: false,
     }
+}
+
+/// Saved-unit roots for one compilation: the distinct parent
+/// directories of the operand files, each contributing its
+/// `can.generated/` records. Operands without a parent directory
+/// resolve against the current directory.
+fn compile_saved_roots(operands: &[String]) -> Vec<std::path::PathBuf> {
+    let mut roots: Vec<std::path::PathBuf> = Vec::new();
+    for operand in operands {
+        let root = Path::new(operand)
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("."));
+        let root = if root.as_os_str().is_empty() {
+            PathBuf::from(".")
+        } else {
+            root
+        };
+        if !roots.contains(&root) {
+            roots.push(root);
+        }
+    }
+    roots
+}
+
+/// Checked saved Given inputs for one compilation: the BGI-07
+/// contract tables plus the consumed groups/units that feed artifact
+/// packing. Built before emission; missing or incompatible inputs
+/// diagnose instead of compiling silently without them.
+struct GivenJoin {
+    tables: crate::analysis::types::GivenContractTables,
+    groups: std::collections::HashMap<String, crate::analysis::generation_intake::SavedGroup>,
+    units: std::collections::HashMap<
+        crate::analysis::generation_intake::AssociationKey,
+        crate::analysis::types::GivenSavedUnit,
+    >,
+}
+
+/// Join consumed Given definitions to their current saved groups and
+/// check the BGI-07 contracts. Consumed means applied: a named trait
+/// or keyword with no application, and any definition without a
+/// matching saved record, stays pending generation — only applied
+/// definitions without a bound unit diagnose. Diagnostics (missing
+/// units, unreadable groups, contract failures) merge into `result`
+/// as errors; the caller blocks emission on them. Carriers join the
+/// database after the program check, exactly as validation does, so
+/// checked-program ids stay stable.
+fn join_saved_given(
+    db: &mut SourceDb,
+    program: &crate::analysis::CheckedProgram,
+    roots: &[std::path::PathBuf],
+    result: &mut DiagnosticResult,
+) -> Option<GivenJoin> {
+    use crate::analysis::generation::{GenerationKind, discover_program};
+    use crate::analysis::generation_intake as intake;
+    let found = discover_program(db, program.checked_files());
+    let mut defs: Vec<&crate::analysis::generation::GenerationDescriptor> = found
+        .descriptors
+        .iter()
+        .filter(|d| {
+            matches!(
+                d.kind,
+                GenerationKind::NamedTrait
+                    | GenerationKind::InlineTrait
+                    | GenerationKind::KeywordDefinition
+            )
+        })
+        .collect();
+    if defs.is_empty() {
+        return None;
+    }
+    defs.sort_by_key(|d| (d.span.file.0, d.span.start));
+    // Applied definitions consume their saved unit; unapplied ones are
+    // pending generation and stay silent. Inline attachments apply at
+    // their own target, always.
+    let applied = |def: &crate::analysis::generation::GenerationDescriptor| -> bool {
+        match def.kind {
+            GenerationKind::InlineTrait => true,
+            GenerationKind::NamedTrait => found.descriptors.iter().any(|d| {
+                d.kind == GenerationKind::TraitApplication
+                    && d.owner == def.owner
+                    && d.label == def.label
+            }),
+            GenerationKind::KeywordDefinition => found.descriptors.iter().any(|d| {
+                d.kind == GenerationKind::KeywordApplication
+                    && d.owner == def.owner
+                    && d.label == def.label
+            }),
+            _ => false,
+        }
+    };
+    let mut records: Vec<(std::path::PathBuf, intake::UnitRecord)> = Vec::new();
+    for root in roots {
+        let (mut saved, _) = load_gen_saved(root);
+        for record in saved.drain(..) {
+            records.push((root.clone(), record));
+        }
+    }
+    let mut saved: std::collections::HashMap<
+        intake::AssociationKey,
+        crate::analysis::types::GivenSavedUnit,
+    > = std::collections::HashMap::new();
+    let mut groups: std::collections::HashMap<String, intake::SavedGroup> =
+        std::collections::HashMap::new();
+    let mut failed = false;
+    for def in defs {
+        if !applied(def) {
+            continue;
+        }
+        let Some(kind) = intake::UnitKind::of_descriptor(def.kind) else {
+            continue;
+        };
+        let key = intake::AssociationKey {
+            owner: def.owner.clone(),
+            kind,
+            label: def.label.clone(),
+            anchor: def.anchor.clone(),
+        };
+        let matches: Vec<&(std::path::PathBuf, intake::UnitRecord)> = records
+            .iter()
+            .filter(|(_, record)| intake::AssociationKey::of(&record.source) == key)
+            .collect();
+        let what = match def.kind {
+            GenerationKind::NamedTrait => {
+                format!("trait `{}`", def.label.as_deref().unwrap_or_default())
+            }
+            GenerationKind::InlineTrait => "inline trait".to_string(),
+            _ => format!("keyword `{}`", def.label.as_deref().unwrap_or_default()),
+        };
+        if matches.is_empty() {
+            result.push(crate::diagnostic::Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower {what}: no saved unit is bound to {}; send a generate request to prepare the unit (action: generate)",
+                    key.describe(),
+                ),
+                def.span,
+            ));
+            failed = true;
+            continue;
+        }
+        if matches.len() > 1 {
+            result.push(crate::diagnostic::Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower {what}: {} saved units match {}; reconcile the association with an explicit bind (action: bind)",
+                    matches.len(),
+                    key.describe(),
+                ),
+                def.span,
+            ));
+            failed = true;
+            continue;
+        }
+        let (root, record) = matches[0];
+        let id = &record.id;
+        let group = match intake::read_saved_group(root, id) {
+            Ok(group) => group,
+            Err(issue) => {
+                result.push(crate::diagnostic::Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {what}: saved group is incompatible: {issue}"),
+                    def.span,
+                ));
+                failed = true;
+                continue;
+            }
+        };
+        match given_saved_unit(db, def, id, &group) {
+            Ok(unit) => {
+                groups.insert(id.as_str().to_string(), group);
+                saved.insert(key, unit);
+            }
+            Err(detail) => {
+                result.push(crate::diagnostic::Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {what}: {detail}"),
+                    def.span,
+                ));
+                failed = true;
+            }
+        }
+    }
+    if failed {
+        return None;
+    }
+    if saved.is_empty() {
+        return None;
+    }
+    let (tables, mut diags) = crate::analysis::check::check_given_contracts(
+        &crate::analysis::check::GivenContractInputs {
+            db,
+            program,
+            saved: &saved,
+        },
+    );
+    for diagnostic in diags.drain(..) {
+        result.push(diagnostic);
+    }
+    Some(GivenJoin {
+        tables,
+        groups,
+        units: saved,
+    })
+}
+
+/// Build one consumed unit's Given inputs from its saved group:
+/// the contributions carrier (when present), the implementation
+/// bytes plus their resolved import closure (keyword units), and the
+/// owner-visible declaration (keyword units).
+fn given_saved_unit(
+    db: &mut SourceDb,
+    def: &crate::analysis::generation::GenerationDescriptor,
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+) -> Result<crate::analysis::types::GivenSavedUnit, String> {
+    use crate::analysis::generation::GenerationKind;
+    let mut contributions = None;
+    if let Some(carrier) = group
+        .files
+        .iter()
+        .find(|f| f.rel_path == "contributions.can")
+    {
+        // A keyword carrier passes through so the Given check refuses
+        // it as hidden authority instead of validating hidden bytes.
+        let text = String::from_utf8_lossy(&carrier.bytes).into_owned();
+        contributions = Some(db.add(
+            format!(
+                "{}/{}/contributions.can",
+                crate::analysis::generation_intake::GENERATED_DIR,
+                id.as_str()
+            ),
+            text,
+        ));
+    }
+    let mut implementation_js = None;
+    let mut implementation_imports = Vec::new();
+    if let Some(file) = group
+        .files
+        .iter()
+        .find(|f| f.rel_path == "implementation.js")
+    {
+        let js = String::from_utf8(file.bytes.clone()).map_err(|_| {
+            format!(
+                "unit `{}` `implementation.js` is not valid UTF-8; repair the file or reconcile with adopt",
+                id.as_str(),
+            )
+        })?;
+        if def.kind == GenerationKind::KeywordDefinition {
+            implementation_imports =
+                resolve_saved_js_closure(id, group, "implementation.js", &js, "workerd").map_err(
+                    |detail| format!("{detail}; fix the saved imports or reconcile with adopt"),
+                )?;
+        }
+        implementation_js = Some(js);
+    }
+    let mut declaration = None;
+    if def.kind == GenerationKind::KeywordDefinition {
+        declaration =
+            Some(read_saved_declaration(id, group).map_err(|failure| failure.message.clone())?);
+    }
+    Ok(crate::analysis::types::GivenSavedUnit {
+        unit_id: id.as_str().to_string(),
+        contributions,
+        implementation_js,
+        implementation_imports,
+        declaration,
+    })
+}
+
+/// Attach checked saved Given inputs to a freshly emitted artifact:
+/// the `givenContracts` member, contributed trait fields merged into
+/// the stored model descriptors, and packed keyword server modules
+/// (with their import-closure siblings) appended to `staged`. Any
+/// failure refuses the artifact with its diagnostic; the caller
+/// reports it with exit 10 and no output.
+fn attach_saved_given(
+    artifact: &mut crate::codegen::artifact::CompileArtifact,
+    join: &GivenJoin,
+    db: &SourceDb,
+    staged: &mut Vec<crate::codegen::artifact::SavedUnitModule>,
+) -> Result<(), crate::diagnostic::Diagnostic> {
+    use crate::codegen::artifact as art;
+    let primary = db
+        .iter()
+        .next()
+        .map(|(id, _)| Span::new(id, 0, 0))
+        .unwrap_or(Span::new(SourceId(0), 0, 0));
+    let fail = |detail: String| crate::diagnostic::Diagnostic::error("E6008", detail, primary);
+    let given_ir = crate::codegen::ir::lower_given_contracts(&join.tables);
+    if !given_ir.traits.is_empty() || !given_ir.keywords.is_empty() {
+        artifact.given_contracts = Some(art::assemble_given_contracts(&given_ir, tool_version()));
+    }
+    if let Some(contracts) = artifact.given_contracts.as_ref() {
+        art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
+            .map_err(|detail| fail(format!("cannot lower saved trait contributions: {detail}")))?;
+    }
+    // Keyword server modules pack per checked contract: the expected
+    // fingerprint is the contract's own closure hash, so pack refuses
+    // any pairing skew between check and staging.
+    if let Some(contracts) = artifact.given_contracts.as_ref() {
+        for rule in &contracts.keywords {
+            let Some(group) = join.groups.get(&rule.unit_id) else {
+                return Err(fail(format!(
+                    "cannot lower keyword rule `{}`: saved unit `{}` was not consumed by this build",
+                    rule.rule_id, rule.unit_id,
+                )));
+            };
+            let owner = art::CanOwnerLink {
+                unit_id: rule.unit_id.clone(),
+                kind: group.record.source.kind.as_str().to_string(),
+                can_path: group.record.source.path.clone(),
+                can_revision: group.record.source.revision.clone(),
+                start: group.record.source.start,
+                end: group.record.source.end,
+            };
+            let root = group
+                .files
+                .iter()
+                .find(|f| f.rel_path == "implementation.js")
+                .map(|f| f.bytes.clone())
+                .unwrap_or_default();
+            let imports: Vec<crate::analysis::types::GivenSavedImport> = join
+                .units
+                .values()
+                .find(|unit| unit.unit_id == rule.unit_id)
+                .map(|unit| unit.implementation_imports.clone())
+                .unwrap_or_default();
+            let mut packed = if imports.is_empty() {
+                vec![
+                    art::pack_saved_unit(group.record.source.kind, owner, &root, &rule.fingerprint)
+                        .map_err(|detail| {
+                            fail(format!(
+                                "cannot lower saved keyword implementation: {detail}"
+                            ))
+                        })?,
+                ]
+            } else {
+                art::pack_saved_unit_closure(
+                    group.record.source.kind,
+                    owner,
+                    &root,
+                    &imports,
+                    &rule.fingerprint,
+                )
+                .map_err(|detail| {
+                    fail(format!(
+                        "cannot lower saved keyword implementation: {detail}"
+                    ))
+                })?
+            };
+            staged.append(&mut packed);
+        }
+    }
+    Ok(())
+}
+
+/// Attach consumed Then inputs to a freshly emitted artifact: packed
+/// stylesheets for consumed style units (plus view-colocated root
+/// CSS), and staged view modules with their import-closure siblings
+/// appended to `staged`. The view fingerprint is self-consistent by
+/// construction (views carry no checked contract hash): pack still
+/// enforces shape, UTF-8, and traversal rules, and refuses any
+/// pairing skew it can see. Any failure refuses the artifact.
+fn attach_saved_then(
+    artifact: &mut crate::codegen::artifact::CompileArtifact,
+    join: &crate::codegen::js::ThenBuildJoin,
+    db: &SourceDb,
+    staged: &mut Vec<crate::codegen::artifact::SavedUnitModule>,
+) -> Result<(), crate::diagnostic::Diagnostic> {
+    use crate::codegen::artifact as art;
+    let primary = db
+        .iter()
+        .next()
+        .map(|(id, _)| Span::new(id, 0, 0))
+        .unwrap_or(Span::new(SourceId(0), 0, 0));
+    let fail = |detail: String| crate::diagnostic::Diagnostic::error("E6008", detail, primary);
+    let owner_of = |group: &crate::analysis::generation_intake::SavedGroup| art::CanOwnerLink {
+        unit_id: group.record.id.as_str().to_string(),
+        kind: group.record.source.kind.as_str().to_string(),
+        can_path: group.record.source.path.clone(),
+        can_revision: group.record.source.revision.clone(),
+        start: group.record.source.start,
+        end: group.record.source.end,
+    };
+    // Consumed style units pack their scoped CSS.
+    let mut sheets: Vec<art::ArtifactStylesheet> = Vec::new();
+    let mut style_ids: Vec<&String> = join.styles().keys().collect();
+    style_ids.sort();
+    for unit_id in style_ids {
+        let group = &join.styles()[unit_id];
+        let Some(css_file) = group.files.iter().find(|f| f.rel_path == "style.css") else {
+            return Err(fail(format!(
+                "unit `{unit_id}` has no saved `style.css`; repair the group or reconcile with adopt"
+            )));
+        };
+        let css = String::from_utf8(css_file.bytes.clone()).map_err(|_| {
+            fail(format!(
+                "unit `{unit_id}` `style.css` is not valid UTF-8; repair the file or reconcile with adopt"
+            ))
+        })?;
+        sheets.push(
+            art::pack_saved_stylesheet(group.record.source.kind, owner_of(group), &css)
+                .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
+        );
+    }
+    // Consumed view units pack their renderer module (plus closure
+    // siblings) and their colocated root CSS, when present.
+    let mut view_ids: Vec<&String> = join.views().keys().collect();
+    view_ids.sort();
+    for unit_id in view_ids {
+        let group = &join.views()[unit_id];
+        let id = crate::analysis::generation_intake::GenerationUnitId::parse(unit_id)
+            .map_err(|reason| fail(format!("saved unit id is malformed: {reason}")))?;
+        let root = group
+            .files
+            .iter()
+            .find(|f| f.rel_path == "implementation.js")
+            .map(|f| f.bytes.clone())
+            .unwrap_or_default();
+        let root_text = String::from_utf8(root.clone()).map_err(|_| {
+            fail(format!(
+                "unit `{unit_id}` `implementation.js` is not valid UTF-8; repair the file or reconcile with adopt"
+            ))
+        })?;
+        let closure =
+            resolve_saved_js_closure(&id, group, "implementation.js", &root_text, "workerd/browser")
+                .map_err(|detail| {
+                    fail(format!(
+                        "cannot lower view `{unit_id}`: {detail}; fix the saved imports or reconcile with adopt"
+                    ))
+                })?;
+        let closure_refs: Vec<(&str, &[u8])> = closure
+            .iter()
+            .map(|import| (import.rel_path.as_str(), import.bytes.as_slice()))
+            .collect();
+        let expected =
+            crate::analysis::types::given_closure_fingerprint(root.as_slice(), &closure_refs);
+        let mut packed = if closure.is_empty() {
+            vec![
+                art::pack_saved_unit(group.record.source.kind, owner_of(group), &root, &expected)
+                    .map_err(|detail| {
+                    fail(format!("cannot lower saved view implementation: {detail}"))
+                })?,
+            ]
+        } else {
+            art::pack_saved_unit_closure(
+                group.record.source.kind,
+                owner_of(group),
+                &root,
+                &closure,
+                &expected,
+            )
+            .map_err(|detail| fail(format!("cannot lower saved view implementation: {detail}")))?
+        };
+        staged.append(&mut packed);
+        if let Some(file) = group.files.iter().find(|f| f.rel_path == "style.css") {
+            let css = String::from_utf8(file.bytes.clone()).map_err(|_| {
+                fail(format!(
+                    "unit `{unit_id}` `style.css` is not valid UTF-8; repair the file or reconcile with adopt"
+                ))
+            })?;
+            sheets.push(
+                art::pack_saved_stylesheet(group.record.source.kind, owner_of(group), &css)
+                    .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
+            );
+        }
+    }
+    sheets.sort_by(|a, b| a.path.cmp(&b.path));
+    artifact.stylesheets.extend(sheets);
+    Ok(())
 }
 
 /// Render diagnostics with exit 10: shared by the analysis-error and
@@ -4363,10 +4888,22 @@ fn validate_keyword_unit(
     ));
     let js = require_group_text(id, group, "implementation.js")?;
     let scan = scan_js_module(&js);
+    // The closure resolves (and admits every consumed file) before the
+    // Given check, so the checked contract fingerprints the exact
+    // consumed bytes; the `imports` check below re-admits the root for
+    // its stable report line.
+    let closure = resolve_saved_js_closure(id, group, "implementation.js", &js, "workerd")
+        .map_err(|detail| {
+            ValidationFailure::new(
+                detail,
+                vec!["fix the saved imports and resend validate".to_string()],
+            )
+        })?;
     let saved_unit = crate::analysis::types::GivenSavedUnit {
         unit_id: id.as_str().to_string(),
         contributions: None,
         implementation_js: Some(js.clone()),
+        implementation_imports: closure.clone(),
         declaration: Some(declaration.clone()),
     };
     let tables = check_one_given_unit(id, group, source_text, saved_unit, checks)?;
@@ -4428,10 +4965,22 @@ fn validate_keyword_unit(
             )
         },
     ));
-    let fingerprint = crate::source::sha256_hex(js.as_bytes());
+    let closure_refs: Vec<(&str, &[u8])> = closure
+        .iter()
+        .map(|import| (import.rel_path.as_str(), import.bytes.as_slice()))
+        .collect();
+    let fingerprint =
+        crate::analysis::types::given_closure_fingerprint(js.as_bytes(), &closure_refs);
     checks.push(validation_check(
         "fingerprint",
-        format!("implementation sha256 {fingerprint}"),
+        if closure.is_empty() {
+            format!("implementation sha256 {fingerprint}")
+        } else {
+            format!(
+                "implementation closure sha256 {fingerprint} ({} files)",
+                closure.len() + 1
+            )
+        },
     ));
     Ok(fingerprint)
 }
@@ -4456,6 +5005,9 @@ fn validate_trait_unit(
         unit_id: id.as_str().to_string(),
         contributions: None,
         implementation_js,
+        // Trait units consume no JavaScript in v1: the carrier alone is
+        // fingerprinted, so there is no import closure to resolve.
+        implementation_imports: Vec::new(),
         declaration: None,
     };
     let tables = check_one_given_unit(id, group, source_text, saved_unit, checks)?;
@@ -4653,6 +5205,17 @@ fn validate_view_unit(
     ));
     let js = require_group_text(id, group, "implementation.js")?;
     let scan = scan_js_module(&js);
+    // The closure resolves (and admits every consumed file) before the
+    // export checks, so the validated fingerprint covers the exact
+    // consumed bytes; the `imports` check below re-admits the root for
+    // its stable report line.
+    let closure = resolve_saved_js_closure(id, group, "implementation.js", &js, "workerd/browser")
+        .map_err(|detail| {
+            ValidationFailure::new(
+                detail,
+                vec!["fix the saved imports and resend validate".to_string()],
+            )
+        })?;
     if !scan.exports.iter().any(|e| e == "render") {
         return Err(ValidationFailure::new(
             format!(
@@ -4704,10 +5267,22 @@ fn validate_view_unit(
             "colocated style.css scopes".to_string(),
         ));
     }
-    let fingerprint = crate::source::sha256_hex(js.as_bytes());
+    let closure_refs: Vec<(&str, &[u8])> = closure
+        .iter()
+        .map(|import| (import.rel_path.as_str(), import.bytes.as_slice()))
+        .collect();
+    let fingerprint =
+        crate::analysis::types::given_closure_fingerprint(js.as_bytes(), &closure_refs);
     checks.push(validation_check(
         "fingerprint",
-        format!("implementation sha256 {fingerprint}"),
+        if closure.is_empty() {
+            format!("implementation sha256 {fingerprint}")
+        } else {
+            format!(
+                "implementation closure sha256 {fingerprint} ({} files)",
+                closure.len() + 1
+            )
+        },
     ));
     Ok(fingerprint)
 }
@@ -5174,6 +5749,18 @@ fn admit_js_imports(
     scan: &JsModuleScan,
     runtime: &str,
 ) -> Result<(), ValidationFailure> {
+    admit_js_imports_inner(id, scan, runtime, "implementation")
+}
+
+/// Admit one saved file's import edges: `origin` names the file in
+/// diagnostics (`implementation` for the root module, ``file `rel` ``
+/// for closure members).
+fn admit_js_imports_inner(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    scan: &JsModuleScan,
+    runtime: &str,
+    origin: &str,
+) -> Result<(), ValidationFailure> {
     const NODE_BUILTINS: &[&str] = &[
         "assert",
         "buffer",
@@ -5208,7 +5795,7 @@ fn admit_js_imports(
     if scan.has_require {
         return Err(ValidationFailure::new(
             format!(
-                "unit `{}` {runtime} implementation calls `require(` at offset {}; CommonJS require never enters worker/browser bundles",
+                "unit `{}` {runtime} {origin} calls `require(` at offset {}; CommonJS require never enters worker/browser bundles",
                 id.as_str(),
                 scan.require_offset
             ),
@@ -5224,7 +5811,7 @@ fn admit_js_imports(
             };
             return Err(ValidationFailure::new(
                 format!(
-                    "unit `{}` {runtime} implementation has {what} at offset {}; only literal specifiers validate",
+                    "unit `{}` {runtime} {origin} has {what} at offset {}; only literal specifiers validate",
                     id.as_str(),
                     edge.offset
                 ),
@@ -5245,7 +5832,7 @@ fn admit_js_imports(
         {
             return Err(ValidationFailure::new(
                 format!(
-                    "unit `{}` {runtime} implementation imports `{}` at offset {}; source/process/filesystem APIs never enter worker/browser bundles",
+                    "unit `{}` {runtime} {origin} imports `{}` at offset {}; source/process/filesystem APIs never enter worker/browser bundles",
                     id.as_str(),
                     edge.specifier,
                     edge.offset
@@ -5255,7 +5842,7 @@ fn admit_js_imports(
         }
         return Err(ValidationFailure::new(
             format!(
-                "unit `{}` {runtime} implementation imports bare specifier `{}` at offset {}; v1 admits only unit-local relative imports",
+                "unit `{}` {runtime} {origin} imports bare specifier `{}` at offset {}; v1 admits only unit-local relative imports",
                 id.as_str(),
                 edge.specifier,
                 edge.offset
@@ -5264,6 +5851,102 @@ fn admit_js_imports(
         ));
     }
     Ok(())
+}
+
+/// Resolve one unit-local import specifier against its importing file
+/// to the consumed unit-relative path. Lexical POSIX normalization
+/// (mirrors the Node `posix.normalize(posix.join(dirname, spec))`
+/// resolution over staged modules): `.` segments collapse, `..`
+/// pops, and anything escaping the unit directory or naming a
+/// directory returns `None`.
+fn normalize_unit_import(importer_rel: &str, specifier: &str) -> Option<String> {
+    let mut parts: Vec<&str> = Vec::new();
+    if let Some((dir, _)) = importer_rel.rsplit_once('/') {
+        parts.extend(dir.split('/').filter(|part| !part.is_empty()));
+    }
+    for part in specifier.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            name => parts.push(name),
+        }
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    Some(parts.join("/"))
+}
+
+/// Resolve the transitive unit-local import closure of one saved root
+/// module against its own saved group.
+///
+/// Every consumed file is admitted like the root (literal unit-local
+/// specifiers only, no `require`, no builtins/bare/`file:` edges) and
+/// must exist as UTF-8 inside the unit directory: `..` escapes and
+/// missing targets refuse, because an unfingerprinted dependency must
+/// never validate or pack silently. Returns each consumed file once
+/// (the root excluded) in byte-ascending `rel_path` order, ready for
+/// [`given_closure_fingerprint`](crate::analysis::types::given_closure_fingerprint).
+/// Errors are plain details naming the unit and file; validation
+/// wraps them in [`ValidationFailure`], ordinary compilation in an
+/// `E6008` diagnostic.
+fn resolve_saved_js_closure(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    root_rel: &str,
+    root_js: &str,
+    runtime: &str,
+) -> Result<Vec<crate::analysis::types::GivenSavedImport>, String> {
+    use crate::analysis::types::GivenSavedImport;
+    let mut ordered: Vec<GivenSavedImport> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    seen.insert(root_rel.to_string());
+    let mut stack: Vec<(String, String)> = vec![(root_rel.to_string(), root_js.to_string())];
+    while let Some((rel, js)) = stack.pop() {
+        let scan = scan_js_module(&js);
+        let origin = if rel == root_rel {
+            "implementation".to_string()
+        } else {
+            format!("file `{rel}`")
+        };
+        admit_js_imports_inner(id, &scan, runtime, &origin).map_err(|failure| failure.message)?;
+        for edge in &scan.imports {
+            let Some(target) = normalize_unit_import(&rel, &edge.specifier) else {
+                return Err(format!(
+                    "unit `{}` {runtime} `{rel}` imports `{}` at offset {}: the specifier escapes the unit directory or names a directory; v1 consumes only unit-local files",
+                    id.as_str(),
+                    edge.specifier,
+                    edge.offset
+                ));
+            };
+            if !seen.insert(target.clone()) {
+                continue;
+            }
+            let Some(file) = group.files.iter().find(|f| f.rel_path == target) else {
+                return Err(format!(
+                    "unit `{}` {runtime} `{rel}` imports `{}` at offset {}: no such saved file `{target}`; add the file or reconcile with adopt",
+                    id.as_str(),
+                    edge.specifier,
+                    edge.offset
+                ));
+            };
+            let text = String::from_utf8(file.bytes.clone()).map_err(|_| {
+                format!(
+                    "unit `{}` `{target}` is not valid UTF-8; repair the file or reconcile with adopt",
+                    id.as_str(),
+                )
+            })?;
+            ordered.push(GivenSavedImport {
+                rel_path: target.clone(),
+                bytes: file.bytes.clone(),
+            });
+            stack.push((target, text));
+        }
+    }
+    ordered.sort_by(|a, b| a.rel_path.as_bytes().cmp(b.rel_path.as_bytes()));
+    Ok(ordered)
 }
 
 /// Split a scope path into its owning unit id and unit-relative path.

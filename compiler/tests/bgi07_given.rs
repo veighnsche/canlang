@@ -58,6 +58,7 @@ fn keyword_unit(unit_id: &str, js: &str, export: &str) -> GivenSavedUnit {
         unit_id: unit_id.to_string(),
         contributions: None,
         implementation_js: Some(js.to_string()),
+        implementation_imports: Vec::new(),
         declaration: Some(GivenSavedDeclaration {
             producer: "state.unique-key@1".to_string(),
             export: export.to_string(),
@@ -145,6 +146,7 @@ fn positive_saved(
                         unit_id: "u1".to_string(),
                         contributions: Some(trait_c),
                         implementation_js: None,
+                        implementation_imports: Vec::new(),
                         declaration: None,
                     },
                 );
@@ -156,6 +158,7 @@ fn positive_saved(
                         unit_id: "u2".to_string(),
                         contributions: Some(inline_c),
                         implementation_js: None,
+                        implementation_imports: Vec::new(),
                         declaration: None,
                     },
                 );
@@ -457,6 +460,7 @@ fn trait_saved_for(
             unit_id: "u1".to_string(),
             contributions: Some(carrier_id),
             implementation_js: js.map(str::to_string),
+            implementation_imports: Vec::new(),
             declaration: None,
         },
     );
@@ -693,6 +697,7 @@ Then
                         unit_id: "u1".to_string(),
                         contributions: Some(completable_c),
                         implementation_js: None,
+                        implementation_imports: Vec::new(),
                         declaration: None,
                     },
                 );
@@ -704,6 +709,7 @@ Then
                         unit_id: "u2".to_string(),
                         contributions: Some(clean_c),
                         implementation_js: None,
+                        implementation_imports: Vec::new(),
                         declaration: None,
                     },
                 );
@@ -715,6 +721,7 @@ Then
                         unit_id: "u3".to_string(),
                         contributions: Some(inline_c),
                         implementation_js: None,
+                        implementation_imports: Vec::new(),
                         declaration: None,
                     },
                 );
@@ -872,4 +879,44 @@ fn emission_json_shape_is_pinned() {
     );
     assert!(!json.ends_with('\n'));
     assert!(codes(&diags).is_empty());
+}
+
+// ## Production join: the checked keyword fingerprint covers the exact
+// consumed import closure, not the root module alone.
+
+#[test]
+fn keyword_contract_fingerprint_covers_import_closure() {
+    use canlang_compiler::analysis::types::{GivenSavedImport, given_closure_fingerprint};
+    let text = refusal_app(
+        " keyword canonical_identity(target:model,field:field(target,text)) $\"Key.\"\n Account {handle:text}\n canonical_identity target=Account field=Account.handle\n",
+    );
+    let (db, _app, program, base) = check_app(&text);
+    assert!(base.is_empty(), "{base:?}");
+    let root = "import { fold } from \"./fold.js\";\nexport function canonicalKey(v) { return fold(v); }\n";
+    let fold_v1 = "export function fold(v) { return v.normalize(\"NFKC\").toLowerCase(); }\n";
+    let fold_v2 = "export function fold(v) { return \"everything-collides\"; }\n";
+    let contract_for = |fold: &str| {
+        let mut unit = keyword_unit("u3", root, "canonicalKey");
+        unit.implementation_imports = vec![GivenSavedImport {
+            rel_path: "fold.js".to_string(),
+            bytes: fold.as_bytes().to_vec(),
+        }];
+        let saved = keyword_saved_for(&db, &program, unit);
+        let (tables, diags) = run_given(&db, &program, &saved);
+        assert!(diags.is_empty(), "{diags:?}");
+        assert_eq!(tables.keywords.len(), 1);
+        tables.keywords[0].fingerprint.clone()
+    };
+    let fp1 = contract_for(fold_v1);
+    let fp2 = contract_for(fold_v2);
+    // Identical root, changed import: the contract fingerprint differs
+    // (the import-probe regression at the check layer).
+    assert_ne!(fp1, fp2);
+    assert_ne!(fp1, sha256_hex(root.as_bytes()));
+    // The check layer hashes exactly the shared closure scheme.
+    assert_eq!(
+        fp1,
+        given_closure_fingerprint(root.as_bytes(), &[("fold.js", fold_v1.as_bytes())])
+    );
+    assert_eq!(contract_for(fold_v1), fp1);
 }
