@@ -4,6 +4,8 @@ import { Window } from 'happy-dom';
 import type {
   GeneratedViewDescriptor,
   GeneratedViewInstanceProps,
+  GeneratedViewPresentation,
+  GeneratedViewRenderInput,
   PresentationContext,
   RowView,
 } from '@canlang/contracts';
@@ -65,11 +67,11 @@ function props(useId: string, render: GeneratedViewInstanceProps['render']): Gen
 describe('generated view instances', () => {
   it('renders one root per instance and calls render once with the evaluated row', async () => {
     const seen: Array<{ row: RowView; names: string[] }> = [];
-    const first = await generatedViewInstance(props('can-view-m0-f0-s10', (input) => {
+    const first = await generatedViewInstance(props('can-view-m0-f0-s10', (input: GeneratedViewRenderInput) => {
       seen.push({ row: input.row, names: Object.keys(input.bindings) });
       return `<h2>${input.ui.escapeHtml(String(input.row.fields['title']))}</h2>${input.bindings['edit']}${input.bindings['delete']}`;
     }));
-    const second = await generatedViewInstance(props('can-view-m0-f0-s99', async (input) => `<p>${input.bindings['edit'] ?? ''}</p>`));
+    const second = await generatedViewInstance(props('can-view-m0-f0-s99', async (input: GeneratedViewRenderInput) => `<p>${input.bindings['edit'] ?? ''}</p>`));
     assert.equal(seen.length, 1);
     assert.equal(seen[0]?.row.id, 'row-1');
     assert.deepEqual(seen[0]?.names, ['edit', 'delete']);
@@ -194,7 +196,7 @@ describe('generated view mounts', () => {
   it('mounts each instance once with its presentation and cleans up only replaced roots', async () => {
     const mounted: string[] = [];
     const cleaned: string[] = [];
-    registerGeneratedViewMount('TaskTileMount', (root, presentation) => {
+    registerGeneratedViewMount('TaskTileMount', (root: unknown, presentation: GeneratedViewPresentation) => {
       mounted.push(`${presentation.useId}:${presentation.row.id}`);
       assert.ok(typeof root === 'object' && root !== null);
       return () => { cleaned.push(presentation.useId); };
