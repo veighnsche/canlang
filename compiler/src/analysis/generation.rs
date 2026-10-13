@@ -9,7 +9,7 @@
 
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
-use crate::syntax::{SyntaxKind, SyntaxNode};
+use crate::syntax::{SyntaxKind, SyntaxNode, TokenKind};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -139,6 +139,48 @@ fn normalized(node: &SyntaxNode, text: &str) -> String {
         .join(" ")
 }
 
+/// Keyword argument value text: collapse surrounding trivia/whitespace but
+/// preserve JSON string literal contents exactly.
+fn arg_value_text(node: &SyntaxNode, text: &str) -> String {
+    let strings: Vec<(usize, usize)> = node
+        .descendants()
+        .filter_map(|n| n.token())
+        .filter(|t| t.kind == TokenKind::String)
+        .map(|t| (t.span.start as usize, t.span.end as usize))
+        .collect();
+    if strings.is_empty() {
+        return normalized(node, text);
+    }
+    let start = node.span.start as usize;
+    let end = node.span.end as usize;
+    let mut out = String::new();
+    let mut pending_space = false;
+    let mut i = start;
+    while i < end {
+        if let Some(&(_, send)) = strings.iter().find(|&&(s, e)| i >= s && i < e) {
+            if pending_space && !out.is_empty() {
+                out.push(' ');
+            }
+            pending_space = false;
+            out.push_str(&text[i..send]);
+            i = send;
+            continue;
+        }
+        let ch = text[i..].chars().next().unwrap_or(' ');
+        if ch.is_whitespace() {
+            pending_space = true;
+        } else {
+            if pending_space && !out.is_empty() {
+                out.push(' ');
+            }
+            pending_space = false;
+            out.push(ch);
+        }
+        i += ch.len_utf8();
+    }
+    out
+}
+
 fn type_text(node: &SyntaxNode, text: &str) -> String {
     normalized(node, text).replace(' ', "")
 }
@@ -165,6 +207,7 @@ struct Collector<'a> {
     field: Option<String>,
     view: Option<String>,
     host: String,
+    host_profile: Option<String>,
 }
 
 impl<'a> Collector<'a> {
@@ -180,6 +223,7 @@ impl<'a> Collector<'a> {
         let saved_field = self.field.clone();
         let saved_view = self.view.clone();
         let saved_host = self.host.clone();
+        let saved_profile = self.host_profile.clone();
         match node.kind {
             SyntaxKind::Model => {
                 self.model = names(node, self.text).into_iter().next();
@@ -191,6 +235,7 @@ impl<'a> Collector<'a> {
             SyntaxKind::View => {
                 self.view = names(node, self.text).get(1).cloned();
                 self.host = self.view.clone().unwrap_or_default();
+                self.host_profile = profile_of(node, self.text);
             }
             SyntaxKind::Page
             | SyntaxKind::Card
@@ -208,6 +253,7 @@ impl<'a> Collector<'a> {
                     h = format!("{}:{}", h, n);
                 }
                 self.host = h;
+                self.host_profile = profile_of(node, self.text);
             }
             _ => {}
         }
@@ -219,6 +265,7 @@ impl<'a> Collector<'a> {
         self.field = saved_field;
         self.view = saved_view;
         self.host = saved_host;
+        self.host_profile = saved_profile;
     }
 
     fn visit(&mut self, node: &SyntaxNode) {
@@ -270,7 +317,13 @@ impl<'a> Collector<'a> {
             }
             SyntaxKind::TraitApp => {
                 let label = first_name(node, text).unwrap_or_default();
-                let target = self.model.clone().unwrap_or_default();
+                // Checked field attachments carry their Model.field target;
+                // model-level applications keep the bare model target.
+                let target = match (&self.model, &self.field) {
+                    (Some(m), Some(f)) => format!("{m}.{f}"),
+                    (Some(m), None) => m.clone(),
+                    _ => String::new(),
+                };
                 self.descriptors.push(GenerationDescriptor {
                     owner: self.owner.clone(),
                     kind: GenerationKind::TraitApplication,
@@ -322,7 +375,7 @@ impl<'a> Collector<'a> {
                                     .token()
                                     .map(|t| t.text(text).to_string())
                                     .unwrap_or_default(),
-                                value: normalized(parts[2], text),
+                                value: arg_value_text(parts[2], text),
                                 span: child.span,
                             });
                         }
@@ -376,7 +429,7 @@ impl<'a> Collector<'a> {
                         kind: GenerationKind::StyleInline,
                         label: Some(host.clone()),
                         prompt: Some(p),
-                        profile: None,
+                        profile: self.host_profile.clone(),
                         span: node.span,
                         anchor: self.anchor("style-inline", &host, &host),
                         target: Some(host),
@@ -592,6 +645,7 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
         field: None,
         view: None,
         host: String::new(),
+        host_profile: None,
     };
     collector.walk(tree);
     let mut descriptors = collector.descriptors;
@@ -643,6 +697,33 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
                         &mut diagnostics,
                     );
                 }
+                for p in &d.params {
+                    if p.kind != "field" {
+                        continue;
+                    }
+                    let target = p.target_param.clone().unwrap_or_default();
+                    match d.params.iter().find(|q| q.name == target) {
+                        Some(q) if q.kind == "model" => {}
+                        Some(_) => err(
+                            "E2001",
+                            format!(
+                                "keyword `{label}` field parameter `{}` must target a `model` parameter, `{target}` is not one",
+                                p.name
+                            ),
+                            d.span,
+                            &mut diagnostics,
+                        ),
+                        None => err(
+                            "E2001",
+                            format!(
+                                "keyword `{label}` field parameter `{}` targets unknown parameter `{target}`",
+                                p.name
+                            ),
+                            d.span,
+                            &mut diagnostics,
+                        ),
+                    }
+                }
             }
             GenerationKind::StyleDefinition => {
                 let label = d.label.clone().unwrap_or_default();
@@ -663,6 +744,32 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
                 }
             }
             _ => {}
+        }
+    }
+    // A keyword name cannot ambiguously refer to a model or trait form.
+    for d in descriptors.iter() {
+        if d.kind != GenerationKind::KeywordDefinition {
+            continue;
+        }
+        let label = d.label.clone().unwrap_or_default();
+        if models.contains_key(&label) {
+            err(
+                "E2002",
+                format!(
+                    "ambiguous declaration name `{label}`: a keyword and a model cannot share one name"
+                ),
+                d.span,
+                &mut diagnostics,
+            );
+        } else if trait_defs.contains_key(&label) {
+            err(
+                "E2002",
+                format!(
+                    "ambiguous declaration name `{label}`: a keyword and a trait cannot share one name"
+                ),
+                d.span,
+                &mut diagnostics,
+            );
         }
     }
     // The borrowed map above complicates later mutation; rebuild indices.
@@ -766,7 +873,15 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
                     let Some(p) = params.iter().find(|p| p.name == a.name) else {
                         continue;
                     };
-                    check_keyword_arg(p, a, &by_name, &models, &operations, &mut diagnostics);
+                    check_keyword_arg(
+                        params,
+                        p,
+                        a,
+                        &by_name,
+                        &models,
+                        &operations,
+                        &mut diagnostics,
+                    );
                 }
             }
             _ => {}
@@ -831,6 +946,7 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
 }
 
 fn check_keyword_arg(
+    params: &[KeywordParamDescriptor],
     param: &KeywordParamDescriptor,
     arg: &KeywordArgDescriptor,
     by_name: &HashMap<String, String>,
@@ -860,7 +976,21 @@ fn check_keyword_arg(
                 param.target_param.clone().unwrap_or_default(),
                 param.type_name.clone().unwrap_or_default(),
             );
+            if !params.iter().any(|q| q.name == target_param) {
+                fail(
+                    format!(
+                        "keyword argument `{}` targets unknown parameter `{target_param}`",
+                        param.name
+                    ),
+                    diagnostics,
+                );
+                return;
+            }
             let target_model = by_name.get(&target_param).cloned().unwrap_or_default();
+            if target_model.is_empty() {
+                // A missing-argument diagnostic was already emitted.
+                return;
+            }
             let parts: Vec<&str> = value.split('.').collect();
             if parts.len() != 2 {
                 fail(
@@ -895,9 +1025,7 @@ fn check_keyword_arg(
             }
         }
         "operation" => {
-            if !operations.contains(value)
-                && !models.contains_key(value.split('.').next().unwrap_or(value))
-            {
+            if !operations.contains(value) {
                 fail(
                     format!(
                         "keyword argument `{}` must name a known operation, got `{value}`",
@@ -908,7 +1036,8 @@ fn check_keyword_arg(
             }
         }
         "text" => {
-            if !value.starts_with('"') {
+            // Constants only: the whole value must be one JSON string.
+            if serde_json::from_str::<String>(value).is_err() {
                 fail(
                     format!(
                         "keyword argument `{}` requires a checked text constant",
@@ -953,8 +1082,9 @@ fn check_keyword_arg(
                 );
             }
         }
-        k if k.ends_with("[]")
-            && !value.starts_with('[') => {
+        k if k.ends_with("[]") => {
+            let elem = k.strip_suffix("[]").unwrap_or(k);
+            if !(value.starts_with('[') && value.ends_with(']')) {
                 fail(
                     format!(
                         "keyword argument `{}` requires an array constant",
@@ -962,8 +1092,106 @@ fn check_keyword_arg(
                     ),
                     diagnostics,
                 );
+            } else {
+                let inner = &value[1..value.len().saturating_sub(1)];
+                for el in split_top_level(inner) {
+                    if let Some(detail) =
+                        const_element_error(elem, el, models, operations)
+                    {
+                        fail(
+                            format!(
+                                "keyword argument `{}` requires {elem} array elements: {detail}",
+                                param.name
+                            ),
+                            diagnostics,
+                        );
+                    }
+                }
             }
+        }
         _ => {}
+    }
+}
+
+/// Split a bracket body on top-level commas, ignoring commas inside JSON
+/// strings and nested brackets. Empty segments are dropped.
+fn split_top_level(inner: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0usize;
+    let mut in_str = false;
+    let mut escaped = false;
+    let mut start = 0usize;
+    for (i, ch) in inner.char_indices() {
+        if in_str {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_str = false;
+            }
+        } else if ch == '"' {
+            in_str = true;
+        } else if ch == '[' {
+            depth += 1;
+        } else if ch == ']' {
+            depth = depth.saturating_sub(1);
+        } else if ch == ',' && depth == 0 {
+            parts.push(inner[start..i].trim());
+            start = i + 1;
+        }
+    }
+    parts.push(inner[start..].trim());
+    parts.into_iter().filter(|p| !p.is_empty()).collect()
+}
+
+/// Validate one array element against its declared element kind. Returns a
+/// detail message on mismatch; unknown kinds stay permissive.
+fn const_element_error(
+    kind: &str,
+    value: &str,
+    models: &HashMap<String, HashMap<String, String>>,
+    operations: &HashSet<String>,
+) -> Option<String> {
+    let value = value.trim();
+    match kind {
+        "text" => serde_json::from_str::<String>(value)
+            .err()
+            .map(|_| format!("expected a text constant, got `{value}`")),
+        "int" | "integer" => value
+            .parse::<i64>()
+            .err()
+            .map(|_| format!("expected an integer constant, got `{value}`")),
+        "bool" | "boolean" => (!matches!(value, "true" | "false"))
+            .then(|| format!("expected a boolean constant, got `{value}`")),
+        "model" => {
+            (!models.contains_key(value) || value.contains('.'))
+                .then(|| format!("expected a known model, got `{value}`"))
+        }
+        "operation" => {
+            (!operations.contains(value))
+                .then(|| format!("expected a known operation, got `{value}`"))
+        }
+        k if k.starts_with("enum(") => {
+            let inner = k.trim_start_matches("enum(").trim_end_matches(')');
+            let cases: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
+            (!cases.contains(&value))
+                .then(|| format!("expected one of ({inner}), got `{value}`"))
+        }
+        k if k.ends_with("[]") => {
+            let elem = k.strip_suffix("[]").unwrap_or(k);
+            if !(value.starts_with('[') && value.ends_with(']')) {
+                return Some(format!("expected an array constant, got `{value}`"));
+            }
+            let inner = &value[1..value.len().saturating_sub(1)];
+            for el in split_top_level(inner) {
+                if let Some(detail) = const_element_error(elem, el, models, operations) {
+                    return Some(detail);
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }
 

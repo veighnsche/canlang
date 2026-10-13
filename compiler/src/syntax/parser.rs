@@ -1476,6 +1476,52 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Whether a parsed [`SyntaxKind::StyleSuffix`] is a `$Name` reference
+    /// rather than an inline `$"..."` prompt.
+    fn style_suffix_is_named(suffix: &SyntaxNode) -> bool {
+        suffix
+            .children
+            .iter()
+            .any(|c| c.token().is_some_and(|t| t.kind == TokenKind::Name))
+    }
+
+    /// Optional `agent=profile` plus style suffix tail on a visual
+    /// component. `agent` is admitted only on the inline prompt-owning
+    /// declaration: it requires an inline `$"..."` prompt on the same
+    /// header, and a named `$Name` use cannot select its shared
+    /// definition's recipe.
+    fn parse_agent_and_style_suffix(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+    ) -> Result<(), Fail> {
+        self.parse_optional_agent(cursor, kids)?;
+        self.parse_optional_style_suffix(cursor, kids)?;
+        let agent_span = kids.iter().find_map(|n| {
+            (n.kind == SyntaxKind::Attribute && self.first_token_text(n) == Some("agent"))
+                .then_some(n.span)
+        });
+        let Some(agent_span) = agent_span else {
+            return Ok(());
+        };
+        let suffix = kids.iter().find(|n| n.kind == SyntaxKind::StyleSuffix);
+        match suffix {
+            Some(s) if Self::style_suffix_is_named(s) => Err(Fail::new(
+                "E1200",
+                "a named style use cannot select its shared definition's recipe (agent=)"
+                    .to_string(),
+                s.span,
+            )),
+            Some(_) => Ok(()),
+            None => Err(Fail::new(
+                "E1200",
+                "agent=profile requires an inline $\"...\" style prompt on the same declaration"
+                    .to_string(),
+                agent_span,
+            )),
+        }
+    }
+
     /// One trailing trait suffix on a model/field: `trait $"..."`,
     /// `trait Name` is not a form (named traits apply by bare name), or a
     /// bare named-trait application `Name`.
@@ -3535,6 +3581,11 @@ impl<'a> Parser<'a> {
     ) -> Result<(), Fail> {
         let mut seen: Vec<String> = Vec::new();
         while !cursor.done() && !cursor.at_p(Punct::Dollar) {
+            // `agent=profile` belongs to the inline style tail parsed after
+            // attributes; leave it for the caller.
+            if cursor.at_name("agent") && cursor.peek_is_eq() {
+                break;
+            }
             let key = cursor.expect_name()?;
             let word = key.text(cursor.text).to_string();
             let kind = attr_kind(header, &word).ok_or_else(|| {
@@ -6842,7 +6893,7 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &name);
                 let arguments = self.parse_object(cursor)?;
                 self.builder.push_inner(&mut inner, arguments);
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::Show, inner);
                 self.builder.push_inner(kids, node);
@@ -6854,7 +6905,7 @@ impl<'a> Parser<'a> {
                 let route = self.parse_route(cursor, HeaderKind::Page)?;
                 self.builder.push_inner(&mut inner, route);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Page)?;
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 for child in children {
                     self.parse_ui_child(&mut inner, child);
@@ -6940,7 +6991,7 @@ impl<'a> Parser<'a> {
                 let operation = self.parse_expr(cursor, stop, true, true)?;
                 self.builder.push_inner(&mut inner, operation);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Form)?;
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 for child in children {
                     self.parse_ui_child(&mut inner, child);
@@ -6953,7 +7004,7 @@ impl<'a> Parser<'a> {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Edit)?;
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 // The leaf control stays valid; the optional presentation
                 // suite shares the owning update schema.
@@ -7007,7 +7058,7 @@ impl<'a> Parser<'a> {
             "delete" | "history" => {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -7026,7 +7077,7 @@ impl<'a> Parser<'a> {
                         head.span,
                     ));
                 }
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -7039,7 +7090,7 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &head);
                 let value = self.parse_expr(cursor, &never, true, true)?;
                 self.builder.push_inner(&mut inner, value);
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -7066,7 +7117,7 @@ impl<'a> Parser<'a> {
                     self.builder.push_inner(&mut inner, heading);
                 }
                 self.parse_attributes(cursor, &mut inner, header)?;
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                self.parse_agent_and_style_suffix(cursor, &mut inner)?;
                 if word == "details"
                     && self.has_attribute(&inner, "display")
                     && self.has_attribute(&inner, "open")
@@ -7102,7 +7153,14 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &head);
                 let predicate = self.parse_expr(cursor, &never, true, true)?;
                 self.builder.push_inner(&mut inner, predicate);
-                self.parse_optional_style_suffix(cursor, &mut inner)?;
+                if cursor.at_p(Punct::Dollar) {
+                    return Err(Fail::new(
+                        "E1200",
+                        "style attachments are not admitted on nonvisual `require` guards"
+                            .to_string(),
+                        cursor.span_here(),
+                    ));
+                }
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -7129,7 +7187,7 @@ impl<'a> Parser<'a> {
         let query = self.parse_expr(cursor, stop, true, true)?;
         self.builder.push_inner(&mut inner, query);
         self.parse_attributes(cursor, &mut inner, header)?;
-        self.parse_optional_style_suffix(cursor, &mut inner)?;
+        self.parse_agent_and_style_suffix(cursor, &mut inner)?;
         cursor.end()?;
         for child in children {
             self.parse_ui_child(&mut inner, child);
@@ -7190,7 +7248,7 @@ impl<'a> Parser<'a> {
             let attr = SyntaxNode::enclosing(SyntaxKind::Attribute, attr);
             self.builder.push_inner(&mut inner, attr);
         }
-        self.parse_optional_style_suffix(cursor, &mut inner)?;
+        self.parse_agent_and_style_suffix(cursor, &mut inner)?;
         cursor.end()?;
         for child in children {
             self.parse_ui_child(&mut inner, child);

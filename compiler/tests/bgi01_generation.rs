@@ -342,6 +342,219 @@ fn negative_parse_diagnostics() {
 }
 
 #[test]
+fn named_field_trait_targets_are_distinguished() {
+    // Expected: checked field attachments carry Model.field targets/anchors.
+    let src = wrap(
+        " trait clean $\"Clean.\"\n Item {a:text clean,b:text clean}\n",
+        "",
+        " page / title=\"T\"\n  text \"hi\"\n",
+    );
+    let (tree, diags) = parse(&src);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = discover_generation(&tree, &src);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    let apps: Vec<_> = found
+        .descriptors
+        .iter()
+        .filter(|d| d.kind == GenerationKind::TraitApplication)
+        .collect();
+    assert_eq!(apps.len(), 2);
+    assert_eq!(apps[0].target.as_deref(), Some("Item.a"));
+    assert_eq!(apps[1].target.as_deref(), Some("Item.b"));
+    assert_ne!(apps[0].anchor, apps[1].anchor);
+    // Refusal: an unknown field trait still diagnoses.
+    expect_discovery_err(
+        &wrap(
+            " Item {a:text nosuchtrait}\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "unknown trait `nosuchtrait`",
+    );
+}
+
+#[test]
+fn keyword_argument_admission_is_strict() {
+    // Expected: an existing operation, fully typed array elements, a bound
+    // dependent field, and a plain compile-time constant all check.
+    let src = wrap(
+        " keyword observe(op:operation) $\"Observe.\"\n keyword count(xs:int[]) $\"Count.\"\n keyword key(target:model,field:field(target,text)) $\"Key.\"\n keyword label(value:text) $\"Label.\"\n Item {a:text}\n observe op=poke\n count xs=[1, 2]\n key target=Item field=Item.a\n label value=\"ok\"\n",
+        " scenario poke(item:Item) by=members\n  do set item {a=\"ok\"}\n",
+        " page / title=\"T\"\n  text \"hi\"\n",
+    );
+    let (tree, diags) = parse(&src);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = discover_generation(&tree, &src);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    // Refusals: nonexistent operation, mistyped element, dangling dependent
+    // target, executable expression binding.
+    expect_discovery_err(
+        &wrap(
+            " keyword observe(op:operation) $\"Observe.\"\n Item {x:text}\n observe op=Item.nosuch\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "must name a known operation",
+    );
+    expect_discovery_err(
+        &wrap(
+            " keyword count(xs:int[]) $\"Count.\"\n Item {x:text}\n count xs=[\"wrong\"]\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "requires int array elements",
+    );
+    expect_discovery_err(
+        &wrap(
+            " keyword key(field:field(nosuch,text)) $\"Key.\"\n Item {a:text}\n key field=Item.a\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "targets unknown parameter `nosuch`",
+    );
+    expect_discovery_err(
+        &wrap(
+            " keyword label(value:text) $\"Label.\"\n Item {a:text}\n label value=\"x\" + Item.a\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "requires a checked text constant",
+    );
+}
+
+#[test]
+fn keyword_string_arguments_preserve_literal_contents() {
+    // Expected: literal contents survive exactly; surrounding trivia
+    // normalizes around them.
+    for given in [
+        " keyword label(value:text) $\"Label.\"\n Item {a:text}\n label value=\"A  B\"\n",
+        " keyword label(value:text) $\"Label.\"\n Item {a:text}\n label    value=\"A  B\"\n",
+    ] {
+        let src = wrap(given, "", " page / title=\"T\"\n  text \"hi\"\n");
+        let (tree, diags) = parse(&src);
+        assert!(diags.is_empty(), "{diags:?}");
+        let found = discover_generation(&tree, &src);
+        assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+        let app = found
+            .descriptors
+            .iter()
+            .find(|d| d.kind == GenerationKind::KeywordApplication)
+            .expect("keyword app");
+        assert_eq!(app.args.len(), 1);
+        assert_eq!(app.args[0].value, "\"A  B\"");
+    }
+    // Refusal: a compound expression is not a preserved literal.
+    expect_discovery_err(
+        &wrap(
+            " keyword label(value:text) $\"Label.\"\n Item {a:text}\n label value=\"A\" + \"B\"\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "requires a checked text constant",
+    );
+}
+
+#[test]
+fn ambiguous_keyword_declaration_names_diagnose() {
+    // Expected: distinct keyword/model/trait names check.
+    let src = wrap(
+        " keyword stamp(target:model) $\"Stamp.\"\n trait tagged $\"Tag.\"\n Item {a:text}\n stamp target=Item\n",
+        "",
+        " page / title=\"T\"\n  text \"hi\"\n",
+    );
+    let (tree, diags) = parse(&src);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = discover_generation(&tree, &src);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    // Refusals: keyword/model and keyword/trait collisions.
+    expect_discovery_err(
+        &wrap(
+            " keyword Item(target:model) $\"X.\"\n Item {a:text}\n Item target=Item\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "ambiguous declaration name `Item`",
+    );
+    expect_discovery_err(
+        &wrap(
+            " keyword clean(target:model) $\"X.\"\n trait clean $\"Clean.\"\n Item {a:text}\n clean target=Item\n",
+            "",
+            " page / title=\"T\"\n  text \"hi\"\n",
+        ),
+        "ambiguous declaration name `clean`",
+    );
+}
+
+#[test]
+fn style_suffix_is_refused_on_nonvisual_require() {
+    // Expected: a plain guard parses and visual leaves keep suffixes.
+    let src = wrap(
+        " Item {a:text}\n",
+        "",
+        " style S $\"Style.\"\n page / title=\"T\"\n  require true\n  text \"hi\" $S\n",
+    );
+    let (tree, diags) = parse(&src);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = discover_generation(&tree, &src);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    assert_eq!(
+        found
+            .descriptors
+            .iter()
+            .filter(|d| d.kind == GenerationKind::StyleNamedUse)
+            .count(),
+        1
+    );
+    // Refusal: a style attachment on the guard diagnoses.
+    expect_parse_err(
+        &wrap(
+            " Item {a:text}\n",
+            "",
+            " style S $\"Style.\"\n page / title=\"T\"\n  require true $S\n",
+        ),
+        "not admitted on nonvisual",
+    );
+}
+
+#[test]
+fn inline_prompt_owner_propagates_agent_profile() {
+    // Expected: agent= on the owning declaration reaches the inline unit.
+    let src = wrap(
+        " Item {a:text}\n",
+        "",
+        " page / title=\"T\" agent=fast $\"Style.\"\n  text \"hi\"\n",
+    );
+    let (tree, diags) = parse(&src);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = discover_generation(&tree, &src);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    let inline = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::StyleInline)
+        .expect("inline style");
+    assert_eq!(inline.profile.as_deref(), Some("fast"));
+    // Refusals: a named use cannot select a recipe; agent without a prompt
+    // diagnoses.
+    expect_parse_err(
+        &wrap(
+            " Item {a:text}\n",
+            "",
+            " style S $\"Style.\"\n page / title=\"T\" agent=fast $S\n  text \"hi\"\n",
+        ),
+        "cannot select its shared definition's recipe",
+    );
+    expect_parse_err(
+        &wrap(
+            " Item {a:text}\n",
+            "",
+            " page / title=\"T\" agent=fast\n  text \"hi\"\n",
+        ),
+        "requires an inline",
+    );
+}
+
+#[test]
 fn negative_discovery_diagnostics() {
     // Duplicate style definitions.
     expect_discovery_err(
