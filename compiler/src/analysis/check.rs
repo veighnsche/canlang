@@ -24,6 +24,10 @@
 //! documents the completeness contract rather than enforcing it — a
 //! refactor that drops a pass without updating its claim would stay
 //! silent (deriving the flags from actual execution is future work).
+//!
+//! BGI-07 adds [`check_given_contracts`]: the same aggregate shape
+//! (compose pass helpers, dedup/sort) for Given trait contributions
+//! and keyword producer bindings against host-supplied saved units.
 
 use std::collections::HashSet;
 
@@ -139,4 +143,48 @@ pub fn exit_code(diagnostics: &[Diagnostic]) -> i32 {
     } else {
         crate::exit::OK
     }
+}
+
+// --- BGI-07 Given contract aggregation -------------------------------------
+// Single entry point for compiler-checked Given contracts: trait
+// contributions and custom-keyword producer bindings for one checked
+// program against host-supplied saved units. This mirrors the
+// `check_program` aggregation shape (compose the pass helpers, then
+// dedup/sort); the pass logic lives in `resolve` (`E2011`), `types`
+// (`E3020`–`E3024`, tables) and `effects` (`E4056`).
+
+pub use super::types::{
+    CheckedKeywordApplication, CheckedKeywordContract, CheckedTraitApplication,
+    CheckedTraitContract, GivenContractTables, GivenContributedField, GivenFieldSchema,
+    GivenSavedDeclaration, GivenSavedUnit,
+};
+
+/// Inputs for [`check_given_contracts`].
+pub struct GivenContractInputs<'a> {
+    /// Original checked source owner (also holds the contributions
+    /// carriers; they are never pipeline-checked files).
+    pub db: &'a crate::source::SourceDb,
+    /// Checked program supplying resolve/type facts.
+    pub program: &'a super::CheckedProgram,
+    /// Saved units keyed by BGI-02 association key. Definitions
+    /// without an entry are pending generation and stay silent.
+    pub saved:
+        &'a std::collections::HashMap<super::generation_intake::AssociationKey, GivenSavedUnit>,
+}
+
+/// Check Given trait contributions and keyword producer bindings.
+///
+/// Returns the checked contract tables plus every diagnostic (`E2011`
+/// resolve, `E3020`–`E3024` contract, `E4056` authority, and any
+/// `E1xxx` from malformed contribution carriers), deduplicated and
+/// sorted. Only clean units contribute contracts; callers still own
+/// diagnostics and shipping decisions.
+pub fn check_given_contracts(
+    inputs: &GivenContractInputs<'_>,
+) -> (GivenContractTables, Vec<Diagnostic>) {
+    let (tables, diagnostics) =
+        super::types::check_given_contract_tables(inputs.db, inputs.program, inputs.saved);
+    let mut diagnostics = dedup_diagnostics(diagnostics);
+    sort_diagnostics(&mut diagnostics);
+    (tables, diagnostics)
 }

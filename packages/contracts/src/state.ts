@@ -509,6 +509,42 @@ export interface UniqueRelease {
 }
 
 /**
+ * BGI-07 `state.unique-key@1` producer binding: the checked join State
+ * consumes for one compiler-bound canonical-identity rule. The
+ * compiler owns the rule/field identity, the typed input/result
+ * schemas and the implementation-closure fingerprint; State owns key
+ * evaluation, canonical claim/release identities and the fenced
+ * commit. Generated exports receive the projected text input and
+ * return checked text; they hold no raw claim/store/commit authority
+ * and choose no claim namespaces. Stored spelling is preserved
+ * without a helper stored field.
+ */
+export interface StateUniqueKeyProducerBinding {
+  /** Producer contract id; exact match, never negotiated. */
+  readonly abi: 'state.unique-key@1';
+  /** Compiler-owned rule identity (`Owner.Model.field#keyword`). */
+  readonly rule: string;
+  /** Canonical target model. */
+  readonly model: ModelName;
+  /** Bound field name (checked text). */
+  readonly field: string;
+  /** Fixed key semantics id (compiler-owned). */
+  readonly semantics: 'nfkc-ascii-lowercase';
+  /** Lifecycle binding: old/final keys around the fenced commit. */
+  readonly lifecycle: 'commit-keys';
+  /** Typed input binding: the bound field value as text. */
+  readonly input: { readonly name: string; readonly type: 'text' };
+  /** Typed result: the canonical key as text. */
+  readonly result: { readonly type: 'text' };
+  /** Saved implementation join: opaque unit, export and closure fingerprint. */
+  readonly implementation: {
+    readonly unit: string;
+    readonly export: string;
+    readonly fingerprint: string;
+  };
+}
+
+/**
  * One atomic owner commit. The store asserts `expectedRevision`, applies all
  * writes/constraints/history/receipt/outbox/schedule work, and increments the
  * revision. Any failure (fence mismatch, constraint, validation) rolls back

@@ -474,6 +474,145 @@ export interface ArtifactTestModule {
   fixtures: string[];
 }
 
+/**
+ * BGI-07 one emitted contributed field: the typed leaf a checked trait
+ * instantiation adds. Mirrors Rust `ArtifactGivenField`.
+ */
+export interface ArtifactGivenField {
+  /** Field name. */
+  name: string;
+  /** Checked type text. */
+  type: string;
+  /** Checked default constant (source text), when the template carries one. */
+  default?: string;
+  /** Contributed `trim` normalization. */
+  trim: boolean;
+  /** Contributed `min=` bound (source text), when given. */
+  min?: string;
+  /** Contributed `max=` bound (source text), when given. */
+  max?: string;
+}
+
+/**
+ * BGI-07 one emitted trait instantiation: a saved template applied at
+ * one target, sharing its definition's saved unit with every sibling.
+ * Mirrors Rust `ArtifactGivenTrait`.
+ */
+export interface ArtifactGivenTrait {
+  /** Compiler-owned instantiation identity. */
+  id: string;
+  /** Owning module. */
+  owner: string;
+  /** Trait name (absent for inline attachments). */
+  trait?: string;
+  /** Whether this instance owns a one-off inline attachment. */
+  inline: boolean;
+  /** Definition anchor (the stable association key). */
+  anchor: string;
+  /** Saved unit this instance reuses. */
+  unitId: string;
+  /** Canonical target identity (`Owner.Model[.field]`). */
+  target: string;
+  /** Instantiated template fields. */
+  fields: ArtifactGivenField[];
+  /** SHA-256 over the contributions carrier bytes. */
+  fingerprint: string;
+  /** Source order among the definition's applications. */
+  order: number;
+}
+
+/**
+ * BGI-07 typed input schema of an emitted keyword rule. Mirrors Rust
+ * `ArtifactGivenInputSchema`.
+ */
+export interface ArtifactGivenInputSchema {
+  /** Input binding name. */
+  name: string;
+  /** Checked input type. */
+  type: string;
+}
+
+/**
+ * BGI-07 typed result schema of an emitted keyword rule. Mirrors Rust
+ * `ArtifactGivenResultSchema`.
+ */
+export interface ArtifactGivenResultSchema {
+  /** Checked result type (producer-fixed). */
+  type: string;
+}
+
+/**
+ * BGI-07 one emitted keyword-rule argument: references carry canonical
+ * identities, constants carry their checked source text. Mirrors Rust
+ * `ArtifactGivenKeywordArg`.
+ */
+export interface ArtifactGivenKeywordArg {
+  /** Argument name. */
+  name: string;
+  /** Resolved value. */
+  value: string;
+}
+
+/**
+ * BGI-07 one emitted keyword rule: a standalone application bound to
+ * its saved implementation through the checked owner-producer
+ * descriptor. Mirrors Rust `ArtifactGivenKeyword`.
+ */
+export interface ArtifactGivenKeyword {
+  /** Compiler-owned rule identity (`Owner.Model.field#keyword`). */
+  ruleId: string;
+  /** Owning module. */
+  owner: string;
+  /** Keyword name (the standalone declaration form). */
+  keyword: string;
+  /** Definition anchor (the stable association key). */
+  anchor: string;
+  /** Saved unit this rule reuses. */
+  unitId: string;
+  /** Bound owner-versioned producer (compiler-known). */
+  producer: string;
+  /** Fixed producer semantics id (compiler-owned). */
+  semantics: string;
+  /** Producer lifecycle binding (compiler-owned). */
+  lifecycle: string;
+  /** Saved export implementing the behavior. */
+  export: string;
+  /** Typed input schema derived from the bound arguments. */
+  input: ArtifactGivenInputSchema;
+  /** Typed result schema (producer-fixed). */
+  result: ArtifactGivenResultSchema;
+  /** Admitted reads (empty for pure producers). */
+  reads: string[];
+  /** Admitted effects (empty for pure producers). */
+  effects: string[];
+  /** Admitted authority (empty: canonical owners admit bindings). */
+  authority: string[];
+  /** Canonical value dependencies (the bound fields). */
+  dependencies: string[];
+  /** SHA-256 over the saved implementation closure bytes. */
+  fingerprint: string;
+  /** Canonical target model identity. */
+  targetModel: string;
+  /** Canonical target field identity. */
+  targetField: string;
+  /** Resolved arguments. */
+  args: ArtifactGivenKeywordArg[];
+  /** Source order among the definition's applications. */
+  order: number;
+}
+
+/**
+ * BGI-07 emitted Given contracts: trait instantiations and keyword
+ * rules in global source order. The BGI-11/12 join folds this content
+ * into `CompileArtifact.givenContracts`.
+ */
+export interface ArtifactGivenContracts {
+  /** Trait instantiations in global source order. */
+  traits: ArtifactGivenTrait[];
+  /** Keyword rules in global source order. */
+  keywords: ArtifactGivenKeyword[];
+}
+
 /** Root artifact emitted by `can compile` for one program. */
 export interface CompileArtifact {
   artifact_version: typeof ARTIFACT_VERSION;
@@ -509,6 +648,14 @@ export interface CompileArtifact {
   modelPolicies?: CanonicalOwnerModelPolicies[];
   /** Checked complete committed-model routes; omission carries no trigger claim. */
   committedChanges?: ArtifactCommittedChangeDescriptor[];
+  /**
+   * BGI-07 checked Given contracts in global source order (trait
+   * instantiations plus keyword rules). Optional for backward
+   * compatibility: artifacts compiled before BGI-07 have no
+   * `givenContracts` key; loaders must treat absence as "no
+   * descriptors", never as an error.
+   */
+  givenContracts?: ArtifactGivenContracts;
   /** Checked source nominal definitions used by field/input/result claims. */
   valueTypes?: CanonicalValueTypes;
   /** Page descriptors in source order. */
