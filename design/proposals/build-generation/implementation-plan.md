@@ -127,7 +127,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-09 — Row-bound renderers and browser controls
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: dispatched isolated; forbidden files listed (BGI07 analysis/codegen, accepted generation/leases/cli/source, Node generation/*); awaiting bgi0910_then + retained greens.
 
 **Owner / targets:** compiler view lowering and Contracts presentation descriptors; UI `components.ts`, `forms.ts`, `client.ts`, `browser/bootstrap.ts`; Interfaces `http/{presentation,form-binding,prepared-validation,operations}.ts`; Cloudflare page/module join. **Needs:** BGI-01/02 checked row/control descriptors and saved export lookup. Consume BGI-07 contributions only where a row model requires them.
 
@@ -137,7 +137,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-10 — Scoped CSS and DOM hooks
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac; same Then lane worker 01a13423 as BGI-09). Evidence/handoff: dispatched isolated; pinned CSS parser required (no hand-roll); awaiting scoping/namespacing/escape cases + retry-regenerates-both fixture.
 
 **Owner / targets:** compiler CSS parsing/scoping beside codegen, typed style descriptors; UI semantic factories/root/part hooks and browser styles. **Needs:** BGI-01 style ownership/use descriptors and BGI-02 unit IDs/assets; BGI-09 root hooks only for generated-view integration cases.
 
