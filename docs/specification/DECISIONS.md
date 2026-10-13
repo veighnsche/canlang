@@ -13371,3 +13371,6 @@ This addresses repeated agent worktree cache growth without granting deletion or
 ## 2026-10-13 — merge the prompt pipeline into main
 
 The user authorized the merge. Combine accepted prompt integration `701ad5de9` with latest main `7734c900e`, retaining the durable export/HTTP and build-resource changes plus their existing checks. Reconcile the living file-tree plan incrementally from its prior integration entry; the complete checkpoint remains held. Preserve existing uncommitted compiler, State, draft and browser work separately from the merge, resolving overlap against the complete generation contract rather than reinstating the earlier inert trait-docstring workaround. No remote push or wider draft acceptance is implied.
+
+
+Merge completion: `main` contains `05dd4ce55`, with independent local work restored unstaged and superseded trait/style shim bytes preserved in the named safety stashes. The full generation implementation owns these syntax and resolver contracts. The existing [living file-tree entry](../ideal-filetree-plan.md#2026-10-13--codex-prompt-generation-integration-and-isolated-main-merge) records the focused merge checks and retained evidence; complete review and wider draft acceptance remain held.
