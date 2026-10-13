@@ -235,10 +235,15 @@ fn operation_text(node: &SyntaxNode, text: &str) -> String {
 }
 
 /// Collect model names declared in the file.
+///
+/// Leading `export` markers are declaration heads, not names (mirrors the
+/// checker's `Model => &["export"]` posture): `export Task` declares
+/// `Task`, and an unskipped head would silently drop every prompted view
+/// over an exported row model.
 fn collect_models(tree: &SyntaxNode, text: &str) -> HashSet<String> {
     tree.descendants()
         .filter(|n| n.kind == SyntaxKind::Model)
-        .filter_map(|n| names(n, text).into_iter().next())
+        .filter_map(|n| names(n, text).into_iter().find(|w| w != "export"))
         .collect()
 }
 
@@ -290,7 +295,10 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
             let binding = match child.kind {
                 SyntaxKind::Edit => Some("edit".to_string()),
                 SyntaxKind::Form => Some("form".to_string()),
-                SyntaxKind::UiLeaf => names(child, text).into_iter().next().filter(|name| name != "require"),
+                SyntaxKind::UiLeaf => names(child, text)
+                    .into_iter()
+                    .next()
+                    .filter(|name| name != "require"),
                 _ => None,
             };
             if let Some(binding) = binding {

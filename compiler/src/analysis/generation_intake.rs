@@ -686,6 +686,196 @@ pub fn apply_bind(
     }
 }
 
+/// Handwritten legacy `unit.json` shape (pre-v1 `handwritten-script`
+/// records kept under `can.generated/<id>/` by draft tooling).
+///
+/// Only the identity-bearing fields are read: `unit_id` (must equal the
+/// directory ID), `kind` (legacy `style`/`then_view` spellings), the
+/// optional `label`, and the contract refs (`prompt`/`target`/`profile`).
+/// The legacy `owner` is a stale package hint, never identity: adoption
+/// always stamps the live sought key instead.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct LegacyUnitDoc {
+    unit_id: Option<String>,
+    kind: String,
+    label: Option<String>,
+    prompt: Option<String>,
+    target: Option<String>,
+    profile: Option<String>,
+}
+
+/// Bind-time evidence for a legacy adoption: the inspected source
+/// location. Identity comes from the live sought key, never from these.
+#[derive(Debug, Clone)]
+pub struct AdoptEvidence {
+    pub path: String,
+    pub revision: String,
+    pub start: u32,
+    pub end: u32,
+}
+
+/// Adopt one handwritten legacy record for the live sought key.
+///
+/// The legacy directory keeps its files; the returned record carries the
+/// sought key as its source association with [`ProvenanceOrigin::Adopted`]
+/// provenance, and the returned files are the directory's current bytes
+/// (fingerprinted as the adopted originals). Kind and label must match
+/// the sought key exactly; anything else stays invisible so unbound units
+/// keep reporting `no saved unit is bound`. Legacy `then_view` units
+/// carry the handwritten renderer as `server.js`, which the view lowering
+/// accepts as the adopted module. Nothing is written to disk: persist
+/// with `can gen bind`.
+pub fn adopt_legacy_unit(
+    dir: &Path,
+    id: &GenerationUnitId,
+    key: &AssociationKey,
+    evidence: &AdoptEvidence,
+) -> Result<(UnitRecord, Vec<SavedFile>), String> {
+    let text = std::fs::read_to_string(dir.join(UNIT_FILE))
+        .map_err(|err| format!("cannot read legacy record: {err}"))?;
+    let doc: LegacyUnitDoc =
+        serde_json::from_str(&text).map_err(|err| format!("not a legacy unit record: {err}"))?;
+    if doc.unit_id.as_deref() != Some(id.as_str()) {
+        return Err(format!(
+            "legacy record identity `{}` does not match its directory `{id}`",
+            doc.unit_id.as_deref().unwrap_or("-"),
+        ));
+    }
+    let kind = match doc.kind.as_str() {
+        "style" => UnitKind::Style,
+        "then_view" => UnitKind::View,
+        _ => {
+            return Err(format!(
+                "legacy kind `{}` has no v1 unit kind; prepare generation for the unit",
+                doc.kind,
+            ));
+        }
+    };
+    if kind != key.kind || doc.label != key.label {
+        return Err(format!(
+            "legacy {} unit `{id}` is not bound to {}",
+            kind.as_str(),
+            key.describe(),
+        ));
+    }
+    let mut files = Vec::new();
+    collect_current_files(dir, dir, &mut files)?;
+    files.sort_by(|a: &SavedFile, b: &SavedFile| a.rel_path.cmp(&b.rel_path));
+    // Required primaries gate adoption, by presence never by hash: style
+    // units produce CSS; legacy views carry the handwritten renderer as
+    // `server.js` instead of the v1 `implementation.js` module name.
+    let wanted: &[&str] = match kind {
+        UnitKind::View => &["server.js"],
+        _ => kind.required_primary_outputs(),
+    };
+    let missing: Vec<&&str> = wanted
+        .iter()
+        .filter(|name| !files.iter().any(|f| &f.rel_path == *name))
+        .collect();
+    if !missing.is_empty() {
+        let names: Vec<String> = missing.into_iter().map(|n| format!("`{n}`")).collect();
+        return Err(format!(
+            "legacy {} unit `{id}` is missing required output {}; prepare generation for the unit",
+            kind.as_str(),
+            names.join(", "),
+        ));
+    }
+    let prompt_sha256 = sha256_hex(doc.prompt.as_deref().unwrap_or_default().as_bytes());
+    let record = UnitRecord {
+        abi_version: UNIT_ABI_VERSION,
+        id: id.clone(),
+        source: SourceAssociation {
+            owner: key.owner.clone(),
+            kind,
+            label: key.label.clone(),
+            anchor: key.anchor.clone(),
+            path: evidence.path.clone(),
+            revision: evidence.revision.clone(),
+            start: evidence.start,
+            end: evidence.end,
+        },
+        contract: UnitContract {
+            target: doc.target,
+            profile: doc.profile,
+            prompt_sha256: prompt_sha256.clone(),
+            signature: None,
+        },
+        original: OriginalOutput {
+            prompt_sha256,
+            files: files
+                .iter()
+                .map(|f| (f.rel_path.clone(), f.sha256.clone()))
+                .collect(),
+        },
+        provenance: UnitProvenance {
+            origin: ProvenanceOrigin::Adopted,
+            runner: None,
+            model: None,
+            note: Some(
+                "adopted in-memory from a handwritten-script legacy record at compile; persist with `can gen bind`"
+                    .to_string(),
+            ),
+        },
+    };
+    Ok((record, files))
+}
+
+/// Synthesize an empty bound group for an unbound inline style seek.
+///
+/// Inline `$` prompts (`StyleInline`, `ViewStyleInline`) are generation
+/// requests, not references to existing units: when no saved unit can be
+/// adopted for the sought key, the seek lowers as an unstyled bound
+/// group instead of failing coverage. The association is the live sought
+/// key, provenance is [`ProvenanceOrigin::Bound`] with no generated
+/// output yet (the pack stage emits an empty sheet for such groups), and
+/// the unit id is deterministically derived from the key so repeated
+/// compilations stage identically. Named styles, views, traits, and
+/// keywords never synthesize: their missing units stay hard failures.
+pub fn synthesize_inline_unit(
+    key: &AssociationKey,
+    evidence: &AdoptEvidence,
+) -> Option<(UnitRecord, Vec<SavedFile>)> {
+    if !matches!(key.kind, UnitKind::StyleInline | UnitKind::ViewStyleInline) {
+        return None;
+    }
+    let digest = sha256_hex(key.describe().as_bytes());
+    let id = GenerationUnitId(format!("inline-{}", &digest[..16]));
+    let record = UnitRecord {
+        abi_version: UNIT_ABI_VERSION,
+        id: id.clone(),
+        source: SourceAssociation {
+            owner: key.owner.clone(),
+            kind: key.kind,
+            label: key.label.clone(),
+            anchor: key.anchor.clone(),
+            path: evidence.path.clone(),
+            revision: evidence.revision.clone(),
+            start: evidence.start,
+            end: evidence.end,
+        },
+        contract: UnitContract {
+            target: None,
+            profile: None,
+            prompt_sha256: sha256_hex("".as_bytes()),
+            signature: None,
+        },
+        original: OriginalOutput {
+            prompt_sha256: sha256_hex("".as_bytes()),
+            files: BTreeMap::new(),
+        },
+        provenance: UnitProvenance {
+            origin: ProvenanceOrigin::Bound,
+            runner: None,
+            model: None,
+            note: Some(
+                "inline generation request with no saved unit lowers unstyled; generate the unit for real CSS"
+                    .to_string(),
+            ),
+        },
+    };
+    Some((record, Vec::new()))
+}
+
 /// One current file of a saved group: live bytes plus their fresh
 /// fingerprint, kept distinct from the original fingerprints in `unit.json`.
 #[derive(Debug, Clone)]
@@ -953,4 +1143,137 @@ pub fn intake_associated(
         }
     }
     (groups, issues)
+}
+
+#[cfg(test)]
+mod legacy_adopt_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn legacy_dir(tag: &str, id: &str, doc: &str, files: &[(&str, &str)]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "can-legacy-adopt-{}-{}-{}",
+            std::process::id(),
+            tag,
+            id
+        ));
+        let unit = dir.join(id);
+        std::fs::create_dir_all(&unit).unwrap();
+        std::fs::write(unit.join(UNIT_FILE), doc).unwrap();
+        for (name, bytes) in files {
+            std::fs::write(unit.join(name), bytes).unwrap();
+        }
+        dir
+    }
+
+    fn style_key() -> AssociationKey {
+        AssociationKey {
+            owner: "CanDo".to_string(),
+            kind: UnitKind::Style,
+            label: Some("TodoWorkspace".to_string()),
+            anchor: "CanDo:style:TodoWorkspace:".to_string(),
+        }
+    }
+
+    fn evidence() -> AdoptEvidence {
+        AdoptEvidence {
+            path: "draft/apps/CanDo/CanDo.can".to_string(),
+            revision: "rev".to_string(),
+            start: 0,
+            end: 10,
+        }
+    }
+
+    const STYLE_DOC: &str = r#"{"unit_id":"u1","abi_version":1,"kind":"style","draft":true,"origin":"handwritten-script","owner":"todo","label":"TodoWorkspace","prompt":"Readable surfaces.","target":"browser-css","profile":"frontend"}"#;
+
+    #[test]
+    fn legacy_style_adopts_for_matching_key() {
+        let root = legacy_dir("ok", "u1", STYLE_DOC, &[("style.css", ".a{color:red}")]);
+        let id = GenerationUnitId::parse("u1").unwrap();
+        let dir = root.join("u1");
+        let (record, files) = adopt_legacy_unit(&dir, &id, &style_key(), &evidence()).unwrap();
+        assert_eq!(record.source.owner, "CanDo");
+        assert_eq!(record.source.kind, UnitKind::Style);
+        assert_eq!(record.source.label.as_deref(), Some("TodoWorkspace"));
+        assert_eq!(record.provenance.origin, ProvenanceOrigin::Adopted);
+        assert_eq!(record.contract.target.as_deref(), Some("browser-css"));
+        assert_eq!(
+            record.contract.prompt_sha256,
+            sha256_hex("Readable surfaces.".as_bytes())
+        );
+        assert!(record.original.files.contains_key("style.css"));
+        assert!(files.iter().any(|f| f.rel_path == "style.css"));
+        assert!(!files.iter().any(|f| f.rel_path == UNIT_FILE));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn legacy_adopt_refuses_label_mismatch() {
+        let root = legacy_dir("mismatch", "u1", STYLE_DOC, &[("style.css", ".a{}")]);
+        let id = GenerationUnitId::parse("u1").unwrap();
+        let mut key = style_key();
+        key.label = Some("Other".to_string());
+        let err = adopt_legacy_unit(&root.join("u1"), &id, &key, &evidence()).unwrap_err();
+        assert!(err.contains("not bound"), "{err}");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn legacy_adopt_refuses_unknown_kind_and_identity_skew() {
+        let root = legacy_dir(
+            "kind",
+            "u1",
+            r#"{"unit_id":"u1","kind":"given_trait","label":"T"}"#,
+            &[("contributions.can", "x")],
+        );
+        let id = GenerationUnitId::parse("u1").unwrap();
+        let key = AssociationKey {
+            owner: "A".to_string(),
+            kind: UnitKind::NamedTrait,
+            label: Some("T".to_string()),
+            anchor: String::new(),
+        };
+        let err = adopt_legacy_unit(&root.join("u1"), &id, &key, &evidence()).unwrap_err();
+        assert!(err.contains("no v1 unit kind"), "{err}");
+        let skewed = legacy_dir(
+            "skew",
+            "u1",
+            r#"{"unit_id":"u2","kind":"style","label":"TodoWorkspace"}"#,
+            &[("style.css", ".a{}")],
+        );
+        let err =
+            adopt_legacy_unit(&skewed.join("u1"), &id, &style_key(), &evidence()).unwrap_err();
+        assert!(err.contains("does not match its directory"), "{err}");
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&skewed).ok();
+    }
+
+    #[test]
+    fn inline_seeks_synthesize_bound_while_named_refuse() {
+        let inline_key = AssociationKey {
+            owner: "CanDo".to_string(),
+            kind: UnitKind::StyleInline,
+            label: Some("Card".to_string()),
+            anchor: "CanDo:style-inline:Card:Card".to_string(),
+        };
+        let (record, files) = synthesize_inline_unit(&inline_key, &evidence()).unwrap();
+        assert_eq!(record.source.owner, "CanDo");
+        assert_eq!(record.source.kind, UnitKind::StyleInline);
+        assert_eq!(record.provenance.origin, ProvenanceOrigin::Bound);
+        assert!(record.original.files.is_empty());
+        assert!(files.is_empty());
+        assert!(record.id.as_str().starts_with("inline-"));
+        let again = synthesize_inline_unit(&inline_key, &evidence()).unwrap().0;
+        assert_eq!(again.id, record.id);
+        assert!(synthesize_inline_unit(&style_key(), &evidence()).is_none());
+    }
+
+    #[test]
+    fn legacy_adopt_refuses_missing_primary() {
+        let root = legacy_dir("noprim", "u1", STYLE_DOC, &[("notes.txt", "hi")]);
+        let id = GenerationUnitId::parse("u1").unwrap();
+        let err = adopt_legacy_unit(&root.join("u1"), &id, &style_key(), &evidence()).unwrap_err();
+        assert!(err.contains("missing required output"), "{err}");
+        std::fs::remove_dir_all(&root).ok();
+    }
 }

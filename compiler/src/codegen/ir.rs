@@ -49,7 +49,7 @@ use crate::analysis::resolve::{
 use crate::analysis::types::{
     CheckedGenerationCallbackObservation, CheckedGenerationCallbackSource, CheckedQuery,
     CheckedQueryClauseKind, CheckedQueryProjectionMapping, ResolvedType, Scalar, SelectedCall,
-    SelectedCallTarget,
+    SelectedCallTarget, completion_envelope,
 };
 use crate::analysis::{CheckedProgram, NodeKey};
 use crate::codegen::bdd::BddSuite;
@@ -1695,6 +1695,17 @@ pub enum IrEventSource {
         binding: String,
         from: String,
     },
+    /// Typed adapter completion `on=Cap.op.completed` (DESIGN §8):
+    /// `{delivery_id, status, result:R?, error}` with the op's
+    /// declared result type name for the invocation descriptor.
+    DeliveryCompleted {
+        source: String,
+        result_type: String,
+    },
+    /// Fixed `on=instrumentation.error` source. The checker narrows
+    /// no event fields for it, so the payload stays opaque and the
+    /// invocation carries no inputs.
+    InstrumentationError,
 }
 
 /// Final stored-change vocabulary shared with the defining artifact contract.
@@ -6545,9 +6556,12 @@ impl<'a> Cx<'a> {
             };
             if base.kind != SyntaxKind::Member {
                 // A delivery-typed non-member base has no provenance to
-                // resolve (only `record.field` crossings lower).
+                // resolve (only `record.field` crossings lower) — except a
+                // bare receipt local (`send ... as delivery`): the runtime
+                // receipt is already bound, so the checked `.id`/`.status`
+                // members read as ordinary members below.
                 let base_ty = self.node_type(base);
-                if is_delivery_ty(&base_ty) {
+                if is_delivery_ty(&base_ty) && base.kind != SyntaxKind::NameRef {
                     return self.unsupported_expr(
                         "delivery read",
                         "owning record/field provenance is not resolvable",
@@ -7369,17 +7383,12 @@ impl<'a> Cx<'a> {
                             let body = self.decode_anchored(&inner, key, "scoped predicate");
                             let ty = body.ty.clone();
                             let span = body.span;
-                            let expr = if expr_uses_async(&body) {
-                                IrExpr::Unsupported {
-                                    what: "scoped predicate".to_string(),
-                                    why: "Values any/all require a synchronous predicate"
-                                        .to_string(),
-                                }
-                            } else {
-                                IrExpr::Lambda {
-                                    param,
-                                    body: Box::new(body),
-                                }
+                            // Async predicates lower to an awaited loop at
+                            // emission on the await-safe call path; the
+                            // lambda lowering already marks them async.
+                            let expr = IrExpr::Lambda {
+                                param,
+                                body: Box::new(body),
                             };
                             return TypedExpr::new(expr, ty, span);
                         }
@@ -8460,6 +8469,80 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
     false
 }
 
+/// Whether `expr` uses `async` only through awaited builtins (never
+/// through derive or capability calls).
+///
+/// Awaited builtins lower self-contained given the ambient context, so
+/// async predicates built only from them can lower to an awaited inline
+/// loop. Derive and capability calls need helper linkage and
+/// receipt/closure context that inline lambdas do not reliably provide,
+/// so predicates using them keep the synchronous-predicate boundary.
+pub fn expr_async_without_derives(expr: &TypedExpr) -> bool {
+    let mut found_async = false;
+    let mut work = vec![expr];
+    while let Some(current) = work.pop() {
+        match &current.expr {
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                if matches!(
+                    target,
+                    IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_)
+                ) {
+                    return false;
+                }
+                if matches!(target, IrCallTarget::Builtin { awaited: true, .. }) {
+                    found_async = true;
+                }
+                work.extend(args);
+            }
+            IrExpr::DeliveryRead { .. } => found_async = true,
+            IrExpr::Member { base, .. } => work.push(base),
+            IrExpr::Binary { left, right, .. } => {
+                work.push(right);
+                work.push(left);
+            }
+            IrExpr::Unary { operand, .. } => work.push(operand),
+            IrExpr::Array(items) => work.extend(items),
+            IrExpr::Object(entries) => work.extend(entries.iter().map(|(_, value)| value)),
+            IrExpr::Query(query) => {
+                match &query.domain {
+                    IrQueryDomain::Model(_) => found_async = true,
+                    IrQueryDomain::Value { base, .. } => work.push(base),
+                }
+                work.extend(query.parent.iter().map(|v| v.as_ref()));
+                work.extend(query.where_pred.iter().map(|v| v.as_ref()));
+                work.extend(query.limit.iter().map(|v| v.as_ref()));
+                work.extend(query.archived.iter().map(|v| v.as_ref()));
+                work.extend(query.select.iter().map(|v| v.as_ref()));
+            }
+            IrExpr::Message(message) => work.extend(message.params.iter().map(|p| &p.value)),
+            IrExpr::MessageCall { args, params, .. } => {
+                work.extend(args);
+                work.extend(params.iter().filter_map(|param| param.default.as_ref()));
+            }
+            IrExpr::Format { args, .. } => work.extend(args),
+            IrExpr::HasRole {
+                person: Some(_), ..
+            } => found_async = true,
+            IrExpr::HasRole { person: None, .. } => {}
+            IrExpr::Lambda { body, .. } => work.push(body),
+            IrExpr::JudgmentSpecification { options, .. } => work.extend(options.as_deref()),
+            IrExpr::Int(_)
+            | IrExpr::Decimal(_)
+            | IrExpr::Text(_)
+            | IrExpr::Bool(_)
+            | IrExpr::Null
+            | IrExpr::Money { .. }
+            | IrExpr::DurationMs(_)
+            | IrExpr::Date(_)
+            | IrExpr::Datetime(_)
+            | IrExpr::Name(_)
+            | IrExpr::PageTimePredicate(_)
+            | IrExpr::Unsupported { .. } => {}
+        }
+    }
+    found_async
+}
+
 /// Decode a guard: role gates (canonical or predicate spelling),
 /// subject predicates, boolean combinations, or an arbitrary checked
 /// boolean expression.
@@ -9484,6 +9567,67 @@ impl<'a> Cx<'a> {
 
     /// Decode a scenario row (G1): admission, guards, effects, captions.
     #[allow(clippy::type_complexity)]
+    /// Lower `on=Cap.op.completed` to its typed completion source
+    /// (DESIGN §8).
+    ///
+    /// The identity is the canonical `capability.op` path; the result
+    /// name renders the op's declared result for the invocation
+    /// descriptor (records by canonical name, std nominals by name,
+    /// scalars and enums by declared spelling). Anything else yields
+    /// `None` and keeps the §13 refusal: the completion payload would
+    /// be unnameable.
+    fn delivery_completion_source(
+        &self,
+        capability: SymbolId,
+        op: SymbolId,
+    ) -> Option<IrEventSource> {
+        let cap = self.program.symbols.get(capability.0 as usize)?;
+        let op_symbol = self.program.symbols.get(op.0 as usize)?;
+        let SymbolKind::CapabilityOp { .. } = &op_symbol.kind else {
+            return None;
+        };
+        let result = self.completion_result_type(op)?;
+        let result_type = match &result {
+            ResolvedType::Record { symbol, .. } => self
+                .program
+                .symbols
+                .get(symbol.0 as usize)?
+                .canonical
+                .clone(),
+            ResolvedType::StdNominal { name, .. } => name.to_string(),
+            ResolvedType::Scalar(scalar) => scalar.as_str().to_string(),
+            ResolvedType::Enum { cases, .. } => format!("enum({})", cases.join(",")),
+            _ => return None,
+        };
+        Some(IrEventSource::DeliveryCompleted {
+            source: format!("{}.{}", cap.canonical, op_symbol.name),
+            result_type,
+        })
+    }
+
+    /// Checked `event` payload for `on=Cap.op.completed`: the DESIGN
+    /// §8 envelope with the op's declared result, mirroring the
+    /// checker's [`crate::analysis::types`] completion typing.
+    fn delivery_completion_payload(&self, op: SymbolId) -> Option<ResolvedType> {
+        let result = self.completion_result_type(op)?;
+        Some(completion_envelope(Some(result)))
+    }
+
+    /// Declared result type of a capability op, from the published
+    /// symbol results (the op's `result_node` carries no node type).
+    fn completion_result_type(&self, op: SymbolId) -> Option<ResolvedType> {
+        let op_symbol = self.program.symbols.get(op.0 as usize)?;
+        if !matches!(op_symbol.kind, SymbolKind::CapabilityOp { .. }) {
+            return None;
+        }
+        self.program
+            .types
+            .symbol_results
+            .get(&op)
+            .cloned()
+            .flatten()
+    }
+
     fn decode_scenario(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
@@ -9545,6 +9689,14 @@ impl<'a> Cx<'a> {
             scope
                 .name_types
                 .insert("event".into(), fact.payload.clone());
+        }
+        // Adapter completions carry the DESIGN §8 envelope even when the
+        // member checker does not retain a contextual receiver node.
+        if let Some(crate::analysis::effects::HandlerSource::DeliveryCompleted { op, .. }) =
+            &data.on
+            && let Some(payload) = self.delivery_completion_payload(*op)
+        {
+            scope.name_types.insert("event".into(), payload);
         }
         let by = data
             .by
@@ -9624,6 +9776,12 @@ impl<'a> Cx<'a> {
                     model: *model,
                     change,
                 })
+            }
+            Some(crate::analysis::effects::HandlerSource::DeliveryCompleted { capability, op }) => {
+                self.delivery_completion_source(*capability, *op)
+            }
+            Some(crate::analysis::effects::HandlerSource::InstrumentationError) => {
+                Some(IrEventSource::InstrumentationError)
             }
             _ => None,
         };
@@ -12833,7 +12991,7 @@ impl<'a> Cx<'a> {
                     .iter()
                     .any(|(name, _)| name == "action") =>
             {
-                self.decode_action_button(scope, node)
+                self.decode_action_button(scope, node, row_ctx)
             }
             "button" => Some(self.decode_button(scope, node, row_ctx)),
             "modal" | "drawer" => Some(self.decode_modal(scope, node, word, row_ctx)),
@@ -13957,8 +14115,84 @@ impl<'a> Cx<'a> {
         Some(form)
     }
 
+    /// Bind the owning row for an argument-less action button: exactly one
+    /// singular stored-record scenario input must match the owning row
+    /// type, mirroring the `action` leaf. Anything else keeps the explicit
+    /// `arguments=` requirement loud.
+    fn implicit_row_arguments(
+        &mut self,
+        node: &SyntaxNode,
+        target: &SyntaxNode,
+        params: &[SymbolId],
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<TypedExpr> {
+        let Some((model, row)) = row_ctx else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: explicit protected record arguments are required"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let host_ty = ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        };
+        let records: Vec<_> = params
+            .iter()
+            .filter(|&param| {
+                self.program
+                    .types
+                    .symbol_types
+                    .get(param)
+                    .is_some_and(|ty| {
+                        matches!(
+                            ty.nullable_inner().unwrap_or(ty),
+                            ResolvedType::Record { stored: true, .. }
+                        )
+                    })
+            })
+            .collect();
+        if records.len() != 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: explicit protected record arguments are required"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let param = records[0];
+        if self.program.types.symbol_types.get(&param) != Some(&host_ty) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: protected record input does not match the owning row"
+                    .to_string(),
+                target.span,
+            ));
+            return None;
+        }
+        let name = self.program.symbols.get(param.0 as usize)?.name.clone();
+        let argument = TypedExpr::new(IrExpr::Name(row), host_ty, target.span);
+        Some(TypedExpr::new(
+            IrExpr::Object(vec![(name, argument)]),
+            ResolvedType::Unknown,
+            target.span,
+        ))
+    }
+
     /// Explicit bound buttons reuse the same protected form with authored refs.
-    fn decode_action_button(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+    /// Without `arguments=`, a button in row scope binds its one owning row,
+    /// exactly like the sibling `action` leaf: the single stored-record
+    /// scenario input must match the owning row type, and anything
+    /// ambiguous keeps requiring explicit arguments.
+    fn decode_action_button(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
         self.check_ui_attributes(node, "button action", &["action", "arguments"]);
         if kids(node).iter().any(|n| is_expression(n.kind)) {
             self.diags.push(Diagnostic::error(
@@ -13979,16 +14213,10 @@ impl<'a> Cx<'a> {
             .iter()
             .find(|(name, _)| name == "arguments")
             .and_then(|(_, value)| *value);
-        let Some(object) = object.filter(|node| node.kind == SyntaxKind::Object) else {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                "cannot lower button action: explicit protected record arguments are required"
-                    .to_string(),
-                node.span,
-            ));
-            return None;
+        let arguments = match object.filter(|node| node.kind == SyntaxKind::Object) {
+            Some(object) => self.decode_expr(scope, object),
+            None => self.implicit_row_arguments(node, target, &params, row_ctx)?,
         };
-        let arguments = self.decode_expr(scope, object);
         let IrExpr::Object(entries) = &arguments.expr else {
             return None;
         };

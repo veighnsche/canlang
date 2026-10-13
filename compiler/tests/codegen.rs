@@ -370,10 +370,133 @@ Then
         };
         assert_eq!(message.source, source);
         assert_eq!(message.source_lang, "en");
-        assert_eq!(message.variants, vec![("nl".into(), Some(translated.into()))]);
+        assert_eq!(
+            message.variants,
+            vec![("nl".into(), Some(translated.into()))]
+        );
         assert!(message.params.is_empty());
     }
     assert!(!forms[3].props.iter().any(|(name, _)| name == "submit"));
+}
+
+#[test]
+fn action_buttons_bind_the_owning_row_without_arguments() {
+    use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
+    use canlang_compiler::analysis::check_program;
+    use canlang_compiler::codegen::ir::{self};
+    use canlang_compiler::source::{SourceDb, Span};
+    use std::path::Path;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let source = r#"app BtnRow
+Given
+ Todo {title:text}
+ policy Todo read=public
+When
+ crud Todo by=public fields=title
+ scenario reopen(task:Todo) by=public label="Reopen"
+  do let supplied=task
+Then
+ view Tile(row:Todo) $"Render."
+  button action=reopen
+ page / title="T"
+  list Todo as task
+   show Tile {row=row}
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("btn-row.can".into(), source.into());
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (_program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+}
+
+#[test]
+fn action_buttons_without_row_scope_keep_requiring_arguments() {
+    use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
+    use canlang_compiler::analysis::check_program;
+    use canlang_compiler::codegen::ir::{self};
+    use canlang_compiler::source::{SourceDb, Span};
+    use std::path::Path;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let source = r#"app BtnNoRow
+Given
+ Todo {title:text}
+ policy Todo read=public
+When
+ crud Todo by=public fields=title
+ scenario reopen(task:Todo) by=public label="Reopen"
+  do let supplied=task
+Then
+ page / title="T"
+  button action=reopen
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("btn-norow.can".into(), source.into());
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (_program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(
+        diagnostics.iter().any(|d| d.code == "E6008"
+            && d.message.contains("explicit protected record arguments")),
+        "rowless buttons must stay loud, got {diagnostics:?}"
+    );
+}
+
+#[test]
+fn async_builtin_predicates_lower_to_an_awaited_loop() {
+    use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
+    use canlang_compiler::analysis::check_program;
+    use canlang_compiler::codegen::ir::{self};
+    use canlang_compiler::source::{SourceDb, Span};
+    use std::path::Path;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let source = r#"app AsyncAny
+Given
+ Todo {title:text,flag:bool=false}
+ policy Todo read=public
+ export derive can_see(person:user):bool = any(Todo as t,t.flag and active_member(person,team))
+When
+ crud Todo by=public fields=title
+Then
+ page / title="T"
+  text "hi"
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("async-any.can".into(), source.into());
+    let path = root.join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    // `active_member` stays catalog-external here, but the scoped
+    // predicate itself must lower (no E6008): builtin-only async lowers
+    // to an awaited inline loop, derive-async keeps the pinned refusal.
+    let (_program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
 }
 
 #[test]
@@ -6804,6 +6927,26 @@ fn t31_hook_decimal_eq_unsupported() {
             .iter()
             .any(|d| d.code == "E6008" && d.message.contains("hook")),
         "equality E6008: {diags:?}"
+    );
+}
+
+/// (T31) Structural equality in hooks lowers to pure `equalValue`:
+/// arrays and contract values compare over the in-memory before/after
+/// snapshots with no store or carrier. Decimal scalars keep their
+/// refusal (t31_hook_decimal_eq_unsupported).
+#[test]
+fn t31_hook_structural_eq_supported() {
+    let (catalog, path) = golden_catalog();
+    let src = "app T\nGiven\n M { tags:text[] }\nWhen\n scenario h on=M.update\n  do\n   require event.before.tags==event.after.tags\n   set event.after {tags=event.before.tags}\nThen\n";
+    let (db, program, result) = t31_program(src, &catalog);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(&path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("equalValue(\"text[]\""),
+        "structural hook equality:\n{js}"
     );
 }
 

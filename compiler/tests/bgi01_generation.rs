@@ -321,6 +321,20 @@ fn negative_parse_diagnostics() {
         ),
         "prompted view accepts only canonical controls",
     );
+    // Catalog `button` controls are admitted in prompted views: resolve,
+    // check, and codegen all support them (draft `button action=` shape).
+    {
+        let src = wrap(
+            " Todo {title:text}\n",
+            "",
+            " view Tile(row:Todo) $\"Render.\"\n  button action=reopen\n",
+        );
+        let (_t, diags) = parse(&src);
+        assert!(
+            diags.is_empty(),
+            "button should parse in prompted views, got {diags:?}"
+        );
+    }
     // Duplicate keyword argument (parser) and positional argument.
     expect_parse_err(
         &wrap(

@@ -1,6 +1,6 @@
 //! Single dispatch for the `can` binary.
 //!
-//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|dev|gen|completions|help`,
+//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|dev|gen|validate|completions|help`,
 //! plus `--help`/`--version` and a global `--format=json|text`. Exit codes
 //! come from [`crate::exit`]: 0 clean, 10 errors reported, 2 tool failure
 //! (warnings alone exit 0; they never block). JSON goes to stdout,
@@ -412,11 +412,47 @@ fn dispatch_with_route(
             }
             run_dev_entry(&parsed.operands, std::env::var("CAN_DEV_BIN").ok())
         }
+        "validate" => {
+            if parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can validate takes no --catalog flag".to_string(),
+                );
+            }
+            run_source_entry(
+                "validate",
+                &parsed.operands,
+                parsed.format,
+                false,
+                false,
+                std::env::var("CAN_PLATFORM_BIN").ok(),
+            )
+        }
         "gen" => {
             if parsed.catalog_set {
                 return DispatchResult::tool_error(
                     "E7001",
                     "can gen takes no --catalog flag".to_string(),
+                );
+            }
+            let source_mode = parsed
+                .operands
+                .first()
+                .is_some_and(|file| Path::new(file).extension().is_some_and(|ext| ext == "can"));
+            if source_mode && !parsed.request_set {
+                return run_source_entry(
+                    "generate",
+                    &parsed.operands,
+                    parsed.format,
+                    parsed.retry,
+                    parsed.dry_run,
+                    std::env::var("CAN_PLATFORM_BIN").ok(),
+                );
+            }
+            if parsed.retry || parsed.dry_run {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "--retry and --dry-run require can gen FILE.can".to_string(),
                 );
             }
             run_gen(
@@ -453,6 +489,7 @@ fn is_known_command(cmd: &str) -> bool {
             | "activate"
             | "dev"
             | "gen"
+            | "validate"
             | "completions"
             | "help"
     )
@@ -501,6 +538,8 @@ struct ParsedArgs {
     /// Whether `--request` was passed explicitly (rejected for
     /// commands that take none, rather than silently ignored).
     request_set: bool,
+    retry: bool,
+    dry_run: bool,
     help: bool,
     version: bool,
 }
@@ -522,6 +561,8 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         out_set: false,
         request: None,
         request_set: false,
+        retry: false,
+        dry_run: false,
         help: false,
         version: false,
     };
@@ -539,6 +580,10 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                 parsed.help = true;
             } else if arg == "--version" || arg == "-V" {
                 parsed.version = true;
+            } else if arg == "--retry" {
+                parsed.retry = true;
+            } else if arg == "--dry-run" {
+                parsed.dry_run = true;
             } else if arg == "--check" {
                 parsed.fmt_check = true;
             } else if arg == "--fix" {
@@ -615,6 +660,9 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
             parsed.operands.push(arg.clone());
         }
         i += 1;
+    }
+    if (parsed.retry || parsed.dry_run) && parsed.subcommand.as_deref() != Some("gen") {
+        return Err("--retry and --dry-run only apply to can gen FILE.can".to_string());
     }
     if parsed.fmt_check && parsed.subcommand.as_deref() != Some("fmt") {
         return Err("--check only applies to can fmt".to_string());
@@ -699,15 +747,18 @@ Commands:
   deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
   activate  Thin lane-7 entry: exec can-platform activate (passthrough)
   dev       JSON control for the local development session (can-dev)
-  gen       Versioned generation JSON dispatcher (plus bind/status sugar)
+  gen       Generate and accept source-owned code (plus JSON and bind/status)
+  validate  Compile, build and test saved output without AI
   completions  Print a shell completion script: can completions bash|zsh|fish
   help      Show help (global or `can help <COMMAND>`)
 
 Options:
-  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)
+  --format=json|text   Machine or human output (check, compile, lint, explain, policy, gen, validate; docs diagnostics only)
   --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,
                        ./can-catalog.json, ./packages/values/dist/catalog.json)
   --native-scenario-receipts  Emit retained-result capture for the native State runtime (compile only)
+  --retry              Regenerate all selected source units (gen FILE.can only)
+  --dry-run            Report planned generation without changes (gen FILE.can only)
   --locale=TAG         Reference locale (docs only; default is the app default + source fallback)
   --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)
   -h, --help           Show help (global or `can <COMMAND> --help`)
@@ -715,7 +766,7 @@ Options:
 
 Environment:
   CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
-  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs|gen)
+  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs|gen|validate)
   CAN_DEV_BIN       Override path to the can-dev JSON control binary
 
 Exit codes: 0 clean, 10 errors reported, 2 tool failure.
@@ -746,7 +797,8 @@ fn command_help(cmd: &str) -> String {
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can help {cmd}` or `can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
         "dev" => "can dev — JSON control for the local development session\n\nUsage: can dev [COMMAND] [ARGS...]\n\nExecs the installed `can-dev` control adapter and passes every argument through. `can dev help` lists its machine-readable commands and flags. A missing adapter reports E7004. Override search with CAN_DEV_BIN. The adapter's JSON stdout and exit code pass through unchanged.\n".to_string(),
-        "gen" => "can gen — versioned generation JSON dispatcher (BGI-03)\n\nUsage: can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
+        "validate" => "can validate — validate saved output without AI\n\nUsage: can validate FILE.can [--format=json|text]\n\nCompiles the source and runs the platform build, examples and Playwright checks against saved output. Does not generate or repair output.\n\nExit codes: the platform validation exit code passes through; 2 for invalid usage or missing platform.\n".to_string(),
+        "gen" => "can gen — generate source-owned code or dispatch a generation request\n\nUsage: can gen FILE.can [--retry] [--dry-run] [--format=json|text]\n       can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nFILE.can prepares and accepts missing generation outputs. --retry regenerates all selected units; --dry-run reports planned work without generation or acceptance. Source mode discovers the installed platform or a built checkout relative to the executable/source.\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
 }
@@ -803,7 +855,13 @@ fn run_check_like(
     }
     let mut owned = analyzer.analyze_owned(&db, tool_version());
     if let Some(program) = &mut owned.program {
-        prepare_saved_given(&mut db, program, owned.catalog.as_ref(), &compile_saved_roots(operands), &mut owned.result);
+        prepare_saved_given(
+            &mut db,
+            program,
+            owned.catalog.as_ref(),
+            &compile_saved_roots(operands),
+            &mut owned.result,
+        );
     }
     let mut result = owned.result;
     result.finish();
@@ -871,7 +929,13 @@ fn run_compile(
     // zero-AI: this path never invokes generation, it only reads
     // current saved bytes.
     let saved_roots = compile_saved_roots(operands);
-    let given_join = prepare_saved_given(&mut db, &mut program, owned.catalog.as_ref(), &saved_roots, &mut result);
+    let given_join = prepare_saved_given(
+        &mut db,
+        &mut program,
+        owned.catalog.as_ref(),
+        &saved_roots,
+        &mut result,
+    );
     // The Then join resolves here for coverage and packing; emission
     // re-resolves the same inputs deterministically for renderer
     // calls. Coverage failures block before emission.
@@ -1003,13 +1067,19 @@ fn prepare_saved_given(
     roots: &[PathBuf],
     result: &mut DiagnosticResult,
 ) -> Option<GivenJoin> {
-    let mut given_result = DiagnosticResult::new(tool_version(), crate::LANGUAGE_VERSION, crate::SCHEMA_VERSION);
+    let mut given_result = DiagnosticResult::new(
+        tool_version(),
+        crate::LANGUAGE_VERSION,
+        crate::SCHEMA_VERSION,
+    );
     let join = join_saved_given(db, program, roots, &mut given_result);
     if let Some(join) = &join
         && catalog.is_some()
-        && !given_result.has_errors() {
+        && !given_result.has_errors()
+    {
         let files = program.checked_files().to_vec();
-        let (joined, diagnostics) = crate::analysis::check_program_with_given(db, &files, catalog, Some(&join.tables));
+        let (joined, diagnostics) =
+            crate::analysis::check_program_with_given(db, &files, catalog, Some(&join.tables));
         *program = joined;
         result.diagnostics = diagnostics;
         result.sources.clear();
@@ -1277,13 +1347,22 @@ fn attach_saved_given(
     }
     if let Some(contracts) = artifact.given_contracts.as_ref() {
         for instance in &contracts.traits {
-        if instance.target.split('.').count() == 2 {
-            if let Some(model) = artifact.models.iter_mut().find(|model| model.name == instance.target) {
-                model.fields.retain(|field| !instance.fields.iter().any(|contributed| contributed.name == field.name));
+            if instance.target.split('.').count() == 2 {
+                if let Some(model) = artifact
+                    .models
+                    .iter_mut()
+                    .find(|model| model.name == instance.target)
+                {
+                    model.fields.retain(|field| {
+                        !instance
+                            .fields
+                            .iter()
+                            .any(|contributed| contributed.name == field.name)
+                    });
+                }
             }
         }
-    }
-    art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
+        art::merge_given_trait_fields(&mut artifact.models, &contracts.traits)
             .map_err(|detail| fail(format!("cannot lower saved trait contributions: {detail}")))?;
     }
     // Keyword server modules pack per checked contract: the expected
@@ -1296,7 +1375,10 @@ fn attach_saved_given(
             // declaration owns one implementation and import closure.
             if let Some(previous) = packed_units.insert(&rule.unit_id, &rule.fingerprint) {
                 if previous != rule.fingerprint {
-                    return Err(fail(format!("keyword unit `{}` has inconsistent checked implementation fingerprints", rule.unit_id)));
+                    return Err(fail(format!(
+                        "keyword unit `{}` has inconsistent checked implementation fingerprints",
+                        rule.unit_id
+                    )));
                 }
                 continue;
             }
@@ -1389,7 +1471,25 @@ fn attach_saved_then(
     style_ids.sort();
     for unit_id in style_ids {
         let group = &join.styles()[unit_id];
+        // Freshly bound units carry no generated output yet: they pack an
+        // empty sheet instead of failing. Anything else without its CSS
+        // stays a coverage failure.
+        let fresh = group.record.provenance.origin
+            == crate::analysis::generation_intake::ProvenanceOrigin::Bound
+            && group.record.original.files.is_empty();
         let Some(css_file) = group.files.iter().find(|f| f.rel_path == "style.css") else {
+            if fresh {
+                sheets.push(
+                    art::pack_saved_stylesheet_with_assets(
+                        group.record.source.kind,
+                        owner_of(group),
+                        "",
+                        &[],
+                    )
+                    .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
+                );
+                continue;
+            }
             return Err(fail(format!(
                 "unit `{unit_id}` has no saved `style.css`; repair the group or reconcile with adopt"
             )));
@@ -1400,8 +1500,13 @@ fn attach_saved_then(
             ))
         })?;
         sheets.push(
-            art::pack_saved_stylesheet_with_assets(group.record.source.kind, owner_of(group), &css, &group.files)
-                .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
+            art::pack_saved_stylesheet_with_assets(
+                group.record.source.kind,
+                owner_of(group),
+                &css,
+                &group.files,
+            )
+            .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
         );
     }
     // Consumed view units pack their renderer module (plus closure
@@ -1412,15 +1517,30 @@ fn attach_saved_then(
         let group = &join.views()[unit_id];
         let id = crate::analysis::generation_intake::GenerationUnitId::parse(unit_id)
             .map_err(|reason| fail(format!("saved unit id is malformed: {reason}")))?;
+        // Adopted legacy views carry the handwritten renderer as
+        // `server.js` instead of the v1 `implementation.js` module.
+        let adopted = group.record.provenance.origin
+            == crate::analysis::generation_intake::ProvenanceOrigin::Adopted;
+        let module_rel = if group
+            .files
+            .iter()
+            .any(|f| f.rel_path == "implementation.js")
+        {
+            "implementation.js"
+        } else if adopted {
+            "server.js"
+        } else {
+            "implementation.js"
+        };
         let root = group
             .files
             .iter()
-            .find(|f| f.rel_path == "implementation.js")
+            .find(|f| f.rel_path == module_rel)
             .map(|f| f.bytes.clone())
             .unwrap_or_default();
         let root_text = String::from_utf8(root.clone()).map_err(|_| {
             fail(format!(
-                "unit `{unit_id}` `implementation.js` is not valid UTF-8; repair the file or reconcile with adopt"
+                "unit `{unit_id}` `{module_rel}` is not valid UTF-8; repair the file or reconcile with adopt"
             ))
         })?;
         let scan = scan_js_module(&root_text);
@@ -1449,7 +1569,7 @@ fn attach_saved_then(
             });
         }
         let closure =
-            resolve_saved_js_closure(&id, group, "implementation.js", &root_text, "workerd/browser")
+            resolve_saved_js_closure(&id, group, module_rel, &root_text, "workerd/browser")
                 .map_err(|detail| {
                     fail(format!(
                         "cannot lower view `{unit_id}`: {detail}; fix the saved imports or reconcile with adopt"
@@ -1486,8 +1606,13 @@ fn attach_saved_then(
                 ))
             })?;
             sheets.push(
-                art::pack_saved_stylesheet_with_assets(group.record.source.kind, owner_of(group), &css, &group.files)
-                    .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
+                art::pack_saved_stylesheet_with_assets(
+                    group.record.source.kind,
+                    owner_of(group),
+                    &css,
+                    &group.files,
+                )
+                .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
             );
         }
     }
@@ -1845,7 +1970,7 @@ fn locate_platform_bin(
 ) -> Result<String, DispatchResult> {
     let bin = match platform_bin {
         Some(path) => path,
-        None => match find_on_path("can-platform") {
+        None => match find_on_path("can-platform").or_else(|| checkout_platform(None)) {
             Some(path) => path,
             None => {
                 return Err(DispatchResult::tool_error(
@@ -1866,6 +1991,106 @@ fn locate_platform_bin(
         ));
     }
     Ok(bin)
+}
+
+/// Locate the built platform from an executable or source's checkout ancestors.
+/// This uses only the package-owned entry point, never a fixture-specific script.
+fn checkout_platform(source: Option<&Path>) -> Option<String> {
+    let executable = std::env::current_exe().ok();
+    for anchor in source.into_iter().chain(executable.as_deref()) {
+        for ancestor in anchor.ancestors().skip(1) {
+            if !ancestor.join("packages/cloudflare/package.json").is_file() {
+                continue;
+            }
+            let candidate = ancestor.join("packages/cloudflare/dist/cli/platform.js");
+            if candidate.is_file() {
+                return Some(candidate.to_string_lossy().into_owned());
+            }
+        }
+    }
+    None
+}
+
+/// Source commands own their usage; the platform owns generation/validation.
+/// Spawn directly with fixed argument boundaries and the current compiler.
+fn run_source_entry(
+    operation: &str,
+    operands: &[String],
+    format: OutputFormat,
+    retry: bool,
+    dry_run: bool,
+    platform_bin: Option<String>,
+) -> DispatchResult {
+    let command_name = if operation == "generate" {
+        "gen"
+    } else {
+        "validate"
+    };
+    let [source] = operands else {
+        return DispatchResult::tool_error(
+            "E7001",
+            format!("can {command_name} expects exactly one FILE.can"),
+        );
+    };
+    if Path::new(source).extension().is_none_or(|ext| ext != "can") {
+        return DispatchResult::tool_error(
+            "E7001",
+            format!("can {command_name} expects a .can source file"),
+        );
+    }
+    let source = match std::fs::canonicalize(source) {
+        Ok(path) if path.is_file() => path,
+        Ok(_) => {
+            return DispatchResult::tool_error("E7001", format!("source '{source}' is not a file"));
+        }
+        Err(error) => {
+            return DispatchResult::tool_error(
+                "E7001",
+                format!("cannot read source '{source}': {error}"),
+            );
+        }
+    };
+    let selected = platform_bin
+        .or_else(|| find_on_path("can-platform"))
+        .or_else(|| checkout_platform(Some(&source)));
+    let bin = match locate_platform_bin(selected, command_name) {
+        Ok(bin) => bin,
+        Err(error) => return error,
+    };
+    let mut command = std::process::Command::new(&bin);
+    command.arg(operation).arg(source);
+    if retry {
+        command.arg("--retry");
+    }
+    if dry_run {
+        command.arg("--dry-run");
+    }
+    command.arg(match format {
+        OutputFormat::Json => "--format=json",
+        OutputFormat::Text => "--format=text",
+    });
+    match std::env::current_exe() {
+        Ok(executable) => {
+            command.env("CAN_COMPILER_BIN", executable);
+        }
+        Err(error) => {
+            return DispatchResult::tool_error(
+                "E7004",
+                format!("cannot locate current compiler: {error}"),
+            );
+        }
+    }
+    match command.status() {
+        Ok(status) => DispatchResult {
+            code: status.code().unwrap_or(exit::TOOL_FAILURE),
+            stdout: String::new(),
+            stderr: String::new(),
+            run_lsp: false,
+        },
+        Err(error) => {
+            DispatchResult::tool_error("E7004", format!("failed to exec platform '{bin}': {error}"))
+        }
+    }
 }
 
 fn emit_diagnostics(
@@ -2925,15 +3150,31 @@ fn run_gen_not_implemented(
 
 /// Load one source file for generation discovery, with CLI error mapping.
 fn generation_source_path(root: &Path, file: &str) -> String {
-    std::fs::canonicalize(root).ok().and_then(|root| {
-        std::fs::canonicalize(file).ok().and_then(|source| source.strip_prefix(root).ok().map(|path| path.to_string_lossy().replace('\\', "/")))
-    }).unwrap_or_else(|| file.to_string())
+    std::fs::canonicalize(root)
+        .ok()
+        .and_then(|root| {
+            std::fs::canonicalize(file).ok().and_then(|source| {
+                source
+                    .strip_prefix(root)
+                    .ok()
+                    .map(|path| path.to_string_lossy().replace('\\', "/"))
+            })
+        })
+        .unwrap_or_else(|| file.to_string())
 }
 
 fn generation_source_file(root: &Path, file: &str) -> String {
     let path = Path::new(file);
-    if path.is_absolute() { file.to_string() }
-    else { let rooted = root.join(path); if rooted.is_file() { rooted.to_string_lossy().to_string() } else { file.to_string() } }
+    if path.is_absolute() {
+        file.to_string()
+    } else {
+        let rooted = root.join(path);
+        if rooted.is_file() {
+            rooted.to_string_lossy().to_string()
+        } else {
+            file.to_string()
+        }
+    }
 }
 
 fn read_gen_source(path: &str) -> Result<(SourceDb, SourceId, String), DispatchResult> {
@@ -5010,8 +5251,27 @@ fn check_one_given_unit(
     // may reference sibling contributions which are still pending; their
     // complete semantic check belongs to the saved compile join.
     let (source_tree, _) = crate::syntax::parse_source(SourceId(0), source_text);
-    let given_sections: Vec<Span> = source_tree.descendants().filter(|node| node.kind == crate::syntax::SyntaxKind::Section && node.children.iter().any(|child| child.token().is_some_and(|token| token.text(source_text) == "Given"))).map(|node| node.span).collect();
-    let base: Vec<_> = base.into_iter().filter(|diagnostic| diagnostic.code.starts_with("E1") || given_sections.iter().any(|span| span.start <= diagnostic.primary.start && diagnostic.primary.end <= span.end)).collect();
+    let given_sections: Vec<Span> = source_tree
+        .descendants()
+        .filter(|node| {
+            node.kind == crate::syntax::SyntaxKind::Section
+                && node.children.iter().any(|child| {
+                    child
+                        .token()
+                        .is_some_and(|token| token.text(source_text) == "Given")
+                })
+        })
+        .map(|node| node.span)
+        .collect();
+    let base: Vec<_> = base
+        .into_iter()
+        .filter(|diagnostic| {
+            diagnostic.code.starts_with("E1")
+                || given_sections.iter().any(|span| {
+                    span.start <= diagnostic.primary.start && diagnostic.primary.end <= span.end
+                })
+        })
+        .collect();
     if !base.is_empty() {
         return Err(ValidationFailure::new(
             format!(
@@ -5347,7 +5607,11 @@ fn validate_style_unit(
         }
     }
     for asset in &scoped.assets {
-        let file = group.files.iter().find(|file| &file.rel_path == asset).expect("asset existence checked");
+        let file = group
+            .files
+            .iter()
+            .find(|file| &file.rel_path == asset)
+            .expect("asset existence checked");
         crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(|detail| ValidationFailure::new(detail, vec!["replace the asset with supported matching image/font bytes and resend validate".to_string()]))?;
     }
     if !scoped.assets.is_empty() {
@@ -6457,8 +6721,19 @@ fn validate_one_saved_file(
             }
         }
         for asset in &scoped.assets {
-            let file = group.files.iter().find(|file| &file.rel_path == asset).expect("asset existence checked");
-            crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(|detail| ValidationFailure::new(detail, vec!["replace the asset with matching supported bytes".to_string()]))?;
+            let file = group
+                .files
+                .iter()
+                .find(|file| &file.rel_path == asset)
+                .expect("asset existence checked");
+            crate::codegen::artifact::style_asset_content_type(asset, &file.bytes).map_err(
+                |detail| {
+                    ValidationFailure::new(
+                        detail,
+                        vec!["replace the asset with matching supported bytes".to_string()],
+                    )
+                },
+            )?;
         }
         checks.push(validation_check(
             "scope",
