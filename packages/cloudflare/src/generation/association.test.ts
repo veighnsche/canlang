@@ -172,6 +172,110 @@ test("stale bind rejects and leaves saved groups intact", () => {
   assert.equal(cross.error.code, "kind-mismatch");
 });
 
+test("explicit bind is honored for its exact captured location only", () => {
+  // Two inline text styles sharing one structural key: `text "one"
+  // $"Readable"` and `text "two" $"Readable"` in page/UiLeaf.
+  const firstLocation = { path: "app.can", revision: "rev", start: 1, end: 10 };
+  const secondLocation = { path: "app.can", revision: "rev", start: 20, end: 30 };
+  const first = descriptor({
+    kind: "style-inline",
+    label: "UiLeaf",
+    anchor: "Test:style-inline:UiLeaf:UiLeaf",
+    prompt: "Readable",
+    location: firstLocation,
+  });
+  const second: DescriptorInput = { ...first, location: secondLocation };
+  const seed: UnitRecord = {
+    abi_version: UNIT_ABI_VERSION,
+    id: "u1",
+    source: {
+      ...firstLocation,
+      owner: first.owner,
+      kind: first.kind,
+      label: first.label,
+      anchor: first.anchor,
+    },
+    contract: {
+      target: "UiLeaf",
+      profile: null,
+      prompt_sha256: sha256HexText("Readable"),
+      signature: null,
+    },
+    original: {
+      prompt_sha256: sha256HexText("Readable"),
+      files: { "style.css": sha256HexText("old css") },
+    },
+    provenance: { origin: "generated", runner: "fixture", model: "fixture", note: null },
+  };
+  const boundOriginal = applyBind(
+    [seed],
+    {
+      path: "app.can",
+      revision: "rev",
+      start: 1,
+      end: 10,
+      source: seed.source,
+      contract: seed.contract,
+      target: { kind: "existing", id: "u1" },
+    },
+    "rev",
+  );
+  assert.equal(boundOriginal.ok, true);
+  assert(boundOriginal.ok);
+  const boundCopy = applyBind(
+    [boundOriginal.record],
+    {
+      path: "app.can",
+      revision: "rev",
+      start: 20,
+      end: 30,
+      source: { ...seed.source, start: 20, end: 30 },
+      contract: seed.contract,
+      target: { kind: "new" },
+    },
+    "rev",
+  );
+  assert.equal(boundCopy.ok, true);
+  assert(boundCopy.ok);
+  assert.equal(boundCopy.record.id, "u2");
+  const saved = [boundOriginal.record, boundCopy.record];
+
+  // Without current-location evidence the shared key still refuses.
+  const { location: _dropFirst, ...bareFirst } = first;
+  const { location: _dropSecond, ...bareSecond } = second;
+  const bare = associate([bareFirst, bareSecond], saved);
+  for (const entry of bare) {
+    assert.equal(entry.association.type, "ambiguous");
+  }
+  // With exact evidence each location retains its own bound ID.
+  const honored = associate([first, second], saved);
+  assert.deepEqual(
+    honored.map((entry) => entry.association),
+    [
+      { type: "retained", id: "u1", promptChanged: false },
+      { type: "retained", id: "u2", promptChanged: false },
+    ],
+  );
+  // Changed or stale source never guesses: a new revision refuses both.
+  const stale = associate(
+    [
+      { ...first, location: { path: "app.can", revision: "rev-edited", start: 1, end: 10 } },
+      { ...second, location: { path: "app.can", revision: "rev-edited", start: 20, end: 30 } },
+    ],
+    saved,
+  );
+  for (const entry of stale) {
+    assert.equal(entry.association.type, "ambiguous");
+  }
+  // A moved span refuses while its untouched sibling still retains.
+  const moved = associate(
+    [{ ...first, location: { path: "app.can", revision: "rev", start: 2, end: 10 } }, second],
+    saved,
+  );
+  assert.equal(moved[0]?.association.type, "ambiguous");
+  assert.deepEqual(moved[1]?.association, { type: "retained", id: "u2", promptChanged: false });
+});
+
 test("bind existing refreshes evidence and bind new allocates for copies", () => {
   const unit = descriptor();
   const saved = [savedRecord("u1", unit, "rev-old")];
