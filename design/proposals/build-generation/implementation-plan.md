@@ -67,7 +67,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-03 — Configuration and JSON command contract
 
-- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-82b8 WIP 741370f61 + join ad30e1022 integrated as 1fa92d56f + cc6d69305 (repair merge skipped, already in main; toml 0.9.12 + base64 pinned, smol-toml Node, dispatcher, capability preflight, MCP contract, join wiring cli.rs:2464/2950 + bind-copy case; correction + join + leases direction ACKed). Coordinator verified on main: bgi03 26/26 (incl join case), bgi01 13/13, bgi02 17/17, exe 11/11, node dist/generation 38/38 (13 new); zero new tsc errors; no When recipe/profile (correction honored). BGI03 writer released; Given/Then/tooling lanes unblocked. Codex 3-defect repair active per can-bg-56271b11-codex-config-20261013T071739Z (explicit-vs-default profile, zero overrides, current-vs-historical inspection; probe /private/tmp/bgi03-review-cc6d69305/results.json): worker 01a13421 dispatched isolated, owns config/protocol/cli-inspection + tests only, no Given/MCP files.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-82b8 WIP 741370f61 + join ad30e1022 integrated as 1fa92d56f + cc6d69305 (repair merge skipped, already in main; toml 0.9.12 + base64 pinned, smol-toml Node, dispatcher, capability preflight, MCP contract, join wiring cli.rs:2464/2950 + bind-copy case; correction + join + leases direction ACKed). Coordinator verified on main: bgi03 26/26 (incl join case), bgi01 13/13, bgi02 17/17, exe 11/11, node dist/generation 38/38 (13 new); zero new tsc errors; no When recipe/profile (correction honored). BGI03 writer released; Given/Then/tooling lanes unblocked. Codex 3-defect repair accepted as 4a47a6f42 (worker 01a13421 release 8e0409c8d; no Given/MCP files). Coordinator verified on main: bgi03 29/29 (3 new: explicit-frontend diagnosis, zero-limit refusal, current-profile inspect), bgi01 13/13, bgi02 17/17, exe 11/11, node dist/generation 91/91 (3 new); zero new tsc errors. Repair writer released.
 
 **Owner / targets:** `compiler/src/cli.rs`; `packages/cloudflare/src/cli/platform.ts` and generation config/protocol modules. **Needs:** BGI-01 descriptor shapes and BGI-02 selectors/records.
 
@@ -107,7 +107,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-07 — Trait contributions and custom keyword contracts
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-dfff implementing at fire 24-25, 2026-10-13T07:19Z (check/effects/resolve/types/ir.rs + 3 probes; child log shows compiling resolve.rs, authority helpers, core types — healthy implementation, no stall; probes fold/remove at handoff); owns check/resolve/types/effects/examples + codegen ir/artifact + Contracts Given descriptors only; awaiting bgi07+bgi01+bgi02 green. BGI05 testing all 6 files at fire 24.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-dfff implementing at fire 26, 2026-10-13T07:26Z (check/effects/resolve/types/ir/artifact/contracts + bgi07 test; probes fold/remove at handoff); owns check/resolve/types/effects/examples + codegen ir/artifact + Contracts Given descriptors only; awaiting bgi07+bgi01+bgi02 green. BGI05 accepted b0007579b; BGI03-repair editing config at fire 26; Then lane reading at fire 26.
 
 **Owner / targets:** compiler `analysis/{check,resolve,types,effects,examples}.rs`, `codegen/{ir,js,defaults,artifact}.rs`; Contracts artifact/state descriptors. **Needs:** BGI-01 typed roles, BGI-02 association and BGI-04 saved snapshots.
 
@@ -127,7 +127,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-09 — Row-bound renderers and browser controls
 
-- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: dispatched isolated; forbidden files listed (BGI07 analysis/codegen, accepted generation/leases/cli/source, Node generation/*); awaiting bgi0910_then + retained greens.
+- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: running at 2026-10-13T07:28Z, Cargo.toml/lock edits (CSS parser pin); forbidden files listed (BGI07 analysis/codegen, accepted generation/leases/cli/source, Node generation/*); awaiting bgi0910_then + retained greens. BGI07 editing all contract files + bgi07 test; BGI03-repair editing config/protocol/cli.
 
 **Owner / targets:** compiler view lowering and Contracts presentation descriptors; UI `components.ts`, `forms.ts`, `client.ts`, `browser/bootstrap.ts`; Interfaces `http/{presentation,form-binding,prepared-validation,operations}.ts`; Cloudflare page/module join. **Needs:** BGI-01/02 checked row/control descriptors and saved export lookup. Consume BGI-07 contributions only where a row model requires them.
 
