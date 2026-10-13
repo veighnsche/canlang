@@ -47,7 +47,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-01 — Source carriers and unit descriptors
 
-- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133b4 release 0acf13582 integrated as e6780134c (lexer $ marker, CST carriers, trait/keyword/style/view parsers, format, analysis/generation.rs descriptors, tests/bgi01_generation.rs 7 tests). Coordinator verified on main: bgi01_generation 7/7, b4_parse 20/20, check 38/38 pass; format 20/21 with only pre-existing draft-missing corpus failure (identical on base cffce560); lib/view_reuse/authoring full runs blocked by missing draft submodule (pre-existing, untouched files, out of scope). BGI02 unblocked. Queued finite repair per Codex check can-bg-56271b11-codex-check-20261013T055635Z (6 probe findings: field-trait targets, keyword arg admission, literal normalization, namespace collision, nonvisual suffix refusal, inline agent propagation) AFTER BGI02 handoff/writer release, before BGI03/BGI04; serialize shared generation.rs/CLI files; reuse BGI02 worker continuation if safe else one replacement owner. Repair now active as single writer lane after BGI02 release c3255684a (worker 01a133db editing generation.rs +85/-4 plus zz_probe.rs at fire 11, 2026-10-13T06:11Z, no ping per policy); BGI03/BGI04 still held.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133b4 release 0acf13582 integrated as e6780134c (lexer $ marker, CST carriers, trait/keyword/style/view parsers, format, analysis/generation.rs descriptors, tests/bgi01_generation.rs 7 tests). Coordinator verified on main: bgi01_generation 7/7, b4_parse 20/20, check 38/38 pass; format 20/21 with only pre-existing draft-missing corpus failure (identical on base cffce560); lib/view_reuse/authoring full runs blocked by missing draft submodule (pre-existing, untouched files, out of scope). BGI02 unblocked. Queued finite repair per Codex check can-bg-56271b11-codex-check-20261013T055635Z (6 probe findings: field-trait targets, keyword arg admission, literal normalization, namespace collision, nonvisual suffix refusal, inline agent propagation) AFTER BGI02 handoff/writer release, before BGI03/BGI04; serialize shared generation.rs/CLI files; reuse BGI02 worker continuation if safe else one replacement owner. Repair accepted as 10a4decb7 (worker 01a133db release 3c3c2a2e; zz_probe folded into bgi01 tests, no stray file). Coordinator verified: bgi01 13/13 (6 new finding cases), bgi02 14/14, b4_parse 20/20, check 38/38, exe 11/11, completion_contract 2/2 retained; Node 10/10 reused (no .ts changes in repair). BGI03/BGI04 dispatched.
 
 **Owner / targets:** compiler `syntax/{cst,parser,construct_help}.rs`, `format.rs`, `analysis/{mod,resolve,types}.rs`, `codegen/ir.rs`; owning additions to `packages/contracts/src/{artifact,presentation}.ts`. Update grammar/help/editor vocabulary with the relevant language change.
 
@@ -67,7 +67,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-03 — Configuration and JSON command contract
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-82b8 dispatched isolated, owns cli.rs exclusively; awaiting config/protocol handoff with bgi03+bgi01+bgi02 green.
 
 **Owner / targets:** `compiler/src/cli.rs`; `packages/cloudflare/src/cli/platform.ts` and generation config/protocol modules. **Needs:** BGI-01 descriptor shapes and BGI-02 selectors/records.
 
@@ -77,7 +77,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-04 — Write leases, snapshots and journal recovery
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-a621 dispatched isolated; owns NEW leases.rs + source.rs hooks + Node leases/journal modules, must not touch cli.rs (BGI03 owns it); awaiting lease/journal handoff with bgi04+bgi01+bgi02 green.
 
 **Owner / targets:** Node generation coordination/promotion modules; matching Rust generation intake/read coordination in `cli.rs`/`source.rs`. **Needs:** BGI-02 associated outputs/source paths and the frozen full-run aggregate promotion/recovery contract.
 
