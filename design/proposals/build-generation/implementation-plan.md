@@ -127,7 +127,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-09 — Row-bound renderers and browser controls
 
-- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: running at fire 33, 2026-10-13T08:01Z, editing codegen + lib.rs + UI + Interfaces http + presentation.ts + catalog test + new then_views.rs/css_scope.rs/bgi0910 test + probe (BGI07 accepted, no active conflict); forbidden files listed; awaiting bgi0910_then + retained greens. BGI06 accepted eafc51402; BGI08 editing runtime/state files + given-unique-keys.ts at fire 33.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a13423 release 49c33fce0 integrated as 977931c41 (then_views.rs, css_scope.rs with pinned cssparser 0.38.0, presentation/UI/Interfaces/Cloudflare joins, bgi0910_then.rs 20 tests, DECISIONS.md entry; probes folded). Coordinator verified on main: bgi0910 20/20, bgi01/02/03/04 + b4_parse + check retained green, UI bgi0910 9/9 (coordinator added 3 missing type annotations to new test file), interfaces bgi0910 4/4 (identity dist built via repo command), cloudflare generated-views 2/2, contracts vitest 65/65; zero new tsc errors. Then writer released.
 
 **Owner / targets:** compiler view lowering and Contracts presentation descriptors; UI `components.ts`, `forms.ts`, `client.ts`, `browser/bootstrap.ts`; Interfaces `http/{presentation,form-binding,prepared-validation,operations}.ts`; Cloudflare page/module join. **Needs:** BGI-01/02 checked row/control descriptors and saved export lookup. Consume BGI-07 contributions only where a row model requires them.
 
@@ -137,7 +137,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-10 — Scoped CSS and DOM hooks
 
-- [ ] Status: in_progress (coordinator session 01a133ac; same Then lane worker 01a13423 as BGI-09). Evidence/handoff: dispatched isolated; pinned CSS parser required (no hand-roll); awaiting scoping/namespacing/escape cases + retry-regenerates-both fixture.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1; same Then lane worker 01a13423 as BGI-09, release 49c33fce0). Evidence/handoff: cssparser 0.38.0 pinned (no hand-roll); scoping/namespacing/escape cases + retry-regenerates-both fixture verified in bgi0910 20/20. Then writer released.
 
 **Owner / targets:** compiler CSS parsing/scoping beside codegen, typed style descriptors; UI semantic factories/root/part hooks and browser styles. **Needs:** BGI-01 style ownership/use descriptors and BGI-02 unit IDs/assets; BGI-09 root hooks only for generated-view integration cases.
 
