@@ -491,7 +491,7 @@ class CanParserTests(unittest.TestCase):
                       'use words {heading}\nGiven\nWhen\nThen\n')
 
     def test_corpus_syntax_parses(self):
-        sources = sorted([*ROOT.glob("examples/*.can"), *ROOT.glob("draft/*.can"),
+        sources = sorted([*ROOT.glob("examples/*.can"), *ROOT.glob("draft/apps/*/*.can"),
                           *ROOT.glob("draft/shared/*.can")])
         self.assertEqual(len(sources), 44)
         for path in sources:

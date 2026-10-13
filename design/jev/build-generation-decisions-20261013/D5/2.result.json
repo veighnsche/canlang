@@ -1,0 +1,104 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Consult all six open feature decisions; advice only, no implementation or automatic adoption.",
+      "requirements_owner": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md, BGEN 01-15 and decisions D1-D6",
+      "fixed_requirements": [
+        ".can owns app composition, declaring identity, intent, contracts and authorization. Prompts remain distinct from ordinary # metadata and ## comments.",
+        "Four targets: Given local modifiers, When implementation, Then styles and custom components. Generated server JS targets workerd; CSS/client interaction target browser.",
+        "Inline and named styles and default frontend are settled. No repeated agent=frontend. Names remain optional; custom-view styles generate once per definition.",
+        "CLI-first with Codex/Muse/Claude Code/OpenCode and explicit model choice, native auth, finite controls and no silent tool/model/permission fallback.",
+        "Normal build/check/bundle consumes saved editable current files, including compatible direct edits, with zero AI calls and no generation credentials.",
+        "Each independently selected unit has owned files. Missing target never means all. Retry/refine/reset preserve current files and other units; refine captures current edited implementation.",
+        "Candidates are isolated and promoted only against matching captured source/contracts/target/current bytes/attempt. Reset fences late results. Direct editing is ordinary authorized workspace work.",
+        "Agent-first headless discovery/requests/results/errors; no mandatory dashboard, editor selection or human approval. Truthful historic generation identity is distinct from later edits.",
+        "Preserve exact values, canonical inputs/results, policies, field grants, versions, transactions, replay, order and schema migration workflow. Current Can checks do not validate arbitrary JS or prove its intent."
+      ],
+      "comparison_stage": "Every alternative is a draft. Evaluate the same required outcome, concise authoring, implementation simplicity, recoverability and explicit limits fairly. Favor neither an existing draft nor a prior JEV verdict. An open answer is legitimate if no listed candidate is complete; do not silently relax requirements or assume an unimplemented API.",
+      "decision_group": "D5 Style isolation",
+      "verified_facts": [
+        "UI browser build pins daisyUI/themes and browser ESM closure; native forms/errors/focus/swap behavior depends on current structured markup and bindings.",
+        "Current view lowering tracks checked definition uses/occurrences. No style root/part/nested isolation engine exists yet.",
+        "Selector prefixing alone does not stop inherited CSS/custom properties or parent geometry; even reset/Shadow DOM cannot eliminate parent layout influence. Required promise is owned style scopes, explicit inheritance/layout dependencies, unchanged other units/global assets, not complete pixel independence."
+      ]
+    },
+    "questions": {
+      "hook_carrier": {
+        "type": "choice",
+        "instructions": {
+          "question": "Compare the candidates for compiler-owned style root and part hook representation at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+          "fixed_outcome": "Stable admitted hooks for ordinary/custom views, multiple roots/content models honored, no arbitrary CSS access or broken canonical UI workflow."
+        },
+        "criteria": {
+          "scope_containers": "Use compiler-owned scope container/root and descendant parts, with semantic-element/multi-root exceptions where generic wrapper invalid. Simple common selectors; placement/layout/inheritance exceptions need rules.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+          "element_attributes": "Attach namespaced owner/root/part hooks to existing rendered semantic elements, multiple roots if needed; custom renderer declares/verifies hooks. Avoid compulsory wrappers; new factory hook attachment and selector relation rules."
+        }
+      },
+      "nested_cascade": {
+        "type": "choice",
+        "instructions": {
+          "question": "Compare the candidates for the nested owned-style cascade contract at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+          "fixed_outcome": "Outer selectors cannot target nested owned interior or global/shared assets; local names/at-rules admitted and namespaced. Explain inheritance/geometry honestly, preserve daisyUI theme/form behavior."
+        },
+        "criteria": {
+          "explicit_inheritance_boundary": "Same ownership rules plus compiler-owned finite defaults/allowed inherited theme inputs at child roots, reducing arbitrary outer generated color/font/token coupling. More independence; finite reset/token policy can affect daisyUI and still does not remove geometry/shared-rule effects.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+          "shared_inheritance": "Parsed ownership-limited selectors/nested exclusions; inherited parent/shared-theme values remain documented inputs. Outer can style admitted child boundary root, not interior. Small normal HTML mechanism; parent typography/token/layout coupling remains explicit."
+        }
+      },
+      "affected_use_reporting": {
+        "type": "choice",
+        "instructions": {
+          "question": "Compare the candidates for how to report affected uses of definition-owned generated styles at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+          "fixed_outcome": "Generate once per definition and report checked source sites/enclosing owners; repeated/conditional sites mean their instances, not invented live counts. Relevant consumer checks, never automatic regeneration."
+        },
+        "criteria": {
+          "inspect_graph_walk": "Inspection computes bounded checked declaration/use graph walk and returns same sites/owners without saved extra index. Less metadata; checked IR access/traversal/cycle/unavailable-analysis handling.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+          "derived_index": "Compiler emits derived definition-to-use index in checked IR/artifact consumed by inspection. Fast consistent; derived index/schema/freshness joins, never authored manifest."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "hook_carrier": {
+        "type": "choice",
+        "choice": "open",
+        "confidence": 0.46,
+        "probabilities": {
+          "scope_containers": 0.16,
+          "open": 0.64,
+          "element_attributes": 0.2
+        }
+      },
+      "nested_cascade": {
+        "type": "choice",
+        "choice": "open",
+        "confidence": 0.27,
+        "probabilities": {
+          "explicit_inheritance_boundary": 0.14,
+          "open": 0.51,
+          "shared_inheritance": 0.35
+        }
+      },
+      "affected_use_reporting": {
+        "type": "choice",
+        "choice": "inspect_graph_walk",
+        "confidence": 0.18,
+        "probabilities": {
+          "inspect_graph_walk": 0.45,
+          "open": 0.41,
+          "derived_index": 0.14
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1663,
+      "output_tokens": 132
+    }
+  }
+}

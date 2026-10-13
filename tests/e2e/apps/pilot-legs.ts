@@ -1,6 +1,6 @@
 /**
  * T37 basic-pilot legs, shared by the pristine witness
- * (`challenge-pilot.spec.ts`, `draft/CanDo.can` + minimal closure) and the
+ * (`challenge-pilot.spec.ts`, `draft/apps/CanDo/CanDo.can` + minimal closure) and the
  * patched live runs (`challenge-pilot-patched.spec.ts`, suite-3 fixtures
  * in `../fixtures/patched-pilot/`). Leg bodies are source-agnostic except
  * the identity leg, which takes the expected `{ source, extraSources }`

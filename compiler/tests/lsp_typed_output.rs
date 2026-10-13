@@ -962,3 +962,62 @@ fn real_clean_rename_includes_mutation_targets_and_rechecks() {
     let checked = session_with_catalog(recheck, Some(&catalog));
     assert_eq!(diagnostics(&checked, uri, 8), &json!([]));
 }
+
+#[test]
+fn real_editor_outline_and_formatting_preserve_source_and_refuse_invalid_input() {
+    let uri = "untitled:editor-tools";
+    let text = "app Tasks\r\nGiven\r\n Todo {title : text}  \r\nWhen\r\n scenario complete(task : Todo) by=members\r\n  do return task.title\r\nThen\r\n";
+    let mut messages = start();
+    messages.push(open(uri, 1, text));
+    messages.push(request(2, "textDocument/documentSymbol", doc(uri)));
+    messages.push(request(
+        3,
+        "textDocument/formatting",
+        json!({
+            "textDocument":{"uri":uri},"options":{"tabSize":1,"insertSpaces":true}
+        }),
+    ));
+    messages.push(change(uri, 2, "app Tasks\nGiven\n Todo {title:\n"));
+    messages.push(request(
+        4,
+        "textDocument/formatting",
+        json!({
+            "textDocument":{"uri":uri},"options":{"tabSize":1,"insertSpaces":true}
+        }),
+    ));
+    finish(&mut messages);
+    let frames = session(messages);
+    let caps = &response(&frames, 1)["capabilities"];
+    assert_eq!(caps["documentSymbolProvider"], true);
+    assert_eq!(caps["documentFormattingProvider"], true);
+    assert_eq!(
+        caps["completionProvider"]["triggerCharacters"],
+        json!(["."])
+    );
+    let symbols = response(&frames, 2);
+    assert_eq!(symbols[0]["name"], "Tasks");
+    assert_eq!(symbols[0]["kind"], 2);
+    assert_eq!(symbols[0]["children"][0]["name"], "Todo");
+    assert_eq!(symbols[0]["children"][0]["children"][0]["name"], "title");
+    assert_eq!(symbols[0]["children"][1]["name"], "complete");
+    assert_eq!(symbols[0]["children"][1]["children"][0]["name"], "task");
+    assert_eq!(
+        symbols[0]["children"][0]["children"][0]["selectionRange"],
+        json!({
+            "start":{"line":2,"character":7},"end":{"line":2,"character":12}
+        })
+    );
+    let edits = response(&frames, 3).as_array().unwrap();
+    assert_eq!(edits.len(), 1);
+    assert_eq!(
+        edits[0]["range"],
+        json!({
+            "start":{"line":0,"character":0},"end":{"line":7,"character":0}
+        })
+    );
+    assert_eq!(
+        edits[0]["newText"],
+        "app Tasks\nGiven\n Todo { title:text }\nWhen\n scenario complete(task:Todo) by=members\n  do return task.title\nThen\n"
+    );
+    assert_eq!(response(&frames, 4), &json!([]));
+}

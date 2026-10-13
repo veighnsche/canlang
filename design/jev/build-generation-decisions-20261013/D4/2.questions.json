@@ -1,0 +1,103 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "task": "Consult all six open feature decisions; advice only, no implementation or automatic adoption.",
+    "requirements_owner": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md, BGEN 01-15 and decisions D1-D6",
+    "fixed_requirements": [
+      ".can owns app composition, declaring identity, intent, contracts and authorization. Prompts remain distinct from ordinary # metadata and ## comments.",
+      "Four targets: Given local modifiers, When implementation, Then styles and custom components. Generated server JS targets workerd; CSS/client interaction target browser.",
+      "Inline and named styles and default frontend are settled. No repeated agent=frontend. Names remain optional; custom-view styles generate once per definition.",
+      "CLI-first with Codex/Muse/Claude Code/OpenCode and explicit model choice, native auth, finite controls and no silent tool/model/permission fallback.",
+      "Normal build/check/bundle consumes saved editable current files, including compatible direct edits, with zero AI calls and no generation credentials.",
+      "Each independently selected unit has owned files. Missing target never means all. Retry/refine/reset preserve current files and other units; refine captures current edited implementation.",
+      "Candidates are isolated and promoted only against matching captured source/contracts/target/current bytes/attempt. Reset fences late results. Direct editing is ordinary authorized workspace work.",
+      "Agent-first headless discovery/requests/results/errors; no mandatory dashboard, editor selection or human approval. Truthful historic generation identity is distinct from later edits.",
+      "Preserve exact values, canonical inputs/results, policies, field grants, versions, transactions, replay, order and schema migration workflow. Current Can checks do not validate arbitrary JS or prove its intent."
+    ],
+    "comparison_stage": "Every alternative is a draft. Evaluate the same required outcome, concise authoring, implementation simplicity, recoverability and explicit limits fairly. Favor neither an existing draft nor a prior JEV verdict. An open answer is legitimate if no listed candidate is complete; do not silently relax requirements or assume an unimplemented API.",
+    "decision_group": "D4 JavaScript integration",
+    "verified_facts": [
+      "Canonical State OperationRegistry validates generated descriptors and one authority; CF invocation loads declared canApp registry members and canonical producers.",
+      "CF CanonicalEffectsScope exposes projected reads/staged writes; full HandlerContext exposes StoragePort and must not simply be handed to arbitrary JS.",
+      "Compiler JS callables already carry canonical identity/export/member/input style/source span; assembly composes import-rewrite/source maps. This does not define arbitrary saved-JS authority or prove semantic safety.",
+      "Import preflight validates admitted module edges, not globals or malicious JS containment. Server target workerd and browser target distinct; existing genuine fixtures/producers support bounded relevant checks.",
+      "Generated Given additions must stay source-owned and compiler-visible. No existing custom JS extension ABI/registry/source mapping is implemented."
+    ]
+  },
+  "questions": {
+    "contracts": {
+      "type": "choice",
+      "instructions": {
+        "question": "Compare the candidates for how generated schema/rule/interface contributions become authoritative at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+        "fixed_outcome": "Exact Can value/contracts visible to compiler/runtime consumers; typed owning declaration and accepted implementation association; no separately authored parallel schema authority."
+      },
+      "criteria": {
+        "reconcile_patch": "Preparation proposes bounded Can declaration patch with candidate JS; analyze/reconcile source before acceptance and derive interface/codecs. Discovery supported; conflict/two-stage capture and source/schema migration needed.",
+        "generated_contributions": "Owning local modifier/target accepts saved compiler-visible declaration contributions attributed to that source unit; analyze them before generating/checking dependent JS and derive one canonical schema. Concise modifier authoring; needs generated-source attribution/hygiene/conflict and current-byte acceptance, not an independent authored manifest.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "source_first": "Authoring agent settles explicit Can fields/signatures/effect/action contracts before JS generation, then compiler derives interface/codecs. One source authority; schema discovery needs source edit/new capture and can add authoring verbosity."
+      }
+    },
+    "effect_abi": {
+      "type": "choice",
+      "instructions": {
+        "question": "Compare the candidates for the finite server effect execution interface at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+        "fixed_outcome": "Authorized reads interleaved with staged writes/read-after-write; precise order, canonical actions/effects, rollback, one commit/replay. Pure rules have no effects."
+      },
+      "criteria": {
+        "resumable_effects": "Implementation yields typed effect requests, engine performs them in order over staged overlay and resumes with admitted results; validates final result. Explicit effects/no raw capability objects; continuation/error/cancel protocol complexity and separate trust decision.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "narrow_facade": "Validated inputs plus per-invocation narrow async methods delegating to canonical producers, no raw store/registry/commit/principal, exact result codecs. Natural JS; allowed-call/lifetime checks and separate ambient-JS trust decision needed."
+      }
+    },
+    "execution_trust": {
+      "type": "choice",
+      "instructions": {
+        "question": "Compare the candidates for the initial execution trust/hosting promise for generated server JS at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+        "fixed_outcome": "No silent extra storage authority; preserve supported canonical contracts and honestly state residual arbitrary-JS globals/hidden-effect risk. Imports/types/examples alone are not containment."
+      },
+      "criteria": {
+        "separate_execution": "Separately configured execution environment without storage/binding credentials, bridging whichever finite declared execution ABI is selected through a canonical channel, with explicit permitted ambient/network/resource controls. Reduced ambient authority; new hosting/transport/lifecycle, precise configured boundary still must be qualified.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "trusted_application": "Accept JS as trusted application/workspace code using whichever finite declared execution ABI is selected (facade or resumable effects), admitted dependencies and finite checks. No raw context/bindings. Minimal host work; explicitly not an adversarial sandbox and ambient globals/dependencies can still perform undeclared effects."
+      }
+    },
+    "registry_join": {
+      "type": "choice",
+      "instructions": {
+        "question": "Compare the candidates for how saved exports join canonical owning identities at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+        "fixed_outcome": "Existing declaration-derived descriptors remain one authority; no runtime JS-created parallel registry or hidden operation."
+      },
+      "criteria": {
+        "loader_attachments": "Canonical descriptors reference derived implementation attachments checked on runtime load; private lookup maps locations only, not grants. Centralize attachment checks; loader/assembly/component target contracts change.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "compiler_wrappers": "Compiler emits canonical callable/component wrappers importing selected saved exports, boundary-checking and supplying chosen ABI. Reuse current consumer paths; new wrapper/export/target lowering."
+      }
+    },
+    "source_mapping": {
+      "type": "choice",
+      "instructions": {
+        "question": "Compare the candidates for the minimum truthful diagnostic/source mapping for editable JS at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+        "fixed_outcome": "Current JS coordinates plus owning Can unit/span, composed transforms, regenerated current-byte maps. Do not invent Can lines for arbitrary implementation detail."
+      },
+      "criteria": {
+        "multi_source_maps": "One multi-source map includes current JS bodies and Can wrapper/declaration sources plus owner metadata. Unified debugging; explicit multi-source consumer/schema support still needed.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "js_maps_owner_link": "Ordinary maps to current tracked JS plus separate owning Can span/unit association; compiler wrappers map to Can. Minimal/reuses current composition; consumers present two locations."
+      }
+    },
+    "target_checks": {
+      "type": "choice",
+      "instructions": {
+        "question": "Compare the candidates for finite actual-target acceptance check composition at their declared unimplemented stage. Recommend the smallest complete choice preserving the identical fixed requirements and inspectable failure behavior, or leave this exact choice open.",
+        "fixed_outcome": "Boundary checks and independent expected success/refusal/failure/recovery in selected workerd/browser; reuse unchanged checks, no Node-only or syntax-only acceptance."
+      },
+      "criteria": {
+        "fixture_overlay": "Overlay candidate into relevant existing app fixture, precheck interface and run affected actual-target invocation/browser cases. Direct composition/lifecycle evidence; potentially broader cost and fixture adequacy.",
+        "target_by_unit_kind": "Use existing fixture/runner as default, add smallest unit harness only where existing fixture lacks a concrete required boundary case; select documented finite checks by target/kind and reuse results. Flexible reuse; dispatch/coverage rules must remain explicit rather than unbounded testing.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "unit_harness": "Small target harness using genuine canonical producers/config, plus affected existing app/browser cases when relevant. Focused; must not mock away authority/commit or become new proof framework."
+      }
+    }
+  }
+}

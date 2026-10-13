@@ -1324,7 +1324,11 @@ def main(argv=None):
     args = cli.parse_args(argv)
     paths = set()
     for source in args.sources:
-        paths.update(source.rglob("*.can") if source.is_dir() else [source])
+        if source.is_dir():
+            paths.update(path for path in source.rglob("*.can")
+                         if "can.generated" not in path.relative_to(source).parts)
+        else:
+            paths.add(source)
     if not paths:
         cli.error("no .can sources found")
     trees, failed = [], False

@@ -1,0 +1,23 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "verified": {
+      "source": "# Keep track of what needs doing.\napp Todos\nGiven\n Todo { title:text trim min=1 max=200 label=\"Task\", done:bool=false label={text=\"Status\",values={true=\"Done\",false=\"Open\"}} } label=\"Todo\"\n policy Todo read=members\n fixture task=Todo {title=\"Try Can\"}\nWhen\n crud Todo by=members fields=title,done label={create=\"Add task\"}\n  examples update record=task\n   as,changes.done,request.record.version -> record.done\n   members,true,1 -> true\n   members,true,0 -> error(conflict)\n   public,true,1 -> error(forbidden)\nThen\n preferences { view:enum(all,open,done)=all label={text=\"Show\",values={all=\"All\",open=\"Open\",done=\"Done\"}} }\n page / title=\"Todos\"\n  card \"Add a task\"\n   form Todo.create fields=title display=inline\n    input title\n  card \"Your tasks\"\n   tabs preferences.view\n   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty=\"No tasks here. Add a task or choose another view.\"\n    text row.title,row.done\n    edit fields=title,done\n    tooltip \"Permanently delete this task\"\n     delete\n",
+      "existing": "Then owns components, queries, canonical form/action bindings and finite appearance. Shared UI owns daisyUI themes, layout, settings, validation/errors and interactions. There is no current general CSS/prompt-styling syntax. The prior typed css map is only a proposal.",
+      "human": "User authorizes repairing empty preferences Settings, is exploring prompt-driven frontend styling, rejects verbatim CSS in Can, asks whether saved nondeterministic styling results make sense, and explicitly chose keep exploring rather than selecting prompt-only versus prompt+typed overrides."
+    },
+    "comparison": "Compare these draft architectures for describing component appearance in natural language, with broad visual flexibility and saved nondeterministic outcomes. All candidates retain existing component structure, operation/query bindings, authentication and field authority, generated inputs, errors and focus behavior. No candidate is already implemented. A proposed named style scope would contain ordinary Then components; the AI receives static templates/hooks, declared structure and pinned theme assets, not business records. Generated output is scoped CSS; Can continues to define composition and behavior."
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "Choose the best architecture for exploratory prompt styling when repeatable builds, controlled regeneration, source-owned intent, reviewable appearance and practical implementation simplicity are evaluated together.",
+      "criteria": {
+        "saved_generation": "Use a named Then style scope and explicit AI generation during authoring/build preparation. Persist CSS plus a small scope/input-digest/generator/artifact record; reuse it on ordinary builds, diagnose missing/stale output, preview candidates and accept diffs deliberately. It needs a language scope and artifact lifecycle.",
+        "request_generation": "Generate CSS from the prompt on browser requests and save the first result for reuse. This can provide an immediate first view; it must control concurrent writers, variable latency/cost, model changes and artifact admission while users are accessing the app.",
+        "design_tool": "Keep AI styling an optional design tool producing committed CSS from annotations or external prompts against selected static components. Ordinary builds consume its assets. Language mechanics stay simpler, while prompt/scope ownership and currentness need tool conventions rather than a first-class Then construct.",
+        "open": "Leave architecture open if none presently satisfies the shared outcomes; no implementation decision is required."
+      }
+    }
+  }
+}

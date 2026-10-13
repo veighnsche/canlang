@@ -1,6 +1,6 @@
 /**
  * T37 basic pilot, direct legs (LG03): ONE unchanged original app —
- * `draft/CanDo.can` plus its minimal shared closure
+ * `draft/apps/CanDo/CanDo.can` plus its minimal shared closure
  * (`draft/shared/Locations.can`, `draft/shared/Employees.can`) — proves
  * generated operations, two actors, denied read, persistence, stale
  * update, replay, `complete`/`reopen` scenarios, and genuine executed
@@ -30,7 +30,7 @@ import {
 } from "../fixtures/artifact-loader.js";
 import { pilotLegs, type PilotLegSources } from "./pilot-legs.js";
 
-export const PILOT_SOURCE = "draft/CanDo.can";
+export const PILOT_SOURCE = "draft/apps/CanDo/CanDo.can";
 export const PILOT_EXTRA_SOURCES = ["draft/shared/Locations.can", "draft/shared/Employees.can"];
 
 const SOURCES: PilotLegSources = { source: PILOT_SOURCE, extraSources: PILOT_EXTRA_SOURCES };

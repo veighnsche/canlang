@@ -1,0 +1,64 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "task": "Consult all six open feature decisions; advice only, no implementation or automatic adoption.",
+    "requirements_owner": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md, BGEN 01-15 and decisions D1-D6",
+    "fixed_requirements": [
+      ".can owns app composition, declaring identity, intent, contracts and authorization. Prompts remain distinct from ordinary # metadata and ## comments.",
+      "Four targets: Given local modifiers, When implementation, Then styles and custom components. Generated server JS targets workerd; CSS/client interaction target browser.",
+      "Inline and named styles and default frontend are settled. No repeated agent=frontend. Names remain optional; custom-view styles generate once per definition.",
+      "CLI-first with Codex/Muse/Claude Code/OpenCode and explicit model choice, native auth, finite controls and no silent tool/model/permission fallback.",
+      "Normal build/check/bundle consumes saved editable current files, including compatible direct edits, with zero AI calls and no generation credentials.",
+      "Each independently selected unit has owned files. Missing target never means all. Retry/refine/reset preserve current files and other units; refine captures current edited implementation.",
+      "Candidates are isolated and promoted only against matching captured source/contracts/target/current bytes/attempt. Reset fences late results. Direct editing is ordinary authorized workspace work.",
+      "Agent-first headless discovery/requests/results/errors; no mandatory dashboard, editor selection or human approval. Truthful historic generation identity is distinct from later edits.",
+      "Preserve exact values, canonical inputs/results, policies, field grants, versions, transactions, replay, order and schema migration workflow. Current Can checks do not validate arbitrary JS or prove its intent."
+    ],
+    "comparison_stage": "Every alternative is a draft. Evaluate the same required outcome, concise authoring, implementation simplicity, recoverability and explicit limits fairly. Favor neither an existing draft nor a prior JEV verdict. An open answer is legitimate if no listed candidate is complete; do not silently relax requirements or assume an unimplemented API.",
+    "decision_group": "D6 Agent protocol and promotion",
+    "verified_facts": [
+      "Current generator protocol/promotion unimplemented. Required direct-editable tracked primary code, selected candidates, matching inputs/current bytes and no partially consumed group.",
+      "compiler/src/cli.rs1450-1505 write_file_atomic is staged per-file replacement; comment explicitly says final check is not a CAS and no durability promise. Reuse only as primitive, not group atomicity proof.",
+      "Both draft filesystem promotion schemes require a concrete bounded selected-unit mutation freeze/cooperative writer protocol and coordinated build-read gate. Prechecks/advisory locks alone do not guarantee no-overwrite against uncooperative arbitrary external writers between comparison and replacement. This gap is part of the decision, not assumed solved."
+    ]
+  },
+  "questions": {
+    "request_carrier": {
+      "type": "choice",
+      "instructions": {
+        "question": "For the canonical headless request/result/error carrier, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Stable schema IDs/request IDs/explicit selected units, JSON or JSONL results/progress, typed errors/paths/next actions and file/stdin instructions; every required lifecycle operation covered."
+      },
+      "criteria": {
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "typed_subcommands": "Typed lifecycle subcommands/selectors/instruction files with documented JSON final envelope and optional JSONL ending in same result. Easy simple calls; flags/schema must stay aligned.",
+        "json_dispatch": "One versioned JSON request dispatcher from stdin/file with operation/selectors/args, same final/event envelope; optional convenience subcommands lower to that schema. Canonical machine contract; simple calls need JSON or thin sugar."
+      }
+    },
+    "compose_acceptance": {
+      "type": "choice",
+      "instructions": {
+        "question": "For how an agent requests generate/refine then validate and accept together, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Same capture/check/selection and retained-candidate/conflict semantics as separate calls; phases distinguish candidate-complete from accepted success, no human gate."
+      },
+      "criteria": {
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "accept_option": "Explicit accept=if-valid option on generate/refine, phase outcomes in structured result. Short common workflow; success state must distinguish accepted vs only generated.",
+        "fixed_compose": "Dedicated fixed prepare-validate-accept operation with mode generate/refine and selected targets, using same lifecycle implementation. Visible schema intent; adds one command, not general workflow language."
+      }
+    },
+    "promotion_recovery": {
+      "type": "choice",
+      "instructions": {
+        "question": "For the minimum consistent group promotion and bounded interruption recovery mechanism, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Direct-editable current primary files remain. Capture/replace freeze and build-read coordination must be explicitly designed; neither scheme has already solved final-CAS against uncooperative writers. Keep newer work on conflicts."
+      },
+      "criteria": {
+        "defer_until_writer_contract": "Retain candidate-only operations and define the precise concurrent-writer/build-reader contract before selecting promotion mechanism. Avoid unsupported no-overwrite claim; leaves composed acceptance implementation temporarily unresolved, not a feature rejection.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "file_journal": "Under specified bounded mutation freeze, one pending unit promotion record holds old/current/replacement identity and recovery phase; builders gate reads; stage/replace files and finalize only complete group. Unexpected bytes refuse recovery overwrite. Stable paths; finite file-phase journal/build gating, not multi-file FS transaction.",
+        "directory_stage": "Dedicated unit current directory; under same freeze/gate stage complete replacement, record pending unit, retain old directory backup then rename staged to current, finalize/clear gate. Interrupted rename gap blocks readers; unexpected edits conflict. Smaller group moves; directory ownership/portability/two-rename recovery and writer protocol."
+      }
+    }
+  }
+}

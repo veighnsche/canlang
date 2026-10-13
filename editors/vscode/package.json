@@ -2,7 +2,7 @@
   "name": "canlang-draft-highlighting",
   "displayName": "Canlang Draft Syntax",
   "description": "Syntax highlighting plus a minimal LSP client for the current canlang draft grammar. Spawns `can lsp` for diagnostics.",
-  "version": "0.1.13",
+  "version": "0.1.16",
   "publisher": "canlang",
   "license": "MIT",
   "repository": {
@@ -26,7 +26,9 @@
     "compile": "tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots ./.empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts",
     "vscode:prepublish": "bun run generate:icons && bun run compile",
     "test:lsp": "node test/lsp-capabilities.cjs",
-    "test:startup": "bun run compile && node test/server-startup.cjs"
+    "test:startup": "bun run compile && node test/server-startup.cjs",
+    "test:client": "node test/server-startup.cjs && node test/client-currentness.cjs && node test/client-lifecycle.cjs && node test/client-lifecycle-process.cjs",
+    "test:editing": "node test/language-configuration.cjs"
   },
   "contributes": {
     "languages": [
@@ -42,7 +44,8 @@
         "icon": {
           "dark": "./images/file-icon-dark.svg",
           "light": "./images/file-icon-light.svg"
-        }
+        },
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
@@ -80,6 +83,98 @@
           "description": "Log LSP traffic to the Can output channel."
         }
       }
-    }
+    },
+    "semanticTokenTypes": [
+      {
+        "id": "canNamespace",
+        "description": "Can namespace classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canType",
+        "description": "Can type classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canClass",
+        "description": "Can class classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canInterface",
+        "description": "Can interface classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canEnum",
+        "description": "Can enum classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canStruct",
+        "description": "Can struct classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canParameter",
+        "description": "Can parameter classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canVariable",
+        "description": "Can variable classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canProperty",
+        "description": "Can property classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canEnumMember",
+        "description": "Can enumMember classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canEvent",
+        "description": "Can event classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canFunction",
+        "description": "Can function classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canMethod",
+        "description": "Can method classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canKeyword",
+        "description": "Can keyword classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canComment",
+        "description": "Can comment classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canString",
+        "description": "Can string classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canNumber",
+        "description": "Can number classification; syntax scopes own its default appearance."
+      },
+      {
+        "id": "canOperator",
+        "description": "Can operator classification; syntax scopes own its default appearance."
+      }
+    ],
+    "semanticTokenModifiers": [
+      {
+        "id": "canDeclaration",
+        "description": "Can declaration semantic modifier."
+      },
+      {
+        "id": "canDocumentation",
+        "description": "Can documentation semantic modifier."
+      },
+      {
+        "id": "canDefaultLibrary",
+        "description": "Can defaultLibrary semantic modifier."
+      },
+      {
+        "id": "canReadonly",
+        "description": "Can readonly semantic modifier."
+      }
+    ]
   }
 }

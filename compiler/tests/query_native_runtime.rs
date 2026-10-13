@@ -60,7 +60,7 @@ package workbench
 #[test]
 fn original_native_query_reads_and_consumed_private_child_preserve_lifetimes() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let original = include_str!("../../draft/CanWorkbench.can");
+    let original = include_str!("../../draft/apps/CanWorkbench/CanWorkbench.can");
     let retained: Vec<_> = SOURCE
         .lines()
         .filter(|line| {

@@ -1,0 +1,46 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "verified": {
+        "source": "# Keep track of what needs doing.\napp Todos\nGiven\n Todo { title:text trim min=1 max=200 label=\"Task\", done:bool=false label={text=\"Status\",values={true=\"Done\",false=\"Open\"}} } label=\"Todo\"\n policy Todo read=members\n fixture task=Todo {title=\"Try Can\"}\nWhen\n crud Todo by=members fields=title,done label={create=\"Add task\"}\n  examples update record=task\n   as,changes.done,request.record.version -> record.done\n   members,true,1 -> true\n   members,true,0 -> error(conflict)\n   public,true,1 -> error(forbidden)\nThen\n preferences { view:enum(all,open,done)=all label={text=\"Show\",values={all=\"All\",open=\"Open\",done=\"Done\"}} }\n page / title=\"Todos\"\n  card \"Add a task\"\n   form Todo.create fields=title display=inline\n    input title\n  card \"Your tasks\"\n   tabs preferences.view\n   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty=\"No tasks here. Add a task or choose another view.\"\n    text row.title,row.done\n    edit fields=title,done\n    tooltip \"Permanently delete this task\"\n     delete\n",
+        "existing": "Then owns components, queries, canonical form/action bindings and finite appearance. Shared UI owns daisyUI themes, layout, settings, validation/errors and interactions. There is no current general CSS/prompt-styling syntax. The prior typed css map is only a proposal.",
+        "human": "User authorizes repairing empty preferences Settings, is exploring prompt-driven frontend styling, rejects verbatim CSS in Can, asks whether saved nondeterministic styling results make sense, and explicitly chose keep exploring rather than selecting prompt-only versus prompt+typed overrides."
+      },
+      "latest_human_requirement": "Know which AI coding agent provides styling at generation/build preparation time. Do not regenerate CSS on every build. Need an explicit retry or reset mechanism. Still exploring rather than adopting syntax; no styling provider or generator is currently selected or implemented.",
+      "shared_outcome": "All alternatives below are draft designs. Ordinary builds reuse accepted saved scoped CSS without a provider call. Explicit generation captures static scope inputs and effective generator configuration. A result records actual provider/model/agent recipe identity; credentials stay outside committed app source. Failed candidates do not replace accepted output; retries are finite and explicit, changed inputs diagnose stale output, and reset discards candidates while rollback restores an earlier compatible accepted result. Compare source/config ownership, portability, simplicity, concise authoring and predictable provenance fairly; do not infer any alternative is implemented."
+    },
+    "questions": {
+      "agent_ownership": {
+        "type": "choice",
+        "instructions": "Select the most practical draft way to declare and resolve the frontend coding agent when each candidate must preserve saved CSS, effective provenance and deliberate retry/reset. Weigh authoring simplicity and portability equally with identity clarity.",
+        "criteria": {
+          "named_profile": "The owning .can style declaration explicitly references a reusable named coding-agent profile. Shared authoring/build configuration resolves that name to provider/model, agent/tool recipe and generation settings. Persist the effective identity with CSS. This keeps source intent portable and concise but needs profile name resolution and change diagnostics.",
+          "inline_recipe": "The owning .can style declaration specifies provider/model and coding-agent recipe directly through typed options; secret bindings stay in environment configuration. Persist the effective identity with CSS. Selection is visible beside the prompt, but source authoring is longer, provider details enter the language and reusable configuration still needs conventions.",
+          "build_selection": "The owning .can style declaration contains scope and prompt; an explicit authoring/build-preparation command selects the coding-agent configuration externally. Persist the effective identity with CSS and resolve/check it from that record for future work. This keeps the language smaller and generators interchangeable, but source alone does not select an agent and command/tool conventions must preserve selection.",
+          "open": "Keep agent-selection ownership undecided if evidence does not justify one proposal; saved output and explicit lifecycle remain shared requirements."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "agent_ownership": {
+        "type": "choice",
+        "choice": "named_profile",
+        "confidence": 0.43,
+        "probabilities": {
+          "named_profile": 0.57,
+          "inline_recipe": 0.01,
+          "build_selection": 0.22,
+          "open": 0.2
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1189,
+      "output_tokens": 53
+    }
+  }
+}

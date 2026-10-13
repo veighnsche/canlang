@@ -1,9 +1,9 @@
 //! Integration tests for the lane-01 formatter: corpus idempotence,
 //! adversarial exact-output fixtures, error passthrough and CST stability.
 
-use canlang_compiler::format::{Formatted, format_source};
+use canlang_compiler::format::{format_source, Formatted};
 use canlang_compiler::source::SourceId;
-use canlang_compiler::syntax::{SyntaxKind, SyntaxNode, parse_source};
+use canlang_compiler::syntax::{parse_source, SyntaxKind, SyntaxNode};
 
 /// Format `text`, panicking with diagnostics on failure. Asserts the result
 /// is a fixed point (`format(format(x)) == format(x)`) and that the output
@@ -57,9 +57,19 @@ fn cst_signature(tree: &SyntaxNode, source: &str) -> Vec<(SyntaxKind, String)> {
 
 fn corpus_files() -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
-    for directory in ["../examples", "../draft", "../draft/shared"] {
-        let entries =
-            std::fs::read_dir(directory).unwrap_or_else(|_| panic!("missing {directory}"));
+    let mut directories = vec![
+        std::path::PathBuf::from("../examples"),
+        std::path::PathBuf::from("../draft/shared"),
+    ];
+    directories.extend(
+        std::fs::read_dir("../draft/apps")
+            .expect("draft apps")
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.is_dir()),
+    );
+    for directory in directories {
+        let entries = std::fs::read_dir(&directory)
+            .unwrap_or_else(|_| panic!("missing {}", directory.display()));
         for entry in entries {
             let path = entry.unwrap().path();
             if path.extension().is_some_and(|extension| extension == "can") {

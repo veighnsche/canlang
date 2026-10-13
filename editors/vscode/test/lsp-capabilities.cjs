@@ -139,7 +139,7 @@ function main() {
   guard.unref();
 
   (async () => {
-    // initialize: all 7 providers + legend + utf-16.
+    // initialize: all 9 providers + legend + utf-16.
     const init = await send('initialize', { processId: null, rootUri: null,
       capabilities: { workspace: { workspaceEdit: { documentChanges: true } } } });
     const caps = init.capabilities;
@@ -152,6 +152,9 @@ function main() {
     check('initialize/definitionProvider', caps.definitionProvider === true);
     check('initialize/referencesProvider', caps.referencesProvider === true);
     check('initialize/renameProvider', caps.renameProvider === true);
+    check('initialize/documentFormattingProvider', caps.documentFormattingProvider === true);
+    check('initialize/documentSymbolProvider', caps.documentSymbolProvider === true);
+    check('initialize/completion-dot-trigger', caps.completionProvider.triggerCharacters?.includes('.'));
     check(
       'initialize/semanticTokensProvider.full',
       caps.semanticTokensProvider && caps.semanticTokensProvider.full === true,
@@ -208,9 +211,10 @@ function main() {
       position: posOf(FIXTURE, 103),
     });
     const labels = completion.map((item) => item.label);
-    for (const expected of ['task', 'label', 'Todo', 'complete', 'and', 'or']) {
+    for (const expected of ['task', 'Todo', 'complete', 'and', 'or']) {
       check(`completion/has-${expected}`, labels.includes(expected), `${labels.length} items`);
     }
+    check('completion/hides-own-binding-in-rhs', !labels.includes('label'));
     const kindOf = (label) => completion.find((item) => item.label === label).kind;
     check('completion/kind-Todo-Class', kindOf('Todo') === 7, JSON.stringify(kindOf('Todo')));
     check('completion/kind-task-Variable', kindOf('task') === 6);
@@ -286,8 +290,7 @@ function main() {
       position: posOf(FIXTURE, 102),
       newName: 'not a name',
     });
-    const badEdits = renameBad && renameBad.documentChanges && renameBad.documentChanges[0].edits;
-    check('rename/invalid-name-empty', badEdits && badEdits.length === 0, JSON.stringify(renameBad));
+    check('rename/invalid-name-refused', renameBad === null, JSON.stringify(renameBad));
 
     // 6. semanticTokens/full (delta quintuples; spot-check legend indices).
     const tokens = await send('textDocument/semanticTokens/full', {

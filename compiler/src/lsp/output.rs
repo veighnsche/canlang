@@ -1,6 +1,8 @@
 //! Typed wire payloads; the ordered JSON input and transport stay independent.
 
-use super::server::{CodeAction, DocLocation, FileEdit, LspRange, TextEdit};
+#[cfg(test)]
+use super::server::TextEdit;
+use super::server::{CodeAction, DocLocation, FileEdit, LspRange};
 use super::transport::{self as t, Json};
 use lsp_types as lsp;
 use serde::{Serialize, Serializer, ser::SerializeMap};
@@ -67,18 +69,28 @@ pub(super) fn location(location: DocLocation) -> Location {
 pub(super) struct Diagnostics {
     uri: String,
     diagnostics: Vec<lsp::Diagnostic>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     version: Option<i32>,
 }
 
+#[cfg(test)]
 pub(super) fn diagnostics(
     uri: &str,
     version: i32,
     diagnostics: Vec<lsp::Diagnostic>,
 ) -> Diagnostics {
+    diagnostics_version(uri, Some(version), diagnostics)
+}
+
+pub(super) fn diagnostics_version(
+    uri: &str,
+    version: Option<i32>,
+    diagnostics: Vec<lsp::Diagnostic>,
+) -> Diagnostics {
     Diagnostics {
         uri: uri.to_string(),
         diagnostics,
-        version: Some(version),
+        version,
     }
 }
 
@@ -152,6 +164,7 @@ fn workspace_edit(
     })
 }
 
+#[cfg(test)]
 pub(super) fn rename(
     uri: String,
     version: i32,
@@ -172,6 +185,28 @@ pub(super) fn rename(
         )],
         document_changes,
     )
+}
+
+/// File-qualified renames retain the live version of every affected buffer.
+pub(super) fn rename_files(
+    edits: Vec<FileEdit>,
+    version: impl Fn(&str) -> Option<i32>,
+    document_changes: bool,
+) -> WorkspaceEdit {
+    let mut groups: Vec<(String, Option<i32>, Vec<lsp::TextEdit>)> = Vec::new();
+    for edit in edits {
+        let wire = lsp::TextEdit {
+            range: range(edit.range),
+            new_text: edit.new_text,
+        };
+        if let Some((_, _, group)) = groups.iter_mut().find(|(uri, _, _)| uri == &edit.uri) {
+            group.push(wire);
+        } else {
+            let current = version(&edit.uri);
+            groups.push((edit.uri, current, vec![wire]));
+        }
+    }
+    workspace_edit(groups, document_changes)
 }
 
 #[derive(Serialize)]

@@ -3913,6 +3913,8 @@ pub struct IrPreferenceField {
     pub options: Vec<String>,
     pub default_value: Option<String>,
     pub nullable: bool,
+    pub caption: Option<IrMessage>,
+    pub option_labels: Vec<(String, IrMessage)>,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -12417,6 +12419,8 @@ impl<'a> Cx<'a> {
                 options: cases.clone(),
                 default_value: Some(default_value),
                 nullable: false,
+                caption: label.as_ref().and_then(|label| label.text.clone()),
+                option_labels: label.as_ref().map(|label| label.values.clone()).unwrap_or_default(),
             });
         }
         let text = |value: String| {
@@ -15393,11 +15397,14 @@ impl<'a> Cx<'a> {
                         .iter()
                         .any(|field| field.name == symbol.name)
                     {
+                        let label = self.decode_reused_field_label_parts(&symbol);
                         self.page_preference_fields.push(IrPreferenceField {
                             name: symbol.name,
                             options: cases.clone(),
                             default_value,
                             nullable,
+                            caption: label.as_ref().and_then(|label| label.text.clone()),
+                            option_labels: label.map(|label| label.values).unwrap_or_default(),
                         });
                     }
                 }

@@ -1,0 +1,88 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "task": "Consult all six open feature decisions; advice only, no implementation or automatic adoption.",
+    "requirements_owner": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md, BGEN 01-15 and decisions D1-D6",
+    "fixed_requirements": [
+      ".can owns app composition, declaring identity, intent, contracts and authorization. Prompts remain distinct from ordinary # metadata and ## comments.",
+      "Four targets: Given local modifiers, When implementation, Then styles and custom components. Generated server JS targets workerd; CSS/client interaction target browser.",
+      "Inline and named styles and default frontend are settled. No repeated agent=frontend. Names remain optional; custom-view styles generate once per definition.",
+      "CLI-first with Codex/Muse/Claude Code/OpenCode and explicit model choice, native auth, finite controls and no silent tool/model/permission fallback.",
+      "Normal build/check/bundle consumes saved editable current files, including compatible direct edits, with zero AI calls and no generation credentials.",
+      "Each independently selected unit has owned files. Missing target never means all. Retry/refine/reset preserve current files and other units; refine captures current edited implementation.",
+      "Candidates are isolated and promoted only against matching captured source/contracts/target/current bytes/attempt. Reset fences late results. Direct editing is ordinary authorized workspace work.",
+      "Agent-first headless discovery/requests/results/errors; no mandatory dashboard, editor selection or human approval. Truthful historic generation identity is distinct from later edits.",
+      "Preserve exact values, canonical inputs/results, policies, field grants, versions, transactions, replay, order and schema migration workflow. Current Can checks do not validate arbitrary JS or prove its intent."
+    ],
+    "comparison_stage": "Every alternative is a draft. Evaluate the same required outcome, concise authoring, implementation simplicity, recoverability and explicit limits fairly. Favor neither an existing draft nor a prior JEV verdict. An open answer is legitimate if no listed candidate is complete; do not silently relax requirements or assume an unimplemented API.",
+    "decision_group": "D2 Generator configuration",
+    "verified_facts": [
+      "No existing generation config API/file found. DESIGN source membership/contracts derive from .can and prohibit authored source/dependency registries.",
+      "All four executable names resolve; headless/model/structured help or official docs verified. Actual provider authentication/model execution is not qualified. Generation config is newly motivated toolchain scope.",
+      "frontend logical default settled; exact backend default/provider/model, filename/schema/precedence/capabilities remain open."
+    ]
+  },
+  "questions": {
+    "root_filename": {
+      "type": "choice",
+      "instructions": {
+        "question": "For the committed root generation configuration filename, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Use supplied project root, no ancestor lookup, no source/dependency/interface lists or business authority."
+      },
+      "criteria": {
+        "can_gen_json": "can.gen.json dedicated to generation. Familiar machine schema/JSON tooling; more punctuation and comments unavailable in strict JSON.",
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "can_gen_toml": "can.gen.toml dedicated to generation. Narrow ownership clear; another root tooling file.",
+        "can_toml": "can.toml with only a generation section in this scope. One future tooling location; broader name can invite duplicated app config if not disciplined."
+      }
+    },
+    "config_schema": {
+      "type": "choice",
+      "instructions": {
+        "question": "For how shared limits, roles and runner/model recipes are represented, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Runner/model separate controls but resolved pair must be valid; named profiles reusable; effective origins inspectable; unknown keys/profiles/capabilities diagnose."
+      },
+      "criteria": {
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "field_overlays": "Shared generation fields plus named profile field overlays and role mappings, no inheritance graph. Concise; changing runner must not silently inherit an incompatible model.",
+        "complete_recipes": "Each named profile has an explicit complete runner/model pair; shared finite execution defaults and role/default mappings select it, no inheritance graph. Clear pairing; duplicates some profile values."
+      }
+    },
+    "role_defaults": {
+      "type": "choice",
+      "instructions": {
+        "question": "For the default for Given/When beyond the settled frontend role, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Do not pick actual provider/model. Minimal source must avoid repeated recipe selection."
+      },
+      "criteria": {
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "backend_role": "Given/When default to backend, Then to frontend; absent role recipe uses shared project recipe. Clear specialization; another documented reserved role.",
+        "shared_default": "Given/When use shared recipe directly; backend is an optional named profile. Fewer roles; server specialization needs explicit references/config choice."
+      }
+    },
+    "precedence": {
+      "type": "choice",
+      "instructions": {
+        "question": "For exact profile selection and machine/run override precedence, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Explicit per-run overrides; source agent names intent; auth remains native CLI/environment; no silent fallback. Profile and runner/model selection must be reported."
+      },
+      "criteria": {
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "project_local": "Profile: run profile > source agent > category default. Recipe: run fields > ignored project-local companion > committed profile/shared defaults. No ambient user fallback. Convenient machine choices; merged field origins and local filename need documentation.",
+        "explicit_machine_file": "Same profile selection, but machine recipe overrides only through explicitly supplied settings file, then run fields; no auto local/user lookup. Reproducible influence; recurring setup/invocation cost."
+      }
+    },
+    "runner_controls": {
+      "type": "choice",
+      "instructions": {
+        "question": "For common and adapter-specific finite execution settings, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+        "fixed_outcome": "Attempt/time/cancel bounded; optional turns/spend/permission settings only if enforceable; native permissions honored, unsupported requested control errors."
+      },
+      "criteria": {
+        "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+        "normalized_controls": "Closed shared vocabulary for finite attempts/time and optional equivalent turns/spend/permissions; adapters publish support and reject unsupported requests. Portable where equivalent; must avoid false semantic equivalence.",
+        "native_options": "Common attempts/time/cancel; closed validated runner-specific optional tables with inspection of enforceable meaning. Honest native differences; less portable profile syntax."
+      }
+    }
+  }
+}

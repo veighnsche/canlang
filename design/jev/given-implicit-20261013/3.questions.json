@@ -1,0 +1,26 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "human_request": "Explore using natural language in Given to describe local keywords for custom implicit behavior, analogous to saved AI-generated Then styling. No syntax or Given generator implementation has been accepted.",
+    "verified_current_language": {
+      "source": "DESIGN sections 1-4 and parser Given dispatch; bounded independent read-only scans",
+      "given": "Fixed declaration vocabulary including models, contracts/events, pure derive, policies, invariants, locks, defaults and other checked declarations. No local custom-keyword or macro registration API. GRAMMAR disallows arbitrary extension words.",
+      "pipeline": "Existing analysis check_program parses, resolves, types, checks effects/examples and source disclosure; compile emits after analysis. Runtime effects are owned by When and executable bindings belong inside do.",
+      "defaults": "Stored model ownership defaults to team without granting access. Creation defaults, nullable/server/required fields, permissions, versions, atomicity and replay/evaluation order have precise existing semantics.",
+      "style_design": "Then inline and named natural-language style scopes are accepted design requirements, not implemented. frontend is the styling default. Explicit generation creates saved candidate CSS with effective agent identity; ordinary builds reuse accepted bytes without provider calls. Retry/reset preserve accepted output."
+    },
+    "concrete_same_outcome": "A user-defined local completable modifier explicitly applied to Todo adds done:bool=false. Existing explicit CRUD update exposes done under existing members authority; the modifier alone does not grant authority or create a new authorized operation. A richer prompt may request rules/operations/hooks, but must resolve exact behavior, owner, permissions, evaluation order, conflicts and failures. All alternatives are unimplemented drafts and must keep ordinary builds repeatable, save effective generator identity and accepted output, reject ambiguity and preserve unchanged core defaults. Local vocabulary does not redefine built-in keywords."
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "For natural-language-defined local implicit behavior, recommend where resolved meaning should live: canonical Can expansion, a checked extension or a persisted runtime plan. Weigh current compiler reuse and limits fairly against extensibility and integration cost under identical requirements.",
+      "criteria": {
+        "saved_can_expansion": "Explicit generation turns each local definition/use into saved ordinary .can declarations, tracked to its declaring owner and prompt. Models/defaults/rules stay Given, effects become authorized When declarations with do bodies. Candidate source goes through normal parse/type/effect/example/source checks and review before acceptance. Ordinary builds use accepted expansion. This reuses Can semantics but cannot add behavior outside core Can expressibility, and needs hygienic expansion/identity/conflict handling.",
+        "checked_extension": "A local description generates a versioned typed compiler extension or macro with an explicit input/output and semantic contract. Compile loads the accepted checked extension; generated declarations/semantics undergo the required authority/evaluation/admission checks. This can add primitives not expressible in canonical source, but requires a new extension API, implementation pinning and integration qualification.",
+        "persisted_runtime_plan": "The first explicit or runtime preparation resolves descriptions into a saved typed execution plan interpreted by a bounded runtime. Plan admission fixes authority/evaluation/replay semantics, and subsequent invocations reuse the accepted plan without reinterpreting prompts. This supports runtime adaptation but introduces an interpreter/plan contract, admission timing and compatibility with compiler-owned schemas/interfaces.",
+        "open": "Leave architecture open if the present local-keyword outcome does not justify choosing; investigate exact desired behavior without implementing any candidate."
+      }
+    }
+  }
+}

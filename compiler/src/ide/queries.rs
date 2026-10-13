@@ -9,9 +9,9 @@
 //!
 //! Semantic facts (which declaration a use refers to, which scope is
 //! visible, builtin identities) always come from the analysis tables.
-//! The CST is used only for spans and positions: trimming a use site to
-//! its name token, locating a declaration's name token, or slicing the
-//! written text of a description or type annotation for display.
+//! The CST locates exact tokens and their written receiver/key relationships;
+//! checked receiver types and owning declaration tables supply field identities.
+//! Written descriptions and annotations are sliced only for display.
 //!
 //! [`CheckedProgram`]: crate::analysis::CheckedProgram
 //! [`ResolveTables`]: crate::analysis::resolve::ResolveTables
@@ -27,20 +27,21 @@ use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{NodeDetail, SyntaxKind, SyntaxNode};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
-/// One analyzed document: everything the queries read.
+/// One queried document and its selected project analysis.
 ///
-/// Built with [`Snapshot::analyze`]; queries are methods on it. The
-/// snapshot borrows the [`SourceDb`] for text and owns its parse tree,
-/// checked program and resolution tables.
+/// [`Snapshot::analyze`] selects one file; [`Snapshot::analyze_files`] selects
+/// an isolated project. Per-file query views share immutable checked facts.
 pub struct Snapshot<'a> {
     db: &'a SourceDb,
     file: SourceId,
-    tree: SyntaxNode,
-    program: CheckedProgram,
-    tables: ResolveTables,
-    diagnostics: Vec<Diagnostic>,
-    locals: HashMap<NodeKey, (String, LocalKind)>,
+    tree: Arc<SyntaxNode>,
+    trees: Arc<Vec<(SourceId, Arc<SyntaxNode>)>>,
+    program: Arc<CheckedProgram>,
+    tables: Arc<ResolveTables>,
+    diagnostics: Arc<Vec<Diagnostic>>,
+    locals: Arc<HashMap<NodeKey, (String, LocalKind)>>,
     catalog: Option<&'a Catalog>,
 }
 
@@ -206,6 +207,10 @@ enum Target {
         /// pinned it down. Rename refuses locals without one.
         decl_span: Option<Span>,
     },
+    ImportAlias {
+        target: SymbolId,
+        declaration: Span,
+    },
     Builtin(String),
     Module(ModuleId),
     Scalar(String),
@@ -226,21 +231,97 @@ impl<'a> Snapshot<'a> {
     /// name/scope tables the position queries read. Never fails: an
     /// unknown file yields empty tables and empty query results.
     pub fn analyze(db: &'a SourceDb, file: SourceId, catalog: Option<&'a Catalog>) -> Self {
-        let (tree, _) = crate::syntax::parse(db, file);
-        let (program, diagnostics) = check_program(db, &[file], catalog);
+        Self::analyze_files(db, file, &[file], catalog)
+    }
+
+    /// Analyze the latest version of every source registered in the database.
+    pub fn analyze_project(db: &'a SourceDb, file: SourceId, catalog: Option<&'a Catalog>) -> Self {
+        let files: Vec<_> = db
+            .iter()
+            .filter(|(id, source)| db.lookup(&source.path) == Some(*id))
+            .map(|(id, _)| id)
+            .collect();
+        Self::analyze_files(db, file, &files, catalog)
+    }
+
+    /// Analyze an explicitly isolated project file set. The requested document
+    /// is always included; source identities remain those of the supplied db.
+    pub fn analyze_files(
+        db: &'a SourceDb,
+        file: SourceId,
+        files: &[SourceId],
+        catalog: Option<&'a Catalog>,
+    ) -> Self {
+        let mut files = files.to_vec();
+        files.push(file);
+        files.sort();
+        files.dedup();
+        let parsed: Vec<_> = files
+            .iter()
+            .map(|id| (*id, crate::syntax::parse(db, *id).0))
+            .collect();
+        let (program, diagnostics) = check_program(db, &files, catalog);
         let mut discard = Vec::new();
-        let tables = resolve_program(db, &[(file, tree.clone())], catalog, &mut discard);
+        let tables = resolve_program(db, &parsed, catalog, &mut discard);
         let locals = index_locals(&tables);
+        let trees: Vec<_> = parsed
+            .into_iter()
+            .map(|(id, tree)| (id, Arc::new(tree)))
+            .collect();
+        let tree = trees
+            .iter()
+            .find(|(id, _)| *id == file)
+            .expect("requested source included")
+            .1
+            .clone();
         Self {
             db,
             file,
             tree,
-            program,
-            tables,
-            diagnostics,
-            locals,
+            trees: Arc::new(trees),
+            program: Arc::new(program),
+            tables: Arc::new(tables),
+            diagnostics: Arc::new(diagnostics),
+            locals: Arc::new(locals),
             catalog,
         }
+    }
+
+    /// Change only the queried document, sharing the immutable project facts.
+    fn view(&self, file: SourceId) -> Option<Self> {
+        let tree = self.trees.iter().find(|(id, _)| *id == file)?.1.clone();
+        Some(Self {
+            db: self.db,
+            file,
+            tree,
+            trees: self.trees.clone(),
+            program: self.program.clone(),
+            tables: self.tables.clone(),
+            diagnostics: self.diagnostics.clone(),
+            locals: self.locals.clone(),
+            catalog: self.catalog,
+        })
+    }
+
+    fn candidate_db(&self, edits: &[Span], new_text: &str) -> SourceDb {
+        let mut db = SourceDb::new();
+        for (file, source) in self.db.iter() {
+            let mut text = source.text.clone();
+            for span in edits.iter().rev().filter(|span| span.file == file) {
+                text.replace_range(span.start as usize..span.end as usize, new_text);
+            }
+            let candidate_file = db.add(source.path.clone(), text);
+            debug_assert_eq!(candidate_file, file);
+        }
+        db
+    }
+
+    fn candidate_snapshot<'b>(&self, db: &'b SourceDb) -> Snapshot<'b>
+    where
+        'a: 'b,
+    {
+        let files: Vec<_> = self.trees.iter().map(|(file, _)| *file).collect();
+        Snapshot::analyze_files(db, self.file, &files, self.catalog)
     }
 
     /// Analyzed file identity.
@@ -288,7 +369,7 @@ impl<'a> Snapshot<'a> {
     pub fn hover_at(&self, offset: u32) -> Option<Hover> {
         let resolved = self.resolve_at(offset)?;
         let markdown = match &resolved.target {
-            Target::Symbol(id) => self.symbol_hover(*id),
+            Target::Symbol(id) | Target::ImportAlias { target: id, .. } => self.symbol_hover(*id),
             Target::Local { kind, name, .. } => {
                 let mut body = format!("**{name}** — {}", kind.noun());
                 if let Some(ty) = self.type_at_offset(offset) {
@@ -328,7 +409,7 @@ impl<'a> Snapshot<'a> {
     pub fn definition_at(&self, offset: u32) -> Vec<Span> {
         match self.resolve_at(offset) {
             Some(Resolved {
-                target: Target::Symbol(id),
+                target: Target::Symbol(id) | Target::ImportAlias { target: id, .. },
                 ..
             }) => vec![self.tables.symbols[id.0 as usize].span],
             Some(Resolved {
@@ -352,6 +433,10 @@ impl<'a> Snapshot<'a> {
                 ..
             }) => self.symbol_uses(id),
             Some(Resolved {
+                target: Target::ImportAlias { declaration, .. },
+                ..
+            }) => self.alias_uses(declaration),
+            Some(Resolved {
                 target: Target::Local { key, decl_span, .. },
                 ..
             }) => {
@@ -374,6 +459,10 @@ impl<'a> Snapshot<'a> {
                 ..
             } => self.symbol_uses(id),
             Resolved {
+                target: Target::ImportAlias { declaration, .. },
+                ..
+            } => self.alias_uses(declaration),
+            Resolved {
                 target: Target::Local { key, decl_span, .. },
                 ..
             } => {
@@ -394,11 +483,143 @@ impl<'a> Snapshot<'a> {
         })
     }
 
+    /// Validate a rename against a freshly analyzed candidate. Every existing
+    /// resolved name must keep its declaration identity, including names outside
+    /// the edit set. This catches duplicate declarations and silent capture.
+    /// Existing unrelated partial-buffer diagnostics may remain unchanged.
+    pub fn safe_rename_at(&self, offset: u32, new_name: &str) -> Option<Rename> {
+        // The parser is the authority on identifiers and reserved words.
+        let rename = self.rename_at(offset)?;
+        let original = rename.spans.first()?;
+        let original_name = self
+            .db
+            .get(original.file)?
+            .text
+            .get(original.start as usize..original.end as usize)?;
+        let db = self.candidate_db(&rename.spans, new_name);
+        let candidate = self.candidate_snapshot(&db);
+        let translate = |file: SourceId, offset: u32| {
+            translated_offset(file, offset, &rename.spans, new_name.len())
+        };
+        // Duplicate/poisoned source declarations cannot provide a complete set.
+        if self
+            .diagnostics
+            .iter()
+            .any(|d| matches!(d.code, "E2002" | "E2012"))
+        {
+            return None;
+        }
+        let mut remaining: HashMap<_, usize> = HashMap::new();
+        for diagnostic in self.diagnostics.iter() {
+            *remaining
+                .entry((
+                    diagnostic.code,
+                    diagnostic.primary.file,
+                    translate(diagnostic.primary.file, diagnostic.primary.start),
+                ))
+                .or_default() += 1;
+        }
+        for diagnostic in candidate.diagnostics.iter() {
+            let count = remaining.get_mut(&(
+                diagnostic.code,
+                diagnostic.primary.file,
+                diagnostic.primary.start,
+            ))?;
+            if *count == 0 {
+                return None;
+            }
+            *count -= 1;
+        }
+        for (file, tree) in self.trees.iter() {
+            let before_view = self.view(*file)?;
+            let after_view = candidate.view(*file)?;
+            for node in tree.descendants().filter(|n| n.kind == SyntaxKind::Name) {
+                let before = before_view.resolve_at(node.span.start);
+                let after = after_view.resolve_at(translate(*file, node.span.start));
+                match (before, after) {
+                    (Some(before), Some(after)) => {
+                        if self.target_identity(&before.target, &translate)
+                            != candidate.target_identity(&after.target, &|_, n| n)
+                        {
+                            return None;
+                        }
+                    }
+                    (None, None) => {
+                        // Same-spelled unclaimed tokens may be incomplete member
+                        // or selector uses; their identity cannot be certified.
+                        if name_text(node, before_view.text()) == Some(original_name) {
+                            return None;
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+        }
+        // Each edit must remain exactly one name token (reject punctuation,
+        // whitespace, keywords, and lexer-invalid names even in partial input).
+        for span in &rename.spans {
+            let start = translate(span.file, span.start);
+            if !candidate.view(span.file)?.tree.descendants().any(|node| {
+                node.kind == SyntaxKind::Name
+                    && node.span.start == start
+                    && node.span.end == start + new_name.len() as u32
+            }) {
+                return None;
+            }
+        }
+        Some(rename)
+    }
+
+    fn target_identity(
+        &self,
+        target: &Target,
+        translate: &impl Fn(SourceId, u32) -> u32,
+    ) -> String {
+        let location = |kind: &str, span: Span| {
+            format!(
+                "{kind}:{}:{}",
+                span.file.0,
+                translate(span.file, span.start)
+            )
+        };
+        match target {
+            Target::Symbol(id) => {
+                let symbol = &self.tables.symbols[id.0 as usize];
+                format!(
+                    "{}:{}:{}",
+                    location("symbol", symbol.span),
+                    id.0,
+                    symbol_noun(&symbol.kind)
+                )
+            }
+            Target::ImportAlias { declaration, .. } => location("alias", *declaration),
+            Target::Local {
+                decl_span: Some(span),
+                ..
+            } => location("local", *span),
+            Target::Local { key, .. } => {
+                location("local-node", Span::new(key.file, key.start, key.end))
+            }
+            Target::Module(id) => location("module", self.tables.modules[id.0 as usize].name_span),
+            Target::Builtin(id) => format!("builtin:{id}"),
+            Target::Scalar(name) => format!("scalar:{name}"),
+            Target::Context(name) => format!("context:{name}"),
+            Target::Predicate => "predicate".to_string(),
+            Target::External => "external".to_string(),
+        }
+    }
+
     /// Scope-aware completion candidates for a byte offset: visible
     /// scope bindings, same-module symbols, catalog builtins and
     /// keywords for the GRAMMAR position. Sorted by label; never fails.
     pub fn completions_at(&self, offset: u32) -> Vec<Completion> {
         let text = self.text();
+        if let Some(fields) = self.member_completions(offset) {
+            return fields;
+        }
+        if let Some(items) = self.blank_statement_completions(offset) {
+            return items;
+        }
         if let Some(cases) = self.match_case_completions(offset) {
             return cases;
         }
@@ -423,7 +644,9 @@ impl<'a> Snapshot<'a> {
                     break;
                 };
                 for (name, binding) in &scope_data.bindings {
-                    bindings.push((name, binding));
+                    if self.binding_visible_at(binding, offset) {
+                        bindings.push((name, binding));
+                    }
                 }
                 current = scope_data.parent;
             }
@@ -465,6 +688,314 @@ impl<'a> Snapshot<'a> {
         }
         out.sort_by(|a, b| a.label.cmp(&b.label));
         out
+    }
+
+    /// Recover an unfinished selector by checking the written receiver on its
+    /// own. The resulting fields still come exclusively from its checked type.
+    fn member_completions(&self, offset: u32) -> Option<Vec<Completion>> {
+        let prefix = self.text().get(..offset as usize)?;
+        let selector_start = prefix
+            .trim_end()
+            .rfind(|c: char| !(c.is_alphanumeric() || c == '_'))?;
+        if prefix.as_bytes().get(selector_start) != Some(&b'.') {
+            return None;
+        }
+        let dot_start = if prefix[..selector_start].ends_with('?') {
+            selector_start - 1
+        } else {
+            selector_start
+        };
+        let chain = chain_at(&self.tree, selector_start as u32);
+        if let Some(ty) = chain
+            .iter()
+            .rev()
+            .filter(|n| n.kind == SyntaxKind::Member)
+            .find_map(|node| {
+                let parts = kids(node);
+                if parts.get(1)?.span.start != dot_start as u32 {
+                    return None;
+                }
+                self.program
+                    .types
+                    .node_types
+                    .get(&NodeKey::of(parts.first()?))
+            })
+        {
+            return Some(self.field_completions(ty));
+        }
+        let selector_end = offset as usize
+            + self.text()[offset as usize..]
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .map(char::len_utf8)
+                .sum::<usize>();
+        let edit = Span::new(self.file, dot_start as u32, selector_end as u32);
+        let db = self.candidate_db(&[edit], "");
+        let recovered = self.candidate_snapshot(&db);
+        let chain = chain_at(&recovered.tree, dot_start.checked_sub(1)? as u32);
+        let ty = chain
+            .iter()
+            .rev()
+            .find_map(|n| recovered.program.types.node_types.get(&NodeKey::of(n)));
+        let Some(ty) = ty else {
+            return Some(Vec::new());
+        };
+        Some(recovered.field_completions(ty))
+    }
+
+    fn field_completions(&self, ty: &ResolvedType) -> Vec<Completion> {
+        let mut out: Vec<_> = self
+            .fields_for_type(ty)
+            .into_iter()
+            .map(|id| {
+                let symbol = &self.tables.symbols[id.0 as usize];
+                Completion {
+                    label: symbol.name.clone(),
+                    kind: "Field",
+                    detail: self
+                        .program
+                        .types
+                        .symbol_types
+                        .get(&id)
+                        .map(|ty| ty.display(&self.tables, symbol.module)),
+                }
+            })
+            .collect();
+        out.sort_by(|a, b| a.label.cmp(&b.label));
+        out
+    }
+
+    /// Trailing trivia lies outside the CST block span. Recover an empty
+    /// statement only when the blank line directly continues a written do block.
+    fn blank_statement_completions(&self, offset: u32) -> Option<Vec<Completion>> {
+        let text = self.text();
+        let before = text.get(..offset as usize)?;
+        let line_start = before.rfind('\n').map_or(0, |i| i + 1);
+        let line_end = text[offset as usize..]
+            .find('\n')
+            .map_or(text.len(), |i| offset as usize + i);
+        let line = &text[line_start..line_end];
+        if !line.trim().is_empty() {
+            return None;
+        }
+        let block = self
+            .tree
+            .descendants()
+            .filter(|n| {
+                n.kind == SyntaxKind::DoBlock
+                    && n.span.end <= offset
+                    && text[n.span.end as usize..offset as usize].trim().is_empty()
+            })
+            .max_by_key(|n| n.span.end)?;
+        let block_line = text[..block.span.start as usize]
+            .rfind('\n')
+            .map_or(0, |i| i + 1);
+        let block_indent = text[block_line..]
+            .chars()
+            .take_while(|c| *c == ' ' || *c == '\t')
+            .count();
+        let line_indent = line.chars().take_while(|c| *c == ' ' || *c == '\t').count();
+        if line_indent <= block_indent {
+            return None;
+        }
+        let insertion = line_start
+            + line
+                .chars()
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .map(char::len_utf8)
+                .sum::<usize>();
+        let statement = "let __can_completion=0";
+        let edit = Span::new(self.file, insertion as u32, insertion as u32);
+        let db = self.candidate_db(&[edit], statement);
+        let recovered = self.candidate_snapshot(&db);
+        Some(recovered.completions_at((insertion + statement.len() - 1) as u32))
+    }
+
+    fn fields_for_type(&self, ty: &ResolvedType) -> Vec<SymbolId> {
+        match ty {
+            ResolvedType::Nullable(inner) => self.fields_for_type(inner),
+            ResolvedType::Record { symbol, .. } => {
+                self.tables.symbols[symbol.0 as usize].fields_of().to_vec()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn field_named(&self, ty: &ResolvedType, name: &str) -> Option<SymbolId> {
+        let mut fields = self
+            .fields_for_type(ty)
+            .into_iter()
+            .filter(|id| self.tables.symbols[id.0 as usize].name == name);
+        let field = fields.next()?;
+        if fields.next().is_some() {
+            return None;
+        }
+        Some(field)
+    }
+
+    /// Associate exact member and object-key tokens with declared fields using
+    /// checked receiver/target types, never a global same-spelled name lookup.
+    fn typed_field_at(&self, name: &SyntaxNode) -> Option<SymbolId> {
+        let chain = chain_at(&self.tree, name.span.start);
+        let parent = *chain.get(chain.len().checked_sub(2)?)?;
+        let word = name_text(name, self.text())?;
+        match parent.kind {
+            SyntaxKind::Member => {
+                let parts = kids(parent);
+                if parts.get(2)?.span != name.span {
+                    return None;
+                }
+                let receiver = parts.first()?;
+                let ty = self.program.types.node_types.get(&NodeKey::of(receiver))?;
+                self.field_named(ty, word)
+            }
+            SyntaxKind::Path => {
+                let segments: Vec<_> = parent
+                    .children
+                    .iter()
+                    .filter(|n| n.kind == SyntaxKind::Name)
+                    .collect();
+                let index = segments.iter().position(|n| n.span == name.span)?;
+                if index == 0 {
+                    return None;
+                }
+                let binding = self.tables.node_binding.get(&NodeKey::of(segments[0]))?;
+                let mut ty = self.binding_value_type(binding)?;
+                for segment in segments.iter().take(index + 1).skip(1) {
+                    let field = self.field_named(&ty, name_text(segment, self.text())?)?;
+                    if segment.span == name.span {
+                        return Some(field);
+                    }
+                    ty = self.program.types.symbol_types.get(&field)?.clone();
+                }
+                None
+            }
+            SyntaxKind::ObjectEntry => {
+                let parts = kids(parent);
+                // Shorthand keys also denote a value binding. A one-token edit
+                // cannot rename those two identities independently.
+                if parts.len() < 3 || parts.first()?.span != name.span {
+                    return None;
+                }
+                let owner = *chain.get(chain.len().checked_sub(4)?)?;
+                let ty = match owner.kind {
+                    SyntaxKind::Set => {
+                        let path = kids(owner)
+                            .into_iter()
+                            .find(|n| n.kind == SyntaxKind::Path)?;
+                        self.program
+                            .types
+                            .node_types
+                            .get(&NodeKey::of(path))?
+                            .clone()
+                    }
+                    SyntaxKind::Create => {
+                        let path = kids(owner)
+                            .into_iter()
+                            .find(|n| n.kind == SyntaxKind::Path)?;
+                        ResolvedType::Record {
+                            symbol: *self.tables.node_symbol.get(&NodeKey::of(path))?,
+                            stored: true,
+                        }
+                    }
+                    SyntaxKind::Construct => self
+                        .program
+                        .types
+                        .node_types
+                        .get(&NodeKey::of(owner))?
+                        .clone(),
+                    _ => return None,
+                };
+                self.field_named(&ty, word)
+            }
+            _ => None,
+        }
+    }
+
+    fn binding_value_type(&self, binding: &Binding) -> Option<ResolvedType> {
+        if let Binding::Symbol(id) = binding {
+            return self.program.types.symbol_types.get(id).cloned();
+        }
+        let key = local_binding_key(binding)?;
+        if matches!(binding, Binding::Let { .. }) {
+            let node = find_node(&self.tree, &key)?;
+            return kids(node)
+                .into_iter()
+                .rev()
+                .find_map(|n| self.program.types.node_types.get(&NodeKey::of(n)).cloned());
+        }
+        self.tables
+            .node_binding
+            .iter()
+            .filter(|(_, other)| local_binding_key(other) == Some(key))
+            .filter_map(|(node, _)| {
+                self.program
+                    .types
+                    .node_types
+                    .get(node)
+                    .map(|ty| (node.start, ty))
+            })
+            .min_by_key(|(start, _)| *start)
+            .map(|(_, ty)| ty.clone())
+    }
+
+    fn binding_visible_at(&self, binding: &Binding, offset: u32) -> bool {
+        let Some(key) = local_binding_key(binding) else {
+            return true;
+        };
+        let Some((_, kind)) = self.locals.get(&key) else {
+            return false;
+        };
+        let Some(node) = find_node(&self.tree, &key) else {
+            return false;
+        };
+        if matches!(
+            kind,
+            LocalKind::Let | LocalKind::CreateAs | LocalKind::CallAs | LocalKind::SendAs
+        ) {
+            return node.span.end <= offset;
+        }
+        local_name_span(node, *kind, self.text()).is_some_and(|span| span.end <= offset)
+    }
+
+    /// Explicit import aliases are local identities. The provider member token
+    /// belongs to the exported declaration; changing it must leave aliases intact.
+    fn import_alias_at(&self, id: SymbolId, span: Span) -> Option<Span> {
+        let module = self.module_at(span.start)?;
+        let word = self.text().get(span.start as usize..span.end as usize)?;
+        for member in self.tables.modules[module.0 as usize]
+            .imports
+            .iter()
+            .flat_map(|i| &i.members)
+        {
+            if member.alias != word {
+                continue;
+            }
+            let node = self
+                .tree
+                .descendants()
+                .find(|n| n.kind == SyntaxKind::ImportMember && n.span == member.span)?;
+            let parts = kids(node);
+            let Some(alias) = parts.get(2) else {
+                continue;
+            };
+            if parts[0].span == span {
+                continue;
+            }
+            let scoped = self.tables.module_scopes[module.0 as usize]
+                .prod
+                .get(&member.alias)
+                .or_else(|| {
+                    self.tables.module_scopes[module.0 as usize]
+                        .test
+                        .get(&member.alias)
+                })?;
+            if matches!(scoped, crate::analysis::resolve::ScopedName::Imported { target, .. } if *target == id)
+            {
+                return Some(alias.span);
+            }
+        }
+        None
     }
 
     /// A case header names the checked subject domain, not lexical bindings.
@@ -560,10 +1091,22 @@ impl<'a> Snapshot<'a> {
     }
 
     /// Resolve an offset to an analysis-backed target plus its exact
-    /// name span. Returns `None` for anything unresolved (unknown
-    /// names, member-navigation names and
-    /// syntactic positions alike).
+    /// name span. Unchecked names and syntactic positions return `None`;
+    /// member/key identities require their checked receiver or target type.
     fn resolve_at(&self, offset: u32) -> Option<Resolved> {
+        let mut resolved = self.resolve_at_raw(offset)?;
+        if let Target::Symbol(id) = resolved.target
+            && let Some(declaration) = self.import_alias_at(id, resolved.span)
+        {
+            resolved.target = Target::ImportAlias {
+                target: id,
+                declaration,
+            };
+        }
+        Some(resolved)
+    }
+
+    fn resolve_at_raw(&self, offset: u32) -> Option<Resolved> {
         let text = self.text();
         if offset as usize >= text.len() {
             return None;
@@ -571,6 +1114,12 @@ impl<'a> Snapshot<'a> {
         let chain = chain_at(&self.tree, offset);
         let deepest = *chain.last()?;
         if deepest.kind == SyntaxKind::Name {
+            if let Some(id) = self.typed_field_at(deepest) {
+                return Some(Resolved {
+                    target: Target::Symbol(id),
+                    span: deepest.span,
+                });
+            }
             if let Some(id) = self.symbol_with_span(deepest.span) {
                 return Some(Resolved {
                     target: Target::Symbol(id),
@@ -675,7 +1224,17 @@ impl<'a> Snapshot<'a> {
                     span: name_span,
                 })
             }
-            None | Some(Binding::Error) => None,
+            None => {
+                let id = match self.tables.node_typeref.get(&key) {
+                    Some(TypeRef::Symbol(id)) => Some(*id),
+                    _ => self.tables.node_symbol.get(&key).copied(),
+                }?;
+                Some(Resolved {
+                    target: Target::Symbol(id),
+                    span: name_span,
+                })
+            }
+            Some(Binding::Error) => None,
         }
     }
 
@@ -794,6 +1353,12 @@ impl<'a> Snapshot<'a> {
             .iter()
             .rev()
             .find(|n| n.kind == SyntaxKind::ImportMember)?;
+        let parts = kids(member_node);
+        if parts.first().is_none_or(|n| n.span != name.span)
+            && parts.get(2).is_none_or(|n| n.span != name.span)
+        {
+            return None;
+        }
         let module = self.module_at(name.span.start)?;
         let entry = self
             .tables
@@ -808,7 +1373,14 @@ impl<'a> Snapshot<'a> {
             .module_scopes
             .get(module.0 as usize)?
             .prod
-            .get(&entry.alias)?;
+            .get(&entry.alias)
+            .or_else(|| {
+                self.tables
+                    .module_scopes
+                    .get(module.0 as usize)?
+                    .test
+                    .get(&entry.alias)
+            })?;
         match scoped {
             crate::analysis::resolve::ScopedName::Local(id)
             | crate::analysis::resolve::ScopedName::Imported { target: id, .. } => Some(Resolved {
@@ -853,10 +1425,47 @@ impl<'a> Snapshot<'a> {
     /// Innermost expression scope containing `offset`, if any.
     fn scope_at(&self, offset: u32) -> Option<ScopeId> {
         let chain = chain_at(&self.tree, offset);
-        chain
+        if let Some(scope) = chain
             .iter()
             .rev()
             .find_map(|n| self.tables.expr_scope.get(&NodeKey::of(n)).copied())
+        {
+            return Some(scope);
+        }
+        // Whitespace and statement keywords have no expression entry. Borrow
+        // the closest expression in the same execution region, then filter its
+        // completed bindings by their actual declaration position.
+        let region = chain.iter().rev().find(|n| {
+            matches!(
+                n.kind,
+                SyntaxKind::DoBlock
+                    | SyntaxKind::MatchArm
+                    | SyntaxKind::Scenario
+                    | SyntaxKind::View
+            )
+        })?;
+        let region_key = NodeKey::of(region);
+        region
+            .descendants()
+            .filter_map(|node| {
+                let scope = self.tables.expr_scope.get(&NodeKey::of(node)).copied()?;
+                let ancestors = chain_at(&self.tree, node.span.start);
+                let nearest = ancestors.iter().rev().find(|n| {
+                    matches!(
+                        n.kind,
+                        SyntaxKind::DoBlock
+                            | SyntaxKind::MatchArm
+                            | SyntaxKind::Scenario
+                            | SyntaxKind::View
+                    )
+                })?;
+                if NodeKey::of(nearest) != region_key {
+                    return None;
+                }
+                Some((node.span.start.abs_diff(offset), scope))
+            })
+            .min_by_key(|(distance, _)| *distance)
+            .map(|(_, scope)| scope)
     }
 
     /// Displayed resolved type of the innermost typed node at `offset`.
@@ -896,7 +1505,7 @@ impl<'a> Snapshot<'a> {
             | SymbolKind::DeriveField { type_node, .. } => *type_node,
             _ => return None,
         };
-        let text = self.text();
+        let text = &self.db.get(key.file)?.text;
         let slice = text.get(key.start as usize..key.end as usize)?.trim();
         if slice.is_empty() {
             None
@@ -935,6 +1544,9 @@ impl<'a> Snapshot<'a> {
     /// attached `#` prose from the CST, which keeps shared `see path`
     /// display unchanged outside the slot.
     fn description_of(&self, span: Span) -> Option<String> {
+        if span.file != self.file {
+            return self.view(span.file)?.description_of(span);
+        }
         let chain = chain_at(&self.tree, span.start);
         // The declaration node is the parent of the matched `Name` leaf;
         // the chain runs root-first, so the parent precedes it.
@@ -978,71 +1590,47 @@ impl<'a> Snapshot<'a> {
         doc.filter(|d| !d.trim().is_empty())
     }
 
-    /// Declaration span plus every resolved use span of a symbol.
+    /// Include import source tokens and typed member/key occurrences, while
+    /// explicit aliases retain their independent local binding identity.
     fn symbol_uses(&self, id: SymbolId) -> Vec<Span> {
-        let mut spans = vec![self.tables.symbols[id.0 as usize].span];
-        for node in self.tree.descendants() {
-            match node.kind {
-                SyntaxKind::NameRef => {
-                    if matches!(self.tables.node_binding.get(&NodeKey::of(node)), Some(Binding::Symbol(s)) if *s == id)
-                        && let Some(span) = name_child_span(node)
-                    {
-                        spans.push(span);
-                    }
-                }
-                SyntaxKind::Name => {
-                    if matches!(self.tables.node_binding.get(&NodeKey::of(node)), Some(Binding::Symbol(s)) if *s == id)
-                    {
-                        spans.push(node.span);
-                    }
-                }
-                SyntaxKind::Path => spans.extend(self.path_symbol_spans(node, id)),
-                _ => {}
-            }
+        let mut spans = Vec::new();
+        for (file, tree) in self.trees.iter() {
+            let Some(view) = self.view(*file) else {
+                continue;
+            };
+            spans.extend(
+                tree.descendants()
+                    .filter(|n| n.kind == SyntaxKind::Name)
+                    .filter_map(|n| match view.resolve_at(n.span.start) {
+                        Some(Resolved {
+                            target: Target::Symbol(found),
+                            span,
+                        }) if found == id => Some(span),
+                        _ => None,
+                    }),
+            );
         }
         sort_spans(&mut spans);
         spans
     }
 
-    /// Segments of one `Path` node that denote `id`.
-    fn path_symbol_spans(&self, node: &SyntaxNode, id: SymbolId) -> Vec<Span> {
-        let mut spans = Vec::new();
-        let segments: Vec<&SyntaxNode> = node
-            .children
-            .iter()
-            .filter(|c| c.kind == SyntaxKind::Name)
+    fn alias_uses(&self, declaration: Span) -> Vec<Span> {
+        let mut spans: Vec<_> = self
+            .tree
+            .descendants()
+            .filter(|n| n.kind == SyntaxKind::Name)
+            .filter_map(|n| match self.resolve_at(n.span.start) {
+                Some(Resolved {
+                    target:
+                        Target::ImportAlias {
+                            declaration: found, ..
+                        },
+                    span,
+                }) if found == declaration => Some(span),
+                _ => None,
+            })
             .collect();
-        if segments.is_empty() {
-            return spans;
-        }
-        let key = NodeKey::of(node);
-        if let Some(typeref) = self.tables.node_typeref.get(&key) {
-            match typeref {
-                TypeRef::Symbol(s) if *s == id => {
-                    spans.push(segments[segments.len() - 1].span);
-                }
-                TypeRef::FieldChain {
-                    head,
-                    fields,
-                    consumed,
-                } => {
-                    let field_base = consumed.saturating_sub(fields.len());
-                    let head_index = field_base.saturating_sub(1);
-                    if *head == id && head_index < segments.len() {
-                        spans.push(segments[head_index].span);
-                    }
-                    for (k, field) in fields.iter().enumerate() {
-                        if *field == id && field_base + k < segments.len() {
-                            spans.push(segments[field_base + k].span);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        if matches!(self.tables.node_symbol.get(&key), Some(s) if *s == id) {
-            spans.push(segments[segments.len() - 1].span);
-        }
+        sort_spans(&mut spans);
         spans
     }
 
@@ -1166,6 +1754,19 @@ fn chain_at(tree: &SyntaxNode, offset: u32) -> Vec<&SyntaxNode> {
 /// Find the CST node with `key`, if present in this tree.
 fn find_node<'t>(tree: &'t SyntaxNode, key: &NodeKey) -> Option<&'t SyntaxNode> {
     tree.descendants().find(|n| NodeKey::of(n) == *key)
+}
+
+/// Translate source positions across the ordered replacement set. Positions
+/// inside a renamed token map to its corresponding candidate token boundary.
+fn translated_offset(file: SourceId, offset: u32, spans: &[Span], replacement_len: usize) -> u32 {
+    let mut delta = 0i64;
+    for span in spans.iter().filter(|span| span.file == file) {
+        if offset < span.end {
+            break;
+        }
+        delta += replacement_len as i64 - i64::from(span.end - span.start);
+    }
+    (i64::from(offset) + delta) as u32
 }
 
 /// Sort spans into source order, deduplicated.

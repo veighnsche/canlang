@@ -283,6 +283,9 @@ export interface PageDescriptor {
   readonly preferenceFields?: readonly {
     readonly name: string;
     readonly options: readonly string[];
+    /** Source field and enum-case captions, resolved in the viewer locale. */
+    readonly caption?: MessageValue;
+    readonly optionLabels?: Readonly<Record<string, MessageValue>>;
     /** Only the original nullable enum initial default; saved values stay cases. */
     readonly nullable?: true;
     readonly defaultValue: string | null;

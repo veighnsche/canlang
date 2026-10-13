@@ -1,0 +1,35 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "goal": "Finish existing Position7 original CanChat empty-attachment terminal/regenerate runtime without changing source, security, evaluation order or held publication.",
+    "verified_source": {
+      "guard": "send LLM.generate {value} when=can_use(run.account,branch.parent) and allowance.active and branch.profile.active and not run.stop_requested as request",
+      "derive": "can_use(person:user?,conversation:Conversation):bool = person!=null and active_member(person,team) and conversation.account==person and conversation.active",
+      "read": "Conversation read=members and row.account==actor; Branch read=can_use(actor,row.parent)"
+    },
+    "current_implementation": {
+      "capture": "Exact compiler source/IR/executable guard and input declaration bound by State to actual live scenario call. Typed frozen stored model snapshots retain parent model/id, fields, presence and version. Same root owner session holds provisional rows. Guard context cannot access raw storage/query/mutation. Snapshot view lacks parent. Genuine source viewer navigation exists and can use owner-session observations.",
+      "preclaim": "Exact original persisted Work row/intent/header/source/owner/binding/checkpoint and typed snapshot inputs are verified. Private source-owner Identity is freshly resolved; native guard actor is intentionally null, team current. Registered native membership occurrence checks active_member(run.account,team), including source/site/call/context association. Ordinary Conversation viewer projection with null actor denies. Typed snapshot parent link is nongrant, not human authentication. No retained authenticated human-principal re-admission currently provided.",
+      "existing_ports": "State physical owner-pinned storage/cohort revision, checked canonical model/containment and schema, source rule private owner-read machinery, trusted host dispatch guard execution and current membership observations; public user requests cannot select them.",
+      "gap": "Original valid guard accesses branch.parent.account/active. Exposing naked snapshot parent gives no authority; using frozen run.account as a substitute human actor would impersonate. Need exact original guard reader association for current target/ancestors or authenticated retained caller re-admission. Determine guard live-model-read semantics rather than assuming an immutable historical value is current."
+    },
+    "required_controls": [
+      "wrong source/rule/module/model/owner/parent/copy and undeclared/secret unsupported reads refuse",
+      "current membership/target and ancestors archive or revoke refuse before provider effect",
+      "same physical revision and original guard lifetime, no raw storage exposed to emitted code",
+      "source checks execute in authored order, current final revalidation before claim, first failure has no partial effects",
+      "no new public carrier or broad permission profile; original source unchanged"
+    ]
+  },
+  "questions": {
+    "design": {
+      "type": "choice",
+      "instructions": "Choose the safest smallest complete mechanism for the original CanChat SEND parent access under these observed contracts. Judge whether defining guard-only source-owner reads or authenticated original-caller projection follows the source and current authority semantics; choose unresolved refusal when neither can be justified. Do not waive currentness, ancestor checks, original evaluation order or corruption refusals.",
+      "criteria": {
+        "caller_read": "Provide authentic retained initiating-principal re-admission and original current viewer grants; preserve guard null actor separately. Avoid internal owner-read authority but adds a durable principal binding; requires genuine producer evidence, never infer from createdBy/account.",
+        "guard_owner_read": "Define the narrow installed source-owner read association for exact original verified Bool SEND guard only, using genuine declared model/containment/ref identity and same physical owner/checkpoint/current Identity; no user-visible row or raw port, no metadata-granted authority. Validate current target/ancestor facts in source order and before claim. Preserve null actor and explicit run.account membership subject. Adds finite guard reader contract.",
+        "keep_refusal": "Keep unsupported navigation fail-closed until source/authorization or live-model semantics are explicitly determined; exact current inputs insufficient for either safe association. Preserves safety but does not complete original runtime exit; name missing contract without an entire-plan gate."
+      }
+    }
+  }
+}

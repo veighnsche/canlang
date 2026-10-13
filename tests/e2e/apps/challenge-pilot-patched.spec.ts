@@ -74,7 +74,7 @@ interface PristinePin {
 
 const PRISTINE_PINS: readonly PristinePin[] = [
   {
-    pristine: "draft/CanDo.can",
+    pristine: "draft/apps/CanDo/CanDo.can",
     patched: "tests/e2e/fixtures/patched-pilot/CanDo.can",
     sha256: "15761cc422c6d11827a6f13aa3cc3318a8bb393ef2110169f1a02ff046e4ec35",
     hunks: [{ first: 44, last: 44 }],

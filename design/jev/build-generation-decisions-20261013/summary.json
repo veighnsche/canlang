@@ -1,0 +1,1431 @@
+{
+  "status": "consultation_complete; advice_only; no_design_choices_automatically_adopted",
+  "date": "2026-10-13",
+  "requirements_document": "../../../docs/specification/BUILD_GENERATION_REQUIREMENTS.md",
+  "scope": {
+    "decision_groups": 6,
+    "subchoices": 25,
+    "requests": 18,
+    "judgments": 75,
+    "status_counts": {
+      "split": 18,
+      "unanimous_open": 2,
+      "consistent_recommendation": 5
+    }
+  },
+  "models": [
+    "jev-1.13.0"
+  ],
+  "usage": {
+    "input_tokens": 36554,
+    "output_tokens": 3362,
+    "total_tokens": 39916
+  },
+  "method": {
+    "question_type": "JEV Choice with balanced fixed options including open",
+    "variants": "Three independently worded, equivalent requests per group with unchanged verified state, fixed outcomes and candidate descriptions; option order rotated.",
+    "limits": "Repeated wording variants are not independent empirical evidence or a calibrated correctness vote. Reported probabilities/confidence are model judgments. No reasoning text was returned; explanatory interpretation below is by the root agent.",
+    "comparison_stage": "All architectures are draft designs. User requirements are fixed, alternative integration mechanisms remain proposed.",
+    "primary_docs": [
+      "https://docs.typesafe.ai/primitives/choice",
+      "https://docs.typesafe.ai/api"
+    ]
+  },
+  "disagreement_investigation": [
+    "Each triplet has identical source facts, outcomes and option descriptions. Variant 1 asks whether a draft resolves the required outcome with concrete prerequisites; variant 2 asks for the smallest complete choice; variant 3 asks for the best balance at the declared draft stage. Variant 3 is more willing to choose a concrete draft in these results. Wording and ordering both varied, so neither is isolated as a cause.",
+    "Seven subchoices have the same selection in all three requests: five concrete recommendations and two open selections. Eighteen split. Do not pick a winner by majority or replace prior user requirements with these judgments.",
+    "Current analysis NodeKey uses process-local file/span/kind, never persisted: independent tracked IDs and explicit ambiguous rebind/copy handling remain needed.",
+    "Full HandlerContext exposes StoragePort while CanonicalEffectsScope stages writes and projects reads. A narrow async facade and a resumable request protocol both require canonical evaluation, result codecs and lifetime checks; flat effects collected after execution are not an equivalent solution.",
+    "Admission of module imports does not contain arbitrary JS globals or prove declared effects. Trusted application code and separate execution must be assessed against an explicitly chosen threat/authority contract; neither is silently adopted.",
+    "The current write_file_atomic helper stages and checks per-file replacement but explicitly states the final check is not a CAS. A journal or two directory renames cannot alone satisfy concurrent-edit preservation and prevent mixed group reads. A concrete writer/build-reader contract is still required.",
+    "Normal CSS inheritance, shared rules and parent geometry can couple independently owned styles. Selector scoping is not a guarantee of visual independence; the remaining choice must state permitted inherited values and boundary-root rules.",
+    "Existing same-module row-bound view/show is a concrete starting point, not arbitrary props/slots/exports. Decide the finite input scope rather than treating a broad custom component API as already supplied.",
+    "These findings identify concrete remaining design choices. They do not require a broader verification framework, rejection of the feature or further JEV calls until a preferred answer appears."
+  ],
+  "groups": [
+    {
+      "id": "D1",
+      "title": "D1 Language carriers",
+      "verified_context": [
+        "parser.rs around4899 has ordinary do statements/suites; quoted generation form is unimplemented.",
+        "parser.rs6045, resolve.rs5993, types.rs9147, ir.rs3847 implement same-module view NAME(row:LocalModel), exact show {row=expression}, ordinary children, once-only argument evaluation and source-only expansion. No slots/export/caller capture/nested show in this pilot.",
+        "Given local modifiers and generation engine are unimplemented. Existing component appearance profiles are finite, component-specific semantic options (design/UI-COMPONENTS.md)."
+      ],
+      "records": [
+        {
+          "variant": 1,
+          "questions": "D1/1.questions.json",
+          "result": "D1/1.result.json"
+        },
+        {
+          "variant": 2,
+          "questions": "D1/2.questions.json",
+          "result": "D1/2.result.json"
+        },
+        {
+          "variant": 3,
+          "questions": "D1/3.questions.json",
+          "result": "D1/3.result.json"
+        }
+      ],
+      "decisions": [
+        {
+          "id": "given_keyword",
+          "label": "Given keyword",
+          "fixed_outcome": "One local name describes checked contributions to explicit targets; supporting operations/hooks retain canonical owners. User rejects implicit as the name.",
+          "options": {
+            "trait": "trait NAME \"instruction\". Compact familiar attachment/reuse vocabulary; must define bounded semantics without implying inheritance/interface conformance.",
+            "modifier": "modifier NAME \"instruction\". Directly names modification of selected declarations; longer and still needs a contribution/conflict contract.",
+            "behavior": "behavior NAME \"instruction\". Fits custom runtime behavior and rules; may suggest effects even for pure fields/defaults and needs separation from When execution.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.39,
+              "probabilities": {
+                "trait": 0.26,
+                "modifier": 0.18,
+                "behavior": 0.02,
+                "open": 0.54
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.51,
+              "probabilities": {
+                "modifier": 0.13,
+                "behavior": 0.01,
+                "open": 0.63,
+                "trait": 0.23
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "modifier",
+              "confidence": 0.19,
+              "probabilities": {
+                "behavior": 0.01,
+                "open": 0.32,
+                "trait": 0.28,
+                "modifier": 0.39
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: modifier wins only request 3 at low confidence; trait remains a draft. Choose vocabulary after defining the bounded contribution semantics."
+        },
+        {
+          "id": "given_application",
+          "label": "Given application",
+          "fixed_outcome": "Explicit applications only; exact supported target placement, deterministic contribution order and conflict/built-in redefinition diagnostics are required.",
+          "options": {
+            "direct_words": "Resolve declared local words in model/field modifier positions, e.g. Todo {...} completable. Concise requested vocabulary; needs contextual resolution and clear unknown-word/order diagnostics.",
+            "ordered_attribute": "Use one dedicated ordered attribute, e.g. modifiers=[completable,audited], on supported targets. Clear syntax and ordering; more punctuation and attribute surface.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.58,
+              "probabilities": {
+                "direct_words": 0.17,
+                "ordered_attribute": 0.11,
+                "open": 0.72
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.66,
+              "probabilities": {
+                "ordered_attribute": 0.08,
+                "open": 0.77,
+                "direct_words": 0.15
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.2,
+              "probabilities": {
+                "open": 0.47,
+                "direct_words": 0.35,
+                "ordered_attribute": 0.18
+              }
+            }
+          ],
+          "status": "unanimous_open",
+          "root_interpretation": "All three leave open. Specify model/field placement, resolution, deterministic application order and conflict diagnostics before choosing direct words or an ordered attribute."
+        },
+        {
+          "id": "when_body",
+          "label": "When prompt body",
+          "fixed_outcome": "Keep typed signature, by/on, guards, owning identity and examples. Ordinary do bodies keep their semantics; generated and ordinary body mixing needs one precise rule.",
+          "options": {
+            "quoted_do": "Add do \"instruction\" as an alternative to ordinary do body. Few tokens and same owner; quoted syntax must clearly mean generation preparation.",
+            "explicit_generate": "Add do generate \"instruction\" as alternative body. Phase intent visible; repeated new word and more tokens.",
+            "implement_body": "Use implement \"instruction\" as a distinct prompted body under the existing scenario. Explicit implementation intent; adds another body child keyword.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.32,
+              "probabilities": {
+                "quoted_do": 0.4,
+                "explicit_generate": 0.04,
+                "implement_body": 0.07,
+                "open": 0.49
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.36,
+              "probabilities": {
+                "explicit_generate": 0.02,
+                "implement_body": 0.09,
+                "open": 0.52,
+                "quoted_do": 0.37
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "quoted_do",
+              "confidence": 0.24,
+              "probabilities": {
+                "implement_body": 0.28,
+                "open": 0.27,
+                "quoted_do": 0.43,
+                "explicit_generate": 0.02
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: quoted do has a weak request-3 preference. Define the alternative-body rule and whether ordinary statements may coexist."
+        },
+        {
+          "id": "component_prompt",
+          "label": "Component prompt carrier",
+          "fixed_outcome": "A declared input/action contract drives admitted data and normal consumers. Style blocks can belong to the definition; server rendering and browser interaction remain separate targets.",
+          "options": {
+            "header_prompt": "view NAME(signature) \"render instruction\", with bounded optional children for definition-owned styles and declared bindings. Compact current-owner extension; distinguish generated-body children from ordinary presentation body.",
+            "render_child": "view NAME(signature) with render \"instruction\" plus style and declared bindings as children. Clear body separation; extra keyword/line and body variant.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.25,
+              "probabilities": {
+                "header_prompt": 0.34,
+                "render_child": 0.16,
+                "open": 0.5
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.22,
+              "probabilities": {
+                "render_child": 0.06,
+                "open": 0.48,
+                "header_prompt": 0.46
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "header_prompt",
+              "confidence": 0.58,
+              "probabilities": {
+                "open": 0.14,
+                "header_prompt": 0.72,
+                "render_child": 0.14
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: header prompt wins only request 3. Distinguish generated rendering, definition-owned styles and declared bindings from ordinary view children."
+        },
+        {
+          "id": "component_contract",
+          "label": "Component input/reuse scope",
+          "fixed_outcome": "Explicit typed admitted inputs/actions, once-only argument evaluation, affected-use discovery. Cross-package exports/slots are separately scoped, not assumed.",
+          "options": {
+            "row_pilot": "Extend current same-module view(row:LocalModel)/show exact row contract. Existing ownership/typing/evaluation reused; components without a stored row remain unsupported initially.",
+            "bounded_inputs": "Extend view/show to an enumerated finite typed-input set with required/defaulted/nullable pure values, admitted row projections and explicit canonical action bindings. Same-module, no slots/exports. More useful controls; new checking/default/serialization/action binding work.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "bounded_inputs",
+              "confidence": 0.18,
+              "probabilities": {
+                "row_pilot": 0.28,
+                "bounded_inputs": 0.45,
+                "open": 0.27
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "row_pilot",
+              "confidence": 0.46,
+              "probabilities": {
+                "bounded_inputs": 0.12,
+                "open": 0.24,
+                "row_pilot": 0.64
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "row_pilot",
+              "confidence": 0.38,
+              "probabilities": {
+                "open": 0.11,
+                "row_pilot": 0.59,
+                "bounded_inputs": 0.3
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Split, with two weak row-pilot preferences. Choose whether the initial scope needs non-row values/actions or can extend the verified same-module row contract."
+        },
+        {
+          "id": "style_overrides",
+          "label": "New typed style overrides",
+          "fixed_outcome": "Prompt inline/named styles and frontend default settled. Existing checked component options remain. No verbatim CSS/JS requirement or arbitrary props bag.",
+          "options": {
+            "prompt_only": "New style block carries prompt/optional profile only; retain existing checked component appearance attrs and direct CSS-file editing. Smallest new surface; precise extra settings remain prompt/code.",
+            "bounded_tokens": "Add closed style-level semantic token options derived from finite owned appearance contracts, with exact eligible parts/conflicts/precedence. More deterministic precision; new catalog/rules and duplication risk.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "prompt_only",
+              "confidence": 0.4,
+              "probabilities": {
+                "prompt_only": 0.6,
+                "bounded_tokens": 0.05,
+                "open": 0.35
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "prompt_only",
+              "confidence": 0.41,
+              "probabilities": {
+                "bounded_tokens": 0.03,
+                "open": 0.36,
+                "prompt_only": 0.61
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "prompt_only",
+              "confidence": 0.74,
+              "probabilities": {
+                "open": 0.12,
+                "prompt_only": 0.83,
+                "bounded_tokens": 0.05
+              }
+            }
+          ],
+          "status": "consistent_recommendation",
+          "root_interpretation": "Consistent recommendation: prompt-only new style surface initially; existing checked component options and direct saved-CSS editing remain. Additional typed tokens are separately proposed."
+        }
+      ],
+      "root_interpretation": "Prompt-only style additions are consistently favored; declaration/application/body spelling and initial component scope remain open.",
+      "next_finite_design_choice": "Define local contribution ordering and prompt/body variants; select the smallest component inputs needed by the initial scope."
+    },
+    {
+      "id": "D2",
+      "title": "D2 Generator configuration",
+      "verified_context": [
+        "No existing generation config API/file found. DESIGN source membership/contracts derive from .can and prohibit authored source/dependency registries.",
+        "All four executable names resolve; headless/model/structured help or official docs verified. Actual provider authentication/model execution is not qualified. Generation config is newly motivated toolchain scope.",
+        "frontend logical default settled; exact backend default/provider/model, filename/schema/precedence/capabilities remain open."
+      ],
+      "records": [
+        {
+          "variant": 1,
+          "questions": "D2/1.questions.json",
+          "result": "D2/1.result.json"
+        },
+        {
+          "variant": 2,
+          "questions": "D2/2.questions.json",
+          "result": "D2/2.result.json"
+        },
+        {
+          "variant": 3,
+          "questions": "D2/3.questions.json",
+          "result": "D2/3.result.json"
+        }
+      ],
+      "decisions": [
+        {
+          "id": "root_filename",
+          "label": "Root config filename",
+          "fixed_outcome": "Use supplied project root, no ancestor lookup, no source/dependency/interface lists or business authority.",
+          "options": {
+            "can_gen_toml": "can.gen.toml dedicated to generation. Narrow ownership clear; another root tooling file.",
+            "can_toml": "can.toml with only a generation section in this scope. One future tooling location; broader name can invite duplicated app config if not disciplined.",
+            "can_gen_json": "can.gen.json dedicated to generation. Familiar machine schema/JSON tooling; more punctuation and comments unavailable in strict JSON.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.32,
+              "probabilities": {
+                "can_gen_toml": 0.4,
+                "can_toml": 0.09,
+                "can_gen_json": 0.02,
+                "open": 0.49
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.24,
+              "probabilities": {
+                "can_toml": 0.12,
+                "can_gen_json": 0.12,
+                "open": 0.43,
+                "can_gen_toml": 0.33
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "can_gen_toml",
+              "confidence": 0.24,
+              "probabilities": {
+                "can_gen_json": 0.22,
+                "open": 0.3,
+                "can_gen_toml": 0.43,
+                "can_toml": 0.05
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: can.gen.toml wins only request 3 at low confidence. Dedicated generation ownership is required; exact filename is a routine choice still to record."
+        },
+        {
+          "id": "config_schema",
+          "label": "Profile schema",
+          "fixed_outcome": "Runner/model separate controls but resolved pair must be valid; named profiles reusable; effective origins inspectable; unknown keys/profiles/capabilities diagnose.",
+          "options": {
+            "field_overlays": "Shared generation fields plus named profile field overlays and role mappings, no inheritance graph. Concise; changing runner must not silently inherit an incompatible model.",
+            "complete_recipes": "Each named profile has an explicit complete runner/model pair; shared finite execution defaults and role/default mappings select it, no inheritance graph. Clear pairing; duplicates some profile values.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.13,
+              "probabilities": {
+                "field_overlays": 0.34,
+                "complete_recipes": 0.24,
+                "open": 0.42
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.27,
+              "probabilities": {
+                "complete_recipes": 0.13,
+                "open": 0.51,
+                "field_overlays": 0.36
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "complete_recipes",
+              "confidence": 0.04,
+              "probabilities": {
+                "open": 0.28,
+                "field_overlays": 0.36,
+                "complete_recipes": 0.36
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: request 3 selects complete recipes at a rounded probability tie with overlays and confidence .04. Specify runner/model pairing and reject incompatible partial overrides."
+        },
+        {
+          "id": "role_defaults",
+          "label": "Given/When default role",
+          "fixed_outcome": "Do not pick actual provider/model. Minimal source must avoid repeated recipe selection.",
+          "options": {
+            "backend_role": "Given/When default to backend, Then to frontend; absent role recipe uses shared project recipe. Clear specialization; another documented reserved role.",
+            "shared_default": "Given/When use shared recipe directly; backend is an optional named profile. Fewer roles; server specialization needs explicit references/config choice.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.52,
+              "probabilities": {
+                "backend_role": 0.23,
+                "shared_default": 0.09,
+                "open": 0.68
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.59,
+              "probabilities": {
+                "shared_default": 0.18,
+                "open": 0.73,
+                "backend_role": 0.09
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.38,
+              "probabilities": {
+                "open": 0.59,
+                "backend_role": 0.25,
+                "shared_default": 0.16
+              }
+            }
+          ],
+          "status": "unanimous_open",
+          "root_interpretation": "All three leave open. Frontend for Then is already settled; choose shared default versus reserved backend without inventing an actual provider/model."
+        },
+        {
+          "id": "precedence",
+          "label": "Config precedence",
+          "fixed_outcome": "Explicit per-run overrides; source agent names intent; auth remains native CLI/environment; no silent fallback. Profile and runner/model selection must be reported.",
+          "options": {
+            "project_local": "Profile: run profile > source agent > category default. Recipe: run fields > ignored project-local companion > committed profile/shared defaults. No ambient user fallback. Convenient machine choices; merged field origins and local filename need documentation.",
+            "explicit_machine_file": "Same profile selection, but machine recipe overrides only through explicitly supplied settings file, then run fields; no auto local/user lookup. Reproducible influence; recurring setup/invocation cost.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.49,
+              "probabilities": {
+                "project_local": 0.26,
+                "explicit_machine_file": 0.08,
+                "open": 0.66
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.55,
+              "probabilities": {
+                "explicit_machine_file": 0.16,
+                "open": 0.7,
+                "project_local": 0.14
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "project_local",
+              "confidence": 0.25,
+              "probabilities": {
+                "open": 0.35,
+                "project_local": 0.5,
+                "explicit_machine_file": 0.15
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: automatic project-local overrides win only request 3 at low confidence. Decide explicit versus automatic machine settings and expose each effective field origin."
+        },
+        {
+          "id": "runner_controls",
+          "label": "Runner-specific controls",
+          "fixed_outcome": "Attempt/time/cancel bounded; optional turns/spend/permission settings only if enforceable; native permissions honored, unsupported requested control errors.",
+          "options": {
+            "normalized_controls": "Closed shared vocabulary for finite attempts/time and optional equivalent turns/spend/permissions; adapters publish support and reject unsupported requests. Portable where equivalent; must avoid false semantic equivalence.",
+            "native_options": "Common attempts/time/cancel; closed validated runner-specific optional tables with inspection of enforceable meaning. Honest native differences; less portable profile syntax.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.02,
+              "probabilities": {
+                "normalized_controls": 0.34,
+                "native_options": 0.31,
+                "open": 0.35
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.19,
+              "probabilities": {
+                "native_options": 0.26,
+                "open": 0.46,
+                "normalized_controls": 0.28
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "normalized_controls",
+              "confidence": 0.27,
+              "probabilities": {
+                "open": 0.15,
+                "normalized_controls": 0.51,
+                "native_options": 0.34
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: normalized controls win only request 3 at low confidence. Map only enforceably equivalent native controls; required attempts/time/cancel remain fixed."
+        }
+      ],
+      "root_interpretation": "No concrete configuration alternative is consistently selected; the Given/When default role is unanimously left open.",
+      "next_finite_design_choice": "Specify effective recipe pairing, field origins and enforceable native control mappings, then choose a narrow root schema."
+    },
+    {
+      "id": "D3",
+      "title": "D3 Unit association",
+      "verified_context": [
+        "analysis/mod.rs48-73 NodeKey is process-local/never persisted. source.rs SourceId is DB-local and replaced source receives fresh ID. CST/IR spans and content hash are not persistent ownership identity.",
+        "Current generation record/inline identity mechanism is unimplemented. IDs must remain separate from optional names, offsets and freshness hashes; current saved JS/CSS must be directly editable."
+      ],
+      "records": [
+        {
+          "variant": 1,
+          "questions": "D3/1.questions.json",
+          "result": "D3/1.result.json"
+        },
+        {
+          "variant": 2,
+          "questions": "D3/2.questions.json",
+          "result": "D3/2.result.json"
+        },
+        {
+          "variant": 3,
+          "questions": "D3/3.questions.json",
+          "result": "D3/3.result.json"
+        }
+      ],
+      "decisions": [
+        {
+          "id": "identity_carrier",
+          "label": "Stable identity carrier",
+          "fixed_outcome": "Unique opaque ownership; formatting/unrelated edits preserve associations; copies distinct; ambiguous moves/renames diagnose and expose explicit reconciliation.",
+          "options": {
+            "source_token": "Tool allocates opaque ID in a defined source annotation beside each owning construct. Names optional labels. Carries identity through prompt edits/moves; adds machine source syntax/bytes and duplicate token diagnostics.",
+            "association_record": "Tool allocates opaque ID in a tracked minimal record; uniquely match owner/kind/normalized structure/context, never treating fingerprints/names as identity. Concise source; ambiguous independently edited constructs need explicit rebind/copy.",
+            "hybrid_inline": "Tracked records for all IDs plus tool-authored tokens only on unnamed blocks; named units use verified owner/name association and explicit rename reconciliation. Better inline evidence; two paths and annotation syntax.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "association_record",
+              "confidence": 0.69,
+              "probabilities": {
+                "source_token": 0.05,
+                "association_record": 0.77,
+                "hybrid_inline": 0.02,
+                "open": 0.16
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "association_record",
+              "confidence": 0.53,
+              "probabilities": {
+                "association_record": 0.65,
+                "hybrid_inline": 0.01,
+                "open": 0.24,
+                "source_token": 0.1
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "association_record",
+              "confidence": 0.73,
+              "probabilities": {
+                "hybrid_inline": 0.02,
+                "open": 0.06,
+                "source_token": 0.12,
+                "association_record": 0.8
+              }
+            }
+          ],
+          "status": "consistent_recommendation",
+          "root_interpretation": "Consistent recommendation: tracked minimal association record with opaque IDs and unique source matching. Names/fingerprints are matching evidence, not identity; ambiguous moves/copies/renames require explicit reconciliation."
+        },
+        {
+          "id": "file_layout",
+          "label": "Current/candidate file layout",
+          "fixed_outcome": "Current editable primary files, candidate separation, clean checkout and structured paths; no app contracts/dependencies copied into an authored manifest.",
+          "options": {
+            "unit_directories": "Unit-centered generated implementation directories keyed by opaque IDs, with current files and minimal association/origin record; local candidates elsewhere. Paths survive source moves; machine inspection supplies readable labels.",
+            "source_adjacent": "Source-adjacent implementation directory with readable label plus opaque ID, current files and minimal record; candidates separate. Browsable; source movement needs explicit path relocation/reconciliation.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "unit_directories",
+              "confidence": 0.55,
+              "probabilities": {
+                "unit_directories": 0.7,
+                "source_adjacent": 0.07,
+                "open": 0.23
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "unit_directories",
+              "confidence": 0.46,
+              "probabilities": {
+                "source_adjacent": 0.08,
+                "open": 0.28,
+                "unit_directories": 0.64
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "unit_directories",
+              "confidence": 0.69,
+              "probabilities": {
+                "open": 0.09,
+                "unit_directories": 0.79,
+                "source_adjacent": 0.12
+              }
+            }
+          ],
+          "status": "consistent_recommendation",
+          "root_interpretation": "Consistent recommendation: unit-centered directories keyed by stable opaque IDs; editable current implementation tracked, transient candidates separate. Exact paths remain proposed."
+        }
+      ],
+      "root_interpretation": "Tracked association records and unit-centered directories are consistently favored.",
+      "next_finite_design_choice": "Define unique matching and explicit reconciliation for ambiguous move/copy/rename cases; allocate IDs independently of names/freshness."
+    },
+    {
+      "id": "D4",
+      "title": "D4 JavaScript integration",
+      "verified_context": [
+        "Canonical State OperationRegistry validates generated descriptors and one authority; CF invocation loads declared canApp registry members and canonical producers.",
+        "CF CanonicalEffectsScope exposes projected reads/staged writes; full HandlerContext exposes StoragePort and must not simply be handed to arbitrary JS.",
+        "Compiler JS callables already carry canonical identity/export/member/input style/source span; assembly composes import-rewrite/source maps. This does not define arbitrary saved-JS authority or prove semantic safety.",
+        "Import preflight validates admitted module edges, not globals or malicious JS containment. Server target workerd and browser target distinct; existing genuine fixtures/producers support bounded relevant checks.",
+        "Generated Given additions must stay source-owned and compiler-visible. No existing custom JS extension ABI/registry/source mapping is implemented."
+      ],
+      "records": [
+        {
+          "variant": 1,
+          "questions": "D4/1.questions.json",
+          "result": "D4/1.result.json"
+        },
+        {
+          "variant": 2,
+          "questions": "D4/2.questions.json",
+          "result": "D4/2.result.json"
+        },
+        {
+          "variant": 3,
+          "questions": "D4/3.questions.json",
+          "result": "D4/3.result.json"
+        }
+      ],
+      "decisions": [
+        {
+          "id": "contracts",
+          "label": "Generated schema/interface ownership",
+          "fixed_outcome": "Exact Can value/contracts visible to compiler/runtime consumers; typed owning declaration and accepted implementation association; no separately authored parallel schema authority.",
+          "options": {
+            "source_first": "Authoring agent settles explicit Can fields/signatures/effect/action contracts before JS generation, then compiler derives interface/codecs. One source authority; schema discovery needs source edit/new capture and can add authoring verbosity.",
+            "reconcile_patch": "Preparation proposes bounded Can declaration patch with candidate JS; analyze/reconcile source before acceptance and derive interface/codecs. Discovery supported; conflict/two-stage capture and source/schema migration needed.",
+            "generated_contributions": "Owning local modifier/target accepts saved compiler-visible declaration contributions attributed to that source unit; analyze them before generating/checking dependent JS and derive one canonical schema. Concise modifier authoring; needs generated-source attribution/hygiene/conflict and current-byte acceptance, not an independent authored manifest.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "generated_contributions",
+              "confidence": 0.67,
+              "probabilities": {
+                "source_first": 0.12,
+                "reconcile_patch": 0.02,
+                "generated_contributions": 0.75,
+                "open": 0.11
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "generated_contributions",
+              "confidence": 0.59,
+              "probabilities": {
+                "reconcile_patch": 0.01,
+                "generated_contributions": 0.69,
+                "open": 0.13,
+                "source_first": 0.17
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "generated_contributions",
+              "confidence": 0.72,
+              "probabilities": {
+                "generated_contributions": 0.79,
+                "open": 0.05,
+                "source_first": 0.14,
+                "reconcile_patch": 0.02
+              }
+            }
+          ],
+          "status": "consistent_recommendation",
+          "root_interpretation": "Consistent recommendation: source-owned saved compiler-visible contributions for local modifiers, checked before dependent JS. Attribute and reconcile contributions into one canonical schema; this is not a second authored interface manifest."
+        },
+        {
+          "id": "effect_abi",
+          "label": "JavaScript effects interface",
+          "fixed_outcome": "Authorized reads interleaved with staged writes/read-after-write; precise order, canonical actions/effects, rollback, one commit/replay. Pure rules have no effects.",
+          "options": {
+            "narrow_facade": "Validated inputs plus per-invocation narrow async methods delegating to canonical producers, no raw store/registry/commit/principal, exact result codecs. Natural JS; allowed-call/lifetime checks and separate ambient-JS trust decision needed.",
+            "resumable_effects": "Implementation yields typed effect requests, engine performs them in order over staged overlay and resumes with admitted results; validates final result. Explicit effects/no raw capability objects; continuation/error/cancel protocol complexity and separate trust decision.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "resumable_effects",
+              "confidence": 0.14,
+              "probabilities": {
+                "narrow_facade": 0.21,
+                "resumable_effects": 0.43,
+                "open": 0.36
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.35,
+              "probabilities": {
+                "resumable_effects": 0.13,
+                "open": 0.57,
+                "narrow_facade": 0.3
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "narrow_facade",
+              "confidence": 0.31,
+              "probabilities": {
+                "open": 0.2,
+                "narrow_facade": 0.54,
+                "resumable_effects": 0.26
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Three different selections; no agreement. Both choices must preserve interleaved projected reads/staged writes and exact results without raw store, commit or principal mutation."
+        },
+        {
+          "id": "execution_trust",
+          "label": "JavaScript execution trust",
+          "fixed_outcome": "No silent extra storage authority; preserve supported canonical contracts and honestly state residual arbitrary-JS globals/hidden-effect risk. Imports/types/examples alone are not containment.",
+          "options": {
+            "trusted_application": "Accept JS as trusted application/workspace code using whichever finite declared execution ABI is selected (facade or resumable effects), admitted dependencies and finite checks. No raw context/bindings. Minimal host work; explicitly not an adversarial sandbox and ambient globals/dependencies can still perform undeclared effects.",
+            "separate_execution": "Separately configured execution environment without storage/binding credentials, bridging whichever finite declared execution ABI is selected through a canonical channel, with explicit permitted ambient/network/resource controls. Reduced ambient authority; new hosting/transport/lifecycle, precise configured boundary still must be qualified.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "trusted_application",
+              "confidence": 0.22,
+              "probabilities": {
+                "trusted_application": 0.48,
+                "separate_execution": 0.23,
+                "open": 0.29
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.35,
+              "probabilities": {
+                "separate_execution": 0.13,
+                "open": 0.57,
+                "trusted_application": 0.3
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "trusted_application",
+              "confidence": 0.48,
+              "probabilities": {
+                "open": 0.21,
+                "trusted_application": 0.65,
+                "separate_execution": 0.14
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Two trusted-application preferences, one open; insufficient to settle containment. Accepting application JS with a finite ABI is not an adversarial sandbox; ambient globals/imports still need a declared trust contract."
+        },
+        {
+          "id": "registry_join",
+          "label": "Canonical runtime join",
+          "fixed_outcome": "Existing declaration-derived descriptors remain one authority; no runtime JS-created parallel registry or hidden operation.",
+          "options": {
+            "compiler_wrappers": "Compiler emits canonical callable/component wrappers importing selected saved exports, boundary-checking and supplying chosen ABI. Reuse current consumer paths; new wrapper/export/target lowering.",
+            "loader_attachments": "Canonical descriptors reference derived implementation attachments checked on runtime load; private lookup maps locations only, not grants. Centralize attachment checks; loader/assembly/component target contracts change.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "compiler_wrappers",
+              "confidence": 0.37,
+              "probabilities": {
+                "compiler_wrappers": 0.58,
+                "loader_attachments": 0.06,
+                "open": 0.36
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.34,
+              "probabilities": {
+                "loader_attachments": 0.06,
+                "open": 0.56,
+                "compiler_wrappers": 0.38
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "compiler_wrappers",
+              "confidence": 0.58,
+              "probabilities": {
+                "open": 0.26,
+                "compiler_wrappers": 0.72,
+                "loader_attachments": 0.02
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Two compiler-wrapper preferences, one open. Wrappers fit existing ownership paths but selected exports, boundary codecs and actual execution ABI remain to define."
+        },
+        {
+          "id": "source_mapping",
+          "label": "Generated-JS source attribution",
+          "fixed_outcome": "Current JS coordinates plus owning Can unit/span, composed transforms, regenerated current-byte maps. Do not invent Can lines for arbitrary implementation detail.",
+          "options": {
+            "js_maps_owner_link": "Ordinary maps to current tracked JS plus separate owning Can span/unit association; compiler wrappers map to Can. Minimal/reuses current composition; consumers present two locations.",
+            "multi_source_maps": "One multi-source map includes current JS bodies and Can wrapper/declaration sources plus owner metadata. Unified debugging; explicit multi-source consumer/schema support still needed.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "js_maps_owner_link",
+              "confidence": 0.52,
+              "probabilities": {
+                "js_maps_owner_link": 0.6799999999999999,
+                "multi_source_maps": 0.05,
+                "open": 0.27
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "js_maps_owner_link",
+              "confidence": 0.35,
+              "probabilities": {
+                "multi_source_maps": 0.04,
+                "open": 0.39,
+                "js_maps_owner_link": 0.57
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "js_maps_owner_link",
+              "confidence": 0.82,
+              "probabilities": {
+                "open": 0.09,
+                "js_maps_owner_link": 0.88,
+                "multi_source_maps": 0.03
+              }
+            }
+          ],
+          "status": "consistent_recommendation",
+          "root_interpretation": "Consistent recommendation: map bodies to current saved JS and separately link the owning Can unit/span; wrappers map to Can. Do not invent source-level statements for prose."
+        },
+        {
+          "id": "target_checks",
+          "label": "Finite target validation",
+          "fixed_outcome": "Boundary checks and independent expected success/refusal/failure/recovery in selected workerd/browser; reuse unchanged checks, no Node-only or syntax-only acceptance.",
+          "options": {
+            "unit_harness": "Small target harness using genuine canonical producers/config, plus affected existing app/browser cases when relevant. Focused; must not mock away authority/commit or become new proof framework.",
+            "fixture_overlay": "Overlay candidate into relevant existing app fixture, precheck interface and run affected actual-target invocation/browser cases. Direct composition/lifecycle evidence; potentially broader cost and fixture adequacy.",
+            "target_by_unit_kind": "Use existing fixture/runner as default, add smallest unit harness only where existing fixture lacks a concrete required boundary case; select documented finite checks by target/kind and reuse results. Flexible reuse; dispatch/coverage rules must remain explicit rather than unbounded testing.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "target_by_unit_kind",
+              "confidence": 0.65,
+              "probabilities": {
+                "unit_harness": 0.14,
+                "fixture_overlay": 0.01,
+                "target_by_unit_kind": 0.74,
+                "open": 0.11
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "unit_harness",
+              "confidence": 0.27,
+              "probabilities": {
+                "fixture_overlay": 0.0,
+                "target_by_unit_kind": 0.3,
+                "open": 0.25,
+                "unit_harness": 0.45
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "target_by_unit_kind",
+              "confidence": 0.4,
+              "probabilities": {
+                "target_by_unit_kind": 0.55,
+                "open": 0.03,
+                "unit_harness": 0.41,
+                "fixture_overlay": 0.01
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Two target-by-kind preferences, one small-harness preference. Reuse actual-target fixtures; add a small harness only for a demonstrated missing boundary. Exact relevant checks remain to define."
+        }
+      ],
+      "root_interpretation": "Compiler-visible contributions and truthful JS maps/Can owner links are consistently favored; effects and trust remain unresolved.",
+      "next_finite_design_choice": "Choose the interleaved effects ABI and declared execution trust boundary, then define export/codecs/registry joins and finite target checks."
+    },
+    {
+      "id": "D5",
+      "title": "D5 Style isolation",
+      "verified_context": [
+        "UI browser build pins daisyUI/themes and browser ESM closure; native forms/errors/focus/swap behavior depends on current structured markup and bindings.",
+        "Current view lowering tracks checked definition uses/occurrences. No style root/part/nested isolation engine exists yet.",
+        "Selector prefixing alone does not stop inherited CSS/custom properties or parent geometry; even reset/Shadow DOM cannot eliminate parent layout influence. Required promise is owned style scopes, explicit inheritance/layout dependencies, unchanged other units/global assets, not complete pixel independence."
+      ],
+      "records": [
+        {
+          "variant": 1,
+          "questions": "D5/1.questions.json",
+          "result": "D5/1.result.json"
+        },
+        {
+          "variant": 2,
+          "questions": "D5/2.questions.json",
+          "result": "D5/2.result.json"
+        },
+        {
+          "variant": 3,
+          "questions": "D5/3.questions.json",
+          "result": "D5/3.result.json"
+        }
+      ],
+      "decisions": [
+        {
+          "id": "hook_carrier",
+          "label": "CSS root/part hooks",
+          "fixed_outcome": "Stable admitted hooks for ordinary/custom views, multiple roots/content models honored, no arbitrary CSS access or broken canonical UI workflow.",
+          "options": {
+            "element_attributes": "Attach namespaced owner/root/part hooks to existing rendered semantic elements, multiple roots if needed; custom renderer declares/verifies hooks. Avoid compulsory wrappers; new factory hook attachment and selector relation rules.",
+            "scope_containers": "Use compiler-owned scope container/root and descendant parts, with semantic-element/multi-root exceptions where generic wrapper invalid. Simple common selectors; placement/layout/inheritance exceptions need rules.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.04,
+              "probabilities": {
+                "element_attributes": 0.3,
+                "scope_containers": 0.34,
+                "open": 0.36
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.46,
+              "probabilities": {
+                "scope_containers": 0.16,
+                "open": 0.64,
+                "element_attributes": 0.2
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "element_attributes",
+              "confidence": 0.18,
+              "probabilities": {
+                "open": 0.26,
+                "element_attributes": 0.45,
+                "scope_containers": 0.29
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: attributes win only request 3 at low confidence. Define hook coverage on semantic elements/multiple roots and custom renderers before choosing mandatory containers."
+        },
+        {
+          "id": "nested_cascade",
+          "label": "Nested CSS boundary",
+          "fixed_outcome": "Outer selectors cannot target nested owned interior or global/shared assets; local names/at-rules admitted and namespaced. Explain inheritance/geometry honestly, preserve daisyUI theme/form behavior.",
+          "options": {
+            "shared_inheritance": "Parsed ownership-limited selectors/nested exclusions; inherited parent/shared-theme values remain documented inputs. Outer can style admitted child boundary root, not interior. Small normal HTML mechanism; parent typography/token/layout coupling remains explicit.",
+            "explicit_inheritance_boundary": "Same ownership rules plus compiler-owned finite defaults/allowed inherited theme inputs at child roots, reducing arbitrary outer generated color/font/token coupling. More independence; finite reset/token policy can affect daisyUI and still does not remove geometry/shared-rule effects.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "explicit_inheritance_boundary",
+              "confidence": 0.1,
+              "probabilities": {
+                "shared_inheritance": 0.24,
+                "explicit_inheritance_boundary": 0.4,
+                "open": 0.36
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.27,
+              "probabilities": {
+                "explicit_inheritance_boundary": 0.14,
+                "open": 0.51,
+                "shared_inheritance": 0.35
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "shared_inheritance",
+              "confidence": 0.18,
+              "probabilities": {
+                "open": 0.23,
+                "shared_inheritance": 0.45,
+                "explicit_inheritance_boundary": 0.32
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Three different selections, all low confidence. Selector ownership alone does not stop inherited fonts/colors/tokens or parent layout; specify allowed inheritance and boundary-root styling."
+        },
+        {
+          "id": "affected_use_reporting",
+          "label": "Shared-component use discovery",
+          "fixed_outcome": "Generate once per definition and report checked source sites/enclosing owners; repeated/conditional sites mean their instances, not invented live counts. Relevant consumer checks, never automatic regeneration.",
+          "options": {
+            "derived_index": "Compiler emits derived definition-to-use index in checked IR/artifact consumed by inspection. Fast consistent; derived index/schema/freshness joins, never authored manifest.",
+            "inspect_graph_walk": "Inspection computes bounded checked declaration/use graph walk and returns same sites/owners without saved extra index. Less metadata; checked IR access/traversal/cycle/unavailable-analysis handling.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "derived_index",
+              "confidence": 0.13,
+              "probabilities": {
+                "derived_index": 0.42,
+                "inspect_graph_walk": 0.26,
+                "open": 0.32
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "inspect_graph_walk",
+              "confidence": 0.18,
+              "probabilities": {
+                "inspect_graph_walk": 0.45,
+                "open": 0.41,
+                "derived_index": 0.14
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "derived_index",
+              "confidence": 0.22,
+              "probabilities": {
+                "open": 0.2,
+                "derived_index": 0.48,
+                "inspect_graph_walk": 0.32
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Split with low confidence. Either derive an index or traverse checked uses; report source use sites/owners, not a supposed enumeration of live rendered instances."
+        }
+      ],
+      "root_interpretation": "No consistent hook, nested cascade or affected-use implementation choice.",
+      "next_finite_design_choice": "Define what a nested scope inherits and what the parent may style, including shared-theme and geometry dependencies."
+    },
+    {
+      "id": "D6",
+      "title": "D6 Agent protocol and promotion",
+      "verified_context": [
+        "Current generator protocol/promotion unimplemented. Required direct-editable tracked primary code, selected candidates, matching inputs/current bytes and no partially consumed group.",
+        "compiler/src/cli.rs1450-1505 write_file_atomic is staged per-file replacement; comment explicitly says final check is not a CAS and no durability promise. Reuse only as primitive, not group atomicity proof.",
+        "Both draft filesystem promotion schemes require a concrete bounded selected-unit mutation freeze/cooperative writer protocol and coordinated build-read gate. Prechecks/advisory locks alone do not guarantee no-overwrite against uncooperative arbitrary external writers between comparison and replacement. This gap is part of the decision, not assumed solved."
+      ],
+      "records": [
+        {
+          "variant": 1,
+          "questions": "D6/1.questions.json",
+          "result": "D6/1.result.json"
+        },
+        {
+          "variant": 2,
+          "questions": "D6/2.questions.json",
+          "result": "D6/2.result.json"
+        },
+        {
+          "variant": 3,
+          "questions": "D6/3.questions.json",
+          "result": "D6/3.result.json"
+        }
+      ],
+      "decisions": [
+        {
+          "id": "request_carrier",
+          "label": "Agent request/result protocol",
+          "fixed_outcome": "Stable schema IDs/request IDs/explicit selected units, JSON or JSONL results/progress, typed errors/paths/next actions and file/stdin instructions; every required lifecycle operation covered.",
+          "options": {
+            "typed_subcommands": "Typed lifecycle subcommands/selectors/instruction files with documented JSON final envelope and optional JSONL ending in same result. Easy simple calls; flags/schema must stay aligned.",
+            "json_dispatch": "One versioned JSON request dispatcher from stdin/file with operation/selectors/args, same final/event envelope; optional convenience subcommands lower to that schema. Canonical machine contract; simple calls need JSON or thin sugar.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.31,
+              "probabilities": {
+                "typed_subcommands": 0.02,
+                "json_dispatch": 0.44,
+                "open": 0.54
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.55,
+              "probabilities": {
+                "json_dispatch": 0.29,
+                "open": 0.7,
+                "typed_subcommands": 0.01
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "json_dispatch",
+              "confidence": 0.37,
+              "probabilities": {
+                "open": 0.38,
+                "typed_subcommands": 0.04,
+                "json_dispatch": 0.58
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: JSON dispatcher wins only request 3. Enumerate versioned operations/selectors/events/errors/next actions and keep any CLI sugar on the same canonical contract."
+        },
+        {
+          "id": "compose_acceptance",
+          "label": "Composed generation/acceptance",
+          "fixed_outcome": "Same capture/check/selection and retained-candidate/conflict semantics as separate calls; phases distinguish candidate-complete from accepted success, no human gate.",
+          "options": {
+            "accept_option": "Explicit accept=if-valid option on generate/refine, phase outcomes in structured result. Short common workflow; success state must distinguish accepted vs only generated.",
+            "fixed_compose": "Dedicated fixed prepare-validate-accept operation with mode generate/refine and selected targets, using same lifecycle implementation. Visible schema intent; adds one command, not general workflow language.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.73,
+              "probabilities": {
+                "accept_option": 0.15,
+                "fixed_compose": 0.03,
+                "open": 0.82
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.67,
+              "probabilities": {
+                "fixed_compose": 0.09,
+                "open": 0.78,
+                "accept_option": 0.13
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "accept_option",
+              "confidence": 0.23,
+              "probabilities": {
+                "open": 0.41,
+                "accept_option": 0.49,
+                "fixed_compose": 0.1
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: accept option wins only request 3 at low confidence. Define phase outcomes and conflict/retained-candidate behavior; no human gate is required."
+        },
+        {
+          "id": "promotion_recovery",
+          "label": "Promotion and interruption recovery",
+          "fixed_outcome": "Direct-editable current primary files remain. Capture/replace freeze and build-read coordination must be explicitly designed; neither scheme has already solved final-CAS against uncooperative writers. Keep newer work on conflicts.",
+          "options": {
+            "file_journal": "Under specified bounded mutation freeze, one pending unit promotion record holds old/current/replacement identity and recovery phase; builders gate reads; stage/replace files and finalize only complete group. Unexpected bytes refuse recovery overwrite. Stable paths; finite file-phase journal/build gating, not multi-file FS transaction.",
+            "directory_stage": "Dedicated unit current directory; under same freeze/gate stage complete replacement, record pending unit, retain old directory backup then rename staged to current, finalize/clear gate. Interrupted rename gap blocks readers; unexpected edits conflict. Smaller group moves; directory ownership/portability/two-rename recovery and writer protocol.",
+            "defer_until_writer_contract": "Retain candidate-only operations and define the precise concurrent-writer/build-reader contract before selecting promotion mechanism. Avoid unsupported no-overwrite claim; leaves composed acceptance implementation temporarily unresolved, not a feature rejection.",
+            "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+          },
+          "answers": [
+            {
+              "variant": 1,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.23,
+              "probabilities": {
+                "file_journal": 0.26,
+                "directory_stage": 0.02,
+                "defer_until_writer_contract": 0.3,
+                "open": 0.42
+              }
+            },
+            {
+              "variant": 2,
+              "type": "choice",
+              "choice": "open",
+              "confidence": 0.23,
+              "probabilities": {
+                "directory_stage": 0.05,
+                "defer_until_writer_contract": 0.12,
+                "open": 0.42,
+                "file_journal": 0.41
+              }
+            },
+            {
+              "variant": 3,
+              "type": "choice",
+              "choice": "file_journal",
+              "confidence": 0.37,
+              "probabilities": {
+                "defer_until_writer_contract": 0.15,
+                "open": 0.2,
+                "file_journal": 0.53,
+                "directory_stage": 0.12
+              }
+            }
+          ],
+          "status": "split",
+          "root_interpretation": "Open: file journal wins only request 3. Select a finite writer-coordination and build-read contract before journal versus directory staging; current per-file replacement is not a compare-and-swap or group transaction."
+        }
+      ],
+      "root_interpretation": "JSON dispatch, an acceptance option and file journaling have only request-3 preferences. Promotion remains unresolved.",
+      "next_finite_design_choice": "Define versioned lifecycle envelopes and phase results plus selected-unit writer coordination/build-read gating before claiming consistent promotion."
+    }
+  ]
+}

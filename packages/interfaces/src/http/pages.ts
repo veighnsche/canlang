@@ -37,7 +37,7 @@ import type {
   TeamOption,
 } from '@canlang/contracts';
 import { deriveCsrfToken, parseSessionCookie, IdentityError } from '@canlang/identity';
-import { buildNavigation, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
+import { buildNavigation, renderEnumPreferenceSettings, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
 import type { PageHttpDeps, PagePreferenceKey } from '../ports.js';
 import {
   assertPostCsrf,
@@ -551,7 +551,14 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
     }
     let html: string;
     try {
-      html = await renderPage(context, match.descriptor, [children], shell);
+      html = await renderPage(context, match.descriptor, [children], {
+        ...shell, settings: renderEnumPreferenceSettings({
+          context, owner: match.descriptor.owner,
+          caption: deps.app.ownerLabels.get(match.descriptor.owner) ?? match.descriptor.owner,
+          fields: checkedPreferenceFields(match.descriptor),
+          postTo: context.pollUrl ?? context.path,
+        }),
+      });
     } catch (err) {
       return internalResponse(deps, err, pathname);
     }

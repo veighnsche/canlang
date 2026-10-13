@@ -1,0 +1,15 @@
+# Accepted configuration example; not supported by the current compiler.
+# Replace the placeholders with models available to the selected installed CLI.
+version = 1
+
+[generation]
+runner = "codex"
+model = "YOUR_AVAILABLE_MODEL_ID"
+max_attempts = 1
+timeout_seconds = 600
+
+# Optional complete runner/model pair; omitted limits use shared finite limits.
+# Then uses frontend when configured, otherwise shared; Given/When use shared.
+[generation.profiles.fast]
+runner = "opencode"
+model = "PROVIDER/MODEL_ID"

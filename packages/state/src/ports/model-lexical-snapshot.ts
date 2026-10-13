@@ -65,8 +65,11 @@ export function bindModelLexicalSnapshotProfile(bound: FileReferenceProfileBound
   for (const field of artifact.fields) {
     const declared = canonical.fields[field.name]!;
     for (const key of ['required', 'serverOnly', 'array', 'nullable', 'trim', 'min', 'max', 'default'] as const) {
+      // Artifact defaults retain the separately validated initializer payload;
+      // the canonical field carries only its server-default marker.
+      const sourceValue = key === 'default' && field.default?.kind === 'server' ? { kind: 'server' } : field[key];
       if (Object.hasOwn(declared, key) !== Object.hasOwn(field, key) ||
-          Object.hasOwn(declared, key) && stableStringify(declared[key]) !== stableStringify(field[key])) {
+          Object.hasOwn(declared, key) && stableStringify(declared[key]) !== stableStringify(sourceValue)) {
         return refuse('owning field declarations disagree.');
       }
     }

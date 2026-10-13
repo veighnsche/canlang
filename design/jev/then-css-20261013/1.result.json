@@ -1,0 +1,46 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "verified": {
+        "todo_source": "# Keep track of what needs doing.\napp Todos\nGiven\n Todo { title:text trim min=1 max=200 label=\"Task\", done:bool=false label={text=\"Status\",values={true=\"Done\",false=\"Open\"}} } label=\"Todo\"\n policy Todo read=members\n fixture task=Todo {title=\"Try Can\"}\nWhen\n crud Todo by=members fields=title,done label={create=\"Add task\"}\n  examples update record=task\n   as,changes.done,request.record.version -> record.done\n   members,true,1 -> true\n   members,true,0 -> error(conflict)\n   public,true,1 -> error(forbidden)\nThen\n preferences { view:enum(all,open,done)=all label={text=\"Show\",values={all=\"All\",open=\"Open\",done=\"Done\"}} }\n page / title=\"Todos\"\n  card \"Add a task\"\n   form Todo.create fields=title display=inline\n    input title\n  card \"Your tasks\"\n   tabs preferences.view\n   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty=\"No tasks here. Add a task or choose another view.\"\n    text row.title,row.done\n    edit fields=title,done\n    tooltip \"Permanently delete this task\"\n     delete\n",
+        "record_syntax": "Existing Can records use comma-separated NAME=value members; nested records exist.",
+        "current_styling": "Then has finite producer-catalog component appearance and core card layout=stack|columns, but no generic per-component spacing/sizing/responsive styling. CSS acquisition currently uses prebuilt daisyUI plus manually supplied utilities. No proposed syntax is implemented."
+      },
+      "context": "The human requests a concise component-level CSS shorthand in Then, including responsive styles, illustrated on the complete Todo app. Compare all alternatives as unimplemented designs for the same outcome: compact source-owned composition, discoverable validation, adjustable layout/spacing/sizing, and predictable mobile-first overrides. The common app shell remains the shared left desktop sidebar and portrait-tablet drawer. Existing canonical CRUD, input defaults, field grants, CSRF, record versions, and recoverable delete must retain their owners. All three alternatives can use the same finite version-pinned style vocabulary and static CSS generation; none implies bypassing those behaviors.",
+      "shared_semantics": "Every component has an explicit catalog-owned layout target. Root CSS addresses that target; finite named body/row part maps handle generated card content and repeated list rows, without arbitrary descendant selectors. CSS maps apply literal style data, including typed spacing numbers and checked length strings. Base is followed by applicable min-width breakpoints sm=40rem, md=48rem, lg=64rem, xl=80rem in increasing width. Explicit styles refine defaults. Same-scope duplicate/overlapping normalized properties are errors; breakpoint overrides are intentional."
+    },
+    "questions": {
+      "syntax": {
+        "type": "choice",
+        "instructions": "Which proposed source notation best balances authoring brevity, clarity of styling versus behavior, useful diagnostics, and predictable responsive changes under the stated common requirements?",
+        "criteria": {
+          "map": "Use one css={p=4,gap=3,sm={p=6}} attribute. It reuses Can record punctuation and isolates styling keys, with some wrapper/comma cost. Part maps live inside the record.",
+          "attrs": "Write p=4 gap=3 sm={p=6} directly on components. This saves the css wrapper and resembles existing component options; it needs an explicit collision rule between style keys and behavior attributes. Part maps are direct attributes.",
+          "string": "Write css=\"p-4 gap-3 sm:p-6\" using a closed compiler-checked utility vocabulary. It is compact and familiar to Tailwind authors; tooling parses the token string and part prefixes.",
+          "defer": "Keep the syntax open if none provides a satisfactory bounded draft; identify no winner."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "syntax": {
+        "type": "choice",
+        "choice": "map",
+        "confidence": 0.72,
+        "probabilities": {
+          "map": 0.79,
+          "attrs": 0.12,
+          "string": 0.08,
+          "defer": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1167,
+      "output_tokens": 46
+    }
+  }
+}

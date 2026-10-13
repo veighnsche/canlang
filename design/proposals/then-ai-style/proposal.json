@@ -1,0 +1,73 @@
+{
+  "status": "exploratory generation design, not implemented; both inline and named style blocks plus implicit frontend are accepted human requirements",
+  "syntax_example": "style \"Describe the appearance\" or style Workspace \"Describe the appearance\", each followed by ordinary Then children; frontend is implicit",
+  "ownership": "Canonical declaring owner + style-block identity, explicit for named blocks and managed internally for inline blocks; each block has compiler-owned root and component/part hooks.",
+  "output": "Accepted scoped CSS + one small generated record containing canonical scope, relevant input digest, selected/effective agent identity and artifact path; candidate/attempt state is separate from accepted output.",
+  "generation_inputs": [
+    "prompt",
+    "static component structure and style hooks for the scope",
+    "shared renderer/theme asset versions relevant to those templates",
+    "effective generator/model recipe captured for each explicit attempt, separate from ordinary-build source/target compatibility"
+  ],
+  "ordinary_builds": "Consume current tracked CSS without AI calls or generation credentials. Validate relevant source/template/theme/target compatibility; missing/stale source inputs diagnose. Direct CSS edits are permitted and marked modified since generation. Changing configured provider/model only affects future generation and reports recipe drift, never silently replaces or invalidates otherwise compatible current CSS.",
+  "regeneration": "Explicit headless preparation creates a candidate; an authoring agent can inspect/check and accept it, optionally as a composed operation. No required human preview/approval; failure retains current output.",
+  "application_boundary": "existing source owns composition, data, bindings, permissions, forms/errors/focus behavior; generation emits scoped presentation CSS for the declared subtree",
+  "open_decisions": [
+    "prompt-only versus optional typed overrides (human chose keep exploring)",
+    "placement and precedence of optional agent overrides (source, generation command, or both); omitted agent uses frontend",
+    "precise grammar/CLI spelling, profile declaration and generated record location; support for both inline and named blocks is settled",
+    "persistent inline block identity across edits and named-block namespace/collision rules",
+    "nested scope cascade/ownership",
+    "structured candidate validation/acceptance protocol and precise relevant-input/profile invalidation",
+    "how to qualify responsive/accessibility states without treating static checks as proof"
+  ],
+  "agent_selection": {
+    "required_outcome": "Use the shared frontend coding-agent profile by default when agent is omitted. Identify the effective agent in the saved result without requiring repetitive source attributes; do not implicitly inherit the active chat agent.",
+    "candidate": "Optional owning source profile reference, resolved through proposed shared root generation-tool configuration; provider/model settings normally live in that tooling config.",
+    "alternative": "Optional explicit generation-command profile/tool/model override, recorded for that attempt; see design/proposals/build-generation/proposal.json.",
+    "profile_contents": "Provider, requested model/version, coding-agent recipe/tool versions and effective generation settings; secrets are environment bindings, never generated source.",
+    "saved_identity": "Record selected profile and effective recipe, requested provider/model and actual provider-reported model/version when available. Mark unavailable resolved identity rather than claiming it was pinned.",
+    "status": "Default frontend is required by the human. Source versus command placement and precedence of optional overrides remain open; no frontend provider or coding agent has been selected or invoked.",
+    "default": "frontend; authors need no agent= attribute or --agent flag for ordinary styling generation"
+  },
+  "lifecycle": {
+    "status": "Inspect accepted result, current/stale/missing status, saved agent identity and any pending or failed attempt.",
+    "generate": "Explicitly capture the current scope inputs and effective agent recipe, then create a new candidate. Use this for first output, changed prompts or a deliberate new design; it can run even when accepted output is current.",
+    "retry": "Require an explicit selected style unit/failed attempt; create another candidate from its captured inputs/recipe. Keep its current CSS and every other unit unchanged; never retry all units by default.",
+    "reset": "Discard/supersede pending work for the explicitly selected unit only, preserving current CSS/direct edits and all other units. No AI call or deletion of saved styles.",
+    "accept": "Promote only the selected CSS/metadata group while relevant captured inputs, current selected bytes and attempt state match. Unselected units/global assets stay intact; conflicting or late results remain candidates.",
+    "rollback": "Restore an earlier accepted CSS/record pair through retained source-control history; diagnose incompatibility with current relevant inputs rather than silently using stale output.",
+    "shared_defaults": "Returning permanently to shared styling is a separate authoring change that removes/disables the prompt style scope; deleting its saved file alone produces missing output, not regeneration.",
+    "failure": "Provider failure, timeout, rejected output or cancellation retains accepted CSS. An unknown provider outcome is shown as unknown; recover by provider attempt/request identity where supported, otherwise require an explicit fresh retry with possible duplicate cost visible.",
+    "refine": "Capture current edited CSS, owning intent/templates/theme and refinement instruction; generate an isolated candidate from that baseline."
+  },
+  "command_examples": {
+    "status": "can gen status",
+    "generate": "can gen generate Todos.TaskList --fresh",
+    "retry": "can gen retry Todos.TaskList",
+    "reset": "can gen reset Todos.TaskList",
+    "accept": "can gen accept Todos.TaskList",
+    "rollback": "restore a compatible previous accepted CSS/record pair using source control",
+    "note": "Illustrative unimplemented agent-facing commands. TaskList is an optional source name; inline blocks are selected by internal ID from structured inspect/status. No target does not mean all; no interactive picker or human review required.",
+    "inline_targeting": "Resolve the inline block ID through structured inspect/status and target it programmatically; editor integration is optional. Exact selector spelling remains open.",
+    "refine": "can gen refine Todos.TaskList \"Make only this list more compact.\""
+  },
+  "syntax_forms": {
+    "inline": "style \"Describe the appearance\"",
+    "named": "style Workspace \"Describe the appearance\"",
+    "shared_behavior": "Both forms style their nested Then components, use frontend by default and share the same saved-output/generate/retry/reset/accept lifecycle.",
+    "name": "An optional author-chosen label for this style block, not a keyword or a reusable component definition. Named blocks can be explicitly targeted by tools; inline blocks require no author-written identifier.",
+    "agent_override": "agent=otherProfile remains an optional override if source overrides are adopted; it is never required for either form."
+  },
+  "scope_identity": {
+    "required_outcome": "Associate each inline or named block with its own accepted CSS and generation attempts; names are optional authoring syntax, not a prerequisite for saved styling.",
+    "named": "Use the optional name within its defining ownership/namespace; namespace and collision rules still need precise design.",
+    "inline": "Tooling owns persistent internal identity exposed by structured inspect/status with owner/source mapping. Editor selection is optional, never required. Current source position alone is not a stable saved identity.",
+    "identity_vs_freshness": "Keep block identity separate from the relevant-input digest. Editing a prompt makes the existing result stale rather than implicitly assigning another block its CSS.",
+    "ambiguous_edits": "Do not silently attach an accepted artifact to a different block after moves, copies or ambiguous matching. Exact identity persistence and edit reconciliation remain unimplemented design work.",
+    "current_gap": "Bounded compiler scan found source-span/process-local identities, not persisted identities stable across edits: syntax/cst.rs SyntaxNode; analysis/mod.rs NodeKey; codegen/ir.rs IrUi and view-use IDs; codegen/js.rs presentation occurrence IDs. Existing artifact source revision/maps do not bridge this gap."
+  },
+  "custom_views": "Style blocks also belong inside reusable view definitions. Generate the definition-scoped CSS once and apply it safely to each render occurrence; custom prompt-rendered views are covered by design/proposals/build-generation/proposal.json.",
+  "direct_refinement": "Tracked editable CSS is a primary build input accessible to the .can authoring agent. Original generated identity is historical; edited bytes are not silently attributed to that generator. Full provider/config/refinement controls are in design/proposals/build-generation/proposal.json.",
+  "targeting": "Each style block is independently selectable, named or inline. Retry/refine/fresh/reset/accept act only on its own candidate/output group. Preserve every other style unit and current selected CSS; precise nested-cascade/shared-view boundaries remain open."
+}

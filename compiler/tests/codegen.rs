@@ -548,7 +548,7 @@ fn golden_teamtasks_structure() {
         "bound tabs consumes the current value and request-owned save route"
     );
     assert!(
-        entry.contains("preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\"}]"),
+        entry.contains("preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\",caption:"),
         "page declares the exact source preference save allowlist"
     );
     let form_occurrence = entry
@@ -1320,7 +1320,7 @@ fn golden_expenseflow_structure() {
         "save identity belongs to the receiving reporting preference"
     );
     assert!(
-        entry.contains("preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:\"submitted\"}]"),
+        entry.contains("preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:\"submitted\",caption:"),
         "nominal cases retain the receiving preference default and allowlist"
     );
     assert!(

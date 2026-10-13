@@ -8853,8 +8853,18 @@ impl<'a> Emitter<'a> {
                 .preference_fields
                 .iter()
                 .map(|field| {
+                    let mut labels = String::new();
+                    if let Some(caption) = &field.caption {
+                        labels.push_str(&format!(",caption:{}", self.lower_message(caption)));
+                    }
+                    if !field.option_labels.is_empty() {
+                        let values = field.option_labels.iter().map(|(case, caption)|
+                            format!("{}:{}", object_key(case), self.lower_message(caption))
+                        ).collect::<Vec<_>>().join(",");
+                        labels.push_str(&format!(",optionLabels:{{{values}}}"));
+                    }
                     format!(
-                        "{{name:{},options:[{}],defaultValue:{}{}}}",
+                        "{{name:{},options:[{}],defaultValue:{}{}{labels}}}",
                         js_string(&field.name),
                         field
                             .options

@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "design": {
+      "type": "choice",
+      "choice": "guard_owner_read",
+      "confidence": 0.88,
+      "probabilities": {
+        "caller_read": 0.0,
+        "guard_owner_read": 0.92,
+        "keep_refusal": 0.08
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1136,
+    "output_tokens": 45
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "verified": {
+      "source": "# Keep track of what needs doing.\napp Todos\nGiven\n Todo { title:text trim min=1 max=200 label=\"Task\", done:bool=false label={text=\"Status\",values={true=\"Done\",false=\"Open\"}} } label=\"Todo\"\n policy Todo read=members\n fixture task=Todo {title=\"Try Can\"}\nWhen\n crud Todo by=members fields=title,done label={create=\"Add task\"}\n  examples update record=task\n   as,changes.done,request.record.version -> record.done\n   members,true,1 -> true\n   members,true,0 -> error(conflict)\n   public,true,1 -> error(forbidden)\nThen\n preferences { view:enum(all,open,done)=all label={text=\"Show\",values={all=\"All\",open=\"Open\",done=\"Done\"}} }\n page / title=\"Todos\"\n  card \"Add a task\"\n   form Todo.create fields=title display=inline\n    input title\n  card \"Your tasks\"\n   tabs preferences.view\n   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty=\"No tasks here. Add a task or choose another view.\"\n    text row.title,row.done\n    edit fields=title,done\n    tooltip \"Permanently delete this task\"\n     delete\n",
+      "existing": "Then owns components, queries, canonical form/action bindings and finite appearance. Shared UI owns daisyUI themes, layout, settings, validation/errors and interactions. There is no current general CSS/prompt-styling syntax. The prior typed css map is only a proposal.",
+      "human": "User authorizes repairing empty preferences Settings, is exploring prompt-driven frontend styling, rejects verbatim CSS in Can, asks whether saved nondeterministic styling results make sense, and explicitly chose keep exploring rather than selecting prompt-only versus prompt+typed overrides."
+    },
+    "comparison": "This is an exploratory language design, not delivery evidence. The human wants descriptive styling instead of handwritten CSS, a frontend AI that can style a subtree, and preserved results despite nondeterministic generation. Compare the three designs against equal source clarity, visual capability, reproducibility, regeneration control, review workflow and finite delivery complexity. Existing Then data/authorization/action semantics remain unchanged. The stylist uses static component templates, stable owned hooks and pinned shared themes to generate only scoped presentation CSS; current business values are unnecessary. A named scope is a candidate spelling, not an approved API."
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "Which implementation strategy offers the strongest combined tradeoff for these natural-language style scopes and durable generated results while preserving the current application workflows?",
+      "criteria": {
+        "saved_generation": "Perform AI styling explicitly before a normal build, associating a named Then scope with saved CSS and a compact identity/input-digest/recipe/path record. Builds reuse accepted bytes and flag stale or absent output; regeneration creates previewable changes. This adds scope syntax plus bounded artifact management.",
+        "request_generation": "Produce styles when serving the first request, then persist and reuse the output. The initial experience may require less authoring ceremony; runtime generation still needs concurrency, admission, latency, cost and version policies and exposes the first result during use.",
+        "design_tool": "Use an opt-in frontend design tool to read annotated/separate descriptions and selected static component structure, saving normal committed styles for builds. It avoids a new language construct, but prompt linkage, scope identity and invalidation rely on authoring-tool agreements.",
+        "open": "Retain the issue as an open proposal if no offered design meets the common criteria well enough."
+      }
+    }
+  }
+}

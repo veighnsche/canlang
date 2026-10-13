@@ -1,0 +1,83 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Consult all six open feature decisions; advice only, no implementation or automatic adoption.",
+      "requirements_owner": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md, BGEN 01-15 and decisions D1-D6",
+      "fixed_requirements": [
+        ".can owns app composition, declaring identity, intent, contracts and authorization. Prompts remain distinct from ordinary # metadata and ## comments.",
+        "Four targets: Given local modifiers, When implementation, Then styles and custom components. Generated server JS targets workerd; CSS/client interaction target browser.",
+        "Inline and named styles and default frontend are settled. No repeated agent=frontend. Names remain optional; custom-view styles generate once per definition.",
+        "CLI-first with Codex/Muse/Claude Code/OpenCode and explicit model choice, native auth, finite controls and no silent tool/model/permission fallback.",
+        "Normal build/check/bundle consumes saved editable current files, including compatible direct edits, with zero AI calls and no generation credentials.",
+        "Each independently selected unit has owned files. Missing target never means all. Retry/refine/reset preserve current files and other units; refine captures current edited implementation.",
+        "Candidates are isolated and promoted only against matching captured source/contracts/target/current bytes/attempt. Reset fences late results. Direct editing is ordinary authorized workspace work.",
+        "Agent-first headless discovery/requests/results/errors; no mandatory dashboard, editor selection or human approval. Truthful historic generation identity is distinct from later edits.",
+        "Preserve exact values, canonical inputs/results, policies, field grants, versions, transactions, replay, order and schema migration workflow. Current Can checks do not validate arbitrary JS or prove its intent."
+      ],
+      "comparison_stage": "Every alternative is a draft. Evaluate the same required outcome, concise authoring, implementation simplicity, recoverability and explicit limits fairly. Favor neither an existing draft nor a prior JEV verdict. An open answer is legitimate if no listed candidate is complete; do not silently relax requirements or assume an unimplemented API.",
+      "decision_group": "D3 Unit association",
+      "verified_facts": [
+        "analysis/mod.rs48-73 NodeKey is process-local/never persisted. source.rs SourceId is DB-local and replaced source receives fresh ID. CST/IR spans and content hash are not persistent ownership identity.",
+        "Current generation record/inline identity mechanism is unimplemented. IDs must remain separate from optional names, offsets and freshness hashes; current saved JS/CSS must be directly editable."
+      ]
+    },
+    "questions": {
+      "identity_carrier": {
+        "type": "choice",
+        "instructions": {
+          "question": "For where persistent ownership identity for named and inline units lives, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+          "fixed_outcome": "Unique opaque ownership; formatting/unrelated edits preserve associations; copies distinct; ambiguous moves/renames diagnose and expose explicit reconciliation."
+        },
+        "criteria": {
+          "hybrid_inline": "Tracked records for all IDs plus tool-authored tokens only on unnamed blocks; named units use verified owner/name association and explicit rename reconciliation. Better inline evidence; two paths and annotation syntax.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+          "source_token": "Tool allocates opaque ID in a defined source annotation beside each owning construct. Names optional labels. Carries identity through prompt edits/moves; adds machine source syntax/bytes and duplicate token diagnostics.",
+          "association_record": "Tool allocates opaque ID in a tracked minimal record; uniquely match owner/kind/normalized structure/context, never treating fingerprints/names as identity. Concise source; ambiguous independently edited constructs need explicit rebind/copy."
+        }
+      },
+      "file_layout": {
+        "type": "choice",
+        "instructions": {
+          "question": "For the tracked current implementation and record layout, select the best balance of explicit ownership, practical implementation simplicity and the fixed acceptance outcome. Consider benefits and costs fairly without assuming any candidate is implemented or that another question already selected its dependencies.",
+          "fixed_outcome": "Current editable primary files, candidate separation, clean checkout and structured paths; no app contracts/dependencies copied into an authored manifest."
+        },
+        "criteria": {
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation.",
+          "unit_directories": "Unit-centered generated implementation directories keyed by opaque IDs, with current files and minimal association/origin record; local candidates elsewhere. Paths survive source moves; machine inspection supplies readable labels.",
+          "source_adjacent": "Source-adjacent implementation directory with readable label plus opaque ID, current files and minimal record; candidates separate. Browsable; source movement needs explicit path relocation/reconciliation."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "identity_carrier": {
+        "type": "choice",
+        "choice": "association_record",
+        "confidence": 0.73,
+        "probabilities": {
+          "hybrid_inline": 0.02,
+          "open": 0.06,
+          "source_token": 0.12,
+          "association_record": 0.8
+        }
+      },
+      "file_layout": {
+        "type": "choice",
+        "choice": "unit_directories",
+        "confidence": 0.69,
+        "probabilities": {
+          "open": 0.09,
+          "unit_directories": 0.79,
+          "source_adjacent": 0.12
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1408,
+      "output_tokens": 99
+    }
+  }
+}

@@ -10,9 +10,9 @@
 //! `expected:` / `error:` — with no example-scoped `E6006`/`E6008`
 //! omission. Emission only; the testkit runner is a later packet.
 
-use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
-use canlang_compiler::analysis::{CheckedProgram, check_program};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit};
+use canlang_compiler::analysis::catalog::{load_catalog, Catalog, CatalogRequest};
+use canlang_compiler::analysis::{check_program, CheckedProgram};
+use canlang_compiler::codegen::{emit, EmitOptions, EmitSources};
 use canlang_compiler::diagnostic::{Diagnostic, DiagnosticResult};
 use canlang_compiler::source::{SourceDb, SourceId, Span};
 use canlang_compiler::{LANGUAGE_VERSION, SCHEMA_VERSION};
@@ -91,10 +91,16 @@ fn fixture_catalog() -> Catalog {
 
 /// Load one workspace draft: database, id and text.
 fn load_draft(name: &str) -> (SourceDb, SourceId, String) {
-    let path = workspace_root().join("draft").join(name);
+    let path = workspace_root()
+        .join("draft/apps")
+        .join(name.trim_end_matches(".can"))
+        .join(name);
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
     let mut db = SourceDb::new();
-    let id = db.add(format!("draft/{name}"), text.clone());
+    let id = db.add(
+        format!("draft/apps/{}/{name}", name.trim_end_matches(".can")),
+        text.clone(),
+    );
     (db, id, text)
 }
 
@@ -374,12 +380,10 @@ fn lexical_request_fixture_observation_keeps_declared_fixture_identity() {
         !emitted.iter().any(|d| d.code == "E6008"),
         "fixture observation lowers: {emitted:?}"
     );
-    assert!(
-        artifact.tests[0]
-            .module
-            .js
-            .contains("observations:[async(c,s)=>s.request.state]")
-    );
+    assert!(artifact.tests[0]
+        .module
+        .js
+        .contains("observations:[async(c,s)=>s.request.state]"));
 }
 
 #[test]
@@ -948,11 +952,15 @@ fn t35r24_propose_result_and_value_version_observable() {
         return;
     };
     let root = workspace_root();
-    let propose = std::fs::read_to_string(root.join("draft/CanPropose.can")).expect("propose");
-    let rent = std::fs::read_to_string(root.join("draft/CanRent.can")).expect("rent");
+    let propose = std::fs::read_to_string(root.join("draft/apps/CanPropose/CanPropose.can"))
+        .expect("propose");
+    let rent = std::fs::read_to_string(root.join("draft/apps/CanRent/CanRent.can")).expect("rent");
     let mut db = SourceDb::new();
-    let propose_id = db.add("draft/CanPropose.can".to_string(), propose.clone());
-    let rent_id = db.add("draft/CanRent.can".to_string(), rent);
+    let propose_id = db.add(
+        "draft/apps/CanPropose/CanPropose.can".to_string(),
+        propose.clone(),
+    );
+    let rent_id = db.add("draft/apps/CanRent/CanRent.can".to_string(), rent);
     let (_program, diags) = check_program(&db, &[propose_id, rent_id], Some(&catalog));
     let (start, _) = span_of(
         &propose,

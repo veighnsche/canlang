@@ -1,0 +1,22 @@
+## Test-authored guard dereferences; direct lexical fields remain historical.
+app NativeGuardedEmail
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Profile {account:user server=actor,active:bool=true}
+ Entry in Profile {count:int=0,profile:Profile,attempt:delivery(Mail.send)?}
+ policy Profile read=owner
+ policy Entry read=members fields=count,profile
+When
+ crud Profile by=owner fields=active
+ crud Entry by=owner fields=count,profile
+ scenario deliver(entry:Entry,enabled:bool,note:text?,values:int[],person:user,accept:bool) -> int by=owner
+  do
+   send Mail.send {to="recipient@example.test",subject="Original guarded Email",body="Frozen original lexical values"} when=enabled and entry.count>=0 and (note==null or note!="deny") and count(values)>=0 and active_member(person,team) and entry.parent.active and entry.profile.active as attempt
+   set entry {count=entry.count+1,attempt=attempt}
+   require accept
+   return entry.count
+ scenario plain() -> int by=owner
+  do
+   send Mail.send {to="recipient@example.test",subject="Original plain Email",body="Legacy native send"} as attempt
+   return 1
+Then

@@ -9,6 +9,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const cp = require('node:child_process');
+const os = require('node:os');
+const { pathToFileURL, fileURLToPath } = require('node:url');
 const { EventEmitter } = require('node:events');
 const root = path.resolve(__dirname, '../../..');
 const binary = process.env.CAN_BIN || path.join(root, 'compiler/target/debug/can');
@@ -40,10 +42,20 @@ function cancellation(cancelled = false) {
     get listenerCount() { return listeners.size; },
   };
 }
-function host(documents = []) {
+function host(documents = [], projectRoot) {
+  const folder = projectRoot ? { uri: { scheme: 'file', fsPath: projectRoot, toString: () => pathToFileURL(projectRoot).href } } : undefined;
   const state = { handlers: {}, providers: {}, collection: new Map(), updates: [], errors: [] };
   const vscode = {
-    workspace: { textDocuments: documents, workspaceFolders: [], getWorkspaceFolder: () => undefined,
+    workspace: { textDocuments: documents, workspaceFolders: folder ? [folder] : [],
+      getWorkspaceFolder: (uri) => folder && uri.fsPath.startsWith(`${projectRoot}${path.sep}`) ? folder : undefined,
+      async openTextDocument(uri) {
+        const current = documents.find((doc) => doc.uri.toString() === uri.toString());
+        if (current) { return current; }
+        const doc = { uri, languageId: 'can', version: 1, text: fs.readFileSync(uri.fsPath, 'utf8'), getText() { return this.text; } };
+        documents.push(doc); state.handlers.Open(doc); return doc;
+      },
+      createFileSystemWatcher: () => ({ ...disposable, onDidCreate: () => disposable, onDidChange: () => disposable, onDidDelete: () => disposable }),
+      onDidChangeWorkspaceFolders: () => disposable,
       getConfiguration: () => ({ get: (key, fallback) => key === 'serverPath' ? binary : fallback }),
       onDidChangeConfiguration: () => disposable,
       ...Object.fromEntries(['Open', 'Change', 'Save', 'Close'].map((name) => [
@@ -59,11 +71,11 @@ function host(documents = []) {
         dispose() { state.collection.clear(); },
       }),
       ...Object.fromEntries(['Hover', 'CompletionItem', 'Definition', 'Reference', 'Rename',
-        'DocumentSemanticTokens', 'CodeActions'].map((name) => [
+        'DocumentSemanticTokens', 'CodeActions', 'DocumentFormattingEdit', 'DocumentSymbol'].map((name) => [
         `register${name}Provider`, (_selector, provider) => { state.providers[name] = provider; return disposable; },
       ])),
     },
-    Uri: { parse: (value) => ({ toString: () => value }) },
+    Uri: { parse: (value) => ({ scheme: value.split(':')[0], fsPath: value.startsWith('file:') ? fileURLToPath(value) : '', toString: () => value }) },
     Position: class { constructor(line, character) {
       assert(Number.isInteger(line) && line >= 0 && Number.isInteger(character) && character >= 0);
       Object.assign(this, { line, character });
@@ -75,6 +87,12 @@ function host(documents = []) {
       'Variable', 'Class', 'Interface', 'Module', 'Property', 'Unit', 'Value', 'Enum', 'Keyword',
       'Snippet', 'Color', 'File', 'Reference', 'Folder', 'EnumMember', 'Constant', 'Struct',
       'Event', 'Operator', 'TypeParameter'].map((name, index) => [name, index])),
+    SymbolKind: Object.fromEntries(['File', 'Module', 'Namespace', 'Package', 'Class', 'Method',
+      'Property', 'Field', 'Constructor', 'Enum', 'Interface', 'Function', 'Variable', 'Constant',
+      'String', 'Number', 'Boolean', 'Array', 'Object', 'Key', 'Null', 'EnumMember', 'Struct',
+      'Event', 'Operator', 'TypeParameter'].map((name, index) => [name, index])),
+    DocumentSymbol: class { constructor(name, detail, kind, range, selectionRange) {
+      Object.assign(this, { name, detail, kind, range, selectionRange, children: [] }); } },
     CompletionItem: class { constructor(label) { this.label = label; } },
     TextEdit: class { constructor(range, newText) { Object.assign(this, { range, newText }); } },
     WorkspaceEdit: class { constructor() { this.entries = new Map(); }
@@ -225,6 +243,8 @@ async function providers() {
     ['definition', doc, (token) => p.Definition.provideDefinition(doc, use, token)],
     ['references', doc, (token) => p.Reference.provideReferences(doc, model, { includeDeclaration: true }, token)],
     ['rename', doc, (token) => p.Rename.provideRenameEdits(doc, task, 'job', token)],
+    ['formatting', doc, (token) => p.DocumentFormattingEdit.provideDocumentFormattingEdits(doc, { tabSize: 1, insertSpaces: true }, token)],
+    ['document symbols', doc, (token) => p.DocumentSymbol.provideDocumentSymbols(doc, token)],
     ['semantic tokens', doc, (token) => p.DocumentSemanticTokens.provideDocumentSemanticTokens(doc, token)],
     ['code actions', actionDoc, (token) => p.CodeActions.provideCodeActions(actionDoc, actionRange, { diagnostics: [] }, token)],
   ];
@@ -235,19 +255,51 @@ async function providers() {
     assert.equal(child.sent.length, before, `${name} pre-cancelled sends no request`);
     assert.equal(token.registrations, 0);
   }
-  console.log('PASS all seven actual providers suppress pre-cancelled calls');
+  console.log('PASS all nine actual providers suppress pre-cancelled calls');
   const completion = await cases[1][2](cancellation());
   for (const [label, kind] of [['Todo', 6], ['task', 5], ['and', 13]]) {
     assert.equal(completion.find((item) => item.label === label)?.kind, kind, label);
   }
   console.log('PASS actual type, variable and keyword completion host identities');
+  const wireCompletion = child.frames.filter((message) => Array.isArray(message.result) &&
+    message.result.some((item) => item.label)).at(-1).result;
+  for (const entry of wireCompletion.filter((item) => typeof item.detail === 'string')) {
+    assert.equal(completion.find((item) => item.label === entry.label)?.detail, entry.detail);
+  }
+  const symbols = await p.DocumentSymbol.provideDocumentSymbols(doc, cancellation());
+  const wireSymbols = child.frames.filter((message) => Array.isArray(message.result) &&
+    message.result.some((item) => item.selectionRange)).at(-1).result;
+  function compareSymbol(symbol, wire) {
+    assert.equal(symbol.name, wire.name);
+    assert.equal(symbol.kind, wire.kind - 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(symbol.range)), wire.range);
+    assert.deepEqual(JSON.parse(JSON.stringify(symbol.selectionRange)), wire.selectionRange);
+    assert.equal(symbol.children.length, (wire.children || []).length);
+    symbol.children.forEach((child, index) => compareSymbol(child, wire.children[index]));
+  }
+  assert.equal(symbols.length, wireSymbols.length);
+  symbols.forEach((symbol, index) => compareSymbol(symbol, wireSymbols[index]));
+  const formatted = await p.DocumentFormattingEdit.provideDocumentFormattingEdits(doc,
+    { tabSize: 1, insertSpaces: true }, cancellation());
+  assert(Array.isArray(formatted));
+  const formattingRequest = child.sent.findLast((message) => message.method === 'textDocument/formatting');
+  assert.deepEqual(formattingRequest.params.options, { tabSize: 1, insertSpaces: true });
+  const wireFormatting = child.frames.findLast((message) => message.id === formattingRequest.id).result;
+  assert.equal(formatted.length, wireFormatting.length);
+  formatted.forEach((edit, index) => {
+    assert.deepEqual(JSON.parse(JSON.stringify(edit.range)), wireFormatting[index].range);
+    assert.equal(edit.newText, wireFormatting[index].newText);
+  });
+  await assert.rejects(p.Rename.provideRenameEdits(doc, task, 'not a name', cancellation()),
+    /cannot safely rename/);
+  console.log('PASS completion details, nested Outline ranges, formatting edits and explicit rename refusal');
   for (const [name, target, invoke] of cases) {
     child.held = []; child.gate = (message) => Object.hasOwn(message, 'id');
     const token = cancellation();
     const pending = invoke(token);
     await until(() => child.held.length === 1);
     const held = child.held[0];
-    assert(held.message.result && (!Array.isArray(held.message.result) || held.message.result.length > 0),
+    assert(held.message.result && (name === 'formatting' || !Array.isArray(held.message.result) || held.message.result.length > 0),
       `${name} real server supplies a result before stale rejection`);
     target.version++; state.handlers.Change({ document: target });
     child.release(held);
@@ -271,7 +323,7 @@ async function providers() {
     assert.equal(liveToken.listenerCount, 0);
     child.release(cancelledFrame);
   }
-  console.log('PASS all seven providers suppress stale revisions and settle live cancellation');
+  console.log('PASS all nine providers suppress stale revisions and settle live cancellation');
   child.held = [];
   const priorEpochRename = cases[4][2](cancellation());
   await until(() => child.held.length === 1);
@@ -293,7 +345,7 @@ async function providers() {
   assert(apply(currentRename, reopened));
   assert.equal(reopened.text, SYMBOL.replaceAll('task', 'job'),
     'host applies every offered rename edit exactly, preserving Unicode/CRLF');
-  assert.equal(token.disposals, 1, 'completed request releases cancellation listener');
+  assert.equal(token.disposals, 2, 'references preflight and completed rename release cancellation listeners');
   assert.equal(token.listenerCount, 0);
   const before = child.sent.length; token.cancel();
   assert.equal(child.sent.length, before, 'completed request does not send late cancellation');
@@ -306,7 +358,45 @@ async function providers() {
   await until(() => child.exit !== undefined);
   assert.equal(state.errors.length, 0);
 }
-(async () => { await diagnostics(); await providers(); })().catch((error) => {
+async function projectRename() {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'can-client-project-'));
+  const dependency = path.join(directory, 'shared.can');
+  const source = path.join(directory, 'app.can');
+  const packageText = 'package Shared\n Given\n  export Thing {title:text}\n When\n Then\n';
+  const appText = 'app Example\nuse Shared {Thing}\nGiven\nWhen\n scenario run(item:Thing) by=members\n  do\n   return item\nThen\n';
+  fs.writeFileSync(dependency, packageText); fs.writeFileSync(source, appText);
+  const uri = { scheme: 'file', fsPath: source, toString: () => pathToFileURL(source).href };
+  const doc = { uri, languageId: 'can', version: 1, text: appText, getText() { return this.text; } };
+  const documents = [doc];
+  const state = host(documents, directory);
+  state.extension.activate({ subscriptions: [] });
+  const child = state.child;
+  try {
+    await until(() => child.frames.some((message) => message.method === 'textDocument/publishDiagnostics'));
+    const at = position(doc.text, doc.text.indexOf('Thing)'));
+    const provider = state.providers.Rename;
+    const edit = await provider.provideRenameEdits(doc, at, 'Other', cancellation());
+    assert(edit && edit.entries.size === 2, 'rename includes unopened exporting file and importer');
+    const opened = documents.find((target) => target.uri.fsPath === dependency);
+    assert(opened, 'rename preflight loads unopened target through editor');
+    const raw = child.frames.filter((message) => message.result?.documentChanges).at(-1).result;
+    assert(raw.documentChanges.every((change) => Number.isInteger(change.textDocument.version)), 'all targets carry authoritative wire versions');
+    child.held = []; child.gate = (message) => !!message.result?.documentChanges;
+    const stale = provider.provideRenameEdits(doc, at, 'Other', cancellation());
+    await until(() => child.held.length === 1);
+    opened.version++; state.handlers.Change({ document: opened });
+    child.release(child.held[0]);
+    await assert.rejects(stale, /cannot safely rename/, 'stale dependent target rejects whole project rename');
+    assert.equal(doc.text, appText, 'refused rename applies no importer edit');
+    child.gate = () => false;
+    console.log('PASS project rename preflight opens targets, versions every edit and refuses stale dependent targets');
+  } finally {
+    await state.extension.deactivate();
+    await until(() => child.exit !== undefined);
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+(async () => { await diagnostics(); await providers(); await projectRename(); })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
   for (const child of children) if (child.exit === undefined) child.kill();

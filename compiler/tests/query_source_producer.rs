@@ -350,7 +350,7 @@ fn plan(
 fn source_recipe_emits_and_matches_installed_state_owning_inventory() {
     // Retain the original three body statements verbatim; no literal result or
     // copied facts stand in for the source query. Whole application is unclaimed.
-    let original = include_str!("../../draft/CanWorkbench.can");
+    let original = include_str!("../../draft/apps/CanWorkbench/CanWorkbench.can");
     for line in SOURCE.lines().filter(|line| {
         line.starts_with("    let visible=")
             || line.starts_with("    require count(visible)")

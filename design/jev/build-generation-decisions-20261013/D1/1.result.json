@@ -1,0 +1,174 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Consult all six open feature decisions; advice only, no implementation or automatic adoption.",
+      "requirements_owner": "docs/specification/BUILD_GENERATION_REQUIREMENTS.md, BGEN 01-15 and decisions D1-D6",
+      "fixed_requirements": [
+        ".can owns app composition, declaring identity, intent, contracts and authorization. Prompts remain distinct from ordinary # metadata and ## comments.",
+        "Four targets: Given local modifiers, When implementation, Then styles and custom components. Generated server JS targets workerd; CSS/client interaction target browser.",
+        "Inline and named styles and default frontend are settled. No repeated agent=frontend. Names remain optional; custom-view styles generate once per definition.",
+        "CLI-first with Codex/Muse/Claude Code/OpenCode and explicit model choice, native auth, finite controls and no silent tool/model/permission fallback.",
+        "Normal build/check/bundle consumes saved editable current files, including compatible direct edits, with zero AI calls and no generation credentials.",
+        "Each independently selected unit has owned files. Missing target never means all. Retry/refine/reset preserve current files and other units; refine captures current edited implementation.",
+        "Candidates are isolated and promoted only against matching captured source/contracts/target/current bytes/attempt. Reset fences late results. Direct editing is ordinary authorized workspace work.",
+        "Agent-first headless discovery/requests/results/errors; no mandatory dashboard, editor selection or human approval. Truthful historic generation identity is distinct from later edits.",
+        "Preserve exact values, canonical inputs/results, policies, field grants, versions, transactions, replay, order and schema migration workflow. Current Can checks do not validate arbitrary JS or prove its intent."
+      ],
+      "comparison_stage": "Every alternative is a draft. Evaluate the same required outcome, concise authoring, implementation simplicity, recoverability and explicit limits fairly. Favor neither an existing draft nor a prior JEV verdict. An open answer is legitimate if no listed candidate is complete; do not silently relax requirements or assume an unimplemented API.",
+      "decision_group": "D1 Language carriers",
+      "verified_facts": [
+        "parser.rs around4899 has ordinary do statements/suites; quoted generation form is unimplemented.",
+        "parser.rs6045, resolve.rs5993, types.rs9147, ir.rs3847 implement same-module view NAME(row:LocalModel), exact show {row=expression}, ordinary children, once-only argument evaluation and source-only expansion. No slots/export/caller capture/nested show in this pilot.",
+        "Given local modifiers and generation engine are unimplemented. Existing component appearance profiles are finite, component-specific semantic options (design/UI-COMPONENTS.md)."
+      ]
+    },
+    "questions": {
+      "given_keyword": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which draft option best resolves the declaration keyword for reusable local Given modifiers under the fixed outcome below? Evaluate the same required behavior, concise agent authoring, implementation/recovery cost and stated limits; use open if a concrete prerequisite is missing.",
+          "fixed_outcome": "One local name describes checked contributions to explicit targets; supporting operations/hooks retain canonical owners. User rejects implicit as the name."
+        },
+        "criteria": {
+          "trait": "trait NAME \"instruction\". Compact familiar attachment/reuse vocabulary; must define bounded semantics without implying inheritance/interface conformance.",
+          "modifier": "modifier NAME \"instruction\". Directly names modification of selected declarations; longer and still needs a contribution/conflict contract.",
+          "behavior": "behavior NAME \"instruction\". Fits custom runtime behavior and rules; may suggest effects even for pure fields/defaults and needs separation from When execution.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+        }
+      },
+      "given_application": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which draft option best resolves how models and fields apply declared local modifiers under the fixed outcome below? Evaluate the same required behavior, concise agent authoring, implementation/recovery cost and stated limits; use open if a concrete prerequisite is missing.",
+          "fixed_outcome": "Explicit applications only; exact supported target placement, deterministic contribution order and conflict/built-in redefinition diagnostics are required."
+        },
+        "criteria": {
+          "direct_words": "Resolve declared local words in model/field modifier positions, e.g. Todo {...} completable. Concise requested vocabulary; needs contextual resolution and clear unknown-word/order diagnostics.",
+          "ordered_attribute": "Use one dedicated ordered attribute, e.g. modifiers=[completable,audited], on supported targets. Clear syntax and ordering; more punctuation and attribute surface.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+        }
+      },
+      "when_body": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which draft option best resolves the prompted implementation carrier under existing When scenarios/handlers under the fixed outcome below? Evaluate the same required behavior, concise agent authoring, implementation/recovery cost and stated limits; use open if a concrete prerequisite is missing.",
+          "fixed_outcome": "Keep typed signature, by/on, guards, owning identity and examples. Ordinary do bodies keep their semantics; generated and ordinary body mixing needs one precise rule."
+        },
+        "criteria": {
+          "quoted_do": "Add do \"instruction\" as an alternative to ordinary do body. Few tokens and same owner; quoted syntax must clearly mean generation preparation.",
+          "explicit_generate": "Add do generate \"instruction\" as alternative body. Phase intent visible; repeated new word and more tokens.",
+          "implement_body": "Use implement \"instruction\" as a distinct prompted body under the existing scenario. Explicit implementation intent; adds another body child keyword.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+        }
+      },
+      "component_prompt": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which draft option best resolves the custom view rendering prompt carrier and coexistence with styles under the fixed outcome below? Evaluate the same required behavior, concise agent authoring, implementation/recovery cost and stated limits; use open if a concrete prerequisite is missing.",
+          "fixed_outcome": "A declared input/action contract drives admitted data and normal consumers. Style blocks can belong to the definition; server rendering and browser interaction remain separate targets."
+        },
+        "criteria": {
+          "header_prompt": "view NAME(signature) \"render instruction\", with bounded optional children for definition-owned styles and declared bindings. Compact current-owner extension; distinguish generated-body children from ordinary presentation body.",
+          "render_child": "view NAME(signature) with render \"instruction\" plus style and declared bindings as children. Clear body separation; extra keyword/line and body variant.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+        }
+      },
+      "component_contract": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which draft option best resolves the first finite typed input and reuse scope for generated custom components under the fixed outcome below? Evaluate the same required behavior, concise agent authoring, implementation/recovery cost and stated limits; use open if a concrete prerequisite is missing.",
+          "fixed_outcome": "Explicit typed admitted inputs/actions, once-only argument evaluation, affected-use discovery. Cross-package exports/slots are separately scoped, not assumed."
+        },
+        "criteria": {
+          "row_pilot": "Extend current same-module view(row:LocalModel)/show exact row contract. Existing ownership/typing/evaluation reused; components without a stored row remain unsupported initially.",
+          "bounded_inputs": "Extend view/show to an enumerated finite typed-input set with required/defaulted/nullable pure values, admitted row projections and explicit canonical action bindings. Same-module, no slots/exports. More useful controls; new checking/default/serialization/action binding work.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+        }
+      },
+      "style_overrides": {
+        "type": "choice",
+        "instructions": {
+          "question": "Which draft option best resolves whether to introduce additional typed style-level appearance overrides initially under the fixed outcome below? Evaluate the same required behavior, concise agent authoring, implementation/recovery cost and stated limits; use open if a concrete prerequisite is missing.",
+          "fixed_outcome": "Prompt inline/named styles and frontend default settled. Existing checked component options remain. No verbatim CSS/JS requirement or arbitrary props bag."
+        },
+        "criteria": {
+          "prompt_only": "New style block carries prompt/optional profile only; retain existing checked component appearance attrs and direct CSS-file editing. Smallest new surface; precise extra settings remain prompt/code.",
+          "bounded_tokens": "Add closed style-level semantic token options derived from finite owned appearance contracts, with exact eligible parts/conflicts/precedence. More deterministic precision; new catalog/rules and duplication risk.",
+          "open": "Leave this precise choice open if none meets the same outcomes; identify the needed concrete design/prerequisite in subsequent human/agent analysis. This is not rejection of the feature or permission to invent a broader obligation."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "given_keyword": {
+        "type": "choice",
+        "choice": "open",
+        "confidence": 0.39,
+        "probabilities": {
+          "trait": 0.26,
+          "modifier": 0.18,
+          "behavior": 0.02,
+          "open": 0.54
+        }
+      },
+      "given_application": {
+        "type": "choice",
+        "choice": "open",
+        "confidence": 0.58,
+        "probabilities": {
+          "direct_words": 0.17,
+          "ordered_attribute": 0.11,
+          "open": 0.72
+        }
+      },
+      "when_body": {
+        "type": "choice",
+        "choice": "open",
+        "confidence": 0.32,
+        "probabilities": {
+          "quoted_do": 0.4,
+          "explicit_generate": 0.04,
+          "implement_body": 0.07,
+          "open": 0.49
+        }
+      },
+      "component_prompt": {
+        "type": "choice",
+        "choice": "open",
+        "confidence": 0.25,
+        "probabilities": {
+          "header_prompt": 0.34,
+          "render_child": 0.16,
+          "open": 0.5
+        }
+      },
+      "component_contract": {
+        "type": "choice",
+        "choice": "bounded_inputs",
+        "confidence": 0.18,
+        "probabilities": {
+          "row_pilot": 0.28,
+          "bounded_inputs": 0.45,
+          "open": 0.27
+        }
+      },
+      "style_overrides": {
+        "type": "choice",
+        "choice": "prompt_only",
+        "confidence": 0.4,
+        "probabilities": {
+          "prompt_only": 0.6,
+          "bounded_tokens": 0.05,
+          "open": 0.35
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2474,
+      "output_tokens": 249
+    }
+  }
+}

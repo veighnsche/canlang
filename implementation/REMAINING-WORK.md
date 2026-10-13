@@ -1,10 +1,10 @@
 # Remaining CanLang work
 
-## Current four-plan execution view — 2026-10-12
+## Current execution after Muse shutdown — 2026-10-13
 
-The human requested immediate reevaluation of **every remaining task**, a new prioritized execution list for each existing LOCAL worker, and individual instructions. Reconciled from the existing reviewed LOCAL main current views and later exact coherent source releases; obsolete Profile/three-query and package ready labels are retired at their accepted scope. Each plan has one current view; this index links those views without another task ledger. Original acceptance, canonical identities and recipient holds are unchanged. Apply [finite execution](../AGENTS.md#finite-execution).
+The human requested stopping the usage-limited Muse run, preserving all unfinished workspace work in local main, and finishing its last task. Muse exited through its supported shutdown; its timer executor and this chat's monitor are stopped. The four original Codex workers remain stopped. The saved 41-position sequence retains the complete original backlog; Codex root is taking over only Position 7's original CanChat terminal/regenerate slice and necessary defining corrections. All original acceptance clauses, IDs and holds remain. Apply [finite execution](../AGENTS.md#finite-execution).
 
-| Existing lane | Complete remaining list / original accounting | First concrete deliverable |
+| Existing lane | Complete remaining list / original accounting | Current scoped outcome / remaining work |
 | --- | --- | --- |
 | Packages | [Queue](../docs/research/package-library-audit-20261006/repair-queue/queue.json);7 remaining entries/41of48 selected, canonical333 distinct. | Exact cycle-free Work controls and composed Compiler fixture input common gate CLOSED at actual primary zero. Human-directed V03 actual serving producer implementation now active; then Packages Interfaces B02 backend/Files F01 serialization, with exact disjoint glue. Preserve precise holds. |
 | Compiler | [Current remainder](compiler-completion/README.md#current-remainder-and-finite-completion);nine residual references/58of67/C01–C24 retained. | 765 whole-original executable producer,7caf optional input and8a SEND-stage source checkpoints CLOSED. Optional SourceExpressions df57 source consumer CLOSED; membership read-rule cohort reuse30ac CLOSED; exact original Mailbox event and complete Chat owner-policy source next; Dev runtime remains separate. |
@@ -13,7 +13,7 @@ The human requested immediate reevaluation of **every remaining task**, a new pr
 
 Counts overlap and use different units; do not sum into independent jobs, a completion percentage or a finish-time estimate. Source/tested/reviewed components are not whole native application acceptance. Accepted first/count/pair/ancestor/combined/Email/Office and other finite outcomes stay closed.
 
-Same-view75-minute reassessment completed for every current Packages/Compiler/Capability/Dev remainder at14:08UTC; new actual selected C01/S03/R01/I01 retirements and these coherent producer/consumer outputs supersede stale top-level blockers. Next reassessment about15:23UTC. Original IDs/count units/holds remain.
+Current shutdown disposition: Position 2 installed Values serving remains scoped CLEAR; Position 3's actual physical D1/DO bounded planner exit is independently CLEAR (24/24, affected 28 reused). Position 11's bounded first-query leaf remains CLEAR; its ordinary/transitive source seal required the final defining-module correction, now independently CLEAR with the original target-only corruption refusal. New current-parent/reference SEND guards and late target-await membership revocation controls pass 2/2. Position 7's preserved original CanChat runtime retry remains unqualified at this checkpoint; previous failures remain failed evidence. All concurrent IDE/LSP/UI/CI/design edits are preserved as unfinished checkpoints, with no whole feature/plan acceptance. No recurring dispatch cadence or worker resumption remains active.
 
 ### Dispatch and exact dependencies
 
@@ -21,7 +21,7 @@ Same-view75-minute reassessment completed for every current Packages/Compiler/Ca
 2. Each worker skips only a missing finite producer/profile/credential leaf and takes the next ready original task. Packages owns shared CI/common fixes alone. Capability owns State/Work behavior; Compiler owns source/IR/emission; Dev owns actual host/private native consumers. Actual released outputs, not whole producer plans, unlock joins.
 3. Serialize only real shared-file or consumed-output conflicts. Commit source/tests/related records coherently; freeze actual captured inputs until cleanup. Reuse unchanged owning validation and independent defining reviews. No PR/push/deploy/publication, duplicate intake-only commits, new programme/ledger or standing polling agent.
 4. Missing external leaves remain explicit: G3 required model/account support, actual multiple-owner/separate-store serialization/publication interruption host, release runtime/ICU/tzdb/CLDR corpus and each named provider credential/profile. Exact source/adoption/preparation/default/activation/publication/BDD3/Task22/OUTBOX recipient holds remain. Consultation authorization lifts none. Ordinary finite engineering decisions belong to defining workers/coordinator and JEV.
-5. At the requested75-minute reassessment, re-evaluate all remaining entries and priorities in these same current views, dispatch each worker its own actual ready action, and retain unchanged accepted scope. Do not recreate history, re-request forecasts or infer closure from elapsed time. At15-minute cadence use only one compact four-local cursor snapshot plus later actual releases.
+5. Any future resumption requires the human's instruction. Reuse accepted finite scopes and take exact remaining original tasks from the saved sequence; do not infer full-plan closure from the shutdown or checkpoint.
 
 ## Historical consolidated inventory — 2026-10-06
 

@@ -1,0 +1,68 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "human": "User confirms direction of introducing build-time generation and asks for complete category map: Then style including custom components, Given custom local behavior with implicit considered the wrong keyword, and a When feature. Earlier requirements: named and inline styles, frontend styling default, persisted generated output/effective agent identity, no AI every build, explicit generate/retry/reset/accept; custom Given runtime implementations are AI-written workerd JavaScript.",
+      "verified": {
+        "given": "Current fixed Given vocabulary has no custom local modifier registration. Existing generated-Todo illustration completable adds done:bool=false and captions, retaining explicit member policy/CRUD authority. Native custom-JS extension interface remains unimplemented.",
+        "when": "Existing scenario declarations own names, typed inputs/result, by or trusted on source, ordered guards, do body and examples. Effects run in canonical admission/transactions; arbitrary generated JavaScript is not typechecked by normal Can source analysis.",
+        "then": "Current parser/resolve/types/IR implements narrow same-module view NAME(row:LocalModel) plus show NAME {row=expr}. Ordinary presentation children only; no slots/export/caller captures/nested show; source-only expansion with occurrence identity. Prompt custom JS/assets are not supported yet.",
+        "targets": "Server behavior/rendering uses workerd; client interaction assets execute in the browser. CSS/custom renderers must preserve canonical forms/actions/read projections, exact schema and existing authority. Business-data/live records are unnecessary generation inputs."
+      },
+      "same_outcome": "All options below are naming or surface-syntax drafts for the same underlying saved, explicit-generation contract, not implemented APIs. Compare concise Can authoring, familiarity, ownership clarity and minimal reuse of existing declarations without granting privileges or implying a full inherited trait/interface system. Ordinary # metadata remains metadata; quoted generation carriers are explicitly defined new syntax."
+    },
+    "questions": {
+      "given_word": {
+        "type": "choice",
+        "instructions": "Compare trait, feature and behavior as the label for a local description-defined modifier used on declarations. Recommend the best balance of accessible meaning and specific attachment/reuse semantics, or keep naming open.",
+        "criteria": {
+          "trait": "trait completable \"description\": a reusable local modifier on a declaration. It is concise and specific to attachment/composition; documentation must avoid implying inheritance or a full trait/interface-conformance system.",
+          "feature": "feature completable \"description\": a reusable local feature applied to selected declarations. It is accessible and broad enough for supporting hooks, but may sound app-level rather than a model/field modifier.",
+          "behavior": "behavior completable \"description\": a locally described reusable behavior applied to selected declarations. It conveys custom execution as well as rules, but may imply effects for field/default-only features.",
+          "open": "Leave naming open if the desired extension target/composition contract needs more clarification; the architecture and runtime target need not be rejected."
+        }
+      },
+      "when_carrier": {
+        "type": "choice",
+        "instructions": "Which draft syntax should supply a prompted scenario implementation while keeping its signature, permissions, examples and runtime identity on the existing scenario? Compare all carriers under the identical generation lifecycle.",
+        "criteria": {
+          "do_prompt": "Keep scenario name/signature/by and add do \"description\" as an alternative to the ordinary indented do body. The quoted header clearly selects new generation syntax and avoids another word; its build-time meaning needs documentation.",
+          "do_generate": "Keep scenario name/signature/by and add do generate \"description\" as the prompted-body alternative. An explicit generation word makes phase intent visible and can be reused by view generation, at the cost of repeated syntax.",
+          "implement": "Keep scenario name/signature/by and use implement \"description\" as the prompted-body alternative to do. It clearly describes supplying implementation and is short, but introduces a new scenario child keyword.",
+          "open": "Keep the exact carrier spelling undecided until the generated-JS interface/effects contract is concrete; do not block the category map."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "given_word": {
+        "type": "choice",
+        "choice": "trait",
+        "confidence": 0.63,
+        "probabilities": {
+          "trait": 0.72,
+          "feature": 0.1,
+          "behavior": 0.06,
+          "open": 0.12
+        }
+      },
+      "when_carrier": {
+        "type": "choice",
+        "choice": "do_prompt",
+        "confidence": 0.43,
+        "probabilities": {
+          "do_prompt": 0.57,
+          "do_generate": 0.29,
+          "implement": 0.1,
+          "open": 0.04
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1159,
+      "output_tokens": 93
+    }
+  }
+}

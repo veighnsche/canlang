@@ -437,9 +437,9 @@ fn original_canbook_paged_time_keeps_predicates_and_row_body() {
     use canlang_compiler::codegen::ir::{self, IrExpr};
     use canlang_compiler::source::{SourceDb, Span};
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let source = include_str!("../../draft/CanBook.can");
+    let source = include_str!("../../draft/apps/CanBook/CanBook.can");
     let mut db = SourceDb::new();
-    let id = db.add("draft/CanBook.can".into(), source.into());
+    let id = db.add("draft/apps/CanBook/CanBook.can".into(), source.into());
     let path = root.join("packages/values/dist/catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),

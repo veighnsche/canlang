@@ -1,0 +1,23 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "verified": {
+      "source": "# Keep track of what needs doing.\napp Todos\nGiven\n Todo { title:text trim min=1 max=200 label=\"Task\", done:bool=false label={text=\"Status\",values={true=\"Done\",false=\"Open\"}} } label=\"Todo\"\n policy Todo read=members\n fixture task=Todo {title=\"Try Can\"}\nWhen\n crud Todo by=members fields=title,done label={create=\"Add task\"}\n  examples update record=task\n   as,changes.done,request.record.version -> record.done\n   members,true,1 -> true\n   members,true,0 -> error(conflict)\n   public,true,1 -> error(forbidden)\nThen\n preferences { view:enum(all,open,done)=all label={text=\"Show\",values={all=\"All\",open=\"Open\",done=\"Done\"}} }\n page / title=\"Todos\"\n  card \"Add a task\"\n   form Todo.create fields=title display=inline\n    input title\n  card \"Your tasks\"\n   tabs preferences.view\n   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty=\"No tasks here. Add a task or choose another view.\"\n    text row.title,row.done\n    edit fields=title,done\n    tooltip \"Permanently delete this task\"\n     delete\n",
+      "existing": "Then owns components, queries, canonical form/action bindings and finite appearance. Shared UI owns daisyUI themes, layout, settings, validation/errors and interactions. There is no current general CSS/prompt-styling syntax. The prior typed css map is only a proposal.",
+      "human": "User authorizes repairing empty preferences Settings, is exploring prompt-driven frontend styling, rejects verbatim CSS in Can, asks whether saved nondeterministic styling results make sense, and explicitly chose keep exploring rather than selecting prompt-only versus prompt+typed overrides."
+    },
+    "comparison": "Evaluate future styling approaches fairly at the same draft stage. Can source already selects frontend components and canonical behavior; the user now suggests a descriptive prompt for an AI frontend coder and saving each generated style result, while keeping typed overrides undecided. Success means concise author intent, adaptable appearance, repeatable normal builds, explicit change control and maintainable scope ownership. The styles must coexist with the shared daisyUI foundation and preserve forms, protected fields, actions, validation feedback and focus. Supply the AI static subtree templates/hooks and shared theme versions; emit scope-bound CSS without requiring live application data."
+  },
+  "questions": {
+    "architecture": {
+      "type": "choice",
+      "instructions": "For this use case, which architecture best reconciles nondeterministic styling generation with stable saved output and a simple, accountable developer workflow?",
+      "criteria": {
+        "saved_generation": "Make styling a deliberate authoring/build-preparation operation attached to a named Then scope. Save CSS and a small owner/scope/input-digest/generator/output reference. Existing results are build inputs; missing or stale ones diagnose, and replacement candidates get a preview/diff before acceptance. New source syntax and artifact handling are required.",
+        "request_generation": "Let web requests trigger initial CSS generation and persistence for subsequent reuse. It reduces explicit first-generation steps, but needs safe concurrent creation, model/output admission and operational latency/cost handling while pages are being served.",
+        "design_tool": "Generate committed CSS using an external optional design workflow fed from source annotations or another prompt input and selected component templates. It minimizes core-language additions, while the tool must maintain prompt/scope linkage and artifact freshness conventions.",
+        "open": "Recommend no architecture yet if the tradeoffs leave important common outcomes unresolved."
+      }
+    }
+  }
+}

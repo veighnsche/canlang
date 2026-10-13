@@ -91,11 +91,11 @@ fn original_chat_and_creative_create_sites_keep_full_owning_schema_and_authored_
     let mut db = SourceDb::new();
     let chat = db.add(
         "CanChat.can".into(),
-        include_str!("../../draft/CanChat.can").into(),
+        include_str!("../../draft/apps/CanChat/CanChat.can").into(),
     );
     let creative = db.add(
         "CanCreative.can".into(),
-        include_str!("../../draft/CanCreative.can").into(),
+        include_str!("../../draft/apps/CanCreative/CanCreative.can").into(),
     );
     let catalog = catalog(&db, chat);
     // Inspect only the original constructor/schema criteria, without admitting

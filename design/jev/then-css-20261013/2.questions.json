@@ -1,0 +1,24 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "verified": {
+      "todo_source": "# Keep track of what needs doing.\napp Todos\nGiven\n Todo { title:text trim min=1 max=200 label=\"Task\", done:bool=false label={text=\"Status\",values={true=\"Done\",false=\"Open\"}} } label=\"Todo\"\n policy Todo read=members\n fixture task=Todo {title=\"Try Can\"}\nWhen\n crud Todo by=members fields=title,done label={create=\"Add task\"}\n  examples update record=task\n   as,changes.done,request.record.version -> record.done\n   members,true,1 -> true\n   members,true,0 -> error(conflict)\n   public,true,1 -> error(forbidden)\nThen\n preferences { view:enum(all,open,done)=all label={text=\"Show\",values={all=\"All\",open=\"Open\",done=\"Done\"}} }\n page / title=\"Todos\"\n  card \"Add a task\"\n   form Todo.create fields=title display=inline\n    input title\n  card \"Your tasks\"\n   tabs preferences.view\n   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty=\"No tasks here. Add a task or choose another view.\"\n    text row.title,row.done\n    edit fields=title,done\n    tooltip \"Permanently delete this task\"\n     delete\n",
+      "record_syntax": "Existing Can records use comma-separated NAME=value members; nested records exist.",
+      "current_styling": "Then has finite producer-catalog component appearance and core card layout=stack|columns, but no generic per-component spacing/sizing/responsive styling. CSS acquisition currently uses prebuilt daisyUI plus manually supplied utilities. No proposed syntax is implemented."
+    },
+    "context": "Design stage only: the requested deliverable is a short way to author individual-component CSS and viewport overrides in Then, with a Todo source example. Every candidate is evaluated for identical layout, spacing, dimensions, completion/errors, concise composition and deterministic responsive behavior, not for already implemented compiler support. Can already accepts nested NAME=value records and finite component appearance choices; it lacks a general style surface. The standard shell still supplies the desktop left menu and small-screen drawer. Styling continues through existing canonical field access, CRUD defaults, CSRF/version checks and archive semantics.",
+    "shared_semantics": "Use the same proposed semantic model for each candidate: pinned style aliases with property-specific value types, literal spacing scale values and validated length strings, compiler-emitted CSS, explicit catalog root/body/repeated-row targets and no unbounded descendant selectors. Defaults are refined by base values then matching sm40rem/md48rem/lg64rem/xl80rem rules in width order. Conflicting normalized properties within one rule are rejected, while responsive replacements are allowed. No candidate changes handlers, required generated controls or read authority."
+  },
+  "questions": {
+    "syntax": {
+      "type": "choice",
+      "instructions": "For this finite draft, select the spelling that offers the strongest joint tradeoff across source size, reader comprehension, style/business separation, authoring diagnostics and viewport refinement.",
+      "criteria": {
+        "map": "Nest style declarations in css={p=4,gap=3,sm={p=6}}. Existing record syntax and a dedicated style namespace support structured tooling, at the cost of braces and separators; owned parts are nested entries.",
+        "attrs": "Place p=4 gap=3 sm={p=6} beside ordinary component attributes. Less punctuation makes short styles brief; resolving style/behavior name collisions must be specified; parts are other direct entries.",
+        "string": "Use css=\"p-4 gap-3 sm:p-6\". A finite utility-token parser can validate this familiar concise representation and part prefixes, while tooling works within a string grammar.",
+        "defer": "Offer no preferred candidate if the requirements still make all three unsuitable; retain the decision as open."
+      }
+    }
+  }
+}

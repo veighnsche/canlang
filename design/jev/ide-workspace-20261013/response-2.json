@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Verified code: Can CLI check_program accepts an explicit SourceDb and list of source IDs; resolver links use Package {Name} imports by owning app/package declarations, not filenames. Current LSP indexes only open buffers, rebuilds SourceDb to latest live snapshots, and uses single-file IDE queries. Extension is a custom VS Code stdio client, already tracks synchronized URI/version and refuses stale numeric document edits. User explicitly requires local project support: unopened source discovery, open unsaved overrides, cross-file diagnostics/navigation/references/completion/rename, workspace/catalog isolation, watched changes/deletion. CLI has no directory discovery API. Repo contains draft, .worktrees, vendor, node_modules and build output that should not be indiscriminately treated as source. Proposed discovery: recursively local .can regular files under declared workspace root, excluding dot directories and draft/vendor/node_modules/target/dist/build, never follow symlinks, load project catalogs anchored to roots. Per-folder extension clients; server longest-root filtering also isolates one session with several folders. Candidate rename target refs come from checked identities; cross-file capture-safe query rename rechecks all affected sources. Standard LSP can carry numeric versions only for open documents; null closed version lacks content guard. VS Code can open unopened files programmatically and synchronize before requesting rename; a second query may discover an additional target, so final server refuses rename unless every affected document is open and version guarded. Alternatives are advice hypotheses, not implemented claims.",
+    "questions": {
+      "mechanism": {
+        "type": "choice",
+        "instructions": "Which implementation boundary should this IDE slice adopt? Compare workflow completeness, stale-edit handling, isolation and maintenance using the verified facts, without assuming any option wins.",
+        "criteria": {
+          "preopen": "Discover bounded local source trees, analyze workspace-filtered source IDs using existing compiler pipeline and root-relative catalogs. Extension obtains references including declaration, opens/synchronizes affected documents, then asks standard rename. Server refuses if any actual rename target remains unopened and emits numeric version guards. Compact protocol with a second analysis/open-doc overhead; unsupported hosts cannot rename closed files directly.",
+          "hashes": "Use the same bounded workspace indexing and analysis, but add expected content hashes to rename WorkspaceEdit responses for closed files. Extension checks disk/editor content and then applies edits. Avoids opening every target first, but needs custom protocol metadata and a precise client apply-time guard despite native VS Code WorkspaceEdit lacking explicit wire versions.",
+          "diskedits": "Use the same isolated workspace pipeline and bounded discovery, verify disk bytes at response time and return standard null-version closed-file edits. Keeps rename protocol simple and supports ordinary clients without preopening; disk can change after the response and before edits are applied, so edits may target stale bytes unless client adds its own protection."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "mechanism": {
+        "type": "choice",
+        "choice": "preopen",
+        "confidence": 1.0,
+        "probabilities": {
+          "preopen": 1.0,
+          "hashes": 0.0,
+          "diskedits": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 868,
+      "output_tokens": 45
+    }
+  }
+}

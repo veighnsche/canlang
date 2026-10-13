@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Verified code: Can CLI check_program accepts an explicit SourceDb and list of source IDs; resolver links use Package {Name} imports by owning app/package declarations, not filenames. Current LSP indexes only open buffers, rebuilds SourceDb to latest live snapshots, and uses single-file IDE queries. Extension is a custom VS Code stdio client, already tracks synchronized URI/version and refuses stale numeric document edits. User explicitly requires local project support: unopened source discovery, open unsaved overrides, cross-file diagnostics/navigation/references/completion/rename, workspace/catalog isolation, watched changes/deletion. CLI has no directory discovery API. Repo contains draft, .worktrees, vendor, node_modules and build output that should not be indiscriminately treated as source. Proposed discovery: recursively local .can regular files under declared workspace root, excluding dot directories and draft/vendor/node_modules/target/dist/build, never follow symlinks, load project catalogs anchored to roots. Per-folder extension clients; server longest-root filtering also isolates one session with several folders. Candidate rename target refs come from checked identities; cross-file capture-safe query rename rechecks all affected sources. Standard LSP can carry numeric versions only for open documents; null closed version lacks content guard. VS Code can open unopened files programmatically and synchronize before requesting rename; a second query may discover an additional target, so final server refuses rename unless every affected document is open and version guarded. Alternatives are advice hypotheses, not implemented claims. Additional verified evidence: user opens repository root containing unrelated examples, tests, design proposals and repeated app/module declarations; analyzing every candidate together can introduce duplicate identities unrelated to the edited app. Module metadata exposes exact source IDs, named import providers, imported members and composition uses. Resolver can extract module metadata per file before selecting a checked set. Queries need reverse consumers as well as forward dependencies so renaming an exported provider finds every local importer. A package provider name with multiple workspace candidates is genuinely ambiguous without further project configuration; selecting one by proximity guesses ownership. Directory exclusions alone cannot distinguish unrelated apps living in ordinary source folders.",
+    "questions": {
+      "selection": {
+        "type": "choice",
+        "instructions": "What source grouping approach best supports these workspace queries now? Weigh irrelevant diagnostics, declared ownership, stale-safe renames, setup burden and maintenance without assuming an answer.",
+        "criteria": {
+          "closure": "Discover bounded candidates, construct graph from declared imports/composition uses, and check the requested source plus forward dependencies and reverse consumers. Unrelated same-name apps without dependency edges remain isolated. Refuse/diagnose ambiguous imported providers rather than guessing. Adds finite metadata/closure selection but reuses current compiler checker and actual declarations.",
+          "all": "Discover bounded candidates and check every workspace file together. Simplest complete reference search, but unrelated duplicate identities or invalid drafts can affect the edited app despite no import relation; users must separate workspace folders or manually move files.",
+          "manifest": "Require an explicit project include/exclude manifest or server configuration that lists compilation units. Reuses multi-source checker with fully explicit author intent, but adds an authoring requirement before ordinary examples work and requires new config semantics that currently do not exist."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "selection": {
+        "type": "choice",
+        "choice": "closure",
+        "confidence": 1.0,
+        "probabilities": {
+          "closure": 1.0,
+          "all": 0.0,
+          "manifest": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 943,
+      "output_tokens": 38
+    }
+  }
+}
