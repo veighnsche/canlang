@@ -77,7 +77,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-04 — Write leases, snapshots and journal recovery
 
-- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-a621 release 6d935fa4f integrated as 9044408b8 (leases.rs, source hooks, leases/journal.ts, bgi04_leases.rs 13 tests, DECISIONS.md entry; cli.rs untouched as assigned). Coordinator verified on main: bgi04 13/13, bgi01 13/13, bgi02 14/14, node dist/generation 22/22 (10 records/association + 12 leases/journal); zero new tsc errors. BGI04 writer released on handoff; lib.rs mod-line reconciled at cherry-pick with no conflict. Codex 3-defect repair active per can-bg-56271b11-codex-leases-20261013T064639Z (atomic admission, read-gate-while-leased, temp-collision; probe /private/tmp/bgi04-review-9044408b8/probe.mjs): worker 01a13405 dispatched isolated, owns leases.rs + source gate + Node leases/journal + tests only, no cli.rs/config; BGI03 remains sole CLI/config owner.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-a621 release 6d935fa4f integrated as 9044408b8 (leases.rs, source hooks, leases/journal.ts, bgi04_leases.rs 13 tests, DECISIONS.md entry; cli.rs untouched as assigned). Coordinator verified on main: bgi04 13/13, bgi01 13/13, bgi02 14/14, node dist/generation 22/22 (10 records/association + 12 leases/journal); zero new tsc errors. BGI04 writer released on handoff; lib.rs mod-line reconciled at cherry-pick with no conflict. Codex 3-defect repair accepted as 07d47006 (worker 01a13405 release 4c1d92416; source.rs needed no edit; no cli.rs/config). Coordinator verified on main: bgi04 17/17 (4 new: admission arbitration, read-gate-under-lease, temp sibling + vectors), bgi02 17/17, bgi01 13/13, bgi03 26/26, exe 11/11, node dist/generation 43/43 (5 new); zero new tsc errors. Repair writer released.
 
 **Owner / targets:** Node generation coordination/promotion modules; matching Rust generation intake/read coordination in `cli.rs`/`source.rs`. **Needs:** BGI-02 associated outputs/source paths and the frozen full-run aggregate promotion/recovery contract.
 
@@ -87,7 +87,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-05 — MCP candidate submission and bounded Codex execution
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-bba7 dispatched isolated, owns NEW Node MCP/lifecycle/runner modules only; awaiting MCP handoff with Node tests green (Codex access/no-write gate held open).
+- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-bba7 running clean reading phase at fire 21, 2026-10-13T07:01Z, owns NEW Node MCP/lifecycle/runner modules only; awaiting MCP handoff with Node tests green (Codex access/no-write gate held open). BGI07 probing (zz_probe.rs) at fire 21; BGI04-repair editing leases/journal at fire 21.
 
 **Owner / targets:** Node generation lifecycle/MCP/runner modules, reusing patterns from `cli/command-lifetime.ts`. **Needs:** BGI-03 requests/recipes/MCP contract and BGI-04 captured groups/fences.
 
