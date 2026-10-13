@@ -57,7 +57,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-02 — Stable associations and saved-group intake
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 253ed4d5 with BGI01 accepted). Evidence/handoff: worker 01a133c5 running, worktree clean (reading phase); timer fire 5 observed 2026-10-13T05:41Z, ping can-bg-56271b11-bgi02-ping-1 queued awaiting ACK; awaiting opaque-ID/unit.json/association handoff with bgi02+bgi01 green.
 
 **Owner / targets:** compiler `source.rs`, `analysis/mod.rs`, `cli.rs` and focused generation intake; Node generation record/association modules. **Needs:** BGI-01 structural descriptors and the frozen output grouping/record shape; existing unit-level sketches are not a provider-job requirement.
 
