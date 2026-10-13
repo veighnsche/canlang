@@ -127,7 +127,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-09 — Row-bound renderers and browser controls
 
-- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: running at fire 30, 2026-10-13T07:46Z, editing codegen/mod.rs + lib.rs + UI components/forms/client/bootstrap + presentation.ts + new then_views.rs/css_scope.rs/bgi0910 test + probe (BGI07 accepted, no active conflict); forbidden files listed; awaiting bgi0910_then + retained greens. BGI06 + BGI08 reading clean at fire 30. Status publish held for clock skew (last 07:50Z ahead of real clock).
+- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: running at fire 31, 2026-10-13T07:51Z, editing codegen/mod.rs + lib.rs + UI + Interfaces http + presentation.ts + new then_views.rs/css_scope.rs/bgi0910 test + probe (BGI07 accepted, no active conflict); forbidden files listed; awaiting bgi0910_then + retained greens. BGI06 editing adapters.ts at fire 31; BGI08 still reading clean at fire 31 (watch next fire). Clock caught up; status publishing resumes.
 
 **Owner / targets:** compiler view lowering and Contracts presentation descriptors; UI `components.ts`, `forms.ts`, `client.ts`, `browser/bootstrap.ts`; Interfaces `http/{presentation,form-binding,prepared-validation,operations}.ts`; Cloudflare page/module join. **Needs:** BGI-01/02 checked row/control descriptors and saved export lookup. Consume BGI-07 contributions only where a row model requires them.
 
