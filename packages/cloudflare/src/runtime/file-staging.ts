@@ -125,7 +125,8 @@ export async function stageFileReferences(input: {
       if (!assigned.has(assignmentKey(write.model, row.id, field.name)) &&
           JSON.stringify(previous?.data[field.name]) === JSON.stringify(wire)) continue;
       const refs = fileRefs(field, wire, input.census, write.model);
-      if (field.field.kind !== 'file' && refs.length !== 0 && input.observeAssignment !== undefined) {
+      if (field.field.kind !== 'file' && refs.length !== 0 && input.observeAssignment !== undefined &&
+          !assigned.has(assignmentKey(write.model, row.id, field.name))) {
         input.refuse('Saved nominal File assignment requires genuine State receipt observation.');
       }
       for (const ref of refs) {

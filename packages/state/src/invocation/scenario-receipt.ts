@@ -2302,7 +2302,10 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
             const projected = await projectInstalledSourceRowAndAncestors({ model: locator.model, row,
               readPolicies: source.readPolicies!, policy: source.policy, context, revision: call.revision,
               fence: undefined, store, rows: new Map([[`${locator.model}\0${row.id}`, row]]), ownerRows: { read, assertHealthy: healthy } });
-            if (projected.record === null || !projected.grants.some(grant => grant.fields.includes(locator.field))) return false;
+            // These are authentic owner-session assignment effects, not field
+            // disclosure. Private writes still require current row/ancestor
+            // authority; saved exposure separately requires the field grant.
+            if (projected.record === null) return false;
           }
           return true;
         });

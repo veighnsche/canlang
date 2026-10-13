@@ -6,6 +6,7 @@ import { parseTypeId } from '@canlang/values';
 import { StateError } from '../../src/errors.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { storedNominalField, storedNominalFileRefs, storedNominalWire } from '../../src/invocation/scenario-stored-value.js';
+import { bindDeclaredFileReferenceProfile, fileReferenceOccurrences } from '../../src/ports/file-reference-profile.js';
 import { asModel } from './fixtures.js';
 
 const BRANCH = asModel('StoredFiles.Branch'), TARGET = asModel('StoredFiles.Target');
@@ -39,6 +40,16 @@ function fixture(type = `${MESSAGE}[]`, attachmentType = 'file[]', pure = false)
   return { bound, profile: storedNominalField(bound, BRANCH, 'prefix', type, { protectedFiles: true }) };
 }
 const message = (ids: readonly string[] = []) => ({ role: 'user', content: 'Declared text', attachments: ids.map(id => ({ id })) });
+
+test('shallow-frozen File inventories still recheck mutable declaration descendants', () => {
+  const fields = [{ name: 'graph', type: 'file' as CanTypeId }];
+  const valueTypes = Object.freeze({ contracts: Object.freeze([{ name: 'Mutable.Graph', fields }]) });
+  const bound = { canonicalModels: [], artifactModels: new Map(), valueTypes };
+  const original = bindDeclaredFileReferenceProfile(bound, 'Mutable.Graph' as CanTypeId);
+  assert.deepEqual(fileReferenceOccurrences(original, { graph: { id: 'file-a' } }), [{ ref: 'file-a', path: ['graph'] }]);
+  fields[0]!.type = 'Missing.Owner' as CanTypeId;
+  assert.throws(() => bindDeclaredFileReferenceProfile(bound, 'Mutable.Graph' as CanTypeId), refuses);
+});
 
 test('original TextMessage array retains ordered duplicate File refs and empty declared receiver requirement', () => {
   const { profile, bound } = fixture();

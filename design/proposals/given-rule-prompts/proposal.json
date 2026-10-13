@@ -1,0 +1,119 @@
+{
+  "status": "proposed scope extension, not adopted or implemented; existing accepted build-generation choices remain unchanged",
+  "user_question": "Are model/field traits the only inline Given prompt use-case? What about prompted policy, unique, invariant, lock and new local Given vocabulary?",
+  "current_answer": {
+    "implemented": "Current compiler has closed Given declarations and no accepted generation-engine implementation or general custom-keyword registration.",
+    "accepted": "Named/inline trait supports model/field composition, including supported model invariants/hooks; it excludes first-class prompted policy/unique/lock targets and generated policy grants."
+  },
+  "recommended_outcome": "Expand Given generation to source-owned declarations and computations beyond model/field traits. Support inline prompts behind explicit canonical rule headers and named reusable local rules. Preserve the saved selected-unit lifecycle, zero-AI ordinary builds and canonical enforcement.",
+  "proposed_targets": [
+    {
+      "kind": "policy predicate",
+      "contract": "Explicit read principals and field grants remain in authored policy headers; generate the additional row/eligibility predicate. No implied grant from a domain adjective.",
+      "example": "policy Claim read=reviewer where=$\"Only claims at a location this reviewer is assigned to.\""
+    },
+    {
+      "kind": "invariant",
+      "contract": "Pure rule over proposed final owner state with explicit dependency/read contracts; relevant changes recheck dependent rows. No effects or silent query truncation.",
+      "example": "invariant Booking: $\"Active bookings for the same desk must not overlap.\""
+    },
+    {
+      "kind": "lock predicate",
+      "contract": "Authored field selectors; generated condition evaluates on canonical pre-state and preserves sealing-transition behavior and deletion rules.",
+      "example": "lock Invoice fields=number,total,currency when=$\"Once this invoice has been issued.\""
+    },
+    {
+      "kind": "uniqueness declaration/key",
+      "contract": "Saved checked key/scope/normalization/null/conditional semantics, canonical owner-level atomic enforcement for every write. An ordinary JS search before writing is insufficient.",
+      "example": "unique Customer $\"The normalized company registration reference must be unique within this operator.\""
+    },
+    {
+      "kind": "derive/default/normalization/validation",
+      "contract": "Explicit owning field or typed function signature and exact representations; supported pure runtime role and declaration dependencies. Existing built-in rules stay directly expressible without AI.",
+      "example": "derive Deal.priority:int=$\"Return a deterministic priority from its declared stage and next-action time; do not use wall-clock or external data.\""
+    },
+    {
+      "kind": "named local rule",
+      "contract": "A typed compatible target and visible checked output contributions; reuse one definition unit without an AI call at each application. May compose existing invariants, keys, locks, fields and computations; built-in names and enforcement cannot be redefined.",
+      "example": "rule append_only $\"Make the target record append-only using canonical locks; preserve its declared reads and create authority.\"\nappend_only Movement"
+    }
+  ],
+  "syntax_status": "Proposed examples now use the human-suggested $\"...\" generation-prompt literal, documented in design/proposals/build-generation/prompt-literal.json. This distinguishes generation intent from ordinary strings. Marker, rule spelling, signatures and target scope remain proposals, not accepted grammar; a broadened trait carrier remains an alternative.",
+  "concrete_draft_examples": [
+    {
+      "source": "draft/apps/CanInvoice/CanInvoice.can",
+      "concept": "issued invoice number exclusivity and immutable financial snapshot"
+    },
+    {
+      "source": "draft/apps/CanStock/CanStock.can",
+      "concept": "immutable movements, source exclusivity and dependency-aware nonnegative location balances"
+    },
+    {
+      "source": "draft/apps/CanInbox/CanInbox.can",
+      "concept": "queue-scoped staff visibility and sealed submitted replies"
+    }
+  ],
+  "integration_boundary": "Generate ordinary checked Can contributions where they express the rule; generated workerd JS computations/predicates require explicit typed phase/read/dependency contracts and canonical wrappers. The compiler must expose exact grants/keys/fields/rules and normal migration effects. A genuinely unsupported runtime mechanism remains a diagnosed capability gap, not a successful AI extension.",
+  "open_decisions": [
+    "Whether to extend trait to declaration targets or add prompt-bearing built-in targets and a rule carrier; exact syntax/signatures/local invocation and target/selector arguments.",
+    "Explicit generated-JS rule inputs, phase, bounded authority reads and dependency tracking/revalidation contracts; representation of uniqueness scope/key/null/normalization, and supported pure derive role.",
+    "Accepted scope change to BGEN and BGI before implementation; these new targets are not silently covered by the old all-four-category completion criterion."
+  ],
+  "jev_advice": {
+    "requests": "design/jev/given-rule-prompts-20261013/{1,2,3}.{questions,result}.json",
+    "model": "jev-1.13.0",
+    "carrier": {
+      "targeted_rules_probabilities": [
+        0.56,
+        0.49,
+        0.41
+      ],
+      "broad_traits_probabilities": [
+        0.27,
+        0.21,
+        0.14
+      ],
+      "open_probabilities": [
+        0.14,
+        0.28,
+        0.45
+      ],
+      "confidence": [
+        0.41,
+        0.32,
+        0.27
+      ],
+      "selected": [
+        "targeted_rules",
+        "targeted_rules",
+        "open"
+      ]
+    },
+    "semantics": {
+      "canonical_and_bound_probabilities": [
+        0.91,
+        0.97,
+        0.83
+      ],
+      "confidence": [
+        0.88,
+        0.96,
+        0.77
+      ]
+    },
+    "disagreement_investigation": "Carrier agreement is weak and third prefers open (.45 versus .41). Source inspection confirms the concrete unresolved target/signature, prompt-versus-literal, uniqueness and JS dependency/phase contracts listed above. Keep examples proposed instead of settling a cosmetic keyword or treating semantic agreement as carrier adoption. No extra model call is required to restate this missing contract.",
+    "interpretation": "Advice supports a canonical enforcement boundary; neither grammar adoption, implementation correctness nor permission approval follows from probabilities."
+  },
+  "verified_sources": [
+    "docs/specification/BUILD_GENERATION_REQUIREMENTS.md BGEN01/02/11",
+    "design/proposals/build-generation/choices.md D1/D4",
+    "compiler/src/syntax/parser.rs closed Given dispatch",
+    "docs/specification/DESIGN.md model uniqueness, policy/invariant/pre-state lock, owner transaction semantics"
+  ],
+  "consultation_docs": [
+    "https://docs.typesafe.ai/primitives/choice",
+    "https://docs.typesafe.ai/api"
+  ],
+  "implementation": "No compiler/runtime/draft application rewrite, provider adapter change, merge or checkpoint advance in this design discussion.",
+  "prompt_literal_proposal": "design/proposals/build-generation/prompt-literal.json"
+}

@@ -138,7 +138,8 @@ async function world(bind = true, producerApp = APP, deleteMode: 'archive' | 're
       [MODEL, {parent: PARENT, fields: fieldsForNominal, secretFields: ['secret'], grants: [
         {fields: ['prefix', 'optionalPrefix', 'request_value'], read: async ({context}) => access.field &&
           context.membership?.status === 'active' && (await context.memberships.findMembership(member.team.team_id, related!.user.user_id))?.status === 'active'},
-        {fields: ['visible'], read: async ({context}) => context.membership?.status === 'active'},
+        {fields: ['visible'], read: async ({context}) => context.membership?.status === 'active' &&
+          (await context.memberships.findMembership(member.team.team_id, related!.user.user_id))?.status === 'active'},
       ]}], [PARENT, {fields: ['title'], secretFields: [], grants: [{fields: ['title'], read: async ({context}) => access.ancestor && context.membership?.status === 'active'}]}],
     ]);
     bindScenarioReceiptReferenceProducer(def, {source: origin(), app: APP, policy: policyTable, readPolicies});
@@ -528,6 +529,26 @@ test('complete nominal request_value preserves every owning field and nested mes
     assert.equal(saved.changed[0]!.fieldTypes.request_value, 'std.TextRequest');
     assert.deepEqual(saved.changed[0]!.row.data.request_value, wire); assert.equal(saved.fileAssignments!.length, 2);
     w.reopen(); assert.deepEqual((await savedProjection(w, receipt)).records[0]!.data.request_value, wire);
+  } finally {w.close();}
+});
+
+test('private nominal assignment retains writer and row authority without granting saved field disclosure', async () => {
+  const w = await world(true, APP, 'archive', true);
+  try {
+    w.access.field = false;
+    const wire = requestValue([message([w.refs[0], w.refs[0]])]);
+    const {receipt} = await originalCommit(w, 'request_value', wire, [w.refs[0]]);
+    assert.deepEqual((await w.store.load(MODEL, w.row.id))!.data.request_value, wire);
+    assert.equal(readScenarioReceiptAssociation(receipt)!.fileAssignments!.length, 1);
+    w.reopen();
+    const projected = await savedProjection(w, receipt);
+    assert.deepEqual(projected.records[0]!.data, {visible: 'assigned visible'});
+    const before = await domain(w); let executed = 0;
+    const replay = await invokeRetainedReceiptOnly({...w, execute: async () => {executed++; return empty();}});
+    assert.equal(replay.status, 'replayed'); assert.equal(executed, 0);
+    assert.deepEqual(await domain(w), before);
+    w.access.ancestor = false;
+    assert.deepEqual((await savedProjection(w, receipt)).records, []);
   } finally {w.close();}
 });
 
