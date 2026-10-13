@@ -1515,6 +1515,83 @@ fn envelope_and_event_shapes() {
     assert_eq!(body["phase"], "capture");
 }
 
+#[test]
+fn bound_copies_both_usable_through_status() {
+    // BGI02-repair join (can-bg-56271b11-codex-leases-20261013T064639Z):
+    // status routes through associate_with_source with current
+    // file/revision evidence, so two explicitly bound copies are both
+    // usable through the public CLI while current edited bytes stay
+    // intact. Without the join, the duplicate key reports ambiguous.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let source = "app DupApp\nGiven\n Todo {title:text}\nWhen\n scenario complete(task:Todo) by=members\n  do set task {title=\"Done\"}\nThen\n## Two identical definitions share one association key.\n style Dup $\"Same look.\"\n style Dup $\"Same look.\"\n";
+    let file = write_file(dir.path(), "dup.can", source);
+    let revision = sha256_hex(source.as_bytes());
+    let (tree, diags) = parse_source(SourceId(0), source);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = canlang_compiler::analysis::generation::discover_generation(&tree, source);
+    let styles: Vec<_> = found
+        .descriptors
+        .iter()
+        .filter(|d| d.kind == GenerationKind::StyleDefinition)
+        .collect();
+    assert_eq!(styles.len(), 2);
+    // Bind the original, then the second location as new.
+    for (index, descriptor) in styles.iter().enumerate() {
+        let bound = dispatch(&argv(&[
+            "gen",
+            "bind",
+            &root,
+            &file,
+            &descriptor.span.start.to_string(),
+            &descriptor.span.end.to_string(),
+            &revision,
+            "new",
+        ]));
+        assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
+        assert!(
+            bound.stdout.contains(&format!("u{}", index + 1)),
+            "bind {}: {}",
+            index + 1,
+            bound.stdout
+        );
+    }
+    // Current user-edited bytes under both groups.
+    let edited_u1 = "/* user-edited u1 */\n.a{color:red}\n";
+    let edited_u2 = "/* user-edited u2 */\n.a{color:blue}\n";
+    std::fs::write(
+        dir.path().join(GENERATED_DIR).join("u1").join("style.css"),
+        edited_u1,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join(GENERATED_DIR).join("u2").join("style.css"),
+        edited_u2,
+    )
+    .unwrap();
+    // Status honors both explicit binds and preserves the edits.
+    let status = dispatch(&argv(&["gen", "status", "--format=json", &root, &file]));
+    assert_eq!(status.code, 0, "stderr: {}", status.stderr);
+    let report: serde_json::Value = serde_json::from_str(&status.stdout).unwrap();
+    let units = report["units"].as_array().unwrap();
+    assert_eq!(units.len(), 2, "{units:?}");
+    for (index, unit) in units.iter().enumerate() {
+        assert_eq!(unit["association"], "retained", "{unit:?}");
+        assert_eq!(unit["id"], format!("u{}", index + 1), "{unit:?}");
+    }
+    assert_eq!(report["issues"], serde_json::json!([]), "{report:?}");
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(GENERATED_DIR).join("u1").join("style.css"))
+            .unwrap(),
+        edited_u1
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join(GENERATED_DIR).join("u2").join("style.css"))
+            .unwrap(),
+        edited_u2
+    );
+}
+
 fn run_binary(args: &[&str], stdin_text: Option<&str>) -> std::process::Output {
     use std::io::Write;
     use std::process::{Command, Stdio};

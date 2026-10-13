@@ -2453,7 +2453,16 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
         let (_db, _id, text) = read_gen_source(file)?;
         let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
         let found = crate::analysis::generation::discover_generation(&tree, &text);
-        for (index, association) in intake::associate(&found.descriptors, &saved) {
+        // Current captured file/revision evidence: explicit binds are
+        // honored for their exact location, while changed/stale input
+        // still refuses conservatively (BGI02-repair join).
+        let evidence = intake::AssociationSource {
+            path: file.clone(),
+            revision: crate::source::sha256_hex(text.as_bytes()),
+        };
+        for (index, association) in
+            intake::associate_with_source(&found.descriptors, &saved, &evidence)
+        {
             let descriptor = &found.descriptors[index];
             let kind = intake::UnitKind::of_descriptor(descriptor.kind)
                 .map(|k| k.as_str())
@@ -2933,7 +2942,12 @@ fn run_gen_inspect(
         };
         let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
         let found = crate::analysis::generation::discover_generation(&tree, &text);
-        let associations = intake::associate(&found.descriptors, &saved);
+        // Current captured file/revision evidence, as in status.
+        let evidence = intake::AssociationSource {
+            path: file.clone(),
+            revision: crate::source::sha256_hex(text.as_bytes()),
+        };
+        let associations = intake::associate_with_source(&found.descriptors, &saved, &evidence);
         let located = associations.iter().find(|(index, _)| {
             let descriptor = &found.descriptors[*index];
             intake::UnitKind::of_descriptor(descriptor.kind).is_some()

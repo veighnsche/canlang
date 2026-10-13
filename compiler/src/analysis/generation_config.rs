@@ -607,54 +607,55 @@ pub fn resolve_recipe(
     // profile is configured; every other named base must exist.
     let (base_runner, base_model, base_attempts, base_timeout, base_native, base_label): BaseRow =
         match (loaded, base_name) {
-        (Some(found), Some(name)) => match found.settings.profiles.get(&name) {
-            Some(profile) => (
-                Some(profile.runner.clone()),
-                Some(profile.model.clone()),
-                profile.max_attempts.or(found.settings.shared.max_attempts),
-                profile
-                    .timeout_seconds
-                    .or(found.settings.shared.timeout_seconds),
-                profile.native.clone(),
-                format!("profile '{name}'{}", describe_settings()),
-            ),
-            None if name == FRONTEND_PROFILE && overrides.profile.is_none() => {
-                shared_base(&found.settings.shared, &describe_settings)
-            }
-            None => {
-                let known: Vec<&str> = found.settings.profiles.keys().map(String::as_str).collect();
-                let hint = if known.is_empty() {
-                    "the settings define no profiles".to_string()
-                } else {
-                    format!("known profiles: {}", known.join(", "))
-                };
+            (Some(found), Some(name)) => match found.settings.profiles.get(&name) {
+                Some(profile) => (
+                    Some(profile.runner.clone()),
+                    Some(profile.model.clone()),
+                    profile.max_attempts.or(found.settings.shared.max_attempts),
+                    profile
+                        .timeout_seconds
+                        .or(found.settings.shared.timeout_seconds),
+                    profile.native.clone(),
+                    format!("profile '{name}'{}", describe_settings()),
+                ),
+                None if name == FRONTEND_PROFILE && overrides.profile.is_none() => {
+                    shared_base(&found.settings.shared, &describe_settings)
+                }
+                None => {
+                    let known: Vec<&str> =
+                        found.settings.profiles.keys().map(String::as_str).collect();
+                    let hint = if known.is_empty() {
+                        "the settings define no profiles".to_string()
+                    } else {
+                        format!("known profiles: {}", known.join(", "))
+                    };
+                    return Err(ConfigError::new(
+                        "unknown-profile",
+                        format!(
+                            "unknown profile '{name}'{hint_tail}; {hint}",
+                            hint_tail = describe_settings()
+                        ),
+                    ));
+                }
+            },
+            (Some(found), None) => shared_base(&found.settings.shared, &describe_settings),
+            (None, Some(name)) => {
                 return Err(ConfigError::new(
                     "unknown-profile",
                     format!(
-                        "unknown profile '{name}'{hint_tail}; {hint}",
-                        hint_tail = describe_settings()
+                        "unknown profile '{name}': no settings file supplies profiles (explicit run overrides still need no settings)"
                     ),
                 ));
             }
-        },
-        (Some(found), None) => shared_base(&found.settings.shared, &describe_settings),
-        (None, Some(name)) => {
-            return Err(ConfigError::new(
-                "unknown-profile",
-                format!(
-                    "unknown profile '{name}': no settings file supplies profiles (explicit run overrides still need no settings)"
-                ),
-            ));
-        }
-        (None, None) => (
-            None,
-            None,
-            None,
-            None,
-            BTreeMap::new(),
-            "run overrides".to_string(),
-        ),
-    };
+            (None, None) => (
+                None,
+                None,
+                None,
+                None,
+                BTreeMap::new(),
+                "run overrides".to_string(),
+            ),
+        };
     // Runner/model: overrides win, but a runner override requires an
     // explicit model in the same run (no cross-runner inheritance).
     // A model-only override keeps the base runner.
