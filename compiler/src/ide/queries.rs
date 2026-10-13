@@ -16,7 +16,7 @@
 //! [`CheckedProgram`]: crate::analysis::CheckedProgram
 //! [`ResolveTables`]: crate::analysis::resolve::ResolveTables
 
-use crate::analysis::catalog::Catalog;
+use crate::analysis::catalog::{Catalog, CatalogEntry, SigType};
 use crate::analysis::resolve::{
     Binding, ModuleId, ResolveTables, ScopeId, SymbolId, SymbolKind, TypeRef, builtin_type_names,
     resolve_program,
@@ -614,6 +614,15 @@ impl<'a> Snapshot<'a> {
     /// keywords for the GRAMMAR position. Sorted by label; never fails.
     pub fn completions_at(&self, offset: u32) -> Vec<Completion> {
         let text = self.text();
+        if offset as usize > text.len() || !text.is_char_boundary(offset as usize) {
+            return Vec::new();
+        }
+        if self.non_code_completion_position(offset) {
+            return Vec::new();
+        }
+        if let Some(items) = self.empty_annotation_completions(offset) {
+            return items;
+        }
         if let Some(fields) = self.member_completions(offset) {
             return fields;
         }
@@ -623,6 +632,7 @@ impl<'a> Snapshot<'a> {
         if let Some(cases) = self.match_case_completions(offset) {
             return cases;
         }
+        let type_position = named_type_position(&self.tree, text, offset);
         let mut out: Vec<Completion> = Vec::new();
         let mut seen: HashSet<String> = HashSet::new();
         let mut push = |label: &str, kind: &'static str, detail: Option<String>| {
@@ -644,7 +654,7 @@ impl<'a> Snapshot<'a> {
                     break;
                 };
                 for (name, binding) in &scope_data.bindings {
-                    if self.binding_visible_at(binding, offset) {
+                    if !type_position && self.binding_visible_at(binding, offset) {
                         bindings.push((name, binding));
                     }
                 }
@@ -670,24 +680,103 @@ impl<'a> Snapshot<'a> {
                 .unwrap_or_default();
             names.sort_by(|a, b| a.0.cmp(b.0));
             for (name, scoped) in names {
+                if type_position && !self.scoped_type_candidate(scoped) {
+                    continue;
+                }
                 let (kind, detail) = scoped_completion(scoped, &self.tables);
                 push(name, kind, detail);
             }
         }
         // Catalog builtins (callable entries only, read-only).
-        if let Some(catalog) = self.catalog() {
+        if !type_position && let Some(catalog) = self.catalog() {
             for id in catalog.ids() {
-                if catalog.is_builtin(id) {
-                    push(id, "Function", Some("builtin".to_string()));
+                if catalog.is_builtin(id)
+                    && let Some(entry) = catalog.lookup(id)
+                {
+                    push(id, "Function", Some(builtin_signatures(entry).join("; ")));
                 }
             }
         }
         // Keywords for the syntactic position.
-        for keyword in keywords_at(&self.tree, text, offset) {
+        let keywords = if type_position {
+            type_keywords()
+        } else {
+            keywords_at(&self.tree, text, offset)
+        };
+        for keyword in keywords {
             push(keyword, "Keyword", None);
         }
         out.sort_by(|a, b| a.label.cmp(&b.label));
         out
+    }
+
+    /// Completion edits code. Prose and literal content never enter recovery,
+    /// even when the text happens to end in a receiver-like `name.`.
+    fn non_code_completion_position(&self, offset: u32) -> bool {
+        let leaf = chain_at(&self.tree, offset).last().copied();
+        if leaf.is_some_and(|node| {
+            matches!(
+                node.kind,
+                SyntaxKind::Comment | SyntaxKind::Description | SyntaxKind::String
+            )
+        }) {
+            return true;
+        }
+        let Some(previous) = offset
+            .checked_sub(1)
+            .and_then(|previous| chain_at(&self.tree, previous).last().copied())
+        else {
+            return false;
+        };
+        if previous.span.end != offset {
+            return false;
+        }
+        match previous.kind {
+            SyntaxKind::Comment | SyntaxKind::Description => true,
+            SyntaxKind::String => {
+                matches!(&previous.detail, NodeDetail::Token(token) if token.string_value.is_none())
+            }
+            _ => false,
+        }
+    }
+
+    /// Match the types pass's bare-symbol admission, including generated
+    /// judgment records and opaque imports whose schemas belong to providers.
+    fn scoped_type_candidate(&self, scoped: &crate::analysis::resolve::ScopedName) -> bool {
+        use crate::analysis::resolve::ScopedName;
+        let id = match scoped {
+            ScopedName::Local(id) | ScopedName::Imported { target: id, .. } => *id,
+            ScopedName::External { .. } => return true,
+        };
+        self.tables.judgment_generated_symbols.contains(&id)
+            || matches!(
+                self.tables.symbols[id.0 as usize].kind,
+                SymbolKind::Model { .. }
+                    | SymbolKind::Contract { .. }
+                    | SymbolKind::Event { .. }
+                    | SymbolKind::Preferences { .. }
+                    | SymbolKind::Message { .. }
+            )
+    }
+
+    /// Failed field/parameter parsing retains tokens under Error, without
+    /// type wrappers. Recover one missing type after an actual colon token;
+    /// the reparsed CST must certify its role before offering type candidates.
+    fn empty_annotation_completions(&self, offset: u32) -> Option<Vec<Completion>> {
+        let before = self.text().get(..offset as usize)?.trim_end();
+        let colon_offset = before.len().checked_sub(1)? as u32;
+        let chain = chain_at(&self.tree, colon_offset);
+        let colon = chain.last()?.token()?;
+        if !colon.is_punct(crate::syntax::Punct::Colon) {
+            return None;
+        }
+        let edit = Span::new(self.file, offset, offset);
+        let db = self.candidate_db(&[edit], "text");
+        let recovered = self.candidate_snapshot(&db);
+        if !named_type_position(&recovered.tree, recovered.text(), offset) {
+            return None;
+        }
+        Some(recovered.completions_at(offset + 1))
     }
 
     /// Recover an unfinished selector by checking the written receiver on its
@@ -1520,6 +1609,9 @@ impl<'a> Snapshot<'a> {
         if let Some(catalog) = self.catalog
             && let Some(entry) = catalog.lookup(id)
         {
+            for signature in builtin_signatures(entry) {
+                body.push_str(&format!("\n\n`{signature}`"));
+            }
             body.push_str(&format!("\n\ncatalog `{}`", catalog.version()));
             body.push_str(&format!("\n\neffects: {}", effects_noun(entry.effects)));
             body.push_str(&format!(
@@ -1949,6 +2041,121 @@ fn decl_node_kinds(kind: &SymbolKind) -> Vec<SyntaxKind> {
 
 // --- Completion ---
 
+/// An ordinary type name or reuse path, rather than enum labels or operation
+/// targets inside `action(...)`, `delivery(...)` and `invocation(...)`.
+fn named_type_position(tree: &SyntaxNode, text: &str, offset: u32) -> bool {
+    let in_type = |chain: Vec<&SyntaxNode>| {
+        chain
+            .iter()
+            .any(|node| matches!(node.kind, SyntaxKind::NamedType | SyntaxKind::UnionType))
+            && !chain.iter().any(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::EnumType
+                        | SyntaxKind::ActionType
+                        | SyntaxKind::DeliveryType
+                        | SyntaxKind::InvocationType
+                )
+            })
+    };
+    in_type(chain_at(tree, offset))
+        || (text
+            .get(..offset as usize)
+            .and_then(|before| before.chars().next_back())
+            .is_some_and(|c| c.is_alphanumeric() || c == '_')
+            && offset
+                .checked_sub(1)
+                .is_some_and(|previous| in_type(chain_at(tree, previous))))
+}
+
+fn type_keywords() -> Vec<&'static str> {
+    let mut keywords = vec!["enum", "action", "delivery", "invocation"];
+    keywords.extend(builtin_type_names().iter().copied());
+    keywords
+}
+
+/// Render the validated catalog schema, including alias and scope suffixes.
+/// These are catalog signatures, not reconstructed source annotations.
+fn builtin_signatures(entry: &CatalogEntry) -> Vec<String> {
+    entry
+        .overloads
+        .iter()
+        .map(|overload| {
+            let params = overload
+                .params
+                .iter()
+                .map(|param| {
+                    let mut rendered = format!("{}:{}", param.name, signature_type(&param.ty));
+                    if let Some(alias) = &param.alias {
+                        rendered.push_str(&format!(" as {alias}"));
+                    }
+                    if let Some(scope) = &param.in_scope {
+                        rendered.push_str(&format!(" in {scope} scope"));
+                    }
+                    rendered
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "{}({params})->{}",
+                entry.id,
+                signature_type(&overload.result)
+            )
+        })
+        .collect()
+}
+
+fn signature_type(ty: &SigType) -> String {
+    match ty {
+        SigType::Any => "T".into(),
+        SigType::Named(name) => name.clone(),
+        SigType::Ordered => "O".into(),
+        SigType::StringLike => "S".into(),
+        SigType::GroupKey => "K".into(),
+        SigType::Display => "Display".into(),
+        SigType::Collection(inner) => format!("C<{}>", signature_type(inner)),
+        SigType::NonemptyCollection(inner) => format!("nonempty C<{}>", signature_type(inner)),
+        SigType::OrderedCollection(inner) => format!("ordered C<{}>", signature_type(inner)),
+        SigType::Nullable(inner) | SigType::Array(inner) => {
+            let rendered = signature_type(inner);
+            let rendered = if matches!(**inner, SigType::Union(_)) {
+                format!("({rendered})")
+            } else {
+                rendered
+            };
+            format!(
+                "{rendered}{}",
+                if matches!(ty, SigType::Nullable(_)) {
+                    "?"
+                } else {
+                    "[]"
+                }
+            )
+        }
+        SigType::Union(arms) => arms
+            .iter()
+            .map(signature_type)
+            .collect::<Vec<_>>()
+            .join("|"),
+        SigType::EnumCases(cases) => format!("enum({})", cases.join(",")),
+        SigType::Object(fields) => format!(
+            "{{{}}}",
+            fields
+                .iter()
+                .map(|(name, ty)| format!("{name}:{}", signature_type(ty)))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        SigType::ClosedDisplayObject => "closed object of Display".into(),
+        SigType::Message => "message".into(),
+        SigType::ActionTarget => "canonical user mutation".into(),
+        SigType::ActionBindings => "closed object of every record parameter".into(),
+        SigType::ActionResult => "singleton action(target)".into(),
+        SigType::InvocationArgs => "complete owning input object".into(),
+        SigType::InvocationResult => "singleton invocation(target)".into(),
+    }
+}
+
 /// LSP completion-kind name for a scope binding.
 fn binding_completion_kind(binding: &Binding, tables: &ResolveTables) -> &'static str {
     match binding {
@@ -2036,11 +2243,44 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
                 | SyntaxKind::EnumType
                 | SyntaxKind::ActionType
                 | SyntaxKind::DeliveryType
+                | SyntaxKind::InvocationType
         )
     }) {
-        let mut keywords = vec!["enum", "action", "delivery"];
-        keywords.extend(builtin_type_names().iter().copied());
-        return keywords;
+        return type_keywords();
+    }
+    // Statement nodes also enclose their expressions. At the written
+    // introducer, offer statements; its RHS keeps expression completion.
+    if chain.iter().any(|node| node.kind == SyntaxKind::DoBlock)
+        && chain.iter().any(|node| {
+            if !matches!(
+                node.kind,
+                SyntaxKind::Let
+                    | SyntaxKind::Create
+                    | SyntaxKind::Set
+                    | SyntaxKind::Transition
+                    | SyntaxKind::Delete
+                    | SyntaxKind::Call
+                    | SyntaxKind::Emit
+                    | SyntaxKind::Send
+                    | SyntaxKind::Schedule
+                    | SyntaxKind::Cancel
+                    | SyntaxKind::Return
+                    | SyntaxKind::Require
+                    | SyntaxKind::If
+                    | SyntaxKind::For
+                    | SyntaxKind::Match
+            ) {
+                return false;
+            }
+            kids(node).first().is_some_and(|head| {
+                head.kind == SyntaxKind::Name
+                    && head.span.start <= offset
+                    && offset <= head.span.end
+                    && name_text(head, text).is_some_and(|word| effect_keywords().contains(&word))
+            })
+        })
+    {
+        return effect_keywords();
     }
     // Expression position: operators, literals and query clauses.
     if chain.iter().any(|n| {

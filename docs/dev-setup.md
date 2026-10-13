@@ -122,6 +122,10 @@ does not establish other hosts or original native application acceptance.
 
 ## Run one example app locally
 
+For current protected dev-preview screenshots and the complete draft inventory,
+use the [draft frontend validation runbook](draft-frontend-validation.md).
+It separates source checking, live browser smoke checks and still-open full-app acceptance.
+
 No compiled-app serving yet: the B1 join (`tests/integration/b1-team-tasks.md`)
 is blocked on lane-1 emission. Until then, the closest local proof is the
 testkit isolation test, which serves a fixture Worker with per-row D1:

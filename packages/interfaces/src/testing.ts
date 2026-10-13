@@ -60,6 +60,7 @@ import type {
   VerifiedIngressEnvelope,
 } from './ports.js';
 import { systemInterfacesClock } from './ports.js';
+import { canonicalJson } from './http/canonical-json.js';
 
 /** Scripted invoker: per-operation handlers with a call log. */
 export function createFakeInvoker(handlers: {
@@ -131,7 +132,7 @@ export function createMemoryExportDownloadStore(clock: InterfacesClock = systemI
       } else {
         if (current === undefined || current.status !== 'pending' ||
             current.digest !== expectedDigest || record.status !== 'ready') return false;
-        const identity = (value: ExportDownloadRecord) => JSON.stringify([
+        const identity = (value: ExportDownloadRecord) => canonicalJson([
           value.handle, value.appId, value.teamId, value.principal, value.operation,
           value.args, value.createdAt, value.expiresAt,
         ]);

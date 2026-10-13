@@ -9,4 +9,5 @@
 
 pub mod fixes;
 pub mod queries;
+pub mod structure;
 pub mod tokens;

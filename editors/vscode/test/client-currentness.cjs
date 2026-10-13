@@ -46,7 +46,7 @@ function host(documents = [], projectRoot) {
   const folder = projectRoot ? { uri: { scheme: 'file', fsPath: projectRoot, toString: () => pathToFileURL(projectRoot).href } } : undefined;
   const state = { handlers: {}, providers: {}, collection: new Map(), updates: [], errors: [] };
   const vscode = {
-    workspace: { textDocuments: documents, workspaceFolders: folder ? [folder] : [],
+    workspace: { isTrusted: true, onDidGrantWorkspaceTrust: () => disposable, textDocuments: documents, workspaceFolders: folder ? [folder] : [],
       getWorkspaceFolder: (uri) => folder && uri.fsPath.startsWith(`${projectRoot}${path.sep}`) ? folder : undefined,
       async openTextDocument(uri) {
         const current = documents.find((doc) => doc.uri.toString() === uri.toString());
@@ -62,7 +62,7 @@ function host(documents = [], projectRoot) {
         `onDid${name}TextDocument`, (callback) => { state.handlers[name] = callback; return disposable; },
       ])),
     },
-    window: { createOutputChannel: () => state.channel, showErrorMessage: (message) => state.errors.push(message) },
+    window: { createStatusBarItem: () => ({ ...disposable, show() {}, hide() {} }), onDidChangeActiveTextEditor: () => disposable, createOutputChannel: () => state.channel, showErrorMessage: (message) => state.errors.push(message) },
     commands: { registerCommand: () => disposable },
     languages: {
       createDiagnosticCollection: () => ({
@@ -71,7 +71,7 @@ function host(documents = [], projectRoot) {
         dispose() { state.collection.clear(); },
       }),
       ...Object.fromEntries(['Hover', 'CompletionItem', 'Definition', 'Reference', 'Rename',
-        'DocumentSemanticTokens', 'CodeActions', 'DocumentFormattingEdit', 'DocumentSymbol'].map((name) => [
+        'DocumentSemanticTokens', 'CodeActions', 'DocumentFormattingEdit', 'DocumentSymbol', 'FoldingRange', 'SelectionRange'].map((name) => [
         `register${name}Provider`, (_selector, provider) => { state.providers[name] = provider; return disposable; },
       ])),
     },
@@ -99,6 +99,9 @@ function host(documents = [], projectRoot) {
       set(uri, edits) { this.entries.set(uri.toString(), edits); } },
     MarkdownString: class { constructor(value) { this.value = value; } },
     Hover: class { constructor(contents) { this.contents = contents; } },
+    StatusBarAlignment: { Right: 2 },
+    FoldingRange: class { constructor(start, end) { Object.assign(this, { start, end }); } },
+    SelectionRange: class { constructor(range, parent) { Object.assign(this, { range, parent }); } },
     SemanticTokensLegend: class {}, CodeActionKind: { QuickFix: 'quickfix' },
     CodeAction: class { constructor(title, kind) { Object.assign(this, { title, kind }); } },
     Location: class { constructor(uri, range) { Object.assign(this, { uri, range }); } },
@@ -245,6 +248,8 @@ async function providers() {
     ['rename', doc, (token) => p.Rename.provideRenameEdits(doc, task, 'job', token)],
     ['formatting', doc, (token) => p.DocumentFormattingEdit.provideDocumentFormattingEdits(doc, { tabSize: 1, insertSpaces: true }, token)],
     ['document symbols', doc, (token) => p.DocumentSymbol.provideDocumentSymbols(doc, token)],
+    ['folding', doc, (token) => p.FoldingRange.provideFoldingRanges(doc, {}, token)],
+    ['selection', doc, (token) => p.SelectionRange.provideSelectionRanges(doc, [use], token)],
     ['semantic tokens', doc, (token) => p.DocumentSemanticTokens.provideDocumentSemanticTokens(doc, token)],
     ['code actions', actionDoc, (token) => p.CodeActions.provideCodeActions(actionDoc, actionRange, { diagnostics: [] }, token)],
   ];
@@ -255,7 +260,7 @@ async function providers() {
     assert.equal(child.sent.length, before, `${name} pre-cancelled sends no request`);
     assert.equal(token.registrations, 0);
   }
-  console.log('PASS all nine actual providers suppress pre-cancelled calls');
+  console.log('PASS all eleven actual providers suppress pre-cancelled calls');
   const completion = await cases[1][2](cancellation());
   for (const [label, kind] of [['Todo', 6], ['task', 5], ['and', 13]]) {
     assert.equal(completion.find((item) => item.label === label)?.kind, kind, label);
@@ -323,7 +328,7 @@ async function providers() {
     assert.equal(liveToken.listenerCount, 0);
     child.release(cancelledFrame);
   }
-  console.log('PASS all nine providers suppress stale revisions and settle live cancellation');
+  console.log('PASS all eleven providers suppress stale revisions and settle live cancellation');
   child.held = [];
   const priorEpochRename = cases[4][2](cancellation());
   await until(() => child.held.length === 1);

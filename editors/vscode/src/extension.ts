@@ -403,6 +403,60 @@ function documentSymbolProvider(): vscode.DocumentSymbolProvider {
   };
 }
 
+function foldingRangeProvider(): vscode.FoldingRangeProvider {
+  return {
+    provideFoldingRanges(document, _context, token) {
+      return request(document, token, 'textDocument/foldingRange', {
+        textDocument: { uri: document.uri.toString() },
+      }, (result) => {
+        if (!Array.isArray(result)) { return undefined; }
+        const ranges: vscode.FoldingRange[] = [];
+        for (const value of result) {
+          if (!isRecord(value)) { continue; }
+          const start = value['startLine'];
+          const end = value['endLine'];
+          if (typeof start === 'number' && Number.isSafeInteger(start) && start >= 0 &&
+              typeof end === 'number' && Number.isSafeInteger(end) && end > start) {
+            ranges.push(new vscodeApi.FoldingRange(start, end));
+          }
+        }
+        return ranges;
+      });
+    },
+  };
+}
+
+function selectionRangeProvider(): vscode.SelectionRangeProvider {
+  return {
+    provideSelectionRanges(document, positions, token) {
+      return request(document, token, 'textDocument/selectionRange', {
+        textDocument: { uri: document.uri.toString() },
+        positions: positions.map(toPosition),
+      }, (result) => {
+        if (!Array.isArray(result) || result.length !== positions.length) { return undefined; }
+        const selections: vscode.SelectionRange[] = [];
+        for (const value of result) {
+          const ranges: vscode.Range[] = [];
+          let current: Json = value;
+          while (isRecord(current)) {
+            const range = toRange(current['range']);
+            if (!range) { return undefined; }
+            ranges.push(range);
+            current = current['parent'] ?? null;
+          }
+          if (ranges.length === 0) { return undefined; }
+          let parent: vscode.SelectionRange | undefined;
+          for (const range of ranges.reverse()) {
+            parent = new vscodeApi.SelectionRange(range, parent);
+          }
+          selections.push(parent!);
+        }
+        return selections;
+      });
+    },
+  };
+}
+
 function semanticTokensProvider(): vscode.DocumentSemanticTokensProvider {
   return {
     provideDocumentSemanticTokens(document, token) {
@@ -472,17 +526,38 @@ function codeActionProvider(): vscode.CodeActionProvider {
 export function activate(context: vscode.ExtensionContext): void {
   active = true;
   const channel = vscodeApi.window.createOutputChannel('Can');
+  const status = vscodeApi.window.createStatusBarItem(vscodeApi.StatusBarAlignment.Right, 10);
+  status.command = 'can.serverStatus';
+  const states = new Map<string, { state: 'starting' | 'ready' | 'unavailable'; detail: string }>();
+  const updateStatus = (): void => {
+    const document = vscodeApi.window.activeTextEditor?.document;
+    if (document?.languageId !== 'can') { status.hide(); return; }
+    if (!vscodeApi.workspace.isTrusted) {
+      status.text = '$(lock) Can';
+      status.tooltip = 'Can syntax tools are available. Trust this workspace to start language tools.';
+    } else {
+      const current = states.get(clientKey(document));
+      status.text = current?.state === 'starting' ? '$(sync~spin) Can' :
+        current?.state === 'ready' ? '$(check) Can' : '$(warning) Can';
+      status.tooltip = `Can language server: ${current?.state ?? 'unavailable'}\n${current?.detail ?? 'Click for server settings and recovery.'}`;
+    }
+    status.show();
+  };
 
   const startClient = (
     document: vscode.TextDocument | undefined = vscodeApi.window.activeTextEditor?.document,
     requestedFolder?: vscode.WorkspaceFolder,
   ): void => {
     const key = requestedFolder?.uri.toString() ?? clientKey(document);
-    if (!active || clients.has(key)) { return; }
+    if (!active || !vscodeApi.workspace.isTrusted || clients.has(key)) { updateStatus(); return; }
     const folder = requestedFolder ?? folderFor(document);
     const config = vscodeApi.workspace.getConfiguration('can', folder?.uri);
     const serverPath = config.get<string>('serverPath', 'can');
     const trace = config.get<boolean>('traceServer', false);
+    const detail = `${serverPath} lsp\n${folder?.uri.fsPath ?? 'No local workspace folder'}`;
+    states.set(key, { state: 'starting', detail });
+    channel.appendLine(`[Can] Starting ${detail.replace('\n', ' in ')}.`);
+    updateStatus();
     const catalogFolder = folder ?? vscodeApi.workspace.workspaceFolders?.find(
       (item: vscode.WorkspaceFolder) => item.uri.scheme === 'file');
     const canClient = new CanLanguageClient(serverPath, channel, trace, catalogFolder?.uri.fsPath,
@@ -494,18 +569,27 @@ export function activate(context: vscode.ExtensionContext): void {
     canClient.onExit = (code: number | null) => {
       if (clients.get(key) !== canClient) { return; }
       clients.delete(key);
+      states.set(key, { state: 'unavailable', detail });
+      channel.appendLine(`[Can] Server exited (${code ?? 'unknown'}): ${detail.replace('\n', ' in ')}.`);
+      updateStatus();
       vscodeApi.window.showErrorMessage(
         `Can language server exited (code ${code === null ? 'unknown' : code}). ` +
         'Check the Can output channel; reopen a .can file or run `Can: Restart Language Server` to retry.');
     };
     canClient.start().then(() => {
       if (clients.get(key) !== canClient) { return; }
+      states.set(key, { state: 'ready', detail });
+      channel.appendLine(`[Can] Language server ready: ${detail.replace('\n', ' in ')}.`);
+      updateStatus();
       for (const doc of vscodeApi.workspace.textDocuments) {
         if (doc.languageId === 'can' && clientKey(doc) === key) { canClient.didOpen(doc); }
       }
     }, (reason: unknown) => {
       if (clients.get(key) !== canClient) { return; }
       clients.delete(key);
+      states.set(key, { state: 'unavailable', detail: `${detail}\n${String(reason)}` });
+      channel.appendLine(`[Can] Startup failed: ${String(reason)}`);
+      updateStatus();
       vscodeApi.window.showErrorMessage(
         `Could not start the Can language server ('${serverPath} lsp'): ${String(reason)}. ` +
         'Set can.serverPath to your can binary.');
@@ -515,6 +599,8 @@ export function activate(context: vscode.ExtensionContext): void {
     if (restarting) { return restarting; }
     const stopping = [...clients.values()];
     clients.clear();
+    states.clear();
+    updateStatus();
     restarting = Promise.all(stopping.map((item) => item.stop())).then(() => {
       startClient();
       for (const doc of vscodeApi.workspace.textDocuments) {
@@ -547,7 +633,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const nestedBoundaryChanged = [...event.added, ...event.removed].some((folder) =>
           folder.uri.scheme === 'file' && folder.uri.toString().startsWith(`${key.replace(/\/$/, '')}/`));
         if (key && (!current.has(key) || nestedBoundaryChanged)) {
-          clients.delete(key); void live.stop();
+          clients.delete(key); states.delete(key); void live.stop();
           const folder = vscodeApi.workspace.workspaceFolders?.find((item: vscode.WorkspaceFolder) => item.uri.toString() === key);
           if (folder) { startClient(undefined, folder); }
         }
@@ -562,6 +648,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const currentOwner = clientFor(doc);
         if (currentOwner && !currentOwner.isDocumentVersion(doc.uri.toString(), null)) { currentOwner.didOpen(doc); }
       }
+      updateStatus();
     }));
 
   const selector: vscode.DocumentSelector = { language: 'can' };
@@ -584,6 +671,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscodeApi.languages.registerRenameProvider(selector, renameProvider()),
     vscodeApi.languages.registerDocumentFormattingEditProvider(selector, formattingProvider()),
     vscodeApi.languages.registerDocumentSymbolProvider(selector, documentSymbolProvider()),
+    vscodeApi.languages.registerFoldingRangeProvider(selector, foldingRangeProvider()),
+    vscodeApi.languages.registerSelectionRangeProvider(selector, selectionRangeProvider()),
     vscodeApi.languages.registerDocumentSemanticTokensProvider(
       selector,
       semanticTokensProvider(),
@@ -592,9 +681,19 @@ export function activate(context: vscode.ExtensionContext): void {
     vscodeApi.languages.registerCodeActionsProvider(selector, codeActionProvider(), {
       providedCodeActionKinds: [vscodeApi.CodeActionKind.QuickFix],
     }),
-    vscodeApi.commands.registerCommand('can.restartServer', () => {
-      void restartServer();
+    vscodeApi.commands.registerCommand('can.restartServer', restartServer),
+    vscodeApi.commands.registerCommand('can.serverStatus', async () => {
+      const choice: string | undefined = await vscodeApi.window.showQuickPick(
+        ['Show Can Output', 'Restart Language Server', 'Open Server Settings'],
+        { placeHolder: status.tooltip });
+      if (choice === 'Show Can Output') { channel.show(true); }
+      else if (choice === 'Restart Language Server') { await restartServer(); }
+      else if (choice === 'Open Server Settings') {
+        await vscodeApi.commands.executeCommand('workbench.action.openSettings', 'can.serverPath');
+      }
     }),
+    vscodeApi.window.onDidChangeActiveTextEditor(updateStatus),
+    vscodeApi.workspace.onDidGrantWorkspaceTrust(() => { void restartServer(); }),
     vscodeApi.workspace.onDidOpenTextDocument((doc: vscode.TextDocument) => {
       if (doc.languageId !== 'can') {
         return;
@@ -620,8 +719,9 @@ export function activate(context: vscode.ExtensionContext): void {
         void restartServer();
       }
     }),
-    channel,
+    channel, status,
   );
+  updateStatus();
 }
 
 export function deactivate(): Promise<void> {

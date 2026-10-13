@@ -101,7 +101,7 @@ jobs:
         run: |
           mkdir -p release-artifacts
           cd editors/vscode
-          zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes out src
+          zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md LICENSE language-configuration.json token-colors.json syntaxes images/*.svg images/icon*.png out src
       - name: Package VS Code extension (vsix)
         # After the pinned-tsc emit above (deterministic out/ first).
         # No marketplace publish: artifact only (see header).

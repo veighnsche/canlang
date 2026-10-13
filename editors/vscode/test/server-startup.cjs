@@ -15,16 +15,19 @@ const canDocument = { languageId: 'can', uri: { scheme: 'file', fsPath: '/worksp
 const serverPath = '/compiler path/can';
 const disposable = { dispose() {} };
 
-function startup({ folders, document, owner, documents = [], folderForUri }, transformExtension = (source) => source) {
+function startup({ folders, document, owner, documents = [], folderForUri, trusted = true }, transformExtension = (source) => source) {
   const launches = [];
   const children = [];
   const handlers = {};
   const providers = {};
   const diagnosticUpdates = [];
   const diagnosticDeletes = [];
-  const channel = { ...disposable, appendLine() {} };
+  const logs = [];
+  const channel = { ...disposable, appendLine(line) { logs.push(line); }, show() {} };
+  const status = { ...disposable, text: '', show() { this.visible = true; }, hide() { this.visible = false; } };
   const vscode = {
     workspace: {
+      isTrusted: trusted, onDidGrantWorkspaceTrust: callback => { handlers.Trust = callback; return disposable; },
       textDocuments: documents,
       workspaceFolders: folders,
       getWorkspaceFolder: (uri) => folderForUri ? folderForUri(uri) : owner,
@@ -37,6 +40,8 @@ function startup({ folders, document, owner, documents = [], folderForUri }, tra
       onDidChangeConfiguration: (callback) => { handlers.Configuration = callback; return disposable; },
     },
     window: {
+      createStatusBarItem: () => status, onDidChangeActiveTextEditor: callback => { handlers.ActiveEditor = callback; return disposable; },
+      showQuickPick: async () => undefined,
       activeTextEditor: document ? { document } : undefined,
       createOutputChannel: () => channel,
       showErrorMessage() {},
@@ -52,12 +57,14 @@ function startup({ folders, document, owner, documents = [], folderForUri }, tra
         'registerReferenceProvider', 'registerRenameProvider',
         'registerDocumentSemanticTokensProvider', 'registerCodeActionsProvider',
         'registerDocumentFormattingEditProvider', 'registerDocumentSymbolProvider',
+        'registerFoldingRangeProvider', 'registerSelectionRangeProvider',
       ].map((name) => [name, (selector, provider, metadata) => {
         providers[name] = { selector, provider, metadata };
         return disposable;
       }])),
     },
     commands: { registerCommand: () => disposable },
+    StatusBarAlignment: { Right: 2 },
     SemanticTokensLegend: class {},
     CodeActionKind: { QuickFix: 'quickfix' },
     SymbolKind: {}, CompletionItemKind: {},
@@ -100,10 +107,11 @@ function startup({ folders, document, owner, documents = [], folderForUri }, tra
   load('extension').activate({ subscriptions: [] });
   // Serialize values from the VM realm before comparing prototype identity.
   const launch = () => JSON.parse(JSON.stringify(launches.at(-1)));
-  return { launch, handlers, providers, diagnosticUpdates, diagnosticDeletes, children, client, channel, workspace: vscode.workspace };
+  return { launch, handlers, providers, status, logs, diagnosticUpdates, diagnosticDeletes, children, client, channel, workspace: vscode.workspace };
 }
 
 async function main() {
+
 for (const [name, setup, cwd] of [
   ['current Can document folder', { folders: [first, second], document: canDocument, owner: second }, second.uri.fsPath],
   ['first local folder when editor is not Can', { folders: [remote, first], document: { languageId: 'json' }, owner: second }, first.uri.fsPath],
@@ -131,6 +139,25 @@ assert.deepEqual(
 );
 assert.equal(state.providers.registerCompletionItemProvider.metadata, '.', 'member completion dot trigger');
 assert(state.providers.registerDocumentFormattingEditProvider && state.providers.registerDocumentSymbolProvider);
+assert(state.providers.registerFoldingRangeProvider && state.providers.registerSelectionRangeProvider);
+const restricted = startup({ folders: [second], document: canDocument, owner: second, trusted: false });
+assert.equal(restricted.children.length, 0, 'restricted workspace launches no binary');
+assert(restricted.status.text.includes('lock'));
+restricted.workspace.isTrusted = true; restricted.handlers.Trust();
+await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+assert.equal(restricted.children.length, 1, 'trust granted starts the server');
+assert(restricted.status.text.includes('sync'), 'status shows initialization');
+const trustedChild = restricted.children[0];
+const trustBody = JSON.stringify({jsonrpc:'2.0', id:trustedChild.messages[0].id, result:{capabilities:{}}});
+trustedChild.stdout.emit('data', `Content-Length: ${Buffer.byteLength(trustBody)}\r\n\r\n${trustBody}`);
+await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+assert(restricted.status.text.includes('check'), 'status reports ready');
+assert(restricted.logs.some(line => line.includes('Language server ready')));
+trustedChild.emit('exit', 1);
+assert(restricted.status.text.includes('warning'), 'status reports an exited server');
+console.log('PASS trust grant, visible starting/ready/unavailable status and lifecycle output');
+assert(restricted.providers.registerHoverProvider, 'language providers are registered for later trust');
+console.log('PASS restricted workspace syntax remains available without starting a server');
 console.log('PASS activation registers document/config listeners, editing providers, dot completion and quick fixes');
 
 assert.throws(() => startup({}, (source) =>

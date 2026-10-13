@@ -6,9 +6,9 @@ Edit `.can` files with syntax highlighting, language tools, and Can file icons. 
 
 - **Syntax highlighting** for Given / When / Then, declarations, types, operations, pages, examples, and localization. `##` comments and `#` descriptions have distinct highlighting.
 - **Diagnostics** in the editor and Problems panel as you edit.
-- **Completion and hover information** to explore symbols and types, with member suggestions after `.`.
+- **Completion and hover information** with typed member suggestions after `.`, type-position filtering and callable signatures. Suggestions stay out of strings, comments and descriptions.
 - **Navigation and refactoring** through Go to Definition, Find All References, and Rename Symbol.
-- **Document formatting and Outline symbols** through Format Document, Outline, and Go to Symbol.
+- **Document formatting, Outline, folding and selection expansion** using the parsed Can structure.
 - **Semantic classifications and quick fixes** supplied by the Can language server.
 - **Can file icons** with light and dark variants, plus one-space indentation, `##` comment toggling, bracket matching, and automatic closing of brackets and double quotes.
 
@@ -19,6 +19,15 @@ and localization. The editor exposes Can-specific semantic types (`canClass`,
 `canReadonly`, etc.) without inherited theme styles or fallback scopes. You can
 opt into semantic styling explicitly with `editor.semanticTokenColorCustomizations`
 (for example, `"canProperty:can": "#9CDCFE"`). The LSP wire legend stays standard.
+
+The **Can** status item shows whether the active file's language server is
+starting, ready, or unavailable. Click it to view output, restart the server,
+or open the server path setting. Requests made during startup wait for the
+handshake; unanswered requests stop after ten seconds.
+
+Restricted workspaces retain syntax highlighting and basic editing. Language
+tools start when the workspace is trusted; a workspace-selected executable is
+never launched in restricted mode.
 
 Syntax highlighting, icons, and indentation work without the compiler. Diagnostics and the other language tools require the `can` compiler, installed separately.
 

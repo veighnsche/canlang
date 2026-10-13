@@ -346,6 +346,7 @@ describe("deploy bundle (P-B)", () => {
     for (const marker of [
       "handleOperationRequest",
       "handleCsvRequest",
+      "handleExportRequest",
       "handlePageRequest",
       "handlePagePreferencePost",
       "receiverFromIdentity",

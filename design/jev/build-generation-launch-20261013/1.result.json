@@ -1,0 +1,148 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Advice on precise remaining implementation choices before explicitly authorized Muse implementation; do not reinterpret human requirements or treat prior advice as authority.",
+      "fixed_requirements": [
+        "Given has named and inline model/field traits, plus named custom keywords defining new standalone Given declarations with targets/arguments and genuinely new implicit semantics; no inline keyword prompts. Builtin policy/unique/invariant/lock remain native, not prompt replacement targets.",
+        "Every generation definition has static $\"...\". When do bodies stay ordinary Can. Then named styles are reusable and all rendered components may carry inline style prompts or named references; frontend is default.",
+        "Manual retry regenerates ALL active-app closure prompts freshly, including preferred successful output, without authored selectors. Ordinary builds use saved edited code and no coding AI.",
+        "Coding CLI/model recipe selection remains shared + optional complete profiles. Codex/Muse/Claude/OpenCode native adapters must support custom MCP and enforce no protected source/current/candidate writes; host places all submitted output.",
+        "Saved current units under can.generated/<opaque-id>/; isolated candidates and lifecycle under .can/gen/. No second authored registry. Canonical permissions/exact values/admission/atomicity/replay and checked source-owned contributions are required.",
+        "Three parallel implementation lanes maximum; interfaces must be frozen before Muse begins code. These are all proposals evaluated fairly at draft stage."
+      ],
+      "verified_evidence": {
+        "source": "compiler/src/syntax/parser.rs Given dispatch is closed; NAME {...} is model-shaped; custom keyword carriers unimplemented.",
+        "runtime": "Generated run/default/check roles alone cannot express all required new keyword integration. Owners have schema/artifact-controlled canonical effect and claim producers; no raw store/context/commit access is allowed.",
+        "novel_fixture": "Proposed standalone canonical_identity declaration computes an NFKC plus ASCII-lowercase unique key without changing stored text or adding helper fields. Current DESIGN.md builtin text operations lack normalization; models.ts:602-611 uniqueness requires stored selectors. pipeline.ts:1909-1917 already nets old/final releases and claims in one commit. New typed pure computed-key producer can join that owner rather than raw generator claims.",
+        "rejected_fixture": "Once-per-final-transaction balance invariants are already native; do not count that as new behavior.",
+        "orchestration": "Old plan was unit-centered. Human asks entire Then coherent generation; one whole-Then frontend job is recommended, not yet adopted. One CLI may use many internal model calls.",
+        "profiles": "Different effective complete recipes can exist in one active app; ordinary saved reuse has no provider dependency."
+      },
+      "outcomes": "Concise agent authoring, distinguish traits from standalone keywords, discovery before saved implementation, typed owner integration extensible beyond current phases, coherent frontend output, complete retry and recoverable all-output promotion with no lost working code."
+    },
+    "questions": {
+      "keyword_surface": {
+        "type": "choice",
+        "instructions": {
+          "decision": "keyword surface",
+          "question": "Which option best satisfies the stated outcomes with the simplest complete implementation? Compare each option fairly at its declared draft stage; preserve every fixed requirement and select open if a concrete prerequisite is missing."
+        },
+        "criteria": {
+          "call_use": "keyword Name(signature) $\"...\"; Name(target=Model, field=Model.field) as a standalone Given statement. Explicit compile-time references/scalar constants, no runtime Given bindings. Source-visible signature and unambiguous NAME( parse; more punctuation than builtin keyword statements.",
+          "attribute_use": "keyword Name(signature) $\"...\"; Name target=Model field=Model.field as a standalone Given statement. Same typed signature/contracts/outcomes, familiar keyword attributes/fewer punctuation; parser must retain unresolved custom Given nodes and resolve after definition collection.",
+          "open": "Neither is complete under the exact outcomes; leave only this choice unresolved and identify its concrete missing prerequisite in agent analysis."
+        }
+      },
+      "keyword_integration": {
+        "type": "choice",
+        "instructions": {
+          "decision": "keyword integration",
+          "question": "Which option best satisfies the stated outcomes with the simplest complete implementation? Compare each option fairly at its declared draft stage; preserve every fixed requirement and select open if a concrete prerequisite is missing."
+        },
+        "criteria": {
+          "owner_producers": "Typed compiler-visible binding descriptor selects versioned canonical owner lifecycle/effect producer schemas. Generated saved export handles admitted values/effects; source/checked contributions define contracts. Extend owner producer seams for required novel behavior; not limited to existing default/check or model/field targets. No metadata self-registration of authority.",
+          "extension_ir": "Extensible checked compiler IR represents new keyword semantics and integrates admitted owner producers. New nodes may represent behavior beyond current builtins; owns same exact schemas/admission/dependencies/failure/replay and no raw store/context. More compiler machinery but richer static checks.",
+          "open": "Neither supplied mechanism resolves the same extensible owned behavior requirement; identify concrete missing contract instead of substituting traits or a closed ABI ceiling."
+        }
+      },
+      "frontend_jobs": {
+        "type": "choice",
+        "instructions": {
+          "decision": "frontend jobs",
+          "question": "Which option best satisfies the stated outcomes with the simplest complete implementation? Compare each option fairly at its declared draft stage; preserve every fixed requirement and select open if a concrete prerequisite is missing."
+        },
+        "criteria": {
+          "whole_then_by_recipe": "One frontend coding job per effective compatible recipe receives all app Then content, all prompts/named uses/template/theme/root/part contracts, and submits coherent CSS/view outputs through MCP. Given preparation needed by Then runs before frontend; differing explicit profiles may require multiple jobs with all context.",
+          "single_whole_app": "One coding agent job handles all Given and Then outputs together with all context and MCP targets. Simple single run, but different selected recipes/profiles need explicit reconciliation and cannot be silently ignored.",
+          "per_unit_context": "One coding job per logical source prompt with full shared context and MCP output. Straightforward unit isolation/profile control, but duplicates context and does not guarantee a jointly coherent result; retry still visits every prompt.",
+          "open": "None resolves context/coherence/profile selection and required outputs completely at this stage."
+        }
+      },
+      "full_retry_promotion": {
+        "type": "choice",
+        "instructions": {
+          "decision": "full retry promotion",
+          "question": "Which option best satisfies the stated outcomes with the simplest complete implementation? Compare each option fairly at its declared draft stage; preserve every fixed requirement and select open if a concrete prerequisite is missing."
+        },
+        "criteria": {
+          "one_run_journal": "Collect and validate the complete full-retry output set; one coordinated run journal covers old/new groups and source/current/fence checks. Accept all or preserve all current output on failure/conflict; atomic per-file writes remain read-gated, recovery restores whole old set before commit or finishes new set after commit.",
+          "independent_groups": "Regenerate all prompts, but validate/promote independent unit groups as each succeeds. Smaller journals and useful partial results, yet a frontend coherent job needs its output set grouped consistently and mixed old/new contracts may stop builds.",
+          "open": "Neither proposal yields concrete preserved-work, coherent-output and crash-recovery behavior under full retry."
+        }
+      },
+      "computed_key_activation": {
+        "type": "choice",
+        "instructions": {
+          "decision": "computed key activation",
+          "question": "Which option best satisfies the stated outcomes with the simplest complete implementation? Compare each option fairly at its declared draft stage; preserve every fixed requirement and select open if a concrete prerequisite is missing."
+        },
+        "criteria": {
+          "derived_schema_fingerprint": "Compiler derives computed unique-key descriptors and exact implementation-closure fingerprint from checked keyword binding/current saved bytes. Existing schema activation validates all installed rows/collisions before installing changed key behavior and claims. No authored version registry or raw generated claims.",
+          "explicit_semantic_version": "Require author to version each computed-key keyword binding; migration identity follows that explicit value with installed-row validation and canonical claims. Clear intent but additional version bookkeeping may miss direct JS changes.",
+          "open": "Neither defines safe identity/migration for changed key semantics; keep this concrete lifecycle seam open."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "keyword_surface": {
+        "type": "choice",
+        "choice": "attribute_use",
+        "confidence": 0.16,
+        "probabilities": {
+          "call_use": 0.15,
+          "attribute_use": 0.44,
+          "open": 0.41
+        }
+      },
+      "keyword_integration": {
+        "type": "choice",
+        "choice": "owner_producers",
+        "confidence": 0.64,
+        "probabilities": {
+          "owner_producers": 0.76,
+          "extension_ir": 0.05,
+          "open": 0.19
+        }
+      },
+      "frontend_jobs": {
+        "type": "choice",
+        "choice": "whole_then_by_recipe",
+        "confidence": 0.4,
+        "probabilities": {
+          "whole_then_by_recipe": 0.55,
+          "single_whole_app": 0.23,
+          "per_unit_context": 0.01,
+          "open": 0.21
+        }
+      },
+      "full_retry_promotion": {
+        "type": "choice",
+        "choice": "one_run_journal",
+        "confidence": 0.8,
+        "probabilities": {
+          "one_run_journal": 0.87,
+          "independent_groups": 0.01,
+          "open": 0.12
+        }
+      },
+      "computed_key_activation": {
+        "type": "choice",
+        "choice": "derived_schema_fingerprint",
+        "confidence": 0.56,
+        "probabilities": {
+          "derived_schema_fingerprint": 0.71,
+          "explicit_semantic_version": 0.01,
+          "open": 0.28
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2116,
+      "output_tokens": 238
+    }
+  }
+}
