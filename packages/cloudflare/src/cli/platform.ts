@@ -46,7 +46,15 @@
  * discovery (`./dist/*.artifact.json`, exactly one or loud). `test`
  * captures source/current runtime inputs, starts isolated D1 rows, and
  * refuses zero-row artifacts. `build`
- * validates the artifact + asserts release lockstep. `deploy` runs the
+ * validates the artifact + asserts release lockstep.
+ *
+ * `gen` (BGI-03) is the generation dispatcher join: it reads one v1
+ * JSON request via `--request FILE` or stdin and answers with the
+ * versioned generation envelope (exit 0/2/3/4/5/6). Request
+ * validation plus the `doctor` provider check are live; execution,
+ * lifecycle, and lease handlers join through BGI-04/05/11/12.
+ *
+ * `deploy` runs the
  * compat gate, builds the portable worker bundle (P-B), renders the plan,
  * and writes `<stem>.deploy/` + `<stem>.deploy-plan.json` +
  * `<stem>.wrangler.toml` only under `--yes`, then attempts the live
@@ -77,6 +85,7 @@ import { captureSingleFileSource, verifyCompilerSources } from "../dev/source-ca
 import { preflightLocalPreviewActivation, produceInstalledPortableBundle } from "../dev/preview-host.js";
 import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples } from "../dev/example-runner.js";
 import { runDocs } from "./docs.js";
+import { runGen } from "./gen.js";
 // P02.2: envelope/output helpers, bundle loaders, dist/missing helpers and
 // the prepared build/deploy route live in the preparation host module;
 // this CLI keeps parsing, dispatch and the run/test/activate paths.
@@ -105,7 +114,7 @@ import {
 export { PLATFORM_CLI_NAME, PLATFORM_CLI_VERSION };
 
 interface ParsedArgs {
-  command: PlatformCommand;
+  command: PlatformCommand | "gen";
   /** Null means zero-config discovery at dispatch time. */
   artifact: string | null;
   env: string | null;
@@ -113,6 +122,8 @@ interface ParsedArgs {
   yes: boolean;
   /** Requested reference locale (docs only; null means the app default). */
   locale: string | null;
+  /** Versioned JSON request file (gen only; null means stdin carries it). */
+  genRequest: string | null;
 }
 
 function parse(argv: string[]): ParsedArgs {
@@ -130,6 +141,13 @@ function parse(argv: string[]): ParsedArgs {
   if (command === "--version" || command === "-V") {
     emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION });
     process.exit(0);
+  }
+  // BGI-03: `gen` joins here without touching the frozen gate
+  // COMMANDS tuple (other lanes own those entries): it reads one v1
+  // JSON request via --request FILE or stdin and answers with the
+  // versioned generation envelope through ./gen.js.
+  if (command === "gen") {
+    return parseGen(rest);
   }
   if (!(COMMANDS as readonly string[]).includes(command)) {
     usage(`unknown command ${JSON.stringify(command)}`);
@@ -194,7 +212,44 @@ function parse(argv: string[]): ParsedArgs {
   if (command === "docs" && (artifact !== null || env !== null || preview || yes)) {
     usage("docs takes only --locale; it renders the reference model piped on stdin");
   }
-  return { command: command as PlatformCommand, artifact, env, preview, yes, locale };
+  return { command: command as PlatformCommand, artifact, env, preview, yes, locale, genRequest: null };
+}
+
+/** Parse `gen` args: at most one `--request FILE`; stdin carries the request when bare. */
+function parseGen(rest: string[]): ParsedArgs {
+  const base: ParsedArgs = {
+    command: "gen",
+    artifact: null,
+    env: null,
+    preview: false,
+    yes: false,
+    locale: null,
+    genRequest: null,
+  };
+  let i = 0;
+  while (i < rest.length) {
+    const flag = rest[i] as string;
+    if (flag === "--help" || flag === "-h") {
+      process.stderr.write("can-platform gen --request FILE\ncan-platform gen < request.json\n");
+      emit({ ok: true, name: PLATFORM_CLI_NAME, version: PLATFORM_CLI_VERSION, command: "gen" });
+      process.exit(0);
+    }
+    if (flag === "--request" || flag.startsWith("--request=")) {
+      if (base.genRequest !== null) usage("duplicate --request");
+      if (flag.startsWith("--request=")) {
+        base.genRequest = flag.slice("--request=".length);
+      } else {
+        if (i + 1 >= rest.length) usage("missing value for --request");
+        base.genRequest = rest[i + 1] as string;
+        i += 1;
+      }
+      if (base.genRequest.length === 0) usage("--request needs a non-empty PATH");
+      i += 1;
+      continue;
+    }
+    usage(`unexpected argument ${JSON.stringify(flag)} (can-platform gen takes only --request FILE)`);
+  }
+  return base;
 }
 
 async function artifactExists(path: string): Promise<boolean> {
@@ -440,6 +495,11 @@ async function main(): Promise<void> {
   if (args.command === "docs") {
     // Renderer pipe: no artifact discovery (stdin carries the model).
     await runDocs(args.locale);
+    return;
+  }
+  if (args.command === "gen") {
+    // Generation pipe: no artifact discovery (the request carries the root).
+    await runGen(args.genRequest);
     return;
   }
   const lifetime = args.command === "activate" ? undefined : createLocalCommandLifetime(

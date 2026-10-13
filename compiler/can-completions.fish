@@ -49,8 +49,9 @@ complete -c can -f -n '__fish_seen_subcommand_from fmt' -s h -l help -d 'Show he
 complete -c can -f -n '__fish_seen_subcommand_from explain' -l format -x -a 'json text' -d 'Machine or human output'
 complete -c can -f -n '__fish_seen_subcommand_from explain' -s h -l help -d 'Show help'
 
-# gen: bind|status plus format and file operands.
+# gen: dispatcher --request plus bind|status sugar.
 complete -c can -f -n '__fish_seen_subcommand_from gen' -a 'bind status' -d 'Gen operation'
+complete -c can -f -n '__fish_seen_subcommand_from gen' -l request -r -d 'Versioned JSON request file'
 complete -c can -f -n '__fish_seen_subcommand_from gen' -l format -x -a 'json text' -d 'Machine or human output'
 complete -c can -f -n '__fish_seen_subcommand_from gen' -s h -l help -d 'Show help'
 

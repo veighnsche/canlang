@@ -80,7 +80,7 @@ _can_complete() {
             COMPREPLY=($(compgen -W "--format --format=json --format=text --help" -- "$cur"))
             ;;
         gen)
-            COMPREPLY=($(compgen -W "bind status --format --format=json --format=text --help" -f -- "$cur"))
+            COMPREPLY=($(compgen -W "bind status --request --format --format=json --format=text --help" -f -- "$cur"))
             ;;
         lsp)
             COMPREPLY=($(compgen -W "--help" -- "$cur"))
