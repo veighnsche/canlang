@@ -281,3 +281,103 @@ admission decision was made here.
 - Generated-policy mapping for authorization predicates;
   file/progress/receipt observation extensions; full
   compatibility matrix beyond the §1 pins.
+
+## 11. T04b closure (ratification record, session 01a13580)
+
+Each §10.6 item is closed below by implementation, prior-tasked delivery,
+or explicit design decision. No intake version bump: all changes are
+additive under §7 (one new admittable kind; one contract-driven test
+expectation update, §11.1).
+
+### 11.1 Delivery-input loader join — IMPLEMENTED
+
+`packages/state/src/invocation/registry.ts`: `KNOWN_INPUT_KINDS` admits
+`delivery` (both kind-list messages extended); new
+`checkInputDeliveryDescriptor` validates the structural profile (shared
+with model field tags) plus the ratified fence — six live T13 contracts
+as the single source of truth (never hardcoded versions), exact version
+match, declared operation result, full verbatim leaf set/types, Judgment
+arm against the checked inventory. Both load paths join (artifact
+conversion + intake-direct `checkCanonicalInput`, which now receives the
+set's `valueTypes`). L3 reason vocabulary unchanged: fence failures are
+`version_mismatch`, content failures `malformed_descriptor` (member
+named), judgment-without-contract `dangling_reference`, duplicate leaves
+`duplicate_name`. Admission/invocation untouched by design: delivery
+inputs are engine-resolved (T19b framing excludes them from submission);
+a missing required delivery input still rejects loud at admission, and
+engine-side receipt resolution is a separate unclaimed slice (recorded
+remainder, not silent).
+
+Proof: 6 new colocated tests (`descriptor-join.test.ts` T04b block,
+fixtures derived from the live contracts) + 1 contract-driven
+expectation update (`scenario-stored-file-call.test.ts`: the
+`unknown_input_kind "delivery"` pin predates this ratified join; the
+fixture's undeclared `ImagesSubmit` result now refuses at the fence —
+same intent, precise message, §10.1 cited in-test). State suite
+1867 pass / 2 fail, both stash-proven pre-existing on the untouched
+tree (scenario-receipt query-influence wording, typed-artifact File
+profiles). Package tsc emit 0; root gate 13 errors stash-proven
+pre-existing in two untouched cloudflare test files.
+
+### 11.2 Hooks/invariants/locks + policy mapping — DECIDED (engine-local ratified)
+
+No intake change, per adopted designs and absent consumer requirement:
+
+- Hooks: adopted T31-A — staged execution over the emitted canApp hooks
+  map; excluded from operation descriptors by design (no artifact shape
+  change).
+- Invariants/locks: carried in IR (`IrItemKind::Model`) and emitted in
+  the js models member (`emit_models_member`); the intake contract
+  (`CanonicalModelDescriptor` doc) already states engine-local until
+  T04b extends — T04b does not extend: no accepted consumer requires
+  intake carriage (T32 fence and T17 admission operate on live scopes).
+- Policy mapping: `modelPolicyBindings` emitted on canApp (`js.rs`);
+  contract omission documented legacy (`artifact.ts`); authorization
+  stays engine-local per §3 (loader maps `by`/`when` via
+  `LoadDescriptorSetOptions`).
+
+### 11.3 Literals — DECIDED (gate posture)
+
+Supported kinds lower through the intake (`KNOWN_INPUT_KINDS` now incl.
+`delivery` alongside decimal/money/datetime/duration/user/file/enum/
+nominal); result leaves stay verbatim (Decision 2). Unsupported member
+lowering (decimal defaults, handler-trigger §13 members, homeless event
+inputs) refuses loud as `E6008`, pinned across 10 compiler suites;
+current corpus shows 3 hits, all harness fixtures — zero real-app
+impact. Decimal-default lowering remains a disclosed L2-owned
+limitation, not a silent gap.
+
+### 11.4 File/progress/receipt observation extensions — DELIVERED elsewhere
+
+file: T27 kind + T19b file claims; progress: T34 F2/F3 tracking +
+fanout-proof; receipt: T25; table observations: T23 (29/29 + 10/10).
+No T04b work remains.
+
+### 11.5 Mcp mirror — DECIDED by T19b (ticked)
+
+`CheckedArtifactDeliveryField`: validated binding, engine-resolved,
+framing-excluded, whole-descriptor bars. The §10.4 remainder is
+resolved as documented exclusion, not rejection.
+
+### 11.6 Compatibility matrix (closes the §9 matrix item)
+
+Agreement evidence per pinned §1 contract (all re-verified this
+generation unless noted):
+
+| Contract | Producer → consumer | Agreement proof |
+| --- | --- | --- |
+| execution v1 | L1 emitter → L3 loader | `artifact_version`/`contractVersion` mismatch pins (descriptor-join tests, green) |
+| artifact v1 | L1 `artifact.ts` → L3/L6/L7 | T15a/b emission tests (68/68 then); T19 verbatim grounding spot-proven on live compile |
+| state v1 | L3 intake → L3/T17/T32 | T16 restated pins match frozen v1 exactly (ticked) |
+| values v1 | L2 semantics → L3/L7 | Exact-value conformance (T19 352/352 + wire pins, ticked) |
+| identity v1 | L6 → L3/L7 | Credential-forgery pin through `resolveIdentity` (T16b, ticked) |
+| wire v1 | L6 envelopes → L3/L7 | Closed-input + `MutationRef` fencing (T16, ticked) |
+| examples v1 | L7 tables → L3 admission | 29/29 + 10/10 parity + broken-expectation controls (T22/T23, ticked) |
+| STD capability v1 ×6 | T13 contracts → L3/L6 | Loader fence + L6 derivation read the same live objects (§11.1 + T19b) |
+| MCP P1 shape | L1 descriptors → L6/edge | `mcp_p1.rs` golden + `mcp-route.test.ts` P1 shape |
+
+Compatibility rules (§7) hold by suite: exact-version rejects (pins
+above), unknown-kind whole-set rejects (loader + derivation bars),
+additive-only growth (this slice: one kind + one message-list
+extension, no shape change), closed DESIGN §10 codes, exact wire
+values (L2 conformance). No matrix gaps remain unowned.

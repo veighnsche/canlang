@@ -41,7 +41,7 @@
     {
       "id": "T04",
       "title": "T04 \u2014 Agree the generated execution contract",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "M00; T04a frozen before matching producers.",
       "recorded_owner_files": "L3; packages/contracts/src/state.ts, packages/contracts/src/artifact.ts (L1 writes), packages/contracts/src/examples.ts (L7 writes), implementation/challenge-audit-run/evidence/execution-contract.md. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -184,7 +184,7 @@
     {
       "id": "T15",
       "title": "T15 \u2014 Emit canonical model and operation descriptors",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T04a plus relevant T09/T10/T11 and actual pilot types; full T04 for full scope.",
       "recorded_owner_files": "L1; compiler/src/analysis/effects.rs, compiler/src/codegen/ir.rs, compiler/src/codegen/js.rs, compiler/src/codegen/artifact.rs, packages/contracts/src/artifact.ts, compiler/tests/codegen.rs, compiler/src/analysis/examples.rs, compiler/src/codegen/bdd.rs. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -252,7 +252,7 @@
     {
       "id": "T20",
       "title": "T20 \u2014 Complete presentation context and submission joins",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "matching T19a/T19b.",
       "recorded_owner_files": "L5 with L6/L7 integration; packages/ui/src/forms.ts, packages/ui/src/settings.ts, packages/ui/src/appearance.ts, packages/ui/src/shell.ts, packages/contracts/src/presentation.ts; packages/interfaces/src/http/presentation.ts, packages/interfaces/src/http/context.ts, packages/interfaces/src/http/formErrors.ts (L6 writes). Serialize overlapping producer-owned writes.",
       "slices": [
@@ -278,7 +278,7 @@
     {
       "id": "T22",
       "title": "T22 \u2014 Implement compiled fixture provisioning",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T22a: T15a/T16/T17, T18 for omission and relevant T36; b finalized files; c matching T13/T14.",
       "recorded_owner_files": "L7 with producer inputs; packages/testkit/src/fixtures/seeds.ts, packages/testkit/src/fixtures/accounts.ts, packages/testkit/src/scopes/local.ts, packages/testkit/src/runner/loader.ts, tests/e2e/fixtures/seed.ts. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -290,7 +290,7 @@
     {
       "id": "T23",
       "title": "T23 \u2014 Execute compiled tables and sequences",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "matching T22a/b/c and T04 emitted-example contract.",
       "recorded_owner_files": "L7 with L1/L3 contributions; packages/testkit/src/runner/loader.ts, packages/testkit/src/runner/table.ts, packages/contracts/src/examples.ts, compiler/src/analysis/examples.rs, compiler/src/codegen/bdd.rs; compiler files L1-only. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -438,7 +438,7 @@
     {
       "id": "T34",
       "title": "T34 \u2014 Implement and qualify adopted fanout",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "adopted T33, T24, applicable T28/T29/T32.",
       "recorded_owner_files": "L4 with L1/L3/L7; packages/work/src/dispatch/index.ts, packages/work/src/recovery/index.ts, packages/work/src/kernel/tables.ts, packages/contracts/src/work.ts; owning compiler/state/assembly writer handoffs. Serialize overlapping producer-owned writes.",
       "slices": [
@@ -451,7 +451,7 @@
     {
       "id": "T35",
       "title": "T35 \u2014 Repair smaller established compiler defects",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "Each packet ready only with its actual producer; reserve sequentially.",
       "recorded_owner_files": "L1 with relevant producers; compiler/src/analysis/types.rs, compiler/src/analysis/resolve.rs, compiler/tests/b4_check.rs, compiler/src/analysis/examples.rs, compiler/src/analysis/catalog.rs, compiler/src/codegen/bdd.rs, compiler/tests/b4_examples.rs, compiler/tests/b4_resolve.rs; packages/values/src/icu.ts (L2 writes). Serialize overlapping producer-owned writes.",
       "slices": [
@@ -464,7 +464,7 @@
     {
       "id": "T36",
       "title": "T36 \u2014 Adjudicate residual draft and design cases",
-      "reported_state": "open",
+      "reported_state": "complete",
       "prerequisites": "T01/T02 plus applicable repaired roots and decisions.",
       "recorded_owner_files": "Draft owner agent under same Muse coordinator; Only specifically adjudicated draft/*.can and their matching .requirements.md/.mjs files, exact paths reserved before edit; draft is an independent git submodule. Serialize overlapping producer-owned writes.",
       "slices": [],
