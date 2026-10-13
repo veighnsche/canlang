@@ -30,6 +30,7 @@ pub mod check;
 mod cohort;
 pub mod effects;
 pub mod examples;
+pub mod generation;
 pub mod migrate_check;
 pub mod resolve;
 pub mod scenario_disclosure;
@@ -38,6 +39,10 @@ pub mod types;
 pub use catalog::Catalog;
 pub use effects::EffectTables;
 pub use examples::ExampleTables;
+pub use generation::{
+    GenerationDescriptor, GenerationDiscovery, GenerationKind, KeywordArgDescriptor,
+    KeywordParamDescriptor, discover_generation, discover_program,
+};
 pub use resolve::{Module, ModuleId, ResolveTables, Symbol, SymbolId, SymbolKind};
 pub use types::{ResolvedType, Scalar, TypeTable};
 
@@ -208,6 +213,14 @@ pub fn check_program(
         let (tree, mut parse_diags) = crate::syntax::parse(db, file);
         diagnostics.append(&mut parse_diags);
         trees.push((file, tree));
+    }
+    // BGI-01 discovery-level generation diagnostics (definitions collected
+    // before applications; works before any saved implementation exists).
+    for (file, tree) in &trees {
+        if let Some(source) = db.get(*file) {
+            let found = generation::discover_generation(tree, &source.text);
+            diagnostics.extend(found.diagnostics);
+        }
     }
     let resolve_tables = match resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics) {
         Ok(tables) => tables,

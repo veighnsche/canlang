@@ -160,6 +160,16 @@ pub enum SyntaxKind {
     Binary,
     Query,
     QueryClause,
+    // Generation carriers (BGI-01) ---------------------------------------
+    TraitDef,
+    TraitApp,
+    KeywordDef,
+    KeywordParam,
+    KeywordApp,
+    StyleDef,
+    GenPrompt,
+    StyleSuffix,
+    ViewStyle,
     // Migration directives -----------------------------------------------
     Rename,
     Drop,

@@ -1317,6 +1317,494 @@ impl<'a> Parser<'a> {
     }
 }
 
+// Generation carriers (BGI-01) --------------------------------------------
+
+pub(crate) const GENERATION_BUILTINS: &[&str] = &[
+    "policy",
+    "unique",
+    "invariant",
+    "lock",
+    "retain",
+    "trait",
+    "keyword",
+    "style",
+    "view",
+    "page",
+    "model",
+    "contract",
+    "event",
+    "role",
+    "capability",
+    "corpus",
+    "judgment",
+    "derive",
+    "fixture",
+    "message",
+    "preferences",
+    "scenario",
+    "crud",
+    "Given",
+    "When",
+    "Then",
+];
+
+impl<'a> Parser<'a> {
+    fn check_not_builtin(&self, name: &Token, what: &str) -> Result<(), Fail> {
+        let word = name.text(self.text);
+        if GENERATION_BUILTINS.contains(&word) {
+            return Err(Fail::new(
+                "E1200",
+                format!("{what} name `{word}` redefines a built-in declaration"),
+                name.span,
+            ));
+        }
+        Ok(())
+    }
+
+    /// Parse `$"..."`: adjacent Dollar + JSON string, wrapped as GenPrompt.
+    fn parse_gen_prompt(&mut self, cursor: &mut Cursor<'a>) -> Result<SyntaxNode, Fail> {
+        let dollar = cursor.expect_p(Punct::Dollar).map_err(|_| {
+            Fail::new(
+                "E1200",
+                "generation slot requires a static $\"...\" prompt literal".to_string(),
+                cursor.span_here(),
+            )
+        })?;
+        // Reject $Name, $ '...' etc in prompt position and non-adjacent forms.
+        match cursor.peek() {
+            Some(tok) if tok.kind == TokenKind::String && tok.span.start == dollar.span.end => {}
+            Some(tok) if tok.kind == TokenKind::String => {
+                return Err(Fail::new(
+                    "E1200",
+                    "$ must be adjacent to the prompt string ($\"...\")".to_string(),
+                    tok.span,
+                ));
+            }
+            Some(tok) => {
+                return Err(Fail::new(
+                    "E1200",
+                    "generation prompt requires a static $\"...\" literal".to_string(),
+                    tok.span,
+                ));
+            }
+            None => {
+                return Err(Fail::new(
+                    "E1200",
+                    "generation prompt requires a static $\"...\" literal".to_string(),
+                    dollar.span,
+                ));
+            }
+        }
+        let string = cursor.expect_string()?;
+        let mut kids = Vec::new();
+        self.builder.leaf(&mut kids, &dollar);
+        self.builder.leaf(&mut kids, &string);
+        Ok(SyntaxNode::enclosing(SyntaxKind::GenPrompt, kids))
+    }
+
+    fn at_gen_prompt(&self, cursor: &Cursor<'a>) -> bool {
+        cursor.at_p(Punct::Dollar)
+    }
+
+    /// Optional `agent=profile` (NameRef value) as an Attribute node.
+    fn parse_optional_agent(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+    ) -> Result<bool, Fail> {
+        if !(cursor.at_name("agent") && cursor.peek_is_eq()) {
+            return Ok(false);
+        }
+        let key = cursor.next().expect("agent");
+        let eq = cursor.expect_p(Punct::Eq)?;
+        let value_tok = cursor.expect_name()?;
+        let mut attr = Vec::new();
+        self.builder.leaf(&mut attr, &key);
+        self.builder.leaf(&mut attr, &eq);
+        let mut value = Vec::new();
+        self.builder.leaf(&mut value, &value_tok);
+        let value = SyntaxNode::enclosing(SyntaxKind::NameRef, value);
+        self.builder.push_inner(&mut attr, value);
+        let attr = SyntaxNode::enclosing(SyntaxKind::Attribute, attr);
+        self.builder.push_inner(kids, attr);
+        Ok(true)
+    }
+
+    /// Optional component-attached `$"..."` / `$Name` suffix.
+    fn parse_optional_style_suffix(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+    ) -> Result<bool, Fail> {
+        if !cursor.at_p(Punct::Dollar) {
+            return Ok(false);
+        }
+        let dollar = cursor.next().expect("dollar");
+        let mut inner = Vec::new();
+        self.builder.leaf(&mut inner, &dollar);
+        match cursor.peek().cloned() {
+            Some(tok) if tok.kind == TokenKind::String && tok.span.start == dollar.span.end => {
+                let s = cursor.next().expect("string");
+                self.builder.leaf(&mut inner, &s);
+            }
+            Some(tok) if tok.kind == TokenKind::Name && tok.span.start == dollar.span.end => {
+                let n = cursor.next().expect("name");
+                self.check_not_builtin_suffix(&n)?;
+                self.builder.leaf(&mut inner, &n);
+            }
+            Some(tok) if tok.kind == TokenKind::String || tok.kind == TokenKind::Name => {
+                return Err(Fail::new(
+                    "E1200",
+                    "$ must be adjacent to its prompt string or style name".to_string(),
+                    tok.span,
+                ));
+            }
+            _ => {
+                return Err(Fail::new(
+                    "E1200",
+                    "style suffix requires $\"...\" or $Name".to_string(),
+                    dollar.span,
+                ));
+            }
+        }
+        let node = SyntaxNode::enclosing(SyntaxKind::StyleSuffix, inner);
+        self.builder.push_inner(kids, node);
+        Ok(true)
+    }
+
+    fn check_not_builtin_suffix(&self, _name: &Token) -> Result<(), Fail> {
+        Ok(())
+    }
+
+    /// One trailing trait suffix on a model/field: `trait $"..."`,
+    /// `trait Name` is not a form (named traits apply by bare name), or a
+    /// bare named-trait application `Name`.
+    fn parse_trait_suffix(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+    ) -> Result<bool, Fail> {
+        if cursor.at_name("trait") {
+            let head = cursor.next().expect("trait");
+            let mut inner = Vec::new();
+            self.builder.leaf(&mut inner, &head);
+            // Inline trait: optional agent= then mandatory prompt. A name
+            // here would be a named definition, not an attachment.
+            if cursor.at_any_name() && !cursor.peek_is_eq() && !self.at_gen_prompt(cursor) {
+                // `trait Name $"..."` in attachment position is a definition
+                // shape misplaced on a model/field; reject clearly.
+                return Err(Fail::new(
+                    "E1200",
+                    "inline trait attachment requires trait $\"...\" (named traits are defined separately and applied by name)".to_string(),
+                    cursor.span_here(),
+                ));
+            }
+            self.parse_optional_agent(cursor, &mut inner)?;
+            let prompt = self.parse_gen_prompt(cursor)?;
+            self.builder.push_inner(&mut inner, prompt);
+            let node = SyntaxNode::enclosing(SyntaxKind::TraitDef, inner);
+            self.builder.push_inner(kids, node);
+            return Ok(true);
+        }
+        Ok(false)
+    }
+}
+
+impl<'a> Parser<'a> {
+    fn parse_trait_def(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        let head = cursor.expect_name_is("trait")?;
+        self.builder.leaf(&mut inner, &head);
+        if self.at_gen_prompt(cursor) {
+            return Err(Fail::new(
+                "E1200",
+                "inline trait $\"...\" must be attached to a model or field; a standalone trait requires a name".to_string(),
+                cursor.span_here(),
+            ));
+        }
+        let name = cursor.expect_name().map_err(|_| {
+            Fail::new(
+                "E1200",
+                "trait requires a name or an attached $\"...\" prompt".to_string(),
+                cursor.span_here(),
+            )
+        })?;
+        self.check_not_builtin(&name, "trait")?;
+        self.builder.leaf(&mut inner, &name);
+        self.parse_optional_agent(cursor, &mut inner)?;
+        let prompt = self.parse_gen_prompt(cursor)?;
+        self.builder.push_inner(&mut inner, prompt);
+        cursor.end()?;
+        let node = SyntaxNode::enclosing(SyntaxKind::TraitDef, inner);
+        self.builder.push_inner(kids, node);
+        self.swallow_children(kids, children, "trait", head.span);
+        Ok(())
+    }
+
+    fn parse_keyword_def(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        let head = cursor.expect_name_is("keyword")?;
+        self.builder.leaf(&mut inner, &head);
+        if self.at_gen_prompt(cursor) || cursor.at_p(Punct::LParen) {
+            return Err(Fail::new(
+                "E1200",
+                "anonymous keyword definitions are not admitted; use keyword Name(signature) $\"...\"".to_string(),
+                cursor.span_here(),
+            ));
+        }
+        let name = cursor.expect_name().map_err(|_| {
+            Fail::new(
+                "E1200",
+                "keyword requires a name, signature and $\"...\" prompt".to_string(),
+                cursor.span_here(),
+            )
+        })?;
+        self.check_not_builtin(&name, "keyword")?;
+        self.builder.leaf(&mut inner, &name);
+        // Signature `(name:kind, ...)`
+        let open = cursor.expect_p(Punct::LParen).map_err(|_| {
+            Fail::new(
+                "E1200",
+                "keyword requires an explicit (signature)".to_string(),
+                cursor.span_here(),
+            )
+        })?;
+        self.builder.leaf(&mut inner, &open);
+        let mut seen_params: Vec<String> = Vec::new();
+        while !cursor.at_p(Punct::RParen) {
+            if cursor.done() {
+                return cursor.err("E1200", "expected `)` to close keyword signature");
+            }
+            let mut param = Vec::new();
+            let pname = cursor.expect_name()?;
+            let pw = pname.text(cursor.text).to_string();
+            if seen_params.contains(&pw) {
+                return Err(Fail::new(
+                    "E1202",
+                    format!("duplicate keyword parameter `{pw}`"),
+                    pname.span,
+                ));
+            }
+            seen_params.push(pw);
+            self.builder.leaf(&mut param, &pname);
+            let colon = cursor.expect_p(Punct::Colon)?;
+            self.builder.leaf(&mut param, &colon);
+            // field(target,type) dependent kind, else ordinary type.
+            if cursor.at_name("field") && cursor.peek2().is_some_and(|t| t.is_punct(Punct::LParen))
+            {
+                let fhead = cursor.next().expect("field");
+                self.builder.leaf(&mut param, &fhead);
+                let fopen = cursor.expect_p(Punct::LParen)?;
+                self.builder.leaf(&mut param, &fopen);
+                let target = cursor.expect_name()?;
+                self.builder.leaf(&mut param, &target);
+                let comma = cursor.expect_p(Punct::Comma)?;
+                self.builder.leaf(&mut param, &comma);
+                let ftype = self.parse_type(cursor)?;
+                self.builder.push_inner(&mut param, ftype);
+                let fclose = cursor.expect_p(Punct::RParen)?;
+                self.builder.leaf(&mut param, &fclose);
+            } else {
+                let ty = self.parse_type(cursor)?;
+                self.builder.push_inner(&mut param, ty);
+            }
+            let param = SyntaxNode::enclosing(SyntaxKind::KeywordParam, param);
+            self.builder.push_inner(&mut inner, param);
+            if !cursor.at_p(Punct::Comma) {
+                break;
+            }
+            let comma = cursor.next().expect("comma");
+            self.builder.leaf(&mut inner, &comma);
+        }
+        let close = cursor.expect_p(Punct::RParen)?;
+        self.builder.leaf(&mut inner, &close);
+        if seen_params.is_empty() {
+            return Err(Fail::new(
+                "E1204",
+                "keyword signature requires at least one parameter".to_string(),
+                open.span,
+            ));
+        }
+        self.parse_optional_agent(cursor, &mut inner)?;
+        let prompt = self.parse_gen_prompt(cursor)?;
+        self.builder.push_inner(&mut inner, prompt);
+        cursor.end()?;
+        let node = SyntaxNode::enclosing(SyntaxKind::KeywordDef, inner);
+        self.builder.push_inner(kids, node);
+        self.swallow_children(kids, children, "keyword", head.span);
+        Ok(())
+    }
+
+    fn parse_keyword_app(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        let name = cursor.expect_name()?;
+        self.builder.leaf(&mut inner, &name);
+        if self.at_gen_prompt(cursor) {
+            return Err(Fail::new(
+                "E1200",
+                "keyword applications cannot carry a generation prompt".to_string(),
+                cursor.span_here(),
+            ));
+        }
+        let mut seen: Vec<String> = Vec::new();
+        while !cursor.done() {
+            if self.at_gen_prompt(cursor) {
+                return Err(Fail::new(
+                    "E1200",
+                    "keyword applications cannot carry a generation prompt".to_string(),
+                    cursor.span_here(),
+                ));
+            }
+            let key = cursor.expect_name().map_err(|_| {
+                Fail::new(
+                    "E1200",
+                    "keyword application requires named arguments (name=value)".to_string(),
+                    cursor.span_here(),
+                )
+            })?;
+            let kw = key.text(cursor.text).to_string();
+            if seen.contains(&kw) {
+                return Err(Fail::new(
+                    "E1202",
+                    format!("duplicate keyword argument `{kw}`"),
+                    key.span,
+                ));
+            }
+            seen.push(kw);
+            // Must be `key=value`; positional argument is a failure.
+            if !cursor.at_p(Punct::Eq) {
+                return Err(Fail::new(
+                    "E1200",
+                    "keyword arguments are named and required (name=value); positional arguments are not admitted".to_string(),
+                    key.span,
+                ));
+            }
+            let mut attr = Vec::new();
+            self.builder.leaf(&mut attr, &key);
+            let eq = cursor.expect_p(Punct::Eq)?;
+            self.builder.leaf(&mut attr, &eq);
+            let value = self.parse_expr(cursor, &never, true, true)?;
+            self.builder.push_inner(&mut attr, value);
+            let attr = SyntaxNode::enclosing(SyntaxKind::Attribute, attr);
+            self.builder.push_inner(&mut inner, attr);
+        }
+        if seen.is_empty() {
+            return Err(Fail::new(
+                "E1204",
+                "keyword application requires named arguments".to_string(),
+                name.span,
+            ));
+        }
+        cursor.end()?;
+        let node = SyntaxNode::enclosing(SyntaxKind::KeywordApp, inner);
+        self.builder.push_inner(kids, node);
+        self.swallow_children(kids, children, "keyword application", name.span);
+        Ok(())
+    }
+
+    fn parse_style_def(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        let head = cursor.expect_name_is("style")?;
+        self.builder.leaf(&mut inner, &head);
+        if self.at_gen_prompt(cursor) {
+            return Err(Fail::new(
+                "E1200",
+                "top-level anonymous style scopes are not admitted; use style Name $\"...\""
+                    .to_string(),
+                cursor.span_here(),
+            ));
+        }
+        let name = cursor.expect_name().map_err(|_| {
+            Fail::new(
+                "E1200",
+                "style requires a name and $\"...\" prompt".to_string(),
+                cursor.span_here(),
+            )
+        })?;
+        self.check_not_builtin(&name, "style")?;
+        self.builder.leaf(&mut inner, &name);
+        self.parse_optional_agent(cursor, &mut inner)?;
+        let prompt = self.parse_gen_prompt(cursor)?;
+        self.builder.push_inner(&mut inner, prompt);
+        cursor.end()?;
+        if !children.is_empty() {
+            return Err(Fail::new(
+                "E1200",
+                "named style definitions have no visual body".to_string(),
+                head.span,
+            ));
+        }
+        let node = SyntaxNode::enclosing(SyntaxKind::StyleDef, inner);
+        self.builder.push_inner(kids, node);
+        Ok(())
+    }
+
+    fn parse_view_style_child(
+        &mut self,
+        cursor: &mut Cursor<'a>,
+        kids: &mut Vec<SyntaxNode>,
+        children: &'a [LogicalLine],
+    ) -> Result<(), Fail> {
+        let mut inner = Vec::new();
+        let head = cursor.expect_name_is("style")?;
+        self.builder.leaf(&mut inner, &head);
+        if self.at_gen_prompt(cursor) {
+            self.parse_optional_agent(cursor, &mut inner)?;
+            let prompt = self.parse_gen_prompt(cursor)?;
+            self.builder.push_inner(&mut inner, prompt);
+        } else if cursor.at_any_name() {
+            // `style Name` named reference; an agent attr here would try to
+            // override a shared definition, which is not admitted.
+            let name = cursor.next().expect("style name");
+            self.builder.leaf(&mut inner, &name);
+            if cursor.at_name("agent") {
+                return Err(Fail::new(
+                    "E1200",
+                    "a named style use cannot override its definition profile (agent=)".to_string(),
+                    cursor.span_here(),
+                ));
+            }
+        } else {
+            return Err(Fail::new(
+                "E1200",
+                "view root style requires style $\"...\" or style Name".to_string(),
+                cursor.span_here(),
+            ));
+        }
+        cursor.end()?;
+        if !children.is_empty() {
+            return Err(Fail::new(
+                "E1200",
+                "view root style is a leaf and cannot own children".to_string(),
+                head.span,
+            ));
+        }
+        let node = SyntaxNode::enclosing(SyntaxKind::ViewStyle, inner);
+        self.builder.push_inner(kids, node);
+        Ok(())
+    }
+}
+
 // Expressions, types, labels, fields ----------------------------------------
 
 /// Word stoplist for one expression slot: returns true for words that end
@@ -2734,6 +3222,46 @@ impl<'a> Parser<'a> {
                 self.builder.push_inner(&mut kids, bound);
             }
         }
+        // Trailing trait suffix on a stored field (not a parameter):
+        // `trait $"..."` inline or a bare named-trait application. Consumed
+        // here, in document order, before desc/label slots.
+        if !is_param {
+            loop {
+                if self.parse_trait_suffix(cursor, &mut kids)? {
+                    continue;
+                }
+                if cursor.at_any_name()
+                    && !cursor.peek_is_eq()
+                    && !matches!(
+                        cursor.word(),
+                        Some("label" | "desc" | "trim" | "unique" | "machine" | "min" | "max")
+                    )
+                    && !cursor.at_p(Punct::Comma)
+                    && !cursor.at_p(Punct::RBrace)
+                {
+                    // Only treat as a trait application when what follows the
+                    // name is a field/schema terminator or another trait slot.
+                    let after = cursor.peek2().cloned();
+                    let is_terminator = after.is_none()
+                        || after
+                            .as_ref()
+                            .is_some_and(|t| t.is_punct(Punct::Comma) || t.is_punct(Punct::RBrace))
+                        || after.as_ref().is_some_and(|t| {
+                            t.kind == TokenKind::Name
+                                && matches!(t.text(cursor.text), "trait" | "label" | "desc")
+                        });
+                    if is_terminator {
+                        let app_name = cursor.next().expect("trait name");
+                        let mut app = Vec::new();
+                        self.builder.leaf(&mut app, &app_name);
+                        let app = SyntaxNode::enclosing(SyntaxKind::TraitApp, app);
+                        self.builder.push_inner(&mut kids, app);
+                        continue;
+                    }
+                }
+                break;
+            }
+        }
         if is_param && cursor.at_name("choices") {
             let choices = cursor.next().expect("peeked choices");
             self.builder.leaf(&mut kids, &choices);
@@ -2808,6 +3336,9 @@ impl<'a> Parser<'a> {
             }
             let annotation = self.parse_annotation(cursor)?;
             self.builder.push_inner(&mut kids, annotation);
+        }
+        if !is_param {
+            while self.parse_trait_suffix(cursor, &mut kids)? {}
         }
         if required && initialized {
             return Err(Fail::new(
@@ -3003,7 +3534,7 @@ impl<'a> Parser<'a> {
         header: HeaderKind,
     ) -> Result<(), Fail> {
         let mut seen: Vec<String> = Vec::new();
-        while !cursor.done() {
+        while !cursor.done() && !cursor.at_p(Punct::Dollar) {
             let key = cursor.expect_name()?;
             let word = key.text(cursor.text).to_string();
             let kind = attr_kind(header, &word).ok_or_else(|| {
@@ -3585,6 +4116,17 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
         if presentation {
+            if head_word.as_deref() == Some("style") {
+                if let Some(export) = prelude.first() {
+                    return Err(Fail::new(
+                        "E1212",
+                        "presentation items cannot be exported".to_string(),
+                        export.span,
+                    ));
+                }
+                self.parse_style_def(cursor, kids, children)?;
+                return Ok(None);
+            }
             if let Some(export) = prelude.first() {
                 return Err(Fail::new(
                     if head_word.as_deref() == Some("view") {
@@ -3597,6 +4139,59 @@ impl<'a> Parser<'a> {
                 ));
             }
             self.parse_ui_piece(cursor, kids, children, true, false)?;
+            return Ok(None);
+        }
+        // Generation carriers in Given (before model fallback).
+        if !prelude.is_empty() && matches!(head_word.as_deref(), Some("trait" | "keyword")) {
+            return Err(Fail::new(
+                "E1212",
+                "generation definitions cannot be exported".to_string(),
+                prelude[0].span,
+            ));
+        }
+        match head_word.as_deref() {
+            Some("trait") => {
+                self.parse_trait_def(cursor, kids, children)?;
+                return Ok(None);
+            }
+            Some("keyword") => {
+                self.parse_keyword_def(cursor, kids, children)?;
+                return Ok(None);
+            }
+            _ => {}
+        }
+        // Standalone custom-keyword application: `Name key=value ...`
+        // (definitions are collected before resolution in analysis).
+        if !model_shaped
+            && head_word.is_some()
+            && !matches!(
+                head_word.as_deref(),
+                Some(
+                    "message"
+                        | "contract"
+                        | "event"
+                        | "role"
+                        | "capability"
+                        | "corpus"
+                        | "judgment"
+                        | "derive"
+                        | "fixture"
+                        | "policy"
+                        | "lock"
+                        | "unique"
+                        | "retain"
+                        | "invariant"
+                )
+            )
+            && peek2_word.is_some()
+            && (peek3_is_eq
+                || head_word.as_deref().is_some_and(|w| {
+                    w.chars()
+                        .next()
+                        .is_some_and(|c| c.is_ascii_lowercase() || c == '_')
+                }))
+        {
+            self.parse_keyword_app(cursor, kids, children)?;
             return Ok(None);
         }
         if !model_shaped {
@@ -3967,6 +4562,22 @@ impl<'a> Parser<'a> {
             ));
         }
         self.parse_schema_fields(cursor, &mut inner)?;
+        // Trailing trait applications / inline traits in source order.
+        loop {
+            if self.parse_trait_suffix(cursor, &mut inner)? {
+                continue;
+            }
+            // Bare named trait application (not `label=` attribute).
+            if cursor.at_any_name() && !cursor.peek_is_eq() && !cursor.at_name("label") {
+                let app_name = cursor.next().expect("trait name");
+                let mut app = Vec::new();
+                self.builder.leaf(&mut app, &app_name);
+                let app = SyntaxNode::enclosing(SyntaxKind::TraitApp, app);
+                self.builder.push_inner(&mut inner, app);
+                continue;
+            }
+            break;
+        }
         self.parse_attributes(cursor, &mut inner, HeaderKind::Model)?;
         cursor.end()?;
         let node = SyntaxNode::enclosing(SyntaxKind::Model, inner);
@@ -4903,6 +5514,24 @@ impl<'a> Parser<'a> {
         let head = cursor.next().expect("do head");
         let mut kids = Vec::new();
         self.builder.leaf(&mut kids, &head);
+        if cursor.peek().is_some_and(|t| t.is_punct(Punct::Dollar)) {
+            self.diags.push(
+                Fail::new(
+                    "E1216",
+                    "a generation prompt ($\"...\") is not a valid `do` body; author the body in Can".to_string(),
+                    cursor.span_here(),
+                )
+                .diag(),
+            );
+            let rest: Vec<Token> = cursor.toks[cursor.pos..].to_vec();
+            self.error_for_tokens(&mut kids, &rest);
+            if !line.children.is_empty() {
+                self.error_for_children(&mut kids, &line.children);
+            }
+            let node = SyntaxNode::enclosing(SyntaxKind::DoBlock, kids);
+            self.builder.push_inner(out, node);
+            return;
+        }
         if cursor.done() {
             if line.children.is_empty() {
                 self.diags.push(
@@ -5200,6 +5829,14 @@ impl<'a> Parser<'a> {
         children: &'a [LogicalLine],
         mapper: bool,
     ) -> Result<StmtKind, Fail> {
+        if cursor.at_p(Punct::Dollar) {
+            return Err(Fail::new(
+                "E1216",
+                "a generation prompt ($\"...\") is not a valid `do` body; author the body in Can"
+                    .to_string(),
+                cursor.span_here(),
+            ));
+        }
         let head = cursor.expect_name()?;
         let word = head.text(cursor.text).to_string();
         if mapper && !matches!(word.as_str(), "let" | "require" | "if" | "set") {
@@ -6041,6 +6678,13 @@ impl<'a> Parser<'a> {
                 head.span,
             ));
         }
+        if word == "style" {
+            return Err(Fail::new(
+                "E1200",
+                "style definitions belong directly in Then and a view root style belongs directly in a prompted view".to_string(),
+                head.span,
+            ));
+        }
         match word.as_str() {
             "view" => {
                 let mut inner = Vec::new();
@@ -6069,15 +6713,97 @@ impl<'a> Parser<'a> {
                 self.builder.push_inner(&mut inner, parameter);
                 let close = cursor.expect_p(Punct::RParen)?;
                 self.builder.leaf(&mut inner, &close);
+                self.parse_optional_agent(cursor, &mut inner)?;
+                let mut prompted = false;
+                if self.at_gen_prompt(cursor) {
+                    let prompt = self.parse_gen_prompt(cursor)?;
+                    self.builder.push_inner(&mut inner, prompt);
+                    prompted = true;
+                }
                 cursor.end()?;
-                if children.is_empty() {
+                if children.is_empty() && !prompted {
                     return Err(Fail::new(
                         "E1200",
                         "view requires presentation children".to_string(),
                         head.span,
                     ));
                 }
+                let mut style_children = 0usize;
                 for child in children {
+                    if child.tokens.is_empty() {
+                        self.push_dangling(&mut inner, child);
+                        continue;
+                    }
+                    let child_word = child.tokens[0].text(self.text).to_string();
+                    if child_word == "style" {
+                        style_children += 1;
+                        if style_children > 1 {
+                            self.diags.push(
+                                Fail::new(
+                                    "E1202",
+                                    "a prompted view accepts at most one root style child"
+                                        .to_string(),
+                                    child.tokens[0].span,
+                                )
+                                .diag(),
+                            );
+                            self.error_for_line(&mut inner, child);
+                            continue;
+                        }
+                        if !prompted {
+                            self.diags.push(
+                                Fail::new(
+                                    "E1200",
+                                    "a view root style child requires a prompted view header"
+                                        .to_string(),
+                                    child.tokens[0].span,
+                                )
+                                .diag(),
+                            );
+                            self.error_for_line(&mut inner, child);
+                            continue;
+                        }
+                        // Parse the leaf style child in place.
+                        self.push_description(&mut inner, child);
+                        let eof2 = piece_eof(&child.tokens, self.file, Span::new(self.file, 0, 0));
+                        let mut c2 = self.cursor(&child.tokens, eof2);
+                        let r = self.attempt(&mut inner, |p, s| {
+                            p.parse_view_style_child(&mut c2, s, &child.children)
+                        });
+                        if let Err(fail) = r {
+                            self.diags.push(fail.diag());
+                            self.error_for_tokens(&mut inner, &child.tokens);
+                            self.error_for_children(&mut inner, &child.children);
+                        }
+                        continue;
+                    }
+                    if prompted
+                        && !matches!(
+                            child_word.as_str(),
+                            "edit"
+                                | "delete"
+                                | "form"
+                                | "action"
+                                | "actions"
+                                | "require"
+                                | "history"
+                                | "text"
+                                | "content"
+                        )
+                    {
+                        self.diags.push(
+                            Fail::new(
+                                "E1200",
+                                format!(
+                                    "prompted view accepts only canonical controls and one root style child; `{child_word}` is not admitted"
+                                ),
+                                child.tokens[0].span,
+                            )
+                            .diag(),
+                        );
+                        self.error_for_line(&mut inner, child);
+                        continue;
+                    }
                     self.parse_ui_child(&mut inner, child);
                 }
                 if let Some(slot) = inner
@@ -6089,6 +6815,13 @@ impl<'a> Parser<'a> {
                         "E1200",
                         "view does not accept slots".to_string(),
                         slot.span,
+                    ));
+                }
+                if let Some(show) = inner.iter().find(|node| node.kind == SyntaxKind::Show) {
+                    return Err(Fail::new(
+                        "E1200",
+                        "view does not accept nested show".to_string(),
+                        show.span,
                     ));
                 }
                 let node = SyntaxNode::enclosing(SyntaxKind::View, inner);
@@ -6109,6 +6842,7 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &name);
                 let arguments = self.parse_object(cursor)?;
                 self.builder.push_inner(&mut inner, arguments);
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::Show, inner);
                 self.builder.push_inner(kids, node);
@@ -6120,6 +6854,7 @@ impl<'a> Parser<'a> {
                 let route = self.parse_route(cursor, HeaderKind::Page)?;
                 self.builder.push_inner(&mut inner, route);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Page)?;
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 for child in children {
                     self.parse_ui_child(&mut inner, child);
@@ -6205,6 +6940,7 @@ impl<'a> Parser<'a> {
                 let operation = self.parse_expr(cursor, stop, true, true)?;
                 self.builder.push_inner(&mut inner, operation);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Form)?;
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 for child in children {
                     self.parse_ui_child(&mut inner, child);
@@ -6217,6 +6953,7 @@ impl<'a> Parser<'a> {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);
                 self.parse_attributes(cursor, &mut inner, HeaderKind::Edit)?;
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 // The leaf control stays valid; the optional presentation
                 // suite shares the owning update schema.
@@ -6270,6 +7007,7 @@ impl<'a> Parser<'a> {
             "delete" | "history" => {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -6288,6 +7026,7 @@ impl<'a> Parser<'a> {
                         head.span,
                     ));
                 }
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -6300,6 +7039,7 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &head);
                 let value = self.parse_expr(cursor, &never, true, true)?;
                 self.builder.push_inner(&mut inner, value);
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -6326,6 +7066,7 @@ impl<'a> Parser<'a> {
                     self.builder.push_inner(&mut inner, heading);
                 }
                 self.parse_attributes(cursor, &mut inner, header)?;
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 if word == "details"
                     && self.has_attribute(&inner, "display")
                     && self.has_attribute(&inner, "open")
@@ -6361,6 +7102,7 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut inner, &head);
                 let predicate = self.parse_expr(cursor, &never, true, true)?;
                 self.builder.push_inner(&mut inner, predicate);
+                self.parse_optional_style_suffix(cursor, &mut inner)?;
                 cursor.end()?;
                 let node = SyntaxNode::enclosing(SyntaxKind::UiLeaf, inner);
                 self.builder.push_inner(kids, node);
@@ -6387,6 +7129,7 @@ impl<'a> Parser<'a> {
         let query = self.parse_expr(cursor, stop, true, true)?;
         self.builder.push_inner(&mut inner, query);
         self.parse_attributes(cursor, &mut inner, header)?;
+        self.parse_optional_style_suffix(cursor, &mut inner)?;
         cursor.end()?;
         for child in children {
             self.parse_ui_child(&mut inner, child);
@@ -6427,7 +7170,7 @@ impl<'a> Parser<'a> {
             }
         }
         let mut seen: Vec<String> = Vec::new();
-        while !cursor.done() {
+        while !cursor.done() && !cursor.at_p(Punct::Dollar) {
             let key = cursor.expect_name()?;
             let word = key.text(cursor.text).to_string();
             if seen.contains(&word) {
@@ -6447,6 +7190,7 @@ impl<'a> Parser<'a> {
             let attr = SyntaxNode::enclosing(SyntaxKind::Attribute, attr);
             self.builder.push_inner(&mut inner, attr);
         }
+        self.parse_optional_style_suffix(cursor, &mut inner)?;
         cursor.end()?;
         for child in children {
             self.parse_ui_child(&mut inner, child);
