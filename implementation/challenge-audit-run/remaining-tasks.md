@@ -155,9 +155,16 @@ input/output, checks, command outcomes and writer/command release.
   examples.rs DeriveField skip + 2 e5001_ tests + table re-pin 33->31);
   2/2 + 881/0 + clippy 0; fresh-binary Table:59 probe granted (G-A-PROBE-01,
   START_ACK redelivery pending after route cap).
-- [ ] **A2 — T04/T15, T19 lowering.** Prereq: matching contract slice.
+- [x] **A2 — T04/T15, T19 lowering.** Prereq: matching contract slice.
   Accept: canonical recursive/provider descriptors and required
   decimal/default/delivery lowering consumed; no hand-built descriptors.
+  CLOSED (session 01a13580, see T04/T15 evidence + execution-contract
+  §11): recursive resolution by canonical name (contract + T16
+  consumption); provider join complete (ratified + derived + loader
+  admits/fences, 6 tests); delivery lowering consumed at the loader;
+  decimal/default via the E6008 loud gate (disclosed L2 limitation, zero
+  corpus impact); mcp_p1 golden green 3/3. Residue: engine-side receipt
+  resolution + interim ancestry, both recorded openly (not claimed).
 - [x] **A3 — T35 remaining packets.** Prereq: each packet's producer.
   Accept: named titles, request bindings, query/datetime ordering prove
   valid/invalid boundaries; delivered ICU/CRUD/payload fixes retained.
@@ -165,6 +172,10 @@ input/output, checks, command outcomes and writer/command release.
   5 a3_ proofs); canonical 5/5 + request_selectors 1/1. Survey verdict:
   all 3 packets READY survey-only, no checker edits (P1 E3001 arm
   parser-shadowed by E1204; P2 4/4 arms; P3 datetime ordered).
+  RE-VERIFIED (session 01a13580, current source, zero edits): a3_ 5/5 +
+  request_selectors 1/1 fresh green, bodies read (shadow/arms/datetime
+  claims corroborated); retention b4_check 284/284 + check 38/38 +
+  b4_examples 29/29 + analysis 37/37. T35 TICKED (see T35 evidence).
 - [x] **A4 — T29 static rules.** Prereq: adopted T28.
   Accept: canonical imported owners resolve with parent/team/lifetime/cycle
   negatives; unrelated metadata decisions do not gate.
@@ -328,6 +339,11 @@ input/output, checks, command outcomes and writer/command release.
   40656da +53/-52, pointer c87bebf on main; R20x4+E5004x2+Report flip;
   differential E2017 5->0/E5004 2->0/E5008 2->0, no new codes).
   (ACCEPT notice UNDELIVERED — route contained; queued with LG02 dispatch.)
+  RE-VERIFIED (session 01a13580, pointer 9489839): all 7 corrections read
+  verbatim surviving; R21 evolved per ledger positive (E2002 0); R22/R17
+  settled via T18 (codes alive+pinned); E5001 landed via A1; other 8
+  no-correction verdicts stand ("no other draft changes"); ten category
+  families all zero + suites green (no new cases). T36 TICKED.
 - [x] **LG01 — T22a core fixtures.** Prereq: selected LG00 fixture decisions
   + required producer slices. Accept: core model/user/grant fixtures
   validate; setup failure cannot satisfy business rejection; independent
@@ -337,6 +353,9 @@ input/output, checks, command outcomes and writer/command release.
   + 12 tests); 52/52 vitest, tsc zero testkit errors, T22a
   setup-failed control retained. report/playback/isolation suites
   deferred (need dists+miniflare). (Notice UNDELIVERED — route contained.)
+  RE-VERIFIED (session 01a13580, current source): testkit vitest 13 files
+  156/156 green incl. isolation/report/playback suites; T22 parent TICKED
+  (defect packet landed: T23 29/29 + parity 10/10, see T23 note).
 - [x] **LG02 — T22b/c + T23.** Prereq: matching fixture/provider/file
   output. Accept: rich fixtures and compiled tables/sequences execute actual
   callers/prior commits/observations; deliberately broken expectation fails.
