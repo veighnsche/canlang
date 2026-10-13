@@ -1058,12 +1058,14 @@ fn draft_outcome_table() {
     // Catch53->52 and Mail133->132; Creative21->20 is additionally stale,
     // not a Creative source change or the disclosure-only matching refactor.
     // All49 other rows and the explanation-code checks remain unchanged.
+    // Merge recount: draft 1c254a6 plus retained local app prompt/comment
+    // edits, full generation syntax and bounded CRUD guards, real catalog.
     let table: &[(&str, usize)] = &[
         ("draft/apps/CanAffiliate/CanAffiliate.can", 39),
         ("draft/apps/CanApprove/CanApprove.can", 46),
-        ("draft/apps/CanBoard/CanBoard.can", 3),
+        ("draft/apps/CanBoard/CanBoard.can", 46),
         ("draft/apps/CanBook/CanBook.can", 154),
-        ("draft/apps/CanCRM/CanCRM.can", 146),
+        ("draft/apps/CanCRM/CanCRM.can", 148),
         ("draft/apps/CanCatch/CanCatch.can", 52),
         ("draft/apps/CanChat/CanChat.can", 0),
         ("draft/apps/CanCheck/CanCheck.can", 38),
@@ -1074,21 +1076,25 @@ fn draft_outcome_table() {
         ("draft/apps/CanCustomer/CanCustomer.can", 49),
         ("draft/apps/CanDecide/CanDecide.can", 3),
         ("draft/apps/CanDesk/CanDesk.can", 72),
-        ("draft/apps/CanDiscover/CanDiscover.can", 60),
-        ("draft/apps/CanDo/CanDo.can", 38),
+        ("draft/apps/CanDiscover/CanDiscover.can", 59),
+        ("draft/apps/CanDo/CanDo.can", 41),
         ("draft/apps/CanEnrich/CanEnrich.can", 8),
         ("draft/apps/CanEvent/CanEvent.can", 198),
         ("draft/apps/CanExpense/CanExpense.can", 92),
-        ("draft/apps/CanFeedback/CanFeedback.can", 13),
+        ("draft/apps/CanFeedback/CanFeedback.can", 22),
         ("draft/apps/CanField/CanField.can", 121),
-        ("draft/apps/CanGallery/CanGallery.can", 21),
+        // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
+        // crud-when membership reads no longer diagnose (Gallery -1).
+        ("draft/apps/CanGallery/CanGallery.can", 20),
         ("draft/apps/CanGrant/CanGrant.can", 47),
         ("draft/apps/CanHire/CanHire.can", 120),
         // Exact IncomingEmail identity clears only the replay guard E3002;
         // all other original findings and all 52 corpus rows remain.
         ("draft/apps/CanInbox/CanInbox.can", 40),
         ("draft/apps/CanInvoice/CanInvoice.can", 203),
-        ("draft/apps/CanKnowledge/CanKnowledge.can", 46),
+        // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
+        // crud-when membership reads no longer diagnose (Knowledge -2).
+        ("draft/apps/CanKnowledge/CanKnowledge.can", 44),
         ("draft/apps/CanLearn/CanLearn.can", 49),
         ("draft/apps/CanLeave/CanLeave.can", 74),
         // The same owned bound-tab cases (rewards/history) now resolve;
@@ -1097,7 +1103,9 @@ fn draft_outcome_table() {
         ("draft/apps/CanMail/CanMail.can", 132),
         ("draft/apps/CanMaintain/CanMaintain.can", 110),
         ("draft/apps/CanMember/CanMember.can", 319),
-        ("draft/apps/CanOnboard/CanOnboard.can", 54),
+        // R26-purity (T37 pilot): CRUD `when=` guards are bounded, so
+        // crud-when membership reads no longer diagnose (Onboard -1).
+        ("draft/apps/CanOnboard/CanOnboard.can", 53),
         // The nonexported hold_result no longer captures nine held cases;
         // the callback body and stored inventory states remain unchanged.
         ("draft/apps/CanPropose/CanPropose.can", 118),
@@ -1118,12 +1126,12 @@ fn draft_outcome_table() {
         // The location-name sort derives from an imported Location. This
         // isolated row keeps that import opaque; the full source closure
         // resolves the derive and removes the original order-key finding.
-        ("draft/apps/CanStock/CanStock.can", 40),
+        ("draft/apps/CanStock/CanStock.can", 42),
         ("draft/apps/CanSuccess/CanSuccess.can", 43),
         ("draft/apps/CanSync/CanSync.can", 12),
         ("draft/apps/CanTable/CanTable.can", 31),
         ("draft/apps/CanTime/CanTime.can", 126),
-        ("draft/apps/CanTrade/CanTrade.can", 18),
+        ("draft/apps/CanTrade/CanTrade.can", 19),
         // Bound tab headers claim only their owning preference enum cases;
         // the original source and assignments authentication gate stay intact.
         ("draft/apps/CanVolunteer/CanVolunteer.can", 44),

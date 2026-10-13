@@ -146,7 +146,7 @@ fn unrelated_state_reads_still_fail_derive_and_dispatch_purity() {
 }
 
 #[test]
-fn membership_cannot_enter_direct_or_transitive_defaults_or_crud_guards() {
+fn membership_cannot_enter_direct_or_transitive_defaults() {
     let catalog = catalog();
     for source in [
         "app UnsafeDefault\nGiven\nWhen\n scenario enter(person:user,allowed:bool=active_member(person,team)) by=members\n  do let accepted=true\nThen\n",
@@ -154,7 +154,6 @@ fn membership_cannot_enter_direct_or_transitive_defaults_or_crud_guards() {
         "app UnsafeDefault\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\n Entry {allowed:bool=member(actor)}\nWhen\nThen\n",
         "app UnsafeDefault\nGiven\n Entry {allowed:bool=actor!=null and active_member(actor,team)}\nWhen\nThen\n",
         "app UnsafeDefault\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\n Entry {allowed:bool server=member(actor)}\nWhen\nThen\n",
-        "app UnsafeCrud\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n policy Entry read=members\nWhen\n crud Entry by=members fields=label when=member(actor)\nThen\n",
         "app UnsafeField\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:bool = member(actor)\nWhen\nThen\n",
         "app UnsafePage\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\nWhen\nThen\n page /private title=\"Private\"\n  require member(actor)\n",
     ] {
@@ -171,6 +170,25 @@ fn membership_cannot_enter_direct_or_transitive_defaults_or_crud_guards() {
     let pure = "app PurePage\nGiven\n derive allowed():bool = true\nWhen\nThen\n page /public title=\"Public\"\n  require members\n  require allowed()\n  text \"Accepted\"\n";
     let (_, diagnostics) = check(pure, &catalog);
     assert!(diagnostics.is_empty(), "{pure}\n{diagnostics:?}");
+}
+
+/// (R26 layer 1, T37 pilot — contract change from the frozen T02
+/// positive "admitted-actor use passes in composite policies and CRUD
+/// `when=`", now that T32's fence is adopted: a CRUD `when=` is a
+/// bounded authorization guard like a send `when=` and like policy
+/// `where=` (which already admits these calls, cf.
+/// ORIGINAL_HELPER_SHAPE above). Membership reads admit in the guard;
+/// impure builtins still reject, derive bodies stay pure-gated, and
+/// commit-time revalidation (T32) backstops freshness. The retired
+/// crud-guard rejection case moved here from
+/// `membership_cannot_enter_direct_or_transitive_defaults` unchanged
+/// in shape, asserting clean instead of refusal.)
+#[test]
+fn membership_reads_admit_in_actor_admitted_crud_guards() {
+    let catalog = catalog();
+    let source = "app UnsafeCrud\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n policy Entry read=members\nWhen\n crud Entry by=members fields=label when=member(actor)\nThen\n";
+    let (_, diagnostics) = check(source, &catalog);
+    assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
 }
 
 #[test]
