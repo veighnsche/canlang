@@ -1,18 +1,18 @@
 {
  "date": "2026-10-13",
- "integrated_source_pin": "a0feab3c1404cb956d04338184565865e3ee3250",
+ "integrated_source_pin": "7fc6f1bc52d948df8fc30a37fd1fcc6cd659b937",
  "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
  "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
  "checkpoint_advanced": false,
  "coverage": {
-  "commit_count_since_checkpoint": 2502,
-  "net_path_deltas": 11352,
-  "history_touched_paths": 11428,
+  "commit_count_since_checkpoint": 2506,
+  "net_path_deltas": 11380,
+  "history_touched_paths": 11456,
   "history_only_paths": 6,
-  "released_feature_paths": 79,
-  "new_target_leaves": 30,
-  "inherited_paths_without_prior_target_allocation": 9849,
-  "scope": "2026-10-13 Interfaces export security correction: app/team/original-cursor binding, fresh canonical projection before cached disclosure, atomic pending-digest completion with terminal revocation and store-clock expiry, detached records and final disclosure admission. Normal owning build and25 selected route controls pass; finite independent source review CLEAR. Durable production binding and original compiled mounted consumer remain unfinished; complete824 and all exact holds unchanged."
+  "released_feature_paths": 81,
+  "new_target_leaves": 32,
+  "inherited_paths_without_prior_target_allocation": 9875,
+  "scope": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged."
  },
  "methods": [
   "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -30,7 +30,8 @@
   "muse-wind-down": "Finite root source/guard repairs independently reviewed at described scope; foreign IDE/UI/design checkpoints preserved unfinished, no accumulated/full-plan acceptance.",
   "private-nominal-file-assignment": "Genuine root-child final assignment locators, same owning nominal File census, private write versus saved public read boundary, deeply immutable schema preparation and per-call opaque binding with current source/inventory/revision refresh. Owning37 controls, normal emissions and finite source review; full P7 runtime remains unqualified.",
   "d1-guard-preparation": "Worker-profiled immutable completed-guard reuse for D1 file retirement: full live batch plus exact raw comparison per call, derivation memoized on proven-identical inputs, frozen retained preparation, binding/framework/maxRows isolation and malformed-batch no-poison controls. Owning D1/storage/assignment/opaque suites green; full P7 application runtime remains unqualified.",
-  "export-download-backend": "2026-10-13 Interfaces export security correction: app/team/original-cursor binding, fresh canonical projection before cached disclosure, atomic pending-digest completion with terminal revocation and store-clock expiry, detached records and final disclosure admission. Normal owning build and25 selected route controls pass; finite independent source review CLEAR. Durable production binding and original compiled mounted consumer remain unfinished; complete824 and all exact holds unchanged."
+  "export-download-backend": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged.",
+  "build-resources": "AGENTS.md repository-wide ownership rule: compatible compiler/dependency cache reuse, one writer per shared cache, fixed lean compiler flags, task-owned cleanup only after commands/captures and owner release; preserve source/Git/evidence/needed artifacts/foreign caches. Documentation diff reviewed; no cache deletion or foreign process interruption."
  },
  "owner_rules": {
   "packages/<owner>": "Existing package owner; no language/backend responsibility transfer",
@@ -68185,6 +68186,174 @@
    "design/proposals/given-rule-prompts/proposal.json",
    "design",
    "inherited-unallocated"
+  ],
+  [
+   "M",
+   "compiler/src/ide/mod.rs",
+   "compiler",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "compiler/src/ide/structure.rs",
+   "compiler",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/1.questions.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/1.result.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/2.questions.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/2.result.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/3.questions.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/3.result.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/build-generation-launch-20261013/summary.md",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/proposals/build-generation/implementation-contract.md",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "docs/draft-frontend-validation.md",
+   "docs",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "implementation/draft-frontends/PLAN.md",
+   "implementation",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/corpus/audit.json",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/corpus/index.html",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/help-office-functional.json",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/help-office/desktop-01.png",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/help-office/mobile-01.png",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/help-office/report.html",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/help-office/report.json",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/model-free-preview/desktop-01.png",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/model-free-preview/mobile-01.png",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/model-free-preview/report.html",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/model-free-preview/report.json",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "output/draft-frontends/runtime-snapshot.json",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "packages/cloudflare/src/runtime/export-downloads.test.ts",
+   "packages/cloudflare",
+   "feature"
+  ],
+  [
+   "A",
+   "packages/cloudflare/src/runtime/export-downloads.ts",
+   "packages/cloudflare",
+   "feature"
+  ],
+  [
+   "A",
+   "scripts/audit-draft-frontends.mjs",
+   "build",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "scripts/capture-dev-frontend.mjs",
+   "build",
+   "inherited-unallocated"
   ]
  ],
  "history_only": [
@@ -68220,7 +68389,7 @@
   ]
  ],
  "pending_target_allocation": {
-  "count": 9849,
+  "count": 9875,
   "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
  },
  "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -68231,8 +68400,8 @@
   "SM.QUALIFY open; FP.FULL dependency",
   "FP.SOURCE-CLOSURE open; accumulated review and target allocation pending"
  ],
- "lanes": "SAME Muse coordinator Spark1.3Contributor/MAX; one shared source/build/capture writer, native four held/read-only; old four Codex workers stopped. No remote publication.",
+ "lanes": "Codex root direct implementation; Muse stopped and its heartbeat deleted. Old four Codex workers remain stopped. Independent finite read-only review only; foreign open edits preserved. No remote publication.",
  "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
  "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
- "current_maintenance_summary": "2026-10-13 substantive nominal File/private assignment and immutable preparation handoff; retained main43f source and all new advice/proposal leaves accounted. State/CF controls37 and prior guard2 retained; per-call binding reuse normal CF build0 and source CLEAR, runtime pending. Full original CanChat first File-bearing ask committed then timeout900020ms, position7 unfinished. SAME Muse Spark1.3Contributor/MAX resumed by direct human steering, one writer/native4held/old workers stopped. Ongoing foreign draft/design edits remain separately unfinished; complete824 and original holds unchanged."
+ "current_maintenance_summary": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged. Every committed delta since retaineda0 is represented; foreign IDE/browser/draft/design/challenge changes are retained without claiming their source review. Muse stopped; monitoring automation deleted; Codex implements directly. Project build-resource policy retains compatible cache reuse and exact cleanup ownership without deleting source/Git/evidence or interrupting foreign builds."
 }
