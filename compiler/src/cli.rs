@@ -3050,8 +3050,12 @@ impl InspectedUnit {
                 unit.association = "retained".to_string();
                 unit.prompt_changed = Some(*prompt_changed);
                 if let Some(record) = saved.iter().find(|record| record.id == *id) {
+                    // The reported contract stays the saved original
+                    // (historical provenance); the recipe agent stays
+                    // the current descriptor's profile, so a live
+                    // source profile edit resolves future attempts
+                    // without rewriting historical receipts.
                     unit.contract = Some(contract_json(&record.contract));
-                    unit.agent = record.contract.profile.clone();
                 }
             }
             intake::UnitAssociation::New => {}

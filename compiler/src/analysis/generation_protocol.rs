@@ -567,6 +567,7 @@ fn parse_params(
             if let Some(root) = &params.root {
                 require_text(name, "root", root)?;
             }
+            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
             Ok(GenParams::Doctor(params))
         }
         GenOperation::Status => {
@@ -609,6 +610,7 @@ fn parse_params(
                     format!("operation `{name}` needs span START<=END, got {start}..{end}"),
                 ));
             }
+            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
             Ok(GenParams::Inspect(params))
         }
         GenOperation::Bind => {
@@ -652,6 +654,7 @@ fn parse_params(
                     ),
                 ));
             }
+            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
             Ok(GenParams::Generate(params))
         }
         GenOperation::Refine => {
@@ -659,12 +662,14 @@ fn parse_params(
             require_text(name, "root", &params.root)?;
             require_text(name, "unit_id", &params.unit_id)?;
             check_instruction_carrier(name, &params)?;
+            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
             Ok(GenParams::Refine(params))
         }
         GenOperation::Retry => {
             let params: RetryParams = serde_json::from_value(rest).map_err(reject)?;
             require_text(name, "root", &params.root)?;
             require_non_empty(name, "files", &params.files)?;
+            check_run_limits(name, params.max_attempts, params.timeout_seconds)?;
             Ok(GenParams::Retry(params))
         }
         GenOperation::Resume => {
@@ -816,6 +821,29 @@ fn require_text(name: &str, key: &str, value: &str) -> Result<(), ProtocolError>
             "invalid-param",
             format!("operation `{name}` needs a non-empty `{key}`"),
         ));
+    }
+    Ok(())
+}
+
+/// Per-run limits share the TOML positive-finite domain: zero is
+/// outside it and refuses at admission, before any recipe
+/// construction or runner launch. Serde already rejects
+/// non-integers, negatives, and overflow; only zero slips through.
+fn check_run_limits(
+    name: &str,
+    max_attempts: Option<u32>,
+    timeout_seconds: Option<u32>,
+) -> Result<(), ProtocolError> {
+    for (key, value) in [
+        ("max_attempts", max_attempts),
+        ("timeout_seconds", timeout_seconds),
+    ] {
+        if value == Some(0) {
+            return Err(ProtocolError::invalid(
+                "invalid-param",
+                format!("operation `{name}`: `{key}` must be a positive finite integer"),
+            ));
+        }
     }
     Ok(())
 }

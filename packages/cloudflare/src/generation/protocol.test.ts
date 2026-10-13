@@ -212,6 +212,35 @@ test("modes, scopes, and selector exclusivity", () => {
   );
 });
 
+test("zero run limits refuse at admission", () => {
+  // Zero is outside the positive-finite domain on every
+  // recipe-bearing operation, before any recipe or launch.
+  const bodies = [
+    '{"version":1,"request_id":"r1","operation":"doctor","max_attempts":0,"timeout_seconds":0}',
+    '{"version":1,"request_id":"r1","operation":"inspect","root":".","unit_id":"u1","max_attempts":0}',
+    '{"version":1,"request_id":"r1","operation":"generate","root":".","files":["a.can"],"mode":"fresh","timeout_seconds":0}',
+    '{"version":1,"request_id":"r1","operation":"refine","root":".","unit_id":"u1","instruction":"x","max_attempts":0}',
+    '{"version":1,"request_id":"r1","operation":"retry","root":".","files":["a.can"],"timeout_seconds":0}',
+  ];
+  for (const body of bodies) {
+    assert.equal(codeOf(() => parseRequest(body)), "invalid-param", body);
+  }
+  // Explicit finite positive overrides still admit.
+  const admitted = parseRequest(
+    '{"version":1,"request_id":"r1","operation":"doctor","max_attempts":3,"timeout_seconds":45}',
+  );
+  assert.equal(admitted.params.kind, "doctor");
+  if (admitted.params.kind === "doctor") {
+    assert.equal(admitted.params.params.max_attempts, 3);
+    assert.equal(admitted.params.params.timeout_seconds, 45);
+  }
+  // Span offsets still admit zero.
+  const span = parseRequest(
+    '{"version":1,"request_id":"r1","operation":"inspect","root":".","file":"a.can","start":0,"end":1}',
+  );
+  assert.equal(span.params.kind, "inspect");
+});
+
 test("envelope and event shapes", () => {
   const ok = JSON.parse(
     okEnvelope(

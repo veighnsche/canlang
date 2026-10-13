@@ -1674,3 +1674,283 @@ fn request_file_with_stdin_instruction_through_the_binary() {
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     assert_eq!(error_of(&stdout).0, "invalid-param");
 }
+
+/// Owning declaration with an explicit `agent=frontend` selection.
+const FRONTEND_AGENT: &str = r#"app Front
+Given
+ Item {a:text}
+When
+Then
+ style Surface agent=frontend $"Readable"
+ page / title="T"
+  text "hello"
+"#;
+
+#[test]
+fn explicit_frontend_agent_without_profile_diagnoses() {
+    // Shared recipe only: no `frontend` profile is configured.
+    let plain = loaded_settings("version = 1\n[generation]\nrunner = \"codex\"\nmodel = \"m\"\n");
+    // An explicit owning-declaration `agent=frontend` names a
+    // profile that must exist, so it diagnoses.
+    let err = resolve_recipe(
+        Some(&plain),
+        RecipeCategory::Frontend,
+        Some("frontend"),
+        &RunOverrides::default(),
+    )
+    .unwrap_err();
+    assert_eq!(err.code(), "unknown-profile");
+    assert!(err.to_string().contains("frontend"), "{err}");
+    // An explicit run profile selection diagnoses the same way.
+    let err = resolve_recipe(
+        Some(&plain),
+        RecipeCategory::Frontend,
+        None,
+        &RunOverrides {
+            profile: Some("frontend".to_string()),
+            ..RunOverrides::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(err.code(), "unknown-profile");
+    // The implicit Then default still falls back to shared.
+    let resolved = resolve_recipe(
+        Some(&plain),
+        RecipeCategory::Frontend,
+        None,
+        &RunOverrides::default(),
+    )
+    .unwrap();
+    assert_eq!(resolved.runner, "codex");
+    assert!(
+        resolved.origins["runner"].starts_with("shared recipe"),
+        "{}",
+        resolved.origins["runner"]
+    );
+    // End to end: spanned inspect of the explicit declaration
+    // diagnoses, while an agentless Then unit falls back.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "front.can", FRONTEND_AGENT);
+    write_file(
+        dir.path(),
+        "can.gen.toml",
+        "version = 1\n[generation]\nrunner = \"codex\"\nmodel = \"fixture\"\n",
+    );
+    let (tree, _) = parse_source(SourceId(0), FRONTEND_AGENT);
+    let found = canlang_compiler::analysis::generation::discover_generation(&tree, FRONTEND_AGENT);
+    let descriptor = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::StyleDefinition)
+        .unwrap();
+    let request = request_file(
+        dir.path(),
+        "inspect.json",
+        &format!(
+            r#"{{"version":1,"request_id":"f1","operation":"inspect","root":{root:?},"file":{file:?},"start":{},"end":{}}}"#,
+            descriptor.span.start, descriptor.span.end,
+        ),
+    );
+    let result = dispatch(&argv(&["gen", "--request", &request]));
+    assert_eq!(result.code, 0, "stdout: {}", result.stdout);
+    let body = envelope(&result.stdout);
+    assert!(body["recipe"].is_null(), "{}", body["recipe"]);
+    assert_eq!(body["recipe_error"]["code"], "unknown-profile");
+    assert!(
+        body["recipe_error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("frontend"),
+        "{}",
+        body["recipe_error"]
+    );
+    let plain_file = write_file(dir.path(), "app.can", APP);
+    let (tree, _) = parse_source(SourceId(0), APP);
+    let found = canlang_compiler::analysis::generation::discover_generation(&tree, APP);
+    let descriptor = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::StyleDefinition)
+        .unwrap();
+    let request = request_file(
+        dir.path(),
+        "inspect.json",
+        &format!(
+            r#"{{"version":1,"request_id":"f2","operation":"inspect","root":{root:?},"file":{plain_file:?},"start":{},"end":{}}}"#,
+            descriptor.span.start, descriptor.span.end,
+        ),
+    );
+    let result = dispatch(&argv(&["gen", "--request", &request]));
+    assert_eq!(result.code, 0, "stdout: {}", result.stdout);
+    let body = envelope(&result.stdout);
+    assert_eq!(body["recipe"]["model"], "fixture");
+    assert!(
+        body["recipe"]["origins"]["model"]
+            .as_str()
+            .unwrap()
+            .starts_with("shared recipe"),
+        "{}",
+        body["recipe"]
+    );
+}
+
+#[test]
+fn zero_run_limits_refuse_before_recipe() {
+    // Admission refuses zero on every recipe-bearing operation.
+    for operation in ["doctor", "inspect", "generate", "refine", "retry"] {
+        let body = match operation {
+            "doctor" => format!(
+                r#"{{"version":1,"request_id":"z","operation":"doctor","max_attempts":0,"timeout_seconds":0}}"#
+            ),
+            "inspect" => format!(
+                r#"{{"version":1,"request_id":"z","operation":"inspect","root":".","unit_id":"u1","max_attempts":0}}"#
+            ),
+            "generate" => format!(
+                r#"{{"version":1,"request_id":"z","operation":"generate","root":".","files":["a.can"],"mode":"fresh","timeout_seconds":0}}"#
+            ),
+            "refine" => format!(
+                r#"{{"version":1,"request_id":"z","operation":"refine","root":".","unit_id":"u1","instruction":"x","max_attempts":0}}"#
+            ),
+            _ => format!(
+                r#"{{"version":1,"request_id":"z","operation":"retry","root":".","files":["a.can"],"timeout_seconds":0}}"#
+            ),
+        };
+        let err = parse_request(&body).unwrap_err();
+        assert_eq!(err.code, "invalid-param", "{operation}");
+        assert_eq!(err.exit, 2, "{operation}");
+    }
+    // Recipe construction refuses zero overrides the same way TOML
+    // refuses nonpositive limits.
+    let loaded = loaded_settings(SETTINGS);
+    for overrides in [
+        RunOverrides {
+            max_attempts: Some(0),
+            ..RunOverrides::default()
+        },
+        RunOverrides {
+            timeout_seconds: Some(0),
+            ..RunOverrides::default()
+        },
+    ] {
+        let err = resolve_recipe(Some(&loaded), RecipeCategory::Given, None, &overrides).unwrap_err();
+        assert_eq!(err.code(), "invalid-settings", "{overrides:?}");
+        assert!(err.to_string().contains("positive finite integer"), "{err}");
+    }
+    // Explicit finite positive overrides still resolve.
+    let resolved = resolve_recipe(
+        Some(&loaded),
+        RecipeCategory::Given,
+        None,
+        &RunOverrides {
+            max_attempts: Some(3),
+            timeout_seconds: Some(45),
+            ..RunOverrides::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(resolved.max_attempts, 3);
+    assert_eq!(resolved.timeout_seconds, 45);
+    assert_eq!(resolved.origins["max_attempts"], "run override");
+    assert_eq!(resolved.origins["timeout_seconds"], "run override");
+    // End to end: doctor refuses before reporting any recipe, and a
+    // pinned generate refuses before the launch path.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    write_file(dir.path(), "app.can", APP);
+    write_file(dir.path(), "can.gen.toml", SETTINGS);
+    let request = request_file(
+        dir.path(),
+        "doctor.json",
+        &format!(
+            r#"{{"version":1,"request_id":"z1","operation":"doctor","root":{root:?},"max_attempts":0,"timeout_seconds":0}}"#
+        ),
+    );
+    let result = dispatch(&argv(&["gen", "--request", &request]));
+    assert_eq!(result.code, 2, "stdout: {}", result.stdout);
+    assert_eq!(error_of(&result.stdout).0, "invalid-param");
+    let request = request_file(
+        dir.path(),
+        "gen.json",
+        &format!(
+            r#"{{"version":1,"request_id":"z2","operation":"generate","root":{root:?},"files":["app.can"],"mode":"fresh","profile":"fast","max_attempts":0}}"#
+        ),
+    );
+    let result = dispatch(&argv(&["gen", "--request", &request]));
+    assert_eq!(result.code, 2, "stdout: {}", result.stdout);
+    assert_eq!(error_of(&result.stdout).0, "invalid-param");
+}
+
+#[test]
+fn spanned_inspect_resolves_current_profile() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    write_file(
+        dir.path(),
+        "can.gen.toml",
+        "version = 1\n[generation]\nrunner = \"codex\"\nmodel = \"shared-model\"\n[generation.profiles.slow]\nrunner = \"codex\"\nmodel = \"slow-model\"\n[generation.profiles.fast]\nrunner = \"codex\"\nmodel = \"fast-model\"\n",
+    );
+    let old = FRONTEND_AGENT.replace("agent=frontend", "agent=slow");
+    let file = write_file(dir.path(), "front.can", &old);
+    let revision = sha256_hex(old.as_bytes());
+    let (tree, _) = parse_source(SourceId(0), &old);
+    let found = canlang_compiler::analysis::generation::discover_generation(&tree, &old);
+    let descriptor = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::StyleDefinition)
+        .unwrap();
+    let bound = dispatch(&argv(&[
+        "gen",
+        "bind",
+        &root,
+        &file,
+        &descriptor.span.start.to_string(),
+        &descriptor.span.end.to_string(),
+        &revision,
+        "new",
+    ]));
+    assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
+    // Edit only the owning declaration's agent.
+    let new = old.replace("agent=slow", "agent=fast");
+    std::fs::write(&file, &new).unwrap();
+    let (tree, _) = parse_source(SourceId(0), &new);
+    let found = canlang_compiler::analysis::generation::discover_generation(&tree, &new);
+    let descriptor = found
+        .descriptors
+        .iter()
+        .find(|d| d.kind == GenerationKind::StyleDefinition)
+        .unwrap();
+    let request = request_file(
+        dir.path(),
+        "inspect.json",
+        &format!(
+            r#"{{"version":1,"request_id":"c1","operation":"inspect","root":{root:?},"file":{file:?},"start":{},"end":{}}}"#,
+            descriptor.span.start, descriptor.span.end,
+        ),
+    );
+    let result = dispatch(&argv(&["gen", "--request", &request]));
+    assert_eq!(result.code, 0, "stdout: {}", result.stdout);
+    let body = envelope(&result.stdout);
+    // Identity is retained, but the recipe resolves the current
+    // source profile for future attempts.
+    assert_eq!(body["unit"]["id"], "u1");
+    assert_eq!(body["unit"]["association"], "retained");
+    assert_eq!(body["unit"]["prompt_changed"], false);
+    assert_eq!(body["recipe"]["model"], "fast-model");
+    assert!(
+        body["recipe"]["recipe_source"]
+            .as_str()
+            .unwrap()
+            .starts_with("profile 'fast'"),
+        "{}",
+        body["recipe"]
+    );
+    // The reported contract keeps the saved original as history.
+    assert_eq!(body["unit"]["contract"]["profile"], "slow");
+    // The historical receipt is untouched: no rewrite, no forced
+    // adoption of compatible current output.
+    let receipt = std::fs::read_to_string(dir.path().join("can.generated/u1/unit.json")).unwrap();
+    let saved: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+    assert_eq!(saved["contract"]["profile"], "slow");
+}

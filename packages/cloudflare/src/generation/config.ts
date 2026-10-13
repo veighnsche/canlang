@@ -486,6 +486,17 @@ export function resolveRecipe(
   if (overrides.native !== undefined) {
     checkNativeScalars(overrides.native);
   }
+  // Per-run limits share the TOML positive-finite domain: zero is
+  // outside it and refuses here, before any recipe construction or
+  // runner launch. Explicit finite positive overrides still win.
+  for (const key of ["max_attempts", "timeout_seconds"] as const) {
+    if (overrides[key] === 0) {
+      throw new ConfigError(
+        "invalid-settings",
+        `run override \`${key}\` must be a positive finite integer`,
+      );
+    }
+  }
   // Base recipe row: explicit run profile, else declaration agent,
   // else the category default (the frontend profile only when
   // settings exist to supply it, else shared).
@@ -501,8 +512,10 @@ export function resolveRecipe(
   }
   const settingsPath = loaded?.source.path ?? null;
   const describeSettings = (): string => (settingsPath === null ? "" : ` (${settingsPath})`);
-  // The frontend default falls back to shared when no `frontend`
-  // profile is configured; every other named base must exist.
+  // Only the implicit Then category default falls back to shared
+  // when no `frontend` profile is configured; an explicit
+  // declaration `agent=frontend` (or run profile) names a profile
+  // that must exist, so it diagnoses like any unknown profile.
   let base: BaseRow;
   if (loaded !== null && baseName !== null) {
     const profile = loaded.settings.profiles[baseName];
@@ -515,7 +528,11 @@ export function resolveRecipe(
         native: { ...profile.native },
         label: `profile '${baseName}'${describeSettings()}`,
       };
-    } else if (baseName === FRONTEND_PROFILE && overrides.profile === undefined) {
+    } else if (
+      baseName === FRONTEND_PROFILE &&
+      overrides.profile === undefined &&
+      declarationAgent === null
+    ) {
       const shared = loaded.settings.shared;
       base = {
         runner: shared.runner,
