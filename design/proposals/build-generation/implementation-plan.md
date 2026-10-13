@@ -67,7 +67,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-03 — Configuration and JSON command contract
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-82b8 running; correction ACK reconciled as RECEIVED (child seq1080 committed commentary verified first-hand, design already complies, no When work). Finite join sent can-bg-56271b11-bgi03-join-1 (wire cli.rs:2159 to released associate_with_source via merge of f49807f60, one CLI bind-original+bind-copy+status case; receipt outstanding, continue-to-commit required). Owns cli.rs exclusively; awaiting handoff with bgi03+bgi01+bgi02 green + join case.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-82b8 WIP 741370f61 + join ad30e1022 integrated as 1fa92d56f + cc6d69305 (repair merge skipped, already in main; toml 0.9.12 + base64 pinned, smol-toml Node, dispatcher, capability preflight, MCP contract, join wiring cli.rs:2464/2950 + bind-copy case; correction + join + leases direction ACKed). Coordinator verified on main: bgi03 26/26 (incl join case), bgi01 13/13, bgi02 17/17, exe 11/11, node dist/generation 38/38 (13 new); zero new tsc errors; no When recipe/profile (correction honored). BGI03 writer released; Given/Then/tooling lanes unblocked.
 
 **Owner / targets:** `compiler/src/cli.rs`; `packages/cloudflare/src/cli/platform.ts` and generation config/protocol modules. **Needs:** BGI-01 descriptor shapes and BGI-02 selectors/records.
 
