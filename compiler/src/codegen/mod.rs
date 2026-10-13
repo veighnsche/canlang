@@ -57,6 +57,7 @@ pub mod scenario_queries;
 mod scenario_receipts;
 mod send_guards;
 pub mod sourcemap;
+pub mod then_views;
 
 use crate::analysis::CheckedProgram;
 use crate::analysis::catalog::Catalog;

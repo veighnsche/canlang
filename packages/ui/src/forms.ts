@@ -1637,6 +1637,23 @@ export function formFragmentWrap(idPrefix: string, formHtml: string): string {
   return `<div id="${escapeAttr(`${idPrefix}-form`)}">${formHtml}</div>`;
 }
 
+/**
+ * BGI-09 per-instance control prefix: `<useId>-<control>`. Repeated
+ * row-bound instances share the saved renderer, so each instance's
+ * controls need distinct DOM ids for stable swaps, drafts, and focus.
+ * The caller renders each control through the existing generated form
+ * factories with this prefix; refused fields never reach those calls.
+ */
+export function viewControlIdPrefix(useId: string, control: string): string {
+  if (!/^can-view-m\d+-f\d+-s\d+$/.test(useId)) {
+    throw new Error(`viewControlIdPrefix: invalid use id ${JSON.stringify(useId)}`);
+  }
+  if (!/^[a-z][a-z0-9-]*$/.test(control)) {
+    throw new Error(`viewControlIdPrefix: invalid control ${JSON.stringify(control)}`);
+  }
+  return `${useId}-${control}`;
+}
+
 function projectionFailure(derived: DerivedOperationInputs, message: string): Error {
   return new Error(`generated submit for ${JSON.stringify(derived.operation)}: ${message}`);
 }

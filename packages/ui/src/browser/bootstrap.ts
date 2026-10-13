@@ -38,6 +38,11 @@
  *   that emits `can:settled` on the same control. The binder alone is not
  *   a qualified submission workflow; current generated forms use their
  *   own pending guard and transport settlement.
+ * - Generated views: `[data-can-view]` roots invoke their view's
+ *   registered saved `mount` once with the server-embedded presentation;
+ *   replaced roots release the returned cleanup through the binder
+ *   unbind and the morph removal hook. Roots without a registered mount
+ *   stay inert markup.
  * - Focus: after an htmx swap into `#can-main`, focus moves to the
  *   swapped heading (or `#can-main` itself); opening a `:target`
  *   dialog focuses its box. Focus never moves on ordinary loads.
@@ -58,7 +63,8 @@ import type { VisibilityLike } from "./polling.js";
 import { GeneratedSubmitError, submitGeneratedForm, submitDeleteForm } from "../client.js";
 import type { DomControlLike, GeneratedSubmitResult, SubmitFetch, SubmitFetchInit } from "../client.js";
 import type { DerivedOperationInputs, FormMode } from "@canlang/contracts";
-import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX } from "@canlang/contracts";
+import type { GeneratedViewMount, GeneratedViewPresentation, RowView } from "@canlang/contracts";
+import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, GENERATED_REF_VERSION_SUFFIX, GENERATED_VIEW_ATTR } from "@canlang/contracts";
 import { projectGeneratedInputs, GENERATED_NULL_SUFFIX } from "../forms.js";
 
 /** Minimal structural document (satisfied by DOM Document and fakes). */
@@ -149,6 +155,97 @@ export function registerBinder(id: string, binder: ComponentBinder): void {
 /** Catalog ids with a registered client binder. */
 export function registeredBinderIds(): ReadonlyArray<string> {
   return [...BINDERS.keys()];
+}
+
+/**
+ * BGI-09 generated-view mount joins. Unit browser bundles register their
+ * saved `mount` by view name; the `generated-view` binder invokes it once
+ * per instance root with the server-embedded presentation and tracks the
+ * returned cleanup. Replaced roots (morph removal, trims, htmx swaps)
+ * release through the binder unbind; in-place morphs keep a live root's
+ * mount. Mount state is keyed by use id and every release is idempotent,
+ * so the morph hook and the rescan sweep never double-run cleanup.
+ */
+
+/** Saved mounts by view name, registered by unit browser bundles. */
+const GENERATED_VIEW_MOUNTS = new Map<string, GeneratedViewMount>();
+/** Live instance cleanups by use id. */
+const generatedViewCleanups = new Map<string, () => void>();
+
+/** Register a unit browser bundle's saved `mount` for one view name. */
+export function registerGeneratedViewMount(view: string, mount: GeneratedViewMount): void {
+  GENERATED_VIEW_MOUNTS.set(view, mount);
+}
+
+/** Run and forget one instance's cleanup; unknown ids are a no-op. */
+export function releaseGeneratedViewMount(useId: string): void {
+  const cleanup = generatedViewCleanups.get(useId);
+  if (cleanup === undefined) {
+    return;
+  }
+  generatedViewCleanups.delete(useId);
+  cleanup();
+}
+
+/** Parse and admit one root's embedded mount presentation. */
+function generatedViewPresentationOf(root: ElementLike): GeneratedViewPresentation {
+  const useId = root.getAttribute(GENERATED_VIEW_ATTR) ?? "";
+  const raw = root.getAttribute("data-can-view-presentation");
+  if (raw === null || raw === "") {
+    throw new Error(`generated view ${JSON.stringify(useId)}: missing mount presentation`);
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`generated view ${JSON.stringify(useId)}: invalid mount presentation`);
+  }
+  if (
+    typeof parsed !== "object" || parsed === null || Array.isArray(parsed) ||
+    typeof (parsed as Record<string, unknown>)["view"] !== "string" ||
+    (parsed as Record<string, unknown>)["useId"] !== useId
+  ) {
+    throw new Error(`generated view ${JSON.stringify(useId)}: invalid mount presentation`);
+  }
+  const row = (parsed as Record<string, unknown>)["row"] as RowView | null | undefined;
+  if (typeof row !== "object" || row === null || typeof row.id !== "string" ||
+      typeof row.fields !== "object" || row.fields === null) {
+    throw new Error(`generated view ${JSON.stringify(useId)}: invalid mount row`);
+  }
+  return parsed as GeneratedViewPresentation;
+}
+
+function bindGeneratedView(root: ElementLike): () => void {
+  const useId = root.getAttribute(GENERATED_VIEW_ATTR) ?? "";
+  const presentation = generatedViewPresentationOf(root);
+  // A replaced root's cleanup never survives onto the new root: release
+  // by use id before mounting, and unbind only the cleanup this bind
+  // installed (a newer bind for the same id wins).
+  releaseGeneratedViewMount(useId);
+  const mount = GENERATED_VIEW_MOUNTS.get(presentation.view);
+  const cleanup = mount === undefined ? undefined : mount(root, presentation);
+  if (typeof cleanup === "function") {
+    generatedViewCleanups.set(useId, cleanup);
+  }
+  return () => {
+    if (generatedViewCleanups.get(useId) === cleanup) {
+      releaseGeneratedViewMount(useId);
+    }
+  };
+}
+
+/** Release mounts for a removed subtree: the root itself plus descendants. */
+function releaseMountsIn(node: DomNode): void {
+  const direct = node.nodeType === 1 ? node.getAttribute?.(GENERATED_VIEW_ATTR) : null;
+  if (direct !== null && direct !== undefined && direct !== "") {
+    releaseGeneratedViewMount(direct);
+  }
+  for (const child of node.querySelectorAll?.(`[${GENERATED_VIEW_ATTR}]`) ?? []) {
+    const useId = child.getAttribute?.(GENERATED_VIEW_ATTR);
+    if (useId !== null && useId !== undefined && useId !== "") {
+      releaseGeneratedViewMount(useId);
+    }
+  }
 }
 
 export interface BrowserClientOptions {
@@ -336,7 +433,10 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
       const replacement = child.cloneNode(true);
       const focus = previous === null ? null : transferFormDraft(previous, replacement, document);
       current.insertBefore(replacement, anchor);
-      if (previous !== null) current.removeChild(previous);
+      if (previous !== null) {
+        releaseMountsIn(previous);
+        current.removeChild(previous);
+      }
       focus?.focus?.();
     }
     else {
@@ -346,7 +446,11 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   }
   while (current.childNodes.length > desired.length) {
     const last = current.childNodes[current.childNodes.length - 1];
-    if (last !== undefined) current.removeChild(last);
+    if (last === undefined) {
+      break;
+    }
+    releaseMountsIn(last);
+    current.removeChild(last);
   }
   if (tag === 'input' || tag === 'textarea' || tag === 'select') {
     if (tag !== 'select' && current.getAttribute?.('type') !== 'file' && value !== undefined) current.value =
@@ -1071,6 +1175,7 @@ registerBinder("preference-cancel", bindPreferenceCancel);
 registerBinder("once-action", (root) => bindOnceAction(root));
 registerBinder("split-collection", bindSplitCollection);
 registerBinder("gallery", bindGallery);
+registerBinder("generated-view", (root) => bindGeneratedView(root));
 
 /** Scan hooks: selector per core binder id. */
 const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
@@ -1082,6 +1187,7 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["once-action", "[data-can-once]"],
   ["split-collection", "[data-can-split]"],
   ["gallery", "[data-can-gallery]"],
+  ["generated-view", "[data-can-view]"],
 ];
 
 /** Live clients by document: starting twice returns the same client. */
@@ -1200,7 +1306,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           continue;
         }
         for (const element of document.querySelectorAll(selector)) {
-          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}`;
+          const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}|${element.getAttribute('data-can-view') ?? ''}`;
           const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
           const old = bound[oldIndex];
           if (old !== undefined && old.signature === signature) continue;
@@ -1220,7 +1326,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
             (entry.binder === 'preference-form' && !entry.element.hasAttribute('data-can-preference-form')) ||
             (entry.binder === 'preference-cancel' && !entry.element.hasAttribute('data-can-preference-cancel')) ||
             (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
-            (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')))) {
+            (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')) ||
+            (entry.binder === 'generated-view' && !entry.element.hasAttribute('data-can-view')))) {
           bound.splice(index, 1);
           entry.stop();
         }

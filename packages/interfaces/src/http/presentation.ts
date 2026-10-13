@@ -30,6 +30,7 @@ import type {
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
+  RowView,
   FilterCondition,
   DatetimeValue,
 } from '@canlang/contracts';
@@ -238,4 +239,31 @@ export function buildPresentationContext(
         service: input.formBindings, appId: input.appId, sessionToken: input.sessionToken, identity: input.principal,
       }),
   };
+}
+
+/**
+ * BGI-09 row-bound renderer input: project one loaded row to the fields
+ * the view admits, freezing the projection the saved renderer arranges.
+ * Refused fields are absent (not nulled): the renderer cannot
+ * distinguish them from fields the model never had. Unknown admitted
+ * names throw naming the view, so a misbuilt caller fails before the
+ * renderer runs.
+ */
+export function projectViewRow(
+  view: string,
+  row: RowView,
+  admittedFields: ReadonlyArray<string>,
+): RowView {
+  const fields: Record<string, unknown> = {};
+  for (const field of admittedFields) {
+    if (!Object.hasOwn(row.fields, field)) {
+      throw buildBusinessError('validation', `Generated view ${JSON.stringify(view)} admits unknown row field ${JSON.stringify(field)}.`);
+    }
+    fields[field] = row.fields[field];
+  }
+  return Object.freeze({
+    id: row.id,
+    ...(row.version === undefined ? {} : { version: row.version }),
+    fields: Object.freeze(fields),
+  });
 }

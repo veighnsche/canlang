@@ -15,6 +15,7 @@ import type {
   ContentProps,
   FileValue,
   FileLinkView,
+  GeneratedViewInstanceProps,
   MessageDescriptor,
   MessageParamValue,
   MessageValue,
@@ -25,6 +26,10 @@ import type {
   TextProps,
   TextValue,
   TitleProps,
+} from "@canlang/contracts";
+import {
+  GENERATED_VIEW_ATTR,
+  assertGeneratedViewInstanceProps,
 } from "@canlang/contracts";
 import { escapeAttr, escapeHtml, isolate, safeHref } from "./escape.js";
 import {
@@ -255,6 +260,39 @@ export async function content(props: ContentProps): Promise<string> {
   return paragraphs
     .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\r?\n/g, "<br>")}</p>`)
     .join("");
+}
+
+/**
+ * BGI-09 row-bound instance root: admit the caller's props, invoke the
+ * saved `render({row, bindings, ui})` exactly once with the already
+ * evaluated row and pre-rendered bindings, and wrap the arranged HTML in
+ * a compiler-owned instance root carrying the use identity plus the
+ * definition's root-style hooks when declared. Repeated instances share
+ * the renderer but never a root; the renderer cannot invent controls.
+ */
+export async function generatedViewInstance(props: GeneratedViewInstanceProps): Promise<string> {
+  assertGeneratedViewInstanceProps(props);
+  const bindings: Record<string, string> = {};
+  for (const binding of props.bindings) {
+    bindings[binding.name] = binding.html;
+  }
+  const arranged = await props.render({
+    row: props.row,
+    bindings,
+    ui: { escapeHtml, escapeAttr },
+  });
+  const rootStyle =
+    props.descriptor.rootStyle === undefined
+      ? ""
+      : ` data-can-style="${props.descriptor.rootStyle}" data-can-style-root="${props.descriptor.rootStyle}:${props.useId}"`;
+  // Mount presentation for the optional saved browser `mount`: the same
+  // admitted row the renderer arranged, so browser enhancement never
+  // refetches or re-derives it. Inert markup when the unit ships no
+  // browser code.
+  const presentation = escapeAttr(
+    JSON.stringify({ view: props.descriptor.view, useId: props.useId, row: props.row }),
+  );
+  return `<section ${GENERATED_VIEW_ATTR}="${props.useId}"${rootStyle} data-can-view-presentation="${presentation}">${arranged}</section>`;
 }
 
 /** Shared loading/empty/error states with resolved, escaped messages. */

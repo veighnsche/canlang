@@ -36,6 +36,12 @@ toml = { version = "=0.9.12", default-features = false, features = ["std", "pars
 # BGI-03: checked base64 payloads in MCP content submissions.
 base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
 
+# BGI-10: maintained Servo CSS Syntax Level 3 parser for deterministic
+# scope/ownership checks of generated and directly edited CSS. Scoping
+# logic stays compiler-owned in `src/css_scope.rs`; never hand-rolled
+# tokenizing. (MPL-2.0, file-scope copyleft; linked, not modified.)
+cssparser = { version = "=0.38.0", default-features = false }
+
 # Protocol output DTOs only; input IDs/admission and framing remain owned here.
 lsp-types = { version = "=0.97.0", default-features = false }
 

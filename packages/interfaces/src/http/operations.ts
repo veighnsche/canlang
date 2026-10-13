@@ -662,3 +662,37 @@ export function catalogFromArtifactOperations(slice: ArtifactOperationSlice): De
     derivedFor: (operation: string): DerivedOperationInputs | null => derived.get(operation) ?? null,
   };
 }
+
+/**
+ * BGI-09 view-control admission: narrow one operation's derived inputs to
+ * the fields a prompted view declares for its control. Declared names the
+ * operation does not admit are refused (reported, absent from the
+ * admitted derivation): the renderer arranges only admitted bindings,
+ * and the existing closed-inputs dispatch refuses any submitted refused
+ * member. Emission order is preserved.
+ */
+export function admitGeneratedViewControls(
+  derived: DerivedOperationInputs,
+  declaredFields: ReadonlyArray<string>,
+): { admitted: DerivedOperationInputs; refused: ReadonlyArray<string> } {
+  const available = new Map(derived.inputs.map((input) => [input.name, input]));
+  const admittedInputs: DerivedWritableInput[] = [];
+  const refused: string[] = [];
+  for (const field of declaredFields) {
+    const input = available.get(field);
+    if (input === undefined) {
+      refused.push(field);
+    } else {
+      admittedInputs.push(input);
+    }
+  }
+  return {
+    admitted: {
+      operation: derived.operation,
+      kind: derived.kind,
+      artifactVersion: derived.artifactVersion,
+      inputs: Object.freeze(admittedInputs),
+    },
+    refused: Object.freeze(refused),
+  };
+}

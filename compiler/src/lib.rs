@@ -8,6 +8,7 @@
 pub mod analysis;
 pub mod cli;
 pub mod codegen;
+pub mod css_scope;
 pub mod diagnostic;
 pub mod docs;
 pub mod explain;

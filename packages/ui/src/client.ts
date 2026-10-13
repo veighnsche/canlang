@@ -805,6 +805,70 @@ async function submitMutationRequest(operation: string, flat: Record<string, str
   };
 }
 
+/** Focusable control for draft/focus retention across re-renders. */
+export interface FocusableControlLike {
+  readonly id: string;
+  focus(): void;
+  readonly selectionStart?: number | null;
+  readonly selectionEnd?: number | null;
+  setSelectionRange?(start: number, end: number): void;
+}
+
+/** Document surface for focus-preserving fragment swaps. */
+export interface FocusSwapDocumentLike {
+  readonly activeElement: FocusableControlLike | null;
+  getElementById(id: string): (FocusableControlLike & { outerHTML: string }) | null;
+}
+
+/**
+ * BGI-09 validation re-render that retains drafts and focus: the server
+ * HTML already carries the submitted drafts (see `generatedDraftValues`),
+ * so this records the focused control id plus its text selection, swaps
+ * the stable `#<idPrefix>-form` target whole, then restores focus and
+ * selection onto the same control id. A control id missing after the swap
+ * keeps the fresh markup without focus rather than throwing.
+ */
+export function rerenderFormPreservingFocus(
+  document: FocusSwapDocumentLike,
+  idPrefix: string,
+  html: string,
+): void {
+  const active = document.activeElement;
+  const focusId = active === null ? null : active.id;
+  const selection =
+    active === null
+      ? null
+      : {
+          start: active.selectionStart ?? null,
+          end: active.selectionEnd ?? null,
+        };
+  const target = document.getElementById(`${idPrefix}-form`);
+  if (target === null) {
+    throw new Error(`rerenderFormPreservingFocus: missing swap target ${JSON.stringify(`${idPrefix}-form`)}`);
+  }
+  target.outerHTML = html;
+  if (focusId === null || focusId === "") {
+    return;
+  }
+  const restored = document.getElementById(focusId);
+  if (restored === null) {
+    return;
+  }
+  restored.focus();
+  if (
+    selection !== null &&
+    selection.start !== null &&
+    selection.end !== null &&
+    typeof restored.setSelectionRange === "function"
+  ) {
+    try {
+      restored.setSelectionRange(selection.start, selection.end);
+    } catch {
+      /* A control that rejects selection keeps plain focus. */
+    }
+  }
+}
+
 /**
  * Swap a fragment denial into its stable `#<idPrefix>-form` target. The
  * server wraps fragments in the same node, so this replaces the node
