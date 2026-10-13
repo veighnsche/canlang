@@ -47,7 +47,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-01 — Source carriers and unit descriptors
 
-- [ ] Status: in_progress (coordinator session 01a133ac, goal goal-01a133b1, freeze cffce560). Evidence/handoff: BGI01 v1 worker 01a133b2 terminated read-only (isolated worktree excluded dirty contract); redispatched v2 worker 01a133b4 from cffce560 with contract visible; timer 5b3b506a fire 4 observed 2026-10-13T05:36Z; v2 still running, parser/lexer expanded (+801 tracked lines uncommitted) plus generation.rs and bgi01 test file; awaiting committed handoff with test evidence.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133b4 release 0acf13582 integrated as e6780134c (lexer $ marker, CST carriers, trait/keyword/style/view parsers, format, analysis/generation.rs descriptors, tests/bgi01_generation.rs 7 tests). Coordinator verified on main: bgi01_generation 7/7, b4_parse 20/20, check 38/38 pass; format 20/21 with only pre-existing draft-missing corpus failure (identical on base cffce560); lib/view_reuse/authoring full runs blocked by missing draft submodule (pre-existing, untouched files, out of scope). BGI02 unblocked.
 
 **Owner / targets:** compiler `syntax/{cst,parser,construct_help}.rs`, `format.rs`, `analysis/{mod,resolve,types}.rs`, `codegen/ir.rs`; owning additions to `packages/contracts/src/{artifact,presentation}.ts`. Update grammar/help/editor vocabulary with the relevant language change.
 
