@@ -1,0 +1,19 @@
+{
+ "state": "The team must pick one direction for this path-enumeration problem; advise which and why.\n\nVerified context: A compiler disclosure evaluator walks a scenario's statements keeping a set of flow paths. Each path carries: a lexical environment (binding -> value provenance), dependency accumulators (controls, writes, effect guards), and the list of guard decisions evaluated on that path. Evaluating a boolean guard expression over nullable values produces one value alternative per truth-case combination (a 4-condition conjunction over a nullable query result produces 64 alternatives for a single incoming path). Every alternative becomes a separate successor path. A hard cap of 1024 paths per statement refuses larger enumerations; the cap must stay. A real scenario with two nullable bindings (a first() query result and a current-revision read) and about six guards exceeds the cap at one guard, so the whole scenario is undisclosable and cannot emit its runtime receipts, although each guard and the guarded effect are individually supported. Measured facts: (1) removing only exactly-identical successor paths does not bound the enumeration. (2) Merging paths that share the same environment by unioning their evaluated decision lists changes other, currently-working scenarios' disclosures (their receipt errors rise), because a returned value's recorded decision set is taken from its path and is load-bearing. (3) Merging only mutually compatible decision sets is insufficient because conflicting forks dominate. (4) Joining one guard's alternatives into a single successor path causes the same breakage as (2). Checked per-statement decision records (site, call chain, choice) already exist independently of flow paths. Constraints: keep the 1024 cap; preserve per-path returned-value decision correspondence, permission checks, evaluation order and all corruption refusals; introduce no new runtime profile or carrier.",
+ "questions": {
+  "direction": {
+   "type": "choice",
+   "instructions": "Choose the single best direction. Judge by: preserves per-path returned-value decision correspondence; keeps the 1024 cap meaningful; does not weaken permission, evaluation-order or corruption checks; implementable inside the existing evaluator without a new runtime profile.",
+   "criteria": {
+    "A": "Factor decision cases out of flow paths: paths carry environment and dependency accumulators only; decision cases live solely in the existing per-statement checked records; a returned value's decision set is derived from the returned value's own provenance (its reads/decisions plus controls) instead of every decision evaluated on its path.",
+    "B": "Keep per-case paths, but slice each statement's alternatives by future relevance: prune an alternative when none of its distinguishing decisions or reads can influence any later environment binding, write, effect or return (dependency slicing), keeping the rest exact.",
+    "C": "Keep exact per-case semantics but enumerate lazily: represent a path's decision history symbolically as per-decision-node choice assignments shared across paths, materialize concrete paths only at value-binding or effect statements, and keep guard statements symbolic.",
+    "D": "None of these: the enumeration is semantically required as-is; scenarios of this shape should remain undisclosable under the cap, and the correct action is to accept that boundary rather than change the evaluator."
+   }
+  },
+  "confidence_check": {
+   "type": "noul",
+   "instructions": "Is it true that the chosen direction can bound this scenario's enumeration below the cap while keeping every currently-working scenario's disclosure byte-identical in behavior?"
+  }
+ }
+}

@@ -1,0 +1,24 @@
+{
+ "model": "jev-1.13.0",
+ "answers": {
+  "direction": {
+   "type": "choice",
+   "choice": "A",
+   "confidence": 0.35,
+   "probabilities": {
+    "A": 0.51,
+    "B": 0.29,
+    "C": 0.18,
+    "D": 0.02
+   }
+  },
+  "confidence_check": {
+   "type": "noul",
+   "noul": 0.32
+  }
+ },
+ "usage": {
+  "input_tokens": 1002,
+  "output_tokens": 63
+ }
+}

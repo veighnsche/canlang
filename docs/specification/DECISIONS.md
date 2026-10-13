@@ -12820,3 +12820,50 @@ JSON parsing and static source comparison confirm preserved Given/When declarati
 ## 2026-10-13 — derive lane seal authenticates stored declarations and typed body (pos11 leaf 2 correction 3)
 
 The second correction authenticated body spelling/structure, formal names and counts, but still trusted supplied typed nodes and referenced stored declarations: changing only a stored field's IR type (Conversation.active Bool -> Text) left the ordinary lane open. The lane now authenticates the whole original declaration before classifying: ordered formal owner/index/name/type identity against the authored type declarations; every typed body node by span; formal reads by declared-or-narrowed type; stored member reads through the existing match_stored_contract_schema and match_stored_contract_field validators against the checked stored-contract inventory, with the read's checked type matching the field's original type (up to flow narrowing); and derive-call results against the reached callee's authenticated result. The ordinary boundary control gains the exact field-type corruption beside the body-replacement, formal-swap, transitive and membership-deletion controls. Final corrected net: 724707c86 + 71bf9586c + ac2db7f60 + this unit, awaiting one independent review. Local main only; no push, deployment, publication or hold release.
+
+
+## 2026-10-13 — explore natural-language local Given vocabulary
+
+Proposal only: the human asks whether natural language can describe local Given keywords for custom implicit behavior, analogous to the saved Then styling design. Existing Given has a fixed declaration vocabulary and no local custom-keyword/macro registration API. A possible `implicit completable "..."` declaration defines a local modifier applied explicitly to `Todo {...} completable`; a one-off inline prompt is also an unaccepted candidate. Exact spelling is open. Use of a local word would expand only that declaration, without redefining built-in keywords/defaults or inferring membership/authority.
+
+Recommend explicit saved canonical .can expansion through the normal parse/resolve/type/effect/example/source checking path. The Todo illustration adds the existing done:bool=false field and localized Status/Done/Open captions; its explicit member-only policy, CRUD update and inline behavior examples remain unchanged. The modifier alone grants no operation/access. More ambitious descriptions must resolve exact declarations and authority: data/defaults/pure rules stay Given; operations/hooks/effects become ordinary When code with executable bindings inside do. Generated policies/operations expose exact grants and retain normal version/transaction/replay/evaluation semantics. Conflicting declarations or unresolved prose diagnose, and behavior outside core Can is a language gap rather than a runtime escape hatch. Generation can change stored schemas, so accepted changes still use the existing migration workflow.
+
+Compare saved Can expansion, a checked compiler-extension/macro contract and a persisted runtime-plan interpreter at the same unimplemented stage and required outcomes. Three independently worded equivalent Jev Choice calls favor saved expansion at .83/.68/.94 with confidence .77/.57/.92; open probability .16/.31/.05 remains meaningful. Advice is not implementation approval or proof of prose-to-behavior correspondence. Retain exact requests/responses in design/jev/given-implicit-20261013/{1,2,3}.{questions,result}.json.
+
+Reuse the proposed explicit generate/retry/reset/accept lifecycle: ordinary builds consume accepted generated source without AI calls; failures/reset keep accepted output. Record effective semantic coding-agent identity, while its profile/default/provider remains open; frontend was accepted as the Then styling default only. Defining targets/parameters, hygienic names/conflicts, saved expansion discovery and authenticated source mapping, identity/invalidation, exact syntax and acceptance UX remain open. The bounded proposal and complete Todo illustration live in design/proposals/given-implicit/{proposal.json,Todo.can}. JSON parses; static comparison confirms unchanged When/Then and original behavior examples. No Given parser/runtime changes, generated AI source, browser changes, commit, merge or checkpoint advance are claimed.
+
+
+## 2026-10-13 — preserve custom Can syntax styling after semantic analysis
+
+**Accepted:** the VS Code/Cursor extension adapts the server's standard semantic
+legend to Can-specific token types and modifiers in the same order. It declares
+these classifications without standard supertypes or fallback scopes. TextMate
+continues to own the default appearance, preserving all existing custom syntax
+colors/styles, including white bold italic Given/When/Then, white bold structural
+words, and the separate description/comment and UI/effect categories. Explicit
+Can semantic customization remains possible. The compiler's LSP contract and
+semantic data are unchanged; the extension does not rewrite user settings or
+turn off semantic highlighting. Version 0.1.16 was packaged and installed.
+
+**Why:** coarse standard semantic types replace contextual grammar styling
+after asynchronous server analysis. Mapping them back to generic syntax scopes
+still loses structural, frontend, description and localization distinctions.
+Isolating their default appearance preserves arbitrary existing custom scopes
+without duplicating the grammar or hard-coding the user's palette.
+
+**Verification:** extension compilation/prepublish and startup suite pass; the
+existing palette check passes against Cursor and Antigravity TextMate engines
+and saved settings (56 current files). A real Cursor extension-host run with
+semantic highlighting explicitly enabled and the saved palette loaded received
+tokens and passed adapted type/modifier legend checks and section/model/property
+classification checks. Retained result: `/tmp/can-highlight-live/results.json`;
+repeatable host: `editors/vscode/test/highlighting-editor-host.cjs`.
+
+**Remaining gap:** the native automation repeatedly selected the old normal
+Cursor window and could not control the extension-test window, eventually
+returning `noWindowsAvailable`. Final rendered colors/styles were not visually
+verified. Existing windows must reload to activate the installed extension.
+
+## 2026-10-13 — PROPOSAL: factor guard decision cases out of disclosure flow paths
+
+Status: proposal only — not an accepted decision and not implemented. The disclosure evaluator's per-truth-case flow paths exceed the retained 1024 statement bound for creative.generate, and three measured join variants (exact dedup, same-environment decision union, compatibility-gated merge, and guard-alternative joining) either fail to bound the enumeration or change working scenarios' disclosures (E6008 8 -> 13, reverted). A preauthorized JEV consultation (three equivalent requests, saved under design/jev/flow-path-join-20261013/) unanimously advised factoring decision cases out of flow paths so a returned value's decision set derives from its own provenance, but with low confidence (noul 0.32-0.46) that behavior stays identical for working scenarios. Implementing that direction is its own corpus-validated redesign cycle; until then the cap and all current refusals stand, and generate/from_turn/hook-first remain open at their recorded boundaries.
