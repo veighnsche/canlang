@@ -2808,6 +2808,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "empty"
                 | "columns"
                 | "order"
+                | "search"
                 | "filter"
                 | "defaults"
                 | "display"

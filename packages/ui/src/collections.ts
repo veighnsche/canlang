@@ -477,11 +477,12 @@ export async function table(props: TableProps): Promise<string> {
   if (missing.length > 0) {
     throw new Error(`table "${props.model}": missing columns: ${missing.join(", ")}`);
   }
+  const searchForm = props.search === undefined ? "" : sourceSearchForm(props.context);
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return filterControls + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
+      return filterControls + searchForm + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
-    return filterControls + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+    return filterControls + searchForm + await wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
   const metas: ColumnMeta[] = [];
   for (const field of props.columns) {
@@ -514,9 +515,9 @@ export async function table(props: TableProps): Promise<string> {
   const rowsHtml = occurrence === undefined ? summaries
     : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
-    return `${filterControls}${rowsHtml}${moreNote(props, result.nextCursor)}`;
+    return `${filterControls}${searchForm}${rowsHtml}${moreNote(props, result.nextCursor)}`;
   }
-  return filterControls + await wrapWithControls(props.controls, rowsHtml, props);
+  return filterControls + searchForm + await wrapWithControls(props.controls, rowsHtml, props);
 }
 
 /**

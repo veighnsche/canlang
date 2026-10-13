@@ -642,6 +642,16 @@ describe("table", () => {
     assert.equal(html, await renderState({ context, kind: "empty", message: empty }));
   });
 
+  it("renders source search and passes search fields to the runner", async () => {
+    const seen: SeenCall[] = [];
+    const context = tableContext(seen, { rows: [], columns: [titleCol] },
+      { path: "/todos", searchQuery: "milk" });
+    const html = await table({ context, model: "TeamTasks.Todo", columns: ["title"], search: ["title"], empty: "No todos" });
+    assert.deepEqual(seen[0]?.args, { search: { fields: ["title"], query: "milk" } });
+    assert.match(html, /<form method="get" action="\/todos" role="search" class="can-search">/);
+    assert.match(html, /name="q" value="milk" class="input w-full"/);
+  });
+
   it("validates empty source declarations without rendering headers or invoking row callbacks", async () => {
     const context = tableContext([], { rows: [], columns: [], emptyDeclarations: [
       { field: "title", type: "text" }, { field: "count", type: "int" },

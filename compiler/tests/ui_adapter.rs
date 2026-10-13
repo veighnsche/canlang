@@ -564,6 +564,45 @@ fn fixed_order_search_and_count_are_owned_by_the_list() {
 }
 
 #[test]
+fn fixed_search_is_owned_by_the_table() {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let source = concat!(
+        "app CollectionContract\n",
+        "Given\n",
+        " Todo { title:text, done:bool=false }\n",
+        " policy Todo read=public\n",
+        "When\nThen\n",
+        " page / title=\"Tasks\"\n",
+        "  table Todo columns=title,done search=title empty=\"No tasks\"\n",
+        "   text row.title\n",
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("collection.can");
+    std::fs::write(&path, source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(path)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(
+        js.contains("search:[\"title\"]"),
+        "missing table search: {js}"
+    );
+}
+
+#[test]
 fn literal_card_and_transient_tabs_reach_actual_factory() {
     use std::path::PathBuf;
     use std::process::Command;

@@ -16212,8 +16212,8 @@ impl<'a> Cx<'a> {
             ]
         } else if word == "table" {
             &[
-                "parent", "empty", "limit", "cursor", "columns", "order", "display", "filter",
-                "defaults",
+                "parent", "empty", "limit", "cursor", "columns", "order", "search", "display",
+                "filter", "defaults",
             ]
         } else {
             &[

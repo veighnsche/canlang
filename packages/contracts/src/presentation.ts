@@ -689,6 +689,7 @@ export interface TableProps {
   readonly model: string;
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  readonly search?: readonly string[];
   /** Checked owning enum filter declarations, not granted row metadata. */
   readonly filter?: readonly ColumnMeta[];
   /** Initial selections only; explicit request selection or clear wins. */
