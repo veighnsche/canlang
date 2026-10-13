@@ -3,7 +3,7 @@ import { posix } from "node:path";
 import { parse, type ImportSpecifier } from "es-module-lexer/minimal/js";
 import MagicString from "magic-string";
 
-export type ImportErrorPrefix = "assembleModules" | "deploy bundle";
+export type ImportErrorPrefix = "assembleModules" | "deploy bundle" | "saved unit";
 export type ImportGroup = "from" | "dynamic" | "side-effect" | "meta";
 export type UnsupportedImportPhase = "source-static" | "source-dynamic" | "defer-static" | "defer-dynamic";
 export type ModuleImportKind = "evaluation-static" | "reexport" | "literal-dynamic" | "computed-dynamic" | "import-meta" | "unsupported-phase";
@@ -157,6 +157,51 @@ function assertArtifactKind(record: ModuleImport, prefix: ImportErrorPrefix): vo
   }
   if (record.kind === "computed-dynamic") {
     throw new Error(`${prefix}: module ${JSON.stringify(record.modulePath)} has nonliteral dynamic import at offset ${record.statement.start} (only literal dynamic imports are supported)`);
+  }
+}
+
+/** Node builtin bare names refused from saved-unit closures (mirrors the
+ * `can gen validate` admission list; `node:`-prefixed forms refuse by prefix). */
+const NODE_BUILTIN_SPECIFIERS: ReadonlySet<string> = new Set([
+  "assert", "buffer", "child_process", "cluster", "crypto", "dgram", "dns", "events", "fs",
+  "http", "https", "module", "net", "os", "path", "process", "querystring", "readline",
+  "stream", "string_decoder", "timers", "tls", "tty", "url", "util", "v8", "vm",
+  "worker_threads", "zlib",
+]);
+
+export interface SavedUnitImportOptions {
+  /** Explicitly admitted bare producer specifiers (empty in v1: saved units
+   * import unit-local relative modules only; future owner-integrated
+   * producers extend this list explicitly, never by appearing in JS). */
+  readonly allowedProducers?: readonly string[];
+}
+
+/**
+ * BGI-11 saved-unit import policy: unit-local relative imports (plus
+ * explicitly admitted producers) only. Bare specifiers, `node:`/Node
+ * builtins, `file:` URLs, unsupported phases, and nonliteral dynamic
+ * edges refuse: source, process, and filesystem APIs never enter
+ * worker/browser bundles. `import.meta` records no edge and passes.
+ */
+export function assertSavedUnitImports(js: string, modulePath: string, options: SavedUnitImportOptions = {}): void {
+  const prefix: ImportErrorPrefix = "saved unit";
+  const allowed = new Set(options.allowedProducers ?? []);
+  for (const record of scanModuleImports(js, modulePath, prefix)) {
+    if (record.phase !== undefined) {
+      throw new Error(`${prefix}: module ${JSON.stringify(modulePath)} has unsupported import kind ${JSON.stringify(record.phase)} at offset ${record.statement.start} (only evaluation-phase imports are supported)`);
+    }
+    if (record.kind === "computed-dynamic") {
+      throw new Error(`${prefix}: module ${JSON.stringify(modulePath)} has nonliteral dynamic import at offset ${record.statement.start} (only literal dynamic imports are supported)`);
+    }
+    const specifier = record.specifier;
+    if (specifier === undefined) continue;
+    if (isRelativeImportSpecifier(specifier)) continue;
+    if (allowed.has(specifier)) continue;
+    const first = specifier.startsWith("node:") ? specifier.slice("node:".length).split("/")[0]! : specifier.split("/")[0]!;
+    if (specifier.startsWith("node:") || specifier.startsWith("file:") || NODE_BUILTIN_SPECIFIERS.has(first)) {
+      throw new Error(`${prefix}: module ${JSON.stringify(modulePath)} imports ${JSON.stringify(specifier)} at offset ${record.argument.start} (source/process/filesystem APIs never enter worker/browser bundles)`);
+    }
+    throw new Error(`${prefix}: module ${JSON.stringify(modulePath)} has unresolvable import ${JSON.stringify(specifier)} at offset ${record.argument.start} (only unit-local relative imports are supported)`);
   }
 }
 

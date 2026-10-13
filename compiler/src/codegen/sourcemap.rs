@@ -209,6 +209,54 @@ pub fn to_json(map: &SourceMap) -> String {
     crate::json::to_compact_string(map).expect("source-map DTO serialization is infallible")
 }
 
+/// BGI-11 identity map over one saved generated module: maps locate
+/// actual saved JavaScript, never invented positions inside the
+/// natural-language prompt. Each saved line maps to itself in the
+/// saved file as its own source; the owning `.can` intent travels as
+/// a separate owner link (see `artifact::CanOwnerLink`).
+#[derive(Debug, Clone)]
+pub struct SavedJsMap {
+    /// Saved module path as staged (e.g. `can.generated/u3/server.js`).
+    pub js_path: String,
+    /// Lowercase hex SHA-256 over the exact saved bytes mapped here.
+    pub js_sha256: String,
+    /// Identity source map: generated line N maps to saved line N.
+    pub map: SourceMap,
+}
+
+/// Build the identity map for one saved module's exact bytes.
+///
+/// Deterministic: the same bytes always produce the same map. Empty
+/// input maps to empty mappings. Lines split on `\n`; a trailing
+/// `\r` belongs to its line break for column purposes, matching
+/// [`LineIndex`].
+pub fn build_saved_js_map(js_path: &str, js_text: &str) -> SavedJsMap {
+    let js_sha256 = crate::source::sha256_hex(js_text.as_bytes());
+    let mut db = SourceDb::new();
+    let id = db.add(js_path.to_string(), js_text.to_string());
+    let mut lines = Vec::new();
+    if !js_text.is_empty() {
+        // One identity line per saved line: text without a trailing
+        // newline still ends a final line, and text ending in `\n`
+        // ends no further line.
+        let mut start = 0u32;
+        for part in js_text.split_inclusive('\n') {
+            lines.push(JsLine {
+                line: 0,
+                span: Span::new(id, start, start),
+                name: None,
+            });
+            start += part.len() as u32;
+        }
+    }
+    let map = build(js_path, &db, &lines);
+    SavedJsMap {
+        js_path: js_path.to_string(),
+        js_sha256,
+        map,
+    }
+}
+
 /// One decoded mappings segment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedSegment {
@@ -448,6 +496,49 @@ mod tests {
         );
         assert_eq!(rows[3][0].name, None);
         assert_eq!(rows[4][0].name, Some(0));
+    }
+
+    #[test]
+    fn saved_js_map_is_an_identity_over_saved_bytes() {
+        let js = "export function canonicalKey(value) {\n  return value;\n}\n";
+        let saved = build_saved_js_map("can.generated/u3/server.js", js);
+        assert_eq!(saved.js_path, "can.generated/u3/server.js");
+        assert_eq!(saved.js_sha256, crate::source::sha256_hex(js.as_bytes()));
+        assert_eq!(saved.map.file, "can.generated/u3/server.js");
+        // The map locates actual saved JS: its only source is the
+        // saved file itself, with its exact content.
+        assert_eq!(saved.map.sources, ["can.generated/u3/server.js"]);
+        assert_eq!(saved.map.sources_content, [Some(js.to_string())]);
+        assert!(saved.map.names.is_empty());
+        let rows = decode_mappings(&saved.map.mappings).unwrap();
+        assert_eq!(rows.len(), 3);
+        for (n, row) in rows.iter().enumerate() {
+            assert_eq!(row.len(), 1);
+            assert_eq!(row[0].src, Some(0));
+            assert_eq!(row[0].src_line, Some(n as i64));
+            assert_eq!(row[0].src_col, Some(0));
+        }
+        // Deterministic: the same bytes map identically.
+        assert_eq!(
+            build_saved_js_map("can.generated/u3/server.js", js)
+                .map
+                .mappings,
+            saved.map.mappings
+        );
+    }
+
+    #[test]
+    fn saved_js_map_covers_empty_and_unterminated_text() {
+        let empty = build_saved_js_map("can.generated/u3/server.js", "");
+        assert_eq!(empty.map.mappings, "");
+        assert_eq!(
+            empty.js_sha256,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        let unterminated = build_saved_js_map("x.js", "a\nb");
+        let rows = decode_mappings(&unterminated.map.mappings).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[1][0].src_line, Some(1));
     }
 
     #[test]
