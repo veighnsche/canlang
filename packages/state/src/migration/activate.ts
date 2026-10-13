@@ -25,6 +25,11 @@
  * atomically with rows/history/drops): renames release old-model claims
  * and claim new-model ones, same-model value changes release/claim within
  * the model, removed keys release, added keys claim, and drops release.
+ * BGI-08 repair: computed-key rules join the same moves (old/new keys
+ * evaluated per row under the run's one scope, releases before claims),
+ * and pure retains — which stage nothing — install their changed
+ * computed claims on the first publish chunk, computed once while no
+ * chunk has committed so resume never double-claims.
  * Releases apply before claims within a chunk, so same-chunk swaps are
  * safe. KNOWN LIMITATION (loud): swap/chain renames preserving identical
  * unique values across a chunk boundary conflict deterministically (a
@@ -70,6 +75,11 @@ import { StateError, storageToStateError } from '../errors.js';
 import { noteUnexpectedFailure } from './recover.js';
 import type { RetainedSet } from './retain.js';
 import { assertMigrationUniqueSupported, canonicalUniqueRowValue } from '../internal/unique-value.js';
+import {
+  createGivenUniqueKeyScope,
+  givenUniqueKeyName,
+  type GivenUniqueKeyScope,
+} from '../effects/staging.js';
 import type { ValidatedMigrationPlan } from './transition.js';
 import { checkedFileInventoryForStorage } from '../storage/file-retirement.js';
 
@@ -426,84 +436,109 @@ export async function publishStagedAndDrops(
   if (isExpiredRow !== undefined) {
     await checkDropExpiry(store, plan, isExpiredRow);
   }
-  for (;;) {
-    const progress = await store.readMigrationProgress(plan.migrationId);
-    if (progress === null) {
-      throw new StateError('validation', 'Migration has no staged state to publish.');
+  // BGI-08 repair: one evaluation scope spans the publish. Retained
+  // computed-claim catch-up is computed once, only when no chunk has
+  // committed yet (entry phase `staged`), and rides the first chunk —
+  // a single fenced commitment, so resume from `publishing` neither
+  // recomputes nor double-claims.
+  const givenScope = createGivenUniqueKeyScope();
+  try {
+    let retainedGiven: RetainedGivenTouches | null = null;
+    const entry = await store.readMigrationProgress(plan.migrationId);
+    if (entry !== null && entry.phase === 'staged') {
+      retainedGiven = await diffRetainedGivenKeys(store, plan, oldModels, desiredModels, givenScope);
     }
-    if (progress.phase !== 'staged' && progress.phase !== 'publishing') {
-      throw new StateError(
-        'validation',
-        `Migration publish needs a staged or publishing set; progress is ${progress.phase}.`,
-      );
-    }
-    const staged = await store.readStagedRows(plan.migrationId, progress.publishCursor, chunkSize);
-    const drops = await enumerateDrops(store, plan, chunkSize);
-    const empty = staged.length === 0 && drops.length === 0;
-    if (empty && (declarations === undefined || published)) {
-      return;
-    }
-    const history: HistoryEntry[] = [];
-    const dropEntries: MigrationDrop[] = [];
-    const uniqueClaims: UniqueClaim[] = [];
-    const uniqueReleases: UniqueRelease[] = [];
-    for (const row of staged) {
-      await appendStagedPublish(
-        store,
-        plan,
-        oldModels,
-        desiredModels,
-        row,
-        now,
-        actor,
-        history,
-        dropEntries,
-        uniqueClaims,
-        uniqueReleases,
-      );
-    }
-    for (const drop of drops) {
-      appendDropPublish(plan, oldModels, drop, now, actor, dropEntries, uniqueReleases);
-    }
-    const revision = await store.readRevision();
-    const last = staged[staged.length - 1];
-    const next = {
-      migrationId: plan.migrationId,
-      phase: 'publishing',
-      stagedCursor: progress.stagedCursor,
-      publishCursor:
-        last === undefined
-          ? progress.publishCursor
-          : {
-              model: last.targetModel as string,
-              recordId: last.recordId as string,
-            },
-      updatedRevision: (revision as number + 1) as Revision,
-    } as const;
-    try {
-      await store.publishMigrationChunk({
-        expectedRevision: revision,
+    for (;;) {
+      const progress = await store.readMigrationProgress(plan.migrationId);
+      if (progress === null) {
+        throw new StateError('validation', 'Migration has no staged state to publish.');
+      }
+      if (progress.phase !== 'staged' && progress.phase !== 'publishing') {
+        throw new StateError(
+          'validation',
+          `Migration publish needs a staged or publishing set; progress is ${progress.phase}.`,
+        );
+      }
+      const staged = await store.readStagedRows(plan.migrationId, progress.publishCursor, chunkSize);
+      const drops = await enumerateDrops(store, plan, chunkSize);
+      const retainedPending =
+        retainedGiven !== null &&
+        (retainedGiven.claims.length > 0 || retainedGiven.releases.length > 0);
+      const empty = staged.length === 0 && drops.length === 0 && !retainedPending;
+      if (empty && (declarations === undefined || published)) {
+        return;
+      }
+      const history: HistoryEntry[] = [];
+      const dropEntries: MigrationDrop[] = [];
+      const uniqueClaims: UniqueClaim[] = [];
+      const uniqueReleases: UniqueRelease[] = [];
+      if (retainedGiven !== null) {
+        uniqueClaims.push(...retainedGiven.claims);
+        uniqueReleases.push(...retainedGiven.releases);
+        retainedGiven = null;
+      }
+      for (const row of staged) {
+        await appendStagedPublish(
+          store,
+          plan,
+          oldModels,
+          desiredModels,
+          row,
+          now,
+          actor,
+          history,
+          dropEntries,
+          uniqueClaims,
+          uniqueReleases,
+          givenScope,
+        );
+      }
+      for (const drop of drops) {
+        await appendDropPublish(plan, oldModels, drop, now, actor, dropEntries, uniqueReleases, givenScope);
+      }
+      const revision = await store.readRevision();
+      const last = staged[staged.length - 1];
+      const next = {
         migrationId: plan.migrationId,
-        rows: staged,
-        history,
-        drops: dropEntries,
-        progress: next,
-        uniqueClaims,
-        uniqueReleases,
-        ...(declarations === undefined ? {} : { fileReferenceInventory: declarations }),
-      });
-      published = true;
-      if (empty) return;
-    } catch (error) {
-      throw storageToStateError(error);
+        phase: 'publishing',
+        stagedCursor: progress.stagedCursor,
+        publishCursor:
+          last === undefined
+            ? progress.publishCursor
+            : {
+                model: last.targetModel as string,
+                recordId: last.recordId as string,
+              },
+        updatedRevision: (revision as number + 1) as Revision,
+      } as const;
+      try {
+        await store.publishMigrationChunk({
+          expectedRevision: revision,
+          migrationId: plan.migrationId,
+          rows: staged,
+          history,
+          drops: dropEntries,
+          progress: next,
+          uniqueClaims,
+          uniqueReleases,
+          ...(declarations === undefined ? {} : { fileReferenceInventory: declarations }),
+        });
+        published = true;
+        if (empty) return;
+      } catch (error) {
+        throw storageToStateError(error);
+      }
     }
+  } finally {
+    givenScope.close();
   }
 }
 
 /**
  * Build one staged row's publish inputs: conversion history (`update`,
- * before = last live shape) plus unique-claim moves derived from the old
- * values (live) and new values (staged). Name-only rows publish silently.
+ * before = last live shape) plus builtin and computed unique-claim moves
+ * derived from the old values (live) and new values (staged). Name-only
+ * rows publish silently.
  * Renamed rows additionally dispose their source row in the SAME chunk
  * (a rename is a move, not a copy): the source gets a `remove` entry
  * while the target carries the conversion, so neither side orphans.
@@ -523,6 +558,7 @@ async function appendStagedPublish(
   dropEntries: MigrationDrop[],
   uniqueClaims: UniqueClaim[],
   uniqueReleases: UniqueRelease[],
+  givenScope: GivenUniqueKeyScope,
 ): Promise<void> {
   const target = row.targetModel as string;
   const source = plan.targets.get(row.targetModel);
@@ -607,14 +643,47 @@ async function appendStagedPublish(
       canonicalUniqueRowValue({data: liveData, parent: live.parent ?? null}, key, oldDef) === newValue;
     if (renamed || !sameKey) uniqueClaims.push({model: row.targetModel, keyName: key, keyValue: newValue, recordId: row.recordId});
   }
+  // BGI-08 repair: computed-claim moves mirror the builtin ones above —
+  // rules match across old/desired by rule identity, each side evaluated
+  // with its own saved export (so changed code nets release + claim),
+  // unchanged keys skip, and renames move across models.
+  const oldRules = oldDef.givenUniqueKeys ?? [];
+  const newRules = desiredDef.givenUniqueKeys ?? [];
+  if (oldRules.length > 0 || newRules.length > 0) {
+    const oldKeys = new Map<string, string | null>();
+    for (const rule of oldRules) {
+      oldKeys.set(rule.rule, await givenScope.evaluate(rule, liveData[rule.field]));
+    }
+    const newKeys = new Map<string, string | null>();
+    for (const rule of newRules) {
+      newKeys.set(rule.rule, await givenScope.evaluate(rule, stagedData[rule.field]));
+    }
+    for (const rule of oldRules) {
+      const oldValue = oldKeys.get(rule.rule) ?? null;
+      if (oldValue === null) continue;
+      const sameKey = !renamed && newKeys.get(rule.rule) === oldValue;
+      if (renamed || !sameKey) {
+        uniqueReleases.push({ model: source, keyName: givenUniqueKeyName(rule.rule), keyValue: oldValue });
+      }
+    }
+    for (const rule of newRules) {
+      const newValue = newKeys.get(rule.rule) ?? null;
+      if (newValue === null) continue;
+      const sameKey = !renamed && oldKeys.get(rule.rule) === newValue;
+      if (renamed || !sameKey) {
+        uniqueClaims.push({ model: row.targetModel, keyName: givenUniqueKeyName(rule.rule), keyValue: newValue, recordId: row.recordId });
+      }
+    }
+  }
 }
 
 /**
  * Build one drop's publish inputs: the `remove` entry (before = last live
  * shape, after null) riding the drop itself, plus releases for the
- * dropped row's claimed keys so the unique index never leaks.
+ * dropped row's builtin and computed claimed keys so the unique index
+ * never leaks.
  */
-function appendDropPublish(
+async function appendDropPublish(
   plan: ValidatedMigrationPlan,
   oldModels: ModelTable,
   drop: DropCandidate,
@@ -622,7 +691,8 @@ function appendDropPublish(
   actor: string,
   dropEntries: MigrationDrop[],
   uniqueReleases: UniqueRelease[],
-): void {
+  givenScope: GivenUniqueKeyScope,
+): Promise<void> {
   const oldDef = oldModels.get(drop.model as ModelName);
   if (oldDef === undefined) {
     throw new StateError(
@@ -656,6 +726,114 @@ function appendDropPublish(
       uniqueReleases.push({ model: drop.model as ModelName, keyName: key, keyValue: value });
     }
   }
+  for (const rule of oldDef.givenUniqueKeys ?? []) {
+    const value = await givenScope.evaluate(rule, liveData[rule.field]);
+    if (value !== null) {
+      uniqueReleases.push({
+        model: drop.model as ModelName,
+        keyName: givenUniqueKeyName(rule.rule),
+        keyValue: value,
+      });
+    }
+  }
+}
+
+/** BGI-08 repair: one publish's retained computed-claim touches. */
+interface RetainedGivenTouches {
+  readonly claims: UniqueClaim[];
+  readonly releases: UniqueRelease[];
+}
+
+/** Internal bound for the retained-claim scan (chunked, unbounded total). */
+const RETAINED_GIVEN_SCAN_LIMIT = 500;
+
+/**
+ * BGI-08 repair: diff computed keys for pure-retain models (kind retain,
+ * un-staged, targeted) whose old or desired def carries rules. Each live
+ * row evaluates its old keys with the old saved export and its new keys
+ * with the new one (sequential, deterministic); unchanged keys skip, so
+ * untouched rules cost evaluations but commit nothing, while added rules
+ * claim, removed rules release, and changed code nets release + claim.
+ * Runs before the publish loop commits anything; validation already
+ * proved the new keys collision-free, and any residual conflict still
+ * surfaces at the fenced commit.
+ */
+async function diffRetainedGivenKeys(
+  store: StoragePort,
+  plan: ValidatedMigrationPlan,
+  oldModels: ModelTable,
+  desiredModels: ModelTable,
+  givenScope: GivenUniqueKeyScope,
+): Promise<RetainedGivenTouches> {
+  const claims: UniqueClaim[] = [];
+  const releases: UniqueRelease[] = [];
+  for (const [name, mapping] of plan.models) {
+    const source = name as string;
+    if (mapping.kind !== 'retain' || mapping.needsStaging || mapping.target === null) {
+      continue;
+    }
+    const oldDef = oldModels.get(name);
+    const desiredDef = desiredModels.get(mapping.target);
+    if (oldDef === undefined || desiredDef === undefined) {
+      throw new StateError(
+        'validation',
+        `Migration plan and model defs disagree on ${JSON.stringify(source)}.`,
+      );
+    }
+    const oldRules = oldDef.givenUniqueKeys ?? [];
+    const newRules = desiredDef.givenUniqueKeys ?? [];
+    if (oldRules.length === 0 && newRules.length === 0) {
+      continue;
+    }
+    let after: string | null = null;
+    for (;;) {
+      const chunk = await store.query({
+        model: name,
+        authority: 'owner',
+        archived: 'include',
+        ...(after === null ? {} : { where: { op: 'gt', field: 'id', value: after } }),
+        order: [{ field: 'id', direction: 'asc' }],
+        limit: RETAINED_GIVEN_SCAN_LIMIT,
+      });
+      if (chunk.length === 0) {
+        break;
+      }
+      for (const row of chunk) {
+        const data = row.data as Readonly<Record<string, unknown>>;
+        const oldKeys = new Map<string, string | null>();
+        for (const rule of oldRules) {
+          oldKeys.set(rule.rule, await givenScope.evaluate(rule, data[rule.field]));
+        }
+        const newKeys = new Map<string, string | null>();
+        for (const rule of newRules) {
+          newKeys.set(rule.rule, await givenScope.evaluate(rule, data[rule.field]));
+        }
+        for (const rule of oldRules) {
+          const oldValue = oldKeys.get(rule.rule) ?? null;
+          if (oldValue === null) continue;
+          if (newKeys.get(rule.rule) === oldValue) continue;
+          releases.push({ model: name, keyName: givenUniqueKeyName(rule.rule), keyValue: oldValue });
+        }
+        for (const rule of newRules) {
+          const newValue = newKeys.get(rule.rule) ?? null;
+          if (newValue === null) continue;
+          if (oldKeys.get(rule.rule) === newValue) continue;
+          claims.push({
+            model: mapping.target,
+            keyName: givenUniqueKeyName(rule.rule),
+            keyValue: newValue,
+            recordId: row.id,
+          });
+        }
+      }
+      const last = chunk[chunk.length - 1];
+      if (last === undefined || chunk.length < RETAINED_GIVEN_SCAN_LIMIT) {
+        break;
+      }
+      after = last.id as string;
+    }
+  }
+  return { claims, releases };
 }
 
 /** Internal bound for the drop-expiry pre-scan (chunked, unbounded total). */
