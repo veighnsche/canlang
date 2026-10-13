@@ -39,3 +39,6 @@ dist-manifest.json
 
 # Local worker worktrees
 /.worktrees/
+
+# Build-generation tooling state (candidates, journals, leases, ledgers)
+.can/
