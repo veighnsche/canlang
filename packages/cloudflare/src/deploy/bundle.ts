@@ -153,6 +153,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "mcp-registry.js",
   "prepared-validation.js",
   "env-assembly.js",
+  "export-downloads.js",
   "page-preferences.js",
   "auth-rate-limiter.js",
   "cohort-tick.js",
@@ -1069,6 +1070,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
       `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handleCsvRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "csv.js")))};\n` +
       `export { handleExportRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "export.js")))};\n` +
+      `export { canonicalJson } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "canonical-json.js")))};\n` +
       `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
       `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
       `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +

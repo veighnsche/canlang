@@ -326,19 +326,19 @@ function parseLimit(value: unknown): { limit: number; error: BusinessError | nul
  */
 export async function handleExportRequest(deps: HttpDeps, request: Request): Promise<Response> {
   const pathname = requestPath(request.url);
-  if (pathname !== EXPORTS_PATH) {
-    if (request.method.toUpperCase() === 'GET') {
-      const statusMatch = /^\/api\/exports\/status\/([^/]+)$/.exec(pathname);
-      if (statusMatch !== null) return handleDownloadStatus(deps, request, statusMatch[1]!);
-      const downloadMatch = /^\/api\/exports\/download\/([^/]+)$/.exec(pathname);
-      if (downloadMatch !== null) return handleDownload(deps, request, downloadMatch[1]!);
-    }
-    return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
-  }
-  if (request.method.toUpperCase() !== 'POST') {
-    return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
-  }
   try {
+    if (pathname !== EXPORTS_PATH) {
+      if (request.method.toUpperCase() === 'GET') {
+        const statusMatch = /^\/api\/exports\/status\/([^/]+)$/.exec(pathname);
+        if (statusMatch !== null) return await handleDownloadStatus(deps, request, statusMatch[1]!);
+        const downloadMatch = /^\/api\/exports\/download\/([^/]+)$/.exec(pathname);
+        if (downloadMatch !== null) return await handleDownload(deps, request, downloadMatch[1]!);
+      }
+      return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
+    }
+    if (request.method.toUpperCase() !== 'POST') {
+      return deny(deps, buildBusinessError('not_found', 'Not found.'), pathname);
+    }
     const { identity, sessionToken } = await resolveRequestIdentity(
       deps.identity.store,
       request,
@@ -564,7 +564,7 @@ async function checkDownloadAccess(
   }
   if (record.handle !== handle || checkListOperation(record.operation) !== null ||
       typeof record.args !== 'object' || record.args === null ||
-      !Number.isInteger(record.args.limit) || record.args.limit < 1 || record.args.limit > COLLECTION_MAX_LIMIT ||
+      !Number.isInteger(record.args.limit) || record.args.limit < 1 || record.args.limit > PAGE_MAX_RECORDS ||
       (record.args.cursor !== null && typeof record.args.cursor !== 'string') ||
       (record.args.columns !== null && (!Array.isArray(record.args.columns) ||
         record.args.columns.some((field) => typeof field !== 'string' || field === ''))) ||

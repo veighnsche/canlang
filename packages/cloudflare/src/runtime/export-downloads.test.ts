@@ -6,7 +6,10 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { D1Database } from '@cloudflare/workers-types';
-import { canonicalJson } from '@canlang/interfaces';
+import { canonicalJson, handleExportRequest } from '@canlang/interfaces';
+import type { HttpDeps } from '@canlang/interfaces';
+import { createTestDeps, testRequest } from '@canlang/interfaces/testing';
+import { buildSessionCookie, deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import type { ExportDownloadRecord } from '@canlang/interfaces';
 import { Miniflare } from 'miniflare';
 import { createD1ExportDownloadStore, ensureExportDownloadsSchema } from './export-downloads.js';
@@ -215,5 +218,105 @@ test('fault port refuses ambiguous write acknowledgements and incoherent stored 
     const statement = { bind() { return this; }, async first() { return row; } };
     const db = { prepare() { return statement; } } as unknown as D1Database;
     await assert.rejects(createD1ExportDownloadStore(db).read(record.handle), /incoherent stored record/);
+  }
+});
+
+
+test('installed export status/download uses actual D1 records and current D1 caller across reopen', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-export-http-'));
+  let worker: Miniflare | undefined;
+  try {
+    worker = localD1(directory);
+    let db = await worker.getD1Database('DB') as unknown as D1Database;
+    let production = await buildProductionDeps({ DB: db });
+    const identities = production.identityStore;
+    const owner = await identities.createUser({ email: 'owner@export.example.test', password_hash: 'unused', email_verified: true });
+    const team = await identities.createTeam({ timezone: 'UTC' });
+    await identities.createMembership({ user_id: owner.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+    const caller = await identities.createUser({ email: 'caller@export.example.test', password_hash: 'unused', email_verified: true });
+    const membership = await identities.createMembership({ user_id: caller.user_id, team_id: team.team_id, is_owner: false, roles: [] });
+    const token = 'export-http-caller-session';
+    await identities.createSession({ user_id: caller.user_id, token_sha256: await sha256HexText(token),
+      expires_at: new Date(Date.now() + 3600000).toISOString(), last_team_id: team.team_id });
+    const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false });
+    const csrf = await deriveCsrfToken(token);
+    const operation = 'Billing.Invoice.list';
+    let visible = true;
+    // Controlled canonical read port; this qualifies the durable HTTP boundary,
+    // not compiler rule emission or mounted File output. Real caller/store below.
+    const fixture = await createTestDeps({ reads: { [operation]: (envelope, identity) => {
+      assert.equal(identity.actor?.user_id, caller.user_id);
+      assert.equal(identity.team?.team_id, team.team_id);
+      assert.equal(envelope.inputs.limit, 200);
+      assert.ok(envelope.inputs.cursor === 'start' || envelope.inputs.cursor === 'second');
+      const first = envelope.inputs.cursor === 'start';
+      return { result: { rows: visible ? [{ id: first ? 'one' : 'two', fields: { label: first ? 'A' : 'B' } }] : [],
+        columns: [{ field: 'label', label: 'Label', type: 'text' }],
+        ...(first ? { nextCursor: 'second' } : {}) } };
+    } } });
+    let now = Date.now();
+    const deps = (): HttpDeps => ({ ...fixture.deps, clock: { nowMs: () => now },
+      identity: { ...fixture.deps.identity, store: production.identityStore }, exportDownloads: production.exportDownloads });
+    const get = (endpoint: string, handle: string) => handleExportRequest(deps(),
+      testRequest(`/api/exports/${endpoint}/${handle}`, { cookie }));
+    const post = await handleExportRequest(deps(), testRequest('/api/exports', { method: 'POST', cookie,
+      headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
+      body: JSON.stringify({ operation, limit: 200, cursor: 'start' }) }));
+    assert.equal(post.status, 200);
+    const outcome = await post.json() as { descriptor: { handle: string } };
+    const handle = outcome.descriptor.handle;
+    assert.equal((await (await get('status', handle)).json() as { status: string }).status, 'pending');
+    const download = await get('download', handle);
+    assert.equal(download.status, 200);
+    const expected = 'id,version,label\none,,A\ntwo,,B\n';
+    assert.equal(await download.text(), expected);
+    const saved = await production.exportDownloads.read(handle);
+    assert.ok(saved && saved.status === 'ready');
+    assert.equal(saved.principal, caller.user_id);
+    assert.equal(saved.teamId, team.team_id);
+    assert.equal(saved.args.cursor, 'start');
+    await worker.dispose(); worker = undefined;
+    worker = localD1(directory);
+    db = await worker.getD1Database('DB') as unknown as D1Database;
+    production = await buildProductionDeps({ DB: db });
+    assert.deepEqual(await production.exportDownloads.read(handle), saved);
+    assert.equal(await (await get('download', handle)).text(), expected);
+    assert.equal((await (await get('status', handle)).json() as { status: string }).status, 'ready');
+    await production.identityStore.removeMembership(membership.membership_id);
+    assert.equal((await get('status', handle)).status, 403);
+    assert.equal((await get('download', handle)).status, 403);
+    await production.identityStore.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+    visible = false;
+    assert.equal((await get('download', handle)).status, 403);
+    visible = true;
+    assert.equal(await (await get('download', handle)).text(), expected);
+    now = Date.parse(saved.expiresAt);
+    assert.equal((await get('status', handle)).status, 404);
+    assert.equal((await get('download', handle)).status, 404);
+    now = Date.now();
+    const tainted = { ...saved, csv: 'private forged output' };
+    await db.prepare('UPDATE export_downloads SET data = ? WHERE handle = ?').bind(JSON.stringify(tainted), handle).run();
+    const denied = await get('download', handle);
+    assert.equal(denied.status, 400);
+    assert.ok(!(await denied.text()).includes('private forged'));
+    const { csv: _csv, rowCount: _count, digest: _digest, ...metadata } = saved;
+    const missing = signed(metadata);
+    await db.prepare('UPDATE export_downloads SET data = ?, digest = ? WHERE handle = ?')
+      .bind(JSON.stringify(missing), missing.digest, handle).run();
+    assert.equal((await get('download', handle)).status, 422);
+    await db.prepare('UPDATE export_downloads SET data = ?, digest = ? WHERE handle = ?')
+      .bind(JSON.stringify(saved), saved.digest, handle).run();
+    assert.equal(await production.exportDownloads.revoke(handle), true);
+    assert.equal((await get('status', handle)).status, 403);
+    assert.equal((await get('download', handle)).status, 403);
+    await db.prepare('DROP TABLE export_downloads').run();
+    const before = fixture.logger.calls.length;
+    const failed = await get('status', handle);
+    assert.equal(failed.status, 422);
+    assert.equal((await failed.json() as { code: string }).code, 'rule_failed');
+    assert.equal(fixture.logger.calls.length, before + 1);
+  } finally {
+    try { await worker?.dispose(); }
+    finally { await rm(directory, { recursive: true, force: true }); }
   }
 });
