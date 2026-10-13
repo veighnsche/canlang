@@ -97,7 +97,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-06 — Other required CLI adapters
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a13432-6015 dispatched isolated from 7715dbb7 with BGI05 accepted). Evidence/handoff: owns adapters.ts + colocated tests only; awaiting adapter tests green (installed-tool availability reported honestly, external gate held).
 
 **Owner / targets:** Node generation runner adapters. **Needs:** BGI-05 common execution/capture contract, not its entire integration programme.
 
@@ -117,7 +117,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-08 — Generated Given runtime and sequential effects
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a13432-900e dispatched isolated from 7715dbb7 with BGI07 accepted). Evidence/handoff: owns runtime/*, State invocation/*, effects/staging, producers/codecs only; awaiting runtime tests green incl Alice/Bob identity cases.
 
 **Owner / targets:** Cloudflare `runtime/{modules,context,executors,invoke}.ts`; State `invocation/{registry,invoke}.ts`, `effects/staging.ts` and existing canonical producers; existing Values codecs. **Needs:** BGI-07 checked server exports/effect descriptors. Implementation can begin against BGI-01's agreed shape before those producer cases finish.
 
