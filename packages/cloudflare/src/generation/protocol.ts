@@ -147,6 +147,21 @@ function asOptionalUint(value: unknown, op: string, key: string): number | undef
   return asUint(value, op, key);
 }
 
+// Per-run limits share the TOML positive-finite domain: zero is
+// outside it and refuses at admission, before any recipe
+// construction or runner launch. Span offsets keep plain uints.
+function asOptionalPositiveUint(value: unknown, op: string, key: string): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = asUint(value, op, key);
+  if (parsed === 0) {
+    throw ProtocolError.invalid(
+      "invalid-param",
+      `operation \`${op}\`: \`${key}\` must be a positive finite integer`,
+    );
+  }
+  return parsed;
+}
+
 function asOptionalBool(value: unknown, op: string, key: string): boolean | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") {
@@ -241,8 +256,8 @@ function parseRecipeFields(obj: Record<string, unknown>, op: string): RecipePara
   const profile = asOptionalString(obj["profile"], op, "profile");
   const runner = asOptionalString(obj["runner"], op, "runner");
   const model = asOptionalString(obj["model"], op, "model");
-  const max_attempts = asOptionalUint(obj["max_attempts"], op, "max_attempts");
-  const timeout_seconds = asOptionalUint(obj["timeout_seconds"], op, "timeout_seconds");
+  const max_attempts = asOptionalPositiveUint(obj["max_attempts"], op, "max_attempts");
+  const timeout_seconds = asOptionalPositiveUint(obj["timeout_seconds"], op, "timeout_seconds");
   const native = asNativeMap(obj["native"], op, "native");
   return {
     ...(settings === undefined ? {} : { settings }),

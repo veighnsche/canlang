@@ -263,3 +263,54 @@ test("effective values, origins, and role defaults", () => {
   // The frozen v1 runner set (no other ids).
   assert.deepEqual([...RUNNERS], ["codex", "muse", "claude-code", "opencode"]);
 });
+
+test("explicit declaration agent=frontend without a profile diagnoses", () => {
+  // Shared recipe only: no `frontend` profile is configured.
+  const plain = loaded('version = 1\n[generation]\nrunner = "codex"\nmodel = "m"\n');
+  // An explicit owning-declaration `agent=frontend` names a profile
+  // that must exist, so it diagnoses.
+  assert.throws(
+    () => resolveRecipe(plain, "frontend", "frontend", {}),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigError);
+      assert.equal(error.code, "unknown-profile");
+      assert.match(error.detail, /frontend/);
+      return true;
+    },
+  );
+  // An explicit run profile selection diagnoses the same way.
+  assert.throws(
+    () => resolveRecipe(plain, "frontend", null, { profile: "frontend" }),
+    (error: unknown) => {
+      assert.ok(error instanceof ConfigError);
+      assert.equal(error.code, "unknown-profile");
+      return true;
+    },
+  );
+  // The implicit Then default still falls back to shared.
+  const fallback = resolveRecipe(plain, "frontend", null, {});
+  assert.equal(fallback.runner, "codex");
+  assert.match(fallback.origins["runner"] ?? "", /^shared recipe/);
+});
+
+test("zero run limits refuse before recipe construction", () => {
+  const found = loaded(SETTINGS);
+  for (const overrides of [{ max_attempts: 0 }, { timeout_seconds: 0 }]) {
+    assert.throws(
+      () => resolveRecipe(found, "given", null, overrides),
+      (error: unknown) => {
+        assert.ok(error instanceof ConfigError);
+        assert.equal(error.code, "invalid-settings");
+        assert.match(error.detail, /positive finite integer/);
+        return true;
+      },
+      JSON.stringify(overrides),
+    );
+  }
+  // Explicit finite positive overrides still resolve.
+  const resolved = resolveRecipe(found, "given", null, { max_attempts: 3, timeout_seconds: 45 });
+  assert.equal(resolved.max_attempts, 3);
+  assert.equal(resolved.timeout_seconds, 45);
+  assert.equal(resolved.origins["max_attempts"], "run override");
+  assert.equal(resolved.origins["timeout_seconds"], "run override");
+});

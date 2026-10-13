@@ -583,6 +583,20 @@ pub fn resolve_recipe(
     if let Some(native) = &overrides.native {
         check_native_scalars(native)?;
     }
+    // Per-run limits share the TOML positive-finite domain: zero is
+    // outside it and refuses here, before any recipe construction or
+    // runner launch. Explicit finite positive overrides still win.
+    for (key, value) in [
+        ("max_attempts", overrides.max_attempts),
+        ("timeout_seconds", overrides.timeout_seconds),
+    ] {
+        if value == Some(0) {
+            return Err(ConfigError::new(
+                "invalid-settings",
+                format!("run override `{key}` must be a positive finite integer"),
+            ));
+        }
+    }
     // Base recipe row: explicit run profile, else declaration agent,
     // else the category default (the frontend profile only when
     // settings exist to supply it, else shared). Unknown explicit
@@ -603,8 +617,10 @@ pub fn resolve_recipe(
             .map(|p| format!(" ({})", p.display()))
             .unwrap_or_default()
     };
-    // The frontend default falls back to shared when no `frontend`
-    // profile is configured; every other named base must exist.
+    // Only the implicit Then category default falls back to shared
+    // when no `frontend` profile is configured; an explicit
+    // declaration `agent=frontend` (or run profile) names a profile
+    // that must exist, so it diagnoses like any unknown profile.
     let (base_runner, base_model, base_attempts, base_timeout, base_native, base_label): BaseRow =
         match (loaded, base_name) {
             (Some(found), Some(name)) => match found.settings.profiles.get(&name) {
@@ -618,7 +634,10 @@ pub fn resolve_recipe(
                     profile.native.clone(),
                     format!("profile '{name}'{}", describe_settings()),
                 ),
-                None if name == FRONTEND_PROFILE && overrides.profile.is_none() => {
+                None if name == FRONTEND_PROFILE
+                    && overrides.profile.is_none()
+                    && declaration_agent.is_none() =>
+                {
                     shared_base(&found.settings.shared, &describe_settings)
                 }
                 None => {
