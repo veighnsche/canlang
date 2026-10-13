@@ -241,7 +241,12 @@ test('unchanged original CanChat retains Files and exercises original empty term
       const receipt=await store.readReceipt(receiptIdentity(ask));assert.ok(receipt);
       assert.equal(receipt.outcome.status,'committed');assert.equal(receipt.inputHash,await hashInputs(ask.inputs));
       assert.equal(receipt.committedRevision,revision+1);
-      const after=await rows();assert.deepEqual(after.identity,before.identity);assert.deepEqual(after.files,before.files);assert.deepEqual(after.intents,before.intents);
+      const after=await rows();assert.deepEqual(after.identity,before.identity);assert.deepEqual(after.intents,before.intents);
+      // Genuine receiving retention attaches the asked Files to the committed Turn; every other member stays identical.
+      assert.deepEqual(after.files,before.files.map(entry=>({...entry,state:'attached',
+        attachedRecord:`${TURN}/${turn.id}/attachments`,attachedAtMs:now})));
+      assert.deepEqual(physical!.blobs.read(blobKeyForFile(refA)),A_BYTES);
+      assert.deepEqual(physical!.blobs.read(blobKeyForFile(refB)),B_BYTES);
       assert.equal(resultId(await invoker.invokeRetainedMutation(ask,identity),'replayed'),runId);
       assert.deepEqual(await rows(),after);
 

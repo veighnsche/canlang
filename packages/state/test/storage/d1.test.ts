@@ -750,4 +750,84 @@ describe('D1 owning router File bindings', () => {
       assert.deepEqual(fact.snapshot, installedTarget.snapshot);
     } finally { await host.dispose(); }
   });
+
+  it('rederives preparation when persisted inventory drifts without a fence revision change', async () => {
+    const host = new Miniflare({ modules: true, script: 'export default { fetch() { return new Response("ok"); } }', d1Databases: ['DB'] });
+    try {
+      const database = await host.getD1Database('DB');
+      const store = await createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: database, initializeFresh: true,
+        fileRetirementAuthority: authority, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) }).ownerScopedStoragePort(scope);
+      await install(store);
+      const before = await store.readFileReferenceInventory(snapshot.owner);
+      assert.deepEqual(await store.readFileReferenceInventory(snapshot.owner), before);
+      const revision = await store.readRevision();
+      const saved = await database.prepare('SELECT installed FROM file_reference_inventories').first<{ installed: string }>();
+      const tampered = JSON.parse(saved!.installed);
+      tampered.inventory.digest = 'tampered-digest';
+      await database.prepare('UPDATE file_reference_inventories SET installed = ?').bind(JSON.stringify(tampered)).run();
+      assert.equal((await database.prepare('SELECT revision FROM fence WHERE id = 1').first<{ revision: number }>())?.revision, revision);
+      await assert.rejects(store.readFileReferenceInventory(snapshot.owner),
+        (error: unknown) => error instanceof StorageConstraintError);
+      await database.prepare('UPDATE file_reference_inventories SET installed = ?').bind(saved!.installed).run();
+      assert.deepEqual(await store.readFileReferenceInventory(snapshot.owner), before);
+    } finally { await host.dispose(); }
+  });
+
+  it('keeps small-limit retirement census separate from ordinary reads at the same revision', async () => {
+    const host = new Miniflare({ modules: true, script: 'export default { fetch() { return new Response("ok"); } }', d1Databases: ['DB'] });
+    try {
+      const database = await host.getD1Database('DB');
+      const store = await createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: database, initializeFresh: true,
+        fileRetirementAuthority: authority, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) }).ownerScopedStoragePort(scope);
+      await install(store);
+      await store.commit(makeBatch(2, { writes: ['a', 'b', 'c'].map(id =>
+        ({ kind: 'insert' as const, model, row: makeRow({ id, data: { label: id } }) })) }));
+      const revision = await store.readRevision();
+      await assert.rejects(store.retireFinalizedFile({ ...retirement(revision), maxRows: 1 }),
+        (error: unknown) => error instanceof StorageConstraintError);
+      assert.equal((await store.query({ model, authority: 'owner' })).length, 3);
+      const fact = await store.retireFinalizedFile(retirement(revision));
+      assert.equal(fact.file.ref, file().ref);
+      assert.equal((await store.query({ model, authority: 'owner' })).length, 3);
+    } finally { await host.dispose(); }
+  });
+
+  it('returned row and inventory data cannot corrupt retained guard preparation', async () => {
+    const host = new Miniflare({ modules: true, script: 'export default { fetch() { return new Response("ok"); } }', d1Databases: ['DB'] });
+    try {
+      const database = await host.getD1Database('DB');
+      const store = await createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: database, initializeFresh: true,
+        fileRetirementAuthority: authority, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) }).ownerScopedStoragePort(scope);
+      await install(store);
+      const row = makeRow({ id: 'kept', data: { label: 'original' } });
+      await store.commit(makeBatch(2, { writes: [{ kind: 'insert' as const, model, row }] }));
+      const loaded = (await store.load(model, asId('kept')))!;
+      const installed = (await store.readFileReferenceInventory(snapshot.owner))!;
+      const originalDigest = installed.inventory.digest;
+      try { (loaded.data as Record<string, unknown>)['label'] = 'mutated'; } catch { /* frozen egress refuses */ }
+      try { (installed.inventory as unknown as Record<string, unknown>)['digest'] = 'mutated'; } catch { /* frozen egress refuses */ }
+      assert.equal((await store.load(model, asId('kept')))?.data['label'], 'original');
+      assert.equal((await store.readFileReferenceInventory(snapshot.owner))?.inventory.digest, originalDigest);
+    } finally { await host.dispose(); }
+  });
+
+  it('missing fence and malformed persisted rows fail without publishing an accepting preparation', async () => {
+    const host = new Miniflare({ modules: true, script: 'export default { fetch() { return new Response("ok"); } }', d1Databases: ['DB'] });
+    try {
+      const database = await host.getD1Database('DB');
+      const store = await createD1OwnerRouter({ resolveBinding: () => ({ ...scope, db: database, initializeFresh: true,
+        fileRetirementAuthority: authority, fileReferenceProducers: [STATE_FILE_REFERENCE_PRODUCER] }) }).ownerScopedStoragePort(scope);
+      await install(store);
+      const before = await store.readFileReferenceInventory(snapshot.owner);
+      const saved = await database.prepare('SELECT revision FROM fence WHERE id = 1').first<{ revision: number }>();
+      await database.prepare('DELETE FROM fence WHERE id = 1').run();
+      await assert.rejects(store.readFileReferenceInventory(snapshot.owner));
+      await database.prepare('INSERT INTO fence(id, revision) VALUES (1, ?)').bind(saved!.revision).run();
+      assert.deepEqual(await store.readFileReferenceInventory(snapshot.owner), before);
+      await database.prepare(`INSERT INTO file_reference_inventories(owner, installed) VALUES ('evil', 'not-json')`).run();
+      await assert.rejects(store.readFileReferenceInventory(snapshot.owner));
+      await database.prepare(`DELETE FROM file_reference_inventories WHERE owner = 'evil'`).run();
+      assert.deepEqual(await store.readFileReferenceInventory(snapshot.owner), before);
+    } finally { await host.dispose(); }
+  });
 });

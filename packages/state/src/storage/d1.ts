@@ -95,6 +95,7 @@ import type {
 import { FenceConflictError, StorageConstraintError, checkRecoveryInput } from './port.js';
 import type { StoragePort } from './port.js';
 import { FILE_GUARD_MAX_ROWS, bindFileFrameworkProducers, registerFileFrameworkStorage, checkedFileAuthority, checkFileBinding, checkFileFrameworkBinding, checkFileGuardSnapshots, fileGuardCopy, guardFileCommit, guardFilePublish, guardFileFlip, planFileInstall, planFileRetirement } from './file-retirement.js';
+import { deepFreeze } from '../internal/own-data.js';
 import type { FileGuardState, FileGuardRow, FileFrameworkBinding } from './file-retirement.js';
 import type { FrameworkFileReferenceProducer, FileRetirementAuthority, FileReferenceStoragePort, FileReferencePublishMigrationChunk, FileReferenceFlipInstalledSnapshot, InstallFileReferenceInventory, InstalledFileReferenceInventory, RetireFinalizedFile, FinalizedFileRetirement, FinalizedFileRef } from '@canlang/contracts';
 import {
@@ -220,6 +221,32 @@ async function toCommitError(
   return new StorageConstraintError('unknown', message);
 }
 
+/** Immutable preparation for one D1 file guard. The expensive derivation
+ * (parse/copy/bind/checks/row-mapping) is a pure function of one coherent
+ * batch read. Every call still executes the full live batch and compares
+ * every read byte; the derivation is reused only when the live inputs are
+ * proven identical, and any drift re-derives with complete checks. Entries
+ * are retained per database connection and released with it. Retained
+ * preparation is deep-frozen after all validations succeed, so no consumer
+ * can mutate a shared hit into changed output; egress paths already copy.
+ *
+ * D1 digest domain: the eight statements are fixed text issued to one driver
+ * in one batch, and the driver materializes every row object with identical
+ * key order for identical queries. JSON.stringify over those row arrays is
+ * therefore an exact equality test inside this domain (not a general claim
+ * about stringify as byte equality): equal strings mean byte-identical
+ * reads, and any content, order, row-count or limit difference changes the
+ * digest and forces complete re-derivation. */
+interface PreparedFileGuard {
+  readonly binding: FileRetirementAuthority | undefined;
+  readonly framework: FileFrameworkBinding;
+  readonly raw: string;
+  readonly state: FileGuardState;
+  readonly rows: FileGuardRow[];
+  readonly snapshots: InstalledSnapshot[];
+}
+const preparedFileGuards = new WeakMap<D1Database, PreparedFileGuard>();
+
 /** One read-only D1 batch obtains a coherent revision and complete durable guard. */
 async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | undefined,
   framework: FileFrameworkBinding, maxRows = FILE_GUARD_MAX_ROWS) {
@@ -235,6 +262,13 @@ async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | 
   ]);
   const revisionRow = results[0]!.results[0] as { revision: number } | undefined;
   if (revisionRow === undefined) throw new Error('schema not initialized: fence row is missing (run ensureSchema first)');
+  // The driver returns identical key order for identical queries, so this
+  // digest is an exact byte comparison of everything derivation consumes.
+  const raw = JSON.stringify(results.map(result => result.results));
+  const prepared = preparedFileGuards.get(db);
+  if (prepared !== undefined && prepared.binding === binding && prepared.framework === framework && prepared.raw === raw) {
+    return { revision: revisionRow.revision as Revision, state: prepared.state, rows: prepared.rows, snapshots: prepared.snapshots };
+  }
   const assignment = results[1]!.results[0] as { authority: string; opaque_lifetimes: string } | undefined;
   const state: FileGuardState = {
     authority: assignment === undefined ? null : checkedFileAuthority(JSON.parse(assignment.authority)),
@@ -249,7 +283,12 @@ async function readFileGuard(db: D1Database, binding: FileRetirementAuthority | 
   const rows: FileGuardRow[] = (state.authority === null && binding === undefined ? [] : results[6]!.results).map(raw => { const row = raw as RecordRow; return { model: row.model, row: toStoredRow(row) }; });
   const snapshots = results[7]!.results.map(raw => toInstalledSnapshot(raw as SnapshotRow));
   checkFileGuardSnapshots(state, snapshots);
-  return { revision: revisionRow.revision as Revision, state, rows, snapshots };
+  const output = { revision: revisionRow.revision as Revision, state, rows, snapshots };
+  deepFreeze(state);
+  deepFreeze(rows);
+  deepFreeze(snapshots);
+  preparedFileGuards.set(db, { binding, framework, raw, state, rows, snapshots });
+  return output;
 }
 function requireFileRevision(expected: Revision, actual: Revision): void {
   if (!Number.isSafeInteger(expected) || expected < 0) throw new Error(`Invalid expectedRevision: ${JSON.stringify(expected)}`);
