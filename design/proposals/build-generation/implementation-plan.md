@@ -87,7 +87,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-05 — MCP candidate submission and bounded Codex execution
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-bba7 testing at fire 23, 2026-10-13T07:11Z, all 6 MCP/lifecycle/adapters files present; owns NEW Node MCP/lifecycle/runner modules only; awaiting MCP handoff with Node tests green (Codex access/no-write gate held open). BGI07 still probing (zz_probe + zz_probe2, no impl yet) at fire 23; BGI04-repair accepted 07d47006.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a1340d-bba7 release 36d42707a integrated as b0007579b (6 new Node MCP/lifecycle/adapters files, no Rust, DECISIONS.md entry). Coordinator verified on main: node dist/generation 88/88 (45 new), bgi03 26/26 retained; zero new tsc errors. Codex-access/no-write gate held open. BGI05 writer released; BGI06 unblocked.
 
 **Owner / targets:** Node generation lifecycle/MCP/runner modules, reusing patterns from `cli/command-lifetime.ts`. **Needs:** BGI-03 requests/recipes/MCP contract and BGI-04 captured groups/fences.
 
