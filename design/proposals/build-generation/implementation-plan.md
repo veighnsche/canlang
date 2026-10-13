@@ -67,7 +67,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-03 — Configuration and JSON command contract
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-82b8 running clean reading phase at fire 13, 2026-10-13T06:21Z, owns cli.rs exclusively; awaiting config/protocol handoff with bgi03+bgi01+bgi02 green.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-82b8 editing at fire 14, 2026-10-13T06:26Z (Cargo.toml, analysis/mod.rs, lib.rs, new generation_config.rs; correction ACK outstanding); owns cli.rs exclusively; awaiting config/protocol handoff with bgi03+bgi01+bgi02 green.
 
 **Owner / targets:** `compiler/src/cli.rs`; `packages/cloudflare/src/cli/platform.ts` and generation config/protocol modules. **Needs:** BGI-01 descriptor shapes and BGI-02 selectors/records.
 
@@ -77,7 +77,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-04 — Write leases, snapshots and journal recovery
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-a621 running at fire 13, 2026-10-13T06:21Z, new leases.rs started; owns NEW leases.rs + source.rs hooks + Node leases/journal modules, must not touch cli.rs (BGI03 owns it); awaiting lease/journal handoff with bgi04+bgi01+bgi02 green.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 10a4decb7 with BGI01-repair accepted). Evidence/handoff: worker 01a133e8-a621 running at fire 14, 2026-10-13T06:26Z (leases.rs, bgi04 test, leases.ts, source.rs, lib.rs); owns NEW leases.rs + source.rs hooks + Node leases/journal modules, must not touch cli.rs (BGI03 owns it); note shared lib.rs mod-registration with BGI03 to reconcile at integration; awaiting lease/journal handoff with bgi04+bgi01+bgi02 green.
 
 **Owner / targets:** Node generation coordination/promotion modules; matching Rust generation intake/read coordination in `cli.rs`/`source.rs`. **Needs:** BGI-02 associated outputs/source paths and the frozen full-run aggregate promotion/recovery contract.
 
