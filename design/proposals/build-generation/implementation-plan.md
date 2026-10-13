@@ -117,7 +117,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-08 — Generated Given runtime and sequential effects
 
-- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a13432-900e running at fire 40, 2026-10-13T08:38Z, 6 runtime/state files + given-unique-keys.ts + 3 test files, worktree fully re-verified intact after one truncated read). Evidence/handoff: owns runtime/*, State invocation/*, effects/staging, producers/codecs only; awaiting runtime tests green incl Alice/Bob identity cases. Then accepted 977931c41; all other lanes done.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a13432-900e release 481c34f39 integrated as 6773ea0ab (runtime/state computed-key join, given-unique-keys + given-contracts tests, DECISIONS.md entry). Coordinator verified on main: state focused 37/37 + seam 5/5, bgi07 8/8 retained; state full 1894/1896 with only the 2 worker-named failures, both reproduced identically on untouched base 7715dbb7 in a scratch worktree (since removed) — pre-existing, not regressions. BGI08 writer released. Then accepted 977931c41; all other lanes done.
 
 **Owner / targets:** Cloudflare `runtime/{modules,context,executors,invoke}.ts`; State `invocation/{registry,invoke}.ts`, `effects/staging.ts` and existing canonical producers; existing Values codecs. **Needs:** BGI-07 checked server exports/effect descriptors. Implementation can begin against BGI-01's agreed shape before those producer cases finish.
 
