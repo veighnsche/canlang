@@ -486,6 +486,14 @@ impl<'a> Emitter<'a> {
         let tokens = context.tokens;
         let previous = &tokens[index - 1];
         let current = &tokens[index];
+        // Generation prompts/references: a space before `$`, none after it
+        // (`trait Name $"..."`, `input title $FieldSurface`).
+        if current.is_punct(Punct::Dollar) {
+            return " ";
+        }
+        if previous.is_punct(Punct::Dollar) {
+            return "";
+        }
         // Routes are contiguous: space after `page`, tight inside, and the
         // normal rules resume at the first attribute.
         if let Some(end) = context.route_end {
@@ -511,6 +519,7 @@ impl<'a> Emitter<'a> {
         if let TokenKind::Punct(punct) = current.kind {
             match punct {
                 Punct::Arrow => return " ",
+                Punct::Dollar => return " ",
                 Punct::RBrace => {
                     // The matching `{` is the stack top.
                     if self.top_is_schema_brace() {
@@ -690,6 +699,7 @@ impl<'a> Emitter<'a> {
                 | Punct::LtEq
                 | Punct::GtEq
                 | Punct::QuestionQuestion => return "",
+                Punct::Dollar => return "",
                 Punct::RParen | Punct::RBracket | Punct::RBrace | Punct::Question | Punct::Bang => {
                 }
             }

@@ -48,6 +48,7 @@ pub enum Punct {
     QuestionDot,
     Arrow,
     At,
+    Dollar,
 }
 
 impl Punct {
@@ -83,6 +84,7 @@ impl Punct {
             Punct::QuestionDot => "?.",
             Punct::Arrow => "->",
             Punct::At => "@",
+            Punct::Dollar => "$",
         }
     }
 
@@ -643,6 +645,24 @@ fn lex_punct_or_error(
 ) -> usize {
     let rest = &content[at..];
     let abs = start + at as u32;
+    // `$` is a generation marker only when adjacent to its JSON string
+    // (`$"..."`) or style name (`$Name`); a bare or spaced `$` stays an
+    // unexpected character so ordinary uses keep the E1007 diagnostic.
+    if rest.as_bytes()[0] == b'$' {
+        let adjacent = rest
+            .as_bytes()
+            .get(1)
+            .is_some_and(|b| *b == b'"' || b.is_ascii_alphanumeric() || *b == b'_');
+        if !adjacent {
+            diagnostics.push(Diagnostic::error(
+                "E1007",
+                "unexpected character '$'; $ must be adjacent to a generation prompt ($\"...\") or style name ($Name)".to_string(),
+                Span::new(file, abs, abs + 1),
+            ));
+            tokens.push(Token::new(TokenKind::Error, file, abs, abs + 1));
+            return at + 1;
+        }
+    }
     // Longest match first.
     for (spell, punct) in [
         ("==", Punct::EqEq),
@@ -686,6 +706,7 @@ fn lex_punct_or_error(
         b'>' => Some(Punct::Gt),
         b'?' => Some(Punct::Question),
         b'@' => Some(Punct::At),
+        b'$' => Some(Punct::Dollar),
         _ => None,
     };
     match single {
