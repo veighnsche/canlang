@@ -1,11 +1,11 @@
 {
  "date": "2026-10-13",
- "integrated_source_pin": "3aac7d5df8bdf9ef593700ca89f0bb2ea4bff4cd",
+ "integrated_source_pin": "7fc6f1bc52d948df8fc30a37fd1fcc6cd659b937",
  "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
  "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
  "checkpoint_advanced": false,
  "coverage": {
-  "commit_count_since_checkpoint": 2505,
+  "commit_count_since_checkpoint": 2506,
   "net_path_deltas": 11380,
   "history_touched_paths": 11456,
   "history_only_paths": 6,
@@ -30,7 +30,8 @@
   "muse-wind-down": "Finite root source/guard repairs independently reviewed at described scope; foreign IDE/UI/design checkpoints preserved unfinished, no accumulated/full-plan acceptance.",
   "private-nominal-file-assignment": "Genuine root-child final assignment locators, same owning nominal File census, private write versus saved public read boundary, deeply immutable schema preparation and per-call opaque binding with current source/inventory/revision refresh. Owning37 controls, normal emissions and finite source review; full P7 runtime remains unqualified.",
   "d1-guard-preparation": "Worker-profiled immutable completed-guard reuse for D1 file retirement: full live batch plus exact raw comparison per call, derivation memoized on proven-identical inputs, frozen retained preparation, binding/framework/maxRows isolation and malformed-batch no-poison controls. Owning D1/storage/assignment/opaque suites green; full P7 application runtime remains unqualified.",
-  "export-download-backend": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged."
+  "export-download-backend": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged.",
+  "build-resources": "AGENTS.md repository-wide ownership rule: compatible compiler/dependency cache reuse, one writer per shared cache, fixed lean compiler flags, task-owned cleanup only after commands/captures and owner release; preserve source/Git/evidence/needed artifacts/foreign caches. Documentation diff reviewed; no cache deletion or foreign process interruption."
  },
  "owner_rules": {
   "packages/<owner>": "Existing package owner; no language/backend responsibility transfer",
@@ -68402,5 +68403,5 @@
  "lanes": "Codex root direct implementation; Muse stopped and its heartbeat deleted. Old four Codex workers remain stopped. Independent finite read-only review only; foreign open edits preserved. No remote publication.",
  "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
  "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
- "current_maintenance_summary": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged. Every committed delta since retaineda0 is represented; foreign IDE/browser/draft/design/challenge changes are retained without claiming their source review. Muse stopped; monitoring automation deleted; Codex implements directly."
+ "current_maintenance_summary": "2026-10-13 direct Codex export backend: actual production D1 conditional publication, tombstones, physical expiry and persistent reopen; deployed handler forwarding and bundle closure; installed HTTP status/download uses real D1 Identity/current caller. Three physical D1 controls and one fault control retained separately; two changed Interfaces controls and one joined HTTP/D1 control pass; normal owning emissions and finite independent source review CLEAR. Original compiled mounted File consumer stays unfinished; native list limit remains100, export API limit1..500 unchanged. Complete824/holds unchanged. Every committed delta since retaineda0 is represented; foreign IDE/browser/draft/design/challenge changes are retained without claiming their source review. Muse stopped; monitoring automation deleted; Codex implements directly. Project build-resource policy retains compatible cache reuse and exact cleanup ownership without deleting source/Git/evidence or interrupting foreign builds."
 }
