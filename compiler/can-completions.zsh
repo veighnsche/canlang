@@ -87,6 +87,7 @@ _can() {
             ;;
         gen)
             _arguments \
+                '--request=[versioned JSON request file]:file:_files' \
                 '--format=[output format]:format:(json text)' \
                 '(-h --help)'{-h,--help}'[show help]' \
                 '1:gen operation:(bind status)' \

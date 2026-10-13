@@ -29,6 +29,13 @@ tempfile = { version = "=3.27.0", default-features = false, features = ["getrand
 serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std", "raw_value"] }
 
+# BGI-03: can.gen.toml v1 parsing for the `can gen` dispatcher. The
+# maintained `toml` crate (parse + serde only); never a hand-rolled parser.
+toml = { version = "=0.9.12", default-features = false, features = ["std", "parse", "serde"] }
+
+# BGI-03: checked base64 payloads in MCP content submissions.
+base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
+
 # Protocol output DTOs only; input IDs/admission and framing remain owned here.
 lsp-types = { version = "=0.97.0", default-features = false }
 

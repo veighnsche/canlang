@@ -404,7 +404,12 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
                     "can gen takes no --catalog flag".to_string(),
                 );
             }
-            run_gen(&parsed.operands, parsed.format)
+            run_gen(
+                &parsed.operands,
+                parsed.format,
+                parsed.format_set,
+                parsed.request.as_deref(),
+            )
         }
         unknown => DispatchResult::tool_error(
             "E7001",
@@ -474,6 +479,12 @@ struct ParsedArgs {
     /// Whether `--out` was passed explicitly (rejected for commands
     /// that take none, rather than silently ignored).
     out_set: bool,
+    /// `can gen --request=FILE`: versioned JSON request file (absent
+    /// with no operands means stdin carries the request).
+    request: Option<String>,
+    /// Whether `--request` was passed explicitly (rejected for
+    /// commands that take none, rather than silently ignored).
+    request_set: bool,
     help: bool,
     version: bool,
 }
@@ -493,6 +504,8 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         locale_set: false,
         out: None,
         out_set: false,
+        request: None,
+        request_set: false,
         help: false,
         version: false,
     };
@@ -556,6 +569,16 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                     .ok_or_else(|| "missing value for --out; want a PATH".to_string())?;
                 parsed.out = Some(value.clone());
                 parsed.out_set = true;
+            } else if let Some(value) = arg.strip_prefix("--request=") {
+                parsed.request = Some(value.to_string());
+                parsed.request_set = true;
+            } else if arg == "--request" {
+                i += 1;
+                let value = args
+                    .get(i)
+                    .ok_or_else(|| "missing value for --request; want a PATH".to_string())?;
+                parsed.request = Some(value.clone());
+                parsed.request_set = true;
             } else {
                 return Err(format!("unknown flag '{arg}'; use can --help"));
             }
@@ -592,11 +615,17 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     if parsed.out_set && parsed.subcommand.as_deref() != Some("docs") {
         return Err("--out only applies to can docs".to_string());
     }
+    if parsed.request_set && parsed.subcommand.as_deref() != Some("gen") {
+        return Err("--request only applies to can gen".to_string());
+    }
     if parsed.locale.as_deref().is_some_and(str::is_empty) {
         return Err("can docs --locale needs a non-empty BCP 47 tag".to_string());
     }
     if parsed.out.as_deref().is_some_and(str::is_empty) {
         return Err("can docs --out needs a non-empty PATH".to_string());
+    }
+    if parsed.request.as_deref().is_some_and(str::is_empty) {
+        return Err("can gen --request needs a non-empty PATH".to_string());
     }
     Ok(parsed)
 }
@@ -654,7 +683,7 @@ Commands:
   deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
   activate  Thin lane-7 entry: exec can-platform activate (passthrough)
   dev       JSON control for the local development session (can-dev)
-  gen       Minimal generation bind/status selectors (BGI-02; full dispatcher is BGI-03)
+  gen       Versioned generation JSON dispatcher (plus bind/status sugar)
   completions  Print a shell completion script: can completions bash|zsh|fish
   help      Show help (global or `can help <COMMAND>`)
 
@@ -701,7 +730,7 @@ fn command_help(cmd: &str) -> String {
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can help {cmd}` or `can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
         "dev" => "can dev — JSON control for the local development session\n\nUsage: can dev [COMMAND] [ARGS...]\n\nExecs the installed `can-dev` control adapter and passes every argument through. `can dev help` lists its machine-readable commands and flags. A missing adapter reports E7004. Override search with CAN_DEV_BIN. The adapter's JSON stdout and exit code pass through unchanged.\n".to_string(),
-        "gen" => "can gen — minimal generation bind/status selectors (BGI-02)\n\nUsage: can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nstatus discovers generation units in the sources, associates them with the\nsaved groups under ROOT/can.generated, and reports each unit with its\ncurrent/candidate paths or its generation/reconciliation action. bind\nreconciles one inspected source span (byte START..END at source REVISION)\nwith an existing saved unit ID, or allocates a fresh ID with `new`\n(copies always take `new`). A revision that no longer matches the file\nis a stale selector and refuses. Other generation operations belong to\nthe BGI-03 JSON dispatcher and diagnose here.\n\nExit codes: 0 reported/bound, 2 tool failure.\n".to_string(),
+        "gen" => "can gen — versioned generation JSON dispatcher (BGI-03)\n\nUsage: can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
 }
@@ -1926,13 +1955,25 @@ pub fn run_dev_entry(args: &[String], dev_bin: Option<String>) -> DispatchResult
     }
 }
 
-/// BGI-02 minimal `can gen` surface: `bind` and `status` selectors only.
+/// `can gen`: thin routing between the BGI-02 positional selectors
+/// and the BGI-03 versioned JSON dispatcher.
 ///
-/// The full `can gen` JSON dispatcher (generate, refine, retry, adopt,
-/// accept, ...) is BGI-03's. Unknown operations diagnose here instead of
-/// guessing BGI-03 request shapes; these two operations are the explicit
-/// association selectors BGI-02 owns.
-fn run_gen(operands: &[String], format: OutputFormat) -> DispatchResult {
+/// `can gen --request FILE` reads one v1 JSON request from FILE;
+/// bare `can gen` (no operands, no `--request`) reads it from
+/// stdin. Both print exactly one final JSON envelope on stdout and
+/// exit 0/2/3/4/5/6. `can gen bind|status ...` keep their BGI-02
+/// positional sugar byte for byte; any other positional operation
+/// diagnoses (retry and friends arrive as JSON requests, not
+/// positionals).
+fn run_gen(
+    operands: &[String],
+    format: OutputFormat,
+    format_set: bool,
+    request: Option<&str>,
+) -> DispatchResult {
+    if request.is_some() || operands.is_empty() {
+        return run_gen_request(operands, format_set, request);
+    }
     let [operation, rest @ ..] = operands else {
         return DispatchResult::tool_error(
             "E7001",
@@ -1945,10 +1986,271 @@ fn run_gen(operands: &[String], format: OutputFormat) -> DispatchResult {
         unknown => DispatchResult::tool_error(
             "E7001",
             format!(
-                "unknown gen operation '{unknown}'; BGI-02 supports bind|status (the full `can gen` dispatcher is BGI-03)"
+                "unknown gen operation '{unknown}'; positional `can gen` supports bind|status only — '{unknown}' arrives as a JSON request via `can gen --request FILE` or stdin (BGI-03 dispatcher; see can help gen)"
             ),
         ),
     }
+}
+
+/// BGI-03 versioned JSON dispatcher: one v1 request via
+/// `--request FILE` or stdin, one final JSON envelope on stdout,
+/// exit 0/2/3/4/5/6. Optional JSONL progress would go to stderr so
+/// stdout always parses as the single envelope; synchronous BGI-03
+/// admission emits no progress itself. Unreadable or invalid
+/// requests still answer with the error envelope (never a bare
+/// tool error), echoing the request id/operation when they parsed.
+fn run_gen_request(operands: &[String], format_set: bool, request: Option<&str>) -> DispatchResult {
+    use crate::analysis::generation_protocol as proto;
+    if format_set {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen --request/stdin always returns the versioned JSON envelope; --format does not apply (see can help gen)".to_string(),
+        );
+    }
+    if request.is_some() && !operands.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen --request FILE takes no operands; the file carries the request (see can help gen)".to_string(),
+        );
+    }
+    let from_stdin = request.is_none();
+    let text = match request {
+        Some(path) => match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(err) => {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        "",
+                        "unknown",
+                        "request-unreadable",
+                        &format!("cannot read request '{path}': {err}"),
+                        vec![
+                            "pass a readable --request FILE or pipe the request on stdin"
+                                .to_string(),
+                        ],
+                    ),
+                );
+            }
+        },
+        None => match read_source_text(std::io::stdin()) {
+            Ok(text) => text,
+            Err(err) => {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        "",
+                        "unknown",
+                        "request-unreadable",
+                        &format!("cannot read the stdin request: {err}"),
+                        vec!["pipe one v1 JSON request on stdin or use --request FILE".to_string()],
+                    ),
+                );
+            }
+        },
+    };
+    let validated = match proto::parse_request(&text) {
+        Ok(validated) => validated,
+        Err(err) => {
+            let (request_id, operation) = echo_header(&text);
+            return gen_envelope_result(
+                err.exit,
+                proto::error_envelope(
+                    &request_id,
+                    &operation,
+                    err.code,
+                    &err.message,
+                    vec!["fix the request and resend (see can help gen)".to_string()],
+                ),
+            );
+        }
+    };
+    dispatch_gen_operation(&validated, from_stdin)
+}
+
+/// Wrap a final JSON envelope as the dispatcher result: envelope on
+/// stdout, silent stderr, contract exit code.
+fn gen_envelope_result(code: i32, envelope: String) -> DispatchResult {
+    DispatchResult {
+        code,
+        stdout: envelope,
+        stderr: String::new(),
+        run_lsp: false,
+    }
+}
+
+/// Best-effort request id/operation echo for failed parses: parsed
+/// strings pass through, anything else becomes empty/`unknown`
+/// markers. Never invents ids.
+fn echo_header(text: &str) -> (String, String) {
+    let (mut request_id, mut operation) = (String::new(), "unknown".to_string());
+    if let Ok(serde_json::Value::Object(map)) = serde_json::from_str::<serde_json::Value>(text) {
+        if let Some(serde_json::Value::String(id)) = map.get("request_id") {
+            request_id = id.clone();
+        }
+        if let Some(serde_json::Value::String(op)) = map.get("operation") {
+            operation = op.clone();
+        }
+    }
+    (request_id, operation)
+}
+
+/// Route one validated request to its operation handler. Handlers
+/// for execution and lifecycle operations join through BGI-04,
+/// BGI-05, and BGI-12; this dispatcher owns their common admission
+/// (selectors, settings, recipes, pre-launch gates) once, so every
+/// admitted-but-unhandled request fails closed with a typed
+/// `not-implemented` envelope instead of launching partial work.
+fn dispatch_gen_operation(
+    validated: &crate::analysis::generation_protocol::ValidatedRequest,
+    from_stdin: bool,
+) -> DispatchResult {
+    use crate::analysis::generation_protocol::GenParams;
+    match &validated.params {
+        GenParams::Doctor(params) => run_gen_doctor(&validated.header, params),
+        GenParams::Status(params) => run_gen_status_json(&validated.header, params),
+        GenParams::Inspect(params) => run_gen_inspect(&validated.header, params),
+        GenParams::Bind(params) => run_gen_bind_json(&validated.header, params),
+        GenParams::Generate(params) => run_gen_generate(&validated.header, params),
+        GenParams::Refine(params) => run_gen_refine(&validated.header, params, from_stdin),
+        GenParams::Retry(params) => run_gen_retry(&validated.header, params),
+        GenParams::Resume(params) => run_gen_not_implemented(
+            &validated.header,
+            params.root.clone(),
+            "BGI-05 (recorded-session store, capture checks, and resume preflight)",
+        ),
+        GenParams::Diff(params) => {
+            admit_saved_unit(&validated.header, &params.root, &params.unit_id).map_or_else(
+                |error| error,
+                |_| {
+                    run_gen_not_implemented(
+                        &validated.header,
+                        params.root.clone(),
+                        "BGI-05 (candidate inventory and machine diffs)",
+                    )
+                },
+            )
+        }
+        GenParams::Preview(params) => {
+            admit_saved_unit(&validated.header, &params.root, &params.unit_id).map_or_else(
+                |error| error,
+                |_| {
+                    run_gen_not_implemented(
+                        &validated.header,
+                        params.root.clone(),
+                        "BGI-05 (candidate inventory and rendered previews)",
+                    )
+                },
+            )
+        }
+        GenParams::Validate(params) => admit_validate(&validated.header, params).map_or_else(
+            |error| error,
+            |_| {
+                run_gen_not_implemented(
+                    &validated.header,
+                    params.root.clone(),
+                    "BGI-11 (interface/contract/target validators)",
+                )
+            },
+        ),
+        GenParams::Adopt(params) => admit_adopt(&validated.header, params).map_or_else(
+            |error| error,
+            |_| {
+                run_gen_not_implemented(
+                    &validated.header,
+                    params.root.clone(),
+                    "BGI-12 (validation-to-promotion joins)",
+                )
+            },
+        ),
+        GenParams::Accept(params) => admit_accept(&validated.header, params).map_or_else(
+            |error| error,
+            |_| {
+                run_gen_not_implemented(
+                    &validated.header,
+                    params.root.clone(),
+                    "BGI-12 (conditional promotion) with BGI-04 (run journals)",
+                )
+            },
+        ),
+        GenParams::Cancel(params) => admit_cancel(&validated.header, params).map_or_else(
+            |error| error,
+            |_| {
+                run_gen_not_implemented(
+                    &validated.header,
+                    params.root.clone(),
+                    "BGI-05 (execution fencing) with BGI-12 (controls)",
+                )
+            },
+        ),
+        GenParams::Reset(params) => admit_reset(&validated.header, params).map_or_else(
+            |error| error,
+            |_| {
+                run_gen_not_implemented(
+                    &validated.header,
+                    params.root.clone(),
+                    "BGI-05 (execution fencing) with BGI-12 (controls)",
+                )
+            },
+        ),
+        GenParams::Rollback(params) => {
+            admit_saved_unit(&validated.header, &params.root, &params.unit_id).map_or_else(
+                |error| error,
+                |_| {
+                    run_gen_not_implemented(
+                        &validated.header,
+                        params.root.clone(),
+                        "BGI-12 (rollback) with BGI-04 (run journals)",
+                    )
+                },
+            )
+        }
+        GenParams::EditBegin(params) => admit_edit_begin(&validated.header, params).map_or_else(
+            |error| error,
+            |_| {
+                run_gen_not_implemented(
+                    &validated.header,
+                    params.root.clone(),
+                    "BGI-04 (write leases)",
+                )
+            },
+        ),
+        GenParams::EditEnd(params) => run_gen_not_implemented(
+            &validated.header,
+            params.root.clone(),
+            "BGI-04 (write leases)",
+        ),
+        GenParams::LeaseRecover(params) => run_gen_not_implemented(
+            &validated.header,
+            params.root.clone(),
+            "BGI-04 (write leases and journal recovery)",
+        ),
+    }
+}
+
+/// `not-implemented`: the request passed full admission, but its
+/// handler joins through a later task. Exit 2 with a typed error
+/// naming the join; nothing launches, nothing changes.
+fn run_gen_not_implemented(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    _root: String,
+    join: &str,
+) -> DispatchResult {
+    use crate::analysis::generation_protocol as proto;
+    gen_envelope_result(
+        exit::TOOL_FAILURE,
+        proto::error_envelope(
+            &header.request_id,
+            header.operation.as_str(),
+            "not-implemented",
+            &format!(
+                "operation '{}' passed admission, but its handler joins through {}; nothing launched and nothing changed",
+                header.operation.as_str(),
+                join,
+            ),
+            vec![format!("resend after {join} lands")],
+        ),
+    )
 }
 
 /// Load one source file for generation discovery, with CLI error mapping.
@@ -2126,34 +2428,29 @@ fn run_gen_bind(operands: &[String]) -> DispatchResult {
     ))
 }
 
-/// `can gen status ROOT FILE.can...`: report association per discovered
-/// unit plus every missing/incompatible group with its exact unit and
-/// generation/reconciliation action. Always exits 0 when the report is
-/// complete; unreadable inputs are tool failures.
-fn run_gen_status(operands: &[String], format: OutputFormat) -> DispatchResult {
+/// Collected association report shared by the BGI-02 positional
+/// `status` sugar and the BGI-03 JSON `status` operation. Both
+/// surfaces report the same units/issues; only the envelope differs.
+struct GenStatusReport {
+    /// Human text lines (positional sugar only).
+    lines: Vec<String>,
+    /// Machine unit entries (both JSON surfaces).
+    units: Vec<serde_json::Value>,
+    /// Missing/incompatible groups with their exact unit and action.
+    issues: Vec<crate::analysis::generation_intake::IntakeIssue>,
+}
+
+/// Collect one association report over explicit sources: saved
+/// intake only, no settings, recipe, or MCP server consulted.
+fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, DispatchResult> {
     use crate::analysis::generation_intake as intake;
-    let [root, files @ ..] = operands else {
-        return DispatchResult::tool_error(
-            "E7001",
-            "can gen status expects ROOT FILE.can... (see can help gen)".to_string(),
-        );
-    };
-    if files.is_empty() {
-        return DispatchResult::tool_error(
-            "E7001",
-            "can gen status expects ROOT FILE.can... (see can help gen)".to_string(),
-        );
-    }
     let root_path = Path::new(root);
     let (saved, mut issues) = load_gen_saved(root_path);
     let mut lines: Vec<String> = Vec::new();
     let mut units_json: Vec<serde_json::Value> = Vec::new();
     let mut matched: std::collections::HashSet<String> = std::collections::HashSet::new();
     for file in files {
-        let (_db, _id, text) = match read_gen_source(file) {
-            Ok(loaded) => loaded,
-            Err(error) => return error,
-        };
+        let (_db, _id, text) = read_gen_source(file)?;
         let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
         let found = crate::analysis::generation::discover_generation(&tree, &text);
         for (index, association) in intake::associate(&found.descriptors, &saved) {
@@ -2259,18 +2556,52 @@ fn run_gen_status(operands: &[String], format: OutputFormat) -> DispatchResult {
     for issue in &issues {
         lines.push(format!("{issue}"));
     }
+    Ok(GenStatusReport {
+        lines,
+        units: units_json,
+        issues,
+    })
+}
+
+/// Machine rendering of one intake issue, shared by both JSON
+/// status surfaces.
+fn gen_issue_json(issue: &crate::analysis::generation_intake::IntakeIssue) -> serde_json::Value {
+    serde_json::json!({
+        "unit": issue.unit,
+        "action": issue.action.as_str(),
+        "detail": issue.detail,
+    })
+}
+
+/// `can gen status ROOT FILE.can...`: report association per discovered
+/// unit plus every missing/incompatible group with its exact unit and
+/// generation/reconciliation action. Always exits 0 when the report is
+/// complete; unreadable inputs are tool failures.
+fn run_gen_status(operands: &[String], format: OutputFormat) -> DispatchResult {
+    let [root, files @ ..] = operands else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen status expects ROOT FILE.can... (see can help gen)".to_string(),
+        );
+    };
+    if files.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen status expects ROOT FILE.can... (see can help gen)".to_string(),
+        );
+    }
+    let report = match collect_gen_status(root, files) {
+        Ok(report) => report,
+        Err(error) => return error,
+    };
+    let GenStatusReport {
+        lines,
+        units: units_json,
+        issues,
+    } = report;
     let stdout = match format {
         OutputFormat::Json => {
-            let issues_json: Vec<serde_json::Value> = issues
-                .iter()
-                .map(|i| {
-                    serde_json::json!({
-                        "unit": i.unit,
-                        "action": i.action.as_str(),
-                        "detail": i.detail,
-                    })
-                })
-                .collect();
+            let issues_json: Vec<serde_json::Value> = issues.iter().map(gen_issue_json).collect();
             format!(
                 "{}\n",
                 serde_json::json!({ "units": units_json, "issues": issues_json })
@@ -2288,9 +2619,1158 @@ fn run_gen_status(operands: &[String], format: OutputFormat) -> DispatchResult {
     DispatchResult::ok_stdout(stdout)
 }
 
+/// JSON `status`: the shared association report inside the result
+/// envelope. Saved intake only: no settings, recipe, or MCP server
+/// is consulted, so ordinary saved builds stay independent of
+/// generation configuration.
+fn run_gen_status_json(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::StatusParams,
+) -> DispatchResult {
+    use crate::analysis::generation_protocol as proto;
+    let report = match collect_gen_status(&params.root, &params.files) {
+        Ok(report) => report,
+        Err(error) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "unreadable-input",
+                    tool_message(&error.stderr),
+                    vec!["pass readable source files and resend".to_string()],
+                ),
+            );
+        }
+    };
+    let issues_json: Vec<serde_json::Value> = report.issues.iter().map(gen_issue_json).collect();
+    let mut payload = serde_json::Map::new();
+    payload.insert("units".to_string(), serde_json::Value::Array(report.units));
+    payload.insert("issues".to_string(), serde_json::Value::Array(issues_json));
+    gen_envelope_result(
+        exit::OK,
+        proto::ok_envelope(
+            header,
+            "reported",
+            payload,
+            status_next_actions(&report.issues),
+        ),
+    )
+}
+
+/// Strip the `error[CODE]: ` prefix plus trailing newline from a
+/// tool error rendered for envelope embedding.
+fn tool_message(stderr: &str) -> &str {
+    let message = stderr.strip_prefix("error[").map(|rest| {
+        rest.find("]: ")
+            .map(|index| &rest[index + 3..])
+            .unwrap_or(rest)
+    });
+    message.unwrap_or(stderr).trim()
+}
+
+/// Bounded next actions for a status report: generate for
+/// unassociated units, bind for ambiguous/orphaned ones.
+fn status_next_actions(issues: &[crate::analysis::generation_intake::IntakeIssue]) -> Vec<String> {
+    use crate::analysis::generation_intake::IntakeAction;
+    let mut next = Vec::new();
+    if issues
+        .iter()
+        .any(|issue| issue.action == IntakeAction::Generate)
+    {
+        next.push("send a generate request for units with no saved group".to_string());
+    }
+    if issues
+        .iter()
+        .any(|issue| issue.action == IntakeAction::Bind)
+    {
+        next.push("send a bind request to reconcile ambiguous or orphaned units".to_string());
+    }
+    if next.is_empty() {
+        next.push("no action needed; every unit is associated".to_string());
+    }
+    next
+}
+
+/// JSON `doctor`: provider check without coding generation. Reports
+/// every adapter's advertised capabilities plus its PATH
+/// availability probe, the effective shared recipe with origins
+/// when one resolves, the pre-launch preflight for that recipe, and
+/// an overall launch verdict. A negative verdict is a successful
+/// check (exit 0): the report carries the blockers, and callers map
+/// `verdict: blocked` to their own handling.
+fn run_gen_doctor(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::DoctorParams,
+) -> DispatchResult {
+    use crate::analysis::generation_config as config;
+    use crate::analysis::generation_protocol as proto;
+    let root = params.root.clone().unwrap_or_else(|| ".".to_string());
+    let loaded = match config::load_settings(Path::new(&root), params.settings.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(err) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    err.code(),
+                    &err.to_string(),
+                    vec!["fix the settings selection and resend doctor".to_string()],
+                ),
+            );
+        }
+    };
+    let overrides = params.overrides();
+    let recipe = config::resolve_recipe(
+        loaded.as_ref(),
+        config::RecipeCategory::Given,
+        None,
+        &overrides,
+    );
+    let mut adapters_json = Vec::new();
+    for adapter in config::ADAPTERS {
+        let mut found: Option<(&str, String)> = None;
+        for binary in adapter.probe_binaries {
+            if let Some(path) = find_on_path(binary) {
+                found = Some((binary, path));
+                break;
+            }
+        }
+        let availability = match found {
+            Some((binary, path)) => serde_json::json!({
+                "found": true,
+                "binary": binary,
+                "path": path,
+                "tried": adapter.probe_binaries,
+            }),
+            None => serde_json::json!({
+                "found": false,
+                "binary": null,
+                "path": null,
+                "tried": adapter.probe_binaries,
+            }),
+        };
+        adapters_json.push(serde_json::json!({
+            "id": adapter.id,
+            "label": adapter.label,
+            "capabilities": adapter.to_json(),
+            "availability": availability,
+        }));
+    }
+    let mut blockers: Vec<String> = Vec::new();
+    let (recipe_json, recipe_error_json, preflight_json) = match &recipe {
+        Ok(resolved) => {
+            let failures = match config::preflight_recipe(resolved) {
+                Ok(()) => Vec::new(),
+                Err(err) => vec![err.to_string()],
+            };
+            if failures.is_empty() {
+                let adapter = config::adapter_capabilities(&resolved.runner)
+                    .expect("resolved runner is known");
+                let binary_found = adapter
+                    .probe_binaries
+                    .iter()
+                    .any(|binary| find_on_path(binary).is_some());
+                if !binary_found {
+                    blockers.push(format!(
+                        "runner `{}` has no executable on PATH (tried: {})",
+                        resolved.runner,
+                        adapter.probe_binaries.join(", "),
+                    ));
+                }
+            } else {
+                blockers.extend(failures.clone());
+            }
+            (
+                resolved.to_json(),
+                serde_json::Value::Null,
+                serde_json::json!({"ok": failures.is_empty(), "failures": failures}),
+            )
+        }
+        Err(err) => {
+            blockers.push(err.to_string());
+            (
+                serde_json::Value::Null,
+                serde_json::json!({"code": err.code(), "message": err.to_string()}),
+                serde_json::Value::Null,
+            )
+        }
+    };
+    // Without any recipe selectors the check covers availability and
+    // gates only: the verdict stays blocked with an explicit
+    // no-recipe blocker, never a misleading ready.
+    let recipe_selected = params.settings.is_some()
+        || overrides.profile.is_some()
+        || overrides.runner.is_some()
+        || overrides.model.is_some()
+        || loaded.as_ref().is_some_and(|found| {
+            found.settings.shared.runner.is_some() || !found.settings.profiles.is_empty()
+        });
+    if !recipe_selected {
+        blockers.clear();
+        blockers.push(
+            "no recipe selected: pass settings, a profile, or runner/model overrides to check one recipe"
+                .to_string(),
+        );
+    }
+    let verdict = if blockers.is_empty() {
+        "ready"
+    } else {
+        "blocked"
+    };
+    let mut next = Vec::new();
+    if verdict == "blocked" {
+        next.push("resolve the reported blockers, then resend doctor".to_string());
+    } else {
+        next.push("the selected recipe can launch; send an execution request".to_string());
+    }
+    let mut payload = serde_json::Map::new();
+    payload.insert(
+        "adapters".to_string(),
+        serde_json::Value::Array(adapters_json),
+    );
+    payload.insert("recipe".to_string(), recipe_json);
+    payload.insert("recipe_error".to_string(), recipe_error_json);
+    payload.insert("preflight".to_string(), preflight_json);
+    payload.insert(
+        "verdict".to_string(),
+        serde_json::Value::String(verdict.to_string()),
+    );
+    payload.insert(
+        "blockers".to_string(),
+        serde_json::Value::Array(
+            blockers
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        ),
+    );
+    payload.insert(
+        "auth".to_string(),
+        serde_json::Value::String(
+            "native CLI login is not probed by BGI-03; BGI-05 qualifies per-adapter authentication"
+                .to_string(),
+        ),
+    );
+    gen_envelope_result(
+        exit::OK,
+        proto::ok_envelope(header, "reported", payload, next),
+    )
+}
+
+/// JSON `inspect`: one unit's association, contracts, concrete
+/// paths, and effective recipe with origins. The selector names a
+/// saved unit id or one source span; applications and named uses
+/// reuse their definition and cannot inspect.
+fn run_gen_inspect(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::InspectParams,
+) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let root_path = Path::new(&params.root);
+    let (saved, _) = load_gen_saved(root_path);
+    // Resolve the selector to a descriptor plus its association.
+    let selected = if let Some(unit_id) = &params.unit_id {
+        let id = match intake::GenerationUnitId::parse(unit_id) {
+            Ok(id) => id,
+            Err(reason) => {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        &header.request_id,
+                        header.operation.as_str(),
+                        "invalid-param",
+                        &format!("inspect `unit_id`: {reason}"),
+                        vec!["pass a saved unit id (see a status report)".to_string()],
+                    ),
+                );
+            }
+        };
+        let record = saved.iter().find(|record| record.id == id);
+        let Some(record) = record else {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "unknown-unit",
+                    &format!("no saved unit `{unit_id}` under {}", root_path.display()),
+                    vec!["send a status request to list saved units".to_string()],
+                ),
+            );
+        };
+        InspectedUnit::saved(record)
+    } else {
+        let (Some(file), Some(start), Some(end)) = (params.file.clone(), params.start, params.end)
+        else {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "invalid-param",
+                    "inspect needs `unit_id`, or `file` with `start`/`end`",
+                    vec!["select one unit and resend".to_string()],
+                ),
+            );
+        };
+        let (_db, _id, text) = match read_gen_source(&file) {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        &header.request_id,
+                        header.operation.as_str(),
+                        "unreadable-input",
+                        tool_message(&error.stderr),
+                        vec!["pass a readable source file and resend".to_string()],
+                    ),
+                );
+            }
+        };
+        let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
+        let found = crate::analysis::generation::discover_generation(&tree, &text);
+        let associations = intake::associate(&found.descriptors, &saved);
+        let located = associations.iter().find(|(index, _)| {
+            let descriptor = &found.descriptors[*index];
+            intake::UnitKind::of_descriptor(descriptor.kind).is_some()
+                && descriptor.span.start <= start
+                && end <= descriptor.span.end
+        });
+        let Some((index, association)) = located else {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "no-unit-at-span",
+                    &format!(
+                        "no generation unit at {file}:{start}..{end}; applications and named uses reuse their definition and cannot inspect"
+                    ),
+                    vec!["send a status request to list inspectable units".to_string()],
+                ),
+            );
+        };
+        InspectedUnit::spanned(&found.descriptors[*index], association, &saved)
+    };
+    // Effective recipe for the unit's category, when one resolves.
+    let (recipe_json, recipe_error_json) = inspect_recipe(params, &selected);
+    let mut payload = serde_json::Map::new();
+    payload.insert("unit".to_string(), selected.to_json(&params.root));
+    payload.insert("recipe".to_string(), recipe_json);
+    payload.insert("recipe_error".to_string(), recipe_error_json);
+    gen_envelope_result(
+        exit::OK,
+        proto::ok_envelope(header, "reported", payload, vec![]),
+    )
+}
+
+/// One inspected unit: either a saved record selected by id, or a
+/// spanned descriptor with its live association.
+struct InspectedUnit {
+    /// Saved id when the unit is associated.
+    id: Option<String>,
+    /// Descriptor owner.
+    owner: String,
+    /// Unit kind wire string.
+    kind: String,
+    /// Descriptor label, if any.
+    label: Option<String>,
+    /// Association state: retained, new, ambiguous, or orphaned.
+    association: String,
+    /// Ambiguous candidates, if any.
+    candidates: Vec<String>,
+    /// Prompt changed since association, if retained.
+    prompt_changed: Option<bool>,
+    /// Contract refs, when the unit carries them.
+    contract: Option<serde_json::Value>,
+    /// Owning declaration's optional generation profile.
+    agent: Option<String>,
+    /// Recipe category for the unit kind.
+    category: crate::analysis::generation_config::RecipeCategory,
+}
+
+impl InspectedUnit {
+    /// A saved record selected by id (retained by construction).
+    fn saved(record: &crate::analysis::generation_intake::UnitRecord) -> Self {
+        Self {
+            id: Some(record.id.as_str().to_string()),
+            owner: record.source.owner.clone(),
+            kind: record.source.kind.as_str().to_string(),
+            label: record.source.label.clone(),
+            association: "retained".to_string(),
+            candidates: Vec::new(),
+            prompt_changed: Some(false),
+            contract: Some(contract_json(&record.contract)),
+            agent: record.contract.profile.clone(),
+            category: category_for_kind(record.source.kind),
+        }
+    }
+
+    /// A spanned descriptor with its live association outcome.
+    fn spanned(
+        descriptor: &crate::analysis::generation::GenerationDescriptor,
+        association: &crate::analysis::generation_intake::UnitAssociation,
+        saved: &[crate::analysis::generation_intake::UnitRecord],
+    ) -> Self {
+        use crate::analysis::generation_intake as intake;
+        let kind = intake::UnitKind::of_descriptor(descriptor.kind).expect("selected identity");
+        let mut unit = Self {
+            id: None,
+            owner: descriptor.owner.clone(),
+            kind: kind.as_str().to_string(),
+            label: descriptor.label.clone(),
+            association: "new".to_string(),
+            candidates: Vec::new(),
+            prompt_changed: None,
+            contract: intake::contract_for(descriptor).map(|contract| contract_json(&contract)),
+            agent: descriptor.profile.clone(),
+            category: category_for_kind(kind),
+        };
+        match association {
+            intake::UnitAssociation::Retained { id, prompt_changed } => {
+                unit.id = Some(id.as_str().to_string());
+                unit.association = "retained".to_string();
+                unit.prompt_changed = Some(*prompt_changed);
+                if let Some(record) = saved.iter().find(|record| record.id == *id) {
+                    unit.contract = Some(contract_json(&record.contract));
+                    unit.agent = record.contract.profile.clone();
+                }
+            }
+            intake::UnitAssociation::New => {}
+            intake::UnitAssociation::Ambiguous { candidates } => {
+                unit.association = "ambiguous".to_string();
+                unit.candidates = candidates
+                    .iter()
+                    .map(intake::GenerationUnitId::as_str)
+                    .map(str::to_string)
+                    .collect();
+            }
+        }
+        unit
+    }
+
+    /// Machine rendering with concrete current/candidate paths.
+    fn to_json(&self, root: &str) -> serde_json::Value {
+        use crate::analysis::generation_intake as intake;
+        let paths = match &self.id {
+            Some(id) => serde_json::json!({
+                "current": format!("{root}/{}/{id}", intake::GENERATED_DIR),
+                "candidates": format!("{root}/.can/gen/attempts/{id}"),
+            }),
+            None => serde_json::json!({"current": null, "candidates": null}),
+        };
+        serde_json::json!({
+            "id": self.id,
+            "owner": self.owner,
+            "kind": self.kind,
+            "label": self.label,
+            "association": self.association,
+            "candidates": self.candidates,
+            "prompt_changed": self.prompt_changed,
+            "contract": self.contract,
+            "paths": paths,
+        })
+    }
+}
+
+/// Minimal contract refs carried beside an inspected unit.
+fn contract_json(contract: &crate::analysis::generation_intake::UnitContract) -> serde_json::Value {
+    serde_json::json!({
+        "target": contract.target,
+        "profile": contract.profile,
+        "prompt_sha256": contract.prompt_sha256,
+        "signature": contract.signature,
+    })
+}
+
+/// Recipe category for one unit kind: Then styles/views resolve the
+/// frontend recipe, Given traits/keywords the shared recipe.
+fn category_for_kind(
+    kind: crate::analysis::generation_intake::UnitKind,
+) -> crate::analysis::generation_config::RecipeCategory {
+    use crate::analysis::generation_config::RecipeCategory;
+    use crate::analysis::generation_intake::UnitKind;
+    match kind {
+        UnitKind::Style | UnitKind::StyleInline | UnitKind::View | UnitKind::ViewStyleInline => {
+            RecipeCategory::Frontend
+        }
+        UnitKind::NamedTrait | UnitKind::InlineTrait | UnitKind::Keyword => RecipeCategory::Given,
+    }
+}
+
+/// Effective recipe section for an inspected unit: resolve from the
+/// request settings/overrides plus the owning declaration's agent.
+/// Resolution failures report inside the envelope (inspect stays a
+/// successful read); only unreadable settings fail the operation.
+fn inspect_recipe(
+    params: &crate::analysis::generation_protocol::InspectParams,
+    selected: &InspectedUnit,
+) -> (serde_json::Value, serde_json::Value) {
+    use crate::analysis::generation_config as config;
+    let loaded = match config::load_settings(Path::new(&params.root), params.settings.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(err) => {
+            return (
+                serde_json::Value::Null,
+                serde_json::json!({"code": err.code(), "message": err.to_string()}),
+            );
+        }
+    };
+    match config::resolve_recipe(
+        loaded.as_ref(),
+        selected.category,
+        selected.agent.as_deref(),
+        &params.overrides(),
+    ) {
+        Ok(resolved) => (resolved.to_json(), serde_json::Value::Null),
+        Err(err) => (
+            serde_json::Value::Null,
+            serde_json::json!({"code": err.code(), "message": err.to_string()}),
+        ),
+    }
+}
+
+/// JSON `bind`: reconcile one inspected source span with an existing
+/// saved unit id, or allocate a fresh id with `new`. Same intake
+/// semantics as the positional sugar (stale revisions refuse, saved
+/// groups stay intact on failure); only the envelope differs.
+fn run_gen_bind_json(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::BindParams,
+) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let target = if params.unit == "new" {
+        intake::BindTarget::New
+    } else {
+        match intake::GenerationUnitId::parse(&params.unit) {
+            Ok(id) => intake::BindTarget::Existing(id),
+            Err(reason) => {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        &header.request_id,
+                        header.operation.as_str(),
+                        "invalid-param",
+                        &format!("bind `unit`: {reason}"),
+                        vec!["pass a saved unit id or \"new\"".to_string()],
+                    ),
+                );
+            }
+        }
+    };
+    let (_db, _id, text) = match read_gen_source(&params.file) {
+        Ok(loaded) => loaded,
+        Err(error) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "unreadable-input",
+                    tool_message(&error.stderr),
+                    vec!["pass a readable source file and resend".to_string()],
+                ),
+            );
+        }
+    };
+    let current_revision = crate::source::sha256_hex(text.as_bytes());
+    let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
+    let found = crate::analysis::generation::discover_generation(&tree, &text);
+    let selected = found.descriptors.iter().find(|d| {
+        intake::UnitKind::of_descriptor(d.kind).is_some()
+            && d.span.start <= params.start
+            && params.end <= d.span.end
+    });
+    let Some(descriptor) = selected else {
+        return gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "no-unit-at-span",
+                &format!(
+                    "no generation unit at {}:{}..{}; applications and named uses reuse their definition and cannot bind",
+                    params.file, params.start, params.end,
+                ),
+                vec!["send a status request to list bindable units".to_string()],
+            ),
+        );
+    };
+    let root_path = Path::new(&params.root);
+    let (saved, _) = load_gen_saved(root_path);
+    let source = match intake::association_for(descriptor, &params.file, &params.revision) {
+        Some(source) => source,
+        None => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "invalid-param",
+                    "the selected descriptor carries no generation identity",
+                    vec!["select an identity-carrying unit span and resend".to_string()],
+                ),
+            );
+        }
+    };
+    let contract = match intake::contract_for(descriptor) {
+        Some(contract) => contract,
+        None => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "invalid-param",
+                    "the selected descriptor carries no generation identity",
+                    vec!["select an identity-carrying unit span and resend".to_string()],
+                ),
+            );
+        }
+    };
+    let request = intake::BindRequest {
+        path: params.file.clone(),
+        revision: params.revision.clone(),
+        start: params.start,
+        end: params.end,
+        source,
+        contract,
+        target,
+    };
+    let record = match intake::apply_bind(&saved, &request, &current_revision) {
+        Ok(record) => record,
+        Err(err) => {
+            let code = match err {
+                intake::BindError::StaleSelector { .. } => "stale-selector",
+                intake::BindError::UnknownUnit { .. } => "unknown-unit",
+                intake::BindError::KindMismatch { .. } => "kind-mismatch",
+            };
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    code,
+                    &err.to_string(),
+                    vec!["re-inspect the source location and resend bind".to_string()],
+                ),
+            );
+        }
+    };
+    let dir = root_path
+        .join(intake::GENERATED_DIR)
+        .join(record.id.as_str());
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        return gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "write-failed",
+                &format!("cannot write '{}': {err}", dir.display()),
+                vec!["check the project root is writable and resend".to_string()],
+            ),
+        );
+    }
+    let unit_path = dir.join(intake::UNIT_FILE);
+    if let Err(err) = write_file_atomic(&unit_path, &record.to_json(), None) {
+        return gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "write-failed",
+                &format!("cannot write '{}': {err}", unit_path.display()),
+                vec!["check the project root is writable and resend".to_string()],
+            ),
+        );
+    }
+    let mut payload = serde_json::Map::new();
+    payload.insert(
+        "unit".to_string(),
+        serde_json::json!({
+            "id": record.id.as_str(),
+            "path": unit_path.display().to_string(),
+            "owner": record.source.owner,
+            "kind": record.source.kind.as_str(),
+            "label": record.source.label,
+            "contract": contract_json(&record.contract),
+        }),
+    );
+    gen_envelope_result(
+        exit::OK,
+        proto::ok_envelope(
+            header,
+            "bound",
+            payload,
+            vec!["send a generate request to produce the unit's outputs".to_string()],
+        ),
+    )
+}
+
+/// Shared admission for execution operations: load the selected
+/// settings (explicit file or root file, never ambient search) and
+/// surface configuration failures as error envelopes.
+fn admit_execution_settings(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    root: &str,
+    settings: Option<&str>,
+) -> Result<Option<crate::analysis::generation_config::LoadedSettings>, DispatchResult> {
+    use crate::analysis::generation_config as config;
+    use crate::analysis::generation_protocol as proto;
+    match config::load_settings(Path::new(root), settings) {
+        Ok(loaded) => Ok(loaded),
+        Err(err) => Err(gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                err.code(),
+                &err.to_string(),
+                vec!["fix the settings selection and resend".to_string()],
+            ),
+        )),
+    }
+}
+
+/// Admit that every listed file opens for reading. Scope paths
+/// resolve against the request root, never the process directory.
+fn admit_readable_files(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    root: &str,
+    files: &[String],
+) -> Result<(), DispatchResult> {
+    use crate::analysis::generation_config as config;
+    use crate::analysis::generation_protocol as proto;
+    for file in files {
+        let path = config::resolve_against_root(Path::new(root), file);
+        if std::fs::File::open(&path).is_err() {
+            return Err(gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "unreadable-input",
+                    &format!("scope file '{}' does not open for reading", path.display()),
+                    vec!["pass readable scope files and resend".to_string()],
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Admit that one unit id is well-formed and names a saved group.
+/// Returns the saved record for category/agent resolution.
+fn admit_saved_unit(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    root: &str,
+    unit_id: &str,
+) -> Result<crate::analysis::generation_intake::UnitRecord, DispatchResult> {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let id = match intake::GenerationUnitId::parse(unit_id) {
+        Ok(id) => id,
+        Err(reason) => {
+            return Err(gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "invalid-param",
+                    &format!("`unit_id`: {reason}"),
+                    vec!["pass a saved unit id (see a status report)".to_string()],
+                ),
+            ));
+        }
+    };
+    let (saved, _) = load_gen_saved(Path::new(root));
+    match saved.into_iter().find(|record| record.id == id) {
+        Some(record) => Ok(record),
+        None => Err(gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "unknown-unit",
+                &format!("no saved unit `{unit_id}` under {root}"),
+                vec!["send a status request to list saved units".to_string()],
+            ),
+        )),
+    }
+}
+
+/// JSON `generate`: admit scope, settings, and the pinned recipe
+/// (when the request pins one profile or runner), then run the
+/// pre-launch preflight. Multi-recipe job grouping and capture join
+/// through BGI-05, so unpinned requests stop at `not-implemented`
+/// after full admission.
+fn run_gen_generate(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::GenerateParams,
+) -> DispatchResult {
+    use crate::analysis::generation_config as config;
+    use crate::analysis::generation_protocol as proto;
+    let loaded = match admit_execution_settings(header, &params.root, params.settings.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return error,
+    };
+    if let Some(files) = &params.files
+        && let Err(error) = admit_readable_files(header, &params.root, files)
+    {
+        return error;
+    }
+    if let Some(ids) = &params.unit_ids {
+        for id in ids {
+            if let Err(error) = admit_saved_unit(header, &params.root, id) {
+                return error;
+            }
+        }
+    }
+    let overrides = params.overrides();
+    let pinned = overrides.profile.is_some() || overrides.runner.is_some();
+    if !pinned {
+        return run_gen_not_implemented(
+            header,
+            params.root.clone(),
+            "BGI-05 (capture, compatible-recipe job grouping, and execution)",
+        );
+    }
+    // A pinned profile or runner determines the recipe alone; the
+    // category default cannot change it, so Given is arbitrary here.
+    let resolved = match config::resolve_recipe(
+        loaded.as_ref(),
+        config::RecipeCategory::Given,
+        None,
+        &overrides,
+    ) {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    err.code(),
+                    &err.to_string(),
+                    vec!["fix the recipe selection and resend".to_string()],
+                ),
+            );
+        }
+    };
+    if let Err(err) = config::preflight_recipe(&resolved) {
+        return gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                err.code(),
+                &err.to_string(),
+                vec!["resolve the launch gate and resend".to_string()],
+            ),
+        );
+    }
+    run_gen_not_implemented(
+        header,
+        params.root.clone(),
+        "BGI-05 (capture, compatible-recipe job grouping, and execution)",
+    )
+}
+
+/// JSON `refine`: admit the exactly-one instruction carrier, scope,
+/// settings, and the unit's effective recipe, then run the
+/// pre-launch preflight. Candidate execution joins through BGI-05.
+fn run_gen_refine(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::RefineParams,
+    from_stdin: bool,
+) -> DispatchResult {
+    use crate::analysis::generation_config as config;
+    use crate::analysis::generation_protocol as proto;
+    use crate::analysis::generation_protocol::InstructionCarrier;
+    match params.carrier() {
+        InstructionCarrier::Text(_) => {}
+        InstructionCarrier::File(path) => {
+            let resolved = config::resolve_against_root(Path::new(&params.root), &path);
+            if std::fs::read_to_string(&resolved).is_err() {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        &header.request_id,
+                        header.operation.as_str(),
+                        "instruction-unreadable",
+                        &format!("instruction file '{}' does not read", resolved.display()),
+                        vec!["pass a readable instruction file and resend".to_string()],
+                    ),
+                );
+            }
+        }
+        InstructionCarrier::Stdin => {
+            if from_stdin {
+                return gen_envelope_result(
+                    exit::TOOL_FAILURE,
+                    proto::error_envelope(
+                        &header.request_id,
+                        header.operation.as_str(),
+                        "exclusive-carrier",
+                        "instruction_stdin needs --request FILE; one stdin stream cannot carry both the request and the instruction",
+                        vec!["send the request with --request FILE and pipe the instruction on stdin".to_string()],
+                    ),
+                );
+            }
+            match read_source_text(std::io::stdin()) {
+                Ok(text) if text.is_empty() => {
+                    return gen_envelope_result(
+                        exit::TOOL_FAILURE,
+                        proto::error_envelope(
+                            &header.request_id,
+                            header.operation.as_str(),
+                            "invalid-param",
+                            "the stdin instruction is empty",
+                            vec!["pipe a non-empty instruction on stdin and resend".to_string()],
+                        ),
+                    );
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    return gen_envelope_result(
+                        exit::TOOL_FAILURE,
+                        proto::error_envelope(
+                            &header.request_id,
+                            header.operation.as_str(),
+                            "instruction-unreadable",
+                            &format!("cannot read the stdin instruction: {err}"),
+                            vec!["pipe a non-empty instruction on stdin and resend".to_string()],
+                        ),
+                    );
+                }
+            }
+        }
+    }
+    let loaded = match admit_execution_settings(header, &params.root, params.settings.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return error,
+    };
+    let record = match admit_saved_unit(header, &params.root, &params.unit_id) {
+        Ok(record) => record,
+        Err(error) => return error,
+    };
+    let resolved = match config::resolve_recipe(
+        loaded.as_ref(),
+        category_for_kind(record.source.kind),
+        record.contract.profile.as_deref(),
+        &params.overrides(),
+    ) {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    err.code(),
+                    &err.to_string(),
+                    vec!["fix the recipe selection and resend".to_string()],
+                ),
+            );
+        }
+    };
+    if let Err(err) = config::preflight_recipe(&resolved) {
+        return gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                err.code(),
+                &err.to_string(),
+                vec!["resolve the launch gate and resend".to_string()],
+            ),
+        );
+    }
+    run_gen_not_implemented(
+        header,
+        params.root.clone(),
+        "BGI-05 (capture and candidate execution)",
+    )
+}
+
+/// JSON `retry`: admit the active-app source closure, settings, and
+/// the pinned recipe (when the request pins one profile or runner),
+/// then run the pre-launch preflight. Full fresh regrouped execution
+/// joins through BGI-05, so unpinned requests stop at
+/// `not-implemented` after full admission.
+fn run_gen_retry(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::RetryParams,
+) -> DispatchResult {
+    use crate::analysis::generation_config as config;
+    use crate::analysis::generation_protocol as proto;
+    let loaded = match admit_execution_settings(header, &params.root, params.settings.as_deref()) {
+        Ok(loaded) => loaded,
+        Err(error) => return error,
+    };
+    if let Err(error) = admit_readable_files(header, &params.root, &params.files) {
+        return error;
+    }
+    let overrides = params.overrides();
+    let pinned = overrides.profile.is_some() || overrides.runner.is_some();
+    if !pinned {
+        return run_gen_not_implemented(
+            header,
+            params.root.clone(),
+            "BGI-05 (capture, compatible-recipe job grouping, and execution)",
+        );
+    }
+    // A pinned profile or runner determines the recipe alone; the
+    // category default cannot change it, so Given is arbitrary here.
+    let resolved = match config::resolve_recipe(
+        loaded.as_ref(),
+        config::RecipeCategory::Given,
+        None,
+        &overrides,
+    ) {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    err.code(),
+                    &err.to_string(),
+                    vec!["fix the recipe selection and resend".to_string()],
+                ),
+            );
+        }
+    };
+    if let Err(err) = config::preflight_recipe(&resolved) {
+        return gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                err.code(),
+                &err.to_string(),
+                vec!["resolve the launch gate and resend".to_string()],
+            ),
+        );
+    }
+    run_gen_not_implemented(
+        header,
+        params.root.clone(),
+        "BGI-05 (capture, compatible-recipe job grouping, and execution)",
+    )
+}
+
+/// Admit `validate` selectors: one saved unit or readable files.
+fn admit_validate(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::ValidateParams,
+) -> Result<(), DispatchResult> {
+    if let Some(unit_id) = &params.unit_id {
+        admit_saved_unit(header, &params.root, unit_id)?;
+    }
+    if let Some(files) = &params.files {
+        admit_readable_files(header, &params.root, files)?;
+    }
+    Ok(())
+}
+
+/// Admit `adopt` selectors: one saved unit plus readable files.
+fn admit_adopt(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::AdoptParams,
+) -> Result<(), DispatchResult> {
+    admit_saved_unit(header, &params.root, &params.unit_id)?;
+    admit_readable_files(header, &params.root, &params.files)?;
+    Ok(())
+}
+
+/// Admit `accept` selectors: one saved unit or one attempt scope.
+fn admit_accept(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::AcceptParams,
+) -> Result<(), DispatchResult> {
+    if let Some(unit_id) = &params.unit_id {
+        admit_saved_unit(header, &params.root, unit_id)?;
+    }
+    Ok(())
+}
+
+/// Admit `cancel` selectors (non-empty session or request scope).
+fn admit_cancel(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::CancelParams,
+) -> Result<(), DispatchResult> {
+    use crate::analysis::generation_protocol as proto;
+    let empty = params
+        .session_id
+        .as_deref()
+        .or(params.request.as_deref())
+        .is_none_or(str::is_empty);
+    if empty {
+        return Err(gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "invalid-param",
+                "cancel needs a non-empty `session_id` or `request`",
+                vec!["select one pending scope and resend".to_string()],
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// Admit `reset` selectors (one non-empty unit, attempt, or session scope).
+fn admit_reset(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::ResetParams,
+) -> Result<(), DispatchResult> {
+    use crate::analysis::generation_protocol as proto;
+    if let Some(unit_id) = &params.unit_id {
+        admit_saved_unit(header, &params.root, unit_id)?;
+        return Ok(());
+    }
+    let scope = params.attempt.as_deref().or(params.session_id.as_deref());
+    if scope.is_none_or(str::is_empty) {
+        return Err(gen_envelope_result(
+            exit::TOOL_FAILURE,
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                "invalid-param",
+                "reset needs one non-empty `unit_id`, `attempt`, or `session_id`",
+                vec!["select one pending scope and resend".to_string()],
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// Admit `edit.begin` selectors: one saved unit and/or openable paths.
+fn admit_edit_begin(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::EditBeginParams,
+) -> Result<(), DispatchResult> {
+    if let Some(unit_id) = &params.unit_id {
+        admit_saved_unit(header, &params.root, unit_id)?;
+    }
+    if let Some(paths) = &params.paths {
+        admit_readable_files(header, &params.root, paths)?;
+    }
+    Ok(())
+}
+
 /// Unix-only PATH search: no Windows `PATHEXT` handling, and non-UTF8
 /// `PATH` entries convert lossily. Sufficient for lane scope (CI is unix).
-fn find_on_path(name: &str) -> Option<String> {
+pub(crate) fn find_on_path(name: &str) -> Option<String> {
     if name.contains('/') {
         return Path::new(name).is_file().then(|| name.to_string());
     }
