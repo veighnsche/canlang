@@ -270,6 +270,104 @@ pub fn snapshot_consumed_inputs(
     crate::leases::snapshot_inputs(root, holder, paths)
 }
 
+/// BGI-11 validation input binding: the exact consumed closure one
+/// validation run checks, bound to captured inputs and current bytes.
+///
+/// A validation envelope reports these path/SHA-256 pairs so a later
+/// promotion (BGI-12) compares the same bytes the validator consumed.
+/// Binding reads files only — no settings, provider, login, model, MCP
+/// server, or ambient state is consulted, so a clean checkout with
+/// saved files validates with zero AI processes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationInputFile {
+    /// Workspace-relative path exactly as the caller named it.
+    pub path: String,
+    /// Current bytes, exactly as read.
+    pub bytes: Vec<u8>,
+    /// Lowercase hex SHA-256 over [`ValidationInputFile::bytes`].
+    pub sha256: String,
+}
+
+/// An immutable validation closure: bound files in caller-sorted order.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ValidationInputs {
+    /// Bound files sorted by path, so envelopes are deterministic.
+    pub files: Vec<ValidationInputFile>,
+}
+
+/// A validation input that could not be bound: the exact path plus why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationInputError {
+    /// Path that failed to bind.
+    pub path: String,
+    /// Why the bind failed (missing, unreadable, not a file).
+    pub detail: String,
+}
+
+impl std::fmt::Display for ValidationInputError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "cannot bind validation input `{}`: {}",
+            self.path, self.detail
+        )
+    }
+}
+
+impl std::error::Error for ValidationInputError {}
+
+impl ValidationInputs {
+    /// Bind `paths` (workspace-relative, resolved under `root`) to their
+    /// current bytes. Duplicate paths bind once; entries sort by path.
+    /// The first unreadable path fails the whole bind with its exact
+    /// path — validation never checks a partial closure silently.
+    pub fn bind(root: &std::path::Path, paths: &[String]) -> Result<Self, ValidationInputError> {
+        let mut seen = std::collections::BTreeSet::new();
+        let mut files = Vec::new();
+        for path in paths {
+            if !seen.insert(path.clone()) {
+                continue;
+            }
+            let full = root.join(path);
+            let bytes = std::fs::read(&full).map_err(|err| ValidationInputError {
+                path: path.clone(),
+                detail: err.to_string(),
+            })?;
+            if !full.is_file() {
+                return Err(ValidationInputError {
+                    path: path.clone(),
+                    detail: "not a regular file".to_string(),
+                });
+            }
+            let sha256 = sha256_hex(&bytes);
+            files.push(ValidationInputFile {
+                path: path.clone(),
+                bytes,
+                sha256,
+            });
+        }
+        files.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(Self { files })
+    }
+
+    /// SHA-256 of one bound path, if it was bound.
+    pub fn sha256_of(&self, path: &str) -> Option<&str> {
+        self.files
+            .iter()
+            .find(|file| file.path == path)
+            .map(|file| file.sha256.as_str())
+    }
+
+    /// Whether the bound bytes at `path` still match `revision`.
+    ///
+    /// Source/interface drift detection: `revision` is the SHA-256 a
+    /// bind or capture recorded, and these are the current bytes.
+    /// Unbound paths report drift (nothing consumed matches).
+    pub fn drifted(&self, path: &str, revision: &str) -> bool {
+        self.sha256_of(path) != Some(revision)
+    }
+}
+
 /// Lowercase hex SHA-256 of `bytes`.
 ///
 /// Hash the exact bytes without text or newline normalization.
@@ -424,6 +522,57 @@ mod tests {
         assert_eq!(idx.to_lsp(text, 7, true), (1, 0));
         // Offset splitting the emoji clamps back to its start.
         assert_eq!(idx.to_lsp(text, 3, true), (0, 1));
+    }
+
+    #[test]
+    fn validation_inputs_bind_sorted_deduped_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("b.can"), "app B\n").unwrap();
+        std::fs::write(dir.path().join("a.can"), "app A\n").unwrap();
+        let bound = ValidationInputs::bind(
+            dir.path(),
+            &[
+                "b.can".to_string(),
+                "a.can".to_string(),
+                "b.can".to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            bound
+                .files
+                .iter()
+                .map(|f| f.path.as_str())
+                .collect::<Vec<_>>(),
+            ["a.can", "b.can"]
+        );
+        assert_eq!(
+            bound.sha256_of("a.can"),
+            Some(sha256_hex(b"app A\n").as_str())
+        );
+        assert!(!bound.drifted("a.can", &sha256_hex(b"app A\n")));
+        assert!(bound.drifted("a.can", &sha256_hex(b"app A2\n")));
+        assert!(bound.drifted("missing.can", &sha256_hex(b"app A\n")));
+        // Same bytes bind identically: deterministic envelopes.
+        let again = ValidationInputs::bind(dir.path(), &["a.can".to_string(), "b.can".to_string()])
+            .unwrap();
+        assert_eq!(bound, again);
+    }
+
+    #[test]
+    fn validation_inputs_refuse_unreadable_with_exact_path() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.can"), "app A\n").unwrap();
+        let err = ValidationInputs::bind(
+            dir.path(),
+            &["a.can".to_string(), "missing.can".to_string()],
+        )
+        .unwrap_err();
+        assert_eq!(err.path, "missing.can");
+        assert!(err.to_string().contains("missing.can"));
+        // A directory is not a bindable input.
+        let err = ValidationInputs::bind(dir.path(), &[".".to_string()]).unwrap_err();
+        assert_eq!(err.path, ".");
     }
 
     #[test]

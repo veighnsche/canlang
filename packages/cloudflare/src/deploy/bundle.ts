@@ -111,7 +111,7 @@ import type {
 import { ASSET_DIGEST_V2 } from "@canlang/contracts";
 import { catalogFromArtifactOperations } from "@canlang/interfaces";
 import { STDLIB_SPECIFIER, UI_SPECIFIER, type AssembledModules } from "../runtime/modules.js";
-import { isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
+import { assertSavedUnitImports, isRelativeImportSpecifier as isRelativeSpecifier, rewriteModuleImports, scanModuleImports, validateArtifactModuleImports } from "./module-imports.js";
 import { composeModuleMap } from "./module-maps.js";
 import { nativeUiQueryFacadeSource } from "../runtime/native-ui-query.js";
 
@@ -1230,6 +1230,84 @@ export function assertLinksResolve(
   }
 }
 
+/** BGI-11 saved-unit kinds that pack JavaScript modules: Given keywords
+ * (`server.js`, per the BGI-08 join) and views (`view.js`). Styles travel
+ * through the CSS pipeline and traits through checked contracts. */
+export type SavedUnitPackKind = "keyword" | "view";
+
+export interface SavedUnitPackInput {
+  /** Opaque saved unit id (`can.generated/<id>/`). */
+  readonly unitId: string;
+  readonly kind: SavedUnitPackKind;
+  /** Validated saved JavaScript bytes. */
+  readonly js: string;
+  /** Lowercase hex SHA-256 the bytes must match exactly. */
+  readonly sha256: string;
+}
+
+/** Staged module key for one packed saved unit. */
+export function savedUnitStagedPath(unitId: string, kind: SavedUnitPackKind): string {
+  return `can.generated/${unitId}/${kind === "keyword" ? "server.js" : "view.js"}`;
+}
+
+function assertPackUnitId(unitId: string): void {
+  if (typeof unitId !== "string" || unitId.length === 0 || unitId === "." || unitId === ".." ||
+      unitId.includes("/") || unitId.includes("\\") || /[\s\x00-\x1f\x7f]/.test(unitId)) {
+    throw new Error(`deploy bundle: saved unit id ${JSON.stringify(unitId)} must not be empty, name a path, or contain whitespace`);
+  }
+}
+
+/**
+ * BGI-11 checked closure packing: stage validated saved-unit bytes at
+ * their staged keys. Fingerprint-verified (expected SHA-256 must match
+ * exactly), non-empty, sorted keys, duplicates refuse; changed code
+ * stays loud, never packed silently. Deterministic: same inputs =>
+ * identical map. Link resolution stays with `assertLinksResolve`.
+ */
+export function packSavedUnitModules(units: readonly SavedUnitPackInput[]): Record<string, string> {
+  const staged: Record<string, string> = {};
+  for (const unit of units) {
+    if (unit.kind !== "keyword" && unit.kind !== "view") {
+      throw new Error(`deploy bundle: saved unit ${JSON.stringify((unit as SavedUnitPackInput).unitId)} has non-packable kind ${JSON.stringify((unit as { kind?: unknown }).kind)} (only keyword and view units pack JavaScript modules)`);
+    }
+    assertPackUnitId(unit.unitId);
+    if (typeof unit.js !== "string" || unit.js.length === 0) {
+      throw new Error(`deploy bundle: saved unit ${JSON.stringify(unit.unitId)} packs empty implementation bytes; refusing an empty module`);
+    }
+    if (!/^[a-f0-9]{64}$/.test(unit.sha256)) {
+      throw new Error(`deploy bundle: saved unit ${JSON.stringify(unit.unitId)} expects malformed SHA-256 ${JSON.stringify(unit.sha256)}`);
+    }
+    const actual = createHash("sha256").update(unit.js, "utf8").digest("hex");
+    if (actual !== unit.sha256) {
+      throw new Error(`deploy bundle: saved unit ${JSON.stringify(unit.unitId)} implementation changed (fingerprint mismatch): re-validate before packing; refusing to pack changed code silently`);
+    }
+    const path = savedUnitStagedPath(unit.unitId, unit.kind);
+    if (Object.hasOwn(staged, path)) {
+      throw new Error(`deploy bundle: saved unit ${JSON.stringify(unit.unitId)} stages duplicate path ${JSON.stringify(path)}`);
+    }
+    staged[path] = unit.js;
+  }
+  const sorted: Record<string, string> = {};
+  for (const key of Object.keys(staged).sort()) {
+    sorted[key] = staged[key] as string;
+  }
+  return sorted;
+}
+
+/**
+ * BGI-11 workerd/browser separation: every `can.generated/**` staged
+ * module passes the saved-unit import policy (unit-local relative
+ * imports only — no `node:`/Node builtins, no bare specifiers, no
+ * file URLs). Non-generated modules are untouched; bundles without
+ * packed units no-op.
+ */
+export function assertSavedUnitSeparation(modules: Readonly<Record<string, string>>): void {
+  for (const [name, contents] of Object.entries(modules)) {
+    if (!name.startsWith("can.generated/")) continue;
+    assertSavedUnitImports(contents, name);
+  }
+}
+
 /** @internal Exact text snapshot digest for owning writer fixtures; not an app API. */
 export function bundleSha256(mainModule: string, modules: Record<string, string>): string {
   const sorted: Record<string, string> = {};
@@ -1244,7 +1322,8 @@ export function bundleSha256(mainModule: string, modules: Record<string, string>
  * (`WORKER_MAIN_MISSING`), missing pinned runtime siblings or producer
  * dists (naming the build command), unresolvable artifact imports,
  * dangling page/callable refs, MCP bundle build failure, dropped markers,
- * or a failing loadability scan. Deterministic: same inputs (including
+ * a failing loadability scan, or a saved-unit module violating
+ * workerd/browser separation. Deterministic: same inputs (including
  * the verdict) => identical modules + sha256.
  */
 export function buildDeployBundle(
@@ -1289,6 +1368,7 @@ export function buildDeployBundle(
     options.verdict,
   );
   modules[DERIVED_INPUTS_MODULE] = buildDerivedInputsModule(artifact);
+  assertSavedUnitSeparation(modules);
   assertWorkerdLoadable(modules);
   assertLinksResolve(modules);
   const sorted: Record<string, string> = {};

@@ -1010,3 +1010,170 @@ struct GivenContractsWire<'a> {
     traits: &'a [ArtifactGivenTrait],
     keywords: &'a [ArtifactGivenKeyword],
 }
+
+/// BGI-11 Can owner link: the separate unit/span link identifying the
+/// owning `.can` intent beside a saved-JS map. Maps locate executable
+/// current saved JavaScript; this link attributes it to its source
+/// definition without inventing executable statements inside the
+/// natural-language prompt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanOwnerLink {
+    /// Opaque saved unit id.
+    pub unit_id: String,
+    /// Unit kind wire string (`keyword`, `view`, ...).
+    pub kind: String,
+    /// Owning `.can` path as recorded at bind time.
+    pub can_path: String,
+    /// SHA-256 of the owning source bytes the link was bound to.
+    pub can_revision: String,
+    /// Bind-time definition span start (evidence, not identity).
+    pub start: u32,
+    /// Bind-time definition span end (evidence, not identity).
+    pub end: u32,
+}
+
+/// One packed saved unit module: fingerprint-verified bytes, an
+/// identity map over those bytes, and the Can owner link.
+#[derive(Debug, Clone)]
+pub struct SavedUnitModule {
+    /// Staged artifact path (`can.generated/<id>/server.js` for Given
+    /// keywords per the BGI-08 join, `can.generated/<id>/view.js` for
+    /// views).
+    pub path: String,
+    /// Verified saved JavaScript bytes.
+    pub js: String,
+    /// Identity map locating the saved bytes.
+    pub map: crate::codegen::sourcemap::SavedJsMap,
+    /// Owning `.can` intent link.
+    pub owner: CanOwnerLink,
+}
+
+/// Staged artifact path for one saved JS unit. Only keyword and view
+/// units pack modules: styles travel through the CSS pipeline and
+/// traits through checked contracts, never as JavaScript modules.
+pub fn saved_unit_module_path(
+    kind: crate::analysis::generation_intake::UnitKind,
+    unit_id: &str,
+) -> Result<String, String> {
+    use crate::analysis::generation_intake::UnitKind;
+    match kind {
+        UnitKind::Keyword => Ok(format!("can.generated/{unit_id}/server.js")),
+        UnitKind::View => Ok(format!("can.generated/{unit_id}/view.js")),
+        _ => Err(format!(
+            "unit `{unit_id}` ({}): only keyword and view units pack saved JavaScript modules",
+            kind.as_str(),
+        )),
+    }
+}
+
+/// Pack one validated saved unit into a staged module: the bytes must
+/// be non-empty UTF-8 and match `expected_sha256` exactly, or packing
+/// refuses (unknown unit / changed code stays loud, never silent).
+/// The owner link must name this unit and kind.
+pub fn pack_saved_unit(
+    kind: crate::analysis::generation_intake::UnitKind,
+    owner: CanOwnerLink,
+    js_bytes: &[u8],
+    expected_sha256: &str,
+) -> Result<SavedUnitModule, String> {
+    if owner.unit_id.is_empty() || owner.kind != kind.as_str() {
+        return Err(format!(
+            "owner link names unit `{}` kind `{}` but packs a {} unit",
+            owner.unit_id,
+            owner.kind,
+            kind.as_str(),
+        ));
+    }
+    if js_bytes.is_empty() {
+        return Err(format!(
+            "unit `{}` packs empty implementation bytes; refusing an empty module",
+            owner.unit_id,
+        ));
+    }
+    let actual = crate::source::sha256_hex(js_bytes);
+    if actual != expected_sha256 {
+        return Err(format!(
+            "unit `{}` saved implementation changed (fingerprint mismatch): re-validate before packing; refusing to pack changed code silently",
+            owner.unit_id,
+        ));
+    }
+    let js = String::from_utf8(js_bytes.to_vec())
+        .map_err(|_| format!("unit `{}` implementation is not valid UTF-8", owner.unit_id))?;
+    let path = saved_unit_module_path(kind, &owner.unit_id)?;
+    let map = crate::codegen::sourcemap::build_saved_js_map(&path, &js);
+    Ok(SavedUnitModule {
+        path,
+        js,
+        map,
+        owner,
+    })
+}
+
+/// Stage packed saved units into an artifact: appended after existing
+/// modules (the entrypoint stays first) in staged-path order, so the
+/// same packed set always stages identically. Duplicate or aliased
+/// staged paths refuse; staging never overwrites an existing module.
+pub fn stage_saved_unit_modules(
+    artifact: &mut CompileArtifact,
+    packed: &[SavedUnitModule],
+) -> Result<(), String> {
+    let mut ordered: Vec<&SavedUnitModule> = packed.iter().collect();
+    ordered.sort_by(|a, b| a.path.cmp(&b.path));
+    let mut known: BTreeSet<String> = artifact.modules.iter().map(|m| m.path.clone()).collect();
+    for unit in ordered {
+        if !known.insert(unit.path.clone()) {
+            return Err(format!(
+                "staged path `{}` is already an artifact module; refusing to overwrite it",
+                unit.path
+            ));
+        }
+        artifact.modules.push(ArtifactModule {
+            path: unit.path.clone(),
+            js: unit.js.clone(),
+            map: unit.map.map.clone(),
+        });
+    }
+    Ok(())
+}
+
+/// Render packed saved units as the owner-link manifest the deploy
+/// host carries beside the artifact: staged path, verified bytes hash,
+/// and the Can owner link per unit, in staged-path order. Compact
+/// JSON per the shared string-escape policy, no trailing newline.
+pub fn saved_unit_manifest_to_json(packed: &[SavedUnitModule]) -> String {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct OwnerWire<'a> {
+        unit_id: &'a str,
+        kind: &'a str,
+        can_path: &'a str,
+        can_revision: &'a str,
+        start: u32,
+        end: u32,
+    }
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct EntryWire<'a> {
+        path: &'a str,
+        sha256: &'a str,
+        owner: OwnerWire<'a>,
+    }
+    let mut ordered: Vec<&SavedUnitModule> = packed.iter().collect();
+    ordered.sort_by(|a, b| a.path.cmp(&b.path));
+    let entries: Vec<EntryWire<'_>> = ordered
+        .iter()
+        .map(|unit| EntryWire {
+            path: &unit.path,
+            sha256: &unit.map.js_sha256,
+            owner: OwnerWire {
+                unit_id: &unit.owner.unit_id,
+                kind: &unit.owner.kind,
+                can_path: &unit.owner.can_path,
+                can_revision: &unit.owner.can_revision,
+                start: unit.owner.start,
+                end: unit.owner.end,
+            },
+        })
+        .collect();
+    crate::json::to_compact_string(&entries).expect("owner manifest serialization is infallible")
+}

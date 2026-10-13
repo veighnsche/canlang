@@ -1400,11 +1400,11 @@ fn lifecycle_ops_admit_selectors_then_name_their_join() {
         assert_eq!(result.code, 2, "{operation}: {}", result.stdout);
         assert_eq!(error_of(&result.stdout).0, "unknown-unit", "{operation}");
     }
-    // Admitted requests name their joining task.
+    // Admitted requests name their joining task (`validate` landed
+    // with BGI-11, so it validates instead of naming a join).
     for (operation, params, join) in [
         ("diff", r#""unit_id":"u1""#, "BGI-05"),
         ("preview", r#""unit_id":"u1""#, "BGI-05"),
-        ("validate", r#""unit_id":"u1""#, "BGI-11"),
         ("adopt", r#""unit_id":"u1","files":["app.can"]"#, "BGI-12"),
         ("accept", r#""unit_id":"u1""#, "BGI-12"),
         ("cancel", r#""session_id":"s1""#, "BGI-05"),
@@ -1428,6 +1428,21 @@ fn lifecycle_ops_admit_selectors_then_name_their_join() {
         assert_eq!(code, "not-implemented", "{operation}");
         assert!(message.contains(join), "{operation}: {message}");
     }
+    // The landed `validate` join checks its scope instead of naming
+    // BGI-11: the fresh bound style unit has no saved CSS yet, and a
+    // `.can` source is not a saved output file.
+    let request = request_file(
+        dir.path(),
+        "op.json",
+        &format!(
+            r#"{{"version":1,"request_id":"x","operation":"validate","root":{root:?},"unit_id":"u1"}}"#
+        ),
+    );
+    let result = dispatch(&argv(&["gen", "--request", &request]));
+    assert_eq!(result.code, 4, "stdout: {}", result.stdout);
+    let (code, message) = error_of(&result.stdout);
+    assert_eq!(code, "validation-failure");
+    assert!(message.contains("style.css"), "{message}");
     // Relative scope files resolve at the request root.
     let request = request_file(
         dir.path(),
@@ -1437,7 +1452,10 @@ fn lifecycle_ops_admit_selectors_then_name_their_join() {
         ),
     );
     let result = dispatch(&argv(&["gen", "--request", &request]));
-    assert_eq!(error_of(&result.stdout).0, "not-implemented");
+    assert_eq!(result.code, 4, "stdout: {}", result.stdout);
+    let (code, message) = error_of(&result.stdout);
+    assert_eq!(code, "validation-failure");
+    assert!(message.contains("not a saved output file"), "{message}");
 }
 
 #[test]

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TextDecoder } from "node:util";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { distribution as uiDistribution } from "@canlang/ui/distribution";
 
@@ -155,6 +156,119 @@ export function gatherBrowserAssets(
     };
   }
   return result;
+}
+
+export interface SavedUnitAssetCollection {
+  /** Unit-local `.js`/`.mjs` modules as UTF-8 text (staged verbatim). */
+  readonly modules: Record<string, string>;
+  /** Owned CSS/images/fonts/bytes as typed resources. */
+  readonly resources: Record<string, PackageResource>;
+}
+
+/** Unit-local module extensions gathered as UTF-8 text. */
+const SAVED_UNIT_MODULE_EXTENSIONS: ReadonlySet<string> = new Set([".js", ".mjs"]);
+
+/** Owned asset extensions gathered as typed resources. */
+const SAVED_UNIT_RESOURCE_TYPES: Readonly<Record<string, string>> = {
+  ".css": "text/css",
+  ".json": "application/json",
+  ".txt": "text/plain",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".otf": "font/otf",
+  ".wasm": "application/wasm",
+};
+
+/** Primaries and metadata that are never gathered as assets. */
+const SAVED_UNIT_RESERVED_FILES: ReadonlySet<string> = new Set([
+  "unit.json",
+  "declaration.json",
+  "contributions.can",
+  "implementation.js",
+  "style.css",
+]);
+
+function savedUnitError(detail: string): Error {
+  return new Error(`saved unit assets: ${detail}`);
+}
+
+/**
+ * BGI-11 owned saved-unit assets: gather exactly the manifest set
+ * (unit-relative path to expected SHA-256) from one saved unit
+ * directory. Same containment discipline as producer assets
+ * (symlink escape refuses), fingerprint-verified, deterministic
+ * sorted order; `.js`/`.mjs` gather as UTF-8 modules, owned
+ * CSS/images/fonts/bytes as typed resources. Unknown extensions,
+ * reserved primaries, hash mismatches, and invalid UTF-8 modules
+ * refuse loudly.
+ */
+export function gatherSavedUnitAssets(unitDir: string, manifest: Record<string, string>): SavedUnitAssetCollection {
+  if (typeof unitDir !== "string" || unitDir.length === 0) {
+    throw savedUnitError("unit directory must be a non-empty path");
+  }
+  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
+    throw savedUnitError("manifest must be an object of unit-relative path to SHA-256");
+  }
+  let root: string;
+  try {
+    root = realpathSync(unitDir);
+    if (!statSync(root).isDirectory()) throw new Error("not a directory");
+  } catch (error) {
+    throw savedUnitError(`cannot read unit directory ${JSON.stringify(unitDir)}: ${String(error)}`);
+  }
+  const rels = Object.keys(manifest).sort();
+  for (const rel of rels) {
+    if (rel.length === 0 || isAbsolute(rel) || rel.split("/").some((part) => part === "" || part === "." || part === "..") || rel.includes("\\")) {
+      throw savedUnitError(`manifest path ${JSON.stringify(rel)} must be a traversal-free unit-relative path`);
+    }
+    const expected: unknown = manifest[rel];
+    if (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected)) {
+      throw savedUnitError(`manifest entry ${JSON.stringify(rel)} expects malformed SHA-256 ${JSON.stringify(expected)}`);
+    }
+    if (SAVED_UNIT_RESERVED_FILES.has(rel)) {
+      throw savedUnitError(`manifest entry ${JSON.stringify(rel)} names a reserved primary/metadata file, not an asset`);
+    }
+  }
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  const modules: Record<string, string> = {};
+  const resources: Record<string, PackageResource> = {};
+  for (const rel of rels) {
+    const expected = manifest[rel] as string;
+    let bytes: Uint8Array;
+    try {
+      bytes = readContainedFile(root, join(root, rel));
+    } catch (error) {
+      throw savedUnitError(`cannot read ${JSON.stringify(rel)}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const actual = createHash("sha256").update(bytes).digest("hex");
+    if (actual !== expected) {
+      throw savedUnitError(`file ${JSON.stringify(rel)} changed (fingerprint mismatch): re-validate before gathering; refusing to gather changed bytes silently`);
+    }
+    const dot = rel.lastIndexOf(".");
+    const extension = dot >= 0 ? rel.slice(dot).toLowerCase() : "";
+    if (SAVED_UNIT_MODULE_EXTENSIONS.has(extension)) {
+      try {
+        modules[rel] = decoder.decode(bytes);
+      } catch {
+        throw savedUnitError(`module ${JSON.stringify(rel)} is not valid UTF-8`);
+      }
+      continue;
+    }
+    const contentType = SAVED_UNIT_RESOURCE_TYPES[extension];
+    if (contentType === undefined) {
+      throw savedUnitError(`file ${JSON.stringify(rel)} has an unadmitted extension ${JSON.stringify(extension)} (only unit-local .js/.mjs, CSS, images, fonts, and bytes gather as assets)`);
+    }
+    resources[rel] = { bytes, contentType };
+  }
+  return { modules, resources };
 }
 
 /** No assets are selected implicitly; package installation does not select WASM. */

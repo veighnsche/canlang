@@ -2143,16 +2143,7 @@ fn dispatch_gen_operation(
                 },
             )
         }
-        GenParams::Validate(params) => admit_validate(&validated.header, params).map_or_else(
-            |error| error,
-            |_| {
-                run_gen_not_implemented(
-                    &validated.header,
-                    params.root.clone(),
-                    "BGI-11 (interface/contract/target validators)",
-                )
-            },
-        ),
+        GenParams::Validate(params) => run_gen_validate(&validated.header, params),
         GenParams::Adopt(params) => admit_adopt(&validated.header, params).map_or_else(
             |error| error,
             |_| {
@@ -3697,6 +3688,1885 @@ fn admit_validate(
         admit_readable_files(header, &params.root, files)?;
     }
     Ok(())
+}
+
+/// JSON `validate` (BGI-11): one finite validator dispatch by kind/target.
+///
+/// Unit scope checks one saved unit's declared exports/imports/assets
+/// against its captured inputs and current bytes, using only that unit
+/// kind's producer outputs — BGI-07 contracts for Given kinds, BGI-09
+/// lowering for views, BGI-10 scoping for styles — never every kind.
+/// Files scope checks directly repaired saved files byte-for-byte
+/// against their owning units. Both scopes read files only: no
+/// settings, provider, login, model, or MCP server is consulted, so a
+/// clean checkout validates with zero AI processes.
+///
+/// Success exits 0 with state `validated` and the exact consumed
+/// closure (source revision plus file hashes) for BGI-12 promotion
+/// comparison. Interface/contract failures exit 4 with the exact unit
+/// and a bounded next action; source/interface drift routes to
+/// deterministic manual `adopt` (BGI-12), never to silent regeneration.
+fn run_gen_validate(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    params: &crate::analysis::generation_protocol::ValidateParams,
+) -> DispatchResult {
+    if let Err(error) = admit_validate(header, params) {
+        return error;
+    }
+    if let Some(unit_id) = &params.unit_id {
+        validate_saved_unit(header, &params.root, unit_id)
+    } else {
+        validate_saved_files(header, &params.root, params.files.as_deref().unwrap_or(&[]))
+    }
+}
+
+/// One validation failure: the exact unit/input, why, and what to do.
+struct ValidationFailure {
+    message: String,
+    next: Vec<String>,
+}
+
+impl ValidationFailure {
+    fn new(message: String, next: Vec<String>) -> Self {
+        Self { message, next }
+    }
+
+    /// A source/interface drift that deterministic manual `adopt`
+    /// (BGI-12) reconciles; validation never regenerates or repairs.
+    fn drift(message: String) -> Self {
+        Self {
+            message,
+            next: vec![
+                "send an adopt request to reconcile the drift deterministically (BGI-12)"
+                    .to_string(),
+            ],
+        }
+    }
+}
+
+/// Render a validation failure as the exit-4 `validation-failure`
+/// envelope. Admission failures (unknown unit, unreadable input) keep
+/// their exit-2 envelopes from the `admit_*` helpers.
+fn validation_failure_envelope(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    failure: ValidationFailure,
+) -> DispatchResult {
+    use crate::analysis::generation_protocol as proto;
+    gen_envelope_result(
+        exit::GEN_VALIDATION,
+        proto::error_envelope(
+            &header.request_id,
+            header.operation.as_str(),
+            "validation-failure",
+            &failure.message,
+            failure.next,
+        ),
+    )
+}
+
+/// One passed check for a validation envelope: stable name, verdict,
+/// and a one-line detail.
+fn validation_check(name: &str, detail: String) -> serde_json::Value {
+    serde_json::json!({"name": name, "ok": true, "detail": detail})
+}
+
+/// Bounded next action for a BGI-02 intake issue surfaced by validation.
+fn intake_issue_next(issue: &crate::analysis::generation_intake::IntakeIssue) -> Vec<String> {
+    use crate::analysis::generation_intake::IntakeAction;
+    match issue.action {
+        IntakeAction::Generate => {
+            vec!["send a generate request to prepare the unit's saved group".to_string()]
+        }
+        IntakeAction::Bind => {
+            vec!["send a bind request to reconcile the unit's association".to_string()]
+        }
+        IntakeAction::Adopt => vec![ValidationFailure::drift(String::new()).next.remove(0)],
+    }
+}
+
+/// First-line rendering of compiler diagnostics for envelopes: the
+/// first `code message`, plus a count when more follow.
+fn diagnostic_summary(diags: &[crate::diagnostic::Diagnostic]) -> String {
+    let Some(first) = diags.first() else {
+        return "no diagnostics".to_string();
+    };
+    let mut summary = format!("{} {}", first.code, first.message);
+    if diags.len() > 1 {
+        summary.push_str(&format!(" (+{} more)", diags.len() - 1));
+    }
+    summary
+}
+
+/// Whether a diagnostic's primary span falls inside `start..end`.
+/// Validation fails a unit only on diagnostics about that unit's own
+/// descriptor span; unrelated source problems stay out of scope.
+fn diagnostic_in_span(diag: &crate::diagnostic::Diagnostic, start: u32, end: u32) -> bool {
+    diag.primary.start >= start && diag.primary.end <= end
+}
+
+/// Runtime targets a validated unit kind runs on. The kind selects the
+/// validator and its targets; the recorded declaration target (row
+/// model, style host) is a drift input, not a runtime selector.
+fn runtime_targets_for(
+    kind: crate::analysis::generation_intake::UnitKind,
+) -> &'static [&'static str] {
+    use crate::analysis::generation_intake::UnitKind;
+    match kind {
+        UnitKind::Keyword => &["workerd"],
+        UnitKind::View => &["workerd", "browser"],
+        UnitKind::Style | UnitKind::StyleInline | UnitKind::ViewStyleInline => &["css"],
+        UnitKind::NamedTrait | UnitKind::InlineTrait => &["check"],
+    }
+}
+
+/// Validate one saved unit by kind/target against its captured inputs
+/// and current bytes. Admission already established the record exists.
+fn validate_saved_unit(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    root: &str,
+    unit_id: &str,
+) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let root_path = Path::new(root);
+    // Admission parsed this id and found its record; re-parse stays total.
+    let id = match intake::GenerationUnitId::parse(unit_id) {
+        Ok(id) => id,
+        Err(reason) => {
+            return gen_envelope_result(
+                exit::TOOL_FAILURE,
+                proto::error_envelope(
+                    &header.request_id,
+                    header.operation.as_str(),
+                    "invalid-param",
+                    &format!("`unit_id`: {reason}"),
+                    vec!["pass a saved unit id (see a status report)".to_string()],
+                ),
+            );
+        }
+    };
+    let group = match intake::read_saved_group(root_path, &id) {
+        Ok(group) => group,
+        Err(issue) => {
+            let next = intake_issue_next(&issue);
+            return validation_failure_envelope(
+                header,
+                ValidationFailure::new(issue.to_string(), next),
+            );
+        }
+    };
+    let record = &group.record;
+    // The owning source is a captured validation input: it must exist
+    // and be readable. The recorded path is workspace-relative, but a
+    // bind may have carried an absolute path; joining handles both.
+    let source_text = match std::fs::read_to_string(root_path.join(&record.source.path)) {
+        Ok(text) => text,
+        Err(_) => {
+            return validation_failure_envelope(
+                header,
+                ValidationFailure::new(
+                    format!(
+                        "unit `{}` owning source `{}` is missing; restore the source or send a bind request to reconcile the unit",
+                        id.as_str(),
+                        record.source.path
+                    ),
+                    vec![
+                        "restore the owning source, or send a bind request to reconcile the unit"
+                            .to_string(),
+                    ],
+                ),
+            );
+        }
+    };
+    let (tree, parse_diags) = crate::syntax::parse_source(SourceId(0), &source_text);
+    if !parse_diags.is_empty() {
+        return validation_failure_envelope(
+            header,
+            ValidationFailure::new(
+                format!(
+                    "unit `{}` owning source `{}` does not parse: {}",
+                    id.as_str(),
+                    record.source.path,
+                    diagnostic_summary(&parse_diags)
+                ),
+                vec!["fix the source errors and resend validate".to_string()],
+            ),
+        );
+    }
+    // Bind the unit to its current descriptor: same owner/kind, label,
+    // and non-prompt anchor. Anything else is source drift, which
+    // deterministic manual adoption reconciles — never regeneration.
+    let found = crate::analysis::generation::discover_generation(&tree, &source_text);
+    let descriptor = found.descriptors.iter().find(|d| {
+        d.owner == record.source.owner
+            && intake::UnitKind::of_descriptor(d.kind) == Some(record.source.kind)
+            && d.label == record.source.label
+            && d.anchor == record.source.anchor
+    });
+    let Some(descriptor) = descriptor else {
+        return validation_failure_envelope(
+            header,
+            ValidationFailure::drift(format!(
+                "unit `{}` source drifted: no {} `{}` at anchor `{}` in current `{}`; the saved group is preserved",
+                id.as_str(),
+                record.source.kind.as_str(),
+                record.source.label.as_deref().unwrap_or("-"),
+                record.source.anchor,
+                record.source.path
+            )),
+        );
+    };
+    let own_diags: Vec<_> = found
+        .diagnostics
+        .iter()
+        .filter(|d| diagnostic_in_span(d, descriptor.span.start, descriptor.span.end))
+        .collect();
+    if !own_diags.is_empty() {
+        let owned: Vec<crate::diagnostic::Diagnostic> = own_diags.into_iter().cloned().collect();
+        return validation_failure_envelope(
+            header,
+            ValidationFailure::new(
+                format!(
+                    "unit `{}` source discovery failed: {}",
+                    id.as_str(),
+                    diagnostic_summary(&owned)
+                ),
+                vec!["fix the source errors and resend validate".to_string()],
+            ),
+        );
+    }
+    // Declaration-target and keyword-signature consistency: the current
+    // descriptor must agree with the recorded contract, else the
+    // interface drifted and manual adoption reconciles it.
+    if descriptor.target != record.contract.target {
+        return validation_failure_envelope(
+            header,
+            ValidationFailure::drift(format!(
+                "unit `{}` interface drifted: declaration target is now {} but the saved group bound {}; the saved group is preserved",
+                id.as_str(),
+                descriptor
+                    .target
+                    .as_deref()
+                    .map(|t| format!("`{t}`"))
+                    .unwrap_or_else(|| "absent".to_string()),
+                record
+                    .contract
+                    .target
+                    .as_deref()
+                    .map(|t| format!("`{t}`"))
+                    .unwrap_or_else(|| "absent".to_string()),
+            )),
+        );
+    }
+    let current_signature = intake::contract_for(descriptor).and_then(|c| c.signature);
+    if current_signature != record.contract.signature {
+        return validation_failure_envelope(
+            header,
+            ValidationFailure::drift(format!(
+                "unit `{}` interface drifted: keyword signature changed; the saved group is preserved",
+                id.as_str()
+            )),
+        );
+    }
+    let prompt_changed = {
+        let current_prompt = intake::contract_for(descriptor)
+            .map(|c| c.prompt_sha256)
+            .unwrap_or_default();
+        current_prompt != record.contract.prompt_sha256
+    };
+    let mut checks = vec![validation_check(
+        "source",
+        format!(
+            "bound {} `{}` at anchor `{}` (revision {})",
+            record.source.kind.as_str(),
+            record.source.label.as_deref().unwrap_or("-"),
+            record.source.anchor,
+            crate::source::sha256_hex(source_text.as_bytes()),
+        ),
+    )];
+    // One finite dispatch by kind: only the selected unit kind's
+    // producer outputs are consulted, not every kind.
+    let outcome = match record.source.kind {
+        intake::UnitKind::Keyword => {
+            validate_keyword_unit(&id, &group, &source_text, descriptor, &mut checks)
+        }
+        intake::UnitKind::NamedTrait | intake::UnitKind::InlineTrait => {
+            validate_trait_unit(&id, &group, &source_text, &mut checks)
+        }
+        intake::UnitKind::Style
+        | intake::UnitKind::StyleInline
+        | intake::UnitKind::ViewStyleInline => validate_style_unit(&id, &group, &mut checks),
+        intake::UnitKind::View => {
+            validate_view_unit(&id, &group, &source_text, descriptor, &mut checks)
+        }
+    };
+    let fingerprint = match outcome {
+        Ok(fingerprint) => fingerprint,
+        Err(failure) => return validation_failure_envelope(header, failure),
+    };
+    // Bind the exact consumed closure: the owning source, the parsed
+    // record, and every current group file. Promotion compares these
+    // bytes; the validator consumed nothing else.
+    let unit_prefix = format!("{}/{}/", intake::GENERATED_DIR, id.as_str());
+    let mut bound_paths = vec![
+        record.source.path.clone(),
+        format!("{unit_prefix}{}", intake::UNIT_FILE),
+    ];
+    bound_paths.extend(
+        group
+            .files
+            .iter()
+            .map(|f| format!("{unit_prefix}{}", f.rel_path)),
+    );
+    let inputs = match crate::source::ValidationInputs::bind(root_path, &bound_paths) {
+        Ok(inputs) => inputs,
+        Err(err) => {
+            return validation_failure_envelope(
+                header,
+                ValidationFailure::new(
+                    err.to_string(),
+                    vec!["restore the missing input and resend validate".to_string()],
+                ),
+            );
+        }
+    };
+    let modified_since_generation = group
+        .files
+        .iter()
+        .any(|f| modified_since_generation(&group.record, &f.rel_path, &f.sha256));
+    let mut payload = serde_json::Map::new();
+    payload.insert(
+        "unit_id".to_string(),
+        serde_json::Value::String(id.as_str().to_string()),
+    );
+    payload.insert(
+        "kind".to_string(),
+        serde_json::Value::String(record.source.kind.as_str().to_string()),
+    );
+    payload.insert(
+        "target".to_string(),
+        record
+            .contract
+            .target
+            .clone()
+            .map(serde_json::Value::String)
+            .unwrap_or(serde_json::Value::Null),
+    );
+    payload.insert(
+        "runtime_targets".to_string(),
+        serde_json::Value::Array(
+            runtime_targets_for(record.source.kind)
+                .iter()
+                .map(|t| serde_json::Value::String(t.to_string()))
+                .collect(),
+        ),
+    );
+    payload.insert(
+        "checks".to_string(),
+        serde_json::Value::Array(checks.into_iter().collect()),
+    );
+    payload.insert(
+        "inputs".to_string(),
+        serde_json::json!({
+            "source": {"path": record.source.path, "revision": crate::source::sha256_hex(source_text.as_bytes())},
+            "files": inputs.files.iter().map(|f| serde_json::json!({"path": f.path, "sha256": f.sha256})).collect::<Vec<_>>(),
+        }),
+    );
+    payload.insert(
+        "fingerprint".to_string(),
+        serde_json::Value::String(fingerprint),
+    );
+    payload.insert(
+        "modified_since_generation".to_string(),
+        serde_json::Value::Bool(modified_since_generation),
+    );
+    payload.insert(
+        "prompt_changed".to_string(),
+        serde_json::Value::Bool(prompt_changed),
+    );
+    gen_envelope_result(
+        exit::OK,
+        proto::ok_envelope(header, "validated", payload, vec![]),
+    )
+}
+
+/// Whether current bytes differ from the recorded original output.
+/// Unrecorded files (bound, never generated) are not modifications:
+/// truthful provenance never invents generator credit.
+fn modified_since_generation(
+    record: &crate::analysis::generation_intake::UnitRecord,
+    rel_path: &str,
+    current_sha256: &str,
+) -> bool {
+    record
+        .original
+        .files
+        .get(rel_path)
+        .is_some_and(|original| original != current_sha256)
+}
+
+/// Saved interface declaration sidecar for keyword units
+/// (`can.generated/<id>/declaration.json`): the owner-versioned
+/// producer, the saved export implementing the behavior, and the
+/// declared reads/effects/authority the BGI-07 check admits.
+///
+/// No other disk carrier exists for [`GivenSavedDeclaration`](crate::analysis::types::GivenSavedDeclaration):
+/// `unit.json` holds association and contract refs only, and schema
+/// or authority is never read out of the JavaScript module itself.
+/// Strict shape — unknown fields refuse — so a drifted declaration
+/// diagnoses instead of validating against stale fields.
+const DECLARATION_FILE: &str = "declaration.json";
+
+/// Strict wire shape of [`DECLARATION_FILE`].
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SavedDeclarationFile {
+    producer: String,
+    export: String,
+    #[serde(default)]
+    reads: Vec<String>,
+    #[serde(default)]
+    effects: Vec<String>,
+    #[serde(default)]
+    authority: Vec<String>,
+}
+
+/// Parse a keyword unit's declaration sidecar into the saved
+/// declaration the BGI-07 Given check consumes.
+fn read_saved_declaration(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+) -> Result<crate::analysis::types::GivenSavedDeclaration, ValidationFailure> {
+    let Some(file) = group.files.iter().find(|f| f.rel_path == DECLARATION_FILE) else {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` declares no saved interface: `{DECLARATION_FILE}` is missing; reconcile the interface with adopt or regenerate the unit",
+                id.as_str(),
+            ),
+            vec![
+                "send an adopt request to reconcile the unit's declared interface (BGI-12)"
+                    .to_string(),
+            ],
+        ));
+    };
+    let text = String::from_utf8(file.bytes.clone()).map_err(|_| {
+        ValidationFailure::new(
+            format!(
+                "unit `{}` `{DECLARATION_FILE}` is not valid UTF-8; repair the file or reconcile with adopt",
+                id.as_str(),
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })?;
+    let parsed: SavedDeclarationFile = serde_json::from_str(&text).map_err(|err| {
+        ValidationFailure::new(
+            format!(
+                "unit `{}` `{DECLARATION_FILE}` is not a valid saved declaration: {err}",
+                id.as_str(),
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })?;
+    if parsed.producer.is_empty() || parsed.export.is_empty() {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` `{DECLARATION_FILE}` names no producer/export; reconcile the interface with adopt",
+                id.as_str(),
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        ));
+    }
+    Ok(crate::analysis::types::GivenSavedDeclaration {
+        producer: parsed.producer,
+        export: parsed.export,
+        reads: parsed.reads,
+        effects: parsed.effects,
+        authority: parsed.authority,
+    })
+}
+
+/// A group file that must exist and be UTF-8 before kind validation.
+/// Fresh preparation groups (bound, no outputs yet) fail with the
+/// generate action; anything else names the missing file.
+fn require_group_text(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    rel_path: &str,
+) -> Result<String, ValidationFailure> {
+    let Some(file) = group.files.iter().find(|f| f.rel_path == rel_path) else {
+        return Err(ValidationFailure::new(
+            format!(
+                "saved group `{}` ({}) is missing required primary output `{rel_path}`; prepare generation for the unit",
+                id.as_str(),
+                group.record.source.kind.as_str(),
+            ),
+            vec!["send a generate request to prepare the unit's saved group".to_string()],
+        ));
+    };
+    String::from_utf8(file.bytes.clone()).map_err(|_| {
+        ValidationFailure::new(
+            format!(
+                "unit `{}` `{rel_path}` is not valid UTF-8; repair the file or reconcile with adopt",
+                id.as_str(),
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        )
+    })
+}
+
+/// Check one owning source catalog-free (Given contracts never depend
+/// on builtins) and return the database, program, and diagnostics.
+/// Only Given-kind validation pays for the full check; style and view
+/// units use only their own producer outputs.
+fn check_validation_source(
+    source_path: &str,
+    source_text: &str,
+) -> (
+    crate::source::SourceDb,
+    crate::analysis::CheckedProgram,
+    Vec<crate::diagnostic::Diagnostic>,
+) {
+    let mut db = crate::source::SourceDb::new();
+    let id = db.add(source_path.to_string(), source_text.to_string());
+    let (program, diags) = crate::analysis::check_program(&db, &[id], None);
+    (db, program, diags)
+}
+
+/// Run the BGI-07 Given check for exactly one saved unit and return
+/// its contract tables. The saved map holds only the selected unit:
+/// validation consumes that kind's producer outputs, not every kind.
+fn check_one_given_unit(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    source_text: &str,
+    saved_unit: crate::analysis::types::GivenSavedUnit,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<crate::analysis::types::GivenContractTables, ValidationFailure> {
+    use crate::analysis::generation_intake::AssociationKey;
+    let (mut db, program, base) = check_validation_source(&group.record.source.path, source_text);
+    if !base.is_empty() {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` owning source `{}` does not check: {}",
+                id.as_str(),
+                group.record.source.path,
+                diagnostic_summary(&base)
+            ),
+            vec!["fix the source errors and resend validate".to_string()],
+        ));
+    }
+    // Carriers join the database after the program check, exactly as
+    // the BGI-07 harness does: checked-program ids stay stable.
+    let mut saved_unit = saved_unit;
+    if let Some(carrier) = group
+        .files
+        .iter()
+        .find(|f| f.rel_path == "contributions.can")
+        && saved_unit.contributions.is_none()
+    {
+        let text = String::from_utf8_lossy(&carrier.bytes).into_owned();
+        let carrier_id = db.add(
+            format!(
+                "{}/{}/contributions.can",
+                crate::analysis::generation_intake::GENERATED_DIR,
+                id.as_str()
+            ),
+            text,
+        );
+        // Trait units carry their template here; a keyword carrier
+        // passes through so the Given check refuses it as hidden
+        // authority instead of validating against hidden bytes.
+        saved_unit.contributions = Some(carrier_id);
+    }
+    let mut saved = std::collections::HashMap::new();
+    saved.insert(
+        AssociationKey {
+            owner: group.record.source.owner.clone(),
+            kind: group.record.source.kind,
+            label: group.record.source.label.clone(),
+            anchor: group.record.source.anchor.clone(),
+        },
+        saved_unit,
+    );
+    let (tables, diags) = crate::analysis::check::check_given_contracts(
+        &crate::analysis::check::GivenContractInputs {
+            db: &db,
+            program: &program,
+            saved: &saved,
+        },
+    );
+    if !diags.is_empty() {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` given contract check failed: {}",
+                id.as_str(),
+                diagnostic_summary(&diags)
+            ),
+            vec![
+                "fix the reported contract mismatch and resend validate".to_string(),
+                "send an adopt request if the source intent changed (BGI-12)".to_string(),
+            ],
+        ));
+    }
+    checks.push(validation_check(
+        "contract",
+        "given contracts check with no diagnostics".to_string(),
+    ));
+    Ok(tables)
+}
+
+/// Validate a keyword unit for the workerd target: checked producer
+/// contract, declared export present in the saved module, admitted
+/// imports only, and a bound implementation fingerprint. Returns the
+/// fingerprint downstream activation compares before running.
+fn validate_keyword_unit(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    source_text: &str,
+    _descriptor: &crate::analysis::generation::GenerationDescriptor,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<String, ValidationFailure> {
+    let declaration = read_saved_declaration(id, group)?;
+    checks.push(validation_check(
+        "declaration",
+        format!(
+            "producer `{}` export `{}`",
+            declaration.producer, declaration.export
+        ),
+    ));
+    let js = require_group_text(id, group, "implementation.js")?;
+    let scan = scan_js_module(&js);
+    let saved_unit = crate::analysis::types::GivenSavedUnit {
+        unit_id: id.as_str().to_string(),
+        contributions: None,
+        implementation_js: Some(js.clone()),
+        declaration: Some(declaration.clone()),
+    };
+    let tables = check_one_given_unit(id, group, source_text, saved_unit, checks)?;
+    let contract = tables
+        .keywords
+        .iter()
+        .find(|c| c.unit_id == id.as_str())
+        .ok_or_else(|| {
+            ValidationFailure::new(
+                format!(
+                    "unit `{}` produced no keyword contract; the definition has no checked application to validate against",
+                    id.as_str(),
+                ),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            )
+        })?;
+    checks.push(validation_check(
+        "contract-binding",
+        format!(
+            "producer `{}` semantics `{}` lifecycle `{}` ({} application{})",
+            contract.producer,
+            contract.semantics,
+            contract.lifecycle,
+            contract.applications.len(),
+            if contract.applications.len() == 1 {
+                ""
+            } else {
+                "s"
+            },
+        ),
+    ));
+    // The declared export must be textually declared by the saved
+    // module. This is static admission, never execution: no module
+    // runs to discover schema or authority.
+    if !scan.exports.iter().any(|e| e == &contract.export) {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` declares export `{}` with no matching saved export in `implementation.js`; repair the export or reconcile with adopt",
+                id.as_str(),
+                contract.export
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        ));
+    }
+    checks.push(validation_check(
+        "exports",
+        format!("saved module declares `{}`", contract.export),
+    ));
+    admit_js_imports(id, &scan, "workerd")?;
+    checks.push(validation_check(
+        "imports",
+        if scan.imports.is_empty() {
+            "no imports".to_string()
+        } else {
+            format!(
+                "{} unit-local relative import{}",
+                scan.imports.len(),
+                if scan.imports.len() == 1 { "" } else { "s" }
+            )
+        },
+    ));
+    let fingerprint = crate::source::sha256_hex(js.as_bytes());
+    checks.push(validation_check(
+        "fingerprint",
+        format!("implementation sha256 {fingerprint}"),
+    ));
+    Ok(fingerprint)
+}
+
+/// Validate a trait unit: its contributions carrier checks through
+/// BGI-07 with no saved JavaScript in v1. Returns the carrier
+/// fingerprint.
+fn validate_trait_unit(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    source_text: &str,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<String, ValidationFailure> {
+    reject_unexpected_declaration(id, group)?;
+    let carrier = require_group_text(id, group, "contributions.can")?;
+    let implementation_js = group
+        .files
+        .iter()
+        .find(|f| f.rel_path == "implementation.js")
+        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned());
+    let saved_unit = crate::analysis::types::GivenSavedUnit {
+        unit_id: id.as_str().to_string(),
+        contributions: None,
+        implementation_js,
+        declaration: None,
+    };
+    let tables = check_one_given_unit(id, group, source_text, saved_unit, checks)?;
+    let contract = tables
+        .traits
+        .iter()
+        .find(|c| c.unit_id == id.as_str())
+        .ok_or_else(|| {
+            ValidationFailure::new(
+                format!(
+                    "unit `{}` produced no trait contract; the definition has no checked application to validate against",
+                    id.as_str(),
+                ),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            )
+        })?;
+    checks.push(validation_check(
+        "contributions",
+        format!(
+            "{} contributed field{} ({} application{})",
+            contract.contributed_fields.len(),
+            if contract.contributed_fields.len() == 1 {
+                ""
+            } else {
+                "s"
+            },
+            contract.applications.len(),
+            if contract.applications.len() == 1 {
+                ""
+            } else {
+                "s"
+            },
+        ),
+    ));
+    let fingerprint = crate::source::sha256_hex(carrier.as_bytes());
+    checks.push(validation_check(
+        "fingerprint",
+        format!("carrier sha256 {fingerprint}"),
+    ));
+    Ok(fingerprint)
+}
+
+/// Only keyword units declare a producer/export interface in v1; any
+/// other kind carrying a declaration sidecar diagnoses instead of
+/// validating against interface metadata it cannot own.
+fn reject_unexpected_declaration(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+) -> Result<(), ValidationFailure> {
+    if group.files.iter().any(|f| f.rel_path == DECLARATION_FILE) {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` ({}) carries unexpected `{DECLARATION_FILE}`: only keyword units declare a producer/export interface in v1; remove the file or reconcile with bind",
+                id.as_str(),
+                group.record.source.kind.as_str(),
+            ),
+            vec![
+                "remove the unexpected declaration file, or send a bind request to reconcile the unit".to_string(),
+            ],
+        ));
+    }
+    Ok(())
+}
+
+/// Validate a style unit through the BGI-10 scoping path: the saved
+/// CSS scopes with ownership guards, and every owned asset URL
+/// resolves to a saved file in the unit. Returns the CSS fingerprint.
+fn validate_style_unit(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<String, ValidationFailure> {
+    reject_unexpected_declaration(id, group)?;
+    let css = require_group_text(id, group, "style.css")?;
+    let scoped = crate::css_scope::scope_stylesheet(id.as_str(), &css).map_err(|errors| {
+        let first = &errors[0];
+        let mut message = format!(
+            "unit `{}` `style.css` failed scope checks: {} {} (line {}, column {})",
+            id.as_str(),
+            first.code,
+            first.message,
+            first.line,
+            first.column,
+        );
+        if errors.len() > 1 {
+            message.push_str(&format!(" (+{} more)", errors.len() - 1));
+        }
+        ValidationFailure::new(message, vec!["fix the CSS and resend validate".to_string()])
+    })?;
+    checks.push(validation_check(
+        "scope",
+        format!(
+            "{} keyframe{}, {} propert{}, {} theme read{}, {} asset{}",
+            scoped.keyframes.len(),
+            if scoped.keyframes.len() == 1 { "" } else { "s" },
+            scoped.properties.len(),
+            if scoped.properties.len() == 1 {
+                "y"
+            } else {
+                "ies"
+            },
+            scoped.theme_reads.len(),
+            if scoped.theme_reads.len() == 1 {
+                ""
+            } else {
+                "s"
+            },
+            scoped.assets.len(),
+            if scoped.assets.len() == 1 { "" } else { "s" },
+        ),
+    ));
+    for asset in &scoped.assets {
+        if !group.files.iter().any(|f| f.rel_path == *asset) {
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{}` `style.css` references owned asset `{asset}` with no saved file; add the asset or reconcile with adopt",
+                    id.as_str(),
+                ),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            ));
+        }
+    }
+    if !scoped.assets.is_empty() {
+        checks.push(validation_check(
+            "assets",
+            format!(
+                "{} owned asset{} present",
+                scoped.assets.len(),
+                if scoped.assets.len() == 1 { "" } else { "s" },
+            ),
+        ));
+    }
+    let fingerprint = crate::source::sha256_hex(css.as_bytes());
+    checks.push(validation_check(
+        "fingerprint",
+        format!("css sha256 {fingerprint}"),
+    ));
+    Ok(fingerprint)
+}
+
+/// Validate a view unit for the workerd/browser targets: the prompted
+/// view lowers through BGI-09, the saved module declares `render`
+/// (plus an optional browser `mount`), imports stay unit-local, and
+/// any colocated CSS scopes. Returns the implementation fingerprint.
+fn validate_view_unit(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    group: &crate::analysis::generation_intake::SavedGroup,
+    source_text: &str,
+    descriptor: &crate::analysis::generation::GenerationDescriptor,
+    checks: &mut Vec<serde_json::Value>,
+) -> Result<String, ValidationFailure> {
+    reject_unexpected_declaration(id, group)?;
+    let (tree, _) = crate::syntax::parse_source(SourceId(0), source_text);
+    let lowering = crate::codegen::then_views::lower_then_views(&tree, source_text);
+    let Some(label) = group.record.source.label.clone() else {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` binds a view with no recorded name; send a bind request to reconcile the unit",
+                id.as_str(),
+            ),
+            vec!["send a bind request to reconcile the unit's association".to_string()],
+        ));
+    };
+    let Some(view) = lowering.views.iter().find(|v| v.name == label) else {
+        let own: Vec<_> = lowering
+            .diagnostics
+            .iter()
+            .filter(|d| diagnostic_in_span(d, descriptor.span.start, descriptor.span.end))
+            .cloned()
+            .collect();
+        if own.is_empty() {
+            return Err(ValidationFailure::drift(format!(
+                "unit `{}` interface drifted: no prompted view `{label}` lowers from the current source; the saved group is preserved",
+                id.as_str(),
+            )));
+        }
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` view lowering failed: {}",
+                id.as_str(),
+                diagnostic_summary(&own)
+            ),
+            vec!["fix the source errors and resend validate".to_string()],
+        ));
+    };
+    checks.push(validation_check(
+        "lowering",
+        format!(
+            "view `{}` over row model `{}` ({} control{})",
+            view.name,
+            view.row_model,
+            view.controls.len(),
+            if view.controls.len() == 1 { "" } else { "s" },
+        ),
+    ));
+    let js = require_group_text(id, group, "implementation.js")?;
+    let scan = scan_js_module(&js);
+    if !scan.exports.iter().any(|e| e == "render") {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` view implementation declares no `render` export in `implementation.js`; repair the export or reconcile with adopt",
+                id.as_str(),
+            ),
+            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+        ));
+    }
+    checks.push(validation_check(
+        "exports",
+        if scan.exports.iter().any(|e| e == "mount") {
+            "saved module declares `render` plus browser `mount`".to_string()
+        } else {
+            "saved module declares `render` (server render only)".to_string()
+        },
+    ));
+    admit_js_imports(id, &scan, "workerd/browser")?;
+    checks.push(validation_check(
+        "imports",
+        if scan.imports.is_empty() {
+            "no imports".to_string()
+        } else {
+            format!(
+                "{} unit-local relative import{}",
+                scan.imports.len(),
+                if scan.imports.len() == 1 { "" } else { "s" }
+            )
+        },
+    ));
+    if group.files.iter().any(|f| f.rel_path == "style.css") {
+        let css = require_group_text(id, group, "style.css")?;
+        crate::css_scope::scope_stylesheet(id.as_str(), &css).map_err(|errors| {
+            let first = &errors[0];
+            ValidationFailure::new(
+                format!(
+                    "unit `{}` colocated `style.css` failed scope checks: {} {} (line {}, column {})",
+                    id.as_str(),
+                    first.code,
+                    first.message,
+                    first.line,
+                    first.column,
+                ),
+                vec!["fix the CSS and resend validate".to_string()],
+            )
+        })?;
+        checks.push(validation_check(
+            "scope",
+            "colocated style.css scopes".to_string(),
+        ));
+    }
+    let fingerprint = crate::source::sha256_hex(js.as_bytes());
+    checks.push(validation_check(
+        "fingerprint",
+        format!("implementation sha256 {fingerprint}"),
+    ));
+    Ok(fingerprint)
+}
+
+/// One lexical import edge of a saved module: specifier, byte offset,
+/// whether it came from a dynamic `import()`, and whether the
+/// specifier could not be resolved lexically (fail-closed: an
+/// unresolvable edge never validates).
+struct JsImportEdge {
+    specifier: String,
+    offset: usize,
+    dynamic: bool,
+    unresolved: bool,
+}
+
+/// Lexical view of a saved module: declared export bindings, import
+/// specifiers, and whether `require(` is called.
+///
+/// Finite static admission, never execution or a full parse: comments
+/// and string-literal contents are blanked before keyword matching so
+/// quoted `export`/`import` tokens cannot certify an interface. This
+/// admits the shapes the v1 producers emit
+/// (`export function/name`, `export const/let/var/class`, `export {a,
+/// b as c}`, `export default`, static/dynamic `import`, re-export
+/// `from`); anything subtler must use those explicit forms to
+/// validate. Finite checking is not a proof of arbitrary JS behavior.
+struct JsModuleScan {
+    exports: Vec<String>,
+    imports: Vec<JsImportEdge>,
+    has_require: bool,
+    require_offset: usize,
+}
+
+/// Blank comments and string-literal contents with spaces, preserving
+/// byte length and newlines so offsets still address the original.
+/// Template `${...}` interpolations stay code; everywhere else inside
+/// a literal is blanked.
+fn blank_js_trivia(js: &str) -> Vec<u8> {
+    let bytes = js.as_bytes();
+    let mut out = bytes.to_vec();
+    let mut i = 0;
+    let blank = |out: &mut Vec<u8>, from: usize, to: usize| {
+        for b in &mut out[from..to] {
+            if *b != b'\n' {
+                *b = b' ';
+            }
+        }
+    };
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            let from = i;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            blank(&mut out, from, i);
+        } else if b == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            let from = i;
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            blank(&mut out, from, i);
+        } else if b == b'\'' || b == b'"' {
+            let from = i;
+            i += 1;
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    i += 2;
+                } else if bytes[i] == b'\n' {
+                    break;
+                } else if bytes[i] == b {
+                    i += 1;
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+            blank(&mut out, from, i);
+        } else if b == b'`' {
+            // Blank literal runs byte by byte; `${...}`
+            // interpolations stay code (balanced braces skipped
+            // unblanked, including nested quotes — a conservative
+            // over-approximation that can only add spurious keyword
+            // matches inside exotic templates, never hide a real
+            // export or import).
+            out[i] = b' ';
+            i += 1;
+            while i < bytes.len() {
+                if bytes[i] == b'\\' {
+                    out[i] = b' ';
+                    if i + 1 < bytes.len() && bytes[i + 1] != b'\n' {
+                        out[i + 1] = b' ';
+                    }
+                    i += 2;
+                } else if bytes[i] == b'`' {
+                    out[i] = b' ';
+                    i += 1;
+                    break;
+                } else if bytes[i] == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                    i += 2;
+                    let mut depth = 1usize;
+                    while i < bytes.len() && depth > 0 {
+                        if bytes[i] == b'{' {
+                            depth += 1;
+                        } else if bytes[i] == b'}' {
+                            depth -= 1;
+                        }
+                        i += 1;
+                    }
+                } else {
+                    if bytes[i] != b'\n' {
+                        out[i] = b' ';
+                    }
+                    i += 1;
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// ASCII identifier helpers over blanked bytes.
+fn is_js_ident_start(b: u8) -> bool {
+    b.is_ascii_alphabetic() || b == b'_' || b == b'$'
+}
+
+fn is_js_ident_part(b: u8) -> bool {
+    is_js_ident_start(b) || b.is_ascii_digit()
+}
+
+/// Read one identifier at `*i`, advancing past it.
+fn read_js_ident(blanked: &[u8], i: &mut usize) -> Option<String> {
+    if *i < blanked.len() && is_js_ident_start(blanked[*i]) {
+        let from = *i;
+        while *i < blanked.len() && is_js_ident_part(blanked[*i]) {
+            *i += 1;
+        }
+        return Some(String::from_utf8_lossy(&blanked[from..*i]).into_owned());
+    }
+    None
+}
+
+/// Skip ASCII whitespace in blanked bytes.
+fn skip_js_ws(blanked: &[u8], i: &mut usize) {
+    while *i < blanked.len() && matches!(blanked[*i], b' ' | b'\t' | b'\n' | b'\r' | 0x0C | 0x0B) {
+        *i += 1;
+    }
+}
+
+/// Skip whitespace and comments in ORIGINAL bytes, where quotes are
+/// intact. Specifier lookup must use this: blanked string contents
+/// are spaces, so a blanked skip would sail past the opening quote.
+fn skip_js_trivia_original(js: &[u8], m: &mut usize) {
+    loop {
+        while *m < js.len() && matches!(js[*m], b' ' | b'\t' | b'\n' | b'\r' | 0x0C | 0x0B) {
+            *m += 1;
+        }
+        if *m + 1 < js.len() && js[*m] == b'/' && js[*m + 1] == b'/' {
+            while *m < js.len() && js[*m] != b'\n' {
+                *m += 1;
+            }
+        } else if *m + 1 < js.len() && js[*m] == b'/' && js[*m + 1] == b'*' {
+            *m += 2;
+            while *m + 1 < js.len() && !(js[*m] == b'*' && js[*m + 1] == b'/') {
+                *m += 1;
+            }
+            *m = (*m + 2).min(js.len());
+        } else {
+            break;
+        }
+    }
+}
+
+/// Whether `word` appears at `i` as a standalone keyword.
+fn js_keyword_at(blanked: &[u8], i: usize, word: &[u8]) -> bool {
+    blanked.len() >= i + word.len()
+        && &blanked[i..i + word.len()] == word
+        && (i == 0 || !is_js_ident_part(blanked[i - 1]))
+        && (i + word.len() >= blanked.len() || !is_js_ident_part(blanked[i + word.len()]))
+}
+
+/// Read one single/double-quoted specifier from the ORIGINAL bytes at
+/// a blanked quote position. Returns the decoded span text; escapes
+/// stay raw (specifiers compare literally, never evaluated).
+fn read_js_specifier(js: &[u8], quote_at: usize) -> Option<(String, usize)> {
+    let quote = *js.get(quote_at)?;
+    if quote != b'\'' && quote != b'"' {
+        return None;
+    }
+    let mut i = quote_at + 1;
+    while i < js.len() {
+        if js[i] == b'\\' {
+            i += 2;
+        } else if js[i] == b'\n' {
+            return None;
+        } else if js[i] == quote {
+            let text = String::from_utf8_lossy(&js[quote_at + 1..i]).into_owned();
+            return Some((text, i + 1));
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
+/// Lexically scan one saved module for declared exports and import
+/// specifiers. See [`JsModuleScan`] for the admitted shapes and the
+/// finite-checking boundary.
+fn scan_js_module(js: &str) -> JsModuleScan {
+    let original = js.as_bytes();
+    let blanked = blank_js_trivia(js);
+    let mut exports = Vec::new();
+    let mut imports = Vec::new();
+    let mut has_require = false;
+    let mut require_offset = 0;
+    let mut i = 0;
+    let mut seen_exports = std::collections::HashSet::new();
+    let mut push_export = |name: String| {
+        if seen_exports.insert(name.clone()) {
+            exports.push(name);
+        }
+    };
+    while i < blanked.len() {
+        if js_keyword_at(&blanked, i, b"export") {
+            let mut j = i + 6;
+            skip_js_ws(&blanked, &mut j);
+            if js_keyword_at(&blanked, j, b"default") {
+                push_export("default".to_string());
+                i = j + 7;
+                continue;
+            }
+            if j < blanked.len() && blanked[j] == b'*' {
+                // `export *` / `export * as ns from`: names come from
+                // the target module, so only the re-export edge matters.
+                i = j + 1;
+                continue;
+            }
+            if j < blanked.len() && blanked[j] == b'{' {
+                // `export {a, b as c}`: exported names are the `as`
+                // targets (or the plain names).
+                j += 1;
+                loop {
+                    skip_js_ws(&blanked, &mut j);
+                    if j < blanked.len() && blanked[j] == b'}' {
+                        j += 1;
+                        break;
+                    }
+                    let Some(first) = read_js_ident(&blanked, &mut j) else {
+                        break;
+                    };
+                    skip_js_ws(&blanked, &mut j);
+                    let mut exported = first;
+                    if js_keyword_at(&blanked, j, b"as") {
+                        j += 2;
+                        skip_js_ws(&blanked, &mut j);
+                        if let Some(target) = read_js_ident(&blanked, &mut j) {
+                            exported = target;
+                        }
+                    }
+                    push_export(exported);
+                    skip_js_ws(&blanked, &mut j);
+                    if j < blanked.len() && blanked[j] == b',' {
+                        j += 1;
+                    } else if j < blanked.len() && blanked[j] == b'}' {
+                        j += 1;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+                i = j;
+                continue;
+            }
+            if js_keyword_at(&blanked, j, b"async") {
+                j += 5;
+                skip_js_ws(&blanked, &mut j);
+            }
+            if js_keyword_at(&blanked, j, b"function") || js_keyword_at(&blanked, j, b"class") {
+                j += if blanked[j] == b'f' { 8 } else { 5 };
+                skip_js_ws(&blanked, &mut j);
+                if blanked.get(j) == Some(&b'*') {
+                    j += 1;
+                    skip_js_ws(&blanked, &mut j);
+                }
+                if let Some(name) = read_js_ident(&blanked, &mut j) {
+                    push_export(name);
+                }
+                i = j;
+                continue;
+            }
+            if js_keyword_at(&blanked, j, b"const")
+                || js_keyword_at(&blanked, j, b"let")
+                || js_keyword_at(&blanked, j, b"var")
+            {
+                j += if blanked[j] == b'c' { 5 } else { 3 };
+                skip_js_ws(&blanked, &mut j);
+                if let Some(name) = read_js_ident(&blanked, &mut j) {
+                    push_export(name);
+                }
+                i = j;
+                continue;
+            }
+            i = j;
+            continue;
+        }
+        if js_keyword_at(&blanked, i, b"import") {
+            // Original trivia skip: a blanked skip would sail over a
+            // blanked side-effect string to the statement end.
+            let mut j = i + 6;
+            skip_js_trivia_original(original, &mut j);
+            if j < blanked.len() && original[j] == b'(' {
+                // Dynamic `import(`: a quoted literal records an edge;
+                // anything else is an unresolvable dynamic edge.
+                j += 1;
+                skip_js_trivia_original(original, &mut j);
+                if let Some((spec, end)) = read_js_specifier(original, j) {
+                    imports.push(JsImportEdge {
+                        specifier: spec,
+                        offset: j,
+                        dynamic: true,
+                        unresolved: false,
+                    });
+                    i = end;
+                } else {
+                    imports.push(JsImportEdge {
+                        specifier: String::new(),
+                        offset: i,
+                        dynamic: true,
+                        unresolved: true,
+                    });
+                    i = j;
+                }
+                continue;
+            }
+            // Static import: scan to `from "spec"` or a bare `"spec"`,
+            // across newlines for multi-line imports, bounded so a
+            // pathological statement cannot hang the scan.
+            // `import.meta` records no edge. A statement end or window
+            // exhaustion without a specifier records an unresolved edge
+            // (fail-closed), and the scan consumes through the specifier
+            // so the `from` arm below never records the same edge twice.
+            if j + 4 <= blanked.len()
+                && blanked[j] == b'.'
+                && js_keyword_at(&blanked, j + 1, b"meta")
+            {
+                i = j + 5;
+                continue;
+            }
+            let mut k = j;
+            let mut found: Option<(String, usize, usize)> = None;
+            let window = (j + 4096).min(blanked.len());
+            while k < window && blanked[k] != b';' {
+                if js_keyword_at(&blanked, k, b"from") {
+                    let mut m = k + 4;
+                    skip_js_trivia_original(original, &mut m);
+                    if let Some((spec, end)) = read_js_specifier(original, m) {
+                        found = Some((spec, m, end));
+                    }
+                    break;
+                }
+                if original.get(k) == Some(&b'\'') || original.get(k) == Some(&b'"') {
+                    if let Some((spec, end)) = read_js_specifier(original, k) {
+                        found = Some((spec, k, end));
+                    }
+                    break;
+                }
+                k += 1;
+            }
+            match found {
+                Some((spec, at, end)) => {
+                    imports.push(JsImportEdge {
+                        specifier: spec,
+                        offset: at,
+                        dynamic: false,
+                        unresolved: false,
+                    });
+                    i = end;
+                }
+                None => {
+                    // No specifier before the statement end: `import`
+                    // with no edge (bare keyword, `import x` fragment).
+                    // A bare `import` is invalid syntax, so record it
+                    // unresolved rather than silently passing it.
+                    imports.push(JsImportEdge {
+                        specifier: String::new(),
+                        offset: i,
+                        dynamic: false,
+                        unresolved: true,
+                    });
+                    i = k.min(blanked.len());
+                }
+            }
+            continue;
+        }
+        if js_keyword_at(&blanked, i, b"require") {
+            let mut j = i + 7;
+            skip_js_ws(&blanked, &mut j);
+            if j < blanked.len() && blanked[j] == b'(' {
+                has_require = true;
+                require_offset = i;
+                let mut m = j + 1;
+                skip_js_trivia_original(original, &mut m);
+                if let Some((spec, _)) = read_js_specifier(original, m) {
+                    imports.push(JsImportEdge {
+                        specifier: spec,
+                        offset: m,
+                        dynamic: true,
+                        unresolved: false,
+                    });
+                }
+            }
+            i = j;
+            continue;
+        }
+        // Re-export edges: `export ... from "spec"` handled by the
+        // `from` scan below at the `from` keyword itself.
+        if js_keyword_at(&blanked, i, b"from") {
+            let mut j = i + 4;
+            skip_js_trivia_original(original, &mut j);
+            if let Some((spec, end)) = read_js_specifier(original, j) {
+                imports.push(JsImportEdge {
+                    specifier: spec,
+                    offset: j,
+                    dynamic: false,
+                    unresolved: false,
+                });
+                i = end;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    JsModuleScan {
+        exports,
+        imports,
+        has_require,
+        require_offset,
+    }
+}
+
+/// Whether a specifier stays inside the unit's own directory.
+fn is_unit_relative_specifier(specifier: &str) -> bool {
+    specifier == "."
+        || specifier == ".."
+        || specifier.starts_with("./")
+        || specifier.starts_with("../")
+}
+
+/// Refuse every import a workerd/browser bundle cannot take: bare
+/// specifiers (no package resolution in the worker, and v1 admits no
+/// producer imports for saved units), `node:`/Node builtins, `file:`
+/// URLs, non-literal or unresolvable edges, and CommonJS `require`.
+/// Source, process, and filesystem APIs never enter worker/browser
+/// bundles.
+///
+/// Future owner-integrated producers extend the admitted relative set
+/// explicitly; nothing is admitted by appearing in JS.
+fn admit_js_imports(
+    id: &crate::analysis::generation_intake::GenerationUnitId,
+    scan: &JsModuleScan,
+    runtime: &str,
+) -> Result<(), ValidationFailure> {
+    const NODE_BUILTINS: &[&str] = &[
+        "assert",
+        "buffer",
+        "child_process",
+        "cluster",
+        "crypto",
+        "dgram",
+        "dns",
+        "events",
+        "fs",
+        "http",
+        "https",
+        "module",
+        "net",
+        "os",
+        "path",
+        "process",
+        "querystring",
+        "readline",
+        "stream",
+        "string_decoder",
+        "timers",
+        "tls",
+        "tty",
+        "url",
+        "util",
+        "v8",
+        "vm",
+        "worker_threads",
+        "zlib",
+    ];
+    if scan.has_require {
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` {runtime} implementation calls `require(` at offset {}; CommonJS require never enters worker/browser bundles",
+                id.as_str(),
+                scan.require_offset
+            ),
+            vec!["remove the require call and resend validate".to_string()],
+        ));
+    }
+    for edge in &scan.imports {
+        if edge.unresolved || edge.specifier.is_empty() {
+            let what = if edge.dynamic {
+                "a non-literal dynamic import"
+            } else {
+                "an unresolvable import"
+            };
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{}` {runtime} implementation has {what} at offset {}; only literal specifiers validate",
+                    id.as_str(),
+                    edge.offset
+                ),
+                vec!["use a literal unit-local import and resend validate".to_string()],
+            ));
+        }
+        if is_unit_relative_specifier(&edge.specifier) {
+            continue;
+        }
+        let builtin = edge
+            .specifier
+            .strip_prefix("node:")
+            .unwrap_or(&edge.specifier);
+        let builtin = builtin.split('/').next().unwrap_or("");
+        if edge.specifier.starts_with("node:")
+            || edge.specifier.starts_with("file:")
+            || NODE_BUILTINS.contains(&builtin)
+        {
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{}` {runtime} implementation imports `{}` at offset {}; source/process/filesystem APIs never enter worker/browser bundles",
+                    id.as_str(),
+                    edge.specifier,
+                    edge.offset
+                ),
+                vec!["remove the privileged import and resend validate".to_string()],
+            ));
+        }
+        return Err(ValidationFailure::new(
+            format!(
+                "unit `{}` {runtime} implementation imports bare specifier `{}` at offset {}; v1 admits only unit-local relative imports",
+                id.as_str(),
+                edge.specifier,
+                edge.offset
+            ),
+            vec!["use a unit-local relative import and resend validate".to_string()],
+        ));
+    }
+    Ok(())
+}
+
+/// Split a scope path into its owning unit id and unit-relative path.
+/// Only `can.generated/<id>/<rel>` with a well-formed id and a
+/// relative, traversal-free remainder qualifies; anything else is not
+/// a saved output file.
+fn split_saved_path(path: &str) -> Option<(String, String)> {
+    use crate::analysis::generation_intake as intake;
+    let rest = path.strip_prefix(&format!("{}/", intake::GENERATED_DIR))?;
+    let (id, rel) = rest.split_once('/')?;
+    if intake::GenerationUnitId::parse(id).is_err() || rel.is_empty() {
+        return None;
+    }
+    let rel_path = std::path::Path::new(rel);
+    if rel_path.is_absolute()
+        || rel_path.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return None;
+    }
+    Some((id.to_string(), rel.to_string()))
+}
+
+/// Validate directly repaired saved files byte-for-byte against their
+/// owning units. Each file must live under `can.generated/<id>/` with
+/// a parseable record; anything else diagnoses (source reconciliation
+/// is `adopt`, BGI-12). Byte-level checks mirror the unit scope — JS
+/// admission, declared exports, CSS scope, asset presence — without
+/// re-checking the owning source; drift against recorded originals is
+/// reported per file, never regenerated.
+fn validate_saved_files(
+    header: &crate::analysis::generation_protocol::RequestHeader,
+    root: &str,
+    files: &[String],
+) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    use crate::analysis::generation_protocol as proto;
+    let root_path = Path::new(root);
+    // Bind the scope plus the sibling inputs validation consumes
+    // (unit records, keyword declarations), so the envelope reports
+    // the exact consumed closure.
+    let mut bound_paths: Vec<String> = files.to_vec();
+    for file in files {
+        if let Some((id, _)) = split_saved_path(file) {
+            for sibling in [intake::UNIT_FILE, DECLARATION_FILE] {
+                let candidate = format!("{}/{id}/{sibling}", intake::GENERATED_DIR);
+                if root_path.join(&candidate).is_file() {
+                    bound_paths.push(candidate);
+                }
+            }
+        }
+    }
+    let inputs = match crate::source::ValidationInputs::bind(root_path, &bound_paths) {
+        Ok(inputs) => inputs,
+        Err(err) => {
+            return validation_failure_envelope(
+                header,
+                ValidationFailure::new(
+                    err.to_string(),
+                    vec!["pass readable saved files and resend".to_string()],
+                ),
+            );
+        }
+    };
+    let scope: std::collections::HashSet<&str> = files.iter().map(String::as_str).collect();
+    let mut reports = Vec::new();
+    for file in &inputs.files {
+        if !scope.contains(file.path.as_str()) {
+            continue;
+        }
+        match validate_one_saved_file(root_path, &inputs, &file.path, &file.bytes) {
+            Ok(report) => reports.push(report),
+            Err(failure) => return validation_failure_envelope(header, failure),
+        }
+    }
+    let mut payload = serde_json::Map::new();
+    payload.insert("files".to_string(), serde_json::Value::Array(reports));
+    payload.insert(
+        "inputs".to_string(),
+        serde_json::json!({
+            "files": inputs.files.iter().map(|f| serde_json::json!({
+                "path": f.path,
+                "sha256": f.sha256,
+                "role": if scope.contains(f.path.as_str()) { "scope" } else { "sibling" },
+            })).collect::<Vec<_>>(),
+        }),
+    );
+    gen_envelope_result(
+        exit::OK,
+        proto::ok_envelope(header, "validated", payload, vec![]),
+    )
+}
+
+/// Validate one bound saved file against its owning unit's record and
+/// siblings. Returns the file's envelope report.
+fn validate_one_saved_file(
+    root_path: &Path,
+    inputs: &crate::source::ValidationInputs,
+    path: &str,
+    bytes: &[u8],
+) -> Result<serde_json::Value, ValidationFailure> {
+    use crate::analysis::generation_intake as intake;
+    let Some((id_text, rel)) = split_saved_path(path) else {
+        return Err(ValidationFailure::new(
+            format!(
+                "scope file `{path}` is not a saved output file; validate takes files under `can.generated/<id>/`"
+            ),
+            vec!["pass saved output files under can.generated/<id>/ and resend".to_string()],
+        ));
+    };
+    // Admission parsed this id; re-parse stays total.
+    let id = intake::GenerationUnitId::parse(&id_text).map_err(|reason| {
+        ValidationFailure::new(
+            format!("scope file `{path}` names no saved unit: {reason}"),
+            vec!["pass saved output files under can.generated/<id>/ and resend".to_string()],
+        )
+    })?;
+    let record_path = format!("{}/{id_text}/{}", intake::GENERATED_DIR, intake::UNIT_FILE);
+    let record_text = inputs
+        .files
+        .iter()
+        .find(|f| f.path == record_path)
+        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+        .unwrap_or_default();
+    let record = intake::UnitRecord::parse(&record_text, &id).map_err(|reason| {
+        ValidationFailure::new(
+            format!("owning unit `{id_text}` record is incompatible: {reason}; reconcile with an explicit bind"),
+            vec!["send a bind request to reconcile the unit's association".to_string()],
+        )
+    })?;
+    let mut checks = Vec::new();
+    let kind = record.source.kind;
+    if rel == intake::UNIT_FILE {
+        checks.push(validation_check("record", "unit record parses".to_string()));
+    } else if rel == DECLARATION_FILE {
+        if kind != intake::UnitKind::Keyword {
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{id_text}` ({}) carries unexpected `{DECLARATION_FILE}`: only keyword units declare a producer/export interface in v1",
+                    kind.as_str(),
+                ),
+                vec![
+                    "remove the unexpected declaration file, or send a bind request to reconcile the unit".to_string(),
+                ],
+            ));
+        }
+        let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
+            ValidationFailure::new(
+                format!("unit `{id_text}` `{DECLARATION_FILE}` is not valid UTF-8"),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            )
+        })?;
+        let parsed: SavedDeclarationFile = serde_json::from_str(&text).map_err(|err| {
+            ValidationFailure::new(
+                format!(
+                    "unit `{id_text}` `{DECLARATION_FILE}` is not a valid saved declaration: {err}"
+                ),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            )
+        })?;
+        if parsed.producer.is_empty() || parsed.export.is_empty() {
+            return Err(ValidationFailure::new(
+                format!("unit `{id_text}` `{DECLARATION_FILE}` names no producer/export"),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            ));
+        }
+        checks.push(validation_check(
+            "declaration",
+            format!("producer `{}` export `{}`", parsed.producer, parsed.export),
+        ));
+    } else if rel == "implementation.js" {
+        let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
+            ValidationFailure::new(
+                format!("unit `{id_text}` `implementation.js` is not valid UTF-8"),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            )
+        })?;
+        let scan = scan_js_module(&text);
+        match kind {
+            intake::UnitKind::Keyword => {
+                let decl_path = format!("{}/{id_text}/{DECLARATION_FILE}", intake::GENERATED_DIR);
+                let Some(decl) = inputs.files.iter().find(|f| f.path == decl_path) else {
+                    return Err(ValidationFailure::new(
+                        format!(
+                            "unit `{id_text}` declares no saved interface: `{DECLARATION_FILE}` is missing; reconcile the interface with adopt or regenerate the unit"
+                        ),
+                        vec![
+                            "send an adopt request to reconcile the unit's declared interface (BGI-12)".to_string(),
+                        ],
+                    ));
+                };
+                let decl_text = String::from_utf8_lossy(&decl.bytes).into_owned();
+                let parsed: SavedDeclarationFile =
+                    serde_json::from_str(&decl_text).map_err(|err| {
+                        ValidationFailure::new(
+                            format!(
+                                "unit `{id_text}` `{DECLARATION_FILE}` is not a valid saved declaration: {err}"
+                            ),
+                            vec![ValidationFailure::drift(String::new()).next.remove(0)],
+                        )
+                    })?;
+                if !scan.exports.iter().any(|e| e == &parsed.export) {
+                    return Err(ValidationFailure::new(
+                        format!(
+                            "unit `{id_text}` declares export `{}` with no matching saved export in `implementation.js`; repair the export or reconcile with adopt",
+                            parsed.export
+                        ),
+                        vec![ValidationFailure::drift(String::new()).next.remove(0)],
+                    ));
+                }
+                checks.push(validation_check(
+                    "exports",
+                    format!("saved module declares `{}`", parsed.export),
+                ));
+                admit_js_imports(&id, &scan, "workerd")?;
+            }
+            intake::UnitKind::View => {
+                if !scan.exports.iter().any(|e| e == "render") {
+                    return Err(ValidationFailure::new(
+                        format!(
+                            "unit `{id_text}` view implementation declares no `render` export in `implementation.js`; repair the export or reconcile with adopt"
+                        ),
+                        vec![ValidationFailure::drift(String::new()).next.remove(0)],
+                    ));
+                }
+                checks.push(validation_check(
+                    "exports",
+                    "saved module declares `render`".to_string(),
+                ));
+                admit_js_imports(&id, &scan, "workerd/browser")?;
+            }
+            _ => {
+                return Err(ValidationFailure::new(
+                    format!(
+                        "unit `{id_text}` ({}) carries unexpected `implementation.js`: only keyword and view units own saved JavaScript in v1",
+                        kind.as_str(),
+                    ),
+                    vec![
+                        "remove the unexpected implementation file, or send a bind request to reconcile the unit".to_string(),
+                    ],
+                ));
+            }
+        }
+        checks.push(validation_check(
+            "imports",
+            if scan.imports.is_empty() {
+                "no imports".to_string()
+            } else {
+                format!(
+                    "{} unit-local relative import{}",
+                    scan.imports.len(),
+                    if scan.imports.len() == 1 { "" } else { "s" }
+                )
+            },
+        ));
+    } else if rel == "contributions.can" {
+        let text = String::from_utf8_lossy(bytes).into_owned();
+        let (_, parse_diags) = crate::syntax::parse_source(SourceId(0), &text);
+        if !parse_diags.is_empty() {
+            return Err(ValidationFailure::new(
+                format!(
+                    "unit `{id_text}` contributions carrier does not parse: {}",
+                    diagnostic_summary(&parse_diags)
+                ),
+                vec!["fix the carrier and resend validate".to_string()],
+            ));
+        }
+        checks.push(validation_check(
+            "carrier",
+            "contributions carrier parses (unit scope checks its contracts)".to_string(),
+        ));
+    } else if rel == "style.css" {
+        let text = String::from_utf8(bytes.to_vec()).map_err(|_| {
+            ValidationFailure::new(
+                format!("unit `{id_text}` `style.css` is not valid UTF-8"),
+                vec![ValidationFailure::drift(String::new()).next.remove(0)],
+            )
+        })?;
+        let scoped = crate::css_scope::scope_stylesheet(id.as_str(), &text).map_err(|errors| {
+            let first = &errors[0];
+            ValidationFailure::new(
+                format!(
+                    "unit `{id_text}` `style.css` failed scope checks: {} {} (line {}, column {})",
+                    first.code, first.message, first.line, first.column,
+                ),
+                vec!["fix the CSS and resend validate".to_string()],
+            )
+        })?;
+        // Owned assets resolve against the owning unit's saved group.
+        let group = intake::read_saved_group(root_path, &id).map_err(|issue| {
+            let next = intake_issue_next(&issue);
+            ValidationFailure::new(issue.to_string(), next)
+        })?;
+        for asset in &scoped.assets {
+            if !group.files.iter().any(|f| f.rel_path == *asset) {
+                return Err(ValidationFailure::new(
+                    format!(
+                        "unit `{id_text}` `style.css` references owned asset `{asset}` with no saved file; add the asset or reconcile with adopt"
+                    ),
+                    vec![ValidationFailure::drift(String::new()).next.remove(0)],
+                ));
+            }
+        }
+        checks.push(validation_check(
+            "scope",
+            format!(
+                "css scopes ({} asset{})",
+                scoped.assets.len(),
+                if scoped.assets.len() == 1 { "" } else { "s" },
+            ),
+        ));
+    } else {
+        checks.push(validation_check(
+            "asset",
+            format!("{} bytes bound", bytes.len()),
+        ));
+    }
+    let sha256 = crate::source::sha256_hex(bytes);
+    Ok(serde_json::json!({
+        "path": path,
+        "unit": id_text,
+        "kind": kind.as_str(),
+        "sha256": sha256,
+        "modified_since_generation": modified_since_generation(&record, &rel, &sha256),
+        "checks": checks,
+    }))
 }
 
 /// Admit `adopt` selectors: one saved unit plus readable files.

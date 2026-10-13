@@ -18,6 +18,103 @@ export interface ModuleMapView<T extends RawModuleMap> {
   readonly error?: string;
 }
 
+/**
+ * BGI-11 Can owner link: the separate unit/span link identifying the
+ * owning `.can` intent beside a saved-JS map. Maps locate executable
+ * current saved JavaScript; this link attributes it to its source
+ * definition without inventing executable statements inside the
+ * natural-language prompt. Wire shape mirrors the compiler's
+ * `saved_unit_manifest_to_json` (camelCase).
+ */
+export interface CanOwnerLink {
+  readonly unitId: string;
+  readonly kind: string;
+  readonly canPath: string;
+  readonly canRevision: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+export interface SavedUnitMapView<T extends RawModuleMap> {
+  /** Composed current-JS map view (same semantics as `composeModuleMap`). */
+  readonly view: ModuleMapView<T>;
+  /** Owning `.can` intent link, carried alongside the map. */
+  readonly owner: CanOwnerLink;
+}
+
+/**
+ * Compose a saved unit's current-JS map through its import-edit stages
+ * and pair it with its Can owner link. Composition reuses
+ * `composeModuleMap` unchanged (no map cache; recompute per sequence);
+ * the owner link is data passthrough, never map input.
+ */
+export function viewSavedUnitMap<T extends RawModuleMap>(
+  original: T | undefined,
+  stagesNewestFirst: readonly ImportTransformMap[],
+  originalJs: string,
+  owner: CanOwnerLink,
+): SavedUnitMapView<T> {
+  return { view: composeModuleMap(original, stagesNewestFirst, originalJs), owner };
+}
+
+export interface OwnerManifestEntry {
+  readonly path: string;
+  readonly sha256: string;
+  readonly owner: CanOwnerLink;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Parse the compiler's owner-link manifest JSON: an array of staged
+ * path, verified bytes hash, and Can owner link, in staged-path order.
+ * Strict: unknown fields, mistyped entries, and non-hex hashes refuse
+ * — pairing a map with a drifted owner must stay loud.
+ */
+export function parseOwnerManifest(json: string): readonly OwnerManifestEntry[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch (error) {
+    throw new Error(`owner manifest: invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!Array.isArray(parsed)) throw new Error("owner manifest: expected a JSON array of entries");
+  const knownEntry = new Set(["path", "sha256", "owner"]);
+  const knownOwner = new Set(["unitId", "kind", "canPath", "canRevision", "start", "end"]);
+  return parsed.map((entry, index): OwnerManifestEntry => {
+    const where = `owner manifest entry ${index}`;
+    if (!isRecord(entry)) throw new Error(`${where}: expected an object`);
+    for (const key of Object.keys(entry)) {
+      if (!knownEntry.has(key)) throw new Error(`${where}: unknown field ${JSON.stringify(key)}`);
+    }
+    const { path, sha256, owner } = entry;
+    if (typeof path !== "string" || path.length === 0) throw new Error(`${where}: path must be a non-empty string`);
+    if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) {
+      throw new Error(`${where}: sha256 must be lowercase hex (64 chars)`);
+    }
+    if (!isRecord(owner)) throw new Error(`${where}: owner must be an object`);
+    for (const key of Object.keys(owner)) {
+      if (!knownOwner.has(key)) throw new Error(`${where}: unknown owner field ${JSON.stringify(key)}`);
+    }
+    const { unitId, kind, canPath, canRevision, start, end } = owner;
+    for (const [name, value] of [["unitId", unitId], ["kind", kind], ["canPath", canPath], ["canRevision", canRevision]] as const) {
+      if (typeof value !== "string" || value.length === 0) throw new Error(`${where}: owner.${name} must be a non-empty string`);
+    }
+    for (const [name, value] of [["start", start], ["end", end]] as const) {
+      if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+        throw new Error(`${where}: owner.${name} must be a non-negative safe integer`);
+      }
+    }
+    return {
+      path,
+      sha256,
+      owner: { unitId: unitId as string, kind: kind as string, canPath: canPath as string, canRevision: canRevision as string, start: start as number, end: end as number },
+    };
+  });
+}
+
 // Encode through the library. Carrier points retain the raw decoder's large
 // accumulated coordinates while keeping every field delta in its safe range.
 // Equal-column carriers certify Can's last-duplicate raw lookup. Stock host
