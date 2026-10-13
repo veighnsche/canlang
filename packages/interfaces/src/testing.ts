@@ -49,6 +49,8 @@ import type {
   OperationRegistry,
   PageRegistry,
   RateLimiter,
+  ExportDownloadRecord,
+  ExportDownloadStore,
   ReadOutcome,
   SchemaCatalog,
   UploadBinding,
@@ -110,6 +112,26 @@ export function createFakeCatalog(
   shapes: Record<string, OperationInputShape>,
 ): SchemaCatalog {
   return { shapeFor: (operation: string) => shapes[operation] ?? null };
+}
+
+/** Memory large-output download store (per-isolate; production persists at B1). */
+export function createMemoryExportDownloadStore(): ExportDownloadStore {
+  const records = new Map<string, ExportDownloadRecord>();
+  return {
+    async read(handle: string) {
+      return records.get(handle) ?? null;
+    },
+    async save(record: ExportDownloadRecord) {
+      records.set(record.handle, record);
+    },
+    async revoke(handle: string) {
+      const current = records.get(handle);
+      if (current === undefined) return false;
+      const { csv: _droppedCsv, rowCount: _droppedCount, ...kept } = current;
+      records.set(handle, { ...kept, status: 'revoked' });
+      return true;
+    },
+  };
 }
 
 /** Fixed-window memory limiter (per-isolate; production counters differ). */
