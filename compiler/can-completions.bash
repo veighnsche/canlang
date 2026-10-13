@@ -9,7 +9,7 @@ _can_complete() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     cmd="${COMP_WORDS[1]}"
 
-    local commands="activate build check compile completions deploy dev docs explain fmt help lint lsp policy run test"
+    local commands="activate build check compile completions deploy dev docs explain fmt gen help lint lsp policy run test"
 
     # First operand: the subcommand.
     if (( COMP_CWORD == 1 )); then
@@ -78,6 +78,9 @@ _can_complete() {
             ;;
         explain)
             COMPREPLY=($(compgen -W "--format --format=json --format=text --help" -- "$cur"))
+            ;;
+        gen)
+            COMPREPLY=($(compgen -W "bind status --format --format=json --format=text --help" -f -- "$cur"))
             ;;
         lsp)
             COMPREPLY=($(compgen -W "--help" -- "$cur"))

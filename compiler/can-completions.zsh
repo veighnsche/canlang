@@ -17,6 +17,7 @@ _can() {
         'docs:Generate the localized internal declaration reference'
         'explain:Print a diagnostic catalog entry'
         'fmt:Format sources in place (or check with --check)'
+        'gen:Minimal generation bind/status selectors'
         'help:Show help (global or per command)'
         'lint:Run lint rules over sources (warnings only, never blocks)'
         'lsp:Run the language server over stdio'
@@ -83,6 +84,13 @@ _can() {
                 '--format=[output format]:format:(json text)' \
                 '(-h --help)'{-h,--help}'[show help]' \
                 '1:diagnostic code:'
+            ;;
+        gen)
+            _arguments \
+                '--format=[output format]:format:(json text)' \
+                '(-h --help)'{-h,--help}'[show help]' \
+                '1:gen operation:(bind status)' \
+                '*:file:_files'
             ;;
         lsp)
             _arguments '(-h --help)'{-h,--help}'[show help]'

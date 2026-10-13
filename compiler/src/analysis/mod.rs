@@ -31,6 +31,7 @@ mod cohort;
 pub mod effects;
 pub mod examples;
 pub mod generation;
+pub mod generation_intake;
 pub mod migrate_check;
 pub mod resolve;
 pub mod scenario_disclosure;

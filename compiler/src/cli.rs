@@ -1,6 +1,6 @@
 //! Single dispatch for the `can` binary.
 //!
-//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|dev|completions|help`,
+//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|dev|gen|completions|help`,
 //! plus `--help`/`--version` and a global `--format=json|text`. Exit codes
 //! come from [`crate::exit`]: 0 clean, 10 errors reported, 2 tool failure
 //! (warnings alone exit 0; they never block). JSON goes to stdout,
@@ -397,6 +397,15 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             }
             run_dev_entry(&parsed.operands, std::env::var("CAN_DEV_BIN").ok())
         }
+        "gen" => {
+            if parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can gen takes no --catalog flag".to_string(),
+                );
+            }
+            run_gen(&parsed.operands, parsed.format)
+        }
         unknown => DispatchResult::tool_error(
             "E7001",
             format!("unknown command '{unknown}'; use can --help"),
@@ -422,6 +431,7 @@ fn is_known_command(cmd: &str) -> bool {
             | "deploy"
             | "activate"
             | "dev"
+            | "gen"
             | "completions"
             | "help"
     )
@@ -644,6 +654,7 @@ Commands:
   deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
   activate  Thin lane-7 entry: exec can-platform activate (passthrough)
   dev       JSON control for the local development session (can-dev)
+  gen       Minimal generation bind/status selectors (BGI-02; full dispatcher is BGI-03)
   completions  Print a shell completion script: can completions bash|zsh|fish
   help      Show help (global or `can help <COMMAND>`)
 
@@ -690,6 +701,7 @@ fn command_help(cmd: &str) -> String {
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can help {cmd}` or `can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
         "dev" => "can dev — JSON control for the local development session\n\nUsage: can dev [COMMAND] [ARGS...]\n\nExecs the installed `can-dev` control adapter and passes every argument through. `can dev help` lists its machine-readable commands and flags. A missing adapter reports E7004. Override search with CAN_DEV_BIN. The adapter's JSON stdout and exit code pass through unchanged.\n".to_string(),
+        "gen" => "can gen — minimal generation bind/status selectors (BGI-02)\n\nUsage: can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nstatus discovers generation units in the sources, associates them with the\nsaved groups under ROOT/can.generated, and reports each unit with its\ncurrent/candidate paths or its generation/reconciliation action. bind\nreconciles one inspected source span (byte START..END at source REVISION)\nwith an existing saved unit ID, or allocates a fresh ID with `new`\n(copies always take `new`). A revision that no longer matches the file\nis a stale selector and refuses. Other generation operations belong to\nthe BGI-03 JSON dispatcher and diagnose here.\n\nExit codes: 0 reported/bound, 2 tool failure.\n".to_string(),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
 }
@@ -1912,6 +1924,368 @@ pub fn run_dev_entry(args: &[String], dev_bin: Option<String>) -> DispatchResult
             format!("failed to exec development control '{bin}': {err}"),
         ),
     }
+}
+
+/// BGI-02 minimal `can gen` surface: `bind` and `status` selectors only.
+///
+/// The full `can gen` JSON dispatcher (generate, refine, retry, adopt,
+/// accept, ...) is BGI-03's. Unknown operations diagnose here instead of
+/// guessing BGI-03 request shapes; these two operations are the explicit
+/// association selectors BGI-02 owns.
+fn run_gen(operands: &[String], format: OutputFormat) -> DispatchResult {
+    let [operation, rest @ ..] = operands else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen expects an operation: bind|status (see can help gen)".to_string(),
+        );
+    };
+    match operation.as_str() {
+        "bind" => run_gen_bind(rest),
+        "status" => run_gen_status(rest, format),
+        unknown => DispatchResult::tool_error(
+            "E7001",
+            format!(
+                "unknown gen operation '{unknown}'; BGI-02 supports bind|status (the full `can gen` dispatcher is BGI-03)"
+            ),
+        ),
+    }
+}
+
+/// Load one source file for generation discovery, with CLI error mapping.
+fn read_gen_source(path: &str) -> Result<(SourceDb, SourceId, String), DispatchResult> {
+    let text = match read_source_file(path) {
+        Ok(text) => text,
+        Err(err) => {
+            return Err(DispatchResult::tool_error(
+                "E7002",
+                format!("cannot read '{path}': {err}"),
+            ));
+        }
+    };
+    let mut db = SourceDb::new();
+    let id = add_source(&mut db, path.to_string(), text.clone())?;
+    Ok((db, id, text))
+}
+
+/// Load the saved records under `<root>/can.generated/`, collecting
+/// incompatible groups as issues instead of aborting the report.
+fn load_gen_saved(
+    root: &Path,
+) -> (
+    Vec<crate::analysis::generation_intake::UnitRecord>,
+    Vec<crate::analysis::generation_intake::IntakeIssue>,
+) {
+    use crate::analysis::generation_intake as intake;
+    let mut saved = Vec::new();
+    let mut issues = Vec::new();
+    for name in intake::scan_unit_ids(root) {
+        let id = match intake::GenerationUnitId::parse(&name) {
+            Ok(id) => id,
+            Err(_) => continue, // scan_unit_ids already validated; stay total.
+        };
+        let path = root
+            .join(intake::GENERATED_DIR)
+            .join(id.as_str())
+            .join(intake::UNIT_FILE);
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(_) => {
+                issues.push(intake::IntakeIssue {
+                    unit: id.as_str().to_string(),
+                    action: intake::IntakeAction::Generate,
+                    detail: format!(
+                        "no saved group at {}; prepare generation for the unit",
+                        path.display()
+                    ),
+                });
+                continue;
+            }
+        };
+        match intake::UnitRecord::parse(&text, &id) {
+            Ok(record) => saved.push(record),
+            Err(reason) => issues.push(intake::IntakeIssue {
+                unit: id.as_str().to_string(),
+                action: intake::IntakeAction::Bind,
+                detail: format!(
+                    "saved group is incompatible: {reason}; reconcile with an explicit bind"
+                ),
+            }),
+        }
+    }
+    (saved, issues)
+}
+
+/// `can gen bind ROOT FILE.can START END REVISION UNIT|new`: reconcile one
+/// inspected source span with a saved unit, or allocate a fresh ID.
+///
+/// The span selects the discovered generation unit containing it;
+/// applications and named uses reuse their definition and cannot bind.
+/// The bind refuses when REVISION no longer matches the file (stale
+/// selector), when UNIT names no saved group or a different-kind group,
+/// and always leaves saved groups intact on failure. Persistence is one
+/// atomic `unit.json` write; lease coordination arrives with BGI-04.
+fn run_gen_bind(operands: &[String]) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    let [root, file, start_text, end_text, revision, unit] = operands else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen bind expects ROOT FILE.can START END REVISION UNIT|new (see can help gen)"
+                .to_string(),
+        );
+    };
+    let (start, end) = match (start_text.parse::<u32>(), end_text.parse::<u32>()) {
+        (Ok(start), Ok(end)) if start <= end => (start, end),
+        _ => {
+            return DispatchResult::tool_error(
+                "E7001",
+                format!("can gen bind needs byte offsets START<=END, got {start_text}..{end_text}"),
+            );
+        }
+    };
+    let target = if unit == "new" {
+        intake::BindTarget::New
+    } else {
+        match intake::GenerationUnitId::parse(unit) {
+            Ok(id) => intake::BindTarget::Existing(id),
+            Err(reason) => {
+                return DispatchResult::tool_error("E7001", format!("can gen bind: {reason}"));
+            }
+        }
+    };
+    let (_db, _id, text) = match read_gen_source(file) {
+        Ok(loaded) => loaded,
+        Err(error) => return error,
+    };
+    let current_revision = crate::source::sha256_hex(text.as_bytes());
+    let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
+    let found = crate::analysis::generation::discover_generation(&tree, &text);
+    let selected = found.descriptors.iter().find(|d| {
+        intake::UnitKind::of_descriptor(d.kind).is_some()
+            && d.span.start <= start
+            && end <= d.span.end
+    });
+    let Some(descriptor) = selected else {
+        return DispatchResult::tool_error(
+            "E7001",
+            format!(
+                "can gen bind: no generation unit at {file}:{start}..{end}; applications and named uses reuse their definition and cannot bind"
+            ),
+        );
+    };
+    let root_path = Path::new(root);
+    let (saved, _) = load_gen_saved(root_path);
+    let request = intake::BindRequest {
+        path: file.clone(),
+        revision: revision.clone(),
+        start,
+        end,
+        source: match intake::association_for(descriptor, file, revision) {
+            Some(source) => source,
+            None => {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can gen bind: selected descriptor carries no generation identity".to_string(),
+                );
+            }
+        },
+        contract: match intake::contract_for(descriptor) {
+            Some(contract) => contract,
+            None => {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can gen bind: selected descriptor carries no generation identity".to_string(),
+                );
+            }
+        },
+        target,
+    };
+    let record = match intake::apply_bind(&saved, &request, &current_revision) {
+        Ok(record) => record,
+        Err(err) => return DispatchResult::tool_error("E7001", format!("can gen bind: {err}")),
+    };
+    let dir = root_path
+        .join(intake::GENERATED_DIR)
+        .join(record.id.as_str());
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        return DispatchResult::tool_error(
+            "E7007",
+            format!("cannot write '{}': {err}", dir.display()),
+        );
+    }
+    let unit_path = dir.join(intake::UNIT_FILE);
+    if let Err(err) = write_file_atomic(&unit_path, &record.to_json(), None) {
+        return DispatchResult::tool_error(
+            "E7007",
+            format!("cannot write '{}': {err}", unit_path.display()),
+        );
+    }
+    DispatchResult::ok_stdout(format!(
+        "bound {} {file}:{start}..{end} -> {}\n",
+        record.id,
+        unit_path.display()
+    ))
+}
+
+/// `can gen status ROOT FILE.can...`: report association per discovered
+/// unit plus every missing/incompatible group with its exact unit and
+/// generation/reconciliation action. Always exits 0 when the report is
+/// complete; unreadable inputs are tool failures.
+fn run_gen_status(operands: &[String], format: OutputFormat) -> DispatchResult {
+    use crate::analysis::generation_intake as intake;
+    let [root, files @ ..] = operands else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen status expects ROOT FILE.can... (see can help gen)".to_string(),
+        );
+    };
+    if files.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can gen status expects ROOT FILE.can... (see can help gen)".to_string(),
+        );
+    }
+    let root_path = Path::new(root);
+    let (saved, mut issues) = load_gen_saved(root_path);
+    let mut lines: Vec<String> = Vec::new();
+    let mut units_json: Vec<serde_json::Value> = Vec::new();
+    let mut matched: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for file in files {
+        let (_db, _id, text) = match read_gen_source(file) {
+            Ok(loaded) => loaded,
+            Err(error) => return error,
+        };
+        let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
+        let found = crate::analysis::generation::discover_generation(&tree, &text);
+        for (index, association) in intake::associate(&found.descriptors, &saved) {
+            let descriptor = &found.descriptors[index];
+            let kind = intake::UnitKind::of_descriptor(descriptor.kind)
+                .map(|k| k.as_str())
+                .unwrap_or("?");
+            let label = descriptor.label.as_deref().unwrap_or("-");
+            match &association {
+                intake::UnitAssociation::Retained { id, prompt_changed } => {
+                    matched.insert(id.as_str().to_string());
+                    let group = intake::read_saved_group(root_path, id);
+                    let stale = if *prompt_changed {
+                        " prompt-changed"
+                    } else {
+                        ""
+                    };
+                    match group {
+                        Ok(_) => {
+                            lines.push(format!(
+                                "unit {} {}/{}/{label} {file}{stale}",
+                                id, descriptor.owner, kind
+                            ));
+                            units_json.push(serde_json::json!({
+                                "id": id.as_str(),
+                                "owner": descriptor.owner,
+                                "kind": kind,
+                                "label": descriptor.label,
+                                "path": file,
+                                "association": "retained",
+                                "prompt_changed": prompt_changed,
+                                "current": format!(
+                                    "{}/{}/{id}",
+                                    root, intake::GENERATED_DIR
+                                ),
+                                // BGI-04 owns leases/journals under this dir;
+                                // BGI-02 only names the concrete location.
+                                "candidates": format!(
+                                    "{}/.can/gen/attempts/{id}",
+                                    root
+                                ),
+                            }));
+                        }
+                        Err(issue) => {
+                            // Reported once with every other issue below.
+                            issues.push(issue);
+                        }
+                    }
+                }
+                intake::UnitAssociation::New => {
+                    lines.push(format!(
+                        "new {}/{}/{label} {file} (action: generate)",
+                        descriptor.owner, kind
+                    ));
+                    units_json.push(serde_json::json!({
+                        "id": null,
+                        "owner": descriptor.owner,
+                        "kind": kind,
+                        "label": descriptor.label,
+                        "path": file,
+                        "association": "new",
+                        "action": "generate",
+                    }));
+                }
+                intake::UnitAssociation::Ambiguous { candidates } => {
+                    let names = candidates
+                        .iter()
+                        .map(intake::GenerationUnitId::as_str)
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    lines.push(format!(
+                        "ambiguous {}/{}/{label} {file} candidates=[{names}] (action: bind)",
+                        descriptor.owner, kind
+                    ));
+                    units_json.push(serde_json::json!({
+                        "id": null,
+                        "owner": descriptor.owner,
+                        "kind": kind,
+                        "label": descriptor.label,
+                        "path": file,
+                        "association": "ambiguous",
+                        "candidates": candidates.iter().map(intake::GenerationUnitId::as_str).collect::<Vec<_>>(),
+                        "action": "bind",
+                    }));
+                }
+            }
+        }
+    }
+    for record in &saved {
+        if matched.contains(record.id.as_str()) {
+            continue;
+        }
+        lines.push(format!(
+            "saved {} has no current source unit (action: bind)",
+            record.id
+        ));
+        units_json.push(serde_json::json!({
+            "id": record.id.as_str(),
+            "association": "orphaned",
+            "action": "bind",
+        }));
+    }
+    for issue in &issues {
+        lines.push(format!("{issue}"));
+    }
+    let stdout = match format {
+        OutputFormat::Json => {
+            let issues_json: Vec<serde_json::Value> = issues
+                .iter()
+                .map(|i| {
+                    serde_json::json!({
+                        "unit": i.unit,
+                        "action": i.action.as_str(),
+                        "detail": i.detail,
+                    })
+                })
+                .collect();
+            format!(
+                "{}\n",
+                serde_json::json!({ "units": units_json, "issues": issues_json })
+            )
+        }
+        OutputFormat::Text => {
+            let mut out = String::new();
+            for line in lines {
+                out.push_str(&line);
+                out.push('\n');
+            }
+            out
+        }
+    };
+    DispatchResult::ok_stdout(stdout)
 }
 
 /// Unix-only PATH search: no Windows `PATHEXT` handling, and non-UTF8
