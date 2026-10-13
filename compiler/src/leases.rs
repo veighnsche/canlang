@@ -107,8 +107,6 @@ pub const CONFLICT_FILE: &str = "conflict.json";
 pub const OLD_DIR: &str = "old";
 /// Staged replacements inside a run directory.
 pub const NEW_DIR: &str = "new";
-/// Temporary-file suffix for atomic per-file replacement.
-pub const REPLACE_SUFFIX: &str = ".can-new";
 
 /// Machine-readable failure from any lease/journal operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -351,8 +349,17 @@ fn io_error(context: impl Into<String>, error: std::io::Error) -> LeaseError {
 /// A write acquisition conflicts with any present write or read lock on the
 /// same path; a read acquisition conflicts only with a present write lock.
 /// On conflict this releases any prefix already taken (in reverse order) and
-/// reports the conflicting path. The check-then-create race is accepted and
-/// documented: participants are cooperative, and the protocol is not CAS.
+/// reports the conflicting path.
+///
+/// Admission is one shared atomic step per path: our mode lock is created
+/// exclusively, then re-checked for a conflicting lock before the path
+/// counts as held. A racing incompatible lease created its own
+/// different-named file; whoever observes the other backs off by removing
+/// its just-created lock, so incompatible exact-path leases can never both
+/// be admitted. Exact simultaneity reports `conflict` on both sides and
+/// cooperative callers retry. Read-sharing, exact ownership/tokens, and
+/// stopped-writer recovery are unchanged: this arbitrates cooperative
+/// writers only, never filesystem CAS.
 pub fn acquire(
     root: &Path,
     paths: &[&str],
@@ -419,6 +426,28 @@ pub fn acquire(
                 release_paths(root, &held, mode, &token)?;
                 return Err(io_error("create lock", e));
             }
+        }
+        // Admission arbitration: a racing incompatible lease passed its own
+        // pre-check and created a different-named file. Whoever observes the
+        // other removes its just-created lock and reports conflict.
+        let raced = match mode {
+            LeaseMode::Read => write_lock_path(root, rel).exists(),
+            LeaseMode::Write => !present_read_locks(root, rel).is_empty(),
+        };
+        if raced {
+            match fs::remove_file(&lock_path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(io_error("withdraw racing lock", e)),
+            }
+            release_paths(root, &held, mode, &token)?;
+            return Err(LeaseError::new(
+                "conflict",
+                format!(
+                    "{} lease on `{rel}` lost a racing acquisition",
+                    mode.as_str()
+                ),
+            ));
         }
         held.push(rel.clone());
     }
@@ -928,6 +957,55 @@ fn resolve_journal(root: &Path, run_id: &str) -> Result<(), LeaseError> {
         .map_err(|e| io_error("resolve journal", e))
 }
 
+/// Write replacement bytes to a collision-safe temporary sibling of
+/// `target` and return its path. The name is unique per attempt and the
+/// file is created exclusively, so a stale or saved sibling (including a
+/// literal `*.can-new` file) is never overwritten; only the file this call
+/// created is ever removed. The caller renames it onto `target`.
+fn create_replace_temp(target: &Path, bytes: &[u8]) -> Result<PathBuf, LeaseError> {
+    let parent = target.parent().ok_or_else(|| {
+        LeaseError::new("invalid-path", "target has no parent directory".to_string())
+    })?;
+    fs::create_dir_all(parent).map_err(|e| io_error("create target dir", e))?;
+    let base = target
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("replacement");
+    for _ in 0..10 {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let counter = TOKEN_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let tmp = parent.join(format!(
+            ".{base}.tmp-{}-{counter}-{nanos}",
+            std::process::id()
+        ));
+        let mut file = match OpenOptions::new().write(true).create_new(true).open(&tmp) {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(io_error("create replace temp", e)),
+        };
+        let written = file
+            .write_all(bytes)
+            .and_then(|()| file.sync_all())
+            .map_err(|e| io_error("write replace temp", e));
+        drop(file);
+        if let Err(error) = written {
+            let _ = fs::remove_file(&tmp);
+            return Err(error);
+        }
+        return Ok(tmp);
+    }
+    Err(LeaseError::new(
+        "io",
+        format!(
+            "could not create a unique replace temp for `{}`",
+            target.display()
+        ),
+    ))
+}
+
 /// Outcome of [`apply_committed`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApplyOutcome {
@@ -1008,20 +1086,11 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
             ));
         }
         // Atomic per-file replacement; the staged copy stays for re-apply.
-        let tmp = target.with_extension(format!(
-            "{}{REPLACE_SUFFIX}",
-            target.extension().and_then(|e| e.to_str()).unwrap_or("bin")
-        ));
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent).map_err(|e| io_error("create target dir", e))?;
+        let tmp = create_replace_temp(&target, &staged_bytes)?;
+        if let Err(e) = fs::rename(&tmp, &target) {
+            let _ = fs::remove_file(&tmp);
+            return Err(io_error("atomic replace", e));
         }
-        let mut file = File::create(&tmp).map_err(|e| io_error("create replace temp", e))?;
-        file.write_all(&staged_bytes)
-            .map_err(|e| io_error("write replace temp", e))?;
-        file.sync_all()
-            .map_err(|e| io_error("fsync replace temp", e))?;
-        drop(file);
-        fs::rename(&tmp, &target).map_err(|e| io_error("atomic replace", e))?;
         files += 1;
     }
     resolve_journal(root, run_id)?;
@@ -1170,17 +1239,23 @@ pub struct ConsumedInput {
     pub sha256: String,
 }
 
-/// Snapshot consumed build inputs under brief read leases: refuse when any
-/// journal is unresolved (never serve a mixed group), then acquire read
-/// leases in canonical order, copy every byte, and release. The returned
-/// inputs are immutable; the build compiles this snapshot, not live files.
+/// Snapshot consumed build inputs under brief read leases: acquire read
+/// leases in canonical order, then refuse when any journal is unresolved
+/// (never serve a mixed group), then copy every byte and release. The gate
+/// runs while acquired leases cover the consumed closure, so a writer
+/// interruption that lands after a pre-acquire check can never surface as
+/// mixed bytes. The returned inputs are immutable; the build compiles this
+/// snapshot, not live files.
 pub fn snapshot_inputs(
     root: &Path,
     holder: &str,
     paths: &[&str],
 ) -> Result<Vec<ConsumedInput>, LeaseError> {
+    let ordered = canonical_order(paths)?;
+    let set = acquire(root, paths, LeaseMode::Read, holder)?;
     let unresolved = unresolved_journals(root);
     if !unresolved.is_empty() {
+        release(root, &set)?;
         return Err(LeaseError::new(
             "unresolved-journal",
             format!(
@@ -1189,8 +1264,6 @@ pub fn snapshot_inputs(
             ),
         ));
     }
-    let ordered = canonical_order(paths)?;
-    let set = acquire(root, paths, LeaseMode::Read, holder)?;
     let mut inputs = Vec::with_capacity(ordered.len());
     for rel in &ordered {
         let full = join_rel(root, rel)?;

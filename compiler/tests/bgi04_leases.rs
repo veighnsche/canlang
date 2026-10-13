@@ -91,6 +91,21 @@ fn shared_protocol_vectors_match_both_hosts() {
         durability.contains("POSIX") || durability.contains("best-effort"),
         "{durability}"
     );
+    // Read-lock files pin the shared admission shape too: exact filename and
+    // byte-identical body, so the other host's locks arbitrate this host.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let reader = acquire(root, &["app.can"], LeaseMode::Read, "build").unwrap();
+    let name = format!("app.can.read.{}.lock", reader.token.as_str());
+    let lock_text = fs::read_to_string(root.join(".can/gen/locks").join(&name)).unwrap();
+    assert_eq!(
+        lock_text,
+        format!(
+            "{{\"version\":1,\"holder\":\"build\",\"token\":\"{}\",\"mode\":\"read\",\"path\":\"app.can\"}}",
+            reader.token.as_str()
+        )
+    );
+    release(root, &reader).unwrap();
 }
 
 #[test]
@@ -700,4 +715,202 @@ fn journal_scope_and_replacements_are_validated() {
     assert!(snapshot_inputs(root, "build", &["can.generated/u1/style.css"]).is_ok());
     // Cross-check the helper path type is actually used.
     let _: PathBuf = root.join(".can/gen");
+}
+
+#[test]
+fn simultaneous_incompatible_acquire_cannot_both_admit() {
+    // Barrier-aligned read/write racers on one exact path share one atomic
+    // admission step: in every round, no held read coexists with a held
+    // write, and every loser reports `conflict`.
+    for _ in 0..50 {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let barrier = std::sync::Barrier::new(16);
+        std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for i in 0..8 {
+                let gate = &barrier;
+                handles.push(s.spawn(move || {
+                    gate.wait();
+                    acquire(root, &["app.can"], LeaseMode::Read, &format!("build-{i}"))
+                }));
+            }
+            for i in 0..8 {
+                let gate = &barrier;
+                handles.push(s.spawn(move || {
+                    gate.wait();
+                    acquire(root, &["app.can"], LeaseMode::Write, &format!("accept-{i}"))
+                }));
+            }
+            // Hold every admitted set until after the assert: sequential
+            // admission after release is legal, only co-holding is not.
+            let mut held_sets = Vec::new();
+            let mut read_held = 0;
+            let mut write_held = 0;
+            for (index, handle) in handles.into_iter().enumerate() {
+                match handle.join().unwrap() {
+                    Ok(set) => {
+                        if index < 8 {
+                            read_held += 1;
+                        } else {
+                            write_held += 1;
+                        }
+                        held_sets.push(set);
+                    }
+                    Err(error) => assert_eq!(error.code, "conflict", "{error}"),
+                }
+            }
+            assert!(
+                read_held == 0 || write_held == 0,
+                "incompatible leases co-admitted: {read_held} reads with {write_held} writes"
+            );
+            for set in &held_sets {
+                release(root, set).unwrap();
+            }
+        });
+    }
+}
+
+#[test]
+fn foreign_lock_files_arbitrate_admission() {
+    // Hand-write the exact bytes the Node host emits; this host must honor
+    // them (shared admission interoperability across hosts).
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    fs::create_dir_all(root.join(".can/gen/locks")).unwrap();
+    fs::write(
+        root.join(".can/gen/locks/app.can.read.v1-0123456789abcdef.lock"),
+        r#"{"version":1,"holder":"node-build","token":"v1-0123456789abcdef","mode":"read","path":"app.can"}"#,
+    )
+    .unwrap();
+    // A foreign read blocks writes and shares reads.
+    assert_eq!(
+        acquire(root, &["app.can"], LeaseMode::Write, "accept")
+            .unwrap_err()
+            .code,
+        "conflict"
+    );
+    let reader = acquire(root, &["app.can"], LeaseMode::Read, "build").unwrap();
+    release(root, &reader).unwrap();
+    // Stopped-writer recovery removes the foreign lock by holder and token.
+    let token = LeaseToken::parse("v1-0123456789abcdef").unwrap();
+    assert_eq!(
+        recover_stopped_writer(root, "node-build", &token, true).unwrap(),
+        vec!["app.can".to_string()]
+    );
+    // A foreign write lock blocks both modes.
+    fs::write(
+        root.join(".can/gen/locks/app.can.write.lock"),
+        r#"{"version":1,"holder":"node-accept","token":"v1-fedcba9876543210","mode":"write","path":"app.can"}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        acquire(root, &["app.can"], LeaseMode::Write, "next")
+            .unwrap_err()
+            .code,
+        "conflict"
+    );
+    assert_eq!(
+        acquire(root, &["app.can"], LeaseMode::Read, "build")
+            .unwrap_err()
+            .code,
+        "conflict"
+    );
+}
+
+#[test]
+fn read_gate_runs_while_leases_cover_the_consumed_closure() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write_group(root, "u1", &[("a.css", b"a-old")]);
+    write_group(root, "u2", &[("b.css", b"b-old")]);
+    // A writer holds the path while a journal is unresolved: acquisition runs
+    // first, so the reader reports the lease conflict — proving the gate is
+    // evaluated only while acquired leases cover the closure, not before.
+    let writer = acquire(
+        root,
+        &["can.generated/u1/a.css"],
+        LeaseMode::Write,
+        "accept",
+    )
+    .unwrap();
+    stage_journal(
+        root,
+        "rg",
+        &["u1", "u2"],
+        &[
+            replacement("u1", "a.css", b"a-new"),
+            replacement("u2", "b.css", b"b-new"),
+        ],
+    )
+    .unwrap();
+    let refused = snapshot_inputs(root, "build", &["can.generated/u1/a.css"]).unwrap_err();
+    assert_eq!(refused.code, "conflict");
+    release(root, &writer).unwrap();
+    // With leases acquirable again, the gate still refuses the unresolved run.
+    let refused = snapshot_inputs(root, "build", &["can.generated/u1/a.css"]).unwrap_err();
+    assert_eq!(refused.code, "unresolved-journal");
+    // Emulate the stopped-writer state: committed, first entry applied, then
+    // interrupted with leases recovered. The gate refuses; never [a-new,
+    // b-old]. Whole-set recovery then finishes the new group together.
+    mark_committed(root, "rg").unwrap();
+    write_tree(root, &[("can.generated/u1/a.css", b"a-new")]);
+    let refused = snapshot_inputs(
+        root,
+        "build",
+        &["can.generated/u1/a.css", "can.generated/u2/b.css"],
+    )
+    .unwrap_err();
+    assert_eq!(refused.code, "unresolved-journal");
+    assert!(matches!(
+        recover_journal(root, "rg").unwrap(),
+        RecoveryOutcome::CompletedNew { files: 2 }
+    ));
+    let snapshot = snapshot_inputs(
+        root,
+        "build",
+        &["can.generated/u1/a.css", "can.generated/u2/b.css"],
+    )
+    .unwrap();
+    assert_eq!(snapshot[0].bytes, b"a-new");
+    assert_eq!(snapshot[1].bytes, b"b-new");
+}
+
+#[test]
+fn replacement_temp_never_touches_an_unrequested_sibling() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write_group(
+        root,
+        "u1",
+        &[("a.css", b"a-old"), ("a.css.can-new", b"saved-helper")],
+    );
+    let held = acquire(
+        root,
+        &["can.generated/u1/a.css", "can.generated/u1/a.css.can-new"],
+        LeaseMode::Write,
+        "accept",
+    )
+    .unwrap();
+    stage_journal(root, "rt", &["u1"], &[replacement("u1", "a.css", b"a-new")]).unwrap();
+    assert!(matches!(
+        commit_journal(root, "rt").unwrap(),
+        CommitOutcome::Committed { files: 1 }
+    ));
+    // The admitted path changed; the untouched sibling is byte-identical and
+    // no stray temp litters the group.
+    assert_eq!(read_tree(root, "can.generated/u1/a.css"), b"a-new");
+    assert_eq!(
+        read_tree(root, "can.generated/u1/a.css.can-new"),
+        b"saved-helper"
+    );
+    assert_eq!(
+        group_files(root, "u1").unwrap(),
+        vec!["a.css".to_string(), "a.css.can-new".to_string()]
+    );
+    assert_eq!(
+        read_tree(root, ".can/gen/previous/u1/a.css.can-new"),
+        b"saved-helper"
+    );
+    release(root, &held).unwrap();
 }

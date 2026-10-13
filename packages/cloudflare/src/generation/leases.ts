@@ -221,7 +221,17 @@ async function releasePaths(
  * A write acquisition conflicts with any present write or read lock on the
  * same path; a read acquisition conflicts only with a present write lock.
  * On conflict this releases any prefix already taken and reports the
- * conflicting path. Check-then-create is cooperative, not CAS.
+ * conflicting path.
+ *
+ * Admission is one shared atomic step per path: our mode lock is created
+ * exclusively, then re-checked for a conflicting lock before the path
+ * counts as held. A racing incompatible lease created its own
+ * different-named file; whoever observes the other backs off by removing
+ * its just-created lock, so incompatible exact-path leases can never both
+ * be admitted. Exact simultaneity reports `conflict` on both sides and
+ * cooperative callers retry. Read-sharing, exact ownership/tokens, and
+ * stopped-writer recovery are unchanged: this arbitrates cooperative
+ * writers only, never filesystem CAS.
  */
 export async function acquire(
   root: string,
@@ -271,6 +281,21 @@ export async function acquire(
         );
       }
       throw error;
+    }
+    // Admission arbitration: a racing incompatible lease passed its own
+    // pre-check and created a different-named file. Whoever observes the
+    // other removes its just-created lock and reports conflict.
+    const raced =
+      mode === "read"
+        ? await lockExists(writeLockPath(root, rel))
+        : (await presentReadLocks(root, rel)).length > 0;
+    if (raced) {
+      await rm(lockPath, { force: true });
+      await releasePaths(root, held, mode, token);
+      throw new LeaseError(
+        "conflict",
+        `${mode} lease on \`${rel}\` lost a racing acquisition`,
+      );
     }
     held.push(rel);
   }
