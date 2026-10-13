@@ -13543,3 +13543,97 @@ the federated send; not a fix.
 4. `active_member` catalog status — stays `external` (owner lane-03);
 the values runtime needs the function export (validator rejects the
 flip) before the catalog may mark it implemented.
+
+
+## 2026-10-14 — keep the item card's archive action secondary
+
+The user identified a real hierarchy defect in PromptStudio: ItemTile embedded
+the complete canonical archive confirmation card permanently, so a secondary
+action dominated the item. Keep the canonical delete binding, permissions,
+validation and submit behavior intact; place it inside an initially closed native
+`details` disclosure with an accessible Archive summary. The renderer owns the
+compact wrapper and focus styling. The standalone canonical confirmation renderer
+remains valid for other contexts and is unchanged.
+
+Record the intent in ItemTile's `.can` prompt so regeneration preserves it. Run
+`can gen PromptStudio.can` with the existing Codex 6.1 Sol/medium recipe; only u7
+needs generation, and its three files are accepted after the full app gate. Extend
+the existing journey to check a compact collapsed action on desktop/mobile,
+keyboard opening, dismissing without mutation and actual confirmed archiving.
+This closes the visual hierarchy gap that the previous functional assertions
+missed. The BGI execution view records the single live result and screenshots.
+
+
+## 2026-10-14 — source-owned overflow action menus
+
+Superseded before release by the user’s action-priority direction below. The
+initial choice was `action_menu`, a nonempty `Then` suite of canonical `edit`, `delete`
+and `action` controls. It gives secondary card actions a shared, compact
+“More actions” trigger at the inline end, with a dropdown of admitted controls.
+Selecting Archive opens the existing canonical confirmation in a dialog; opening
+or dismissing either surface does not invoke an operation. Permissions, operation
+identity, row versions, validation and failure recovery remain with their existing
+owners. Generated views receive one opaque `bindings.action_menu` and arrange it
+unchanged; the coding agent does not implement menu behavior.
+
+This supersedes the earlier ItemTile-specific disclosure presentation without
+changing the acceptance recorded for that earlier scope. Existing expression-list
+`actions` remains unchanged. Generic navigation `menu` and trigger/content
+`dropdown` keep their current contracts; filling their broader source lowering
+gaps is outside this focused addition. No extra display selector is needed for
+the new primitive's single default presentation.
+
+The [three JEV consultations](../../design/jev/action-menu-default-20261014/)
+compared extending `actions` with a suite, adding `action_menu`, and authoring
+generic dropdown slots. They disagreed between the first two: `actions`
+probabilities 0.71/0.33/0.18 and `action_menu` 0.28/0.63/0.81, with confidences
+0.56/0.45/0.72. Inspection confirmed `actions` currently means an operation list,
+while `menu` is navigation-only at runtime. Choose the explicit `action_menu`
+name to communicate overflow intent without changing either established meaning.
+The naming preference remains subjective; the shared behavior and canonical
+operation boundary are the acceptance criteria. Implementation and verification
+are recorded in the existing BGI execution view when complete.
+
+
+## 2026-10-14 — primary and secondary action priorities in Then
+
+Accepted following explicit user direction: source declares action importance
+with contextual `primary` and `secondary` suites. Primary controls are immediately
+visible; secondary controls use the shared overflow menu. There is no public
+`action_menu` spelling. Direct owners are page, card and row-bound view, with one
+nonempty group of each priority per owner. Children reuse canonical form, edit,
+delete and action bindings and keep their existing scope checks. A page Create
+form needs no invented row; record controls still require their existing row.
+
+The shared UI owns responsive heading placement, visible touch targets, menu
+activation/dismissal, dialog focus and cancellation. Inputless ordinary actions
+retain direct canonical submit; input forms open their existing prepared form,
+and Archive/Delete always requires its canonical confirmation. Generated views
+receive opaque primary/secondary bindings and arrange them unchanged. Forms,
+preferences and dialog slots retain their existing submit/cancel placement. Other
+container placements receive diagnostics until their specific ownership/layout
+contract is accepted; this is not automatic action inference.
+
+The [three host-scope consultations](../../design/jev/action-priority-hosts-20261014/)
+all selected page/card/view with canonical form plus record-control children, at
+probabilities 0.89/0.97/0.99 and confidences 0.83/0.95/0.98. Source inspection
+confirmed existing row-free form preparation and page-owned heading/children,
+so page Create reuses established behavior. Broader overlay/collection placement
+is separately proposed, not part of this implementation. The earlier naming
+consultation remains historical evidence; the user's explicit choice governs.
+
+## Proposal: preference-dispatched order (2026-10-13, session 01a13580)
+
+`order={by=preferences.view,default=[...],cases={...}}` stays refused
+until the checker validates dispatched maps: `check_selectors` only
+visits static `Selectors` (`types.rs` order gate), so case entries have
+no `ui_order_selectors`, and no checked preferences table exists to
+validate `by` paths or case keys. Prerequisite (checker owner):
+validate `by` against declared preference options, case keys against
+those options, and each case selector as an order selector. Codegen
+after that is small: emit a JS conditional over the preference value
+selecting among static order lists (the query layer already serves
+static `-`-prefixed lists; no factory/dispatcher change). Touches the
+`table_order.rs` dispatched pin — surface as a contract change when
+built. Not built this turn: validating selectors in codegen would
+duplicate checker duties with soundness risk.
