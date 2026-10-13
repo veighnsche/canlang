@@ -1,8 +1,8 @@
-## Exploratory local Given trait syntax; exact spelling and generator are not implemented.
+## Accepted local Given trait and static prompt syntax; compiler/generator support is not implemented.
 # Keep track of what needs doing.
 app Todos
 Given
- trait completable "Add done:bool=false with caption Status and case captions Done/Open. Keep the existing authorized update path; add no operations or permission grants."
+ trait completable $"Add done:bool=false with caption Status and case captions Done/Open. Keep the existing authorized update path; add no operations or permission grants."
  Todo { title:text trim min=1 max=200 label="Task" } completable label="Todo"
  policy Todo read=members
  fixture task=Todo {title="Try Can"}
