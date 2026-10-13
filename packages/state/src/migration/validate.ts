@@ -4,8 +4,9 @@
  * `validateStaged` re-reads the full staged set through bounded scans and
  * proves it is a valid post-state: every staged row validates under its
  * desired def, invariants hold over the staged-plus-retained-live view,
- * uniqueness holds within each staged set (plus desired-key checks over
- * retained-live rows, which matter for constraint-only changes), staged
+ * builtin and computed uniqueness holds within each staged set (plus
+ * desired-key checks over retained-live rows, which matter for
+ * constraint-only changes), staged
  * references resolve to post-state rows (model retention first, then id
  * existence against the staged-plus-retained-live view, never a live
  * dereference beyond the validation scans), originally-protected
@@ -58,6 +59,7 @@ import type {
 import type { InterimFieldDef, InterimLock, InterimModelDef, ModelTable } from '../mutation/models.js';
 import { collectPredicateFields, evalPredicateForRow } from '../policy/grants.js';
 import { StateError, storageToStateError } from '../errors.js';
+import { createGivenUniqueKeyScope, type GivenUniqueKeyScope } from '../effects/staging.js';
 import { validateMappedRow } from './mapper.js';
 import type { ValidatedMigrationPlan } from './transition.js';
 
@@ -290,29 +292,55 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
 
   // Uniqueness within each staged set, plus desired-key checks over
   // retained-live rows (constraint-only changes gate untouched models).
-  for (const [target, rows] of stagedByTarget) {
-    const desiredDef = desiredModels.get(target as ModelName) as InterimModelDef;
-    checkUniqueSet(
-      rows,
-      desiredDef,
-      `staged set for ${JSON.stringify(target)}`,
-    );
-  }
-  for (const [name, mapping] of plan.models) {
-    const source = name as string;
-    if (mapping.kind !== 'retain' || mapping.needsStaging || mapping.target === null) {
-      continue;
+  // BGI-08 repair: desired computed-key rules join both passes — the
+  // staged data and the retained-live rows evaluate under
+  // `givenUniqueKeys` exactly like a builtin key, so a colliding
+  // activation refuses here (phase stays `staging`, nothing commits)
+  // instead of flipping onto a conflicting post-state.
+  const givenScope = createGivenUniqueKeyScope();
+  try {
+    for (const [target, rows] of stagedByTarget) {
+      const desiredDef = desiredModels.get(target as ModelName) as InterimModelDef;
+      checkUniqueSet(
+        rows,
+        desiredDef,
+        `staged set for ${JSON.stringify(target)}`,
+      );
+      await checkGivenUniqueSet(
+        givenScope,
+        rows,
+        desiredDef,
+        `staged set for ${JSON.stringify(target)}`,
+      );
     }
-    const desiredDef = desiredModels.get(mapping.target);
-    if (desiredDef === undefined || desiredDef.uniqueKeys.length === 0) {
-      continue;
+    for (const [name, mapping] of plan.models) {
+      const source = name as string;
+      if (mapping.kind !== 'retain' || mapping.needsStaging || mapping.target === null) {
+        continue;
+      }
+      const desiredDef = desiredModels.get(mapping.target);
+      if (
+        desiredDef === undefined ||
+        (desiredDef.uniqueKeys.length === 0 &&
+          (desiredDef.givenUniqueKeys ?? []).length === 0)
+      ) {
+        continue;
+      }
+      const live = await scanAllLive(store, source);
+      checkUniqueSet(
+        live,
+        desiredDef,
+        `retained live rows for ${JSON.stringify(source)}`,
+      );
+      await checkGivenUniqueSet(
+        givenScope,
+        live,
+        desiredDef,
+        `retained live rows for ${JSON.stringify(source)}`,
+      );
     }
-    const live = await scanAllLive(store, source);
-    checkUniqueSet(
-      live,
-      desiredDef,
-      `retained live rows for ${JSON.stringify(source)}`,
-    );
+  } finally {
+    givenScope.close();
   }
 
   // References resolve to retained/renamed targets: opaque id + model
@@ -763,6 +791,43 @@ async function checkDropGating(
             `${JSON.stringify(refModel)}/${JSON.stringify(referrerId)}.`,
         );
       }
+    }
+  }
+}
+
+/**
+ * BGI-08 repair: mutual uniqueness of one row set under one def's
+ * computed-key rules. Mirrors `checkUniqueSet` (same `what` phrasing,
+ * same `validation` taxonomy): sequential evaluation in rule/row order,
+ * null projections skip like absent builtin values, and the first
+ * duplicate refuses before anything commits.
+ */
+async function checkGivenUniqueSet(
+  scope: GivenUniqueKeyScope,
+  rows: ReadonlyArray<Pick<StoredRow, 'data' | 'parent'>>,
+  def: InterimModelDef,
+  what: string,
+): Promise<void> {
+  const rules = def.givenUniqueKeys ?? [];
+  if (rules.length === 0) {
+    return;
+  }
+  const model = def.model as string;
+  for (const rule of rules) {
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const value = await scope.evaluate(rule, row.data[rule.field]);
+      if (value === null) {
+        continue;
+      }
+      if (seen.has(value)) {
+        throw new StateError(
+          'validation',
+          `Migration duplicate computed-key value for rule ${JSON.stringify(rule.rule)} on model ` +
+            `${JSON.stringify(model)} in ${what}.`,
+        );
+      }
+      seen.add(value);
     }
   }
 }
