@@ -147,7 +147,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-11 — Target validation, maps and zero-AI saved build
 
-- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a13499 editing cli.rs + source.rs at fire 53, 2026-10-13T09:41Z). Evidence/handoff: owns cli.rs validation dispatch + source.rs + codegen mod/artifact/sourcemap + deploy/* + fixtures only; awaiting validator handoff (workerd/browser gate reported, not qualified).
+- [ ] Status: in_progress (coordinator session 01a133ac; worker 01a13499 editing cli.rs + source.rs at fire 54, 2026-10-13T09:46Z). Evidence/handoff: owns cli.rs validation dispatch + source.rs + codegen mod/artifact/sourcemap + deploy/* + fixtures only; awaiting validator handoff (workerd/browser gate reported, not qualified).
 
 **Owner / targets:** compiler `cli.rs`, `source.rs`, `codegen/{mod,artifact,sourcemap}.rs`; Cloudflare `deploy/{bundle,module-imports,module-maps,package-assets}.ts` and existing actual-target fixtures. **Needs:** BGI-04 snapshots plus the relevant BGI-07/08/09/10 output for the selected unit kind, not completion of every kind.
 
