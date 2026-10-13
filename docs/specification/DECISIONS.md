@@ -13352,6 +13352,34 @@ The real [PromptStudio fixture](../../tests/fixtures/prompt-pipeline/README.md) 
 
 The actual dev/browser integration is accepted for PromptStudio: the protected D1/Identity preview passes its complete Playwright journey with Codex unavailable, saves eight app-local desktop/mobile/state screenshots, reports no browser errors or horizontal overflow, and releases its owned session. Visual inspection confirms rendered canonical controls, visible defaults and usable narrow layout. Compiler source control names now survive factory lowering; runtime computed-key identity matches the compiler; UI roots remount after canonical refresh, drawers cover the sidebar, and generated page styles can override shared layout defaults. Existing archive key retention and bidi isolation are preserved. The existing BGI execution view records the focused checks and final 54.7-second browser run once. This fixture does not qualify all fifty draft apps; their DFE rollout and design-reference comparison remain separately open. Other CLI adapters retain their existing unqualified external gates. Main `3aac7d5df` into engine `13f36058d` is reconciled incrementally in the isolated checkout’s living file-tree entry using retained owner coverage; the original dirty main stays untouched and the complete checkpoint remains held.
 
+## 2026-10-13 — app-local draft Playwright setup and tolerant reference review
+
+Accepted user scope: each draft app owns its Playwright entry, complete functional/state expectations and screenshots; a separate bot generates reference images inside that app folder. This implementation generates no images. Keep default five concepts per app, with additional distinct pages allowed; reuse page concepts across states rather than limit actual screenshot coverage. Source requirements own behavior when a concept invents controls or omits required functionality.
+
+Implement 50 local `playwright/app.spec.ts` entries and source-specific journey notes, sharing the installed Playwright dependency and existing owner-only dev protocol through `tests/e2e/drafts/`. The separate config discovers explicit compositions, runs authored examples with a complete candidate denominator, and registers static-route desktop/mobile captures. Parameterized routes require real admitted records and explicit journeys. Lexical requirement/state candidates detect gaps but do not establish compiler closure or complete prose/control coverage. Missing workflows/states, unsupported runtime, empty/unsupported examples and uninspected visuals cannot become passes. Business-role grants and serving-preview fixtures remain real resource prerequisites; isolated example rows do not seed the browser.
+
+Concept references use explicit app-local route/state/viewport mappings; an unassigned image never silently becomes an equivalent state. Capture actual PNG/accessibility/metadata and side-by-side HTML beside the app. Visual inspection flags meaningful hierarchy/layout/readability/responsive/control defects while allowing harmless font, antialiasing, sample-data and small-spacing differences. Keep inspected runtime baselines separate from concepts, namespace them by app selection and viewport, and use Playwright threshold 0.25/maxDiffPixelRatio 0.02 for later regression. One adjacent inspection record binds baseline/reference bytes; it is not a new human permission gate. Missing inspection remains pending and baseline updates are never automatic. References/baselines remain versioned; generated results are ignored.
+
+Verification: existing E2E and dedicated draft strict typechecks pass. Discovery lists 526 cases across 50 files; these are not 526 functional passes. All 57 selected-app coverage checks fail for actual missing semantic journeys/states. No semantic app journey bodies were implemented by this scaffold. CanTable reaches the actual control endpoint and fails PROFILE_UNSUPPORTED before browser capture. Explicit mappings cover 46 routes in 36 folders; other image mappings await files or exact route notes. A direct Chromium visual-helper check passes pending capture/report, inspected matching baseline and substantial mismatch reporting. No original draft screenshot or full app acceptance is claimed.
+
+Real-session qualification exposed two existing deploy bundle closure defects: env-assembly imported unstaged export-downloads.js, then that module imported canonicalJson from an existing facade which did not export it. Add the module to PINNED_RUNTIME_FILES and re-export the owning Interfaces canonical-json function in the generated HTTP bundle. Cloudflare rebuild and the relevant existing closure/D1-boot checks pass. After this two-line repair, ModelFreePreview completes real Identity sign-in, HTTP200/canonical-shell/CSS checks and an inspected screenshot; HelpOffice executes all four authored rows with no failures/setup failures/unsupported results. Source/build identities stay current and owned resources close. See the [runbook](../draft-frontend-validation.md) for commands, results and limits. DFE-05/06/07 remain partial; original composed/prompted preview support and complete app journeys remain open under their existing owners. Concurrent draft source/reference edits are preserved. No merge or living-filetree checkpoint advance.
+
+
+## 2026-10-13 — intended-design app references and desktop left sidebar
+
+Accepted user scope: generate actual UI reference images for every owning app group under `draft/apps/`, with app-local PNGs, exact prompts, inspected limitations and tolerant comparison expectations; provide a browsable `draft/UI_REFERENCES.md`. These are intended designs, not runtime screenshots, frontend implementation or E2E results. Group equivalent states/layouts and use only the distinct screens needed to represent the app. Original pre-task references remain preserved and explicitly superseded where their shell/content differs.
+
+The latest human instruction changes the desktop shared shell to a **left** sidebar, with wordmark at the top and user menu at the bottom left, and requests **desktop-only reference images**. This supersedes earlier right-sidebar shell placement for current design intent. Requirements, Design, Grammar commentary and the UI component catalog now agree on that shared placement; page admission, current authorized destinations and canonical account actions are unchanged. Responsive runtime behavior remains required, but mobile images generated during this task are withdrawn from the final reference set. No renderer/runtime change is performed by this task.
+
+The human additionally authorizes selective `Then` presentation refinements where inspected images improve the authored design. Refine existing component `$"..."` suffixes or reusable `style Name $"..."` definitions, preserving source-owned business declarations, operation bindings, permissions, evaluation order and inline examples. Useful refinements include compact intake, readable split details, aligned numeric/evidence rows, balanced comparisons and state labels beside the relevant actions. Each app README identifies its adopted presentation guidance. Generated omissions, invented controls, contradictory sample states and decorative details do not become requirements; source requirements remain authoritative.
+
+Comparisons should flag meaningful differences in layout, hierarchy, missing source content/controls, readability, responsive behavior and state presentation, while tolerating antialiasing, tiny spacing changes, equivalent typography and representative sample-data differences. Exact PNG dimensions and incidental generated wording are non-normative. Loading, empty, failed, stale, pending/unknown and successful states remain distinct even when equivalent layouts share one image. Generated reference coverage and known limitations are documented alongside the images; implementation, source integration gaps and passing runtime/E2E acceptance remain separately open. No merge or living file-tree checkpoint advance is part of this work.
+
+Presentation refinements are scoped to19 owning apps: CanApprove (submitted-version metadata), CanBoard (meeting/amendment hierarchy), CanCreative (desktop intake and workflow node/key alignment), CanDecide (balanced comparisons and advice), CanDiscover (evidence/review), CanDo (quick entry and selected detail), CanEnrich (source-fact comparison), CanGallery (preview/rights captions), and CanReport, CanShift, CanStats, CanStock, CanSuccess, CanSync, CanTable, CanTime, CanTrade, CanVolunteer and CanWorkbench (the intake/evidence/state guidance described in their galleries). Other Then styles already express their useful layout intent and are retained. Explanatory shared-shell comments follow the accepted left placement. Direct before/after comparisons for the changed source groups retain all non-prompt/non-shell-comment declarations and examples; whitespace checks pass. This is bounded source-edit verification, not compiler, provider, browser or runtime acceptance.
+
+Reference deliverable complete:108 active desktop PNGs across all50 app groups, plus the two preserved pre-task Affiliate/Table PNGs explicitly marked superseded. Every active image was inspected by its owning worker; concrete defects received focused revisions and residual generator limitations are recorded once beside the reference. All50 galleries and exact prompt bundles exist; the corpus check verifies PNG headers/dimensions, image display entries, prompt associations, local prose links, no mobile PNGs and one to five active targets per app. Whitespace checks pass. Reuse the19 scoped source-preservation results above; no runtime, frontend implementation or E2E acceptance is inferred. [The browsable overview](../../draft/UI_REFERENCES.md) records per-app counts and links to grouped/unpictured routes and state coverage.
+
+
 ## 2026-10-13 — finish durable export publication and installed HTTP admission
 
 Accepted at backend scope: production `buildProductionDeps` provides the D1 export store to the deployed export handler. Conditional SQL serializes absent-only pending creation and immutable pending-digest completion; ready/revoked records are terminal, physical SQL time bounds writes, and tombstones survive reopen. The bundle includes its runtime producer and canonical serialization dependency. Every disclosure still uses the original credential and current canonical read; stored bytes are not authority.
@@ -13374,3 +13402,144 @@ The user authorized the merge. Combine accepted prompt integration `701ad5de9` w
 
 
 Merge completion: `main` contains `05dd4ce55`, with independent local work restored unstaged and superseded trait/style shim bytes preserved in the named safety stashes. The full generation implementation owns these syntax and resolver contracts. The existing [living file-tree entry](../ideal-filetree-plan.md#2026-10-13--codex-prompt-generation-integration-and-isolated-main-merge) records the focused merge checks and retained evidence; complete review and wider draft acceptance remain held.
+
+## 2026-10-13 — require app execution before generated candidate promotion
+
+Accepted at the user's explicit request: static unit validation is insufficient
+for acceptance. BGI-12 manual/composed acceptance and rollback now keep the frozen
+candidate overlay through actual compilation, the installed build command,
+compiled Can examples in isolated D1/workerd, and the app-local Playwright suite
+against its real protected dev preview. Only a complete passing set reaches the
+existing journal, lease and source/current/fence checks. Intermediate Given
+preparation remains static until its frontend siblings exist; unchanged saved
+reuse and ordinary builds do not start generation or a new acceptance run.
+
+Use existing `.can` examples and an app-local `playwright.config` instead of a
+second arbitrary command configuration. Missing examples/configuration/browser
+dependencies, skipped or flaky browser cases, timeouts and unsupported existing
+local profiles refuse promotion. Browser checks must consume the supplied
+candidate source, record actual successful navigation and a current serving
+identity, and release their owned dev sessions. The outer gate also cleans up
+registered detached sessions after interruption. Reports and screenshots stay in
+`.can/gen/checks/`; current generated files and candidate submissions survive a
+failure. Authored interface changes during checks also conflict before promotion.
+
+Scope remains explicit: the existing local execution profile supports one owning
+app plus its generated contributions. These gates enforce the authored tests;
+they do not prove complete test coverage or visual quality for every draft.
+App-specific suite rollout and reference-image comparison remain separate DFE
+work. Verification results are recorded in the current BGI execution view.
+
+The real fixture exposed two existing example-runner gaps: raw fixture writes
+omitted generated unique-key claims, and record observations ran outside canonical
+read scope. The bounded repair uses the emitted canonical create operation for
+representable fixtures on generated-key models, leaves other fixture setup
+unchanged, and routes record observations through canonical reads. Unsupported
+fixture/operation shapes must diagnose rather than silently discard fields or
+invent a second storage engine. Three independently worded JEV consultations
+([one](../../design/jev/generation-acceptance-runner-20261013/consult-1.json),
+[two](../../design/jev/generation-acceptance-runner-20261013/consult-2.json),
+[three](../../design/jev/generation-acceptance-runner-20261013/consult-3.json))
+favored this choice with confidence 0.85–0.88 over adding an internal seed API or
+deferring generated-key fixtures. This is advice, not proof; hidden fields and
+custom create side effects remain the explicit representability boundary.
+
+## 2026-10-13 — roll out draft-local tests without concealing missing execution
+
+At the user's request, every draft app owns a Playwright config and concrete
+source-specific journey bodies. Reuse the existing shared runtime, lexical
+coverage and visual helpers; keep source examples distinct from serving-browser
+data. Candidate runs discover their frozen source while retaining the authored
+companion requirements. Exclude private `.can` directories from source discovery.
+
+Keep conceptual reference review tolerant of spacing, typography rendering and
+sample content; retain inspected browser baselines for later pixel regression.
+Use current gallery mappings, with no image generation or automatic approval.
+JSON denial screenshots do not compare against the permitted-page concept.
+Explicit permitted page identities remain separate from non-role denial actors;
+anonymous preview access creates no application identity. Tests follow actual
+HTML sign-in/team recovery and canonical validation, not invented native widgets.
+
+The [current DFE execution view](../../implementation/draft-frontends/PLAN.md#current-rollout-result--13-october-2026)
+records 50 configs, 127 authored journeys and 108 reference mappings. Shared
+anonymous/member runtime checks and both E2E typechecks pass. All 57 coverage
+cases remain failing; composition, compiler emission, saved-output adoption and
+real role/record/provider setup remain precise defining-owner prerequisites.
+No original draft functional or visual acceptance follows from authored tests,
+and no platform admission or source requirement was weakened to make them pass.
+
+
+## 2026-10-14 — run source generation and validation through the native Can CLI
+
+Accepted at the user's request: `can gen FILE.can` owns prepare plus complete-app
+acceptance, `--retry` regenerates the complete prompt set, and `--dry-run` reports
+selection and effective app-local recipes without starting jobs. `can validate
+FILE.can` checks saved output without AI. Both commands accept an ordinary source
+path from the repository root or app directory. Preserve the versioned JSON and
+status/bind interfaces for automation. The native entry canonicalizes one source,
+passes arguments directly, locates the existing platform and fixes its compiler
+identity to the invoking executable. Remove the PromptStudio generation wrapper;
+its behavior belongs to the generic host. The existing JavaScript tooling runtime
+remains an internal dependency; this is not a port of that runtime to Rust.
+
+Fresh saved-output reuse must also pass the full gate and must report no promotion.
+Saved validation uses the existing compiler-owned closure and cooperative snapshot
+mechanism, rebases saved records inside a private overlay, validates every selected
+unit, then compiles/builds/runs Can examples and app-local Playwright. Check current
+and frozen input bytes before success. Failed generation or validation preserves
+current output. Keep the existing one-owning-source local profile explicit; these
+commands do not add composed-draft execution or establish full visual coverage.
+
+The normal platform build exposed a pre-existing local change marking the generic
+Values `active_member` signature implemented. Restore its external availability
+while preserving the runtime implementation note: the existing native catalog
+emitter alone marks it implemented after checking the owning runtime export.
+The nine existing catalog checks and the normal producer build pass. Local CLI
+installation uses the previously empty `~/.local/bin/can` path as a reversible
+symlink to this checkout's compiler; no existing executable was replaced.
+
+Finite command outcomes are recorded once in the existing BGI execution view.
+No merge, checkpoint advance or wider draft acceptance is claimed.
+
+## T37 pilot held gates (2026-10-13, session 01a13580)
+
+ACCEPTED (implemented, compiler-side): `on=Cap.op.completed`
+lowers to `IrEventSource::DeliveryCompleted` (canonical `capability.op`
+identity, DESIGN §8 `{delivery_id,status,result:R?,error}` invocation;
+user-contract results resolve via published value contracts, `DeliveryError`
+seeded as a statically-closed nominal); `on=instrumentation.error`
+lowers to opaque `IrEventSource::InstrumentationError`. Send-receipt
+`.id`/`.status` members lower as ordinary reads on the bound receipt
+(DESIGN §8 receipt summary; checker already types them). Structural
+(non-decimal) equality in hooks lowers to pure `equalValue` over the
+in-memory before/after snapshots (T31 decimal pin retained).
+
+HELD (external gates, state lane owns the engine side):
+1. Hook child-collection reads — snapshot hooks project
+`location.Child as c select ...` over child arrays that the engine never
+nests on before/after views (`pipeline.ts` candidate/after carry the row
+only; `transitive.load` is by-id, no children listing). Emitting
+`(parent ?? []).map(...)` would silently snapshot empty on updates; the
+§13 refusal stays until the engine nests children or offers a
+children-listing channel. T31 store-query pins unaffected (they lack a
+parent anchor).
+2. Hook emit — `InterimHookContext` offers `stage`/`schedule`/`cancel`
+but no outbox channel (Rule A); pre-commit emit would publish for writes
+that may abort. Needs a post-commit hook phase with emit-to-sink, or
+committed-handler before/after payloads. T31 emit pin stays.
+
+## T37 pilot held gates, continued (2026-10-13, session 01a13580)
+
+HELD (continued):
+3. Bound-capability verification — `use todo {WorkSourcesV1 as
+WorkSources} from=deployment.work_sources` is locally declared but
+deployment-bound; G6 availability comes only from producer-catalog
+entries and no `can-catalog.json`/producer catalog in the repo covers
+`deployment.*`. Authoring one claiming `implemented` would fabricate
+authority for a draft (fictional) deployment, so the E6007 stands until
+lane-7 (producer Phillipp/deploys) publishes deployment availability or
+an accepted dev-catalog decision exists. Dropping `from=` would misroute
+the federated send; not a fix.
+4. `active_member` catalog status — stays `external` (owner lane-03);
+the values runtime needs the function export (validator rejects the
+flip) before the catalog may mark it implemented.
