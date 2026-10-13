@@ -3,7 +3,7 @@
 # (or eval it: `can completions fish | source`).
 # Embedded in the binary too: `can completions fish` prints this file.
 
-set -l commands activate build check compile completions deploy dev docs explain fmt help lint lsp policy run test
+set -l commands activate build check compile completions deploy dev docs explain fmt gen help lint lsp policy run test
 
 complete -c can -f -n __fish_use_subcommand -a activate -d 'Thin lane-7 entry: exec can-platform activate (passthrough)'
 complete -c can -f -n __fish_use_subcommand -a build -d 'Thin lane-7 entry: exec can-platform build (passthrough)'
@@ -15,6 +15,7 @@ complete -c can -f -n __fish_use_subcommand -a dev -d 'JSON control for the loca
 complete -c can -f -n __fish_use_subcommand -a docs -d 'Generate the localized internal declaration reference'
 complete -c can -f -n __fish_use_subcommand -a explain -d 'Print a diagnostic catalog entry'
 complete -c can -f -n __fish_use_subcommand -a fmt -d 'Format sources in place (or check with --check)'
+complete -c can -f -n __fish_use_subcommand -a gen -d 'Minimal generation bind/status selectors'
 complete -c can -f -n __fish_use_subcommand -a help -d 'Show help (global or per command)'
 complete -c can -f -n __fish_use_subcommand -a lint -d 'Run lint rules over sources (warnings only, never blocks)'
 complete -c can -f -n __fish_use_subcommand -a lsp -d 'Run the language server over stdio'
@@ -47,6 +48,11 @@ complete -c can -f -n '__fish_seen_subcommand_from fmt' -s h -l help -d 'Show he
 # explain: format plus a code operand.
 complete -c can -f -n '__fish_seen_subcommand_from explain' -l format -x -a 'json text' -d 'Machine or human output'
 complete -c can -f -n '__fish_seen_subcommand_from explain' -s h -l help -d 'Show help'
+
+# gen: bind|status plus format and file operands.
+complete -c can -f -n '__fish_seen_subcommand_from gen' -a 'bind status' -d 'Gen operation'
+complete -c can -f -n '__fish_seen_subcommand_from gen' -l format -x -a 'json text' -d 'Machine or human output'
+complete -c can -f -n '__fish_seen_subcommand_from gen' -s h -l help -d 'Show help'
 
 # lsp takes no operands.
 complete -c can -f -n '__fish_seen_subcommand_from lsp' -s h -l help -d 'Show help'

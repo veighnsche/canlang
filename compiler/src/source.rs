@@ -114,6 +114,13 @@ impl SourceDb {
         self.by_path.get(path).copied()
     }
 
+    /// Source revision selector for generation association: the SHA-256 of
+    /// the exact bytes `id` denotes. BGI-02 binds carry this revision so a
+    /// stale selector (edited bytes) is rejected before re-association.
+    pub fn revision(&self, id: SourceId) -> Option<&str> {
+        self.get(id).map(|s| s.sha256.as_str())
+    }
+
     /// Iterate all sources in id order.
     pub fn iter(&self) -> impl Iterator<Item = (SourceId, &Source)> {
         self.sources

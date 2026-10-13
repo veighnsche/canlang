@@ -28,8 +28,8 @@ fn stderr_text(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
-/// All 15 subcommands the global help must document.
-const ALL_COMMANDS: [&str; 15] = [
+/// All 16 subcommands the global help must document.
+const ALL_COMMANDS: [&str; 16] = [
     "compile",
     "check",
     "lint",
@@ -43,6 +43,7 @@ const ALL_COMMANDS: [&str; 15] = [
     "build",
     "deploy",
     "activate",
+    "gen",
     "completions",
     "help",
 ];
