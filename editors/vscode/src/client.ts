@@ -51,6 +51,7 @@ declare global {
     }
     export interface WorkspaceFolder {
       readonly uri: Uri;
+      readonly name?: string;
     }
     export type Event<T> = (listener: (e: T) => void) => Disposable;
     export interface WorkspaceConfiguration {
@@ -122,6 +123,7 @@ declare global {
       constructor(label: string);
       label: string;
       kind?: CompletionItemKind;
+      detail?: string;
     }
     export class Location {
       constructor(uri: Uri, rangeOrPosition: Range | Position);
@@ -195,6 +197,27 @@ declare global {
         token: CancellationToken,
       ): ProviderResult<WorkspaceEdit>;
     }
+    export enum SymbolKind {
+      File, Module, Namespace, Package, Class, Method, Property, Field,
+      Constructor, Enum, Interface, Function, Variable, Constant, String,
+      Number, Boolean, Array, Object, Key, Null, EnumMember, Struct, Event,
+      Operator, TypeParameter,
+    }
+    export class DocumentSymbol {
+      constructor(name: string, detail: string, kind: SymbolKind, range: Range, selectionRange: Range);
+      children: DocumentSymbol[];
+    }
+    export interface FormattingOptions {
+      tabSize: number;
+      insertSpaces: boolean;
+    }
+    export interface DocumentFormattingEditProvider {
+      provideDocumentFormattingEdits(document: TextDocument, options: FormattingOptions,
+        token: CancellationToken): ProviderResult<TextEdit[]>;
+    }
+    export interface DocumentSymbolProvider {
+      provideDocumentSymbols(document: TextDocument, token: CancellationToken): ProviderResult<DocumentSymbol[]>;
+    }
     export interface DocumentSemanticTokensProvider {
       provideDocumentSemanticTokens(
         document: TextDocument,
@@ -223,6 +246,15 @@ declare global {
     export interface OutputChannel extends Disposable {
       appendLine(value: string): void;
     }
+    export interface FileSystemWatcher extends Disposable {
+      onDidCreate(listener: (uri: Uri) => void): Disposable;
+      onDidChange(listener: (uri: Uri) => void): Disposable;
+      onDidDelete(listener: (uri: Uri) => void): Disposable;
+    }
+    export interface WorkspaceFoldersChangeEvent {
+      added: readonly WorkspaceFolder[];
+      removed: readonly WorkspaceFolder[];
+    }
     export interface ConfigurationChangeEvent {
       affectsConfiguration(section: string): boolean;
     }
@@ -230,7 +262,10 @@ declare global {
       const textDocuments: TextDocument[];
       const workspaceFolders: readonly WorkspaceFolder[] | undefined;
       function getWorkspaceFolder(uri: Uri): WorkspaceFolder | undefined;
-      function getConfiguration(section?: string): WorkspaceConfiguration;
+      function getConfiguration(section?: string, scope?: Uri): WorkspaceConfiguration;
+      function openTextDocument(uri: Uri): Promise<TextDocument>;
+      function createFileSystemWatcher(pattern: string): FileSystemWatcher;
+      function onDidChangeWorkspaceFolders(listener: (event: WorkspaceFoldersChangeEvent) => void): Disposable;
       function onDidOpenTextDocument(listener: (doc: TextDocument) => void): Disposable;
       function onDidChangeTextDocument(
         listener: (event: TextDocumentChangeEvent) => void,
@@ -274,6 +309,12 @@ declare global {
       function registerRenameProvider(
         selector: DocumentSelector,
         provider: RenameProvider,
+      ): Disposable;
+      function registerDocumentFormattingEditProvider(
+        selector: DocumentSelector, provider: DocumentFormattingEditProvider,
+      ): Disposable;
+      function registerDocumentSymbolProvider(
+        selector: DocumentSelector, provider: DocumentSymbolProvider,
       ): Disposable;
       function registerDocumentSemanticTokensProvider(
         selector: DocumentSelector,
@@ -494,6 +535,8 @@ export class CanLanguageClient {
     private readonly channel: vscode.OutputChannel,
     private readonly trace: boolean,
     private readonly cwd?: string,
+    private readonly rootUri?: string,
+    private readonly workspaceRoots?: readonly string[],
   ) {}
 
   /** True while the server child is attached and usable. */
@@ -554,7 +597,9 @@ export class CanLanguageClient {
     });
     const initialized = this.sendRequest('initialize', {
       processId: null,
-      rootUri: null,
+      rootUri: this.rootUri ?? null,
+      workspaceFolders: this.rootUri ? (this.workspaceRoots ?? [this.rootUri])
+        .map((uri) => ({ uri, name: uri })) : null,
       capabilities: {
         workspace: { workspaceEdit: { documentChanges: true } },
         textDocument: {
@@ -775,11 +820,20 @@ export class CanLanguageClient {
     this.stopped?.();
   }
 
+  didChangeWatchedFiles(uri: vscode.Uri, type: number): void {
+    if (!this.isRunning()) { return; }
+    if (!this.documents.has(uri.toString())) { this.diagnostics?.delete(uri); }
+    this.sendNotification('workspace/didChangeWatchedFiles', {
+      changes: [{ uri: uri.toString(), type }],
+    });
+  }
+
   didOpen(document: vscode.TextDocument): void {
     if (!this.isRunning()) {
       return;
     }
     const version = this.ownDocument(document);
+    this.diagnostics?.delete(document.uri);
     this.sendNotification('textDocument/didOpen', {
       textDocument: {
         uri: document.uri.toString(),
@@ -972,14 +1026,39 @@ export class CanLanguageClient {
     }
   }
 
+  /** Closed publications follow ordinary workspace file notifications. Open
+   * overlays retain strict wire-version ownership, including reopen epochs. */
+  private isClosedWorkspaceUri(uri: string): boolean {
+    if (!this.rootUri || this.documents.has(uri) ||
+        vscodeApi.workspace.textDocuments.some((document: vscode.TextDocument) => document.uri.toString() === uri)) {
+      return false;
+    }
+    try {
+      const target = vscodeApi.Uri.parse(uri);
+      if (target.scheme !== 'file') { return false; }
+      const normalize = (path: string): string => path.replace(/\\/g, '/').replace(/\/$/, '');
+      const targetPath = normalize(target.fsPath);
+      const ownerPath = normalize(vscodeApi.Uri.parse(this.rootUri).fsPath);
+      const roots = (this.workspaceRoots ?? [this.rootUri]).map((root) =>
+        normalize(vscodeApi.Uri.parse(root).fsPath));
+      const owner = roots.filter((root) => targetPath.startsWith(`${root}/`))
+        .sort((left, right) => right.length - left.length)[0];
+      return owner === ownerPath;
+    } catch {
+      return false;
+    }
+  }
+
   private onPublishDiagnostics(params: Json): void {
     if (!this.diagnostics || !isRecord(params)) {
       return;
     }
     const uri = params['uri'];
     const list = params['diagnostics'];
-    if (typeof uri !== 'string' || !Array.isArray(list) ||
-        typeof params['version'] !== 'number' || !this.isDocumentVersion(uri, params['version'])) {
+    if (typeof uri !== 'string' || !Array.isArray(list)) { return; }
+    const version = params['version'];
+    if (typeof version === 'number' ? !this.isDocumentVersion(uri, version) :
+        (version !== undefined && version !== null) || !this.isClosedWorkspaceUri(uri)) {
       return;
     }
     const converted: vscode.Diagnostic[] = [];

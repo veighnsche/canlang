@@ -51,9 +51,11 @@ function gate() {
 test.each([
   { profile: 'scalar/nullable/array Email', modelSnapshot: false, textGeneration: false, fixture: 'native-guarded-email.can' },
   { profile: 'historical model snapshot Email', modelSnapshot: true, textGeneration: false, fixture: 'native-model-guarded-email.can' },
+  { profile: 'current parent/reference behind historical Email snapshot', modelSnapshot: true, textGeneration: false,
+    references: true, fixture: 'native-parent-model-guarded-email.can' },
   { profile: 'scalar/nullable/array TextGeneration', modelSnapshot: false, textGeneration: true, fixture: 'native-guarded-text-generation.can' },
 ])('original $profile SEND has source skip, fresh membership, one ACK fence and exact replay',
-  { timeout: 120000 }, async ({modelSnapshot, textGeneration, fixture}) => {
+  { timeout: 120000 }, async ({modelSnapshot, textGeneration, fixture, references = false}) => {
     const source = join(root, 'packages/cloudflare/test/fixtures', fixture);
     const {distribution: nativeDistribution} = await nodeImport(installedModule('distribution.js')) as typeof import('../src/distribution.js');
     const compiler = join(root, 'compiler/target/debug/can'), catalog = fileURLToPath(nativeDistribution.nativeCatalog);
@@ -115,7 +117,17 @@ test.each([
       const query = (model: string) => native.store.query({model: asModel(model), authority: 'owner', archived: 'include', order: [{field: 'id', direction: 'asc'}]});
       const receiptIdentity = (envelope: MutationEnvelope): ReceiptIdentity => ({app: APP, owner: team.team_id, principal: owner.user_id,
         operation: asOperation(envelope.operation), operationId: asOperationId(envelope.operation_id)});
-      const create: MutationEnvelope = {operation: `${MODEL}.create`, operation_id: nextId(), inputs: {}};
+      const profileModel = `${APP}.Profile`;
+      let referenceProfile: import('@canlang/contracts').StoredRow | undefined;
+      if (references) {
+        const createdProfile = await invoker.invokeMutation({ operation: `${profileModel}.create`, operation_id: nextId(), inputs: {} }, await currentIdentity());
+        assert.ok('result' in createdProfile, JSON.stringify(createdProfile));
+        referenceProfile = (await query(profileModel))[0]!;
+      }
+      const create: MutationEnvelope = {operation: `${MODEL}.create`, operation_id: nextId(), inputs: referenceProfile === undefined ? {} : {
+        parent: { id: referenceProfile.id, version: String(referenceProfile.version) },
+        profile: { id: referenceProfile.id, version: String(referenceProfile.version) },
+      }};
       const created = await invoker.invokeMutation(create, await currentIdentity()); assert.ok('result' in created, JSON.stringify(created));
       assert.equal(created.result.status, 'committed');
       let entry = (await query(MODEL))[0]!;
@@ -262,6 +274,42 @@ test.each([
       // A fresh retry observes the negative membership and skips with no additional mint/provider.
       await drive(racing.retained.intent.intentId); assert.equal(sends, 0); assert.equal(mints, 1);
       await identities.reactivateMembership(membership.membership_id, {is_owner: false, roles: []});
+      if (references) {
+        // Revoke during the LAST physical reference recheck, after the source
+        // predicate observed membership. State must recheck that subject after
+        // these new awaits, keeping the actual Work claim fence unpublished.
+        const lateReference = await queue(), load = native.store.cohortLoad;
+        let profileReads = 0, revoked = false;
+        native.store.cohortLoad = async input => {
+          const row = await load.call(native.store, input);
+          if (input.model === profileModel && ++profileReads === 3) {
+            await identities.removeMembership(membership.membership_id); revoked = true;
+          }
+          return row;
+        };
+        const beforeReferenceRace = await snapshot(db);
+        try { await assert.rejects(drive(lateReference.retained.intent.intentId)); }
+        finally { native.store.cohortLoad = load; }
+        assert.equal(revoked, true, 'the current target read actually races subject revocation');
+        assert.deepEqual(await snapshot(db), beforeReferenceRace);
+        assert.equal(sends, 0); assert.equal(mints, 2);
+        await drive(lateReference.retained.intent.intentId);
+        assert.equal(sends, 0); assert.equal(mints, 2);
+        await identities.reactivateMembership(membership.membership_id, {is_owner: false, roles: []});
+        const guarded = await queue();
+        const currentProfile = (await query(profileModel))[0]!;
+        const disabled = await invoke({operation: `${profileModel}.update`, operation_id: nextId(),
+          inputs: {record: {id: currentProfile.id, version: String(currentProfile.version)}, active: false}});
+        assert.ok('result' in disabled, JSON.stringify(disabled));
+        const refused = await drive(guarded.retained.intent.intentId);
+        assert.equal(refused.status, 'not-claimed');
+        if (refused.status === 'not-claimed') assert.equal(refused.reason, 'guard-false');
+        assert.equal(sends, 0); assert.equal(mints, 2, 'current parent/reference refusal does not mint a claim');
+        const inactive = (await query(profileModel))[0]!;
+        const enabled = await invoke({operation: `${profileModel}.update`, operation_id: nextId(),
+          inputs: {record: {id: inactive.id, version: String(inactive.version)}, active: true}});
+        assert.ok('result' in enabled, JSON.stringify(enabled));
+      }
       const positive = await queue();
       if (modelSnapshot) {
         const live = (await query(MODEL))[0]!;
@@ -271,7 +319,7 @@ test.each([
         assert.equal((await query(MODEL))[0]!.data['count'], '-1');
       }
       assert.equal((await drive(positive.retained.intent.intentId)).status, 'recorded');
-      assert.equal(sends, 1); assert.equal(mints, 2);
+      assert.equal(sends, 1); assert.equal(mints, references ? 3 : 2);
       const deliveredReceipt = readReceiptRow((await native.store.load(asModel(RECEIPT_MODEL), asId(positive.retained.intent.intentId)))!).receipt;
       assert.equal(deliveredReceipt.status, 'succeeded');
       if (textGeneration) {
@@ -281,7 +329,7 @@ test.each([
         assert.equal(result.used_tokens, '7');
       }
       const terminal = await snapshot(db); await drive(positive.retained.intent.intentId); assert.deepEqual(await snapshot(db), terminal); assert.equal(sends, 1);
-      await invoke(positive.input); assert.deepEqual(await snapshot(db), terminal); assert.equal(sends, 1); assert.equal(mints, 2);
+      await invoke(positive.input); assert.deepEqual(await snapshot(db), terminal); assert.equal(sends, 1); assert.equal(mints, references ? 3 : 2);
       assert.throws(() => fenceFor({...positive.retained.intent, occurrenceIndex: positive.retained.intent.occurrenceIndex + 1, dispatchGuard: 'foreign'}));
       const plain = await invoke({operation: `${APP}.plain`, operation_id: nextId(), inputs: {}}); assert.ok('result' in plain, JSON.stringify(plain));
       const legacy = (await native.store.outboxPending())[0]!; assert.equal(legacy.dispatchGuard, undefined);

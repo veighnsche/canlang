@@ -18,7 +18,7 @@ use canlang_compiler::source::{SourceDb, SourceId, Span};
 /// - `Todo` decl: 17..21, field `title`: 24..29, `text`: 30..34
 /// - `complete` decl: 52..60, param `task`: 61..65, type use `Todo`: 66..70
 /// - `members`: 75..82, `let` stmt: 87..111, `label` decl: 95..100
-/// - `task` use: 101..105, member `title`: 106..111 (unresolved)
+/// - `task` use: 101..105, member `title`: 106..111 (resolved field)
 /// - set target `task`: 119..123 (resolved), entry key `title`: 125..130
 /// - `label` use: 131..136
 const FIXTURE: &str = "app Tasks\nGiven\n Todo { title:text }\nWhen\n scenario complete(task:Todo) by=members\n  do\n   let label=task.title\n   set task {title=label}\nThen\n";
@@ -90,8 +90,10 @@ fn hover_predicate_and_unresolved_are_empty() {
         predicate.markdown
     );
     assert_eq!((predicate.span.start, predicate.span.end), (75, 82));
-    // Member-navigation names have no resolution entry: empty, never a guess.
-    assert!(snapshot.hover_at(108).is_none());
+    assert_eq!(
+        snapshot.hover_at(108).unwrap().markdown,
+        "**Tasks.Todo.title** — field\n\ndeclared: `text`"
+    );
     // Mutation targets resolve their head, without guessing field selectors.
     assert!(
         snapshot
@@ -249,9 +251,9 @@ fn definition_spans() {
     assert_eq!(spans_of(&snapshot.definition_at(18)), [(17, 21)]);
     assert_eq!(spans_of(&snapshot.definition_at(133)), [(95, 100)]);
     assert_eq!(spans_of(&snapshot.definition_at(97)), [(95, 100)]);
-    // Builtin scalars, member names and keywords have no definition.
+    // Typed members point to their owning field; scalars and keywords do not.
     assert!(snapshot.definition_at(31).is_empty());
-    assert!(snapshot.definition_at(108).is_empty());
+    assert_eq!(spans_of(&snapshot.definition_at(108)), [(24, 29)]);
     assert!(snapshot.definition_at(1).is_empty());
     assert!(snapshot.definition_at(5000).is_empty());
 }
@@ -275,10 +277,16 @@ fn references_spans() {
         spans_of(&snapshot.references_at(97)),
         [(95, 100), (131, 136)]
     );
-    // title field: declaration only (member and key positions unresolved).
-    assert_eq!(spans_of(&snapshot.references_at(26)), [(24, 29)]);
-    // Unresolved positions: empty.
-    assert!(snapshot.references_at(108).is_empty());
+    // title field: declaration, typed read and mutation key.
+    assert_eq!(
+        spans_of(&snapshot.references_at(26)),
+        [(24, 29), (106, 111), (125, 130)]
+    );
+    assert_eq!(
+        spans_of(&snapshot.references_at(108)),
+        [(24, 29), (106, 111), (125, 130)]
+    );
+    // Contextual predicates have no references.
     assert!(snapshot.references_at(76).is_empty());
 }
 
@@ -294,9 +302,12 @@ fn rename_spans_and_hash() {
     assert_eq!(rename.sha256.len(), 64);
     let label = snapshot.rename_at(133).expect("rename label");
     assert_eq!(spans_of(&label.spans), [(95, 100), (131, 136)]);
-    // Predicates, member names and keywords are refused, never guessed.
+    // Typed fields are renamable; contextual predicates and keywords are not.
     assert!(snapshot.rename_at(76).is_none());
-    assert!(snapshot.rename_at(108).is_none());
+    assert_eq!(
+        spans_of(&snapshot.rename_at(108).unwrap().spans),
+        [(24, 29), (106, 111), (125, 130)]
+    );
     assert!(snapshot.rename_at(1).is_none());
 }
 
@@ -354,8 +365,9 @@ fn mutation_target_head_excludes_field_selectors_and_unresolved_names() {
         );
     }
     for (i, _) in text.match_indices("task.child") {
-        assert!(snapshot.rename_at(i as u32 + 5).is_none());
-        assert!(snapshot.references_at(i as u32 + 5).is_empty());
+        let declaration = text.find("child:Todo").unwrap() as u32;
+        assert_eq!(snapshot.definition_at(i as u32 + 5)[0].start, declaration);
+        assert_eq!(snapshot.rename_at(i as u32 + 5).unwrap().spans.len(), 3);
     }
     let bad = text.replace("task.child", "missing.child");
     let (db, id) = load(&bad);
@@ -456,9 +468,13 @@ fn completion_expression_scope() {
     let items = snapshot.completions_at(103);
     let labels = labels(&items);
     // Visible scope bindings and module symbols.
-    for expected in ["task", "label", "Todo", "complete", "actor", "now"] {
+    for expected in ["task", "Todo", "complete", "actor", "now"] {
         assert!(labels.contains(&expected), "missing {expected}: {labels:?}");
     }
+    assert!(
+        !labels.contains(&"label"),
+        "own initializer cannot see label"
+    );
     // Expression keywords.
     for expected in ["and", "or", "not", "true", "false", "null", "where"] {
         assert!(labels.contains(&expected), "missing {expected}: {labels:?}");
@@ -929,7 +945,7 @@ fn server_capability_negotiation() {
     let capabilities = &responses[0];
     for provider in [
         "\"hoverProvider\":true",
-        "\"completionProvider\":{}",
+        "\"completionProvider\":{\"triggerCharacters\":[\".\"]}",
         "\"definitionProvider\":true",
         "\"referencesProvider\":true",
         "\"renameProvider\":true",
@@ -1024,7 +1040,7 @@ fn server_rename_and_invalid_name() {
         "textDocument/rename",
         r#"{"textDocument":{"uri":"file:///a.can"},"position":{"line":6,"character":13},"newName":"9bad"}"#,
     ));
-    assert!(refused[0].contains("\"edits\":[]"), "{}", refused[0]);
+    assert!(refused[0].contains("\"result\":null"), "{}", refused[0]);
 }
 
 #[test]
@@ -1111,4 +1127,296 @@ fn import_member_resolves_to_export() {
     assert_eq!(hover.markdown, "**P.Thing** — model");
     assert_eq!((hover.span.start, hover.span.end), (67, 72));
     assert_eq!(spans_of(&snapshot.definition_at(68)), [(26, 31)]);
+}
+
+fn apply_rename(text: &str, snapshot: &Snapshot<'_>, offset: u32, name: &str) -> String {
+    let rename = snapshot.safe_rename_at(offset, name).expect("safe rename");
+    let mut result = text.to_string();
+    for span in rename.spans.iter().rev() {
+        result.replace_range(span.start as usize..span.end as usize, name);
+    }
+    result
+}
+
+#[test]
+fn safe_field_rename_tracks_typed_reads_writes_and_construction() {
+    let text = "app T\nGiven\n Todo { title:text }\n Box { child:Todo }\nWhen\n scenario s(task:Todo,box:Box) by=members\n  do\n   let label=task.title\n   set task {title=label}\n   set box.child {title=label}\n   create Todo {title=label} as fresh\n   let detached=Todo {title=label}\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let field = text.find("title:text").unwrap() as u32;
+    assert_eq!(snapshot.references_at(field).len(), 6);
+    let applied = apply_rename(text, &snapshot, field, "caption");
+    assert_eq!(applied, text.replace("title", "caption"));
+    let (db, id) = load(&applied);
+    assert!(Snapshot::analyze(&db, id, None).diagnostics().is_empty());
+}
+
+#[test]
+fn safe_rename_refuses_duplicates_capture_and_ambiguous_partial_uses() {
+    let text = "app T\nGiven\n Todo { title:text,other:text }\nWhen\n scenario s(task:Todo,other:Todo) by=members\n  do\n   let label=task.title\n   let later=other.title\n   set task {title=label}\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    assert!(
+        snapshot
+            .safe_rename_at(text.find("task:Todo").unwrap() as u32, "other")
+            .is_none()
+    );
+    assert!(
+        snapshot
+            .safe_rename_at(text.find("label=").unwrap() as u32, "other")
+            .is_none(),
+        "would silently capture later other.title"
+    );
+    assert!(
+        snapshot
+            .safe_rename_at(text.find("title:text").unwrap() as u32, "other")
+            .is_none()
+    );
+    assert!(
+        snapshot
+            .safe_rename_at(text.find("label=").unwrap() as u32, "two words")
+            .is_none()
+    );
+    assert!(
+        snapshot
+            .safe_rename_at(text.find("task:Todo").unwrap() as u32, "job")
+            .is_some()
+    );
+    let partial = text.replace("other.title", "missing.title");
+    let (db, id) = load(&partial);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot
+            .safe_rename_at(partial.find("title:text").unwrap() as u32, "caption")
+            .is_none()
+    );
+}
+
+#[test]
+fn imported_provider_names_and_explicit_aliases_rename_independently() {
+    let text = "package P\n Given\n  export Thing { n:int }\n When\n Then\napp A\nuse P {Thing as Local}\nGiven\n Box { value:Local }\nWhen\nThen\napp B\nuse P {Thing}\nGiven\n Box { value:Thing }\nWhen\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let source = text.find("Thing {").unwrap() as u32;
+    assert_eq!(
+        snapshot.references_at(source).len(),
+        4,
+        "{:?}",
+        snapshot
+            .references_at(source)
+            .iter()
+            .map(|s| &text[s.start as usize..s.end as usize])
+            .collect::<Vec<_>>()
+    );
+    let applied = apply_rename(text, &snapshot, source, "Product");
+    assert_eq!(applied, text.replace("Thing", "Product"));
+    assert!(
+        snapshot
+            .hover_at(text.find("as Local").unwrap() as u32)
+            .is_none()
+    );
+    assert!(
+        snapshot
+            .rename_at(text.find("as Local").unwrap() as u32)
+            .is_none()
+    );
+    let alias = text.find("Local}").unwrap() as u32;
+    assert_eq!(snapshot.references_at(alias).len(), 2);
+    let applied = apply_rename(text, &snapshot, alias, "Alias");
+    assert_eq!(applied, text.replace("Local", "Alias"));
+}
+
+#[test]
+fn completion_follows_typed_receiver_and_statement_order_in_partial_input() {
+    let text = "app T\nGiven\n Todo { title:text,done:bool=false }\nWhen\n scenario s(task:Todo) by=members\n  do\n   let first=task.\n   let later=task\n   \n   set task {title=first}\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    let dot = text.find("task.").unwrap() as u32 + 5;
+    let completion = snapshot.completions_at(dot);
+    assert_eq!(labels(&completion), ["done", "title"]);
+    assert_eq!(
+        completion
+            .iter()
+            .find(|c| c.label == "title")
+            .unwrap()
+            .detail
+            .as_deref(),
+        Some("text")
+    );
+    let partial = text.replace("task.", "task.t");
+    let (partial_db, partial_id) = load(&partial);
+    let partial_snapshot = Snapshot::analyze(&partial_db, partial_id, None);
+    assert_eq!(
+        labels(&partial_snapshot.completions_at(dot + 1)),
+        ["done", "title"]
+    );
+    let complete = text.replace("task.", "task.title");
+    let (db, id) = load(&complete);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    let after_dot = complete.find("task.title").unwrap() as u32 + 5;
+    assert_eq!(
+        labels(&snapshot.completions_at(after_dot)),
+        ["done", "title"]
+    );
+    let initializer = complete.find("task.title").unwrap() as u32 + 1;
+    let completion = snapshot.completions_at(initializer);
+    assert!(labels(&completion).contains(&"task"));
+    assert!(!labels(&completion).contains(&"first"));
+    assert!(!labels(&completion).contains(&"later"));
+    let shadowed = complete.replace("let later=task", "let task=task");
+    let (shadow_db, shadow_id) = load(&shadowed);
+    let shadow_snapshot = Snapshot::analyze(&shadow_db, shadow_id, None);
+    let earlier = shadow_snapshot.completions_at(initializer);
+    assert_eq!(
+        earlier
+            .iter()
+            .find(|c| c.label == "task")
+            .unwrap()
+            .detail
+            .as_deref(),
+        Some("T.s.task")
+    );
+    let blank = complete.find("   \n").unwrap() as u32 + 2;
+    let completion = snapshot.completions_at(blank);
+    for name in ["task", "first", "later"] {
+        assert!(
+            labels(&completion).contains(&name),
+            "missing {name}: {:?}",
+            labels(&completion)
+        );
+    }
+}
+
+#[test]
+fn safe_rename_on_full_todo_refuses_unhandled_selectors_or_rechecks_cleanly() {
+    let text = include_str!("../../examples/Todo.can");
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    let field = text.find("title:").unwrap() as u32;
+    if let Some(rename) = snapshot.safe_rename_at(field, "caption") {
+        let mut applied = text.to_string();
+        for span in rename.spans.iter().rev() {
+            applied.replace_range(span.start as usize..span.end as usize, "caption");
+        }
+        let (db, id) = load(&applied);
+        let checked = Snapshot::analyze(&db, id, None);
+        let before: Vec<_> = snapshot.diagnostics().iter().map(|d| d.code).collect();
+        let after: Vec<_> = checked.diagnostics().iter().map(|d| d.code).collect();
+        assert_eq!(before, after);
+    }
+}
+
+#[test]
+fn completion_blank_statement_keeps_parameters_in_trailing_and_empty_blocks() {
+    for body in ["   let x=1\n   \n", "   \n"] {
+        let text = format!(
+            "app T\nGiven\n Todo {{title:text}}\nWhen\n scenario s(task:Todo) by=members\n  do\n{body}Then\n"
+        );
+        let (db, id) = load(&text);
+        let snapshot = Snapshot::analyze(&db, id, None);
+        let offset = text.find("   \n").unwrap() as u32 + 2;
+        let completion = snapshot.completions_at(offset);
+        assert!(
+            labels(&completion).contains(&"task"),
+            "body {body:?}: {:?}",
+            labels(&completion)
+        );
+    }
+}
+
+#[test]
+fn project_queries_use_owning_declarations_and_rename_across_files() {
+    let provider =
+        "package P\n Given\n  export Todo { title:text desc=\"Shared title.\" }\n When\n Then\n";
+    let consumer = "app Tasks\nuse P {Todo as Local}\nGiven\nWhen\n scenario s(task:Local) by=members\n  do\n   let caption=task.title\n   let detached=Local {title=caption}\nThen\n";
+    let mut db = SourceDb::new();
+    let owner = db.add("models.can".into(), provider.into());
+    let caller = db.add("tasks.can".into(), consumer.into());
+    let snapshot = Snapshot::analyze_project(&db, caller, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let read = consumer.find("task.title").unwrap() as u32 + 5;
+    let field = Span::new(
+        owner,
+        provider.find("title:text").unwrap() as u32,
+        provider.find("title:text").unwrap() as u32 + 5,
+    );
+    assert_eq!(snapshot.definition_at(read), [field]);
+    let hover = snapshot.hover_at(read).unwrap();
+    assert_eq!(
+        hover.markdown,
+        "**P.Todo.title** — field\n\ndeclared: `text`\n\nShared title."
+    );
+    let refs = snapshot.references_at(read);
+    assert_eq!(refs.len(), 3);
+    assert_eq!(refs[0], field);
+    assert!(refs[1..].iter().all(|s| s.file == caller));
+    let completions = snapshot.completions_at(read);
+    assert_eq!(labels(&completions), ["title"]);
+    assert_eq!(completions[0].detail.as_deref(), Some("text"));
+    let rename = snapshot
+        .safe_rename_at(read, "summary")
+        .expect("complete cross-file field rename");
+    assert_eq!(rename.spans, refs);
+    let mut renamed = SourceDb::new();
+    for (file, source) in db.iter() {
+        let mut text = source.text.clone();
+        for span in rename.spans.iter().rev().filter(|span| span.file == file) {
+            text.replace_range(span.start as usize..span.end as usize, "summary");
+        }
+        assert_eq!(renamed.add(source.path.clone(), text), file);
+    }
+    assert!(
+        Snapshot::analyze_project(&renamed, caller, None)
+            .diagnostics()
+            .is_empty()
+    );
+    let import_source = consumer.find("Todo as").unwrap() as u32;
+    let source_rename = snapshot.safe_rename_at(import_source, "Item").unwrap();
+    assert_eq!(source_rename.spans.len(), 2);
+    assert_eq!(source_rename.spans[0].file, owner);
+    let alias = consumer.find("Local}").unwrap() as u32;
+    let alias_rename = snapshot.safe_rename_at(alias, "Alias").unwrap();
+    assert_eq!(alias_rename.spans.len(), 3);
+    assert!(alias_rename.spans.iter().all(|span| span.file == caller));
+}
+
+#[test]
+fn project_snapshot_uses_latest_sources_and_explicit_file_isolation() {
+    let provider = "package P\n Given\n  export Thing { n:int }\n When\n Then\n";
+    let consumer = "app A\nuse P {Thing}\nGiven\n Box {value:Thing}\nWhen\nThen\n";
+    let mut db = SourceDb::new();
+    let obsolete = db.add("p.can".into(), provider.into());
+    let caller = db.add("a.can".into(), consumer.into());
+    let owner = db.add("p.can".into(), provider.replace("n:int", "n:text"));
+    let snapshot = Snapshot::analyze_project(&db, caller, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    let import = consumer.find("Thing}").unwrap() as u32;
+    assert_eq!(snapshot.definition_at(import)[0].file, owner);
+    let refs = snapshot.references_at(import);
+    assert!(refs.iter().all(|span| span.file != obsolete));
+    let isolated = Snapshot::analyze_files(&db, caller, &[caller], None);
+    assert!(isolated.definition_at(import).is_empty());
 }

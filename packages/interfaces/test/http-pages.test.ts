@@ -320,6 +320,8 @@ test(`bound page preference saves only an admitted actor/team enum with CSRF and
   const page = helloPage({
     owner: 'OfficeSupplies',
     preferenceFields: [{ name: 'view', options: ['all', 'available', 'restock'], defaultValue: initial,
+      caption: { source: 'Show', variants: { nl: 'Toon' } },
+      optionLabels: { all: 'All', available: { source: 'Available', variants: { nl: 'Beschikbaar' } }, restock: 'Restock' },
       ...(initial === null ? { nullable: true as const } : {}) }],
     admit: async source => {
       const scoped = source as PageSourceContext;
@@ -337,11 +339,25 @@ test(`bound page preference saves only an admitted actor/team enum with CSRF and
     },
   });
   const { deps, identity } = await createTestDeps({ descriptors: [page] });
-  const handler = createHttpHandler({ ...deps, preferences }, spySub());
+  const handler = createHttpHandler({ ...deps, preferences, deploymentBase: 'https://deployed.example.test/app' }, spySub());
   const path = `/hello?team=${identity.teamId}&q=paper`;
   const first = await handler(testRequest(path, { cookie: identity.cookie }));
   assert.equal(first.status, 200);
-  assert.ok((await first.text()).includes(`<p>${String(initial)}:0</p>`));
+  const firstHtml = await first.text();
+  assert.ok(firstHtml.includes(`<p>${String(initial)}:0</p>`));
+  assert.match(firstHtml, /data-can-preference-form="save"/);
+  assert.match(firstHtml, /class="fieldset-label">Show<select/);
+  assert.match(firstHtml, /value="available">Available<\/option>/);
+  assert.ok(firstHtml.includes(`action="/hello?team=${identity.teamId}&amp;q=paper"`));
+  assert.match(firstHtml, /name="_version" value="0"/);
+  assert.match(firstHtml, /data-can-preference-cancel/);
+  if (initial !== null) assert.match(firstHtml, /data-can-preference-form="reset"/);
+  const localized = await handler(testRequest(path, {
+    cookie: identity.cookie, headers: { 'accept-language': 'nl' },
+  }));
+  const localizedHtml = await localized.text();
+  assert.match(localizedHtml, /class="fieldset-label">Toon<select/);
+  assert.match(localizedHtml, /value="available">Beschikbaar<\/option>/);
   assert.equal(rows.size, 0);
   const token = await deriveCsrfToken(identity.sessionToken);
   const post = (csrf: string, value: string, version: string) => testRequest(path, {
@@ -369,6 +385,15 @@ test(`bound page preference saves only an admitted actor/team enum with CSRF and
   assert.equal(stale.status, 409);
   assert.equal(rows.size, 1);
   assert.deepEqual([...rows.values()], [{ value: 'available', version: '1' }]);
+  if (initial !== null) {
+    const reset = await handler(post(token, initial, '1'));
+    assert.equal(reset.status, 303);
+    assert.deepEqual([...rows.values()], [{ value: initial, version: '2' }]);
+    const resetPage = await handler(testRequest(path, { cookie: identity.cookie }));
+    const resetHtml = await resetPage.text();
+    assert.match(resetHtml, /<p>all:2<\/p>/);
+    assert.match(resetHtml, /<option value="all" selected>All<\/option>/);
+  }
   const missingStore = await createHttpHandler(deps, spySub())(testRequest(path, { cookie: identity.cookie }));
   assert.notEqual(missingStore.status, 200);
   if (initial === null) {

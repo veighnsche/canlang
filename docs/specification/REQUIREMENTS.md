@@ -20,7 +20,7 @@ Applications whose core value requires a specialized foundation beyond this mode
 
 Bounded provider-backed workflows—LLM conversations, reviewed generation, judgments, authorized company-document answers, external synchronization and approved tool use—belong in scope when their company behavior remains records, permissions, rules and reviewable operations. Complex drafts must expose missing reusable primitives, not make each app reproduce protocol handling, progress correlation, model-output schemas or retrieval permissions. The accepted `judgment`, associated observable progress, complete `invocation` values and model-bound `corpus` contracts in DESIGN are concrete witnesses. Shared providers/libraries do specialized execution; app source owns purpose, authorization, budgets, approval and the meaning of results. This does not expand Can into arbitrary code execution or unrestricted autonomous agents.
 
-Presentation serves that scope. Provide the entire pinned daisyUI component set through the [approved 68-component vocabulary](../../design/UI-COMPONENTS.md), with typed bindings, shared themes and one standard shell. The former small subset was a design mistake and must not restrict app authors or agents. Arbitrary HTML, CSS, JavaScript, and specialized visual editors are outside v1.
+Presentation serves that scope. Provide the entire pinned daisyUI component set through the [approved 68-component vocabulary](../../design/UI-COMPONENTS.md), with typed bindings, shared themes and one standard shell. The former small subset was a design mistake and must not restrict app authors or agents. The accepted [build time AI generation feature](BUILD_GENERATION_REQUIREMENTS.md) extends this with saved, editable JavaScript/CSS implementations behind declared contracts and custom presentation scopes, initially using row-bound custom views and coordinated write leases. It does not add verbatim scripting to `.can` or relax canonical authority. Specialized visual editors remain outside v1.
 
 ## AI-native and token-efficient
 
@@ -33,6 +33,12 @@ Required repetition is a language-design failure: it wastes tokens and reduces a
 Audit repeated syntax across real apps before preserving it as mandatory configuration. Uniform setup belongs in version-pinned defaults; declare only differences. Do not repeat a default attribute, an identical inherited field list, or an always-true optional condition. Keep actual business conditions, permission choices and independently authored test expectations; reduce their duplicated expression through canonical reuse rather than silently removing their meaning. [The repetition audit](DECISIONS.md#token-repetition-audit) records measured occurrences, applied reductions and further grammar candidates.
 
 Scalar model, contract and event fields are required and non-null by default: `title:text`. Declare nullability with `?`, creation defaults with `=`, and protected initialization with `server=`. Arrays keep their default `[]`; `T[]!` explicitly requires array input. Do not repeat a required-scalar `!`. Pure nullable expressions use `?.` for field access and `??` for null fallback, with type checking, short-circuit evaluation and access rules defined in DESIGN. These operators never grant permissions or turn failures into missing data.
+
+## Build time AI generation
+
+Support agent-operated natural-language generation for local Given modifiers, When implementations, Then style scopes and custom reusable Then components. Persist editable implementation and its source association, select coding CLIs/models through shared tooling preferences, and reuse saved files on ordinary builds without AI calls. Inline and named style scopes use frontend by default; targeted retry/refine/reset must preserve current code, direct edits and every unselected unit.
+
+[BUILD_GENERATION_REQUIREMENTS.md](BUILD_GENERATION_REQUIREMENTS.md) defines the feature's requirements, finite acceptance outcomes and open design decisions. New syntax, CLI configuration and generated-JavaScript runtime integration remain implementation/design work; the requirement does not establish current compiler support.
 
 ## One way per SaaS primitive
 

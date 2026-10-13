@@ -3204,6 +3204,7 @@ interface NativeScenarioExecution {
   readonly artifact: CompileArtifact;
   readonly store: StoragePort;
   readonly nextCreateId: () => string;
+  readonly navigationOwner: ScenarioNavigationOwner;
   readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => Record<string, unknown>;
   readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
   readonly evaluateSendGuard: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
@@ -3335,17 +3336,38 @@ async function loadNativeSendModelSnapshots(loaded: LoadedCanonicalDescriptors, 
     if (profile === undefined) throw new loaded.producers.errors('validation', 'SEND model lacks its exact owning snapshot profile.');
     return [type, profile] as const;
   }));
+  const profileFor = (type: string) => {
+    let profile = profiles.get(type);
+    if (profile === undefined) {
+      profile = bind(bound, type as CanTypeId);
+      if (profile === undefined) throw new loaded.producers.errors('validation', 'SEND reference lacks its owning model profile.');
+      profiles.set(type, profile);
+    }
+    return profile;
+  };
   return Object.freeze({
     has: (type: string): boolean => profiles.has(type),
     check: (type: string, wire: unknown): void => { read(profiles.get(type)!, wire); },
-    view: (type: string, wire: unknown, healthy: () => void): Readonly<Record<string, unknown>> => {
+    snapshot: (type: string, wire: unknown) => read(profileFor(type), wire).row,
+    view: (type: string, wire: unknown, healthy: () => void,
+      reference?: (model: string, id: string) => unknown): Readonly<Record<string, unknown>> => {
       healthy();
-      const { row, sourcePresence } = read(profiles.get(type)!, wire);
+      const { row, sourcePresence } = read(profileFor(type), wire);
       const view: Record<string, unknown> = Object.create(null);
       const declared = loaded.models.find(model => model.name === type)!;
       for (const field of Object.keys(declared.fields)) Object.defineProperty(view, field, { enumerable: true, get: () => {
         healthy();
-        if (Object.hasOwn(row.data, field)) return nativeRecordField(loaded, type, field, row.data[field]);
+        if (Object.hasOwn(row.data, field)) {
+          const value = nativeRecordField(loaded, type, field, row.data[field]);
+          const declared = artifact.models?.find(model => model.name === type)?.fields.find(item => item.name === field);
+          if (reference !== undefined && declared?.field.kind === 'ref' && declared.array === undefined && value !== null) {
+            if (!isRecordRef(value) || value.model !== declared.field.model) {
+              throw new loaded.producers.errors('validation', 'SEND reference differs from its owning field.');
+            }
+            return reference(value.model, value.id);
+          }
+          return value;
+        }
         if (sourcePresence === null || sourcePresence.fields.includes(field)) {
           throw new loaded.producers.errors('forbidden', 'SEND snapshot field is not readable.');
         }
@@ -3353,9 +3375,112 @@ async function loadNativeSendModelSnapshots(loaded: LoadedCanonicalDescriptors, 
       } });
       for (const [field, value] of Object.entries(nativeRecordMetadata(row))) Object.defineProperty(view, field,
         { enumerable: true, get: () => { healthy(); return value; } });
+      if (reference !== undefined && row.parent != null) Object.defineProperty(view, 'parent', {
+        enumerable: true, get: () => { healthy(); return reference(row.parent!.model, row.parent!.id); },
+      });
       healthy(); return Object.freeze(view);
     },
   });
+}
+
+/** The installed Bool SEND guard may inspect current owner targets behind its
+ * checked lexical links. These private views carry no native row capability.
+ * Root fields remain historical; only declared reference/parent dereferences
+ * use current owner rows. Preparation errors stay at authored getters. */
+async function prepareNativeSendGuardReferences(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly artifact: CompileArtifact;
+  readonly snapshots: NonNullable<Awaited<ReturnType<typeof loadNativeSendModelSnapshots>>>;
+  readonly roots: readonly { readonly type: string; readonly wire: unknown }[];
+  readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
+  readonly healthy: () => void;
+  readonly failure: (error: unknown) => void;
+}) {
+  const { loaded, artifact, snapshots, healthy } = input;
+  const StateError = loaded.producers.errors;
+  type Entry = { readonly model: string; readonly id: string; row?: StoredRow; error?: unknown };
+  const entries = new Map<string, Entry>(), used = new Set<Entry>();
+  const key = (model: string, id: string) => `${model}\0${id}`;
+  const links = (model: string, row: StoredRow): { model: string; id: string }[] => {
+    const found: { model: string; id: string }[] = row.parent == null ? [] : [row.parent];
+    for (const field of artifact.models?.find(item => item.name === model)?.fields ?? []) {
+      if (field.field.kind !== 'ref' || field.array !== undefined || row.data[field.name] == null) continue;
+      const value = nativeRecordField(loaded, model, field.name, row.data[field.name]);
+      if (!isRecordRef(value) || value.model !== field.field.model) {
+        throw new StateError('validation', 'SEND target differs from its declared reference.');
+      }
+      found.push({ model: value.model, id: value.id });
+    }
+    return found;
+  };
+  const pending = input.roots.flatMap(root => links(root.type, snapshots.snapshot(root.type, root.wire)));
+  for (let index = 0; index < pending.length; index++) {
+    const link = pending[index]!, identity = key(link.model, link.id);
+    if (entries.has(identity)) continue;
+    const entry: Entry = { ...link }; entries.set(identity, entry);
+    if (entries.size > SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows) {
+      entry.error = new StateError('validation', 'SEND reference preparation exceeds its owner row bound.');
+      break;
+    }
+    try {
+      healthy();
+      if (!loaded.models.some(model => model.name === link.model)) throw new StateError('validation', 'Unknown SEND target model.');
+      const row = await input.read(link.model as ModelName, link.id as RecordId);
+      healthy();
+      if (row === null || row.id !== link.id || row.archivedAt !== null) throw new StateError('not_found', 'SEND target is unavailable.');
+      entry.row = snapshots.snapshot(link.model, row);
+      pending.push(...links(link.model, entry.row));
+    } catch (error) { entry.error = error; }
+  }
+  const observe = (entry: Entry, path = new Set<string>()): void => {
+    healthy();
+    if (entry.error !== undefined) throw entry.error;
+    if (entry.row === undefined) throw new StateError('validation', 'SEND target was not prepared.');
+    const identity = key(entry.model, entry.id);
+    if (path.has(identity) || path.size >= 32) throw new StateError('validation', 'SEND ancestry exceeds its defining bound.');
+    used.add(entry);
+    if (entry.row.parent != null) {
+      const parent = entries.get(key(entry.row.parent.model, entry.row.parent.id));
+      if (parent === undefined) throw new StateError('validation', 'SEND ancestor was not prepared.');
+      observe(parent, new Set([...path, identity]));
+    }
+  };
+  const reference = (model: string, id: string, path = new Set<string>()): unknown => {
+    try {
+      const identity = key(model, id), entry = entries.get(identity);
+      if (path.has(identity) || path.size >= 32) throw new StateError('validation', 'SEND reference path exceeds its defining bound.');
+      if (entry === undefined) throw new StateError('validation', 'SEND target is outside its prepared declaration.');
+      observe(entry);
+      const next = new Set([...path, identity]);
+      return snapshots.view(model, entry.row!, healthy, (model, id) => reference(model, id, next));
+    } catch (error) { input.failure(error); throw error; }
+  };
+  return Object.freeze({ reference, finalizedReader: (writes: readonly DomainWrite[], physical: typeof input.read) => {
+    const final = new Map<string, StoredRow | null>();
+    for (const entry of used) for (const write of writes) {
+      const id = write.kind === 'insert' || write.kind === 'update' ? write.row.id : write.id;
+      if (write.model !== entry.model || id !== entry.id) continue;
+      const after = write.kind === 'insert' || write.kind === 'update' ? write.row : null;
+      if (JSON.stringify(after) !== JSON.stringify(entry.row)) {
+        throw new StateError('conflict', 'SEND target differs from its actual final owner effects.');
+      }
+      final.set(key(entry.model, entry.id), after);
+    }
+    return async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      const identity = key(model, id);
+      if (!used.has(entries.get(identity)!)) throw new StateError('validation', 'Final SEND guard cannot acquire a new target.');
+      return final.has(identity) ? final.get(identity)! : physical(model, id);
+    };
+  }, revalidate: async (
+    readCurrent = input.read,
+  ): Promise<void> => {
+    for (const entry of used) {
+      const current = await readCurrent(entry.model as ModelName, entry.id as RecordId);
+      if (current === null || current.archivedAt !== null || JSON.stringify(current) !== JSON.stringify(entry.row)) {
+        throw new StateError('conflict', 'SEND target or ancestor changed during its guard.');
+      }
+    }
+  } });
 }
 const NATIVE_CALL_SCALARS = new Set(['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'user']);
 /** Only the same-load owning scalar or bounded-text alias inventory selects a codec.
@@ -4373,6 +4498,15 @@ async function loadCanonicalDescriptorsInternal(
     if (!ownerSites.some(site => site.calls.some(call => call.target.kind === 'builtin' && call.target.id === 'active_member'))) continue;
     const def = generatedScenarioDef({ def: canonical.registry.get(owner) });
     if (def === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked scenario.');
+    // The SEND-guard binding already associated this def's logical site
+    // source with its transported plan source. An owner without SEND guards
+    // needs the same one-time association before its producer can be bound.
+    if (!nativeSourceSendGuards.has(def)) {
+      const transport = def.descriptor.result?.disclosure?.source;
+      if (transport === undefined) throw new AssemblyCorrespondenceError('Membership owner lacks its original checked disclosure source.');
+      const state = await import('@canlang/state/invocation');
+      state.bindScenarioReceiptMembershipSource(def, { logical: ownerSites[0]!.source, transport });
+    }
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
@@ -5254,6 +5388,9 @@ async function createContainmentNavigation(input: {
   readonly preserveOwnerRows?: boolean;
   /** Only committed native readers supply their original verified source context. */
   readonly sourceReadOpts?: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'source' | 'now'>;
+  /** Actual private owner-session rows, while the query retains the physical store. */
+  readonly sourceOwnerRows?: Readonly<{ read(model: ModelName, id: RecordId): Promise<StoredRow | null>;
+    assertHealthy(): void }>;
   /** Callback authorization stays inside State's complete Identity observation. */
   readonly coherentContext?: import('@canlang/state/policy/grants').ByContext;
   /** The original live State source lifetime; parent reads borrow this observation. */
@@ -5284,6 +5421,7 @@ async function createContainmentNavigation(input: {
     project: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer;
     projectPolicy?: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewerPolicy;
     projectSource?: typeof import('@canlang/state/query').projectCurrentRecordForViewerSourcePolicies;
+    observe?: typeof import('@canlang/state/query/engine').queryRecordsObserved;
     by: typeof import('@canlang/state/policy/roles').evaluateBy;
   }> | undefined;
   const viewer = () => viewerProducers ??= (async () => {
@@ -5292,6 +5430,9 @@ async function createContainmentNavigation(input: {
     const source = sourceReads === undefined ? undefined :
       await loadProducerModule(STATE_QUERY_SPECIFIER, 'containment installed source projection');
     return {
+      ...(input.sourceOwnerRows === undefined ? {} : { observe:
+        requireProducerFn(query, 'queryRecordsObserved', 'containment owner-stage source projection') as
+          typeof import('@canlang/state/query/engine').queryRecordsObserved }),
       ...(source === undefined ? {} : { projectSource:
         requireProducerFn(source, 'projectCurrentRecordForViewerSourcePolicies', 'containment installed source projection') as
           typeof import('@canlang/state/query').projectCurrentRecordForViewerSourcePolicies }),
@@ -5313,6 +5454,26 @@ async function createContainmentNavigation(input: {
       // Neither an earlier projection nor an owner overlay is an input row.
       await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
       const producer = await viewer();
+      if (input.sourceOwnerRows !== undefined) {
+        input.sourceOwnerRows.assertHealthy();
+        const row = await input.sourceOwnerRows.read(model as ModelName, id as RecordId);
+        input.sourceOwnerRows.assertHealthy();
+        if (row === null || row.id !== id || row.archivedAt !== null) {
+          throw new StateError('not_found', 'Parent record not found.');
+        }
+        const result = await producer.observe!({ model: model as ModelName, authority: 'viewer', limit: 1,
+          sourceReadPolicies: policies, policy: loaded.policy as import('@canlang/state/query/engine').BaseQueryInput['policy'],
+          context: { actorUserId: input.actorUserId, teamId: input.teamId }, memberships: input.memberships, store,
+          ...(input.fence === undefined ? {} : { fence: input.fence }),
+        }, () => true, [], [row], input.sourceOwnerRows);
+        input.sourceOwnerRows.assertHealthy();
+        if (result.revision !== input.revision) throw new StateError('conflict', 'State changed during parent navigation.');
+        await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
+        if (result.records.length !== 1) throw new StateError('not_found', 'Parent record not found.');
+        const projected = freezeScenarioSnapshot(structuredClone(result.records[0]!)) as ProjectedRecord;
+        sourcePresence.set(projected, new Set(Object.keys(row.data)));
+        return projected;
+      }
       const visible = await producer.projectSource!({ model: model as ModelName, id: id as RecordId,
         readPolicies: policies, policy: loaded.policy as import('@canlang/state/query').CurrentRecordSourcePolicyInput['policy'],
         context: { actorUserId: input.actorUserId, teamId: input.teamId }, memberships: input.memberships, store,
@@ -6076,6 +6237,12 @@ function workStageContext(
 // The owning saved-disclosure producer bounds issued/changed rows at 200.
 // Work remains finite independently of authored source limits.
 const SCENARIO_RECEIPT_OWNER_BOUNDS = Object.freeze({ maxRows: 200, maxWork: 10_000 });
+// A child CALL shares its actual root owner session. Its navigation evidence
+// must cross the same finalization boundary as the root's evidence.
+interface ScenarioNavigationOwner {
+  readonly session: Pick<OwnerMutationSession, 'views' | 'read'>;
+  readonly finalizers: Set<{ refresh(): Promise<void>; seal(writes: readonly DomainWrite[]): void }>;
+}
 
 async function runScenarioExecution(
   loaded: LoadedCanonicalDescriptors,
@@ -6091,8 +6258,11 @@ async function runScenarioExecution(
 ): Promise<{ readonly effects: CanonicalExecutionEffects } | { readonly wire: unknown }> {
   const scenarioDef = generatedScenarioDef(call);
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
-  const useOwnerSession = receiptAware || stageSources !== undefined;
   const ownerControl = localOwnerPolicyControls.get(loaded);
+  // Original model invariants and locks also apply to scenarios without a
+  // saved-disclosure recipe. Stage those scenarios through the same owner
+  // session so entry/final rule checks and atomic finalization still run.
+  const useOwnerSession = receiptAware || stageSources !== undefined || ownerControl !== undefined;
   const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
   const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
   if (receiptAware && (receiptStore === undefined || (child === undefined && beginReceiptMutation === undefined) || due !== undefined || cohort !== undefined)) {
@@ -6101,9 +6271,6 @@ async function runScenarioExecution(
   if (receiptAware && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
       field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name))) {
     throw new loaded.producers.errors('validation', 'Saved scenario computed input defaults require their installed State contribution producer.');
-  }
-  if (ownerControl !== undefined && !useOwnerSession) {
-    throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
   }
   // State supplies this actual child frame after selecting and checking its
   // original parent occurrence. Every loader-bound occurrence for this target
@@ -6264,14 +6431,67 @@ async function runScenarioExecution(
   // never enters handler storage, native record bindings or domain navigation.
   const frameworkOverlay = ownerSession === undefined ? overlay : withStagedOverlay(opts.store, staged);
   const navigationRevision = call.revision ?? seamTrigger?.revision ?? await opts.store.readRevision();
+  const navigationOwner = child === undefined ? ownerSession === undefined ? undefined : {
+    session: ownerSession, finalizers: new Set<{
+      refresh(): Promise<void>; seal(writes: readonly DomainWrite[]): void;
+    }>(),
+  } : nativeScenarioExecutions.get(child.parent)?.navigationOwner;
+  if (child !== undefined && navigationOwner === undefined) {
+    throw new StateError('validation', 'Child parent observations require their actual root execution.');
+  }
+  const sourceRows = new Map<string, StoredRow | null>();
+  let sourceRowsFinal = false;
+  let refreshingSourceRows = false;
+  const sourceOwnerRows = ownerSession === undefined ? undefined : Object.freeze({
+    assertHealthy: () => {
+      if (receiptEngineFailure !== undefined) throw receiptEngineFailure;
+      if (!sourceRowsFinal) (refreshingSourceRows ? navigationOwner!.session : ownerSession).views.consumeWork(0);
+    },
+    read: async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+      const key = stagedKey(model, id);
+      if (sourceRowsFinal) {
+        if (!sourceRows.has(key)) throw new StateError('validation', 'Final parent observation cannot acquire a new owner row.');
+        return sourceRows.get(key)!;
+      }
+      const row = await (refreshingSourceRows ? navigationOwner!.session : ownerSession).read(model, id);
+      sourceRows.set(key, row);
+      return row;
+    },
+  });
   const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'owner', ...(ownerSession === undefined ? {} : { preserveOwnerRows: true }),
     failure: recordEngineFailure });
-  const viewerNavigation = await createContainmentNavigation({ loaded, store: overlay,
+  const viewerNavigation = await createContainmentNavigation({ loaded, store: sourceOwnerRows === undefined ? overlay : opts.store,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
-    authority: 'viewer', failure: recordEngineFailure });
+    authority: 'viewer', failure: recordEngineFailure,
+    ...(sourceOwnerRows === undefined ? {} : { sourceOwnerRows, sourceReadOpts: opts,
+      ...(opts.preferences === undefined ? {} : { sourcePreferences: opts.preferences }) }),
+  });
   seamGuards.push({ name: 'parent.read', evaluate: async () => { await viewerNavigation.revalidate(); return true; } });
+  if (ownerSession !== undefined) {
+    navigationOwner!.finalizers.add({ refresh: async () => {
+      refreshingSourceRows = true;
+      try {
+        await viewerNavigation.revalidate();
+        for (const key of sourceRows.keys()) {
+          const split = key.indexOf('\0');
+          sourceRows.set(key, await navigationOwner!.session.read(key.slice(0, split) as ModelName, key.slice(split + 1) as RecordId));
+        }
+      } finally { refreshingSourceRows = false; }
+    }, seal: writes => {
+      for (const write of writes) {
+        const id = write.kind === 'insert' || write.kind === 'update' ? write.row.id : write.id;
+        const key = stagedKey(write.model, id);
+        if (!sourceRows.has(key)) continue;
+        const after = write.kind === 'insert' || write.kind === 'update' ? write.row : null;
+        if (JSON.stringify(after) !== JSON.stringify(sourceRows.get(key))) {
+          throw new StateError('validation', 'Final parent observation differs from the actual owner effects.');
+        }
+      }
+      sourceRowsFinal = true;
+    } });
+  }
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
   // Only exact values evaluated from an owner-issued stored field can become
@@ -7201,6 +7421,7 @@ async function runScenarioExecution(
       return opaque;
     };
     const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
+      navigationOwner: navigationOwner!,
       evaluateSendGuard: async (frame: ScenarioReceiptSendGuardFrame): Promise<boolean> => {
         currentSend();
         const selected = nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.get(frame.guard.rule);
@@ -7212,11 +7433,17 @@ async function runScenarioExecution(
           currentSend();
           if (!guardOpen) return refuseRecordBinding('Source SEND native context is closed.');
         };
+        const referenceNavigation = sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+          loaded, artifact: opts.artifact, snapshots: sendSnapshots,
+          roots: selected.guard.inputs.filter(input => sendSnapshots.has(input.type)).map(input => ({
+            type: input.type, wire: localPolicyMember(frame.inputs, input.name) })),
+          read: (model, id) => ownerSession!.read(model, id), healthy: assertGuard, failure: recordEngineFailure,
+        });
         const inputs: Record<string, unknown> = Object.create(null);
         for (const input of selected.guard.inputs) {
           const wire = localPolicyMember(frame.inputs, input.name);
           Object.defineProperty(inputs, input.name, { enumerable: true,
-            value: sendSnapshots?.has(input.type) ? sendSnapshots.view(input.type, wire, assertGuard)
+            value: sendSnapshots?.has(input.type) ? sendSnapshots.view(input.type, wire, assertGuard, referenceNavigation?.reference)
               : decodeCanonicalValue(loaded.valueSchema, input.type, wire) });
         }
         const guardRead = <Args extends unknown[], Result>(read: (...args: Args) => Promise<Result>) =>
@@ -7242,8 +7469,26 @@ async function runScenarioExecution(
           membership.assertCompleted(); currentSend();
           const accepted: unknown = await selected.evaluate(fresh, Object.freeze(inputs));
           membership.assertCompleted(); currentSend();
+          await referenceNavigation?.revalidate(); assertGuard();
           if (typeof accepted !== 'boolean') return refuseRecordBinding('Original SEND predicate must return Bool.');
-          if (accepted) nativeSourceSendCalls.set(frame.inputs, { call: actualCall, active });
+          if (accepted) {
+            nativeSourceSendCalls.set(frame.inputs, { call: actualCall, active });
+            if (referenceNavigation !== undefined) {
+              let finalRead: ((model: ModelName, id: RecordId) => Promise<StoredRow | null>) | undefined;
+              navigationOwner!.finalizers.add({ refresh: () => referenceNavigation.revalidate(
+                (model, id) => navigationOwner!.session.read(model, id)), seal: writes => {
+                finalRead = referenceNavigation.finalizedReader(writes, (model, id) => opts.store.cohortLoad({
+                  model, id, expectedRevision: navigationRevision }));
+              } });
+              seamGuards.push({ name: 'send.references', evaluate: async () => {
+                await verifyCheckedAssembly(opts.asm, opts.artifact);
+                if (finalRead === undefined) throw new StateError('validation', 'SEND references lack actual final owner effects.');
+                await referenceNavigation.revalidate(finalRead);
+                if (await opts.store.readRevision() !== navigationRevision) throw new StateError('conflict', 'SEND reference checkpoint changed.');
+                return true;
+              } });
+            }
+          }
           return accepted;
         } catch (error) { recordEngineFailure(error); throw error; }
         finally { guardOpen = false; membership.close(); }
@@ -7745,7 +7990,14 @@ async function runScenarioExecution(
       }
       return { wire: scenarioReceiptFrame?.queryResult(outcome.value)?.wire ?? scenarioResult(call, loaded, outcome.value) };
     }
+    // Re-read the genuine final owner view before State closes it. Retained
+    // commit guards evaluate the original policies over these immutable rows,
+    // with the physical revision and current Identity observation still live.
+    const navigationFinalizers = navigationOwner!.finalizers;
+    for (const navigation of navigationFinalizers) await navigation.refresh();
     const finalized = await rootOwnerSession!.finalize();
+    for (const navigation of navigationFinalizers) navigation.seal(finalized.writes);
+    navigationFinalizers.clear();
     const returned = isUnknownRecord(outcome.value) ? recordBindings.get(outcome.value) : undefined;
     const target = returned === undefined ? undefined : finalized.writes.find(write => write.model === returned.model &&
       (write.kind === 'remove' ? write.id : write.row.id) === returned.id);
@@ -13815,13 +14067,31 @@ export async function bindNativeEmailDispatchGuards(input: {
         qualified: { actor: null, team: { teamId: identity.team.team_id, timezone: identity.team.timezone },
           now: actual.input.context.now, source: 'dispatch', operationId: originalIntent.operationId } });
       const inputs: Record<string, unknown> = Object.create(null);
+      const referenceNavigation = sendSnapshots === undefined ? undefined : await prepareNativeSendGuardReferences({
+        loaded, artifact, snapshots: sendSnapshots,
+        roots: selected.guard.inputs.filter(slot => sendSnapshots.has(slot.type)).map(slot => ({
+          type: slot.type, wire: localPolicyMember(actual.lexical, slot.name) })),
+        read: (model, id) => store.cohortLoad({ model, id, expectedRevision: actual.input.revision }),
+        healthy, failure: poison,
+      });
       for (const slot of selected.guard.inputs) {
         const wire = localPolicyMember(actual.lexical, slot.name);
         Object.defineProperty(inputs, slot.name, { enumerable: true,
-          value: sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy)
+          value: sendSnapshots?.has(slot.type) ? sendSnapshots.view(slot.type, wire, healthy, referenceNavigation?.reference)
             : decodeCanonicalValue(loaded.valueSchema, slot.type, wire) });
       }
       healthy(); admissions.set(execution, identity);
+      // This target/source check introduces physical awaits. Register it first
+      // so State's actual subject-membership revalidation follows those awaits.
+      work.registerDispatchGuardRevalidation(execution, async () => {
+        if (open || poisoned) return false;
+        await actual.opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row: actual.row,
+          field: 'sourceGuard', binding: actual.row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin }, actual.input.revision, input.files);
+        const current = await actual.currentIdentity();
+        await verifyCheckedAssembly(asm, artifact);
+        await referenceNavigation?.revalidate();
+        return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
+      });
       let frame: NativeMembershipFrame | undefined;
       try {
         frame = openNativeDispatchMembershipFrame(c, def, predicate, execution, identity.team,
@@ -13829,14 +14099,8 @@ export async function bindNativeEmailDispatchGuards(input: {
         frame.assertCompleted(); healthy();
         const answer: unknown = await selected.evaluate(c, Object.freeze(inputs));
         frame.assertCompleted(); healthy();
+        await referenceNavigation?.revalidate(); healthy();
         if (typeof answer !== 'boolean') return refuse(new Error('Original native SEND predicate must return Bool.'));
-        work.registerDispatchGuardRevalidation(execution, async () => {
-          if (open || poisoned) return false;
-          await actual.opaque.revalidateSource({ model: tables.WORK_DISPATCH_MODEL as ModelName, row: actual.row,
-            field: 'sourceGuard', binding: actual.row.data['filePayloadOrigin'] as FrameworkFilePayloadOrigin }, actual.input.revision, input.files);
-          const current = await actual.currentIdentity();
-          return current.actor === null && stableStringify(current.team) === stableStringify(identity.team);
-        });
         return answer;
       } catch (error) { return refuse(error); }
       finally { open = false; frame?.close(); }

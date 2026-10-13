@@ -67,6 +67,16 @@ function equal(left: unknown, right: unknown): boolean {
 }
 function captureSource(source: RetainedOpaqueFileSource): RetainedOpaqueFileSource { return captureData(source); }
 function refuse(message: string): never { throw new Error(`Opaque File staging: ${message}`); }
+/** The File census owns the declared result shape. Receipt disclosure is
+ * separately authenticated execution evidence, retained in the complete
+ * artifact/operation snapshots, rather than a File type or its opaque header. */
+function resultDeclaration<T>(value: T): T {
+  if (value === undefined) return value;
+  const copied = captureData(value);
+  if (typeof copied !== 'object' || copied === null || Array.isArray(copied)) return copied;
+  const { disclosure: _execution, ...declaration } = copied as Record<string, unknown>;
+  return Object.freeze(declaration) as T;
+}
 
 export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
   const { store, artifact, canonicalModels, valueTypes, operations, verify } = input;
@@ -143,11 +153,22 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
         !['result', 'void'].includes(result.profile.kind) || !equal(inputs.source.callable, actual[0]) ||
         !equal(result.source, inputs.source) || !equal(inputs.profile.canonical, operation.canonical.inputs) ||
         !equal(inputs.profile.artifact, operation.artifact.inputs.fields) ||
-        !equal(result.profile.canonical, operation.canonical.result) || !equal(result.profile.artifact, operation.artifact.result)) {
+        !equal(result.profile.canonical, result.profile.kind === 'result' ? resultDeclaration(operation.canonical.result) : operation.canonical.result) ||
+        !equal(result.profile.artifact, result.profile.kind === 'result' ? resultDeclaration(operation.artifact.result) : operation.artifact.result)) {
       refuse('callable lacks its complete genuine input/result declaration');
     }
-    return Object.freeze({ source: inputs.source.source, callable: actual[0]!, canonical: operation.canonical,
-      artifact: operation.artifact, resultDeclarationId: result.id });
+    // This nongrant header must match the installed File declaration exactly.
+    // The full execution descriptors remain in the independently checked
+    // operation snapshot; explicit void retains its original full declaration.
+    if (result.profile.kind === 'result' && (operation.canonical.result === undefined || operation.artifact.result === undefined)) {
+      refuse('nonvoid callable lacks its original result');
+    }
+    const canonical = result.profile.kind === 'result' ? Object.freeze({ ...operation.canonical,
+      result: resultDeclaration(operation.canonical.result!) }) : operation.canonical;
+    const descriptor = result.profile.kind === 'result' ? Object.freeze({ ...operation.artifact,
+      result: resultDeclaration(operation.artifact.result!) }) : operation.artifact;
+    return Object.freeze({ source: inputs.source.source, callable: actual[0]!, canonical,
+      artifact: descriptor, resultDeclarationId: result.id });
   };
   const sendGuard = (guard: ScenarioReceiptSendGuard, profile?: Extract<FrameworkOpaqueDeclarationSet['declarations'][number]['profile'], { kind: 'inputs' }>): {
     readonly declaration: FrameworkOpaqueSendGuardDeclaration; readonly inputsDeclarationId: string;

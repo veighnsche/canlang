@@ -326,7 +326,11 @@ export async function createNativeFileRetirementBinding(input: NativeFileRetirem
         // Explicit void still retains the Compiler's original disclosure plan.
         profile: canonical.result.type === 'void' ? { kind: 'void',
           canonical: { ...canonical.result, type: 'void' }, artifact: { ...operation.result, type: 'void' } } :
-          { kind: 'result', canonical: canonical.result, artifact: operation.result } });
+          // The opaque closure binds a result's File profile from its type
+          // alone; the disclosure plan stays with the loaded descriptor and
+          // is not persisted a second time inside this inventory.
+          { kind: 'result', canonical: { type: canonical.result.type },
+            artifact: { type: operation.result.type } } });
     }
   }
   const events = new Set<string>();

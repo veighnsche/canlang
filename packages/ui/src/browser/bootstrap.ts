@@ -31,6 +31,9 @@
  *   controls stay in place. One pending submission owns its activated
  *   control and abort signal through body reading; disposal aborts the
  *   request and releases that control. Hooks observe current outcomes.
+ * - Preferences: canonical native Settings POSTs retain CSRF/version fields.
+ *   Their authorized full response refreshes main content and accepted Settings
+ *   values, preserving other drafts and the modal's current open state.
  * - Explicit once controls: `[data-can-once]` requires an owning transport
  *   that emits `can:settled` on the same control. The binder alone is not
  *   a qualified submission workflow; current generated forms use their
@@ -290,7 +293,7 @@ function compatibleNode(current: DomNode, next: DomNode): boolean {
   return true;
 }
 
-function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false, settledForm?: ElementLike): void {
+function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false, settledForm?: ElementLike, acceptedInputs?: DomNode): void {
   if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return; }
   const tag = current.tagName?.toLowerCase();
   // Exact metadata includes the comparison-only binding identity. Keeping the
@@ -298,7 +301,7 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   const keepForm = current !== (settledForm as unknown) && (generatedForm || (tag === 'form' && current.getAttribute?.('data-can-generated-form') != null));
   if (keepForm && current.getAttribute?.('data-can-form-feedback') != null) return;
   const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
-  const keepInput = editable && (document.activeElement === current as unknown as ElementLike ||
+  const keepInput = editable && acceptedInputs?.contains?.(current) !== true && (document.activeElement === current as unknown as ElementLike ||
     (current.files?.length ?? 0) > 0 || dirtyControl(current));
   const value = current.value;
   const checked = current.checked;
@@ -338,7 +341,7 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
     }
     else {
       if (matched !== anchor) current.insertBefore(matched, anchor);
-      morphNode(matched, child, document, keepForm, settledForm);
+      morphNode(matched, child, document, keepForm, settledForm, acceptedInputs);
     }
   }
   while (current.childNodes.length > desired.length) {
@@ -782,6 +785,148 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   };
 }
 
+/** A followed native preference POST returns an authorized full page. */
+function applyPreferenceResponse(document: DocumentLike, form: ElementLike, body: string, status: number): boolean {
+  if (status < 200 || status >= 300 || document.createElement === undefined) return false;
+  const template = document.createElement('template') as { innerHTML: string; readonly content: DomNode };
+  template.innerHTML = body;
+  const incoming = template.content;
+  const main = document.getElementById('can-main');
+  const nextMain = incoming.querySelector?.('#can-main') as (DomNode & { outerHTML: string }) | null;
+  const field = (form as ElementLike & { closest(selector: string): ElementLike | null }).closest('[data-can-preference-field]');
+  const fieldName = field?.getAttribute('data-can-preference-field');
+  const panel = [...document.querySelectorAll('.can-settings-panel')][0];
+  const sidebar = [...document.querySelectorAll('.can-settings-sidebar')][0];
+  const nextPanel = incoming.querySelector?.('.can-settings-panel');
+  const nextSidebar = incoming.querySelector?.('.can-settings-sidebar');
+  const nextField = [...nextPanel?.querySelectorAll?.('[data-can-preference-field]') ?? []]
+    .find(candidate => candidate.getAttribute?.('data-can-preference-field') === fieldName);
+  if (!main || !nextMain || !field || !fieldName || !panel || !sidebar || !nextPanel || !nextSidebar || !nextField ||
+      [...incoming.querySelectorAll?.('#can-main') ?? []].length !== 1 ||
+      nextPanel.querySelector?.('script') !== null || nextSidebar.querySelector?.('script') !== null ||
+      ![...nextField.querySelectorAll?.('form[data-can-preference-form]') ?? []].some(candidate =>
+        candidate.getAttribute?.('action') === form.getAttribute('action')) ||
+      !applyPollResponse(document, main, nextMain.outerHTML, status)) return false;
+  // Only the settled field adopts server values. Neighboring settings drafts,
+  // business inputs and the shell's open Settings checkbox remain in place.
+  morphNode(panel as unknown as DomNode, nextPanel, document, false, undefined, field as unknown as DomNode);
+  morphNode(sidebar as unknown as DomNode, nextSidebar, document);
+  return true;
+}
+
+/** Enhance canonical native forms without changing their body or owning action. */
+function bindPreferenceForm(form: ElementLike, client: BrowserClient, internals: ClientInternals): () => void {
+  if (internals.windowRef.FormData === undefined) return () => {};
+  const field = (form as ElementLike & { closest(selector: string): ElementLike | null }).closest('[data-can-preference-field]');
+  const outlet = field?.querySelector?.('[data-can-preference-error]') as (ElementLike & { textContent: string | null }) | null | undefined;
+  const context = client.contextKey();
+  let stopped = false;
+  let pending = false;
+  let inflight: AbortController | null = null;
+  let release: (() => void) | undefined;
+  const alive = () => !stopped && form.isConnected && client.contextKey() === context;
+  const feedback = (message: string, code?: string) => {
+    if (!outlet) return;
+    outlet.textContent = message;
+    if (code) outlet.setAttribute('data-can-preference-error-code', code);
+    else outlet.removeAttribute('data-can-preference-error-code');
+  };
+  const onSubmit = (event: EventLike) => {
+    event.preventDefault();
+    event.stopPropagation?.();
+    const panel = [...internals.document.querySelectorAll('.can-settings-panel')][0];
+    if (!alive() || pending || panel?.querySelector?.('form[data-can-preference-form][aria-busy="true"]')) return;
+    const action = form.getAttribute('action') ?? '';
+    if (!action.startsWith('/') || action.startsWith('//') || action.includes('\\') || action.includes('#')) {
+      feedback('The setting could not be saved. Please try again.', 'save_failed'); return;
+    }
+    const body = new URLSearchParams();
+    for (const [name, value] of new internals.windowRef.FormData!(form, event.submitter)) {
+      if (typeof value !== 'string') { feedback('The setting could not be saved.', 'save_failed'); return; }
+      body.append(name, value);
+    }
+    internals.onGeneratedFormStart?.();
+    pending = true;
+    feedback('');
+    const busy = form.getAttribute('aria-busy');
+    const buttons = [...field?.querySelectorAll?.('button') ?? []].map(button => [button, button.getAttribute('disabled')] as const);
+    form.setAttribute('aria-busy', 'true');
+    form.setAttribute('data-can-submit-state', 'pending');
+    for (const [button] of buttons) button.setAttribute('disabled', '');
+    release = () => {
+      release = undefined;
+      if (busy === null) form.removeAttribute('aria-busy'); else form.setAttribute('aria-busy', busy);
+      for (const [button, disabled] of buttons) {
+        if (disabled === null) button.removeAttribute('disabled'); else button.setAttribute('disabled', disabled);
+      }
+    };
+    const controller = new AbortController();
+    inflight = controller;
+    void (async () => {
+      try {
+        // Native fetch follows the page's existing 303 to an authorized full GET.
+        const response = await internals.fetchImpl(action, {
+          method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', Accept: 'text/html, application/json' },
+          body: body.toString(), mode: 'same-origin', signal: controller.signal,
+        });
+        const html = await response.text();
+        if (!alive()) return;
+        if (response.status < 200 || response.status >= 300) {
+          let message = 'The setting could not be saved. Please try again.';
+          let code = 'save_failed';
+          try {
+            const error: unknown = JSON.parse(html);
+            if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') message = error.message;
+            if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') code = error.code;
+          } catch { /* HTML denials never become markup in a Settings form. */ }
+          form.setAttribute('data-can-submit-state', 'denied'); feedback(message, code); return;
+        }
+        // Settle controls before morphing so server markup cannot inherit a
+        // temporary disabled button. Invalidate reads captured before the save.
+        release?.();
+        client.rescan(true);
+        if (!applyPreferenceResponse(internals.document, form, html, response.status)) throw new Error('Invalid preference page response.');
+        form.setAttribute('data-can-submit-state', 'committed');
+        client.rescan();
+      } catch {
+        if (alive()) {
+          form.setAttribute('data-can-submit-state', 'error');
+          feedback('The saved setting could not be confirmed. Reload the page before trying again.', 'save_failed');
+        }
+      } finally {
+        inflight = null;
+        pending = false;
+        release?.();
+      }
+    })();
+  };
+  form.addEventListener('submit', onSubmit);
+  return () => {
+    stopped = true;
+    releaseClientResources([() => release?.(), () => inflight?.abort(), () => form.removeEventListener('submit', onSubmit),
+      ...(pending ? [() => form.removeAttribute('data-can-submit-state')] : [])]);
+  };
+}
+
+function bindPreferenceCancel(control: ElementLike, _client: BrowserClient, internals: ClientInternals): () => void {
+  const onClick = () => {
+    const panel = [...internals.document.querySelectorAll('.can-settings-panel')][0];
+    if (panel?.querySelector?.('form[data-can-preference-form][aria-busy="true"]')) return;
+    for (const form of panel?.querySelectorAll?.('form[data-can-preference-form="save"]') ?? []) {
+      (form as ElementLike & { reset(): void }).reset();
+      form.removeAttribute('data-can-submit-state');
+    }
+    for (const outlet of panel?.querySelectorAll?.('[data-can-preference-error]') ?? []) {
+      (outlet as ElementLike & { textContent: string | null }).textContent = '';
+      outlet.removeAttribute('data-can-preference-error-code');
+    }
+    const toggle = internals.document.getElementById('can-settings') as (ElementLike & { checked: boolean }) | null;
+    if (toggle) toggle.checked = false;
+  };
+  control.addEventListener('click', onClick);
+  return () => control.removeEventListener('click', onClick);
+}
+
 function bindOnceAction(control: ElementLike): () => void {
   let inflight = false;
   const onClick = (): void => {
@@ -921,6 +1066,8 @@ const bindSplitCollection: ComponentBinder = (root, _client, internals) => {
 registerBinder("poll-region", bindPollRegion);
 registerBinder("guarded-form", bindGuardedForm);
 registerBinder("generated-form", bindGeneratedForm);
+registerBinder("preference-form", bindPreferenceForm);
+registerBinder("preference-cancel", bindPreferenceCancel);
 registerBinder("once-action", (root) => bindOnceAction(root));
 registerBinder("split-collection", bindSplitCollection);
 registerBinder("gallery", bindGallery);
@@ -930,6 +1077,8 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["poll-region", "[data-can-poll]"],
   ["guarded-form", "form[data-can-guard]"],
   ["generated-form", "form[data-can-generated-form], form[data-can-delete-form]"],
+  ["preference-form", "form[data-can-preference-form]"],
+  ["preference-cancel", "[data-can-preference-cancel]"],
   ["once-action", "[data-can-once]"],
   ["split-collection", "[data-can-split]"],
   ["gallery", "[data-can-gallery]"],
@@ -1068,6 +1217,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
             (entry.binder === 'guarded-form' && !entry.element.hasAttribute('data-can-guard')) ||
             (entry.binder === 'once-action' && !entry.element.hasAttribute('data-can-once')) ||
             (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form') && !entry.element.hasAttribute('data-can-delete-form')) ||
+            (entry.binder === 'preference-form' && !entry.element.hasAttribute('data-can-preference-form')) ||
+            (entry.binder === 'preference-cancel' && !entry.element.hasAttribute('data-can-preference-cancel')) ||
             (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
             (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')))) {
           bound.splice(index, 1);
@@ -1157,7 +1308,9 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
     visibility: { get visibilityState() { return suspended ? "hidden" : native.document.visibilityState; } },
     fetchImpl: async (url, init) => {
       const response = await native.fetch(url, { ...init, credentials: 'same-origin', cache: 'no-store' });
-      return { status: response.redirected === true ? 409 : response.status, headers: response.headers, text: () => response.text() };
+      const nativePreferencePost = init.method === 'POST' && init.redirect === undefined &&
+        init.headers['content-type'] === 'application/x-www-form-urlencoded';
+      return { status: response.redirected === true && !nativePreferencePost ? 409 : response.status, headers: response.headers, text: () => response.text() };
     },
     imageFetch: async (url, init) => {
       const response = await native.fetch(url, init);

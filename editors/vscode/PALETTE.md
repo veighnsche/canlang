@@ -24,3 +24,20 @@ The palette-only portion of the existing checker passed with each editor's own T
 These settings normally take effect immediately: both installed workbench configuration handlers call `setCustomTokenColors` when `editor.tokenColorCustomizations` changes. This palette update needs no extension reinstall or window reload. No UI was inspected or reloaded, so actual running-window rendering is unverified. Historical grammar-audit palette captures remain preserved and describe their earlier colors.
 
 The marker-style check resolves Given/When/Then to font-style bits 3 (bold plus italic), all other structural words and inline/page guards to bits 2 (bold only), and a field named Given to plain style in both editor engines. [section-style-evidence.json](section-style-evidence.json) records the narrowly scoped settings preservation check.
+
+## Semantic overlay ownership — October 13, 2026
+
+Version 0.1.16 adapts the standard LSP legend to Can-specific editor types and
+modifiers, preserving wire indices. These have no semantic supertype or TextMate
+fallback mapping. Generic theme keyword/class/comment styles therefore no longer
+replace the grammar's specific scopes. Existing custom syntax rules own colors
+and font styles; explicit Can semantic styles remain an opt-in. No user settings
+or palette rules were changed.
+
+Compilation, startup checks and the existing two-editor palette checker passed.
+A real Cursor extension-host run, with semantic highlighting explicitly enabled
+and the custom palette loaded, passed token delivery and legend/index checks
+(including all three section markers, model and property tokens). Native UI
+automation could not control the test window and returned `noWindowsAvailable`;
+final rendered-style inspection remains unverified. The earlier TextMate-only
+checker must not be described as testing the semantic overlay.

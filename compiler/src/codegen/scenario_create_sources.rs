@@ -1111,9 +1111,7 @@ impl SourceExpressions<'_> {
             ResolvedType::Record { symbol, .. } => {
                 Some(self.ir.items.get(symbol.0 as usize)?.name.clone())
             }
-            ResolvedType::Nullable(inner) => {
-                Some(format!("{}?", self.authored_type_text(inner)?))
-            }
+            ResolvedType::Nullable(inner) => Some(format!("{}?", self.authored_type_text(inner)?)),
             ResolvedType::Array { element, .. } => {
                 Some(format!("{}[]", self.authored_type_text(element)?))
             }
@@ -1121,7 +1119,12 @@ impl SourceExpressions<'_> {
         }
     }
 
-    fn authenticated_derive(&self, target: &str, depth: usize, seen: &mut std::collections::HashSet<String>) -> Option<bool> {
+    fn authenticated_derive(
+        &self,
+        target: &str,
+        depth: usize,
+        seen: &mut std::collections::HashSet<String>,
+    ) -> Option<bool> {
         if depth > 32 || !seen.insert(target.to_string()) {
             // Cycles and excessive chains stay sealed; recursive derives are
             // refused by analysis, so this is only a fail-closed bound.
@@ -1132,7 +1135,12 @@ impl SourceExpressions<'_> {
         result
     }
 
-    fn authenticated_derive_inner(&self, target: &str, depth: usize, seen: &mut std::collections::HashSet<String>) -> Option<bool> {
+    fn authenticated_derive_inner(
+        &self,
+        target: &str,
+        depth: usize,
+        seen: &mut std::collections::HashSet<String>,
+    ) -> Option<bool> {
         let item = self.ir.items.iter().find(|item| item.canonical == target)?;
         let IrItemKind::DeriveFn {
             params,
@@ -1255,7 +1263,17 @@ impl SourceExpressions<'_> {
         let facts = self.transcript_source();
         let mut reached = Vec::new();
         let mut membership = false;
-        self.derive_body_corresponds(body, authored_body, defining_text, 0, &formal_types, facts, &mut reached, &mut membership)?;
+        self.derive_body_corresponds(
+            item,
+            body,
+            authored_body,
+            defining_text,
+            0,
+            &formal_types,
+            facts,
+            &mut reached,
+            &mut membership,
+        )?;
         if membership {
             return Some(true);
         }
@@ -1274,6 +1292,7 @@ impl SourceExpressions<'_> {
     #[allow(clippy::too_many_arguments)]
     fn derive_body_corresponds(
         &self,
+        defining_owner: &IrItem,
         expr: &TypedExpr,
         node: &SyntaxNode,
         text: &str,
@@ -1311,7 +1330,12 @@ impl SourceExpressions<'_> {
                 }
             }
             (IrExpr::Int(value), SyntaxKind::Literal) => {
-                if token(SyntaxKind::Integer)?.text(text).parse::<i128>().ok()? != *value {
+                if token(SyntaxKind::Integer)?
+                    .text(text)
+                    .parse::<i128>()
+                    .ok()?
+                    != *value
+                {
                     return None;
                 }
             }
@@ -1354,12 +1378,16 @@ impl SourceExpressions<'_> {
                     let facts = facts?;
                     let contracts = facts.stored_contracts.as_deref()?;
                     let schema = contracts.iter().find(|schema| schema.id == *model)?;
-                    super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
+                    super::scenario_receipts::match_stored_contract_schema(
+                        self.ir, schema, self.db,
+                    )?;
                     let field_fact = schema
                         .fields
                         .iter()
                         .find(|candidate| candidate.owner == *model && candidate.name == *field)?;
-                    super::scenario_receipts::match_stored_contract_field(self.ir, field_fact, self.db)?;
+                    super::scenario_receipts::match_stored_contract_field(
+                        self.ir, field_fact, self.db,
+                    )?;
                     if !Self::type_narrows(&expr.ty, &field_fact.ty) {
                         return None;
                     }
@@ -1368,7 +1396,17 @@ impl SourceExpressions<'_> {
                 let [base_node] = base_nodes.as_slice() else {
                     return None;
                 };
-                self.derive_body_corresponds(base, base_node, text, depth + 1, formals, facts, reached, membership)?;
+                self.derive_body_corresponds(
+                    defining_owner,
+                    base,
+                    base_node,
+                    text,
+                    depth + 1,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                )?;
             }
             (IrExpr::Binary { op, left, right }, SyntaxKind::Binary) => {
                 let spelling = match op {
@@ -1399,8 +1437,28 @@ impl SourceExpressions<'_> {
                 let [left_node, right_node] = operand_nodes.as_slice() else {
                     return None;
                 };
-                self.derive_body_corresponds(left, left_node, text, depth + 1, formals, facts, reached, membership)?;
-                self.derive_body_corresponds(right, right_node, text, depth + 1, formals, facts, reached, membership)?;
+                self.derive_body_corresponds(
+                    defining_owner,
+                    left,
+                    left_node,
+                    text,
+                    depth + 1,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                )?;
+                self.derive_body_corresponds(
+                    defining_owner,
+                    right,
+                    right_node,
+                    text,
+                    depth + 1,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                )?;
             }
             (IrExpr::Unary { op, operand }, SyntaxKind::Unary) => {
                 let spelling = match op {
@@ -1418,7 +1476,17 @@ impl SourceExpressions<'_> {
                 let [operand_node] = operand_nodes.as_slice() else {
                     return None;
                 };
-                self.derive_body_corresponds(operand, operand_node, text, depth + 1, formals, facts, reached, membership)?;
+                self.derive_body_corresponds(
+                    defining_owner,
+                    operand,
+                    operand_node,
+                    text,
+                    depth + 1,
+                    formals,
+                    facts,
+                    reached,
+                    membership,
+                )?;
             }
             (
                 IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. },
@@ -1449,7 +1517,8 @@ impl SourceExpressions<'_> {
                             .items
                             .iter()
                             .find(|item| &item.canonical == canonical)?;
-                        if callee != item.name {
+                        reference_name(self.ir, defining_owner, item.id, &callee, self.db)?;
+                        if item.module != defining_owner.module && !item.exported {
                             return None;
                         }
                         let IrItemKind::DeriveFn {
@@ -1479,7 +1548,17 @@ impl SourceExpressions<'_> {
                     let [source_value] = values.as_slice() else {
                         return None;
                     };
-                    self.derive_body_corresponds(value, source_value, text, depth + 1, formals, facts, reached, membership)?;
+                    self.derive_body_corresponds(
+                        defining_owner,
+                        value,
+                        source_value,
+                        text,
+                        depth + 1,
+                        formals,
+                        facts,
+                        reached,
+                        membership,
+                    )?;
                 }
             }
             _ => return None,
@@ -2583,7 +2662,10 @@ impl SourceExpressions<'_> {
                 },
                 SyntaxKind::Call,
             ) if self.operands && primitive(Scalar::Bool) => {
-                if self.authorization(actual, NodeKey::of(node), depth).is_none() {
+                if self
+                    .authorization(actual, NodeKey::of(node), depth)
+                    .is_none()
+                {
                     if self.authorization_shaped(actual) {
                         return None;
                     }
@@ -2826,11 +2908,11 @@ fn duration(text: &str) -> Option<i128> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::ir::IrStmt;
     use super::*;
     use crate::analysis::catalog::{CatalogRequest, load_catalog};
     use crate::analysis::{ResolvedType, Scalar, check_program};
     use crate::source::Span;
-    use super::super::ir::IrStmt;
 
     const SOURCE: &str = include_str!("../../tests/fixtures/native-authorization-can-use.can");
 
@@ -2906,8 +2988,16 @@ mod tests {
     const TRANSITIVE_SOURCE: &str = "app TransitiveDerive\nGiven\n Conversation {account:user,active:bool}\n Run {conversation:Conversation,label:text}\n policy Conversation read=members\n policy Run read=members\n derive inner(person:user?,conversation:Conversation):bool = person!=null and active_member(person,team) and conversation.account==person\n derive outer(person:user?,conversation:Conversation):bool = inner(person,conversation) and conversation.active\nWhen\n crud Conversation by=members fields=account,active\n crud Run by=members fields=conversation,label\n scenario pick(conversation:Conversation,label:text=\"x\") -> Run by=members\n  require outer(actor,conversation)\n  do\n   create Run {conversation,label} as run\n   return run\nThen\n";
 
     fn fixture_for(source: &str, path: &str) -> (SourceDb, IrProgram) {
+        fixture_modules(&[(path, source)])
+    }
+
+    fn fixture_modules(sources: &[(&str, &str)]) -> (SourceDb, IrProgram) {
         let mut db = SourceDb::new();
-        let file = db.add(path.into(), source.into());
+        let files: Vec<_> = sources
+            .iter()
+            .map(|(path, source)| db.add((*path).into(), (*source).into()))
+            .collect();
+        let file = files[0];
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap()
@@ -2921,7 +3011,7 @@ mod tests {
         });
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let catalog = catalog.unwrap();
-        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        let (program, diagnostics) = check_program(&db, &files, Some(&catalog));
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -3020,8 +3110,7 @@ mod tests {
             .find(|item| item.canonical == "OrdinaryDerive.can_use")
             .unwrap()
             .id;
-        let IrItemKind::DeriveFn { params, .. } = &mut changed.items[derive.0 as usize].kind
-        else {
+        let IrItemKind::DeriveFn { params, .. } = &mut changed.items[derive.0 as usize].kind else {
             panic!("derive")
         };
         params.swap(0, 1);
@@ -3047,6 +3136,43 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_transitive_target_must_keep_its_defining_module_binding() {
+        let source = ORDINARY_SOURCE.replace(
+            "derive can_use(person:user?,conversation:Conversation):bool = person!=null and conversation.account==person and conversation.active",
+            "derive inner(person:user?):bool = person!=null\n derive can_use(person:user?,conversation:Conversation):bool = inner(person) and conversation.account==person and conversation.active",
+        );
+        let (db, ir) = fixture_modules(&[
+            ("ordinary-derive.can", &source),
+            (
+                "other.can",
+                "package Other\n Given\n  export derive inner(person:user?):bool = false\n When\n Then\n",
+            ),
+        ]);
+        let (cond, span, original) = guard_and_fact(&ir, "OrdinaryDerive.pick");
+        assert!(
+            checked_create_expression(&ir, &original, &cond, node_at(&db, span), &db).is_some()
+        );
+        let mut changed = ir.clone();
+        fn first_call(expression: &mut TypedExpr) -> &mut IrCallTarget {
+            match &mut expression.expr {
+                IrExpr::Binary { left, .. } => first_call(left),
+                IrExpr::Call { target, .. } | IrExpr::BoundCall { target, .. } => target,
+                _ => panic!("transitive inner call"),
+            }
+        }
+        // Change only the exact call target, retaining the authored name,
+        // operands, type and source span.
+        let target = first_call(derive_mut(&mut changed, "OrdinaryDerive.can_use"));
+        assert!(matches!(target, IrCallTarget::DeriveFn(name) if name == "OrdinaryDerive.inner"));
+        *target = IrCallTarget::DeriveFn("Other.inner".into());
+        assert!(
+            checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
+                .is_none(),
+            "same-named foreign target without an authored import must refuse"
+        );
+    }
+
+    #[test]
     fn body_only_membership_deletion_refuses_at_create_source_boundary() {
         let (db, ir) = fixture();
         let (cond, span) = authorization_guard(&ir);
@@ -3068,8 +3194,7 @@ mod tests {
             .find(|item| item.canonical == "AuthorizationCanUse.can_use")
             .unwrap()
             .id;
-        let IrItemKind::DeriveFn { expr, .. } = &mut changed.items[derive.0 as usize].kind
-        else {
+        let IrItemKind::DeriveFn { expr, .. } = &mut changed.items[derive.0 as usize].kind else {
             panic!("derive")
         };
         let body = expr.as_mut().unwrap();

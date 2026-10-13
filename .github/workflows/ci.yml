@@ -143,18 +143,18 @@ jobs:
             echo "Compiler artifact joins did not execute against the real catalog." >&2
             exit 1
           fi
-      - name: Validate editor manifests and grammar
-        run: |
-          node --input-type=module -e 'import {readFileSync} from "node:fs"; for (const file of ["editors/vscode/package.json","editors/vscode/syntaxes/can.tmLanguage.json"]) JSON.parse(readFileSync(file,"utf8"));'
-      - name: Typecheck editor client
-        run: |
-          mkdir -p "$RUNNER_TEMP/editor-types"
-          bunx tsc --noEmit --strict --target es2022 --lib es2022 --typeRoots "$RUNNER_TEMP/editor-types" editors/vscode/src/extension.ts editors/vscode/src/client.ts
+      - name: Validate portable editor grammar and editing configuration
+        run: node editors/vscode/test/language-configuration.cjs
+      - name: Compile editor client
+        working-directory: editors/vscode
+        run: bun run compile
       - name: Check real compiler LSP round-trip
         working-directory: editors/vscode
         env:
           CAN_BIN: ${{ github.workspace }}/compiler/target/debug/can
-        run: node test/lsp-capabilities.cjs
+        run: |
+          node test/lsp-capabilities.cjs
+          bun run test:client
 
   browser:
     name: Browser and security journeys

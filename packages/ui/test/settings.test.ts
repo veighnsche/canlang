@@ -5,7 +5,7 @@ import type {
   SettingsBaseControls,
 } from "@canlang/contracts";
 import { message } from "../src/messages.js";
-import { renderSettingsPanel } from "../src/settings.js";
+import { renderEnumPreferenceSettings, renderSettingsPanel } from "../src/settings.js";
 import { loadHtml } from "./harness.js";
 
 function makeContext(overrides: Partial<PresentationContext> = {}): PresentationContext {
@@ -24,6 +24,25 @@ function makeContext(overrides: Partial<PresentationContext> = {}): Presentation
 }
 
 const XSS = `<script>alert(1)</script><img src=x onerror=alert(2)>`;
+
+it('generates an enum settings field through its canonical versioned page save', () => {
+  const result = renderEnumPreferenceSettings({
+    context: makeContext({ preferences: { Todo: { view: 'open' } },
+      preferenceVersions: { Todo: { view: '3' } }, preferredLocales: ['nl'] }),
+    owner: 'Todo', caption: 'Todo', postTo: '/todo?team=one&q=paper',
+    fields: [{ name: 'view', options: ['all', 'open'], defaultValue: 'all',
+      caption: message('Show', { nl: 'Toon' }), optionLabels: { all: 'All', open: message('Open', { nl: 'Open taken' }) } }],
+  });
+  assert.deepEqual(result.sections, [{ id: 'Todo', caption: 'Todo', active: true }]);
+  const html = result.panelHtml!;
+  assert.match(html, /class="fieldset flex flex-col gap-2"/);
+  assert.match(html, /class="fieldset-label">Toon<select class="select w-full"/);
+  assert.match(html, /<option value="open" selected>Open taken<\/option>/);
+  assert.match(html, /action="\/todo\?team=one&amp;q=paper"/);
+  assert.match(html, /name="_version" value="3"/);
+  assert.match(html, /data-can-preference-form="reset"[^>]*><input[^>]+_csrf[^>]*><input[^>]+_version[^>]*><input type="hidden" name="view" value="all"/);
+  assert.match(html, /data-can-preference-cancel/);
+});
 
 function withExtra<T extends object>(props: T, extra: Record<string, unknown>): T {
   return { ...props, ...extra };

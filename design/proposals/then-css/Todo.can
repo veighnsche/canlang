@@ -1,0 +1,29 @@
+## Proposed Then CSS syntax; not implemented or accepted.
+## Keep the shared sidebar, account controls, CRUD and validation defaults.
+# Keep track of what needs doing.
+app Todos
+Given
+ Todo { title:text trim min=1 max=200 label="Task", done:bool=false label={text="Status",values={true="Done",false="Open"}} } label="Todo"
+ policy Todo read=members
+ fixture task=Todo {title="Try Can"}
+When
+ crud Todo by=members fields=title,done label={create="Add task"}
+  examples update record=task
+   as,changes.done,request.record.version -> record.done
+   members,true,1 -> true
+   members,true,0 -> error(conflict)
+   public,true,1 -> error(forbidden)
+Then
+ preferences { view:enum(all,open,done)=all label={text="Show",values={all="All",open="Open",done="Done"}} }
+ page / title="Todos" css={maxw="48rem",mx=auto,p=4,gap=4,sm={p=6,gap=6}}
+  card "Add a task" css={rounded=xl,shadow=sm,body={p=4,gap=3},sm={body={p=6}}}
+   form Todo.create fields=title display=inline css={gap=3}
+    input title
+  card "Your tasks" css={rounded=xl,shadow=sm,body={p=4,gap=4},sm={body={p=6}}}
+   tabs preferences.view size=sm
+   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty="No tasks here. Add a task or choose another view." css={row={display=flex,dir=column,gap=2,py=3},sm={row={dir=row,items=center}}}
+    text row.title css={grow=1,weight=medium}
+    badge row.done size=sm
+    edit fields=title,done
+    tooltip "Archive this task"
+     delete

@@ -28,10 +28,12 @@
 import type {
   MessageValue,
   PageChildren,
+  PageDescriptor,
   PreferenceSection,
   PresentationContext,
   SettingsBaseControls,
   SettingsPanelProps,
+  ShellData,
   ThemeDensity,
 } from "@canlang/contracts";
 import { CSRF_FIELD } from "@canlang/contracts";
@@ -187,4 +189,35 @@ export async function renderSettingsPanel(props: SettingsPanelProps): Promise<st
     throw new Error(`renderSettingsPanel unknown section ${JSON.stringify(props.sectionId)}`);
   }
   return renderPreference(section, props.context);
+}
+
+/** Source-owned enum selectors use the existing independently versioned page save. */
+export function renderEnumPreferenceSettings(props: {
+  readonly context: PresentationContext;
+  readonly owner: string;
+  readonly caption: MessageValue;
+  readonly fields: NonNullable<PageDescriptor['preferenceFields']>;
+  readonly postTo: string;
+}): ShellData['settings'] {
+  if (props.fields.length === 0) return { sections: [] };
+  requireText('renderEnumPreferenceSettings', 'owner', props.owner);
+  requireText('renderEnumPreferenceSettings', 'postTo', props.postTo);
+  const { context } = props;
+  const text = (value: MessageValue) => escapeHtml(resolveCaption(value, context));
+  const target = escapeAttr(operationPostPath(props.postTo));
+  const panels = props.fields.map(field => {
+    const value = context.preferences?.[props.owner]?.[field.name] ?? null;
+    const version = context.preferenceVersions?.[props.owner]?.[field.name] ?? '0';
+    const common = hidden(CSRF_FIELD, context.csrfToken) + hidden('_version', version);
+    const options = field.options.map(option => `<option value="${escapeAttr(option)}"${option === value ? ' selected' : ''}>${text(field.optionLabels?.[option] ?? option)}</option>`).join('');
+    const select = `<label class="fieldset-label">${text(field.caption ?? field.name)}<select class="select w-full" name="${escapeAttr(field.name)}">${value === null ? '<option value="" selected disabled></option>' : ''}${options}</select></label>`;
+    const save = `<form action="${target}" method="post" class="can-form" data-can-preference-form="save">${common}${select}<button type="submit" class="btn btn-primary">${text(SAVE_LABEL)}</button></form>`;
+    // Storage currently accepts enum cases only; null reset needs its owning lifecycle.
+    const reset = field.defaultValue === null ? '' : `<form action="${target}" method="post" class="can-form" data-can-preference-form="reset">${common}${hidden(field.name, field.defaultValue)}<button type="submit" class="btn btn-ghost">${text(RESET_LABEL)}</button></form>`;
+    return `<fieldset class="fieldset flex flex-col gap-2" data-can-preference-field="${escapeAttr(field.name)}">${save}${reset}<p role="alert" data-can-preference-error></p></fieldset>`;
+  }).join('');
+  return {
+    sections: [{ id: props.owner, caption: props.caption, active: true }],
+    panelHtml: `<section class="flex flex-col gap-4"><h3>${text(props.caption)}</h3>${panels}<button type="button" class="btn btn-ghost" data-can-preference-cancel>${text(message('Cancel', { nl: 'Annuleren' }))}</button></section>`,
+  };
 }

@@ -1965,7 +1965,7 @@ fn file_assignment_paired_proof_and_value_corruption_still_requires_original_sou
 }
 
 fn stored_input_query_parent_source() -> String {
-    let input = include_str!("../../draft/CanWorkbench.can")
+    let input = include_str!("../../draft/apps/CanWorkbench/CanWorkbench.can")
         .lines()
         .find_map(|line| line.trim_start().strip_prefix("export contract Input "))
         .expect("actual owning Workbench Input declaration");

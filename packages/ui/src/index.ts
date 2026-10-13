@@ -161,7 +161,7 @@ export {
 } from "./overlays.js";
 export { review } from "./review.js";
 export { copy, history, tabs } from "./panels.js";
-export { renderSettingsPanel } from "./settings.js";
+export { renderEnumPreferenceSettings, renderSettingsPanel } from "./settings.js";
 export type { ControlQueryState } from "./collections.js";
 export {
   action,

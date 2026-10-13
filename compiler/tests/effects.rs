@@ -1235,7 +1235,8 @@ fn e4055(diags: &[Diagnostic]) -> Vec<(&str, u32, u32)> {
 /// writes the draft submodule).
 fn draft(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../draft")
+        .join("../draft/apps")
+        .join(name.trim_end_matches(".can"))
         .join(name);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }

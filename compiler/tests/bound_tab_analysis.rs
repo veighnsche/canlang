@@ -49,7 +49,7 @@ fn exact_bound_cases_claim_the_selector_enum_without_changing_original_volunteer
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert!(claimed_at(&checked, SOURCE, "tab discovery"));
     assert!(claimed_at(&checked, SOURCE, "tab assignments"));
-    let original = include_str!("../../draft/CanVolunteer.can");
+    let original = include_str!("../../draft/apps/CanVolunteer/CanVolunteer.can");
     assert_eq!(
         sha256_hex(original.as_bytes()),
         "f9d6ba874fcbe5c60e064cb17628308be6f523d4dee31b53d95cda2ad0cdcff0"

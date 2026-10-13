@@ -8,9 +8,9 @@ use std::{path::Path, process::Command};
 #[test]
 fn original_canbook_edits_and_disclosure_keep_the_owning_source_and_rows() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let original = include_str!("../../draft/CanBook.can");
+    let original = include_str!("../../draft/apps/CanBook/CanBook.can");
     let mut db = SourceDb::new();
-    let id = db.add("draft/CanBook.can".into(), original.into());
+    let id = db.add("draft/apps/CanBook/CanBook.can".into(), original.into());
     let catalog_path = root.join("packages/values/dist/catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&catalog_path),

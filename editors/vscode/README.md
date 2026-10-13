@@ -6,28 +6,47 @@ Edit `.can` files with syntax highlighting, language tools, and Can file icons. 
 
 - **Syntax highlighting** for Given / When / Then, declarations, types, operations, pages, examples, and localization. `##` comments and `#` descriptions have distinct highlighting.
 - **Diagnostics** in the editor and Problems panel as you edit.
-- **Completion and hover information** to help you explore symbols and types.
+- **Completion and hover information** to explore symbols and types, with member suggestions after `.`.
 - **Navigation and refactoring** through Go to Definition, Find All References, and Rename Symbol.
-- **Semantic highlighting and quick fixes** supplied by the Can language server.
-- **Can file icons** with light and dark variants, plus one-space indentation defaults for `.can` files.
+- **Document formatting and Outline symbols** through Format Document, Outline, and Go to Symbol.
+- **Semantic classifications and quick fixes** supplied by the Can language server.
+- **Can file icons** with light and dark variants, plus one-space indentation, `##` comment toggling, bracket matching, and automatic closing of brackets and double quotes.
+
+Your TextMate syntax colors and font styles remain authoritative after semantic
+analysis, including section markers, structural headers, descriptions, UI words,
+and localization. The editor exposes Can-specific semantic types (`canClass`,
+`canProperty`, `canKeyword`, etc.) and modifiers (`canDeclaration`,
+`canReadonly`, etc.) without inherited theme styles or fallback scopes. You can
+opt into semantic styling explicitly with `editor.semanticTokenColorCustomizations`
+(for example, `"canProperty:can": "#9CDCFE"`). The LSP wire legend stays standard.
 
 Syntax highlighting, icons, and indentation work without the compiler. Diagnostics and the other language tools require the `can` compiler, installed separately.
 
-Language tools analyze each open document independently. Definition, references,
-and rename work within that document; opening imported files does not add them to
-its analysis. To check imports and composed apps across files, pass their sources
-together to `can check FILE.can...`.
+For local workspace folders, the language server discovers `.can` sources in that
+folder and resolves imports across the project, including files you have not
+opened. Diagnostics for related imported files also appear in Problems before
+you open them. Completion, hover, navigation, references, and rename use that
+project analysis. Unsaved open documents take precedence over disk sources;
+file creation, changes, and deletion refresh the discovered project. Formatting
+and Outline operate on the current document.
 
-The extension starts one server for its open Can documents. Its working directory
-is the starting Can document's local workspace folder, or the first local folder
-when that document has no local owner. The server loads one producer catalog at
-startup: `CAN_CATALOG`, then `./can-catalog.json`, then
-`./packages/values/dist/catalog.json`, relative to that working directory. All
-documents use that catalog, including documents in other workspace folders.
-After changing the catalog, run **Can: Restart Language Server**. Folder changes
-and catalog file changes do not reload it automatically. Restart uses the active
-Can document's local folder when available. With no local workspace folder, the
-server inherits the editor process's working directory.
+Each local workspace folder has a separate server and producer catalog. Symbols
+and imports do not cross workspace-folder boundaries. Untitled documents use the
+first local folder when available; files outside a local folder and remote
+resources retain document-only analysis. Remote filesystem discovery is not
+supported.
+
+Rename first opens affected local files through the editor and synchronizes their
+current versions. It refuses unsupported, colliding, or stale edits across the
+whole rename; accepted edits use the editor's normal workspace-edit behavior.
+
+Each server loads its producer catalog at startup: `CAN_CATALOG`, then
+`./can-catalog.json`, then `./packages/values/dist/catalog.json`, relative to its
+local folder. Configure `can.serverPath` per folder when needed. After changing a
+catalog, run **Can: Restart Language Server**. Catalog file changes do not reload
+it automatically. Adding or removing workspace folders updates document routing
+and their servers; unchanged roots keep their existing catalog. With no local
+folder, a document-only server inherits the editor process's working directory.
 
 ## Install
 

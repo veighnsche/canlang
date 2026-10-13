@@ -7,12 +7,12 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use canlang_compiler::analysis::catalog::CatalogRequest;
 use canlang_compiler::analysis::{self, Catalog, CheckedProgram};
 use canlang_compiler::diagnostic::{Diagnostic, Severity};
-use canlang_compiler::lint::RULES;
 use canlang_compiler::lint::driver::{
-    DeprecatedSet, FixRejected, LintConfig, LintFix, RuleSet, apply_fix, apply_fixes,
-    collect_fixes, lint_program,
+    apply_fix, apply_fixes, collect_fixes, lint_program, DeprecatedSet, FixRejected, LintConfig,
+    LintFix, RuleSet,
 };
-use canlang_compiler::source::{SourceDb, SourceId, Span, sha256_hex};
+use canlang_compiler::lint::RULES;
+use canlang_compiler::source::{sha256_hex, SourceDb, SourceId, Span};
 
 fn check(
     text: impl AsRef<str>,
@@ -285,11 +285,9 @@ fn enum_match_lints_keep_unreachable_reads_and_shadowing_in_the_owning_arm() {
     // exact dead statement and the unread sibling-arm binding.
     let recommended = lint_program(&program, &db, &LintConfig::default());
     assert_eq!(recommended.len(), 2, "{recommended:?}");
-    assert!(
-        recommended
-            .iter()
-            .all(|diag| matches!(diag.code, "W1001" | "I1001"))
-    );
+    assert!(recommended
+        .iter()
+        .all(|diag| matches!(diag.code, "W1001" | "I1001")));
 }
 
 // --- I1001 unused-binding (`let`) ---------------------------------------
@@ -677,11 +675,9 @@ fn unreachable_removal_refuses_descriptions_and_malformed_inline_comments() {
         let config = LintConfig { fix: true, ..all() };
         assert!(collect_fixes(&program, &db, &config).is_empty(), "{text}");
         if !malformed {
-            assert!(
-                lint_program(&program, &db, &all())
-                    .iter()
-                    .any(|diagnostic| diagnostic.code == "W1001")
-            );
+            assert!(lint_program(&program, &db, &all())
+                .iter()
+                .any(|diagnostic| diagnostic.code == "W1001"));
         }
     }
 }
@@ -867,8 +863,15 @@ fn default_config_is_recommended_without_fixes_or_catalog() {
 fn corpus_noise_assessment() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut files = Vec::new();
-    for dir in ["examples", "draft"] {
-        let entries = std::fs::read_dir(root.join(dir)).unwrap();
+    let mut directories = vec![root.join("examples"), root.join("draft/shared")];
+    directories.extend(
+        std::fs::read_dir(root.join("draft/apps"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.is_dir()),
+    );
+    for directory in directories {
+        let entries = std::fs::read_dir(directory).unwrap();
         for entry in entries {
             let path = entry.unwrap().path();
             if path.extension().is_some_and(|ext| ext == "can") {

@@ -1059,77 +1059,77 @@ fn draft_outcome_table() {
     // not a Creative source change or the disclosure-only matching refactor.
     // All49 other rows and the explanation-code checks remain unchanged.
     let table: &[(&str, usize)] = &[
-        ("draft/CanAffiliate.can", 39),
-        ("draft/CanApprove.can", 46),
-        ("draft/CanBoard.can", 3),
-        ("draft/CanBook.can", 154),
-        ("draft/CanCRM.can", 146),
-        ("draft/CanCatch.can", 52),
-        ("draft/CanChat.can", 0),
-        ("draft/CanCheck.can", 38),
-        ("draft/CanContract.can", 22),
-        ("draft/CanCreative.can", 20),
+        ("draft/apps/CanAffiliate/CanAffiliate.can", 39),
+        ("draft/apps/CanApprove/CanApprove.can", 46),
+        ("draft/apps/CanBoard/CanBoard.can", 3),
+        ("draft/apps/CanBook/CanBook.can", 154),
+        ("draft/apps/CanCRM/CanCRM.can", 146),
+        ("draft/apps/CanCatch/CanCatch.can", 52),
+        ("draft/apps/CanChat/CanChat.can", 0),
+        ("draft/apps/CanCheck/CanCheck.can", 38),
+        ("draft/apps/CanContract/CanContract.can", 22),
+        ("draft/apps/CanCreative/CanCreative.can", 20),
         // Nine committed create/update/delete handlers now receive typed
         // event.id text; the unchanged source still has 49 other findings.
-        ("draft/CanCustomer.can", 49),
-        ("draft/CanDecide.can", 3),
-        ("draft/CanDesk.can", 72),
-        ("draft/CanDiscover.can", 60),
-        ("draft/CanDo.can", 38),
-        ("draft/CanEnrich.can", 8),
-        ("draft/CanEvent.can", 198),
-        ("draft/CanExpense.can", 92),
-        ("draft/CanFeedback.can", 13),
-        ("draft/CanField.can", 121),
-        ("draft/CanGallery.can", 21),
-        ("draft/CanGrant.can", 47),
-        ("draft/CanHire.can", 120),
+        ("draft/apps/CanCustomer/CanCustomer.can", 49),
+        ("draft/apps/CanDecide/CanDecide.can", 3),
+        ("draft/apps/CanDesk/CanDesk.can", 72),
+        ("draft/apps/CanDiscover/CanDiscover.can", 60),
+        ("draft/apps/CanDo/CanDo.can", 38),
+        ("draft/apps/CanEnrich/CanEnrich.can", 8),
+        ("draft/apps/CanEvent/CanEvent.can", 198),
+        ("draft/apps/CanExpense/CanExpense.can", 92),
+        ("draft/apps/CanFeedback/CanFeedback.can", 13),
+        ("draft/apps/CanField/CanField.can", 121),
+        ("draft/apps/CanGallery/CanGallery.can", 21),
+        ("draft/apps/CanGrant/CanGrant.can", 47),
+        ("draft/apps/CanHire/CanHire.can", 120),
         // Exact IncomingEmail identity clears only the replay guard E3002;
         // all other original findings and all 52 corpus rows remain.
-        ("draft/CanInbox.can", 40),
-        ("draft/CanInvoice.can", 203),
-        ("draft/CanKnowledge.can", 46),
-        ("draft/CanLearn.can", 49),
-        ("draft/CanLeave.can", 74),
+        ("draft/apps/CanInbox/CanInbox.can", 40),
+        ("draft/apps/CanInvoice/CanInvoice.can", 203),
+        ("draft/apps/CanKnowledge/CanKnowledge.can", 46),
+        ("draft/apps/CanLearn/CanLearn.can", 49),
+        ("draft/apps/CanLeave/CanLeave.can", 74),
         // The same owned bound-tab cases (rewards/history) now resolve;
         // transient caption tabs and all original source remain unchanged.
-        ("draft/CanLoyalty.can", 66),
-        ("draft/CanMail.can", 132),
-        ("draft/CanMaintain.can", 110),
-        ("draft/CanMember.can", 319),
-        ("draft/CanOnboard.can", 54),
+        ("draft/apps/CanLoyalty/CanLoyalty.can", 66),
+        ("draft/apps/CanMail/CanMail.can", 132),
+        ("draft/apps/CanMaintain/CanMaintain.can", 110),
+        ("draft/apps/CanMember/CanMember.can", 319),
+        ("draft/apps/CanOnboard/CanOnboard.can", 54),
         // The nonexported hold_result no longer captures nine held cases;
         // the callback body and stored inventory states remain unchanged.
-        ("draft/CanPropose.can", 118),
+        ("draft/apps/CanPropose/CanPropose.can", 118),
         // The private receive date input no longer captures stored received.
-        ("draft/CanPurchase.can", 137),
-        ("draft/CanReception.can", 179),
+        ("draft/apps/CanPurchase/CanPurchase.can", 137),
+        ("draft/apps/CanReception/CanReception.can", 179),
         // The nonexported join_program retains its input scope without
         // redeclaring closed builtin join; only its four cascades disappear.
-        ("draft/CanRefer.can", 75),
+        ("draft/apps/CanRefer/CanRefer.can", 75),
         // Booking benefit_unit reuses Resource.price_unit's hour/day type;
         // the two owning assignments resolve without any domain conversion.
-        ("draft/CanRent.can", 536),
-        ("draft/CanReport.can", 16),
+        ("draft/apps/CanRent/CanRent.can", 536),
+        ("draft/apps/CanReport/CanReport.can", 16),
         // Stored commitments reuse their owning request kind. The released
         // Teams removed subject also clears account: expected user?, found opaque.
-        ("draft/CanShift.can", 93),
-        ("draft/CanStats.can", 28),
+        ("draft/apps/CanShift/CanShift.can", 93),
+        ("draft/apps/CanStats/CanStats.can", 28),
         // The location-name sort derives from an imported Location. This
         // isolated row keeps that import opaque; the full source closure
         // resolves the derive and removes the original order-key finding.
-        ("draft/CanStock.can", 40),
-        ("draft/CanSuccess.can", 43),
-        ("draft/CanSync.can", 12),
-        ("draft/CanTable.can", 31),
-        ("draft/CanTime.can", 126),
-        ("draft/CanTrade.can", 18),
+        ("draft/apps/CanStock/CanStock.can", 40),
+        ("draft/apps/CanSuccess/CanSuccess.can", 43),
+        ("draft/apps/CanSync/CanSync.can", 12),
+        ("draft/apps/CanTable/CanTable.can", 31),
+        ("draft/apps/CanTime/CanTime.can", 126),
+        ("draft/apps/CanTrade/CanTrade.can", 18),
         // Bound tab headers claim only their owning preference enum cases;
         // the original source and assignments authentication gate stay intact.
-        ("draft/CanVolunteer.can", 44),
+        ("draft/apps/CanVolunteer/CanVolunteer.can", 44),
         // The checked read-only context call retains proposal.call != null;
         // invocation_references pins its mutation-call invalidation control.
-        ("draft/CanWorkbench.can", 73),
+        ("draft/apps/CanWorkbench/CanWorkbench.can", 73),
         ("draft/shared/Employees.can", 6),
         ("draft/shared/Locations.can", 5),
         ("draft/shared/Suppliers.can", 6),

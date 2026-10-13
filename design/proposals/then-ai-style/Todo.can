@@ -1,0 +1,30 @@
+## AI styling syntax illustration; both inline and named forms are required, not implemented.
+## Independent inline style scopes for task entry and task list; frontend is the shared default.
+# Keep track of what needs doing.
+app Todos
+Given
+ Todo { title:text trim min=1 max=200 label="Task", done:bool=false label={text="Status",values={true="Done",false="Open"}} } label="Todo"
+ policy Todo read=members
+ fixture task=Todo {title="Try Can"}
+When
+ crud Todo by=members fields=title,done label={create="Add task"}
+  examples update record=task
+   as,changes.done,request.record.version -> record.done
+   members,true,1 -> true
+   members,true,0 -> error(conflict)
+   public,true,1 -> error(forbidden)
+Then
+ preferences { view:enum(all,open,done)=all label={text="Show",values={all="All",open="Open",done="Done"}} }
+ page / title="Todos"
+  style "A calm, compact task-entry card using the existing theme. Keep labels, validation feedback, focus indicators and submission intact. Stack controls on phones and align them on wider screens."
+   card "Add a task"
+    form Todo.create fields=title display=inline
+     input title
+  style "A calm, compact task-list card with clear typography, subtle borders and readable statuses. Preserve the view selector, search, editing, archive controls, empty states and every existing interaction."
+   card "Your tasks"
+    tabs preferences.view
+    list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty="No tasks here. Add a task or choose another view."
+     text row.title,row.done
+     edit fields=title,done
+     tooltip "Archive this task"
+      delete

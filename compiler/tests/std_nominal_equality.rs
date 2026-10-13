@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const INBOX: &str = include_str!("../../draft/CanInbox.can");
+const INBOX: &str = include_str!("../../draft/apps/CanInbox/CanInbox.can");
 const SOURCE: &str = r#"app NominalEquality
 use std {IncomingEmail}
 Given

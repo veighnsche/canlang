@@ -23,6 +23,8 @@ function fixture(spawnOverride, realTimers = false) {
   };
   const vscode = {
     workspace: { textDocuments: [], workspaceFolders: [], getWorkspaceFolder() {},
+      createFileSystemWatcher: () => ({ ...disposable, onDidCreate: () => disposable, onDidChange: () => disposable, onDidDelete: () => disposable }),
+      onDidChangeWorkspaceFolders: () => disposable,
       getConfiguration: () => ({ get: (_key, fallback) => fallback }),
       ...Object.fromEntries(['Open', 'Change', 'Save', 'Close'].map((name) => [
         `onDid${name}TextDocument`, (callback) => { state.handlers[name] = callback; return disposable; }])),
@@ -34,9 +36,9 @@ function fixture(spawnOverride, realTimers = false) {
     languages: { createDiagnosticCollection: () => ({ set() {}, delete() {},
       dispose() { state.disposals++; } }),
       ...Object.fromEntries(['Hover', 'CompletionItem', 'Definition', 'Reference', 'Rename',
-        'DocumentSemanticTokens', 'CodeActions'].map((name) => [`register${name}Provider`, () => disposable])),
+        'DocumentSemanticTokens', 'CodeActions', 'DocumentFormattingEdit', 'DocumentSymbol'].map((name) => [`register${name}Provider`, () => disposable])),
     },
-    CompletionItemKind: {}, SemanticTokensLegend: class {}, CodeActionKind: { QuickFix: 'quickfix' },
+    SymbolKind: {}, CompletionItemKind: {}, SemanticTokensLegend: class {}, CodeActionKind: { QuickFix: 'quickfix' },
   };
   const childApi = { spawn() {
     if (spawnOverride) { const child = spawnOverride(); state.children.push(child); return child; }

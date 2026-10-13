@@ -1946,12 +1946,19 @@ export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: St
           healthy();
           const prepared = { ...row, data: { ...row.data, filePayloadOrigin: header } };
           const original = readReceiptRow(prepared).filePayloadOrigin!.origin;
+          if (!isGeneratedOperationDef(call.def)) return invalid('receipt origin lacks its generated owning operation.');
+          // Opaque File headers retain the nonvoid result declaration, while
+          // the independently bound execution descriptor owns its disclosure.
+          const descriptor = call.def.descriptor;
+          const { disclosure: _execution, ...resultDeclaration } = descriptor.result ?? {};
+          const fileDescriptor = descriptor.result !== undefined && descriptor.result.type !== 'void'
+            ? { ...descriptor, result: resultDeclaration } : descriptor;
           if (header.scope.app !== call.context.app || header.scope.owner !== call.checkpoint.owner ||
               (original.kind !== 'delivery-result' && original.kind !== 'delivery-skipped') ||
               original.deliveryId !== value.id || original.association.model !== modelName ||
               original.association.recordId !== record.id || original.association.field !== fieldName ||
               stableStringify(original.caller.source) !== stableStringify(bound.plan.source) ||
-              !isGeneratedOperationDef(call.def) || stableStringify(original.caller.canonical) !== stableStringify(call.def.descriptor)) return invalid('receipt origin differs from its actual source or owning assignment.');
+              stableStringify(original.caller.canonical) !== stableStringify(fileDescriptor)) return invalid('receipt origin differs from its actual source or owning assignment.');
           const actual = original.kind === 'delivery-result' ? original.intent : original.send;
           if (actual.operation !== send.operation || actual.operationId !== send.operationId || actual.target !== send.target ||
               actual.occurrenceIndex !== send.occurrenceIndex) return invalid('receipt origin differs from its actual SEND occurrence.');

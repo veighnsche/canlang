@@ -168,6 +168,15 @@ export function bindDeclaredFileReferenceProfile(bound: FileReferenceProfileBoun
 
 /** Bind one actual owning stored declaration. Unknown nominal fallback cannot
  * establish a complete census, even when Values would decode it as a model ref. */
+/** The canonical spelling of an artifact field default: a server default
+ * keeps only its kind canonically (the T18 init payload is censused as a
+ * server init, not carried in the canonical default). Other default kinds
+ * already carry their complete canonical payload. */
+function canonicalDefaultSpelling(value: unknown): unknown {
+  if (typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'server') return { kind: 'server' };
+  return value;
+}
+
 export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model: ModelName, field: string): FileReferenceProfile {
   try {
     if (typeof field !== 'string' || field === '' || field.includes('.') ||
@@ -179,8 +188,12 @@ export function bindFileReferenceProfile(bound: FileReferenceProfileBound, model
     if (owners.length !== 1 || artifact?.name !== model || authored.length !== 1 || !Object.hasOwn(owners[0]!.fields, field)) return invalid('exact owning field required.');
     const canonical = owners[0]!.fields[field]!, source = authored[0]!, tag = object(source.field);
     for (const key of ['required', 'serverOnly', 'array', 'nullable', 'trim', 'min', 'max', 'default'] as const) {
+      // Compare defaults in their canonical spelling: a server default keeps
+      // only its kind canonically, while its artifact spelling may carry the
+      // T18 init payload (censused separately as a server init).
+      const sourceValue = key === 'default' ? canonicalDefaultSpelling(source[key]) : source[key];
       if (Object.hasOwn(canonical, key) !== Object.hasOwn(source, key) ||
-          Object.hasOwn(canonical, key) && stableStringify(canonical[key]) !== stableStringify(source[key])) return invalid('owning field declarations disagree.');
+          Object.hasOwn(canonical, key) && stableStringify(canonical[key]) !== stableStringify(sourceValue)) return invalid('owning field declarations disagree.');
     }
     if (typeof canonical.required !== 'boolean' || typeof canonical.serverOnly !== 'boolean' ||
         Object.hasOwn(canonical, 'nullable') && typeof canonical.nullable !== 'boolean') return invalid('checked field markers required.');

@@ -7,7 +7,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 
-const local = (fsPath) => ({ uri: { scheme: 'file', fsPath } });
+const local = (fsPath) => ({ uri: { scheme: 'file', fsPath, toString: () => `file://${fsPath}` } });
 const remote = { uri: { scheme: 'vscode-remote', fsPath: '/remote' } };
 const first = local('/workspace/first');
 const second = local('/workspace/second');
@@ -15,18 +15,21 @@ const canDocument = { languageId: 'can', uri: { scheme: 'file', fsPath: '/worksp
 const serverPath = '/compiler path/can';
 const disposable = { dispose() {} };
 
-function startup({ folders, document, owner }, transformExtension = (source) => source) {
+function startup({ folders, document, owner, documents = [], folderForUri }, transformExtension = (source) => source) {
   const launches = [];
   const children = [];
   const handlers = {};
   const providers = {};
   const diagnosticUpdates = [];
+  const diagnosticDeletes = [];
   const channel = { ...disposable, appendLine() {} };
   const vscode = {
     workspace: {
-      textDocuments: [],
+      textDocuments: documents,
       workspaceFolders: folders,
-      getWorkspaceFolder: () => owner,
+      getWorkspaceFolder: (uri) => folderForUri ? folderForUri(uri) : owner,
+      createFileSystemWatcher: () => ({ ...disposable, ...Object.fromEntries(['Create', 'Change', 'Delete'].map((name) => [`onDid${name}`, (callback) => { handlers[`File${name}`] = callback; return disposable; }])) }),
+      onDidChangeWorkspaceFolders: (callback) => { handlers.Folders = callback; return disposable; },
       getConfiguration: () => ({ get: (key, fallback) => key === 'serverPath' ? serverPath : fallback }),
       ...Object.fromEntries(['Open', 'Change', 'Save', 'Close'].map((event) => [
         `onDid${event}TextDocument`, (callback) => { handlers[event] = callback; return disposable; },
@@ -42,12 +45,13 @@ function startup({ folders, document, owner }, transformExtension = (source) => 
       createDiagnosticCollection: () => ({
         ...disposable,
         set(uri, diagnostics) { diagnosticUpdates.push({ uri, diagnostics }); },
-        delete() {},
+        delete(uri) { diagnosticDeletes.push(uri.toString()); },
       }),
       ...Object.fromEntries([
         'registerHoverProvider', 'registerCompletionItemProvider', 'registerDefinitionProvider',
         'registerReferenceProvider', 'registerRenameProvider',
         'registerDocumentSemanticTokensProvider', 'registerCodeActionsProvider',
+        'registerDocumentFormattingEditProvider', 'registerDocumentSymbolProvider',
       ].map((name) => [name, (selector, provider, metadata) => {
         providers[name] = { selector, provider, metadata };
         return disposable;
@@ -56,8 +60,8 @@ function startup({ folders, document, owner }, transformExtension = (source) => 
     commands: { registerCommand: () => disposable },
     SemanticTokensLegend: class {},
     CodeActionKind: { QuickFix: 'quickfix' },
-    CompletionItemKind: {},
-    Uri: { parse: (value) => ({ toString: () => value }) },
+    SymbolKind: {}, CompletionItemKind: {},
+    Uri: { parse: (value) => ({ scheme: value.split(':')[0], fsPath: value.startsWith('file:') ? decodeURIComponent(new URL(value).pathname) : '', toString: () => value }) },
     Position: class { constructor(line, character) { this.line = line; this.character = character; } },
     Range: class { constructor(start, end) { this.start = start; this.end = end; } },
     DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
@@ -96,7 +100,7 @@ function startup({ folders, document, owner }, transformExtension = (source) => 
   load('extension').activate({ subscriptions: [] });
   // Serialize values from the VM realm before comparing prototype identity.
   const launch = () => JSON.parse(JSON.stringify(launches.at(-1)));
-  return { launch, handlers, providers, diagnosticUpdates, children, client, channel };
+  return { launch, handlers, providers, diagnosticUpdates, diagnosticDeletes, children, client, channel, workspace: vscode.workspace };
 }
 
 async function main() {
@@ -125,7 +129,9 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(state.providers.registerCodeActionsProvider.metadata)),
   { providedCodeActionKinds: ['quickfix'] },
 );
-console.log('PASS activation registers document/config listeners and quick fixes');
+assert.equal(state.providers.registerCompletionItemProvider.metadata, '.', 'member completion dot trigger');
+assert(state.providers.registerDocumentFormattingEditProvider && state.providers.registerDocumentSymbolProvider);
+console.log('PASS activation registers document/config listeners, editing providers, dot completion and quick fixes');
 
 assert.throws(() => startup({}, (source) =>
   source.replace('vscodeApi.languages.registerCodeActionsProvider(',
@@ -134,7 +140,7 @@ assert.throws(() => startup({}, (source) =>
   'strict public API mock rejects the previous activation typo');
 console.log('PASS strict public API mock rejects the previous activation typo');
 
-const live = startup({ folders: [first] });
+const live = startup({ folders: [first], owner: first });
 const child = live.children[0];
 const publish = (message) => {
   const body = JSON.stringify(message);
@@ -174,6 +180,39 @@ assert.equal(live.diagnosticUpdates.at(-1).uri.toString(), uri);
 assert.equal(live.diagnosticUpdates.at(-1).diagnostics.length, 0);
 console.log('PASS change notifications and published diagnostic clearing');
 
+const closedUri = 'file:///workspace/first/unopened.can';
+const closedDocument = { languageId: 'can', version: 1,
+  uri: { scheme: 'file', fsPath: '/workspace/first/unopened.can', toString: () => closedUri },
+  getText: () => 'package Shared\n Given\n When\n Then\n' };
+publish({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics',
+  params: { uri: closedUri, diagnostics: [diagnostic] } });
+assert.equal(live.diagnosticUpdates.at(-1).uri.toString(), closedUri, 'versionless closed project diagnostics install');
+live.handlers.FileChange(closedDocument.uri);
+assert.equal(live.diagnosticDeletes.at(-1), closedUri, 'watch change clears closed diagnostics pending refresh');
+publish({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics',
+  params: { uri: closedUri, diagnostics: [diagnostic] } });
+live.handlers.Open(closedDocument);
+assert.equal(live.diagnosticDeletes.at(-1), closedUri, 'opening establishes overlay ownership and clears closed publication');
+const writesBeforeVersionless = live.diagnosticUpdates.length;
+for (const params of [
+  { uri: closedUri, diagnostics: [diagnostic] },
+  { uri: closedUri, version: null, diagnostics: [diagnostic] },
+  { uri: 'file:///workspace/second/unopened.can', diagnostics: [diagnostic] },
+  { uri: 'vscode-remote://ssh/remote/unopened.can', diagnostics: [diagnostic] },
+]) { publish({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics', params }); }
+assert.equal(live.diagnosticUpdates.length, writesBeforeVersionless,
+  'open owners, foreign roots and remote documents refuse versionless diagnostics');
+const openedVersion = child.messages.filter((message) => message.method === 'textDocument/didOpen').at(-1).params.textDocument.version;
+publish({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics',
+  params: { uri: closedUri, version: openedVersion, diagnostics: [diagnostic] } });
+assert.equal(live.diagnosticUpdates.length, writesBeforeVersionless + 1, 'current numeric overlay diagnostics install');
+live.handlers.Close(closedDocument);
+assert.equal(live.diagnosticDeletes.at(-1), closedUri, 'closing clears overlay diagnostics');
+publish({ jsonrpc: '2.0', method: 'textDocument/publishDiagnostics',
+  params: { uri: closedUri, diagnostics: [] } });
+assert.equal(live.diagnosticUpdates.at(-1).diagnostics.length, 0, 'closed repair publication clears Problems');
+console.log('PASS versionless local closed diagnostics, watch/open/close clears and strict open-owner refusal');
+
 const readyChild = state.children[0];
 const readyBody = JSON.stringify({ jsonrpc: '2.0', id: readyChild.messages[0].id, result: { capabilities: {} } });
 readyChild.stdout.emit('data', `Content-Length: ${Buffer.byteLength(readyBody)}\r\n\r\n${readyBody}`);
@@ -184,6 +223,52 @@ readyChild.emit('exit', 1);
 state.handlers.Open(canDocument);
 assert.equal(state.launch().options.cwd, second.uri.fsPath, 'reopen uses the newly opened Can document');
 console.log('PASS reopen uses the newly opened Can document');
+
+const projectDocument = (folder, name) => ({ languageId: 'can', version: 1,
+  uri: { scheme: 'file', fsPath: `${folder.uri.fsPath}/${name}.can`, toString() { return `file://${this.fsPath}`; } },
+  getText: () => 'app T\nGiven\nWhen\nThen\n' });
+const oneDoc = projectDocument(first, 'one');
+const twoDoc = projectDocument(second, 'two');
+let currentFolders = [first, second];
+const roots = startup({ folders: currentFolders, document: oneDoc, documents: [oneDoc, twoDoc],
+  folderForUri: (uri) => currentFolders.find((folder) => uri.fsPath.startsWith(`${folder.uri.fsPath}/`)) });
+assert.equal(roots.children.length, 2, 'one independent process per local root');
+for (const [index, folder] of [first, second].entries()) {
+  const child = roots.children[index];
+  const initialize = child.messages.find((message) => message.method === 'initialize');
+  assert.equal(initialize.params.rootUri, folder.uri.toString());
+  assert.deepEqual(initialize.params.workspaceFolders.map((item) => item.uri), [first.uri.toString(), second.uri.toString()]);
+  const body = JSON.stringify({ jsonrpc: '2.0', id: initialize.id, result: { capabilities: {} } });
+  child.stdout.emit('data', `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+}
+await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+for (const [index, doc] of [oneDoc, twoDoc].entries()) {
+  const opens = roots.children[index].messages.filter((message) => message.method === 'textDocument/didOpen');
+  assert.deepEqual(opens.map((message) => message.params.textDocument.uri), [doc.uri.toString()]);
+}
+for (const [event, type] of [['Create', 1], ['Change', 2], ['Delete', 3]]) {
+  roots.handlers[`File${event}`](twoDoc.uri);
+  assert.equal(roots.children[1].messages.at(-1).method, 'workspace/didChangeWatchedFiles');
+  assert.equal(roots.children[1].messages.at(-1).params.changes[0].type, type);
+}
+assert(!roots.children[0].messages.some((message) => message.method === 'workspace/didChangeWatchedFiles'), 'watchers preserve root isolation');
+currentFolders = [first];
+roots.workspace.workspaceFolders = currentFolders;
+roots.handlers.Folders({ added: [], removed: [second] });
+assert.equal(roots.children.length, 3, 'departed-root document gets isolated fallback process');
+assert(roots.children[1].messages.some((message) => message.method === 'shutdown'));
+assert(!roots.children[0].messages.some((message) => message.method === 'shutdown'), 'unchanged root stays live');
+assert.equal(roots.children[2].messages.find((message) => message.method === 'initialize').params.rootUri, null);
+const nested = local('/workspace/first/nested');
+currentFolders = [first, nested];
+roots.workspace.workspaceFolders = currentFolders;
+roots.handlers.Folders({ added: [nested], removed: [] });
+assert.equal(roots.children.length, 4, 'parent restarts after a nested root boundary is added');
+assert(roots.children[0].messages.some((message) => message.method === 'shutdown'));
+const restartedParent = roots.children[3].messages.find((message) => message.method === 'initialize');
+assert.equal(restartedParent.params.rootUri, first.uri.toString());
+assert.deepEqual(restartedParent.params.workspaceFolders.map((item) => item.uri), [first.uri.toString(), nested.uri.toString()]);
+console.log('PASS multi-root initialization, overlay routing, watched files, removal and nested ownership refresh');
 
 new state.client.CanLanguageClient(serverPath, state.channel, false).start();
 assert.deepEqual(state.launch().options, {}, 'existing three-argument callers preserve process cwd');

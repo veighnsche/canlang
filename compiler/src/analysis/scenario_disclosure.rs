@@ -13296,7 +13296,7 @@ mod tests {
     fn query_source_fixture() -> String {
         // A finite collector fixture, not an accepted replacement for the
         // original Workbench authorization/composition workflow.
-        let original = include_str!("../../../draft/CanWorkbench.can");
+        let original = include_str!("../../../draft/apps/CanWorkbench/CanWorkbench.can");
         let body = original
             .lines()
             .skip_while(|line| !line.trim_start().starts_with("let visible="))

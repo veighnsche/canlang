@@ -40,7 +40,7 @@ package workbench
 fn query_source_opt_in_preserves_actual_read_result_and_live_admission() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     // Verify only the three retained statements, not original guard admission.
-    let original = include_str!("../../draft/CanWorkbench.can");
+    let original = include_str!("../../draft/apps/CanWorkbench/CanWorkbench.can");
     let body: Vec<_> = SOURCE
         .lines()
         .filter(|line| {

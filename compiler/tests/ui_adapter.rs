@@ -76,7 +76,7 @@ fn bound_tabs_emit_source_options_and_request_owned_save_route() {
     let js = compiled["modules"][0]["js"].as_str().unwrap();
     assert!(
         js.contains(
-            "preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\"}]"
+            "preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\",caption:"
         ),
         "{js}"
     );
@@ -95,7 +95,7 @@ fn bound_tabs_emit_source_options_and_request_owned_save_route() {
 fn unguarded_bound_panels_reach_installed_ui_with_owned_labels_and_selection() {
     use std::{path::Path, process::Command};
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let original = include_str!("../../draft/CanLoyalty.can");
+    let original = include_str!("../../draft/apps/CanLoyalty/CanLoyalty.can");
     let heading = original
         .lines()
         .find(|line| line.trim_start().starts_with("message heading_rewards ="))
@@ -176,7 +176,11 @@ const {appDefinition}=await import(pathToFileURL(process.argv[2]));
 const context={appDefaultLocale:'en',preferredLocales:['nl'],csrfToken:'csrf-bound',
  path:'/loyalty',pollUrl:'/loyalty?fragment=body',preferenceVersions:{BoundLoyalty:{view:'7'}}};
 const page=appDefinition.pages.find(page=>page.path==='/loyalty');
-assert.deepEqual(page.preferenceFields,[{name:'view',options:['rewards','history'],defaultValue:'rewards'}]);
+const {caption,optionLabels,...field}=page.preferenceFields[0];
+assert.deepEqual(field,{name:'view',options:['rewards','history'],defaultValue:'rewards'});
+const {resolveCaption}=await import('@canlang/ui');
+assert.equal(resolveCaption(caption,context),'Beloningsweergave');
+assert.equal(resolveCaption(optionLabels.history,context),'Geschiedenis');
 for(const current of ['rewards','history']) {
  const bound=await page.admit({...context,preferences:{BoundLoyalty:{view:current}}});
  assert.equal(bound.preferences.BoundLoyalty.view,current);
@@ -287,9 +291,9 @@ fn original_loyalty_bound_panels_keep_their_checked_cases_labels_and_bodies_in_i
         })
     }
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
-    let original = include_str!("../../draft/CanLoyalty.can");
+    let original = include_str!("../../draft/apps/CanLoyalty/CanLoyalty.can");
     let mut db = SourceDb::new();
-    let id = db.add("draft/CanLoyalty.can".into(), original.into());
+    let id = db.add("draft/apps/CanLoyalty/CanLoyalty.can".into(), original.into());
     let path = root.join("packages/values/dist/catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
@@ -381,7 +385,7 @@ fn nominal_preference_tabs_keep_the_receiving_field_and_refuse_foreign_bindings(
     );
     assert!(output.status.success(), "{artifact}");
     let js = artifact["modules"][0]["js"].as_str().unwrap();
-    assert!(js.contains("preferenceFields:[{name:\"selection\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"submitted\"}]"), "{js}");
+    assert!(js.contains("preferenceFields:[{name:\"selection\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"submitted\""), "{js}");
     assert!(
         js.contains("version:c.preferenceVersions.NominalTabs.selection"),
         "{js}"
@@ -439,7 +443,8 @@ fn chained_preference_tabs_use_nearest_labels_and_receiving_identity() {
         let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert!(output.status.success(), "{artifact}");
         let js = artifact["modules"][0]["js"].as_str().unwrap();
-        assert!(js.contains("preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"submitted\"},{name:\"selection\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"draft\"}]"), "{js}");
+        assert!(js.contains("preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"submitted\""), "{js}");
+        assert!(js.contains("{name:\"selection\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"draft\""), "{js}");
         for field in ["status", "selection"] {
             assert!(js.contains(&format!("current:preferences.{field}")), "{js}");
             assert!(
@@ -504,7 +509,7 @@ fn grouped_preference_tabs_keep_inline_and_borrowed_checked_identities() {
                 "{annotation}: {target}: {artifact}"
             );
             let js = artifact["modules"][0]["js"].as_str().unwrap();
-            assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"draft\",\"submitted\"],defaultValue:\"submitted\"}]"), "{js}");
+            assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"draft\",\"submitted\"],defaultValue:\"submitted\""), "{js}");
             assert!(js.contains("current:preferences.view"), "{js}");
             assert!(
                 js.contains("version:c.preferenceVersions.GroupedTabs.view"),
