@@ -39,6 +39,13 @@ import {
   EXECUTION_CONTRACT_VERSION,
   STATE_CONTRACT_VERSION,
   T04A_PINNED_VERSIONS,
+  STD_EMAIL_V1_CONTRACT,
+  STD_ERRORS_V1_CONTRACT,
+  STD_IMAGES_V1_CONTRACT,
+  STD_MAILBOX_V1_CONTRACT,
+  STD_PAYMENTS_V1_CONTRACT,
+  STD_TEXT_GENERATION_V1_CONTRACT,
+  deliveryResultLeaves,
   type CanonicalFieldDefault,
   type CanonicalDeliveryDescriptor,
   type CanonicalJudgmentDeliveryDescriptor,
@@ -309,6 +316,7 @@ const KNOWN_INPUT_KINDS: ReadonlySet<string> = new Set([
   'file',
   'enum',
   'nominal',
+  'delivery',
 ]);
 
 const KNOWN_DEFAULT_KINDS: ReadonlySet<string> = new Set([
@@ -826,6 +834,7 @@ function checkCanonicalInput(
   modelNames: ReadonlySet<string>,
   operationKind: unknown,
   valueSchema?: NormalizedSchema,
+  valueTypes?: CanonicalValueTypes,
 ): CanonicalInputDef {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail(
@@ -840,7 +849,7 @@ function checkCanonicalInput(
     fail(
       'unknown_input_kind',
       `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
-        'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum.',
+        'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum, nominal, delivery.',
     );
   }
   if (typeof value['required'] !== 'boolean') {
@@ -932,6 +941,36 @@ function checkCanonicalInput(
   }
   if (value['enumValues'] !== undefined) {
     fail('malformed_descriptor', `Invalid ${what}: enumValues is present exactly for enum.`);
+  }
+  if (kind === 'delivery') {
+    // T04b §10.1 delivery-input join: the delivery descriptor carries the
+    // fenced T13 binding (engine-resolved receipt, never caller-submitted).
+    // The canonical delivery variant has no valueType/array/nullable/
+    // computedDefault slots: valueType rides the descriptor leaves (a
+    // present top-level valueType fails in checkValueType above when it
+    // disagrees, mirroring the ref precedent of dropping non-variant
+    // claims); array markers travel the engine opArrays channel like
+    // scalars; an explicit computedDefault is contradictory and rejects.
+    const deliveryMember = Object.getOwnPropertyDescriptor(value, 'delivery');
+    if (deliveryMember === undefined && 'delivery' in value ||
+        deliveryMember !== undefined && !Object.hasOwn(deliveryMember, 'value')) {
+      fail('malformed_descriptor', `Invalid ${what}: delivery must be own data.`);
+    }
+    if (deliveryMember === undefined) {
+      fail('malformed_descriptor', `Invalid ${what}: delivery inputs carry a delivery descriptor.`);
+    }
+    if (value['computedDefault'] === true) {
+      fail('malformed_descriptor', `Invalid ${what}: delivery inputs are engine-resolved receipts, never computed defaults.`);
+    }
+    const delivery = checkInputDeliveryDescriptor(deliveryMember.value, what, valueTypes);
+    return {
+      ...bounds,
+      name,
+      kind: 'delivery',
+      delivery,
+      required,
+      ...(fallback !== undefined ? { default: fallback } : {}),
+    };
   }
   return {
     ...bounds,
@@ -1038,6 +1077,153 @@ function checkModelDelivery(value: unknown, what: string, valueTypes?: Canonical
     }
   }
   return tag as unknown as CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor;
+}
+
+/**
+ * T04b §10.1 delivery-input join: the six T13 capability contracts the
+ * loader fences delivery operation inputs against. Built from the same
+ * live contract objects the L6 derivation fences (identical source of
+ * truth, never hardcoded versions): unknown capabilities/operations
+ * reject, versions fence exact, result leaves must match the verbatim
+ * declared set and types (leaf order is presentation, carried verbatim).
+ */
+const DELIVERY_CAPABILITY_TARGETS: ReadonlyMap<string, { version: number; results: ReadonlyMap<string, string> }> = (() => {
+  const contracts = [
+    STD_EMAIL_V1_CONTRACT,
+    STD_ERRORS_V1_CONTRACT,
+    STD_PAYMENTS_V1_CONTRACT,
+    STD_TEXT_GENERATION_V1_CONTRACT,
+    STD_IMAGES_V1_CONTRACT,
+    STD_MAILBOX_V1_CONTRACT,
+  ];
+  const join = new Map<string, { version: number; results: Map<string, string> }>();
+  for (const contract of contracts) {
+    const results = new Map<string, string>();
+    for (const op of contract.operations) results.set(op.name, op.result);
+    join.set(contract.name, { version: contract.version, results });
+  }
+  return join;
+})();
+
+/**
+ * Validate one delivery operation input descriptor: the structural
+ * identity/version profile (shared with model field tags) plus the
+ * T04b-p per-capability fence — the capability must be a T13 contract,
+ * the operation one of its sendable operations, the version the exact
+ * frozen contract number, and the result the declared nominal with its
+ * full verbatim leaf set. Anything failing rejects the whole set; the
+ * L3 reason vocabulary is unchanged (fence failures are
+ * `version_mismatch`, content failures `malformed_descriptor` with the
+ * precise member named, judgment-without-contract `dangling_reference`).
+ */
+function checkInputDeliveryDescriptor(value: unknown, what: string, valueTypes?: CanonicalValueTypes):
+  CanonicalDeliveryDescriptor | CanonicalJudgmentDeliveryDescriptor {
+  const tag = copyDeliveryData(value, what);
+  if (!isRecord(tag) || !Object.hasOwn(tag, 'kind') || tag['kind'] !== 'delivery') fail('malformed_descriptor', `Invalid ${what}: expected a delivery descriptor.`);
+  if (!['capability', 'operation', 'version', 'result'].every(key => Object.hasOwn(tag, key))) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery identity/version must match its standard or source Judgment profile.`);
+  }
+  const capability = tag['capability'], operation = tag['operation'], version = tag['version'];
+  const judgment = Object.hasOwn(tag, 'judgment');
+  if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '' ||
+      (judgment ? tag['judgment'] !== true || !/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(capability) ||
+        operation !== 'evaluate' || typeof version !== 'string' || version.length > 19 || !/^(0|[1-9][0-9]*)$/.test(version) || BigInt(version) > 9223372036854775807n
+        : typeof version !== 'number' || !Number.isFinite(version))) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery identity/version must match its standard or source Judgment profile.`);
+  }
+  const result = tag['result'];
+  if (!isRecord(result) || !Object.hasOwn(result, 'name') || !Object.hasOwn(result, 'fields') ||
+      typeof result['name'] !== 'string' || !Array.isArray(result['fields'])) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery descriptors carry a result with a name and leaf fields.`);
+  }
+  if (result['fields'].some((leaf: unknown) => !isRecord(leaf) || !Object.hasOwn(leaf, 'name') || !Object.hasOwn(leaf, 'type') ||
+      typeof leaf['name'] !== 'string' || typeof leaf['type'] !== 'string')) {
+    fail('malformed_descriptor', `Invalid ${what}: delivery result leaves require own name/type data.`);
+  }
+  if (judgment) {
+    if (result['name'] !== capability) fail('malformed_descriptor', `Invalid ${what}: Judgment result name must match its owning capability.`);
+    const declared = valueTypes?.contracts.find(entry => entry.name === result['name']);
+    if (declared === undefined) fail('dangling_reference', `Invalid ${what}: Judgment result has no checked nominal contract.`);
+    if (JSON.stringify(result['fields']) !== JSON.stringify(copyDeliveryData(declared.fields, what))) {
+      fail('malformed_descriptor', `Invalid ${what}: Judgment result leaves disagree with checked valueTypes.`);
+    }
+    return tag as unknown as CanonicalJudgmentDeliveryDescriptor;
+  }
+  const target = DELIVERY_CAPABILITY_TARGETS.get(capability as string);
+  if (target === undefined) {
+    fail(
+      'malformed_descriptor',
+      `Unknown capability ${JSON.stringify(capability)} for ${what}: ` +
+        'bound receipts bind the six T13 capability contracts (std.EmailV1, std.ErrorsV1, ' +
+        'std.PaymentsV1, std.TextGenerationV1, std.ImagesV1, std.MailboxV1); bound-local ' +
+        'deliveries have no T13 identity and never take the delivery shape.',
+    );
+  }
+  const declaredResult = target.results.get(operation as string);
+  if (declaredResult === undefined) {
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: ${JSON.stringify(capability)} has no sendable operation ${JSON.stringify(operation)}.`,
+    );
+  }
+  if (!Number.isInteger(version)) {
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: delivery version is the frozen capability contract number (got ${JSON.stringify(version) ?? 'undefined'}).`,
+    );
+  }
+  if (version !== target.version) {
+    fail(
+      'version_mismatch',
+      `Incompatible ${what}: delivery version ${JSON.stringify(version)} does not match ` +
+        `the frozen ${capability} contract version ${target.version}.`,
+    );
+  }
+  const nominal = result['name'] as string;
+  if (nominal !== declaredResult) {
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} is not declared for ${capability}.${operation} ` +
+        `(declared: ${JSON.stringify(declaredResult)}).`,
+    );
+  }
+  const declared = deliveryResultLeaves(nominal);
+  if (declared === null) {
+    // Unreachable while the T13 contracts and the leaf table agree:
+    // every declared result nominal transcribes its leaves. Fail loud
+    // if that join ever drifts.
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} declares no leaves.`,
+    );
+  }
+  const seen = new Set<string>();
+  for (const entry of result['fields'] as unknown[]) {
+    const leaf = entry as { name: unknown; type: unknown };
+    if (seen.has(leaf['name'] as string)) {
+      fail('duplicate_name', `Duplicate delivery leaf ${JSON.stringify(leaf['name'])} for ${what}.`);
+    }
+    seen.add(leaf['name'] as string);
+    const declaredLeaf = declared.find((candidate) => candidate.name === leaf['name']);
+    if (declaredLeaf === undefined || declaredLeaf.type !== leaf['type']) {
+      fail(
+        'malformed_descriptor',
+        declaredLeaf === undefined
+          ? `Invalid ${what}: leaf ${JSON.stringify(leaf['name'])} is not declared on ${JSON.stringify(nominal)}.`
+          : `Invalid ${what}: leaf ${JSON.stringify(leaf['name'])} declares type ${JSON.stringify(leaf['type'])} ` +
+            `(declared: ${JSON.stringify(declaredLeaf.type)}).`,
+      );
+    }
+  }
+  if (seen.size !== declared.length) {
+    const missing = declared.filter((leaf) => !seen.has(leaf.name)).map((leaf) => leaf.name);
+    fail(
+      'malformed_descriptor',
+      `Invalid ${what}: result ${JSON.stringify(nominal)} declares ${declared.length} leaves; ` +
+        `the descriptor carries ${seen.size} (missing: ${missing.map((name) => JSON.stringify(name)).join(', ')}).`,
+    );
+  }
+  return tag as unknown as CanonicalDeliveryDescriptor;
 }
 
 function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, valueSchema?: NormalizedSchema,
@@ -1298,7 +1484,7 @@ function loadCheckedDescriptorSet(
     const inputs: CanonicalInputDef[] = [];
     const seenInputs = new Set<string>();
     for (const input of operation['inputs'] as unknown[]) {
-      const checked = checkCanonicalInput(input, opName, modelNames, kind, valueSchema);
+      const checked = checkCanonicalInput(input, opName, modelNames, kind, valueSchema, valueTypes);
       if (seenInputs.has(checked.name)) {
         fail(
           'duplicate_name',
@@ -2334,7 +2520,7 @@ export function artifactToDescriptorSet(
         fail(
           'unknown_input_kind',
           `Unknown input kind ${JSON.stringify(inputKind)} for ${what}; ` +
-            'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum.',
+            'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum, nominal, delivery.',
         );
       }
       if (typeof input.required !== 'boolean') {
@@ -2408,6 +2594,24 @@ export function artifactToDescriptorSet(
           enumValues: [...(enumTag['values'] as string[])],
           ...(valueType !== undefined ? { valueType } : {}),
           ...(computedDefault !== undefined ? { computedDefault } : {}),
+          ...(fallback !== undefined ? { default: fallback } : {}),
+        });
+      } else if (inputKind === 'delivery') {
+        // T04b §10.1 delivery-input join: the artifact delivery tag carries
+        // the fenced T13 binding. A top-level valueType with a delivery tag
+        // already fails in artifactValueType above; nullable drops like
+        // scalars (no canonical slot); array markers travel the engine
+        // opArrays channel via the generic path below; computedDefault=true
+        // already fails in checkComputedDefault above.
+        const delivery = checkInputDeliveryDescriptor(
+          (input.field as { kind?: unknown }) as unknown, what, valueTypes,
+        );
+        inputs.push({
+          ...bounds,
+          name: input.name,
+          kind: 'delivery',
+          delivery,
+          required: input.required,
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
       } else {
