@@ -25,6 +25,7 @@ import type {
   WireValue,
 } from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
+import type { GivenUniqueKeyRule } from '../effects/staging.js';
 import { checkFieldMachine } from '../internal/machine.js';
 import { collectPredicateFields, isMetadataPath, validatePredicateShape } from '../policy/grants.js';
 
@@ -294,6 +295,13 @@ export interface InterimModelDef {
   readonly fields: Record<string, InterimFieldDef>;
   readonly refs: ReadonlyArray<InterimRefDef>;
   readonly uniqueKeys: ReadonlyArray<string>;
+  /**
+   * BGI-08 checked computed-key rules (`state.unique-key@1`): each binds
+   * one text field to its saved key evaluator. The pipeline stages
+   * State-owned claims/releases beside builtin uniques; absent reads as
+   * no computed keys (pre-BGI-08 tables are unaffected).
+   */
+  readonly givenUniqueKeys?: ReadonlyArray<GivenUniqueKeyRule>;
   /** Engine-local source-derived ordered required ref/enum constraints. */
   readonly uniqueGroups?: ReadonlyArray<ReadonlyArray<string>>;
   /** Optional owning row conditions for these indexed fields. Omitted keys
@@ -679,6 +687,61 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         `Invalid deleteMode on model ${JSON.stringify(model)}: ${JSON.stringify(def.deleteMode)}.`,
       );
     }
+    // BGI-08 computed-key rules: non-empty unique rule identities, each
+    // bound to a declared singular text field (nullable text admitted —
+    // nulls skip keys like builtin uniques) with a function evaluator.
+    // A rule on a builtin-unique field is a programmer bug here: the
+    // descriptor loader rejects that clash for generated tables, and a
+    // hand-built table must not smuggle it in either.
+    if (def.givenUniqueKeys !== undefined) {
+      if (!Array.isArray(def.givenUniqueKeys)) {
+        throw new Error(`Invalid model ${JSON.stringify(model)}: givenUniqueKeys must be an array.`);
+      }
+      const seenRules = new Set<string>();
+      for (const rule of def.givenUniqueKeys) {
+        if (typeof rule !== 'object' || rule === null || Array.isArray(rule)) {
+          throw new Error(
+            `Invalid computed-key rule on model ${JSON.stringify(model)}: rules must be objects.`,
+          );
+        }
+        if (typeof rule.rule !== 'string' || rule.rule === '') {
+          throw new Error(
+            `Invalid computed-key rule on model ${JSON.stringify(model)}: rules need non-empty identities.`,
+          );
+        }
+        if (seenRules.has(rule.rule)) {
+          throw new Error(
+            `Duplicate computed-key rule ${JSON.stringify(rule.rule)} on model ${JSON.stringify(model)}.`,
+          );
+        }
+        seenRules.add(rule.rule);
+        const field = def.fields[rule.field];
+        if (typeof rule.field !== 'string' || field === undefined) {
+          throw new Error(
+            `Unknown computed-key field ${JSON.stringify(rule.field)} on model ${JSON.stringify(model)}.`,
+          );
+        }
+        if (field.array !== undefined || (field.valueType !== undefined &&
+            field.valueType !== 'text' && field.valueType !== 'text?')) {
+          throw new Error(
+            `Invalid computed-key field ${JSON.stringify(rule.field)} on model ` +
+              `${JSON.stringify(model)}: rules bind singular text fields.`,
+          );
+        }
+        if (seenKeys.has(rule.field)) {
+          throw new Error(
+            `Invalid computed-key field ${JSON.stringify(rule.field)} on model ` +
+              `${JSON.stringify(model)}: the field already carries a builtin unique.`,
+          );
+        }
+        if (typeof rule.evaluate !== 'function') {
+          throw new Error(
+            `Invalid computed-key rule ${JSON.stringify(rule.rule)} on model ` +
+              `${JSON.stringify(model)}: evaluate must be a function.`,
+          );
+        }
+      }
+    }
     // B5 declared ownership: shape only here (unknown parent targets
     // terminate the cycle walk below and surface write-time `validation`
     // at the pipeline; the loader rejects dangling generated parents).
@@ -843,6 +906,15 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         ),
         locks: Object.freeze(frozenLocks),
         ...(containment !== undefined ? { containment: Object.freeze(containment) } : {}),
+        // BGI-08: evaluators pass through like hook `run` functions (never
+        // cloned); the frozen copies keep rule/field/evaluate together.
+        ...(def.givenUniqueKeys === undefined ? {} : {
+          givenUniqueKeys: Object.freeze(
+            def.givenUniqueKeys.map((rule) =>
+              Object.freeze({ rule: rule.rule, field: rule.field, evaluate: rule.evaluate }),
+            ),
+          ),
+        }),
       }) as InterimModelDef,
     );
     uniqueGroupProfiles.set(table.get(def.model)!, groups);
@@ -931,6 +1003,12 @@ export interface CanonicalModelTableOptions extends ModelTableOptions {
    * (intake-direct callers omit the channel entirely).
    */
   readonly containment?: ReadonlyMap<ModelName, InterimContainment>;
+  /**
+   * BGI-08 checked computed-key rules per model (the seam's resolved
+   * `state.unique-key@1` bindings: compiler-owned identities plus their
+   * saved evaluators). Models without an entry carry no computed keys.
+   */
+  readonly givenUniqueKeys?: ReadonlyMap<ModelName, ReadonlyArray<GivenUniqueKeyRule>>;
 }
 
 /**
@@ -1025,6 +1103,7 @@ export function buildModelTableFromCanonical(
     if (uniqueWhen !== undefined && Object.keys(uniqueWhen).some(key => uniqueKeys.includes(key))) {
       throw new Error(`Conditional unique cannot weaken an unconditional key on model ${JSON.stringify(model.name)}.`);
     }
+    const givenUniqueKeys = opts.givenUniqueKeys?.get(model.name);
     defs.push({
       model: model.name,
       fields,
@@ -1037,6 +1116,7 @@ export function buildModelTableFromCanonical(
       invariants: [],
       locks: [],
       ...(containment !== undefined ? { containment: { ...containment } } : {}),
+      ...(givenUniqueKeys === undefined ? {} : { givenUniqueKeys: [...givenUniqueKeys] }),
     });
   }
   return buildModelTable(defs, opts);

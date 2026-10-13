@@ -18,11 +18,16 @@
  */
 
 import type {
+  ModelName,
   OperationId,
   OperationName,
   OutboxIntent,
+  RecordId,
   ScheduleOp,
+  UniqueClaim,
+  UniqueRelease,
 } from '@canlang/contracts';
+import { decodeValue } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { checkJsonSafe, jsonClone } from '../internal/json.js';
 
@@ -378,6 +383,201 @@ export function stageFanoutChildOutcome(input: {
     'validation',
     `Fanout child outcome state must be terminal, got ${JSON.stringify(input.state)}.`,
   );
+}
+
+/**
+ * BGI-08 `state.unique-key@1` computed-key producer join. State owns this
+ * join: checked old/final text keys feed canonical releases/claims and the
+ * single fenced commit. The saved generated export computes one key from a
+ * projected text input and returns checked text; it receives no record
+ * handles, no store, no registry and no commit authority, and it chooses
+ * no claim namespace — the claim key name below is State-owned, derived
+ * from the compiler-owned rule identity, and can never collide with a
+ * builtin unique key name (builtin names are bare field names or
+ * comma-joined pairs; every computed name carries the rule's dots).
+ */
+
+/** BGI-08 one checked computed-key rule as the pipeline consumes it. */
+export interface GivenUniqueKeyRule {
+  /** Compiler-owned rule identity (`Owner.Model.field#keyword`). */
+  readonly rule: string;
+  /** Bound text field name. */
+  readonly field: string;
+  /**
+   * Saved generated export: pure text in, text out. State projects the
+   * exact input and checks the exact result with the Values text codec;
+   * the export observes no rows, no store and no commit.
+   */
+  readonly evaluate: (value: string) => string | Promise<string>;
+}
+
+/** BGI-08 State-owned claim namespace for one computed-key rule. */
+export function givenUniqueKeyName(rule: string): string {
+  return `given:${rule}`;
+}
+
+/**
+ * BGI-08 evaluation scope: the active-call/closed-scope/failure discipline
+ * for computed-key evaluation. One scope spans one pipeline run: at most
+ * one in-flight evaluation (overlapping calls fail), evaluation after
+ * `close()` fails as a late call, and the first canonical failure is
+ * retained — later evaluations rethrow it without rerunning generated
+ * behavior. The pipeline awaits evaluations sequentially, so overlap can
+ * only arise from direct misuse; the guard is explicit either way.
+ */
+export interface GivenUniqueKeyScope {
+  /**
+   * Evaluate one bound field value: null/undefined projects to no key
+   * (mirroring builtin unique skips); any other value must decode as
+   * exact text and the saved export must return exact text.
+   */
+  evaluate(rule: GivenUniqueKeyRule, value: unknown): Promise<string | null>;
+  /** Close the scope: the pipeline run donated its staging; late calls fail. */
+  close(): void;
+}
+
+export function createGivenUniqueKeyScope(): GivenUniqueKeyScope {
+  let closed = false;
+  let active = 0;
+  let failed: StateError | null = null;
+  const invalid = (message: string): StateError => new StateError('validation', message);
+  return {
+    async evaluate(rule: GivenUniqueKeyRule, value: unknown): Promise<string | null> {
+      const where = `Computed-key rule ${JSON.stringify(rule.rule)}`;
+      if (closed) throw invalid(`${where} evaluated after its staging scope closed (late call).`);
+      if (failed !== null) throw failed;
+      if (active !== 0) throw invalid(`${where} overlaps an in-flight evaluation.`);
+      if (value === null || value === undefined) return null;
+      active += 1;
+      try {
+        let projected: string;
+        try {
+          const decoded = decodeValue('text', value);
+          if (typeof decoded !== 'string') throw invalid(`${where} input must be text.`);
+          projected = decoded;
+        } catch (error) {
+          if (error instanceof StateError) throw error;
+          throw invalid(`${where} input must be text.`);
+        }
+        let result: unknown;
+        try {
+          result = await rule.evaluate(projected);
+        } catch (error) {
+          if (error instanceof StateError) throw error;
+          const message = error instanceof Error ? error.message : String(error);
+          throw invalid(`${where} saved export failed: ${message}`);
+        }
+        try {
+          const checked = decodeValue('text', result);
+          if (typeof checked !== 'string') throw invalid(`${where} result must be text.`);
+          return checked;
+        } catch (error) {
+          if (error instanceof StateError) throw error;
+          throw invalid(`${where} result must be text.`);
+        }
+      } catch (error) {
+        if (failed === null) failed = error instanceof StateError ? error : invalid(String(error));
+        throw failed;
+      } finally {
+        active -= 1;
+      }
+    },
+    close(): void {
+      closed = true;
+    },
+  };
+}
+
+/** BGI-08 net computed touches for one row transition. */
+export interface GivenUniqueKeyDiff {
+  readonly claims: UniqueClaim[];
+  readonly releases: UniqueRelease[];
+}
+
+/**
+ * BGI-08 diff old/final keys for one row: evaluates the bound field from
+ * each present side in rule order (sequential, deterministic), skips
+ * unchanged keys, and returns canonical claims/releases with State-owned
+ * key names. A null side means the row is absent there (create/remove);
+ * callers pass the pipeline's hook-adjusted rows so staged reads and the
+ * staged keys observe the same values.
+ */
+export async function diffGivenUniqueKeys(
+  scope: GivenUniqueKeyScope,
+  rules: ReadonlyArray<GivenUniqueKeyRule>,
+  model: ModelName,
+  recordId: RecordId,
+  before: Readonly<Record<string, unknown>> | null,
+  after: Readonly<Record<string, unknown>> | null,
+): Promise<GivenUniqueKeyDiff> {
+  const claims: UniqueClaim[] = [];
+  const releases: UniqueRelease[] = [];
+  for (const rule of rules) {
+    const keyName = givenUniqueKeyName(rule.rule);
+    const oldKey = before === null ? null : await scope.evaluate(rule, before[rule.field]);
+    const newKey = after === null ? null : await scope.evaluate(rule, after[rule.field]);
+    if (oldKey === newKey) continue;
+    if (oldKey !== null) releases.push({ model, keyName, keyValue: oldKey });
+    if (newKey !== null) claims.push({ model, keyName, keyValue: newKey, recordId });
+  }
+  return { claims, releases };
+}
+
+/** BGI-08 one installed row for installation/activation planning. */
+export interface GivenUniqueKeyInstallRow {
+  readonly model: ModelName;
+  readonly id: RecordId;
+  readonly data: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * BGI-08 installation/changed-code activation planner: evaluates every
+ * installed row's final key under the given rules and returns the canonical
+ * claims to commit through the standard fenced commit (the same claim path
+ * existing schema evolution uses, so store enforcement is shared). Rows
+ * colliding within the plan fail here as `conflict` before anything
+ * commits — mirroring activation's validate-before-flip — while collisions
+ * against already-committed claims surface at the fenced commit. The
+ * planner mutates nothing: a failed activation retains the prior
+ * schema/claims trivially. Callers planning changed code pass the NEW
+ * saved export as the rules' evaluator; a fingerprint mismatch between the
+ * checked binding and the resolved module must refuse before planning.
+ */
+export async function planGivenUniqueKeyInstall(
+  rulesByModel: ReadonlyMap<ModelName, ReadonlyArray<GivenUniqueKeyRule>>,
+  rows: ReadonlyArray<GivenUniqueKeyInstallRow>,
+): Promise<{ readonly claims: UniqueClaim[] }> {
+  const scope = createGivenUniqueKeyScope();
+  try {
+    const claims: UniqueClaim[] = [];
+    const seen = new Map<string, GivenUniqueKeyInstallRow>();
+    for (const row of rows) {
+      const rules = rulesByModel.get(row.model) ?? [];
+      for (const rule of rules) {
+        const key = await scope.evaluate(rule, row.data[rule.field]);
+        if (key === null) continue;
+        const identity = JSON.stringify([row.model, givenUniqueKeyName(rule.rule), key]);
+        const first = seen.get(identity);
+        if (first !== undefined) {
+          throw new StateError(
+            'conflict',
+            `Computed-key rule ${JSON.stringify(rule.rule)} collides on installed rows ` +
+              `${JSON.stringify(first.id as string)} and ${JSON.stringify(row.id as string)}.`,
+          );
+        }
+        seen.set(identity, row);
+        claims.push({
+          model: row.model,
+          keyName: givenUniqueKeyName(rule.rule),
+          keyValue: key,
+          recordId: row.id,
+        });
+      }
+    }
+    return { claims };
+  } finally {
+    scope.close();
+  }
 }
 
 /**
