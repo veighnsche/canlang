@@ -24,13 +24,15 @@
 //! CRUD `create`/`set` with `when`.
 
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
+use crate::analysis::generation_intake as intake;
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEffectCallTarget, IrEventSource, IrExpr,
     IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated,
     IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse,
-    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
+    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_async_without_derives, expr_uses_async,
+    is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
 use crate::diagnostic::Diagnostic;
@@ -1588,6 +1590,75 @@ pub(crate) struct ResolvedShow {
     pub renderer_style: Option<String>,
 }
 
+/// Bind-time evidence for a use-site seek: the compiling file's path, its
+/// current revision, and the use span. `None` when the span names no
+/// database source.
+fn use_evidence(db: &crate::source::SourceDb, span: &Span) -> Option<intake::AdoptEvidence> {
+    let (use_path, use_revision) =
+        db.iter()
+            .find(|(id, _)| *id == span.file)
+            .map(|(_, source)| {
+                (
+                    source.path.clone(),
+                    crate::source::sha256_hex(source.text.as_bytes()),
+                )
+            })?;
+    Some(intake::AdoptEvidence {
+        path: use_path,
+        revision: use_revision,
+        start: span.start,
+        end: span.end,
+    })
+}
+
+/// Adopt one handwritten legacy record for the live sought key.
+///
+/// Scans the same source roots the v1 collection uses. Directories the
+/// v1 parse already accepted are never re-read; every other directory is
+/// offered to [`intake::adopt_legacy_unit`], which enforces the exact
+/// kind/label match: `Ok(None)` is genuinely unbound, `Ok(Some)` is the
+/// single adoption, and `Err(count)` is an ambiguous multi-match. The
+/// bind-time evidence is the use-site file: its path, its current
+/// revision, and the use span.
+fn adopt_legacy_for_key(
+    evidence: Option<&intake::AdoptEvidence>,
+    roots: &[std::path::PathBuf],
+    records: &[(std::path::PathBuf, intake::UnitRecord)],
+    key: &intake::AssociationKey,
+) -> Result<Option<(String, intake::SavedGroup)>, usize> {
+    let Some(evidence) = evidence else {
+        return Ok(None);
+    };
+    let mut adopted = Vec::new();
+    for root in roots {
+        for name in intake::scan_unit_ids(root) {
+            let Ok(id) = intake::GenerationUnitId::parse(&name) else {
+                continue;
+            };
+            if records
+                .iter()
+                .any(|(known_root, known)| known_root == root && known.id == id)
+            {
+                continue;
+            }
+            let dir = root.join(intake::GENERATED_DIR).join(id.as_str());
+            if let Ok((record, files)) = intake::adopt_legacy_unit(&dir, &id, key, evidence) {
+                adopted.push((dir, record, files));
+            }
+        }
+    }
+    if adopted.len() > 1 {
+        return Err(adopted.len());
+    }
+    let Some((dir, record, files)) = adopted.into_iter().next() else {
+        return Ok(None);
+    };
+    Ok(Some((
+        record.id.as_str().to_string(),
+        intake::SavedGroup { record, dir, files },
+    )))
+}
+
 /// Saved Then inputs resolved for one compilation: renderer plans
 /// per `show` site, consumed view/style groups for packing, and
 /// coverage failures the driver diagnoses.
@@ -1752,9 +1823,11 @@ impl ThenBuildJoin {
             })
         };
         // Saved records by association key, across every source root.
+        // `roots` outlives this block: the legacy-adoption fallback in
+        // `resolve_unit` scans the same roots for handwritten records.
         let mut records: Vec<(std::path::PathBuf, intake::UnitRecord)> = Vec::new();
+        let mut roots: Vec<std::path::PathBuf> = Vec::new();
         {
-            let mut roots: Vec<std::path::PathBuf> = Vec::new();
             for (_, source) in db.iter() {
                 let root = std::path::Path::new(&source.path)
                     .parent()
@@ -1769,8 +1842,8 @@ impl ThenBuildJoin {
                     roots.push(root);
                 }
             }
-            for root in roots {
-                for name in intake::scan_unit_ids(&root) {
+            for root in &roots {
+                for name in intake::scan_unit_ids(root) {
                     let Ok(id) = intake::GenerationUnitId::parse(&name) else {
                         continue;
                     };
@@ -1783,7 +1856,9 @@ impl ThenBuildJoin {
                     };
                     // Unparseable records stay invisible here; `gen
                     // status` reports the breakage, and group reads
-                    // below catch missing primaries precisely.
+                    // below catch missing primaries precisely. Handwritten
+                    // legacy records are adopted on demand in
+                    // `resolve_unit`, never here.
                     if let Ok(record) = intake::UnitRecord::parse(&text, &id) {
                         records.push((root.clone(), record));
                     }
@@ -1826,6 +1901,42 @@ impl ThenBuildJoin {
                 .filter(|(_, record)| intake::AssociationKey::of(&record.source) == *key)
                 .collect();
             if matches.is_empty() {
+                // Legacy fallback: adopt one handwritten record for the
+                // live sought key. Kind and label must match exactly, so
+                // genuinely unbound units keep reporting `no saved unit`.
+                // Unadoptable inline `$` seeks lower as unstyled bound
+                // groups; every other unbound kind stays a failure.
+                let evidence = use_evidence(db, &span);
+                match adopt_legacy_for_key(evidence.as_ref(), &roots, &records, key) {
+                    Ok(Some(adopted)) => return Some(adopted),
+                    Ok(None) => {
+                        if let Some(evidence) = evidence.as_ref() {
+                            if let Some((record, files)) =
+                                intake::synthesize_inline_unit(key, evidence)
+                            {
+                                // Synthetic units own no directory: the
+                                // marker path must fail loudly if ever
+                                // read, never resolve to real bytes.
+                                let dir = std::path::PathBuf::from("<inline-synthetic>");
+                                return Some((
+                                    record.id.as_str().to_string(),
+                                    intake::SavedGroup { record, dir, files },
+                                ));
+                            }
+                        }
+                    }
+                    Err(count) => {
+                        join.missing.push((
+                            span,
+                            format!(
+                                "cannot lower {what}: {} saved units match {}; reconcile the association with an explicit bind (action: bind)",
+                                count,
+                                key.describe(),
+                            ),
+                        ));
+                        return None;
+                    }
+                }
                 join.missing.push((
                     span,
                     format!(
@@ -1890,12 +2001,21 @@ impl ThenBuildJoin {
                 else {
                     continue;
                 };
-                if group
+                // Adopted legacy views carry the handwritten renderer as
+                // `server.js` instead of the v1 `implementation.js` module
+                // name; either module satisfies the renderer requirement.
+                let has_module = group
                     .files
                     .iter()
                     .find(|f| f.rel_path == "implementation.js")
-                    .is_none_or(|f| String::from_utf8(f.bytes.clone()).is_err())
-                {
+                    .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok())
+                    || (group.record.provenance.origin == intake::ProvenanceOrigin::Adopted
+                        && group
+                            .files
+                            .iter()
+                            .find(|f| f.rel_path == "server.js")
+                            .is_some_and(|f| String::from_utf8(f.bytes.clone()).is_ok()));
+                if !has_module {
                     join.missing.push((
                         edge.use_span,
                         format!(
@@ -3316,7 +3436,46 @@ impl<'a> Emitter<'a> {
     pub fn new(ir: &'a IrProgram) -> Self {
         let mut emitter = Self::with_value_types(ir, None);
         emitter.value_types = emitter.collect_judgment_value_types();
+        emitter.seed_completion_error_contract();
         emitter
+    }
+
+    /// Completion handlers admit the DESIGN §8 envelope: the
+    /// statically-closed `DeliveryError` nominal must resolve even
+    /// when no census roots carry it (deployment-bound capabilities
+    /// record no std roots). The closure is static std text leaves,
+    /// so no source-backed claim is fabricated. Seeded on the base
+    /// inventory so both the base and the census overlay carry it.
+    fn seed_completion_error_contract(&mut self) {
+        let has_completion = self.ir.items.iter().any(|item| {
+            matches!(
+                &item.kind,
+                IrItemKind::Scenario {
+                    event_source: Some(
+                        IrEventSource::DeliveryCompleted { .. }
+                            | IrEventSource::StandardCompleted { .. }
+                    ),
+                    ..
+                }
+            )
+        });
+        if !has_completion {
+            return;
+        }
+        let inventory = self.value_types.get_or_insert_default();
+        if inventory
+            .contracts
+            .iter()
+            .any(|contract| contract.name == "DeliveryError")
+        {
+            return;
+        }
+        let mut seen = BTreeSet::new();
+        let mut contracts = Vec::new();
+        if collect_std_value_contracts("DeliveryError?", &mut seen, &mut contracts).is_none() {
+            return;
+        }
+        inventory.contracts.extend(contracts);
     }
 
     /// Reuse the already checked inventory when collecting artifact models.
@@ -4173,6 +4332,38 @@ impl<'a> Emitter<'a> {
     /// failing loudly at runtime.
     fn throw_expr(&self, message: &str) -> String {
         format!("(() => {{ throw new Error({}); }})()", js_string(message))
+    }
+
+    /// Boundary refusal for async predicates that lower through a derive
+    /// body or a capability grant: those paths keep the pinned verbatim
+    /// "Values any/all require a synchronous predicate" refusal, while
+    /// builtin-only async predicates may lower to the awaited loop.
+    /// Returns the throwing placeholder when the refusal fires.
+    fn refuse_derive_async_predicate(
+        &mut self,
+        target: &IrCallTarget,
+        args: &[TypedExpr],
+        span: Span,
+    ) -> Option<String> {
+        let IrCallTarget::Builtin { id, .. } = target else {
+            return None;
+        };
+        if id != "any" && id != "all" {
+            return None;
+        }
+        let predicate = args.get(1)?;
+        let IrExpr::Lambda { body, .. } = &predicate.expr else {
+            return None;
+        };
+        if !expr_uses_async(body) || expr_async_without_derives(body) {
+            return None;
+        }
+        self.unsupported(
+            "scoped predicate",
+            "Values any/all require a synchronous predicate",
+            span,
+        );
+        Some(self.throw_expr("Values any/all require a synchronous predicate"))
     }
 
     /// Whether hook lowering is active.
@@ -5838,6 +6029,9 @@ impl<'a> Emitter<'a> {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
+        if let Some(refusal) = self.refuse_derive_async_predicate(target, args, span) {
+            return refusal;
+        }
         if let Some(call) = self.lower_native_any(target, args, None, span, result) {
             return call;
         }
@@ -5870,6 +6064,9 @@ impl<'a> Emitter<'a> {
     ) -> String {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
+        }
+        if let Some(refusal) = self.refuse_derive_async_predicate(target, args, span) {
+            return refusal;
         }
         if let Some(call) = self.lower_native_any(target, args, Some(slots), span, result) {
             return call;
@@ -6425,13 +6622,10 @@ impl<'a> Emitter<'a> {
             }
         }
         if is_structural(&left.ty) || is_structural(&right.ty) {
-            if self.in_hook() {
-                return self.hook_gap(
-                    "hook equality",
-                    "structural equality has no qualified native hook carrier profile",
-                    span,
-                );
-            }
+            // `equalValue` is pure values logic over in-memory snapshot
+            // values: it needs no store, carrier, or ambient context, so
+            // it lowers identically inside hooks. (Decimal/money scalars
+            // keep their own hook refusal below per the T31 pin.)
             self.stdlib.insert("equalValue".to_string());
             let id = self.canonical_type_id(&left.ty, span);
             return negate_call(negate, &format!("equalValue({}, {l},{r})", js_string(&id)));
@@ -10444,6 +10638,8 @@ impl<'a> Emitter<'a> {
                 let (identity, input_count) = match source {
                     IrEventSource::DeliveryProgressed(identity) => (identity.as_str(), 1),
                     IrEventSource::StandardCompleted { source, .. } => (source.as_str(), 4),
+                    IrEventSource::DeliveryCompleted { source, .. } => (source.as_str(), 4),
+                    IrEventSource::InstrumentationError => ("instrumentation.error", 0),
                     IrEventSource::MailboxReceived { source, .. } => (source.as_str(), 1),
                     IrEventSource::TeamsMemberRemoved => ("teams.member_removed", 3),
                     _ => continue,
@@ -11375,7 +11571,11 @@ impl<'a> Emitter<'a> {
                             IrEventSource::Declared(identity)
                             | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
                             IrEventSource::StandardCompleted { source, .. }
+                            | IrEventSource::DeliveryCompleted { source, .. }
                             | IrEventSource::MailboxReceived { source, .. } => Some(source.clone()),
+                            IrEventSource::InstrumentationError => {
+                                Some("instrumentation.error".into())
+                            }
                             IrEventSource::TeamsMemberRemoved => {
                                 Some("teams.member_removed".into())
                             }
@@ -12177,6 +12377,38 @@ impl<'a> Emitter<'a> {
         })
     }
 
+    /// Invocation input for a user-nominal (contract/message) type
+    /// name: resolves through the published value contracts, never the
+    /// std-only nominal table. Array and function shapes stay
+    /// unsupported: completion results name one value shape.
+    fn user_nominal_input(&self, name: &str, declared: &str) -> Option<JsOperationField> {
+        let base = declared.strip_suffix('?').unwrap_or(declared);
+        if base.ends_with("[]") || base.ends_with("[]!") || base.contains('(') {
+            return None;
+        }
+        self.value_types
+            .as_ref()?
+            .contracts
+            .iter()
+            .find(|contract| contract.name == base)?;
+        Some(JsOperationField {
+            min: None,
+            max: None,
+            name: name.to_string(),
+            field: JsMcpField::Nominal {
+                name: base.to_string(),
+            },
+            value_type: Some(declared.to_string()),
+            required: true,
+            nullable: declared.ends_with('?'),
+            array_required: None,
+            computed_default: false,
+            default: None,
+            description: None,
+            choices: None,
+        })
+    }
+
     /// Original declaration inputs only: handler/cohort arguments are separate.
     fn declared_event_input_fields(&self, declaration: &IrItem) -> Option<Vec<JsOperationField>> {
         let IrItemKind::Event { fields } = &declaration.kind else {
@@ -12314,6 +12546,38 @@ impl<'a> Emitter<'a> {
                     self.standard_completion_input("error", "DeliveryError?")?,
                 ]
             }
+            // Adapter completions share the DESIGN §8 four-field shape;
+            // the result name may be a user contract outside the
+            // std-only nominal table, so fall back to the published
+            // value contracts before refusing.
+            IrEventSource::DeliveryCompleted { result_type, .. } => {
+                let result = if result_type.ends_with('?') {
+                    result_type.clone()
+                } else {
+                    format!("{result_type}?")
+                };
+                vec![
+                    scalar_input("delivery_id", JsMcpField::String, "text"),
+                    scalar_input(
+                        "status",
+                        JsMcpField::Enum {
+                            values: vec![
+                                "succeeded".into(),
+                                "failed".into(),
+                                "unknown".into(),
+                                "skipped".into(),
+                            ],
+                        },
+                        "enum(succeeded,failed,unknown,skipped)",
+                    ),
+                    self.standard_completion_input("result", &result)
+                        .or_else(|| self.user_nominal_input("result", &result))?,
+                    self.standard_completion_input("error", "DeliveryError?")?,
+                ]
+            }
+            // The instrumentation envelope stays opaque (the checker
+            // narrows no event fields): the handler receives it whole.
+            IrEventSource::InstrumentationError => Vec::new(),
         };
         if let IrEventSource::Declared(identity) = event {
             let declaration = self

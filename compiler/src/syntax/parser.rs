@@ -6757,6 +6757,9 @@ impl<'a> Parser<'a> {
                         self.error_for_line(&mut inner, child);
                         continue;
                     }
+                    // `button` is a catalog action control with full downstream
+                    // lowering support (see codegen `button` arms); prompted
+                    // views admit it alongside the canonical controls.
                     if prompted
                         && !matches!(
                             child_word.as_str(),
@@ -6765,6 +6768,7 @@ impl<'a> Parser<'a> {
                                 | "form"
                                 | "action"
                                 | "actions"
+                                | "button"
                                 | "require"
                                 | "history"
                                 | "text"
