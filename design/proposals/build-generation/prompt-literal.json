@@ -1,0 +1,36 @@
+{
+  "status": "proposed syntax refinement, not adopted or implemented; accepted quoted prompt carriers and current drafts are not rewritten",
+  "human_suggestion": "Use a visible marker such as $\"prompt\" because build-time code generation can cost money.",
+  "recommendation": "Use $\"...\" as one consistent static generation-prompt literal in Given, When and Then. Ordinary \"...\" stays text/metadata. Existing owner headers determine target, type and output; the marker does not define a separate generation engine.",
+  "lexical_form": "A dollar sign immediately followed by a JSON double-quoted string; preserve the existing JSON escape and Unicode rules. $ \"...\" is invalid. No interpolation, runtime evaluation or message-variant suffix.",
+  "candidate_source_forms": [
+    "trait completable $\"Add the declared completion fields and supported rules.\"",
+    "Task {title:text trim min=1} trait $\"Add pinned:bool=false.\"",
+    "do $\"Stage the declared task update through the canonical effects.\"",
+    "style $\"A calm layout with readable spacing; stack on narrow screens.\"",
+    "style TaskList $\"Readable task rows and visible keyboard focus.\"",
+    "view TaskTile(row:Task) $\"Arrange admitted task fields and declared controls.\"",
+    "invariant Booking: $\"Active bookings for the same desk must not overlap.\"",
+    "policy Claim read=reviewer where=$\"Only claims at assigned locations.\"",
+    "lock Invoice fields=total,currency when=$\"Once the invoice has been issued.\"",
+    "rule append_only $\"Make the target record immutable after creation.\"\nappend_only Movement"
+  ],
+  "given_rule_scope": "The broader rule/predicate targets above remain the separate proposed extension in design/proposals/given-rule-prompts/proposal.json, including unresolved typing, phase and dependency contracts; the marker does not adopt them.",
+  "generation_and_cost": [
+    "The literal marks a discoverable generation unit/intent, not an instruction to charge or invoke a coding tool whenever a build visits it.",
+    "Explicit selected-unit generation/fresh/refine/retry may invoke the configured coding CLI/model, using its existing bounded controls and truthful available usage/cost reporting.",
+    "Ordinary build/check uses saved compatible files with zero AI calls. Missing/stale files diagnose and identify the unit; they do not silently generate.",
+    "Keep independently selected units, tracked current files, direct refinement, cooperative leases and reset-preserves-current semantics unchanged."
+  ],
+  "non_generation_contexts": "Prompt literals are invalid as ordinary runtime string values, labels, descriptions, translation/message variants or arbitrary expressions. A specifically supported generated default/derive/rule slot requires its owning typed contract. Dollar signs within ordinary strings/comments remain content.",
+  "verified_current_facts": [
+    "Canonical lexer has no authored dollar punctuation. Today the prefix is rejected as E1007 followed by ordinary STRING token; no new lexer behavior is claimed.",
+    "Targeted examples/compiler-fixture authored .can scans found no dollar-sign use. Compiler-generated $cohort metadata is unrelated to authored prompt syntax.",
+    "Canonical grammar has static JSON strings and no source string interpolation; the proposal preserves that distinction."
+  ],
+  "open_decisions": [
+    "Human adoption of the marker and exact supported generation slots; broader Given rule carrier/phase/dependency decisions remain separate.",
+    "If adopted, revise the accepted source-carrier requirements/choices and authoring samples before implementing BGI grammar. No compatibility alias is required merely for an unimplemented draft surface."
+  ],
+  "implementation_scope": "Design record only: no compiler/runtime, draft corpus migration, provider invocation or new generation control in this change."
+}

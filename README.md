@@ -114,3 +114,5 @@ The [VS Code-compatible extension](editors/vscode/README.md) provides highlighti
 - [Application drafts](https://github.com/veighnsche/canlang-drafts/blob/main/README.md): larger business sources and their companion requirements; [coverage and remaining gaps](https://github.com/veighnsche/canlang-drafts/blob/main/MIGRATION.md) records unfinished behavior.
 
 The handwritten JavaScript targets in `draft/` illustrate desired output. They are design witnesses, not compiler-generated artifacts or evidence that their proposed imports and complete applications run.
+
+Draft companion groups now live under `draft/apps/<CanApp>/`, with shared packages under `draft/shared/`. Each group keeps its `.can` source, requirements and legacy `.mjs` witness together, plus clearly marked drafted implementation units under `can.generated/`. The [draft generation index](draft/GENERATION_DRAFTS.md) shows the adopted prompt syntax and saved-file sketches; the [organizer](draft/tools/organize.py) is a dry-run-first authoring helper, not the generation engine.

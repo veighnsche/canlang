@@ -100,6 +100,13 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
   const installed = await readInventory.call(store, inventoryOwner);
   await current();
   if (installed === null) return null;
+  const installedBytes = structural(installed);
+  const refresh = async (revision: Revision): Promise<void> => {
+    await current(revision);
+    const observed = await readInventory.call(store, inventoryOwner);
+    await current(revision);
+    if (structural(observed) !== installedBytes) refuse('installed original declaration inventory changed');
+  };
   if (installed.authority.app !== scope.app || installed.authority.stateOwner !== inventoryOwner ||
       installed.authority.receiver.app !== scope.app || installed.authority.receiver.owner !== scope.owner ||
       installed.authority.receiver.team !== scope.owner || installed.inventory.owner !== inventoryOwner) {
@@ -363,5 +370,5 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     return origin;
   };
   await current();
-  return Object.freeze({ installed, set, bound, event, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource });
+  return Object.freeze({ installed, set, bound, event, callable, sendGuard, delivery, occurrences, prepare, prepareControl, revalidateSource, refresh });
 }

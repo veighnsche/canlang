@@ -1,8 +1,8 @@
 # Remaining CanLang work
 
-## Current execution after Muse shutdown — 2026-10-13
+## Current execution resumed through Muse — 2026-10-13
 
-The human requested stopping the usage-limited Muse run, preserving all unfinished workspace work in local main, and finishing its last task. Muse exited through its supported shutdown; its timer executor and this chat's monitor are stopped. The four original Codex workers remain stopped. The saved 41-position sequence retains the complete original backlog; Codex root is taking over only Position 7's original CanChat terminal/regenerate slice and necessary defining corrections. All original acceptance clauses, IDs and holds remain. Apply [finite execution](../AGENTS.md#finite-execution).
+The human explicitly resumed the SAME Muse run with Muse Spark 1.3 Contributor at MAX and live Contributor ON. The complete saved 41-position backlog remains its scope. All four original Codex workers stay stopped; one Muse coordinator/shared-native source/build/capture writer is allowed, with the four native lanes held/read-only except an explicit serialized handoff. Codex preserves/reviews local-main checkpoints and supervises through the authorized 25-minute check. Original task IDs, security/evaluation order, source/adoption/default/preparation/activation/publication holds and finite acceptance remain. Apply [finite execution](../AGENTS.md#finite-execution).
 
 | Existing lane | Complete remaining list / original accounting | Current scoped outcome / remaining work |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ The human requested stopping the usage-limited Muse run, preserving all unfinish
 
 Counts overlap and use different units; do not sum into independent jobs, a completion percentage or a finish-time estimate. Source/tested/reviewed components are not whole native application acceptance. Accepted first/count/pair/ancestor/combined/Email/Office and other finite outcomes stay closed.
 
-Current shutdown disposition: Position 2 installed Values serving remains scoped CLEAR; Position 3's actual physical D1/DO bounded planner exit is independently CLEAR (24/24, affected 28 reused). Position 11's bounded first-query leaf remains CLEAR; its ordinary/transitive source seal required the final defining-module correction, now independently CLEAR with the original target-only corruption refusal. New current-parent/reference SEND guards and late target-await membership revocation controls pass 2/2. Position 7's preserved original CanChat runtime retry remains unqualified at this checkpoint; previous failures remain failed evidence. All concurrent IDE/LSP/UI/CI/design edits are preserved as unfinished checkpoints, with no whole feature/plan acceptance. No recurring dispatch cadence or worker resumption remains active.
+Current handoff disposition: Position 2 installed Values serving and Position 3 genuine physical D1/DO bounded planner remain independently CLEAR. Position 11's bounded first-query and final ordinary/transitive defining-module source seals are CLEAR; full Creative still has eight E6008 findings. Position 7 remains UNQUALIFIED: the genuine first File-bearing ask committed, but the full original terminal/regenerate test timed out at unchanged 900000ms (test900020ms/process900.80s), before full acceptance. Source guard controls2/2 and nominal/private assignment controls37/37 pass at their scopes. Latest per-call opaque declaration reuse has normal CF emission0 and independent source CLEAR; affected runtime qualification is pending. No current source, File, Identity or freshness verdict is cached. Concurrent human IDE/UI/design/draft work remains separately unfinished; preservation does not imply feature acceptance.
 
 ### Dispatch and exact dependencies
 
@@ -21,7 +21,7 @@ Current shutdown disposition: Position 2 installed Values serving remains scoped
 2. Each worker skips only a missing finite producer/profile/credential leaf and takes the next ready original task. Packages owns shared CI/common fixes alone. Capability owns State/Work behavior; Compiler owns source/IR/emission; Dev owns actual host/private native consumers. Actual released outputs, not whole producer plans, unlock joins.
 3. Serialize only real shared-file or consumed-output conflicts. Commit source/tests/related records coherently; freeze actual captured inputs until cleanup. Reuse unchanged owning validation and independent defining reviews. No PR/push/deploy/publication, duplicate intake-only commits, new programme/ledger or standing polling agent.
 4. Missing external leaves remain explicit: G3 required model/account support, actual multiple-owner/separate-store serialization/publication interruption host, release runtime/ICU/tzdb/CLDR corpus and each named provider credential/profile. Exact source/adoption/preparation/default/activation/publication/BDD3/Task22/OUTBOX recipient holds remain. Consultation authorization lifts none. Ordinary finite engineering decisions belong to defining workers/coordinator and JEV.
-5. Any future resumption requires the human's instruction. Reuse accepted finite scopes and take exact remaining original tasks from the saved sequence; do not infer full-plan closure from the shutdown or checkpoint.
+5. This resumption is explicitly human-authorized. Reuse accepted finite scopes and finish ready original tasks across all41 positions; skip only exact held/external outputs and do not infer whole-plan closure from a checkpoint.
 
 ## Historical consolidated inventory — 2026-10-06
 

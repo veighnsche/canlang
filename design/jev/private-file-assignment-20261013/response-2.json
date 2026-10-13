@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "design": {
+      "type": "choice",
+      "choice": "private_assignment",
+      "confidence": 0.95,
+      "probabilities": {
+        "private_assignment": 0.97,
+        "write_producer": 0.02,
+        "keep_refusal": 0.01
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1081,
+    "output_tokens": 44
+  }
+}

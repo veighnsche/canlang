@@ -1,8 +1,10 @@
-/** UNFINISHED original CanChat native consumer, held at the human's wind-down.
- * All four invariants/six locks and tuple/SEND/facade producers are consumed.
- * Latest attempt stopped at catalog freshness preflight (317ms); the normal
- * catalog refresh completed, but no application retry/assertions ran afterward.
- * Prepared terminal callback/regenerate assertions below are not yet run.
+/** UNFINISHED original CanChat native consumer, resumed under Muse.
+ * Original source, Files, Identity, receipt/replay assertions and 900000ms
+ * timeout remain. Latest full run committed the first File-bearing ask, then
+ * timed out at 900020ms before terminal/regenerate qualification.
+ * Scoped guard controls pass 2/2; nominal/File controls pass 37/37. The latest
+ * per-call opaque declaration reuse builds and is source-reviewed, but its
+ * affected runtime result is still pending. Retained failures remain failures.
  * File-bearing positive provider dispatch remains unsupported by the installed
  * TextGeneration profile; the empty-attachment journey does not qualify it.
  */

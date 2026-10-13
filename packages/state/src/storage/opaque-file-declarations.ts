@@ -336,7 +336,9 @@ function originalDeliveryInstance(bound: BoundOpaqueDeclarations, selected: Fram
 /** Root supplies complete model/artifact correspondence from its actual loader. */
 export function bindOpaqueFileDeclarations(sets: readonly FrameworkOpaqueDeclarationSet[],
   validateModels: (set: FrameworkOpaqueDeclarationSet) => void): ReadonlyMap<string, BoundOpaqueDeclarations> {
-  const detached = closedJSON(sets) as readonly FrameworkOpaqueDeclarationSet[];
+  // Freeze this already-detached own-data cohort before any profile binding;
+  // its pure schema preparation can then be reused across every declaration.
+  const detached = deepFreeze(closedJSON(sets)) as readonly FrameworkOpaqueDeclarationSet[];
   const output = new Map<string, BoundOpaqueDeclarations>();
   for (const set of detached) {
     record(set, ['id', 'inventory', 'snapshot', 'sources', 'canonicalModels', 'artifactModels', 'valueTypes', 'originalContracts', 'valueDefaults', 'declarations']);

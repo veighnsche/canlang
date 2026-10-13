@@ -1,0 +1,42 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "user_need": "Traits are currently mostly model/field modifiers; user wants natural-language Given declarations and new local concepts in the same family as policy, unique, invariant and lock. They ask whether this is supported, not authorization to implement a revised language now.",
+    "verified_scope": [
+      "Generation engine is unimplemented. Accepted BGEN01/02 carrier is named/inline trait attached to a model/field. Model traits may add fields/supported invariants/hooks; field traits constrain/default only their field. No builtin redefinition, policy grants or invented operations.",
+      "Compiler Given parsing has closed dispatch for policy/lock/unique/retain/invariant/derive etc; no general user-defined keyword dispatch or prompt-bearing predicate ABI.",
+      "Canonical policies grant reads through explicit principals/row filters/field selectors; matching grants union and permission filtering precedes viewer query/aggregation. Decision predicates can inspect authority state without leaking it.",
+      "Invariants validate proposed final state and recheck dependent rows; locks inspect pre-state so the sealing transition can set final fields. Composite uniqueness/cross-row rules need the canonical storage-owner atomic fence, not an unfenced JavaScript existence check.",
+      "Saved editable JS/CSS/contributions and stable per-unit retry/refine/reset are accepted. Server JS targets workerd through checked wrappers and narrow roles/effects. Ordinary builds use saved bytes without AI."
+    ],
+    "examples": [
+      "Invoice numbered issuance/immutable issued snapshots combines uniqueness, proposed-state invariants and pre-state locks.",
+      "Stock immutable movements, unique source identity and nonnegative per-location balances need cross-row dependency/final-state/atomic-commit semantics.",
+      "Inbox queue staff visibility and submitted reply immutability combine explicit row/field policy scope, composite uniqueness and pre-state locks."
+    ],
+    "comparison": "All alternatives must offer named reusable and inline source prompts, same saved lifecycle, visible checked targets/contributions/contracts and preservation of authorization, values, dependency tracking, phase/order, fences and replay. Existing primitives such as text trim min=1 stay deterministic. Local vocabulary does not redefine builtins. No alternative is implemented; results are advice, not adoption.",
+    "remaining_uncertainty": "Exact spelling/signatures/field selector parameters and generated-rule dependency/read contracts have not been chosen. True semantics requiring an unsupported runtime mechanism cannot be claimed merely by writing JS."
+  },
+  "questions": {
+    "carrier": {
+      "type": "choice",
+      "instructions": "Which authoring mechanism best covers the broader Given prompt outcome in state while staying simple and agent-first? Compare the alternatives on the same behavior, visible contracts, change cost and limits; none is implemented.",
+      "criteria": {
+        "targeted_rules": "Allow prompt alternatives on known Given declaration/predicate targets and a general named/inline local rule contributor. Retain trait for model/field composition. Clear phase/output kinds, some extra syntax; explicit policy headers keep grant principals/fields visible.",
+        "broad_traits": "Broaden the existing trait mechanism to every Given declaration and local declaration-level rule application; reuse one carrier/lifecycle and target metadata. Fewer new concepts but trait means more than model/field composition. Builtin headers/grants and phase contracts remain explicit.",
+        "one_extension": "Replace or unify all Given generation under one named/inline generic extension carrier with typed target/output contracts. One universal mechanism, larger accepted-syntax revision and wrapper syntax, no implied unlimited semantics.",
+        "open": "Keep the scope revision undecided if none of these satisfies the user outcome simply; name the unresolved contract rather than choosing a cosmetic keyword."
+      }
+    },
+    "semantics": {
+      "type": "choice",
+      "instructions": "Which initial semantic mechanism most appropriately supplies custom Given rules beyond field properties, given these exact phase, dependency, authority and atomicity requirements? Assess expressibility and finite implementation scope equally.",
+      "criteria": {
+        "canonical_and_bound": "Generate checked canonical declaration contributions where possible; use declared workerd JS predicate/default/derive bodies only through supported phase/read/dependency contracts. Unique/lock/policy/invariant retain canonical enforcement. Diagnose a genuinely missing runtime primitive.",
+        "canonical_only": "Initially support every requested rule as generated canonical Can expansion only. Smallest runtime change and analyzer reuse; cannot satisfy behavior genuinely beyond the current expression language until another accepted seam exists.",
+        "phase_plugins": "Permit general typed workerd JS rule plugins at explicitly declared evaluation phases with read/dependency/effect contracts. More novel behavior directly, but more runtime/protocol work; canonical grants, owner fences and commit still cannot be bypassed.",
+        "open": "Leave the semantic extension strategy unresolved pending a concrete unsupported behavior and its required contract."
+      }
+    }
+  }
+}

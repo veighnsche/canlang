@@ -1,0 +1,42 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "user_need": "Traits are currently mostly model/field modifiers; user wants natural-language Given declarations and new local concepts in the same family as policy, unique, invariant and lock. They ask whether this is supported, not authorization to implement a revised language now.",
+    "verified_scope": [
+      "Generation engine is unimplemented. Accepted BGEN01/02 carrier is named/inline trait attached to a model/field. Model traits may add fields/supported invariants/hooks; field traits constrain/default only their field. No builtin redefinition, policy grants or invented operations.",
+      "Compiler Given parsing has closed dispatch for policy/lock/unique/retain/invariant/derive etc; no general user-defined keyword dispatch or prompt-bearing predicate ABI.",
+      "Canonical policies grant reads through explicit principals/row filters/field selectors; matching grants union and permission filtering precedes viewer query/aggregation. Decision predicates can inspect authority state without leaking it.",
+      "Invariants validate proposed final state and recheck dependent rows; locks inspect pre-state so the sealing transition can set final fields. Composite uniqueness/cross-row rules need the canonical storage-owner atomic fence, not an unfenced JavaScript existence check.",
+      "Saved editable JS/CSS/contributions and stable per-unit retry/refine/reset are accepted. Server JS targets workerd through checked wrappers and narrow roles/effects. Ordinary builds use saved bytes without AI."
+    ],
+    "examples": [
+      "Invoice numbered issuance/immutable issued snapshots combines uniqueness, proposed-state invariants and pre-state locks.",
+      "Stock immutable movements, unique source identity and nonnegative per-location balances need cross-row dependency/final-state/atomic-commit semantics.",
+      "Inbox queue staff visibility and submitted reply immutability combine explicit row/field policy scope, composite uniqueness and pre-state locks."
+    ],
+    "comparison": "All alternatives must offer named reusable and inline source prompts, same saved lifecycle, visible checked targets/contributions/contracts and preservation of authorization, values, dependency tracking, phase/order, fences and replay. Existing primitives such as text trim min=1 stay deterministic. Local vocabulary does not redefine builtins. No alternative is implemented; results are advice, not adoption.",
+    "remaining_uncertainty": "Exact spelling/signatures/field selector parameters and generated-rule dependency/read contracts have not been chosen. True semantics requiring an unsupported runtime mechanism cannot be claimed merely by writing JS."
+  },
+  "questions": {
+    "carrier": {
+      "type": "choice",
+      "instructions": "For the user need and verified language boundaries in state, which draft source carrier most simply supports inline rule prompts and reusable new local Given vocabulary? Weigh authoring clarity and implementation cost fairly, without treating prior adoption as proof of correctness.",
+      "criteria": {
+        "one_extension": "Use a single typed Given extension definition/application for model, field and declaration contributors, replacing the narrow trait surface. Unified authoring but requires revising the accepted carrier and may add verbose target annotations.",
+        "targeted_rules": "Add inline prompts to supported declaration rules and a reusable local rule definition/application; keep traits as model/field contributors. Adds a rule surface but preserves visible grants and canonical phase/output meanings.",
+        "broad_traits": "Extend trait applications to all declared Given rule targets and top-level local rule invocation. Reuses the accepted name/output lifecycle, at the cost of broadening trait semantics; permissions/phases stay explicit.",
+        "open": "Do not settle the carrier if an essential target/contract is not captured by the listed alternatives."
+      }
+    },
+    "semantics": {
+      "type": "choice",
+      "instructions": "How should the new local Given vocabulary obtain implementation for the examples while preserving native policy/unique/invariant/lock semantics? Compare all candidates against the same requirements and state unsupported behavior honestly.",
+      "criteria": {
+        "phase_plugins": "Offer typed JS extension callbacks for the relevant Given phases, with declared dependencies/inputs/effects and existing authority/atomic commit preserved. Broad custom behavior, additional runtime protocol compared with constrained rule roles.",
+        "canonical_and_bound": "Lower local rules into existing checked declarations and supported narrow JS roles, preserving each native rule phase and dependency/atomic contract. Unsupported enforcement needs an explicit runtime feature, not inferred success.",
+        "open": "Do not choose semantic scope without the missing concrete behavior contract if the candidates cannot meet the stated need.",
+        "canonical_only": "Generate ordinary Can declarations for all Given prompts first, deferring any beyond-expression behavior. Lowest runtime work; deliberately limited new custom behavior."
+      }
+    }
+  }
+}

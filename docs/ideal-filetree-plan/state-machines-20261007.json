@@ -1,18 +1,18 @@
 {
  "date": "2026-10-13",
- "integrated_source_pin": "718057c0d7321e2372b7dd9b0ac64aac58b2d193",
+ "integrated_source_pin": "43f567b2e15ad7305d3cd5ad7032a2af7782368e",
  "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
  "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
  "checkpoint_advanced": false,
  "coverage": {
-  "commit_count_since_checkpoint": 2495,
-  "net_path_deltas": 11338,
-  "history_touched_paths": 11414,
+  "commit_count_since_checkpoint": 2496,
+  "net_path_deltas": 11352,
+  "history_touched_paths": 11428,
   "history_only_paths": 6,
   "released_feature_paths": 79,
   "new_target_leaves": 30,
-  "inherited_paths_without_prior_target_allocation": 9835,
-  "scope": "2026-10-13 human-directed Muse wind-down/local-main checkpoint, parent 718057c0d7321e2372b7dd9b0ac64aac58b2d193: supported Muse /quit and dead-pane verification; monitor deleted; all native lanes and four old Codex workers stopped. Pos2 fe078 remains scoped CLEAR. Pos3 ad1+506 full original physical D1/DO non-BMP bounded planner criterion CLEAR (24/24; affected28 retained). Pos11 da20 leaf remains CLEAR; 724/71/ac2/545 source seal was incomplete until root defining-owner local/import target binding correction, independently CLEAR with genuine target-only corruption refusal, owning4/4 and strictlib/bin builds. Guard runtime finite source/owning controls CLEAR: historical lexical fields plus current declared parent/ref targets, final target-await membership recheck, paired nonvoid opaque File declaration projection and canonical server defaults; affected2/2 (30348ms/89776ms) and awaited cleanup. Pos7 original CanChat remains RUNNING/UNQUALIFIED at this checkpoint; earlier runtime/preflight failures retained. Preserve all concurrent human IDE/LSP/UI/CI source and build-generation/design proposals as explicitly unfinished checkpoints; source bin build passes, whole feature acceptance not inferred. Complete824 unchanged, target allocations/holds retained; new leaves inherited-unallocated. Flow-path718 is proposal only; no effect/order/source/native bound widening, push or publication."
+  "inherited_paths_without_prior_target_allocation": 9849,
+  "scope": "2026-10-13 substantive nominal File/private assignment and immutable preparation handoff; retained main43f source and all new advice/proposal leaves accounted. State/CF controls37 and prior guard2 retained; per-call binding reuse normal CF build0 and source CLEAR, runtime pending. Full original CanChat first File-bearing ask committed then timeout900020ms, position7 unfinished. SAME Muse Spark1.3Contributor/MAX resumed by direct human steering, one writer/native4held/old workers stopped. Ongoing foreign draft/design edits remain separately unfinished; complete824 and original holds unchanged."
  },
  "methods": [
   "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -27,7 +27,8 @@
   "draft-corrections": "Independent draft repository 6c1a6d8d7674be0f9a48e243ab175fe64222df54: CanCatch.can, CanChat.mjs, CanCheck.can/.mjs, CanCreative.mjs, CanDo.can/.md/.mjs, CanMail.can/.md/.mjs, CanSuccess.can/.md/.mjs, CanTime.can/.md/.mjs and README.md. Defining app source/requirements/witness responsibility stays in draft; no compiler compensation. Six-source parsing, seven JavaScript syntax checks and manual diff review only; whole applications/fanout/providers remain unqualified. Unchanged nested draft and inherited target review remain open.",
   "compiler-declaration-matching": "Focused source review and affected compiler analysis/emitter, declaration-renaming, source/IR corruption, unsupported-profile, current receiver and live-corpus controls. Preserve native200/20k bounds, source seals, current Identity/File authority and evaluation order. Runtime field-role and finite query-composition contracts remain; no whole app/provider/deployment qualification. Paths: compiler/src/analysis/scenario_disclosure.rs, compiler/src/codegen/scenario_create_sources.rs, compiler/src/codegen/scenario_current_revision.rs, compiler/src/codegen/scenario_current_revision_tests.rs, compiler/src/codegen/scenario_queries.rs, compiler/src/codegen/scenario_receipts.rs, compiler/src/codegen/scenario_transcript_selection_tests.rs, compiler/tests/analysis.rs, compiler/tests/current_revision_definition_sources.rs, compiler/tests/scenario_authorization_sources.rs, compiler/tests/scenario_current_revision_sources.rs, compiler/tests/scenario_inline_selection_sources.rs, compiler/tests/scenario_transcript_sources.rs.",
   "compiler-preparation-reuse": "Scoped implementation and independent security review of immutable completed-fact reuse, standalone freshness, consumer-specific comparisons/warning refusals and source-owned query identities. Qualification: 207 distinct library controls, 22 defining-source controls, two native corruption controls and the 52-row live diagnostic baseline pass; strict all-target Clippy/format/diff pass. The unchanged full-composition case measures1115.44s before and72.63s at final inputs (15.36x), retaining six queries/24 influences/12 IR mutants. Default debug-thread deep-expression overflow reproduces on frozen before binary; use16MiB test-thread stacks without changing depth assertion or compiler caps. Paths: compiler/src/analysis/scenario_disclosure.rs, compiler/src/codegen/membership.rs, compiler/src/codegen/mod.rs, compiler/src/codegen/read_predicates.rs, compiler/src/codegen/scenario_calls.rs, compiler/src/codegen/scenario_decisions.rs, compiler/src/codegen/scenario_feasibility.rs, compiler/src/codegen/scenario_feasibility_tests.rs, compiler/src/codegen/scenario_queries.rs, compiler/src/codegen/scenario_receipts.rs, compiler/src/codegen/send_guards.rs. Runtime/application/provider qualification and complete checkpoint remain unchanged.",
-  "muse-wind-down": "Finite root source/guard repairs independently reviewed at described scope; foreign IDE/UI/design checkpoints preserved unfinished, no accumulated/full-plan acceptance."
+  "muse-wind-down": "Finite root source/guard repairs independently reviewed at described scope; foreign IDE/UI/design checkpoints preserved unfinished, no accumulated/full-plan acceptance.",
+  "private-nominal-file-assignment": "Genuine root-child final assignment locators, same owning nominal File census, private write versus saved public read boundary, deeply immutable schema preparation and per-call opaque binding with current source/inventory/revision refresh. Owning37 controls, normal emissions and finite source review; full P7 runtime remains unqualified."
  },
  "owner_rules": {
   "packages/<owner>": "Existing package owner; no language/backend responsibility transfer",
@@ -68098,6 +68099,90 @@
    "turbo.json",
    "build",
    "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/given-rule-prompts-20261013/1.questions.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/given-rule-prompts-20261013/1.result.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/given-rule-prompts-20261013/2.questions.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/given-rule-prompts-20261013/2.result.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/given-rule-prompts-20261013/3.questions.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/given-rule-prompts-20261013/3.result.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/private-file-assignment-20261013/request-1.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/private-file-assignment-20261013/request-2.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/private-file-assignment-20261013/request-3.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/private-file-assignment-20261013/response-1.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/private-file-assignment-20261013/response-2.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/jev/private-file-assignment-20261013/response-3.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/proposals/build-generation/prompt-literal.json",
+   "design",
+   "inherited-unallocated"
+  ],
+  [
+   "A",
+   "design/proposals/given-rule-prompts/proposal.json",
+   "design",
+   "inherited-unallocated"
   ]
  ],
  "history_only": [
@@ -68133,7 +68218,7 @@
   ]
  ],
  "pending_target_allocation": {
-  "count": 9835,
+  "count": 9849,
   "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
  },
  "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -68144,8 +68229,8 @@
   "SM.QUALIFY open; FP.FULL dependency",
   "FP.SOURCE-CLOSURE open; accumulated review and target allocation pending"
  ],
- "lanes": "Muse stopped through supported shutdown after usage limit; native lanes held/stopped; four original Codex workers stopped. Codex root alone finishes last finite task and preserves local main checkpoints; no remote publication.",
+ "lanes": "SAME Muse coordinator Spark1.3Contributor/MAX; one shared source/build/capture writer, native four held/read-only; old four Codex workers stopped. No remote publication.",
  "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
  "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
- "current_maintenance_summary": "2026-10-13 human-directed Muse wind-down/local-main checkpoint, parent 718057c0d7321e2372b7dd9b0ac64aac58b2d193: supported Muse /quit and dead-pane verification; monitor deleted; all native lanes and four old Codex workers stopped. Pos2 fe078 remains scoped CLEAR. Pos3 ad1+506 full original physical D1/DO non-BMP bounded planner criterion CLEAR (24/24; affected28 retained). Pos11 da20 leaf remains CLEAR; 724/71/ac2/545 source seal was incomplete until root defining-owner local/import target binding correction, independently CLEAR with genuine target-only corruption refusal, owning4/4 and strictlib/bin builds. Guard runtime finite source/owning controls CLEAR: historical lexical fields plus current declared parent/ref targets, final target-await membership recheck, paired nonvoid opaque File declaration projection and canonical server defaults; affected2/2 (30348ms/89776ms) and awaited cleanup. Pos7 original CanChat remains RUNNING/UNQUALIFIED at this checkpoint; earlier runtime/preflight failures retained. Preserve all concurrent human IDE/LSP/UI/CI source and build-generation/design proposals as explicitly unfinished checkpoints; source bin build passes, whole feature acceptance not inferred. Complete824 unchanged, target allocations/holds retained; new leaves inherited-unallocated. Flow-path718 is proposal only; no effect/order/source/native bound widening, push or publication."
+ "current_maintenance_summary": "2026-10-13 substantive nominal File/private assignment and immutable preparation handoff; retained main43f source and all new advice/proposal leaves accounted. State/CF controls37 and prior guard2 retained; per-call binding reuse normal CF build0 and source CLEAR, runtime pending. Full original CanChat first File-bearing ask committed then timeout900020ms, position7 unfinished. SAME Muse Spark1.3Contributor/MAX resumed by direct human steering, one writer/native4held/old workers stopped. Ongoing foreign draft/design edits remain separately unfinished; complete824 and original holds unchanged."
 }

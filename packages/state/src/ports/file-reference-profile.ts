@@ -33,6 +33,25 @@ const profiles = new WeakMap<FileReferenceProfile, {
   readonly schema: NormalizedSchema;
   readonly constraint: Constraint;
 }>();
+// Pure declaration preparation only. No File/source/Identity verdict is reused.
+// Fingerprinting below proves the complete normalized graph immutable before
+// its result can be retained. Mutable caller inventories take the fresh path.
+const schemaFingerprints = new WeakMap<NormalizedSchema, string>();
+const normalizedInventories = new WeakMap<CanonicalValueTypes, Map<string, NormalizedSchema>>();
+function immutableInventory(value: unknown, active = new Set<object>(), budget = { nodes: 0 }, depth = 0): boolean {
+  if (++budget.nodes > MAX_NODES || depth > MAX_DEPTH) return false;
+  if (value === null || typeof value !== 'object') return true;
+  if (!Object.isFrozen(value) || active.has(value) ||
+      ![Object.prototype, null, Array.prototype].includes(Object.getPrototypeOf(value))) return false;
+  active.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    if (Array.isArray(value) && key === 'length') continue;
+    const property = Object.getOwnPropertyDescriptor(value, key);
+    if (typeof key !== 'string' || property === undefined || !('value' in property) || !property.enumerable ||
+        !immutableInventory(property.value, active, budget, depth + 1)) return false;
+  }
+  active.delete(value); return true;
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return invalid('own object metadata required.');
@@ -48,6 +67,7 @@ function parsed(type: unknown): NormalizedType {
 /** Keep Values' immutable normalized objects, including exact bigint bounds.
  * The tagged fingerprint also checks own data before any schema traversal. */
 function schemaFingerprint(schema: NormalizedSchema): string {
+  const existing = schemaFingerprints.get(schema); if (existing !== undefined) return existing;
   let nodes = 0;
   const active = new Set<object>();
   const visit = (value: unknown, depth: number): unknown => {
@@ -76,6 +96,7 @@ function schemaFingerprint(schema: NormalizedSchema): string {
   if (schema.kind !== 'normalized-schema' || schema.contracts === undefined || schema.enums === undefined || schema.operations === undefined) {
     return invalid('complete normalized Values schema required.');
   }
+  schemaFingerprints.set(schema, fingerprint);
   return fingerprint;
 }
 
@@ -99,7 +120,18 @@ function boundValueSchema(bound: FileReferenceProfileBound): {
     names.add(declaration.name);
   }
   if (names.size !== bound.artifactModels.size) return invalid('complete same-load model inventory required.');
-  const normalized = bound.valueTypes === undefined ? undefined : normalizeValueTypes(copyScenarioFileData(bound.valueTypes), [...names]).valueSchema;
+  let normalized: NormalizedSchema | undefined;
+  if (bound.valueTypes !== undefined) {
+    const cohort = JSON.stringify([...names]), prepared = normalizedInventories.get(bound.valueTypes);
+    normalized = prepared?.get(cohort);
+    if (normalized === undefined) {
+      normalized = normalizeValueTypes(copyScenarioFileData(bound.valueTypes), [...names]).valueSchema;
+      if (immutableInventory(bound.valueTypes)) {
+        const entries = prepared ?? new Map<string, NormalizedSchema>();
+        entries.set(cohort, normalized); normalizedInventories.set(bound.valueTypes, entries);
+      }
+    }
+  }
   const schema = bound.valueSchema ?? normalized ?? normalizeValueTypes({ contracts: [] }, [...names]).valueSchema;
   const fingerprint = schemaFingerprint(schema);
   if (normalized !== undefined && schemaFingerprint(normalized) !== fingerprint) return invalid('loaded Values inventories disagree.');

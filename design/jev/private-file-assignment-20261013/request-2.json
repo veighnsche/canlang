@@ -1,0 +1,33 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "goal": "Complete original CanChat Position7 preserving private fields, source, permissions, evaluation, rollback and saved replay.",
+    "original_source": "chat.ask by=members -> Run; requires can_use(actor,branch.parent) and current Profile/Allowance constraints; creates Run.request_value:TextRequest from admitted finalized ordered File[] and sends the original checked payload. Run read policies deliberately omit request_value. Returned Run exposes only original declared public fields.",
+    "actual_writer": "Verified assembler/source/executable original call; State owns actual admitted root/child session, current owner/caller/guards, original declared field codec, complete topfield wire, surviving final net writes/versions, physical File observation and receiver checks. Assignment locators carry no authority. Child locators share only the private real root owner effects.",
+    "current_guard": "State nominal assignment final guard first physically revalidates each captured File, then uses original current source row+complete ancestor policies and coherent SDK Identity at the same revision. It additionally requires a PUBLIC read grant for the assigned topfield. That extra field check refuses the intentionally hidden request_value even for its legitimate writer.",
+    "saved_disclosure": "Separate current saved result/record field-grant and secret withholding checks remain mandatory. Assignment evidence never grants a read or exposes request_value.",
+    "alternatives": {
+      "private_assignment": "Remove ONLY the public field-grant inclusion requirement from the authentic execution ASSIGNMENT guard; retain nonnull current source row+ancestor projection, actual writer admission/source/effects/caller/final guards, complete typed/physical/receiver/revision/lifetime conjunction and all separate disclosure checks. No new DTO/API/profile.",
+      "write_producer": "Keep public field-read check until a separate explicit private-write producer is implemented and proven from genuine original source effect/owner/caller/session. This more explicit separation costs another producer; do not infer source from schema/locator shapes.",
+      "keep_refusal": "Keep source unchanged and refuse the hidden nominal assignment if current writer/source mechanism cannot justify it; identify the exact missing contract. Do not add a public read policy to expose private request contents."
+    },
+    "controls": [
+      "wrong source/model/owner/caller/version/field/wire/ref/copied observation refuses",
+      "late membership/ancestor revocation and physical loss refuse before publication",
+      "one root fence/whole rollback/no-body replay",
+      "public and saved result fields retain exact original grants and secret withholding",
+      "unknown declarations and existing200/20k/depth bounds unchanged"
+    ]
+  },
+  "questions": {
+    "design": {
+      "type": "choice",
+      "instructions": "For this exact hidden TextRequest assignment, should the final writer check use existing authenticated owner effects without demanding public field readability, require a new private writer producer, or remain unsupported? Compare identical security, source and privacy controls fairly.",
+      "criteria": {
+        "private_assignment": "Remove ONLY the public field-grant inclusion requirement from the authentic execution ASSIGNMENT guard; retain nonnull current source row+ancestor projection, actual writer admission/source/effects/caller/final guards, complete typed/physical/receiver/revision/lifetime conjunction and all separate disclosure checks. No new DTO/API/profile.",
+        "write_producer": "Keep public field-read check until a separate explicit private-write producer is implemented and proven from genuine original source effect/owner/caller/session. This more explicit separation costs another producer; do not infer source from schema/locator shapes.",
+        "keep_refusal": "Keep source unchanged and refuse the hidden nominal assignment if current writer/source mechanism cannot justify it; identify the exact missing contract. Do not add a public read policy to expose private request contents."
+      }
+    }
+  }
+}

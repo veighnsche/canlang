@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import type { CanTypeId, CompileArtifact, ModelName, StoragePort } from '@canlang/contracts';
 import { DEFAULT_FILE_POLICY, blobKeyForFile, ingestVerifiedEventBytes } from '@canlang/files';
+import { readFinalizedFileObservation } from '@canlang/files/finalize';
 import { createSqliteFileBindings, createSqliteFileStore } from '@canlang/files/host/sqlite';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
@@ -135,9 +136,19 @@ test('nominal File staging validates nested refs, guards finalization and repair
     assert.deepEqual((await stage(null)).attachments, []);
     assert.deepEqual((await stage([])).attachments, []);
     assert.equal(validations, beforeEmpty, 'nullable and empty values do not call Files');
-    await assert.rejects(stageFileReferences({ ...common, effects: effects('insert', row, wire, true),
-      observeAssignment: () => { observations++; } }), /genuine State receipt observation/);
-    assert.equal(observations, 0, 'nominal saved assignments never mint a direct-File observation');
+    await assert.rejects(stageFileReferences({ ...common, effects: effects('insert', row, wire),
+      observeAssignment: () => { throw new Error('An unassigned field cannot acquire a saved observation'); } }), /genuine State receipt observation/);
+    const captured: string[] = [];
+    const nominal = await stageFileReferences({ ...common,
+      effects: effects('insert', row, [wire[0], wire[0]], true),
+      observeAssignment: input => {
+        assert.equal(input.model, model); assert.equal(input.recordId, row.id); assert.equal(input.field, 'definitions');
+        const actual = readFinalizedFileObservation(input.observation); assert.ok(actual);
+        assert.deepEqual(actual.receiver, receiver); captured.push(actual.ref);
+      } });
+    assert.deepEqual(captured, [ref], 'one genuine observation per distinct File/top-field');
+    assert.equal(observations, 1);
+    assert.deepEqual(nominal.attachments, [staged.attachments[0], staged.attachments[0]], 'owning ordered duplicates remain in staging');
 
     const repair = () => retainCommittedFiles({ artifact, operation: `${model}.create`, inputs: {},
       result: { id: row.id }, attachments: [], store, files, census, identity, app });

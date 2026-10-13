@@ -3205,6 +3205,7 @@ interface NativeScenarioExecution {
   readonly store: StoragePort;
   readonly nextCreateId: () => string;
   readonly navigationOwner: ScenarioNavigationOwner;
+  readonly fileAssignments: Map<string, { model: string; recordId: string; field: string }>;
   readonly prepare: (def: GeneratedOperationDef, inputs: Readonly<Record<string, unknown>>) => Record<string, unknown>;
   readonly execute: (frame: ScenarioReceiptCallFrame) => Promise<unknown>;
   readonly evaluateSendGuard: (frame: ScenarioReceiptSendGuardFrame) => Promise<boolean>;
@@ -6593,7 +6594,9 @@ async function runScenarioExecution(
   const stagedWrites: CanonicalStagedDomainWrite[] = [];
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
-  const fileAssignments = new Map<string, { model: string; recordId: string; field: string }>();
+  const fileAssignments = child === undefined ? new Map<string, { model: string; recordId: string; field: string }>()
+    : nativeScenarioExecutions.get(child.parent)!.fileAssignments;
+  const assignmentCensus = await bindFileStagingCensus(loaded, opts.artifact);
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const deferredEffects: SystemStaging[] = [];
   const queuedDeliveries = new Map<string, OutboxIntent>();
@@ -6848,8 +6851,8 @@ async function runScenarioExecution(
         }
         if (write.op !== 'remove' && write.data !== undefined) {
           for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
-            if (field.field.kind !== 'file' || !Object.hasOwn(write.data, field.name) || write.data[field.name] === undefined) continue;
-            if (child !== undefined) return refuseRecordBinding('Child scenario file assignments require their defining owner-session join.');
+            if ((field.field.kind !== 'file' && !assignmentCensus?.fields.get(write.model)?.has(field.name)) ||
+                !Object.hasOwn(write.data, field.name) || write.data[field.name] === undefined) continue;
             const assignment = { model: write.model, recordId: write.id, field: field.name };
             fileAssignments.set(JSON.stringify([assignment.model, assignment.recordId, assignment.field]), assignment);
           }
@@ -7411,17 +7414,26 @@ async function runScenarioExecution(
         return refuseRecordBinding('SEND callback requires its original live State call/checkpoint.');
       }
     };
+    // Reuse only this actual call's immutable declaration preparation. Every
+    // use still checks current source/owner, inventory and physical revision.
+    const opaqueBindings = new Map<string, Promise<Awaited<ReturnType<typeof nativeOpaqueFileStaging>>>>();
     const sourceOpaque = async (selected: { readonly ownerPackage: string }) => {
       currentSend();
-      const opaque = await nativeOpaqueFileStaging(loaded, opts, {
-        app: call.context.app, owner: call.checkpoint!.owner, ownerPackage: selected.ownerPackage,
-      }, async () => { currentSend(); });
+      let binding = opaqueBindings.get(selected.ownerPackage);
+      if (binding === undefined) {
+        binding = nativeOpaqueFileStaging(loaded, opts, {
+          app: call.context.app, owner: call.checkpoint!.owner, ownerPackage: selected.ownerPackage,
+        }, async () => { currentSend(); });
+        opaqueBindings.set(selected.ownerPackage, binding);
+      }
+      const opaque = await binding;
       currentSend();
       if (opaque === null) return refuseRecordBinding('Guarded send requires its installed original File declaration inventory.');
+      await opaque.refresh(call.checkpoint!.revision); currentSend();
       return opaque;
     };
     const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
-      navigationOwner: navigationOwner!,
+      navigationOwner: navigationOwner!, fileAssignments,
       evaluateSendGuard: async (frame: ScenarioReceiptSendGuardFrame): Promise<boolean> => {
         currentSend();
         const selected = nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.get(frame.guard.rule);
@@ -7985,7 +7997,7 @@ async function runScenarioExecution(
   nativeMembershipFrame?.assertCompleted();
   if (ownerSession !== undefined) {
     if (child !== undefined) {
-      if (fileAssignments.size !== 0 || deferredEffects.length !== 0 || servedReadings.length !== 0) {
+      if (deferredEffects.length !== 0 || servedReadings.length !== 0) {
         return refuseRecordBinding('Child scenario effect profile requires an unreleased join.');
       }
       return { wire: scenarioReceiptFrame?.queryResult(outcome.value)?.wire ?? scenarioResult(call, loaded, outcome.value) };

@@ -6,6 +6,8 @@ Status: finalized and accepted by the human, 13 October 2026, including the row-
 
 The [accepted choices](../../design/proposals/build-generation/choices.md) resolve all 25 D1–D6 subchoices. The [implementation plan](../../design/proposals/build-generation/implementation-plan.md) is the single current execution view; its tasks are planned, not started.
 
+The [grouped application drafts](../../draft/GENERATION_DRAFTS.md) rehearse these source forms and saved-file organization with explicitly handwritten witnesses. They do not establish implemented grammar, generator metadata APIs or target qualification.
+
 ## Scope
 
 One generation lifecycle serves four declaration categories. Their generated outputs and consumers differ; their selection, persistence, failure and refinement rules are shared.

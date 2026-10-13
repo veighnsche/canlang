@@ -2,6 +2,8 @@
 
 Status: planning complete, 13 October 2026. The human adopted the [choices](choices.md) and finalized the [requirements](../../../docs/specification/BUILD_GENERATION_REQUIREMENTS.md). Implementation has not started. This is the single current execution view: canonical task IDs BGI-01–BGI-13, all planned. No source changes, provider runs or implementation tests are authorized by completing this planning step.
 
+Preimplementation rehearsal: at the human's subsequent request, [all grouped draft sources](../../../draft/GENERATION_DRAFTS.md) now illustrate the accepted carriers with handwritten unit outputs and a small organizer helper. This authoring exercise does not close BGI tasks, implement generation, qualify the prospective grammar or replace existing frozen source/browser evidence. BGI-01/02 must supply the new carrier and generated-fragment discovery support before current compiler consumers can accept those drafts.
+
 ## Ownership and handoffs
 
 - **Rust compiler:** source grammar, structural unit discovery, conservative association evidence, checked contributions/interfaces, saved-input intake, CSS parsing/scoping, emitted wrappers/artifacts and source maps. Existing `NodeKey` is not persisted identity.
