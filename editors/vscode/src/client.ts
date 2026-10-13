@@ -41,6 +41,7 @@ declare global {
       function parse(value: string): Uri;
     }
     export interface TextDocument {
+      readonly isClosed: boolean;
       uri: Uri;
       languageId: string;
       version: number;
@@ -218,6 +219,23 @@ declare global {
     export interface DocumentSymbolProvider {
       provideDocumentSymbols(document: TextDocument, token: CancellationToken): ProviderResult<DocumentSymbol[]>;
     }
+    export class FoldingRange {
+      constructor(start: number, end: number);
+    }
+    export interface FoldingContext {}
+    export interface FoldingRangeProvider {
+      provideFoldingRanges(document: TextDocument, context: FoldingContext,
+        token: CancellationToken): ProviderResult<FoldingRange[]>;
+    }
+    export class SelectionRange {
+      constructor(range: Range, parent?: SelectionRange);
+      range: Range;
+      parent?: SelectionRange;
+    }
+    export interface SelectionRangeProvider {
+      provideSelectionRanges(document: TextDocument, positions: readonly Position[],
+        token: CancellationToken): ProviderResult<SelectionRange[]>;
+    }
     export interface DocumentSemanticTokensProvider {
       provideDocumentSemanticTokens(
         document: TextDocument,
@@ -245,6 +263,15 @@ declare global {
     }
     export interface OutputChannel extends Disposable {
       appendLine(value: string): void;
+      show(preserveFocus?: boolean): void;
+    }
+    export enum StatusBarAlignment { Left = 1, Right = 2 }
+    export interface StatusBarItem extends Disposable {
+      text: string;
+      tooltip?: string;
+      command?: string;
+      show(): void;
+      hide(): void;
     }
     export interface FileSystemWatcher extends Disposable {
       onDidCreate(listener: (uri: Uri) => void): Disposable;
@@ -259,6 +286,8 @@ declare global {
       affectsConfiguration(section: string): boolean;
     }
     export namespace workspace {
+      const isTrusted: boolean;
+      function onDidGrantWorkspaceTrust(listener: () => void): Disposable;
       const textDocuments: TextDocument[];
       const workspaceFolders: readonly WorkspaceFolder[] | undefined;
       function getWorkspaceFolder(uri: Uri): WorkspaceFolder | undefined;
@@ -278,10 +307,14 @@ declare global {
     }
     export namespace window {
       const activeTextEditor: { readonly document: TextDocument } | undefined;
+      function onDidChangeActiveTextEditor(listener: () => void): Disposable;
+      function createStatusBarItem(alignment: StatusBarAlignment, priority?: number): StatusBarItem;
       function createOutputChannel(name: string): OutputChannel;
       function showErrorMessage(message: string): void;
+      function showQuickPick(items: string[], options?: { placeHolder?: string }): Promise<string | undefined>;
     }
     export namespace commands {
+      function executeCommand(command: string, ...args: unknown[]): Promise<unknown>;
       function registerCommand(
         command: string,
         callback: (...args: unknown[]) => unknown,
@@ -315,6 +348,12 @@ declare global {
       ): Disposable;
       function registerDocumentSymbolProvider(
         selector: DocumentSelector, provider: DocumentSymbolProvider,
+      ): Disposable;
+      function registerFoldingRangeProvider(
+        selector: DocumentSelector, provider: FoldingRangeProvider,
+      ): Disposable;
+      function registerSelectionRangeProvider(
+        selector: DocumentSelector, provider: SelectionRangeProvider,
       ): Disposable;
       function registerDocumentSemanticTokensProvider(
         selector: DocumentSelector,
@@ -681,6 +720,34 @@ export class CanLanguageClient {
     params: Json,
     convert: (result: Json) => T,
   ): Promise<T | undefined> {
+    if (!this.isRunning() && this.startup && !this.finished && !this.stopping) {
+      const version = document.version;
+      return new Promise<T | undefined>((resolve) => {
+        let cancellation: vscode.Disposable | undefined;
+        let settled = false;
+        const complete = (value: T | undefined): void => {
+          if (settled) { return; }
+          settled = true;
+          cancellation?.dispose();
+          resolve(value);
+        };
+        cancellation = token.onCancellationRequested(() => complete(undefined));
+        if (settled) { cancellation.dispose(); }
+        if (token.isCancellationRequested) { complete(undefined); }
+        this.startup!.then(() => {
+          if (settled || token.isCancellationRequested || document.isClosed ||
+              document.version !== version || !this.isRunning()) {
+            complete(undefined);
+            return;
+          }
+          cancellation?.dispose();
+          cancellation = undefined;
+          // The extension's startup replay may already have synchronized it.
+          if (!this.documents.has(document.uri.toString())) { this.didOpen(document); }
+          this.requestDocument(document, token, method, params, convert).then(complete, () => complete(undefined));
+        }, () => complete(undefined));
+      });
+    }
     const uri = document.uri.toString();
     const owner = this.documents.get(uri);
     if (!owner || owner.document !== document || owner.version !== document.version ||
@@ -892,8 +959,10 @@ export class CanLanguageClient {
     const body = JSON.stringify({ jsonrpc: '2.0', id, method, params });
     return new Promise<Json>((resolve, reject) => {
       let cancellation: vscode.Disposable | undefined;
+      let deadline: unknown;
       const settle = (result: Json): void => {
         this.pending.delete(id);
+        clearTimeout(deadline);
         cancellation?.dispose();
         resolve(result);
       };
@@ -902,6 +971,16 @@ export class CanLanguageClient {
         this.pending.delete(id);
         reject(new Error(`can lsp is not running (request ${method})`));
         return;
+      }
+      // Initialize has its own startup deadline; ordinary requests must also
+      // finish when a live process stops responding.
+      if (method !== 'initialize' && this.pending.has(id)) {
+        deadline = setTimeout(() => {
+          if (!this.pending.has(id)) { return; }
+          this.channel.appendLine(`can lsp request '${method}' timed out after 10 seconds`);
+          this.sendNotification('$/cancelRequest', { id });
+          settle(null);
+        }, 10000);
       }
       const cancel = (): void => {
         if (this.pending.has(id)) {

@@ -129,7 +129,7 @@ fn hover_builtin_with_catalog() {
     let hover = snapshot.hover_at(offset).expect("hover on count");
     assert_eq!(
         hover.markdown,
-        "**count** — builtin\n\ncatalog `probe-1`\n\neffects: pure\navailability: implemented"
+        "**count** — builtin\n\n`count(values:C<T>)->int`\n\ncatalog `probe-1`\n\neffects: pure\navailability: implemented"
     );
     // Without a catalog the same use is unresolved: empty.
     let bare = Snapshot::analyze(&db, id, None);
@@ -533,7 +533,201 @@ fn completion_builtin_with_catalog() {
         .find(|c| c.label == "count")
         .expect("count offered");
     assert_eq!(entry.kind, "Function");
-    assert_eq!(entry.detail.as_deref(), Some("builtin"));
+    assert_eq!(entry.detail.as_deref(), Some("count(values:C<T>)->int"));
+}
+
+#[test]
+fn completion_avoids_strings_comments_and_descriptions() {
+    let text = "# Todo.\napp T\nGiven\n Todo { title:text desc=\"Todo.\" }\nWhen\n scenario s(task:Todo) by=members\n  do\n   ## task.\n   let x=\"task.\"\n   let y=task.title\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    for fragment in ["# Todo.", "## task.", "\"Todo.", "\"task."] {
+        let offset = text.find(fragment).unwrap() + fragment.len();
+        assert!(
+            snapshot.completions_at(offset as u32).is_empty(),
+            "{fragment}"
+        );
+    }
+    // Code resumes after a closed literal and on the next statement.
+    let statement = text.find("let y=task").unwrap() as u32 + 7;
+    assert!(labels(&snapshot.completions_at(statement)).contains(&"task"));
+    let literal_end = text.find("\"task.\"").unwrap() as u32 + 7;
+    assert!(!snapshot.completions_at(literal_end).is_empty());
+    let partial = text.replace("\"task.\"", "\"task.");
+    let (db, id) = load(&partial);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    let offset = partial.find("\"task.").unwrap() as u32 + 6;
+    assert!(snapshot.completions_at(offset).is_empty());
+    assert!(snapshot.completions_at(u32::MAX).is_empty());
+}
+
+#[test]
+fn completion_statement_introducers_and_rhs_keep_distinct_keywords() {
+    let text = "app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:Todo) -> Todo by=members\n  do\n   let value=task\n   require true\n   return value\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    for keyword in ["let", "require", "return"] {
+        let start = text.find(&format!("   {keyword}")).unwrap() as u32 + 3;
+        for offset in [start, start + 1, start + keyword.len() as u32] {
+            let items = snapshot.completions_at(offset);
+            let names = labels(&items);
+            for expected in ["let", "require", "if", "create", "return"] {
+                assert!(names.contains(&expected), "at {offset}: {names:?}");
+            }
+            assert!(!names.contains(&"where"), "at {offset}: {names:?}");
+        }
+    }
+    for rhs in ["=task", "require true", "return value"] {
+        let offset = text.find(rhs).unwrap() as u32
+            + if rhs == "=task" {
+                1
+            } else {
+                rhs.find(' ').unwrap() as u32 + 1
+            };
+        let items = snapshot.completions_at(offset);
+        let names = labels(&items);
+        assert!(names.contains(&"where"), "at {offset}: {names:?}");
+        assert!(!names.contains(&"let"), "at {offset}: {names:?}");
+    }
+}
+
+#[test]
+fn named_type_completion_uses_checker_admitted_types_and_imports() {
+    let catalog = test_catalog("type-context");
+    let provider = "package P\n Given\n  export contract Shared {value:text}\n When\n Then\n";
+    let text = "app T\nuse P {Shared as Local}\nGiven\n Todo { title:text }\n contract Input {value:text}\n event Changed {value:text}\n role editor\n fixture sample=Todo {title=\"x\"}\nWhen\n scenario s(task:Todo) by=members\n  do\n   let x=task\nThen\n";
+    let mut db = SourceDb::new();
+    db.add("provider.can".into(), provider.into());
+    let id = db.add("consumer.can".into(), text.into());
+    let snapshot = Snapshot::analyze_project(&db, id, Some(&catalog));
+    assert!(
+        snapshot.diagnostics().is_empty(),
+        "{:?}",
+        snapshot.diagnostics()
+    );
+    for offset in [
+        text.find("task:Todo").unwrap() + 6,
+        text.find("task:Todo").unwrap() + 9,
+    ] {
+        let items = snapshot.completions_at(offset as u32);
+        let names = labels(&items);
+        for expected in [
+            "Todo",
+            "Input",
+            "Changed",
+            "Local",
+            "text",
+            "int",
+            "enum",
+            "invocation",
+        ] {
+            assert!(names.contains(&expected), "missing {expected}: {names:?}");
+        }
+        for excluded in [
+            "task", "actor", "now", "s", "sample", "editor", "count", "let", "where",
+        ] {
+            assert!(!names.contains(&excluded), "offered {excluded}: {names:?}");
+        }
+    }
+    let expression = snapshot.completions_at(text.find("let x=task").unwrap() as u32 + 7);
+    assert!(labels(&expression).contains(&"count"));
+    assert!(labels(&expression).contains(&"task"));
+}
+
+#[test]
+fn empty_annotation_completion_recovers_field_and_parameter_types() {
+    for text in [
+        "app T\nGiven\n Todo {title:}\nWhen\nThen\n",
+        "app T\nGiven\n Todo {title: }\nWhen\nThen\n",
+        "app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:) by=members\n  do\n   let x=1\nThen\n",
+    ] {
+        let (db, id) = load(text);
+        let snapshot = Snapshot::analyze(&db, id, None);
+        let offset = text
+            .find(":}")
+            .or_else(|| text.find(": }"))
+            .or_else(|| text.find(":)"))
+            .unwrap() as u32
+            + if text.contains(": }") { 2 } else { 1 };
+        let items = snapshot.completions_at(offset);
+        let names = labels(&items);
+        for expected in ["Todo", "text", "int", "enum", "invocation"] {
+            assert!(names.contains(&expected), "missing {expected}: {names:?}");
+        }
+        for excluded in ["task", "actor", "now", "s", "let", "where"] {
+            assert!(!names.contains(&excluded), "offered {excluded}: {names:?}");
+        }
+    }
+    let text = "app T\nGiven\n Todo {title:text=\"x\",n:int=1}\nWhen\n scenario s() by=members\n  do\n   let value={field=1}\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    for offset in [
+        text.find("field=").unwrap() as u32 + 6,
+        text.find("int=").unwrap() as u32 + 4,
+    ] {
+        let items = snapshot.completions_at(offset);
+        let names = labels(&items);
+        assert!(
+            names.contains(&"where"),
+            "value position at {offset}: {names:?}"
+        );
+        assert!(
+            !names.contains(&"int"),
+            "value position at {offset}: {names:?}"
+        );
+    }
+    let invalid_object = text.replace("field=1", "field:1");
+    let (db, id) = load(&invalid_object);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    let items = snapshot.completions_at(invalid_object.find("field:").unwrap() as u32 + 6);
+    assert!(
+        !labels(&items).contains(&"int"),
+        "an object-value colon cannot certify an annotation"
+    );
+}
+
+#[test]
+fn builtin_hover_and_completion_preserve_overloads_aliases_and_scopes() {
+    let dir = std::env::temp_dir();
+    let path = dir.join("canlang-ide-test-catalog-signatures.json");
+    let signature = "pick(values:C<T> as item,condition:bool in item scope)->T?;pick(values:ordered C<T>,fallback:T)->T";
+    let doc = serde_json::json!({"language_version":"1.0","catalog_version":"signatures","entries":[{"id":"pick","js":"pick","owner":"test","kind":"builtin","signature":signature,"effects":"pure","availability":"implemented"}]});
+    std::fs::write(&path, doc.to_string()).unwrap();
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: &dir,
+        primary: Span::new(SourceId(0), 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    let text = "app T\nGiven\n Todo {title:text}\nWhen\n scenario s(task:Todo) by=members\n  do\n   let x=pick(Todo,true)\nThen\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, Some(&catalog));
+    let offset = text.find("pick(Todo").unwrap() as u32 + 1;
+    let hover = snapshot.hover_at(offset).unwrap();
+    for overload in signature.split(';') {
+        assert!(
+            hover.markdown.contains(&format!("`{overload}`")),
+            "{}",
+            hover.markdown
+        );
+    }
+    let items = snapshot.completions_at(offset);
+    assert_eq!(
+        items
+            .iter()
+            .find(|item| item.label == "pick")
+            .unwrap()
+            .detail
+            .as_deref(),
+        Some(signature.replace(';', "; ").as_str())
+    );
 }
 
 // --- document symbols ---

@@ -1,6 +1,7 @@
 /** Acceptance checks run inside the real VS Code/Cursor extension host.
  * Pass this file with --extensionTestsPath and this extension's directory with
- * --extensionDevelopmentPath; use a disposable workspace with can.serverPath.
+ * --extensionDevelopmentPath; use a disposable workspace with can.serverPath
+ * and the current producer catalog at can-catalog.json.
  */
 'use strict';
 const assert = require('node:assert/strict');
@@ -78,6 +79,26 @@ exports.run = async () => {
     assert.equal(references.length, 3);
     pass('member hover, definition, references and initializer scope');
 
+    const folds = await vscode.commands.executeCommand('vscode.executeFoldingRangeProvider', document.uri);
+    assert(folds.some(range => range.start === 1 && range.end === 2), 'Given folds only its body');
+    assert(folds.some(range => range.start === 4 && range.end === 7), 'scenario folds its execution body');
+    editor.selection = new vscode.Selection(1, 0, 1, 0);
+    await vscode.commands.executeCommand('editor.fold', { selectionLines: [1] });
+    await vscode.commands.executeCommand('cursorDown');
+    assert.equal(editor.selection.active.line, 3, 'cursor skips the folded Given body');
+    await vscode.commands.executeCommand('editor.unfoldAll');
+    pass('CST folding ranges and real Fold/Unfold editor commands');
+
+    const selections = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', document.uri, [member]);
+    assert(selections.length === 1 && selections[0].parent, 'logical selection parents');
+    editor.selection = new vscode.Selection(member, member);
+    for (let i = 0; i < 4 && document.getText(editor.selection) !== 'task.title'; i++) {
+      await vscode.commands.executeCommand('editor.action.smartSelect.expand');
+    }
+    assert.equal(document.getText(editor.selection), 'task.title');
+    pass('CST selection ranges and real Expand Selection editor command');
+
+
     const rename = await vscode.commands.executeCommand('vscode.executeDocumentRenameProvider', document.uri, member, 'name');
     assert(rename && await vscode.workspace.applyEdit(rename));
     assert.equal(document.getText(), source.replaceAll('title', 'name'));
@@ -126,10 +147,14 @@ exports.run = async () => {
     const packageDoc = await vscode.workspace.openTextDocument({ language: 'can', content: '' });
     await vscode.window.showTextDocument(packageDoc);
     await vscode.commands.executeCommand('type', { text: 'package P' });
+    // Immediate scripted Enter can outrun background tokenization. Cursor then
+    // copies indentation without consulting the language's indentation rules.
+    await vscode.commands.executeCommand('editor.action.forceRetokenize');
     await vscode.commands.executeCommand('type', { text: '\n' });
     assert.equal(packageDoc.lineAt(1).text, ' ', 'indent package body by one space');
     await vscode.commands.executeCommand('type', { text: 'Given' });
     assert.equal(packageDoc.lineAt(1).text, ' Given', 'keep nested Given at package level');
+    await vscode.commands.executeCommand('editor.action.forceRetokenize');
     await vscode.commands.executeCommand('type', { text: '\n' });
     assert.equal(packageDoc.lineAt(2).text, '  ', 'indent nested Given declarations');
     await replace(packageDoc, '');
