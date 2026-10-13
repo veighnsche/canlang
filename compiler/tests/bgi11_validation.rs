@@ -1009,6 +1009,8 @@ fn packed_maps_locate_saved_js_with_owner_links() {
         callables: vec![],
         operations: vec![],
         models: vec![],
+        given_contracts: None,
+        stylesheets: vec![],
         value_types: None,
         model_policies: None,
         committed_changes: None,
@@ -1068,6 +1070,7 @@ fn packing_refuses_mismatch_empty_and_non_js_kinds() {
     wrong_kind.kind = "view".to_string();
     let err = pack_saved_unit(UnitKind::Keyword, wrong_kind, js.as_bytes(), &sha).unwrap_err();
     assert!(err.contains("owner link"), "{err}");
+
     let mut unnamed = owner();
     unnamed.unit_id.clear();
     assert!(pack_saved_unit(UnitKind::Keyword, unnamed, js.as_bytes(), &sha).is_err());
@@ -1087,6 +1090,442 @@ fn packing_refuses_mismatch_empty_and_non_js_kinds() {
     )
     .expect("pack view");
     assert_eq!(view.path, "can.generated/u5/view.js");
+}
+
+// ## Production join: the validated fingerprint covers the exact
+// consumed unit-local import closure.
+
+const CLOSURE_ROOT_JS: &str = "import { fold } from \"./fold.js\";\nexport function canonicalKey(value) { return fold(value); }\n";
+const CLOSURE_FOLD_V1: &str =
+    "export function fold(value) { return value.normalize(\"NFKC\").toLowerCase(); }\n";
+const CLOSURE_FOLD_V2: &str = "export function fold(value) { return \"everything-collides\"; }\n";
+
+fn fingerprint_of(stdout: &str) -> String {
+    let body = envelope(stdout);
+    assert_eq!(body["ok"], true, "{body}");
+    body["fingerprint"].as_str().unwrap().to_string()
+}
+
+#[test]
+fn closure_change_alters_validated_fingerprint() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", GIVEN_APP);
+    let unit = bind_new(
+        &root,
+        &file,
+        GIVEN_APP,
+        GenerationKind::KeywordDefinition,
+        Some("canonical_identity"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/declaration.json"),
+        KEYWORD_DECLARATION,
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        CLOSURE_ROOT_JS,
+    );
+    // Identical root bytes, NFKC-folding import: validates.
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/fold.js"),
+        CLOSURE_FOLD_V1,
+    );
+    let first = validate_unit(&root, dir.path(), "v1.json", &unit);
+    assert_eq!(first.code, 0, "stdout: {}", first.stdout);
+    let fp1 = fingerprint_of(&first.stdout);
+    // The closure fingerprint is not the root-only hash: root-only
+    // equality must not hide the consumed import.
+    assert_ne!(fp1, sha256_hex(CLOSURE_ROOT_JS.as_bytes()));
+    // Same root, constant-collision import: validates with a different
+    // fingerprint (the import-probe regression: these were identical).
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/fold.js"),
+        CLOSURE_FOLD_V2,
+    );
+    let second = validate_unit(&root, dir.path(), "v2.json", &unit);
+    assert_eq!(second.code, 0, "stdout: {}", second.stdout);
+    let fp2 = fingerprint_of(&second.stdout);
+    assert_ne!(fp1, fp2, "closure change must alter the fingerprint");
+    // Restoring the import restores the fingerprint: determinism over
+    // unchanged bytes.
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/fold.js"),
+        CLOSURE_FOLD_V1,
+    );
+    let third = validate_unit(&root, dir.path(), "v3.json", &unit);
+    assert_eq!(third.code, 0, "stdout: {}", third.stdout);
+    assert_eq!(fingerprint_of(&third.stdout), fp1);
+    // A bare unit without imports keeps the historical root-only hash.
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        KEYWORD_JS,
+    );
+    std::fs::remove_file(dir.path().join(format!("can.generated/{unit}/fold.js"))).unwrap();
+    let bare = validate_unit(&root, dir.path(), "v4.json", &unit);
+    assert_eq!(bare.code, 0, "stdout: {}", bare.stdout);
+    assert_eq!(
+        fingerprint_of(&bare.stdout),
+        sha256_hex(KEYWORD_JS.as_bytes())
+    );
+}
+
+#[test]
+fn closure_escapes_and_missing_members_refuse() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", GIVEN_APP);
+    let unit = bind_new(
+        &root,
+        &file,
+        GIVEN_APP,
+        GenerationKind::KeywordDefinition,
+        Some("canonical_identity"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/declaration.json"),
+        KEYWORD_DECLARATION,
+    );
+    // A `..` escape leaves the unit directory: unfingerprintable, so
+    // it refuses instead of validating a partial closure.
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        "import { x } from \"../escape.js\";\nexport function canonicalKey(v) { return x(v); }\n",
+    );
+    let escaped = validate_unit(&root, dir.path(), "v.json", &unit);
+    assert_eq!(escaped.code, 4, "stdout: {}", escaped.stdout);
+    let (_, message) = error_of(&escaped.stdout);
+    assert!(message.contains("escapes the unit directory"), "{message}");
+    // A missing member likewise refuses with its exact saved path.
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        "import { x } from \"./absent.js\";\nexport function canonicalKey(v) { return x(v); }\n",
+    );
+    let missing = validate_unit(&root, dir.path(), "v2.json", &unit);
+    assert_eq!(missing.code, 4, "stdout: {}", missing.stdout);
+    let (_, message) = error_of(&missing.stdout);
+    assert!(
+        message.contains("no such saved file `absent.js`"),
+        "{message}"
+    );
+}
+
+#[test]
+fn view_closure_change_alters_validated_fingerprint() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", THEN_APP);
+    let unit = bind_new(
+        &root,
+        &file,
+        THEN_APP,
+        GenerationKind::ViewDefinition,
+        Some("TaskTile"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        "import { part } from \"./part.js\";\nexport function render({row, bindings, ui}) { return part(bindings); }\n",
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/part.js"),
+        "export function part(b) { return b.text; }\n",
+    );
+    let first = validate_unit(&root, dir.path(), "v.json", &unit);
+    assert_eq!(first.code, 0, "stdout: {}", first.stdout);
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/part.js"),
+        "export function part(b) { return \"constant\"; }\n",
+    );
+    let second = validate_unit(&root, dir.path(), "v2.json", &unit);
+    assert_eq!(second.code, 0, "stdout: {}", second.stdout);
+    assert_ne!(
+        fingerprint_of(&first.stdout),
+        fingerprint_of(&second.stdout),
+        "view closure change must alter the fingerprint"
+    );
+}
+
+#[test]
+fn closure_pack_stages_root_and_siblings() {
+    use canlang_compiler::analysis::generation_intake::UnitKind;
+    use canlang_compiler::analysis::types::{GivenSavedImport, given_closure_fingerprint};
+    use canlang_compiler::codegen::artifact::{
+        CanOwnerLink, pack_saved_unit_closure, stage_saved_unit_modules,
+    };
+    let owner = CanOwnerLink {
+        unit_id: "u9".to_string(),
+        kind: "keyword".to_string(),
+        can_path: "app.can".to_string(),
+        can_revision: "r".to_string(),
+        start: 0,
+        end: 1,
+    };
+    let imports = vec![GivenSavedImport {
+        rel_path: "fold.js".to_string(),
+        bytes: CLOSURE_FOLD_V1.as_bytes().to_vec(),
+    }];
+    let refs: Vec<(&str, &[u8])> = imports
+        .iter()
+        .map(|i| (i.rel_path.as_str(), i.bytes.as_slice()))
+        .collect();
+    let fp = given_closure_fingerprint(CLOSURE_ROOT_JS.as_bytes(), &refs);
+    let packed = pack_saved_unit_closure(
+        UnitKind::Keyword,
+        owner.clone(),
+        CLOSURE_ROOT_JS.as_bytes(),
+        &imports,
+        &fp,
+    )
+    .expect("pack closure");
+    assert_eq!(packed.len(), 2);
+    assert_eq!(packed[0].path, "can.generated/u9/server.js");
+    assert_eq!(packed[0].js, CLOSURE_ROOT_JS);
+    assert_eq!(packed[1].path, "can.generated/u9/fold.js");
+    assert_eq!(packed[1].js, CLOSURE_FOLD_V1);
+    // Changed closure bytes refuse against the validated fingerprint.
+    let changed = vec![GivenSavedImport {
+        rel_path: "fold.js".to_string(),
+        bytes: CLOSURE_FOLD_V2.as_bytes().to_vec(),
+    }];
+    let err = pack_saved_unit_closure(
+        UnitKind::Keyword,
+        owner.clone(),
+        CLOSURE_ROOT_JS.as_bytes(),
+        &changed,
+        &fp,
+    )
+    .unwrap_err();
+    assert!(err.contains("fingerprint mismatch"), "{err}");
+    // Traversal and root-colliding members refuse before hashing.
+    for rel in ["../escape.js", "server.js"] {
+        let hostile = vec![GivenSavedImport {
+            rel_path: rel.to_string(),
+            bytes: b"x".to_vec(),
+        }];
+        assert!(
+            pack_saved_unit_closure(
+                UnitKind::Keyword,
+                owner.clone(),
+                CLOSURE_ROOT_JS.as_bytes(),
+                &hostile,
+                &fp
+            )
+            .is_err(),
+            "{rel}"
+        );
+    }
+    // Siblings stage beside the root in staged-path order.
+    let mut artifact = canlang_compiler::codegen::artifact::CompileArtifact {
+        language_version: "1.0".to_string(),
+        tool_version: "test".to_string(),
+        sources: vec![],
+        modules: vec![],
+        callables: vec![],
+        operations: vec![],
+        models: vec![],
+        given_contracts: None,
+        stylesheets: vec![],
+        value_types: None,
+        model_policies: None,
+        committed_changes: None,
+        pages: vec![],
+        migrations: vec![],
+        requires: vec![],
+        tests: vec![],
+    };
+    stage_saved_unit_modules(&mut artifact, &packed).expect("stage");
+    assert_eq!(
+        artifact
+            .modules
+            .iter()
+            .map(|m| m.path.as_str())
+            .collect::<Vec<_>>(),
+        vec!["can.generated/u9/fold.js", "can.generated/u9/server.js"]
+    );
+}
+
+// ## Production join: ordinary compilation consumes checked saved Given
+// contributions (contributed fields, givenContracts, server modules).
+
+/// Review fixture mirroring the production-join evidence: a named
+/// trait plus the novel standalone keyword, each applied once.
+const JOIN_APP: &str = r#"app Review
+Given
+ trait marked $"Add marked:bool=false."
+ keyword canonical_identity(target:model,field:field(target,text)) $"NFKC then ASCII fold unique key."
+ Account {handle:text} marked
+ canonical_identity target=Account field=Account.handle
+When
+Then
+ page / title="Review"
+  text "hello"
+"#;
+
+const JOIN_CARRIER: &str = "app Review\nGiven\n marked {marked:bool=false}\n";
+const JOIN_DECLARATION: &str = r#"{"producer":"state.unique-key@1","export":"canonicalKey","reads":[],"effects":[],"authority":[]}"#;
+const JOIN_ROOT_JS: &str = "import { fold } from \"./fold.js\";\nexport function canonicalKey(value) { return fold(value); }\n";
+const JOIN_FOLD_JS: &str =
+    "export function fold(value) { return value.normalize(\"NFKC\").toLowerCase(); }\n";
+const JOIN_CATALOG: &str = r#"{"language_version":"1.0","catalog_version":"1.0.0","entries":[]}"#;
+
+fn compile_json(dir: &std::path::Path, file: &str) -> canlang_compiler::cli::DispatchResult {
+    let catalog = write_file(dir, "catalog.json", JOIN_CATALOG);
+    dispatch(&argv(&[
+        "compile",
+        "--format=json",
+        &format!("--catalog={catalog}"),
+        file,
+    ]))
+}
+
+#[test]
+fn compile_joins_saved_given_contributions_and_server_modules() {
+    use canlang_compiler::analysis::types::given_closure_fingerprint;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", JOIN_APP);
+    let u_trait = bind_new(
+        &root,
+        &file,
+        JOIN_APP,
+        GenerationKind::NamedTrait,
+        Some("marked"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{u_trait}/contributions.can"),
+        JOIN_CARRIER,
+    );
+    let u_kw = bind_new(
+        &root,
+        &file,
+        JOIN_APP,
+        GenerationKind::KeywordDefinition,
+        Some("canonical_identity"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{u_kw}/declaration.json"),
+        JOIN_DECLARATION,
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{u_kw}/implementation.js"),
+        JOIN_ROOT_JS,
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{u_kw}/fold.js"),
+        JOIN_FOLD_JS,
+    );
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "stdout: {}", compiled.stdout);
+    let body = envelope(&compiled.stdout);
+    // The contributed field reaches the stored model descriptor the
+    // runtime loads: boolean, defaulted, never caller-required.
+    let models = body["models"].as_array().unwrap();
+    assert_eq!(models.len(), 1);
+    assert_eq!(models[0]["name"], "Review.Account");
+    let fields = models[0]["fields"].as_array().unwrap();
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0]["name"], "handle");
+    assert_eq!(fields[1]["name"], "marked");
+    assert_eq!(fields[1]["field"]["kind"], "boolean");
+    assert_eq!(fields[1]["valueType"], "bool");
+    assert_eq!(fields[1]["required"], false);
+    assert_eq!(fields[1]["default"]["kind"], "literal");
+    assert_eq!(fields[1]["default"]["value"], false);
+    // The checked contracts ride the artifact for compiler/runtime
+    // consumers: trait instantiation plus keyword rule.
+    let given = &body["givenContracts"];
+    assert_eq!(given["traits"][0]["trait"], "marked");
+    assert_eq!(given["traits"][0]["unitId"], u_trait);
+    assert_eq!(given["traits"][0]["target"], "Review.Account");
+    assert_eq!(given["traits"][0]["fields"][0]["name"], "marked");
+    assert_eq!(
+        given["traits"][0]["fingerprint"],
+        sha256_hex(JOIN_CARRIER.as_bytes())
+    );
+    let rule = &given["keywords"][0];
+    assert_eq!(rule["ruleId"], "Review.Account.handle#canonical_identity");
+    assert_eq!(rule["unitId"], u_kw);
+    assert_eq!(rule["producer"], "state.unique-key@1");
+    assert_eq!(rule["export"], "canonicalKey");
+    let expected_fp = given_closure_fingerprint(
+        JOIN_ROOT_JS.as_bytes(),
+        &[("fold.js", JOIN_FOLD_JS.as_bytes())],
+    );
+    assert_eq!(rule["fingerprint"], expected_fp);
+    // The saved server module plus its import-closure sibling stage
+    // after the entrypoint; the staged root keeps its checked bytes.
+    let modules = body["modules"].as_array().unwrap();
+    let paths: Vec<&str> = modules
+        .iter()
+        .map(|m| m["path"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        paths,
+        vec![
+            "$can$m$526576696577.mjs",
+            &format!("can.generated/{u_kw}/fold.js"),
+            &format!("can.generated/{u_kw}/server.js"),
+        ]
+    );
+    assert_eq!(modules[2]["js"], JOIN_ROOT_JS);
+    assert_eq!(modules[1]["js"], JOIN_FOLD_JS);
+    // Repeat saved builds are byte-identical with zero AI: no
+    // generation settings exist and none are consulted.
+    assert!(!dir.path().join("can.gen.toml").exists());
+    let again = compile_json(dir.path(), &file);
+    assert_eq!(again.code, 0, "stdout: {}", again.stdout);
+    assert_eq!(again.stdout, compiled.stdout);
+}
+
+#[test]
+fn compile_without_saved_given_diagnoses_the_unit_and_action() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", JOIN_APP);
+    // Only the keyword binds: the applied trait has no saved unit.
+    let u_kw = bind_new(
+        &root,
+        &file,
+        JOIN_APP,
+        GenerationKind::KeywordDefinition,
+        Some("canonical_identity"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{u_kw}/declaration.json"),
+        JOIN_DECLARATION,
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{u_kw}/implementation.js"),
+        "export function canonicalKey(v) { return v; }\n",
+    );
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 10, "stdout: {}", compiled.stdout);
+    let body = envelope(&compiled.stdout);
+    let diags = body["diagnostics"].as_array().unwrap();
+    assert_eq!(diags.len(), 1);
+    assert_eq!(diags[0]["code"], "E6008");
+    let message = diags[0]["message"].as_str().unwrap();
+    assert!(message.contains("trait `marked`"), "{message}");
+    assert!(message.contains("no saved unit"), "{message}");
+    assert!(message.contains("action: generate"), "{message}");
 }
 
 // ## Saved-build determinism with zero AI/MCP processes.
