@@ -249,6 +249,8 @@ export interface PagePreferenceStore {
  * keeps the identity fields for principal-scoped refusal. */
 export interface ExportDownloadRecord {
   readonly handle: string;
+  readonly appId: string;
+  readonly teamId: string | null;
   readonly principal: string;
   readonly operation: string;
   readonly args: {
@@ -256,6 +258,7 @@ export interface ExportDownloadRecord {
     readonly filters: unknown;
     readonly columns: readonly string[] | null;
     readonly limit: number;
+    readonly cursor: string | null;
   };
   readonly createdAt: string;
   readonly expiresAt: string;
@@ -266,13 +269,16 @@ export interface ExportDownloadRecord {
 }
 
 /** Durable large-output download store (DEL-B02). Production bindings persist
- * at B1; the memory double is per-isolate only. Callers, not the store,
- * decide identity convergence, completion and refusal. */
+ * at B1; the memory double is per-isolate only. Reads and writes detach
+ * records. Compare-and-set is atomic in the store, including revocation. */
 export interface ExportDownloadStore {
   read(handle: string): Promise<ExportDownloadRecord | null>;
-  /** Blind upsert; the caller decides convergence before writing. */
-  save(record: ExportDownloadRecord): Promise<void>;
-  /** Mark revoked, preserving identity fields; false when unknown. */
+  /** Absent-only creation for null; otherwise replace the exact pending digest.
+   * Query/scope/lifetime identity cannot change; ready/revoked are terminal.
+   * Refuse expired records at the atomic write boundary using the store clock. */
+  save(record: ExportDownloadRecord, expectedDigest: string | null): Promise<boolean>;
+  /** Atomically mark revoked, preserving identity fields; false when unknown.
+   * A tombstone retains its prior digest and is refused before body verification. */
   revoke(handle: string): Promise<boolean>;
 }
 

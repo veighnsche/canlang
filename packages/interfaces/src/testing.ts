@@ -51,6 +51,7 @@ import type {
   RateLimiter,
   ExportDownloadRecord,
   ExportDownloadStore,
+  InterfacesClock,
   ReadOutcome,
   SchemaCatalog,
   UploadBinding,
@@ -115,14 +116,29 @@ export function createFakeCatalog(
 }
 
 /** Memory large-output download store (per-isolate; production persists at B1). */
-export function createMemoryExportDownloadStore(): ExportDownloadStore {
+export function createMemoryExportDownloadStore(clock: InterfacesClock = systemInterfacesClock): ExportDownloadStore {
   const records = new Map<string, ExportDownloadRecord>();
   return {
     async read(handle: string) {
-      return records.get(handle) ?? null;
+      const record = records.get(handle);
+      return record === undefined ? null : structuredClone(record);
     },
-    async save(record: ExportDownloadRecord) {
-      records.set(record.handle, record);
+    async save(record: ExportDownloadRecord, expectedDigest: string | null) {
+      if (!Number.isFinite(Date.parse(record.expiresAt)) || clock.nowMs() >= Date.parse(record.expiresAt)) return false;
+      const current = records.get(record.handle);
+      if (expectedDigest === null) {
+        if (current !== undefined || record.status !== 'pending') return false;
+      } else {
+        if (current === undefined || current.status !== 'pending' ||
+            current.digest !== expectedDigest || record.status !== 'ready') return false;
+        const identity = (value: ExportDownloadRecord) => JSON.stringify([
+          value.handle, value.appId, value.teamId, value.principal, value.operation,
+          value.args, value.createdAt, value.expiresAt,
+        ]);
+        if (identity(current) !== identity(record)) return false;
+      }
+      records.set(record.handle, structuredClone(record));
+      return true;
     },
     async revoke(handle: string) {
       const current = records.get(handle);

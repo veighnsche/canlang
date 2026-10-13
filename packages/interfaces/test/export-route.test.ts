@@ -16,7 +16,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveCsrfToken, revokeSessionByToken } from '@canlang/identity';
+import { deriveCsrfToken, revokeSessionByToken, selectTeam } from '@canlang/identity';
 import { COLLECTION_MAX_LIMIT } from '@canlang/contracts';
 import type { ListQueryResult } from '@canlang/contracts';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
@@ -316,7 +316,7 @@ test('FP.EXPORT-DISPATCH: pre-existing routes unchanged — operations, csv, aut
 
 async function exportDownloadDeps(overrides: Parameters<typeof createTestDeps>[0] = {}) {
   const t = await exportRouteDeps(overrides);
-  const store = createMemoryExportDownloadStore();
+  const store = createMemoryExportDownloadStore({ nowMs: () => deps.clock.nowMs() });
   const deps = { ...t.deps, exportDownloads: store };
   const sub: HttpSubHandlers = {
     operations: (req, op) => handleOperationRequest(deps, req, op),
@@ -415,7 +415,7 @@ test('DEL-B02: expired records answer not_found on status and download', async (
   const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
   const handle = outcome.descriptor!.handle;
   const stored = (await t.store.read(handle))!;
-  await t.store.save({ ...stored, expiresAt: new Date(Date.now() - 1000).toISOString() });
+  Object.assign(t.deps, { clock: { nowMs: () => Date.parse(stored.expiresAt) } });
   assert.equal((await getDownload(t, `/api/exports/status/${handle}`)).status, 404);
   assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 404);
 });
@@ -425,10 +425,11 @@ test('DEL-B02: foreign principal and revoked records answer forbidden', async ()
   const outcome = await exportOk(t, { operation: OPERATION, limit: 1 });
   const handle = outcome.descriptor!.handle;
   const stored = (await t.store.read(handle))!;
-  await t.store.save({ ...stored, principal: 'mallory' });
+  const read = t.store.read;
+  t.store.read = async () => ({ ...stored, principal: 'mallory' });
   const foreign = await getDownload(t, `/api/exports/download/${handle}`);
   assert.equal(foreign.status, 403);
-  await t.store.save(stored);
+  t.store.read = read;
   assert.equal(await t.store.revoke(handle), true);
   const status = await getDownload(t, `/api/exports/status/${handle}`);
   assert.equal(status.status, 403);
@@ -443,7 +444,7 @@ test('DEL-B02: tainted bodies refuse validation without serving bytes', async ()
   const handle = outcome.descriptor!.handle;
   assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 200);
   const stored = (await t.store.read(handle))!;
-  await t.store.save({ ...stored, csv: `${stored.csv}tampered,row\n` });
+  t.store.read = async () => ({ ...stored, csv: `${stored.csv}tampered,row\n` });
   const download = await getDownload(t, `/api/exports/download/${handle}`);
   assert.equal(download.status, 400);
   assert.equal(((await download.json()) as { code: string }).code, 'validation');
@@ -457,13 +458,13 @@ test('DEL-B02: missing bodies and store read failures answer generic internal wi
   const { digest: _stale, ...rest } = stored;
   const crafted = { ...rest, status: 'ready' as const };
   const digest = createHash('sha256').update(canonicalJson(crafted), 'utf8').digest('hex');
-  await t.store.save({ ...crafted, digest });
+  t.store.read = async () => ({ ...crafted, digest });
   const missing = await getDownload(t, `/api/exports/download/${handle}`);
   assert.equal(missing.status, 422);
   assert.equal(((await missing.json()) as { code: string }).code, 'rule_failed');
   const failing = {
     read: async (_handle: string): Promise<never> => { throw new Error('boom'); },
-    save: async (): Promise<void> => {},
+    save: async (): Promise<boolean> => false,
     revoke: async (): Promise<boolean> => false,
   };
   const brokenDeps = { ...t.deps, exportDownloads: failing };
@@ -500,4 +501,192 @@ test('DEL-B02: secret values in later pages refuse the download closed', async (
   const download = await getDownload(t, `/api/exports/download/${outcome.descriptor!.handle}`);
   assert.equal(download.status, 400);
   assert.equal(((await download.json()) as { code: string }).code, 'validation');
+});
+
+test('DEL-B02: ready replay and status require current row and field grants', async () => {
+  let access: 'granted' | 'denied' | 'field-denied' | 'row-denied' = 'granted';
+  const t = await exportDownloadDeps({ reads: {
+    [OPERATION]: (envelope) => {
+      if (access === 'denied') return { error: { code: 'forbidden', message: 'Denied.', retryable: false } };
+      const row = PAGE_ROWS[envelope.inputs.cursor === undefined ? 0 : 1]!;
+      const columns = access === 'field-denied' ? COLUMNS.slice(0, 1) : COLUMNS;
+      return { result: { rows: access === 'row-denied' ? [] : [row], columns,
+        ...(envelope.inputs.cursor === undefined ? { nextCursor: '1' } : {}) } };
+    },
+  } });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const path = `/api/exports/download/${output.descriptor!.handle}`;
+  assert.equal((await getDownload(t, path)).status, 200);
+  const retained = (await t.store.read(output.descriptor!.handle))!;
+  access = 'denied';
+  assert.equal((await getDownload(t, path)).status, 403);
+  assert.equal((await getDownload(t, `/api/exports/status/${retained.handle}`)).status, 403);
+  access = 'field-denied';
+  // Removing an originally selected column cannot expose cached cell values.
+  assert.equal((await getDownload(t, path)).status, 403);
+  access = 'row-denied';
+  assert.equal((await getDownload(t, path)).status, 403);
+  assert.deepEqual(await t.store.read(retained.handle), retained);
+  access = 'granted';
+  assert.equal((await getDownload(t, path)).status, 200);
+});
+
+test('DEL-B02: a selected-owner or app change cannot reuse a completed handle', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  await selectTeam(t.identity.store, { session_token: t.identity.sessionToken, team_id: t.identity.teamId });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const path = `/api/exports/download/${output.descriptor!.handle}`;
+  assert.equal((await getDownload(t, path)).status, 200);
+  const other = await t.identity.store.createTeam({});
+  await t.identity.store.createMembership({ team_id: other.team_id, user_id: t.identity.userId, is_owner: true, roles: [] });
+  await selectTeam(t.identity.store, { session_token: t.identity.sessionToken, team_id: other.team_id });
+  assert.equal((await getDownload(t, path)).status, 403);
+  const distinct = await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.notEqual(distinct.descriptor!.handle, output.descriptor!.handle);
+  await selectTeam(t.identity.store, { session_token: t.identity.sessionToken, team_id: t.identity.teamId });
+  Object.assign(t.deps, { app: { ...t.deps.app, appId: 'other-app' } });
+  assert.equal((await getDownload(t, path)).status, 403);
+});
+
+test('DEL-B02: starting cursor remains part of registration and all completion reads', async () => {
+  const third = { id: 'e-3', fields: { customer: 'c', total: '30' } };
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!], [third]]) });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1, cursor: '1' });
+  const record = (await t.store.read(output.descriptor!.handle))!;
+  assert.equal(record.args.cursor, '1');
+  const result = await getDownload(t, `/api/exports/download/${record.handle}`);
+  assert.equal(result.status, 200);
+  assert.equal(await result.text(), 'id,version,customer,total\ne-2,,b,20\ne-3,,c,30\n');
+  assert.ok(t.invoker.reads.every((read) => read.envelope.inputs.cursor === '1' || read.envelope.inputs.cursor === '2'));
+});
+
+test('DEL-B02: revocation while completion awaits cannot resurrect the record', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const handle = output.descriptor!.handle;
+  const save = t.store.save;
+  t.store.save = async (record, expected) => {
+    if (record.status === 'ready') await t.store.revoke(handle);
+    return save(record, expected);
+  };
+  assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 403);
+  assert.equal((await t.store.read(handle))!.status, 'revoked');
+  assert.equal((await t.store.read(handle))!.csv, undefined);
+  await exportOk(t, { operation: OPERATION, limit: 1 });
+  assert.equal((await t.store.read(handle))!.status, 'revoked');
+});
+
+test('DEL-B02: competing completions return only the actual winning body', async () => {
+  let version = 'A';
+  const t = await exportDownloadDeps({ reads: {
+    [OPERATION]: (envelope) => ({ result: listResult([
+      { id: envelope.inputs.cursor === undefined ? 'e-1' : 'e-2', fields: { customer: version, total: '1' } },
+    ], envelope.inputs.cursor === undefined ? '1' : undefined) }),
+  } });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const path = `/api/exports/download/${output.descriptor!.handle}`;
+  let enter!: () => void;
+  let release!: () => void;
+  const entered = new Promise<void>((resolve) => { enter = resolve; });
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  const save = t.store.save;
+  let writes = 0;
+  t.store.save = async (record, expected) => {
+    if (record.status === 'ready' && ++writes === 1) { enter(); await held; }
+    return save(record, expected);
+  };
+  const first = getDownload(t, path);
+  await entered;
+  version = 'B';
+  let second: Response;
+  try { second = await getDownload(t, path); } finally { release(); }
+  const loser = await first;
+  assert.equal(second.status, 200);
+  assert.equal(loser.status, 200);
+  const winningBody = await second.text();
+  assert.equal(await loser.text(), winningBody);
+  assert.equal((await t.store.read(output.descriptor!.handle))!.csv, winningBody);
+  assert.ok(!winningBody.includes(',A,'));
+});
+
+test('DEL-B02: late session revocation or expiry refuses completion without a body', async () => {
+  for (const reason of ['session', 'expiry'] as const) {
+    const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+    const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+    const handle = output.descriptor!.handle;
+    const pending = (await t.store.read(handle))!;
+    const save = t.store.save;
+    t.store.save = async (record, expected) => {
+      if (record.status === 'ready') {
+        if (reason === 'session') await revokeSessionByToken(t.identity.store, { token: t.identity.sessionToken });
+        else Object.assign(t.deps, { clock: { nowMs: () => Date.parse(pending.expiresAt) } });
+      }
+      return save(record, expected);
+    };
+    const response = await getDownload(t, `/api/exports/download/${handle}`);
+    assert.equal(response.status, reason === 'session' ? 403 : 404);
+    assert.ok(!(await response.text()).includes('customer,total'));
+    if (reason === 'expiry') assert.deepEqual(await t.store.read(handle), pending);
+  }
+});
+
+test('DEL-B02: aliased readers cannot alter store state or replace a terminal record', async () => {
+  const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1, filters: { customer: 'a' } });
+  const handle = output.descriptor!.handle;
+  const record = (await t.store.read(handle))!;
+  (record.args.filters as { customer: string }).customer = 'changed';
+  assert.deepEqual((await t.store.read(handle))!.args.filters, { customer: 'a' });
+  assert.equal(await t.store.save(record, null), false);
+  assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 200);
+  const ready = (await t.store.read(handle))!;
+  assert.equal(await t.store.save({ ...ready, csv: 'replacement' }, ready.digest), false);
+  assert.equal(await t.store.revoke(handle), true);
+  assert.equal(await t.store.save(ready, ready.digest), false);
+});
+
+test('DEL-B02: a repeated pagination cursor refuses instead of publishing a partial output', async () => {
+  const t = await exportDownloadDeps({ reads: {
+    [OPERATION]: () => ({ result: listResult([PAGE_ROWS[0]!], 'same-cursor') }),
+  } });
+  const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+  const handle = output.descriptor!.handle;
+  const result = await getDownload(t, `/api/exports/download/${handle}`);
+  assert.equal(result.status, 400);
+  assert.equal((await t.store.read(handle))!.status, 'pending');
+});
+
+test('DEL-B02: revocation at any awaited current-membership read withholds ready disclosure', async () => {
+  async function readyDownload() {
+    const t = await exportDownloadDeps({ reads: pagedReads([[PAGE_ROWS[0]!], [PAGE_ROWS[1]!]]) });
+    await selectTeam(t.identity.store, { session_token: t.identity.sessionToken, team_id: t.identity.teamId });
+    const output = await exportOk(t, { operation: OPERATION, limit: 1 });
+    const handle = output.descriptor!.handle;
+    assert.equal((await getDownload(t, `/api/exports/download/${handle}`)).status, 200);
+    return { ...t, handle };
+  }
+  const baseline = await readyDownload();
+  let awaits = 0;
+  const lookup = baseline.identity.store.findMembership;
+  baseline.identity.store.findMembership = async (...args) => { awaits++; return lookup(...args); };
+  for (const route of ['download', 'status']) {
+    awaits = 0;
+    assert.equal((await getDownload(baseline, `/api/exports/${route}/${baseline.handle}`)).status, 200);
+    assert.ok(awaits > 0);
+    for (let revokeAt = 1; revokeAt <= awaits; revokeAt++) {
+      const t = await readyDownload();
+      const original = t.identity.store.findMembership;
+      let calls = 0;
+      let revoked = false;
+      t.identity.store.findMembership = async (...args) => {
+        const membership = await original(...args);
+        if (++calls === revokeAt) { revoked = await t.store.revoke(t.handle); }
+        return membership;
+      };
+      const result = await getDownload(t, `/api/exports/${route}/${t.handle}`);
+      assert.equal(revoked, true, `reachable current-membership await ${revokeAt}`);
+      assert.equal(result.status, 403, `${route}: revocation at current-membership await ${revokeAt}`);
+      assert.equal((await t.store.read(t.handle))!.status, 'revoked');
+    }
+  }
 });
