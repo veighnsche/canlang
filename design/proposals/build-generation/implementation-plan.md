@@ -107,7 +107,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-07 — Trait contributions and custom keyword contracts
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-dfff implementing at fire 26, 2026-10-13T07:26Z (check/effects/resolve/types/ir/artifact/contracts + bgi07 test; probes fold/remove at handoff); owns check/resolve/types/effects/examples + codegen ir/artifact + Contracts Given descriptors only; awaiting bgi07+bgi01+bgi02 green. BGI05 accepted b0007579b; BGI03-repair editing config at fire 26; Then lane reading at fire 26.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a1340d-dfff release 831dc8614 integrated as e9c501cb (check/resolve/types/effects + ir/artifact + Contracts Given descriptors, bgi07_given.rs 8 tests, DECISIONS.md entry; probes folded, no stray files). Coordinator verified on main: bgi07 8/8, bgi01 13/13, bgi02 17/17, bgi03 29/29, bgi04 17/17, check 38/38, b4_check 284/284 (catalog built via repo command), typed_artifact 2/2, contracts tsc clean. BGI07 writer released; BGI08 unblocked.
 
 **Owner / targets:** compiler `analysis/{check,resolve,types,effects,examples}.rs`, `codegen/{ir,js,defaults,artifact}.rs`; Contracts artifact/state descriptors. **Needs:** BGI-01 typed roles, BGI-02 association and BGI-04 saved snapshots.
 
