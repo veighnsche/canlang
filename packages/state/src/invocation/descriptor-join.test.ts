@@ -16,6 +16,10 @@ import type {
 } from '@canlang/contracts';
 import type { ExecutionDescriptorSet } from '@canlang/contracts';
 import {
+  STD_EMAIL_V1_CONTRACT,
+  deliveryResultLeaves,
+} from '@canlang/contracts';
+import {
   IncompatibleArtifactError,
   artifactToDescriptorSet,
   isGeneratedOperationDef,
@@ -861,5 +865,157 @@ describe('T16a join: generated calls through canonical admission', () => {
     });
     assert.equal(restocked.status, 'committed');
     assert.deepEqual(restocked.result, { seen: { sku: 's', tags: [] } });
+  });
+});
+
+describe('T04b delivery-input join: fenced T13 bindings admit', () => {
+  // Fixtures derive from the live T13 contracts (never hardcoded versions):
+  // the fence is only as current as the contracts it reads.
+  function emailReceiptField(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    const operation = STD_EMAIL_V1_CONTRACT.operations.find((op) => op.name === 'send');
+    assert.ok(operation);
+    const leaves = deliveryResultLeaves(operation.result);
+    assert.ok(leaves);
+    return {
+      kind: 'delivery',
+      capability: STD_EMAIL_V1_CONTRACT.name,
+      operation: operation.name,
+      version: STD_EMAIL_V1_CONTRACT.version,
+      result: { name: operation.result, fields: leaves.map((leaf) => ({ ...leaf })) },
+      ...overrides,
+    };
+  }
+
+  function receiptInput(field: Record<string, unknown>, extra: Record<string, unknown> = {}): ArtifactOperationInput {
+    return { name: 'receipt', field, required: false, ...extra } as unknown as ArtifactOperationInput;
+  }
+
+  function receiptScenario(field: Record<string, unknown>, extra: Record<string, unknown> = {}): ArtifactOperation {
+    return { name: 'Shop.notify', kind: 'scenario', description: '', inputs: { fields: [receiptInput(field, extra)] } };
+  }
+
+  function withReceipt(field: Record<string, unknown>, extra: Record<string, unknown> = {}): ArtifactDescriptorSlice {
+    const slice = fullSlice();
+    (slice.operations as ArtifactOperation[]).push(receiptScenario(field, extra));
+    return slice;
+  }
+
+  function loadedReceiptInput(slice: ArtifactDescriptorSlice): Record<string, unknown> {
+    const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+    const def = loaded.registry.get('Shop.notify');
+    assert.ok(def && isGeneratedOperationDef(def), 'generated def for Shop.notify');
+    const inputs = (def as GeneratedOperationDef).descriptor.inputs as unknown as Record<string, unknown>[];
+    assert.equal(inputs.length, 1);
+    const input = inputs[0]!;
+    assert.equal(input['kind'], 'delivery');
+    return input;
+  }
+
+  it('admits a fenced delivery input with the binding carried verbatim', () => {
+    const input = loadedReceiptInput(withReceipt(emailReceiptField()));
+    const delivery = input['delivery'] as Record<string, unknown>;
+    assert.equal(delivery['capability'], STD_EMAIL_V1_CONTRACT.name);
+    assert.equal(delivery['operation'], 'send');
+    assert.equal(delivery['version'], STD_EMAIL_V1_CONTRACT.version);
+    const result = delivery['result'] as { name: string; fields: unknown[] };
+    const declared = deliveryResultLeaves('EmailAccepted');
+    assert.ok(declared);
+    assert.equal(result.name, 'EmailAccepted');
+    assert.deepEqual(result.fields, declared.map((leaf) => ({ ...leaf })));
+    assert.equal(input['required'], false);
+  });
+
+  it('rejects unknown capabilities, operations, results, and leaf tampering', async () => {
+    const operation = STD_EMAIL_V1_CONTRACT.operations.find((op) => op.name === 'send');
+    assert.ok(operation);
+    const leaves = deliveryResultLeaves(operation.result);
+    assert.ok(leaves);
+    const cases: Array<{ patch: Record<string, unknown>; reason: string; match: RegExp }> = [
+      { patch: { capability: 'std.NopeV1' }, reason: 'malformed_descriptor', match: /Unknown capability "std\.NopeV1"/ },
+      { patch: { operation: 'burn' }, reason: 'malformed_descriptor', match: /no sendable operation "burn"/ },
+      { patch: { result: { name: 'EmailOther', fields: [] } }, reason: 'malformed_descriptor', match: /not declared for std\.EmailV1\.send/ },
+      { patch: { result: { name: operation.result, fields: [] } }, reason: 'malformed_descriptor', match: /declares \d+ leaves/ },
+      { patch: { result: { name: operation.result, fields: leaves.map((leaf) => ({ ...leaf, type: 'int' })) } },
+        reason: 'malformed_descriptor', match: /declares type/ },
+      { patch: { result: { name: operation.result, fields: [...leaves.map((leaf) => ({ ...leaf })), ...leaves.map((leaf) => ({ ...leaf }))] } },
+        reason: 'duplicate_name', match: /Duplicate delivery leaf/ },
+      { patch: { capability: undefined }, reason: 'malformed_descriptor', match: /delivery identity\/version/ },
+    ];
+    for (const { patch, reason, match } of cases) {
+      const field = emailReceiptField();
+      for (const [key, val] of Object.entries(patch)) {
+        if (val === undefined) delete field[key]; else field[key] = val;
+      }
+      const error = await captureArtifactError(() => loadArtifactDescriptors(withReceipt(field), { by: 'members' }));
+      assert.equal(error.reason, reason);
+      assert.match(error.message, match);
+    }
+  });
+
+  it('rejects version drift with version_mismatch, never silently', async () => {
+    const field = emailReceiptField({ version: STD_EMAIL_V1_CONTRACT.version + 1 });
+    const error = await captureArtifactError(() => loadArtifactDescriptors(withReceipt(field), { by: 'members' }));
+    assert.equal(error.reason, 'version_mismatch');
+    assert.match(error.message, /does not match/);
+    assert.match(error.message, /std\.EmailV1/);
+    const fractional = emailReceiptField({ version: 1.5 });
+    const fractionError = await captureArtifactError(() => loadArtifactDescriptors(withReceipt(fractional), { by: 'members' }));
+    assert.equal(fractionError.reason, 'malformed_descriptor');
+  });
+
+  it('rejects contradictory computed defaults and missing descriptors', async () => {
+    const computed = withReceipt(emailReceiptField(), { computedDefault: true });
+    const computedError = await captureArtifactError(() => loadArtifactDescriptors(computed, { by: 'members' }));
+    assert.equal(computedError.reason, 'malformed_descriptor');
+    assert.match(computedError.message, /computedDefault/);
+    const slice = withReceipt(emailReceiptField());
+    const ops = slice.operations as ArtifactOperation[];
+    delete (ops[ops.length - 1]!.inputs.fields[0] as unknown as Record<string, unknown>)['field'];
+    const missing = await captureArtifactError(() => loadArtifactDescriptors(slice, { by: 'members' }));
+    assert.equal(missing.reason, 'malformed_descriptor');
+  });
+
+  it('admits source Judgment deliveries against the checked inventory only', () => {
+    const inventory = { contracts: [{ name: 'Example.Decision', fields: [{ name: 'status', type: 'text' }] }] };
+    const judgment = {
+      kind: 'delivery', judgment: true, capability: 'Example.Decision', operation: 'evaluate', version: '1',
+      result: { name: 'Example.Decision', fields: [{ name: 'status', type: 'text' }] },
+    };
+    const slice = withReceipt(judgment);
+    (slice as unknown as Record<string, unknown>)['valueTypes'] = inventory;
+    const input = loadedReceiptInput(slice);
+    assert.deepEqual(input['delivery'], { ...judgment, capability: 'Example.Decision' });
+    const tampered = withReceipt({
+      ...judgment,
+      result: { name: 'Example.Decision', fields: [{ name: 'status', type: 'int' }] },
+    });
+    (tampered as unknown as Record<string, unknown>)['valueTypes'] = inventory;
+    assert.throws(() => loadArtifactDescriptors(tampered, { by: 'members' }), IncompatibleArtifactError);
+    const noInventory = withReceipt(judgment);
+    assert.throws(() => loadArtifactDescriptors(noInventory, { by: 'members' }), IncompatibleArtifactError);
+  });
+
+  it('admits fenced delivery inputs on the intake-direct path too', () => {
+    const converted = artifactToDescriptorSet(withReceipt(emailReceiptField()));
+    const loaded = loadExecutionDescriptorSet(converted.set, { by: 'members' });
+    const def = loaded.registry.get('Shop.notify');
+    assert.ok(def && isGeneratedOperationDef(def), 'generated def for Shop.notify');
+    const inputs = (def as GeneratedOperationDef).descriptor.inputs as unknown as Record<string, unknown>[];
+    assert.equal(inputs[0]!['kind'], 'delivery');
+    const drifted = structuredClone(converted.set) as unknown as {
+      operations: Array<{ inputs: Array<{ delivery: { version: number } }> }>;
+    };
+    drifted.operations[drifted.operations.length - 1]!.inputs[0]!.delivery.version = STD_EMAIL_V1_CONTRACT.version + 1;
+    const error = ((): IncompatibleArtifactError | null => {
+      try {
+        loadExecutionDescriptorSet(drifted as unknown as ExecutionDescriptorSet, { by: 'members' });
+      } catch (caught) {
+        assert.ok(caught instanceof IncompatibleArtifactError);
+        return caught;
+      }
+      return null;
+    })();
+    assert.ok(error);
+    assert.equal(error.reason, 'version_mismatch');
   });
 });

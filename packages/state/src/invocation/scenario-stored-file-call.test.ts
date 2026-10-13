@@ -350,7 +350,9 @@ test('stored File CALL refuses unsupported target slots at owning loader or bind
       Object.assign(field, { field: { kind: 'delivery', capability: 'std.ImagesV1', operation: 'submit', version: 1,
         result: { name: 'ImagesSubmit', fields: [] } } });
       Reflect.deleteProperty(field, 'valueType'); Reflect.deleteProperty(field, 'array');
-      assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), /Unknown input kind "delivery"/);
+      // T04b §10.1 (ratified): delivery is an admittable kind; unsupported
+      // target slots refuse at the owning loader's T13 fence instead.
+      assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), /not declared for std\.ImagesV1\.submit/);
       continue;
     }
     const loaded = loadArtifactDescriptors(slice, { by: 'members' });
