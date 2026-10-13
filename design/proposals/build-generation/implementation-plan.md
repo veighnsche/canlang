@@ -67,7 +67,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-03 — Configuration and JSON command contract
 
-- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-82b8 WIP 741370f61 + join ad30e1022 integrated as 1fa92d56f + cc6d69305 (repair merge skipped, already in main; toml 0.9.12 + base64 pinned, smol-toml Node, dispatcher, capability preflight, MCP contract, join wiring cli.rs:2464/2950 + bind-copy case; correction + join + leases direction ACKed). Coordinator verified on main: bgi03 26/26 (incl join case), bgi01 13/13, bgi02 17/17, exe 11/11, node dist/generation 38/38 (13 new); zero new tsc errors; no When recipe/profile (correction honored). BGI03 writer released; Given/Then/tooling lanes unblocked.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-82b8 WIP 741370f61 + join ad30e1022 integrated as 1fa92d56f + cc6d69305 (repair merge skipped, already in main; toml 0.9.12 + base64 pinned, smol-toml Node, dispatcher, capability preflight, MCP contract, join wiring cli.rs:2464/2950 + bind-copy case; correction + join + leases direction ACKed). Coordinator verified on main: bgi03 26/26 (incl join case), bgi01 13/13, bgi02 17/17, exe 11/11, node dist/generation 38/38 (13 new); zero new tsc errors; no When recipe/profile (correction honored). BGI03 writer released; Given/Then/tooling lanes unblocked. Codex 3-defect repair active per can-bg-56271b11-codex-config-20261013T071739Z (explicit-vs-default profile, zero overrides, current-vs-historical inspection; probe /private/tmp/bgi03-review-cc6d69305/results.json): worker 01a13421 dispatched isolated, owns config/protocol/cli-inspection + tests only, no Given/MCP files.
 
 **Owner / targets:** `compiler/src/cli.rs`; `packages/cloudflare/src/cli/platform.ts` and generation config/protocol modules. **Needs:** BGI-01 descriptor shapes and BGI-02 selectors/records.
 
@@ -77,7 +77,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-04 — Write leases, snapshots and journal recovery
 
-- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-a621 release 6d935fa4f integrated as 9044408b8 (leases.rs, source hooks, leases/journal.ts, bgi04_leases.rs 13 tests, DECISIONS.md entry; cli.rs untouched as assigned). Coordinator verified on main: bgi04 13/13, bgi01 13/13, bgi02 14/14, node dist/generation 22/22 (10 records/association + 12 leases/journal); zero new tsc errors. BGI04 writer released on handoff; lib.rs mod-line reconciled at cherry-pick with no conflict. Codex 3-defect repair accepted as 07d47006 (worker 01a13405 release 4c1d92416; source.rs needed no edit; no cli.rs/config). Coordinator verified on main: bgi04 17/17 (4 new: admission arbitration, read-gate-under-lease, temp sibling + vectors), bgi02 17/17, bgi01 13/13, bgi03 26/26, exe 11/11, node dist/generation 43/43 (5 new); zero new tsc errors. Repair writer released.
+- [x] Status: done (coordinator session 01a133ac, goal goal-01a133b1). Evidence/handoff: worker 01a133e8-a621 release 6d935fa4f integrated as 9044408b8 (leases.rs, source hooks, leases/journal.ts, bgi04_leases.rs 13 tests, DECISIONS.md entry; cli.rs untouched as assigned). Coordinator verified on main: bgi04 13/13, bgi01 13/13, bgi02 14/14, node dist/generation 22/22 (10 records/association + 12 leases/journal); zero new tsc errors. BGI04 writer released on handoff; lib.rs mod-line reconciled at cherry-pick with no conflict. Codex 3-defect repair accepted as 07d47006 (worker 01a13405 release 4c1d92416; source.rs needed no edit; no cli.rs/config). Coordinator verified on main: bgi04 17/17 (4 new: admission arbitration, read-gate-under-lease, temp sibling + vectors), bgi02 17/17, bgi01 13/13, bgi03 26/26, exe 11/11, node dist/generation 43/43 (5 new); zero new tsc errors. Repair writer released. Codex recheck accepted on 07d470064 (3 original reproductions: concurrent acquire admits neither, interrupted promotion refuses unresolved journal, a.css replace preserves a.css.can-new; evidence /private/tmp/bgi04-recheck-07d470064/probe.mjs; 17/17 reused, no new lease audit).
 
 **Owner / targets:** Node generation coordination/promotion modules; matching Rust generation intake/read coordination in `cli.rs`/`source.rs`. **Needs:** BGI-02 associated outputs/source paths and the frozen full-run aggregate promotion/recovery contract.
 
@@ -87,7 +87,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-05 — MCP candidate submission and bounded Codex execution
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-bba7 running clean reading phase at fire 21, 2026-10-13T07:01Z, owns NEW Node MCP/lifecycle/runner modules only; awaiting MCP handoff with Node tests green (Codex access/no-write gate held open). BGI07 probing (zz_probe.rs) at fire 21; BGI04-repair editing leases/journal at fire 21.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-bba7 testing at fire 23, 2026-10-13T07:11Z, all 6 MCP/lifecycle/adapters files present; owns NEW Node MCP/lifecycle/runner modules only; awaiting MCP handoff with Node tests green (Codex access/no-write gate held open). BGI07 still probing (zz_probe + zz_probe2, no impl yet) at fire 23; BGI04-repair accepted 07d47006.
 
 **Owner / targets:** Node generation lifecycle/MCP/runner modules, reusing patterns from `cli/command-lifetime.ts`. **Needs:** BGI-03 requests/recipes/MCP contract and BGI-04 captured groups/fences.
 
@@ -107,7 +107,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-07 — Trait contributions and custom keyword contracts
 
-- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-dfff dispatched isolated, owns check/resolve/types/effects/examples + codegen ir/artifact + Contracts Given descriptors only; awaiting bgi07+bgi01+bgi02 green.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-dfff implementing at fire 24-25, 2026-10-13T07:19Z (check/effects/resolve/types/ir.rs + 3 probes; child log shows compiling resolve.rs, authority helpers, core types — healthy implementation, no stall; probes fold/remove at handoff); owns check/resolve/types/effects/examples + codegen ir/artifact + Contracts Given descriptors only; awaiting bgi07+bgi01+bgi02 green. BGI05 testing all 6 files at fire 24.
 
 **Owner / targets:** compiler `analysis/{check,resolve,types,effects,examples}.rs`, `codegen/{ir,js,defaults,artifact}.rs`; Contracts artifact/state descriptors. **Needs:** BGI-01 typed roles, BGI-02 association and BGI-04 saved snapshots.
 
