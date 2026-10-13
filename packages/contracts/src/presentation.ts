@@ -2170,3 +2170,163 @@ export interface GeneratedFormProps {
   readonly labels?: Record<string, MessageValue>;
   readonly values?: Record<string, unknown>;
 }
+
+/**
+ * BGI-09 row-bound generated views and BGI-10 scoped style hooks.
+ *
+ * A prompted `view Name(row:Model) $"..."` renders through its saved
+ * `render({row, bindings, ui})`: the host evaluates the `show` row argument
+ * once, pre-renders every declared canonical control through the existing
+ * factories (refused fields never reach the bindings), and the renderer
+ * only arranges those bindings. Optional saved `mount(root, presentation)`
+ * browser code enhances the instance root and returns cleanup that the
+ * browser join runs when the instance is replaced. No props, slots,
+ * nested show or exports: the view name, one row, and declared controls
+ * are the whole contract.
+ */
+export const GENERATED_VIEW_CONTRACT_VERSION = "canlang.presentation.generated-view/1";
+
+/** Scope contract version shared with the compiler CSS scoper. */
+export const STYLE_SCOPE_CONTRACT_VERSION = "canlang.css-scope/1";
+
+/**
+ * Ownership marker; the value is the owning style unit. A nested child
+ * root carries its own unit here plus the parent unit in
+ * STYLE_HOST_ATTR, so parent rules place the host but cannot match its
+ * interior. Values are compiler-written; authored selectors must never
+ * mention them.
+ */
+export const STYLE_OWNERSHIP_ATTR = "data-can-style";
+/** Per-use root hook; the value is `<unit>:<use>`. */
+export const STYLE_ROOT_ATTR = "data-can-style-root";
+/** Child-host hook; the value is the parent style unit. */
+export const STYLE_HOST_ATTR = "data-can-style-host";
+/** Generated-view instance root; the value is the instance id. */
+export const GENERATED_VIEW_ATTR = "data-can-view";
+
+/** Rendered hook attributes for one named-style use root. */
+export function styleUseAttributes(unitId: string, useId: string): string {
+  return `${STYLE_OWNERSHIP_ATTR}="${unitId}" ${STYLE_ROOT_ATTR}="${unitId}:${useId}"`;
+}
+
+/** Rendered hook attributes for a nested child root (child unit + parent hook). */
+export function styleHostAttributes(childUnit: string, parentUnit: string): string {
+  return `${STYLE_OWNERSHIP_ATTR}="${childUnit}" ${STYLE_HOST_ATTR}="${parentUnit}"`;
+}
+
+/** One checked control binding a prompted view declares. */
+export interface GeneratedViewControl {
+  /** `edit` | `delete` | `form` | `action` | `actions`. */
+  readonly kind: string;
+  /** Operation for `form`/`action`/`actions` (`Todo.create`). */
+  readonly operation?: string;
+  /** Declared fields for `edit`/`form`; admission filters refusals. */
+  readonly fields?: ReadonlyArray<string>;
+}
+
+/** Checked contract for one prompted row-bound view definition. */
+export interface GeneratedViewDescriptor {
+  readonly version: typeof GENERATED_VIEW_CONTRACT_VERSION;
+  readonly view: string;
+  readonly rowModel: string;
+  readonly controls: ReadonlyArray<GeneratedViewControl>;
+  /** Style unit id styling the renderer root, when declared. */
+  readonly rootStyle?: string;
+}
+
+/** Pre-rendered canonical control HTML the renderer arranges. */
+export interface GeneratedViewBinding {
+  /** Stable binding name (`edit`, `delete`, `form`, `action`). */
+  readonly name: string;
+  readonly html: string;
+}
+
+/**
+ * Presentation helpers the saved renderer may call. The renderer arranges
+ * admitted data and pre-rendered bindings; it cannot reach stores,
+ * dispatch, or raw principal state through this surface.
+ */
+export interface GeneratedViewUi {
+  readonly escapeHtml: (value: string) => string;
+  readonly escapeAttr: (value: string) => string;
+}
+
+/** Saved `render({row, bindings, ui})` input. `row` is already evaluated. */
+export interface GeneratedViewRenderInput {
+  readonly row: RowView;
+  readonly bindings: Record<string, string>;
+  readonly ui: GeneratedViewUi;
+}
+
+/** Saved renderer entry: arrange bindings into instance HTML. */
+export type GeneratedViewRender = (
+  input: GeneratedViewRenderInput,
+) => string | Promise<string>;
+
+/** Presentation facts handed to a saved browser `mount`. */
+export interface GeneratedViewPresentation {
+  readonly view: string;
+  readonly useId: string;
+  readonly row: RowView;
+}
+
+/**
+ * Saved browser enhancement entry. `root` is the live instance element
+ * (narrowed by the browser join); the return value is instance cleanup the
+ * join runs when the instance is replaced. Name the export `mount`;
+ * absence of the export means no browser enhancement.
+ */
+export type GeneratedViewMount = (
+  root: unknown,
+  presentation: GeneratedViewPresentation,
+) => (() => void) | void;
+
+/** UI factory input for one row-bound instance. */
+export interface GeneratedViewInstanceProps {
+  readonly context: PresentationContext;
+  readonly descriptor: GeneratedViewDescriptor;
+  /** Separate `can-view-m..-f..-s..` identity per `show` use. */
+  readonly useId: string;
+  /** Row value, evaluated exactly once by the caller. */
+  readonly row: RowView;
+  /** Pre-rendered canonical controls; refused fields are already absent. */
+  readonly bindings: ReadonlyArray<GeneratedViewBinding>;
+  /** Saved renderer; called exactly once per instance. */
+  readonly render: GeneratedViewRender;
+}
+
+/**
+ * Admit one rendered instance root: the factory asserts the descriptor
+ * version, the use id shape, and that binding names are unique, so a
+ * misbuilt caller fails before the saved renderer runs.
+ */
+export function assertGeneratedViewInstanceProps(props: GeneratedViewInstanceProps): void {
+  if (props.descriptor.version !== GENERATED_VIEW_CONTRACT_VERSION) {
+    throw new Error(
+      `generated view ${JSON.stringify(props.descriptor.view)}: unsupported contract ${JSON.stringify(props.descriptor.version)}`,
+    );
+  }
+  if (!/^can-view-m\d+-f\d+-s\d+$/.test(props.useId)) {
+    throw new Error(`generated view ${JSON.stringify(props.descriptor.view)}: invalid use id ${JSON.stringify(props.useId)}`);
+  }
+  const seen = new Set<string>();
+  for (const binding of props.bindings) {
+    if (seen.has(binding.name)) {
+      throw new Error(
+        `generated view ${JSON.stringify(props.descriptor.view)}: duplicate binding ${JSON.stringify(binding.name)}`,
+      );
+    }
+    seen.add(binding.name);
+  }
+}
+
+/**
+ * Admit a saved view-module `render` export. Anything but a function
+ * refuses: a missing export is a missing implementation, never an empty
+ * render.
+ */
+export function assertGeneratedViewRender(view: string, render: unknown): asserts render is GeneratedViewRender {
+  if (typeof render !== "function") {
+    throw new Error(`generated view ${JSON.stringify(view)}: saved module exports no render({row, bindings, ui})`);
+  }
+}

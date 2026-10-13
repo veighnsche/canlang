@@ -389,6 +389,9 @@ describe("component catalog", () => {
       renderTextValue: "text-value fragment, not a component",
       rowHeading: "row-heading fragment, not a component",
       detailsDrawer: "lazy source details renderer; display=drawer is a details modifier, not a standalone word",
+      // components.ts: BGI-09 generated view instance root (a saved-renderer
+      // join over declared controls, not a selectable Can word).
+      generatedViewInstance: "generated view instance renderer, not a selectable word",
       // collections.ts: control primitives (list/table/board/csv-import/export/print are cataloged).
       collectionPagination: "pagination control renderer, not a word",
       collectionShareControls: "share control renderer, not a word",
@@ -416,11 +419,13 @@ describe("component catalog", () => {
       generatedDraftValues: "draft-flattening helper, not a component",
       generatedFields: "derived-input field mapper, not a component",
       generatedForm: "generated operation form, not a selectable word",
+      viewControlIdPrefix: "per-instance control-id helper, not a component",
       projectGeneratedInputs: "submission-projection helper, not a component",
       NATIVE_BOOLEAN_PRESENCE_PREFIX: "native Boolean presence field-name prefix, not a component",
       // client.ts: submit client for generated forms (T20b), not selectable words.
       applyDocumentRerender: "denial-document swap helper, not a component",
       applyFormRerender: "denial-fragment swap helper, not a component",
+      rerenderFormPreservingFocus: "focus-preserving swap helper, not a component",
       collectFormValues: "flat-map collector, not a component",
       GeneratedSubmitError: "typed submit failure, not a component",
       submitGeneratedForm: "envelope submitter, not a component",

@@ -63,6 +63,7 @@ export {
 export {
   card,
   content,
+  generatedViewInstance,
   renderState,
   renderTextValue,
   rowHeading,
@@ -181,12 +182,14 @@ export {
   NATIVE_BOOLEAN_PRESENCE_PREFIX,
   pointerToFieldName,
   projectGeneratedInputs,
+  viewControlIdPrefix,
 } from "./forms.js";
 export {
   applyDocumentRerender,
   applyFormRerender,
   collectFormValues,
   GeneratedSubmitError,
+  rerenderFormPreservingFocus,
   submitGeneratedForm,
 } from "./client.js";
 export type {
@@ -195,6 +198,8 @@ export type {
   DomFileLike,
   DomFormLike,
   FileLike,
+  FocusableControlLike,
+  FocusSwapDocumentLike,
   GeneratedSubmitErrorCode,
   GeneratedSubmitResult,
   SubmitFetch,
