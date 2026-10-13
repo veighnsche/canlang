@@ -87,7 +87,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-05 — MCP candidate submission and bounded Codex execution
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-bba7 dispatched isolated, owns NEW Node MCP/lifecycle/runner modules only; awaiting MCP handoff with Node tests green (Codex access/no-write gate held open).
 
 **Owner / targets:** Node generation lifecycle/MCP/runner modules, reusing patterns from `cli/command-lifetime.ts`. **Needs:** BGI-03 requests/recipes/MCP contract and BGI-04 captured groups/fences.
 
@@ -107,7 +107,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-07 — Trait contributions and custom keyword contracts
 
-- [ ] Status: planned. Evidence/handoff: pending.
+- [ ] Status: in_progress (coordinator session 01a133ac, base 78c90bc3 with BGI03 accepted). Evidence/handoff: worker 01a1340d-dfff dispatched isolated, owns check/resolve/types/effects/examples + codegen ir/artifact + Contracts Given descriptors only; awaiting bgi07+bgi01+bgi02 green.
 
 **Owner / targets:** compiler `analysis/{check,resolve,types,effects,examples}.rs`, `codegen/{ir,js,defaults,artifact}.rs`; Contracts artifact/state descriptors. **Needs:** BGI-01 typed roles, BGI-02 association and BGI-04 saved snapshots.
 
