@@ -25,6 +25,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   SESSION_BINDING_FILE,
@@ -195,16 +196,24 @@ function checkClosure(closure: ActiveClosure): void {
 
 /**
  * Plan fresh full-app manual retry: every current prompt in the
- * active closure, grouped by compatible effective complete recipe,
- * Given groups before frontend groups, each frontend job carrying
- * the whole Then context. No unit-name selectors are consulted.
+ * active closure, partitioned by preparation stage (Given before
+ * frontend) and then grouped by compatible effective complete
+ * recipe within each stage. Given groups precede dependent
+ * frontend consumers; each frontend job carries the whole Then
+ * context. No unit-name selectors are consulted, and grouping
+ * never implies one process per prompt: compatible units in one
+ * stage still share a job.
  */
 export function buildRetryJobs(closure: ActiveClosure, resolve: RecipeResolver): PlannedJob[] {
   checkClosure(closure);
   const groups = new Map<string, { recipe: EffectiveRecipe; units: CaptureUnit[] }>();
   for (const unit of closure.units) {
     const recipe = resolve(unit);
-    const key = recipeKey(recipe);
+    // Preparation stage is part of the grouping key: a Given unit
+    // and a frontend unit never share a job even when their
+    // effective recipes are identical, so no assigned Given prompt
+    // can drop out of a Then-only job context.
+    const key = `${unit.category}::${recipeKey(recipe)}`;
     const group = groups.get(key);
     if (group === undefined) {
       groups.set(key, { recipe, units: [unit] });
@@ -224,10 +233,11 @@ export function buildRetryJobs(closure: ActiveClosure, resolve: RecipeResolver):
     };
   });
   // Given preparation precedes dependent frontend consumers; within
-  // a category the grouping key keeps the order deterministic.
+  // a stage the grouping key keeps the order deterministic. Groups
+  // are stage-pure, so the first unit decides the stage.
   jobs.sort((a, b) => {
-    const aFrontend = a.contextUnits.length > a.units.length || a.units.some((u) => u.category === "frontend");
-    const bFrontend = b.contextUnits.length > b.units.length || b.units.some((u) => u.category === "frontend");
+    const aFrontend = a.units[0]?.category === "frontend";
+    const bFrontend = b.units[0]?.category === "frontend";
     if (aFrontend !== bFrontend) return aFrontend ? 1 : -1;
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
   });
@@ -506,6 +516,19 @@ export interface SessionBinding {
 /** In-process registry of live run controllers, keyed by attempt. */
 export type RunRegistry = Map<string, AbortController>;
 
+/**
+ * Production Codex home for the bounded per-attempt MCP profile
+ * layer: explicit `CODEX_HOME` wins, else the operator's real
+ * `~/.codex` (auth stays there; only the attempt's MCP entry is
+ * layered and later removed). Callers that need an isolated home
+ * (tests) pass `codexHome` explicitly.
+ */
+export function defaultCodexHome(): string {
+  const env = process.env["CODEX_HOME"];
+  if (env !== undefined && env.length > 0) return env;
+  return join(homedir(), ".codex");
+}
+
 /** Progress phases emitted while a bounded job runs. */
 export type JobPhase = "planned" | "recovered" | "launched" | "retry" | "completed";
 
@@ -533,9 +556,14 @@ export interface ExecuteJobOptions {
   outputSchema?: string;
   /** Required handles (defaults to every allowed handle). */
   required?: readonly string[];
-  /** Qualified stdio bridge, or null while the gate is held. */
+  /**
+   * MCP stdio bridge attached to the launch (the production
+   * `defaultMcpBridge()` serves the attempt's live session).
+   * Explicit null attaches no transport: the fake/test path, where
+   * submissions arrive through `onSession` instead.
+   */
   mcpBridge?: McpBridge | null;
-  /** Codex home for the bounded per-attempt profile layer. */
+  /** Codex home for the bounded per-attempt profile layer (default: `defaultCodexHome()`). */
   codexHome?: string;
   /** Per-attempt profile name. */
   profileName?: string;
@@ -553,7 +581,7 @@ export interface ExecuteJobOptions {
   resolveExecutable?: (binaries: readonly string[]) => Promise<string>;
   /** Progress callback (BGI-12 maps phases to JSONL events). */
   onEvent?: (phase: JobPhase, detail: string) => void;
-  /** Session hook: the future wire transport attaches submissions here. */
+  /** Session hook: tests submit through the live MCP session here; production submissions arrive over the bridge. */
   onSession?: (session: McpSession) => void;
 }
 
@@ -915,7 +943,7 @@ export async function executeJob(options: ExecuteJobOptions): Promise<RequestOut
     prompt: options.prompt,
     outputSchema: options.outputSchema ?? DEFAULT_OUTPUT_SCHEMA,
     mcpBridge: options.mcpBridge ?? null,
-    codexHome: options.codexHome ?? "",
+    codexHome: options.codexHome ?? defaultCodexHome(),
     profileName: options.profileName ?? `can-gen-${attempt}`,
   });
   launch.file = executable;
@@ -1188,9 +1216,14 @@ export interface ResumeOptions {
   outputSchema?: string;
   /** Required handles (defaults to every allowed handle). */
   required?: readonly string[];
-  /** Qualified stdio bridge, or null while the gate is held. */
+  /**
+   * MCP stdio bridge attached to the resume (the production
+   * `defaultMcpBridge()` serves the attempt's live session).
+   * Explicit null attaches no transport: the fake/test path, where
+   * submissions arrive through `onSession` instead.
+   */
   mcpBridge?: McpBridge | null;
-  /** Codex home for the bounded per-attempt profile layer. */
+  /** Codex home for the bounded per-attempt profile layer (default: `defaultCodexHome()`). */
   codexHome?: string;
   /** Per-attempt profile name. */
   profileName?: string;
@@ -1204,7 +1237,7 @@ export interface ResumeOptions {
   resolveExecutable?: (binaries: readonly string[]) => Promise<string>;
   /** Progress callback (BGI-12 maps phases to JSONL events). */
   onEvent?: (phase: JobPhase, detail: string) => void;
-  /** Session hook: the future wire transport attaches submissions here. */
+  /** Session hook: tests submit through the live MCP session here; production submissions arrive over the bridge. */
   onSession?: (session: McpSession) => void;
 }
 
@@ -1313,7 +1346,7 @@ export async function resumeSession(options: ResumeOptions): Promise<RequestOutc
       prompt: options.prompt,
       outputSchema: options.outputSchema ?? DEFAULT_OUTPUT_SCHEMA,
       mcpBridge: options.mcpBridge ?? null,
-      codexHome: options.codexHome ?? "",
+      codexHome: options.codexHome ?? defaultCodexHome(),
       profileName: options.profileName ?? `can-gen-${attempt}`,
     },
     recorded.runner_session,

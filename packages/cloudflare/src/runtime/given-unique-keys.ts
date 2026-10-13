@@ -4,15 +4,33 @@
  * build the pipeline rules the model table carries.
  *
  * Resolution is fingerprint-verified: the binding's SHA-256 must match
- * the artifact module bytes exactly, or the seam refuses with an explicit
- * changed-code outcome (re-validate and activate; never run changed code
- * silently, never regenerate). One import per saved unit/export pair: a
- * second compatible application reuses the resolved evaluator with zero
- * additional loading. The evaluator receives projected text only — no
+ * the saved implementation closure exactly, or the seam refuses with an
+ * explicit changed-code outcome (re-validate and activate; never run
+ * changed code silently, never regenerate). One import per saved unit/export
+ * pair: a second compatible application reuses the resolved evaluator with
+ * zero additional loading. The evaluator receives projected text only — no
  * record handles, no store, no registry, no commit.
+ *
+ * Implementation-closure fingerprint v1 (the cross-host contract the
+ * compiler lane implements identically; coordinated by unit id plus
+ * file bytes, never shared code):
+ * - Member set: the staged root `can.generated/<unit>/server.js` plus
+ *   every transitively imported unit-local relative module. Only
+ *   relative specifiers (`.`, `..`, `./`, `../`) resolving inside
+ *   `can.generated/<unit>/` are consumed; static, re-export, and
+ *   literal-dynamic edges count, while non-literal, unresolvable,
+ *   non-local, or CommonJS edges refuse instead of hashing a subset.
+ * - Order: staged path ascending, byte-wise (staged paths are ASCII).
+ * - Canonical bytes: per member, u64 big-endian path byte length,
+ *   path UTF-8, u64 big-endian JS byte length, JS UTF-8, concatenated.
+ * - Fingerprint: lowercase hex SHA-256 over the canonical bytes.
+ * Single-member closures hash the framed form, never the bare root
+ * bytes; staged siblings stage verbatim beside the root under the
+ * unit's staged prefix, and specifiers resolve literally (POSIX, no
+ * query/fragment stripping, no extension probing).
  */
 
-import { sha256HexText } from '@canlang/identity';
+import { sha256HexBytes } from '@canlang/identity';
 import type { CompileArtifact, ModelName, StateUniqueKeyProducerBinding } from '@canlang/contracts';
 import type { GivenUniqueKeyRule } from '@canlang/state/effects/staging';
 import {
@@ -32,10 +50,10 @@ export function givenUnitModulePath(unitId: string): string {
 
 /**
  * BGI-08 resolve one checked binding to its saved evaluator: the unit
- * module must exist, its bytes must match the checked fingerprint, and
- * the named export must be a function. Every refusal names the rule and
- * the failed join step; nothing falls back to another module, export,
- * or implementation.
+ * module must exist, its exact consumed import closure must match the
+ * checked fingerprint, and the named export must be a function. Every
+ * refusal names the rule and the failed join step; nothing falls back
+ * to another module, export, or implementation.
  */
 export async function resolveGivenKeywordExport(
   asm: AssembledModules,
@@ -51,7 +69,8 @@ export async function resolveGivenKeywordExport(
       `${where} names unknown saved unit ${JSON.stringify(unit)}: expected module ${JSON.stringify(path)}.`,
     );
   }
-  const actual = await sha256HexText(module.js);
+  const members = resolveGivenClosure(artifact, unit);
+  const actual = await givenClosureFingerprint(members);
   if (actual !== fingerprint) {
     throw new AssemblyCorrespondenceError(
       `${where} saved implementation changed (unit ${JSON.stringify(unit)} fingerprint mismatch): ` +
@@ -104,4 +123,429 @@ export async function joinGivenUniqueKeys(
     else rules.push(rule);
   }
   return byModel;
+}
+
+/** One closure member: staged path plus staged bytes. */
+export interface GivenClosureMember {
+  path: string;
+  js: string;
+}
+
+/** Whether a specifier stays inside the unit's own directory. */
+function isUnitRelativeSpecifier(specifier: string): boolean {
+  return (
+    specifier === '.' ||
+    specifier === '..' ||
+    specifier.startsWith('./') ||
+    specifier.startsWith('../')
+  );
+}
+
+function posixDirname(path: string): string {
+  const idx = path.lastIndexOf('/');
+  if (idx < 0) return '.';
+  if (idx === 0) return '/';
+  return path.slice(0, idx);
+}
+
+function posixNormalize(path: string): string {
+  const absolute = path.startsWith('/');
+  const out: string[] = [];
+  for (const part of path.split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      if (out.length > 0 && out[out.length - 1] !== '..') out.pop();
+      else if (!absolute) out.push('..');
+      continue;
+    }
+    out.push(part);
+  }
+  const joined = out.join('/');
+  if (absolute) return `/${joined}`;
+  return joined === '' ? '.' : joined;
+}
+
+function posixJoin(dir: string, spec: string): string {
+  if (spec.startsWith('/')) return posixNormalize(spec);
+  return posixNormalize(dir === '.' || dir === '' ? spec : `${dir}/${spec}`);
+}
+
+/**
+ * Resolve the exact consumed unit-local import closure for one saved
+ * Given unit: the staged root plus every transitively reachable
+ * unit-local relative module. Non-literal, unresolvable, escaping,
+ * missing, or CommonJS edges refuse fail-closed; nothing silently
+ * narrows the hashed set.
+ */
+export function resolveGivenClosure(
+  artifact: CompileArtifact,
+  unit: string,
+): GivenClosureMember[] {
+  const prefix = `can.generated/${unit}/`;
+  const unitDir = `can.generated/${unit}`;
+  const rootPath = givenUnitModulePath(unit);
+  const byPath = new Map<string, string>();
+  for (const module of artifact.modules) byPath.set(module.path, module.js);
+  const rootJs = byPath.get(rootPath);
+  if (rootJs === undefined) {
+    throw new AssemblyCorrespondenceError(
+      `Computed-key closure for unit ${JSON.stringify(unit)} names an unknown saved unit: ` +
+        `expected module ${JSON.stringify(rootPath)}.`,
+    );
+  }
+  const members = new Map<string, string>([[rootPath, rootJs]]);
+  const queue: string[] = [rootPath];
+  while (queue.length > 0) {
+    const current = queue.pop() as string;
+    const js = members.get(current) as string;
+    const scan = scanGivenJsModule(js);
+    if (scan.hasRequire) {
+      throw new AssemblyCorrespondenceError(
+        `Computed-key closure for unit ${JSON.stringify(unit)} calls \`require(\` at offset ` +
+          `${String(scan.requireOffset)} in ${JSON.stringify(current)}; CommonJS require never enters worker bundles.`,
+      );
+    }
+    for (const edge of scan.imports) {
+      if (edge.unresolved || edge.specifier === '') {
+        throw new AssemblyCorrespondenceError(
+          `Computed-key closure for unit ${JSON.stringify(unit)} has an unresolvable import at offset ` +
+            `${String(edge.offset)} in ${JSON.stringify(current)}; refusing to hash a partial closure.`,
+        );
+      }
+      if (!isUnitRelativeSpecifier(edge.specifier)) {
+        throw new AssemblyCorrespondenceError(
+          `Computed-key closure for unit ${JSON.stringify(unit)} imports non-local specifier ` +
+            `${JSON.stringify(edge.specifier)} at offset ${String(edge.offset)} in ${JSON.stringify(current)}; ` +
+            `only unit-local relative imports are consumed.`,
+        );
+      }
+      const target = posixJoin(posixDirname(current), edge.specifier);
+      if (target !== unitDir && !target.startsWith(prefix)) {
+        throw new AssemblyCorrespondenceError(
+          `Computed-key closure for unit ${JSON.stringify(unit)} imports ${JSON.stringify(edge.specifier)} ` +
+            `at offset ${String(edge.offset)} in ${JSON.stringify(current)} (resolves to ${JSON.stringify(target)}); ` +
+            `the closure never leaves the unit.`,
+        );
+      }
+      if (members.has(target)) continue;
+      const targetJs = byPath.get(target);
+      if (targetJs === undefined) {
+        throw new AssemblyCorrespondenceError(
+          `Computed-key closure for unit ${JSON.stringify(unit)} imports ${JSON.stringify(edge.specifier)} ` +
+            `at offset ${String(edge.offset)} in ${JSON.stringify(current)} (resolves to ${JSON.stringify(target)}): ` +
+            `no such staged module.`,
+        );
+      }
+      members.set(target, targetJs);
+      queue.push(target);
+    }
+  }
+  return [...members.entries()].map(([path, js]) => ({ path, js }));
+}
+
+function compareBytes(a: Uint8Array, b: Uint8Array): number {
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (a[i] as number) - (b[i] as number);
+    if (diff !== 0) return diff;
+  }
+  return a.length - b.length;
+}
+
+/**
+ * Canonical closure bytes: members ordered by staged path ascending
+ * (byte-wise), each framed as u64 big-endian path byte length, path
+ * UTF-8, u64 big-endian JS byte length, JS UTF-8. Both hosts frame
+ * identically; staged paths are ASCII so ordering is unambiguous.
+ */
+export function givenClosureBytes(members: readonly GivenClosureMember[]): Uint8Array {
+  const encoder = new TextEncoder();
+  const framed = members.map((member) => ({ path: encoder.encode(member.path), js: encoder.encode(member.js) }));
+  framed.sort((a, b) => compareBytes(a.path, b.path));
+  let total = 0;
+  for (const member of framed) total += 8 + member.path.length + 8 + member.js.length;
+  const out = new Uint8Array(total);
+  const view = new DataView(out.buffer);
+  let at = 0;
+  const u64 = (n: number): void => {
+    view.setUint32(at, Math.floor(n / 4294967296));
+    view.setUint32(at + 4, n % 4294967296);
+    at += 8;
+  };
+  for (const member of framed) {
+    u64(member.path.length);
+    out.set(member.path, at);
+    at += member.path.length;
+    u64(member.js.length);
+    out.set(member.js, at);
+    at += member.js.length;
+  }
+  return out;
+}
+
+/** Fingerprint one resolved closure: lowercase hex SHA-256 over the canonical bytes. */
+export async function givenClosureFingerprint(
+  members: readonly GivenClosureMember[],
+): Promise<string> {
+  return sha256HexBytes(givenClosureBytes(members));
+}
+
+/** One lexical import edge of a saved module. */
+export interface GivenJsImportEdge {
+  /** Literal specifier text (raw; escapes stay unevaluated). */
+  specifier: string;
+  /** UTF-16 offset of the specifier (or keyword for unresolved edges). */
+  offset: number;
+  /** True for dynamic `import()` edges. */
+  dynamic: boolean;
+  /** True when no literal specifier could be resolved lexically (fail-closed). */
+  unresolved: boolean;
+}
+
+/**
+ * Lexical view of a saved module: import edges plus CommonJS
+ * refusal evidence. Finite static admission, never execution or a
+ * full parse: comments and string-literal contents are blanked
+ * before keyword matching so quoted tokens cannot certify an edge.
+ * Template `${...}` interpolations stay code, a conservative
+ * over-approximation matching the compiler-side scan.
+ */
+export interface GivenJsModuleScan {
+  imports: GivenJsImportEdge[];
+  hasRequire: boolean;
+  requireOffset: number;
+}
+
+function isIdentStart(code: number): boolean {
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95 || code === 36;
+}
+
+function isIdentPart(code: number): boolean {
+  return isIdentStart(code) || (code >= 48 && code <= 57);
+}
+
+function isTrivia(code: number): boolean {
+  return code === 32 || code === 9 || code === 10 || code === 13 || code === 12 || code === 11;
+}
+
+/** Blank comments and string-literal contents, preserving length and newlines. */
+function blankGivenJsTrivia(js: string): string[] {
+  const chars = js.split('');
+  const blank = (from: number, to: number): void => {
+    for (let i = from; i < to; i += 1) {
+      if (chars[i] !== '\n') chars[i] = ' ';
+    }
+  };
+  let i = 0;
+  while (i < chars.length) {
+    const ch = chars[i] as string;
+    const next = (i + 1 < chars.length ? chars[i + 1] : '') as string;
+    if (ch === '/' && next === '/') {
+      const from = i;
+      while (i < chars.length && chars[i] !== '\n') i += 1;
+      blank(from, i);
+    } else if (ch === '/' && next === '*') {
+      const from = i;
+      i += 2;
+      while (i + 1 < chars.length && !(chars[i] === '*' && chars[i + 1] === '/')) i += 1;
+      i = Math.min(i + 2, chars.length);
+      blank(from, i);
+    } else if (ch === "'" || ch === '"') {
+      const from = i;
+      i += 1;
+      while (i < chars.length) {
+        if (chars[i] === '\\') i += 2;
+        else if (chars[i] === '\n') break;
+        else if (chars[i] === ch) {
+          i += 1;
+          break;
+        } else i += 1;
+      }
+      blank(from, i);
+    } else if (ch === '`') {
+      chars[i] = ' ';
+      i += 1;
+      while (i < chars.length) {
+        if (chars[i] === '\\') {
+          chars[i] = ' ';
+          if (i + 1 < chars.length && chars[i + 1] !== '\n') chars[i + 1] = ' ';
+          i += 2;
+        } else if (chars[i] === '`') {
+          chars[i] = ' ';
+          i += 1;
+          break;
+        } else if (chars[i] === '$' && i + 1 < chars.length && chars[i + 1] === '{') {
+          i += 2;
+          let depth = 1;
+          while (i < chars.length && depth > 0) {
+            if (chars[i] === '{') depth += 1;
+            else if (chars[i] === '}') depth -= 1;
+            i += 1;
+          }
+        } else {
+          if (chars[i] !== '\n') chars[i] = ' ';
+          i += 1;
+        }
+      }
+    } else {
+      i += 1;
+    }
+  }
+  return chars;
+}
+
+function keywordAt(blanked: string[], i: number, word: string): boolean {
+  if (i + word.length > blanked.length) return false;
+  for (let k = 0; k < word.length; k += 1) {
+    if (blanked[i + k] !== word[k]) return false;
+  }
+  const before = i === 0 ? -1 : (blanked[i - 1] as string).charCodeAt(0);
+  const after =
+    i + word.length >= blanked.length ? -1 : (blanked[i + word.length] as string).charCodeAt(0);
+  if (before !== -1 && isIdentPart(before)) return false;
+  if (after !== -1 && isIdentPart(after)) return false;
+  return true;
+}
+
+/** Skip whitespace and comments in the original text, where quotes are intact. */
+function skipTriviaOriginal(js: string, cursor: { at: number }): void {
+  for (;;) {
+    while (cursor.at < js.length && isTrivia(js.charCodeAt(cursor.at))) cursor.at += 1;
+    const slash = js[cursor.at];
+    const second = js[cursor.at + 1];
+    if (slash === '/' && second === '/') {
+      while (cursor.at < js.length && js[cursor.at] !== '\n') cursor.at += 1;
+    } else if (slash === '/' && second === '*') {
+      cursor.at += 2;
+      while (
+        cursor.at + 1 < js.length &&
+        !(js[cursor.at] === '*' && js[cursor.at + 1] === '/')
+      ) {
+        cursor.at += 1;
+      }
+      cursor.at = Math.min(cursor.at + 2, js.length);
+    } else {
+      break;
+    }
+  }
+}
+
+/**
+ * Read one single/double-quoted specifier from the original text.
+ * Template literals never count (a dynamic template edge is
+ * unresolvable); escapes stay raw and compare literally.
+ */
+function readSpecifier(js: string, quoteAt: number): { spec: string; end: number } | null {
+  const quote = js[quoteAt];
+  if (quote !== "'" && quote !== '"') return null;
+  let i = quoteAt + 1;
+  while (i < js.length) {
+    const ch = js[i] as string;
+    if (ch === '\\') i += 2;
+    else if (ch === '\n') return null;
+    else if (ch === quote) return { spec: js.slice(quoteAt + 1, i), end: i + 1 };
+    else i += 1;
+  }
+  return null;
+}
+
+function skipBlankedWs(blanked: string[], cursor: { at: number }): void {
+  while (cursor.at < blanked.length && isTrivia((blanked[cursor.at] as string).charCodeAt(0))) {
+    cursor.at += 1;
+  }
+}
+
+/** Static import scan window (bounds pathological statements). */
+const GIVEN_IMPORT_WINDOW = 4096;
+
+/**
+ * Lexically scan one saved module for import specifiers: static
+ * `from` and bare specifiers, re-export `from`, and literal
+ * dynamic `import()`. Anything else at an import keyword —
+ * `import.meta` aside — records an unresolvable edge, and
+ * `require(` records CommonJS evidence; both refuse downstream.
+ */
+export function scanGivenJsModule(js: string): GivenJsModuleScan {
+  const blanked = blankGivenJsTrivia(js);
+  const imports: GivenJsImportEdge[] = [];
+  let hasRequire = false;
+  let requireOffset = 0;
+  let i = 0;
+  while (i < blanked.length) {
+    if (keywordAt(blanked, i, 'import')) {
+      const cursor = { at: i + 6 };
+      skipTriviaOriginal(js, cursor);
+      const j = cursor.at;
+      if (js[j] === '(') {
+        const inner = { at: j + 1 };
+        skipTriviaOriginal(js, inner);
+        const spec = readSpecifier(js, inner.at);
+        if (spec !== null) {
+          imports.push({ specifier: spec.spec, offset: inner.at, dynamic: true, unresolved: false });
+          i = spec.end;
+        } else {
+          imports.push({ specifier: '', offset: i, dynamic: true, unresolved: true });
+          i = inner.at;
+        }
+        continue;
+      }
+      if (
+        j + 4 <= blanked.length &&
+        blanked[j] === '.' &&
+        keywordAt(blanked, j + 1, 'meta')
+      ) {
+        i = j + 5;
+        continue;
+      }
+      let k = j;
+      let found: { spec: string; at: number; end: number } | null = null;
+      const window = Math.min(j + GIVEN_IMPORT_WINDOW, blanked.length);
+      while (k < window && blanked[k] !== ';') {
+        if (keywordAt(blanked, k, 'from')) {
+          const inner = { at: k + 4 };
+          skipTriviaOriginal(js, inner);
+          const spec = readSpecifier(js, inner.at);
+          if (spec !== null) found = { spec: spec.spec, at: inner.at, end: spec.end };
+          break;
+        }
+        const original = js[k];
+        if (original === "'" || original === '"') {
+          const spec = readSpecifier(js, k);
+          if (spec !== null) found = { spec: spec.spec, at: k, end: spec.end };
+          break;
+        }
+        k += 1;
+      }
+      if (found !== null) {
+        imports.push({ specifier: found.spec, offset: found.at, dynamic: false, unresolved: false });
+        i = found.end;
+      } else {
+        imports.push({ specifier: '', offset: i, dynamic: false, unresolved: true });
+        i = Math.min(k, blanked.length);
+      }
+      continue;
+    }
+    if (keywordAt(blanked, i, 'require')) {
+      const cursor = { at: i + 7 };
+      skipBlankedWs(blanked, cursor);
+      if (blanked[cursor.at] === '(') {
+        hasRequire = true;
+        requireOffset = i;
+      }
+      i = cursor.at;
+      continue;
+    }
+    if (keywordAt(blanked, i, 'from')) {
+      const cursor = { at: i + 4 };
+      skipTriviaOriginal(js, cursor);
+      const spec = readSpecifier(js, cursor.at);
+      if (spec !== null) {
+        imports.push({ specifier: spec.spec, offset: cursor.at, dynamic: false, unresolved: false });
+        i = spec.end;
+        continue;
+      }
+    }
+    i += 1;
+  }
+  return { imports, hasRequire, requireOffset };
 }

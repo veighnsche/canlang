@@ -1,5 +1,39 @@
 # Canlang language design decisions
 
+## 2026-10-13 — Node production-join repairs (retry sets, staged partition, MCP bridge, closure fingerprints)
+
+- **Status:** Accepted
+- **Scope:** `packages/cloudflare/src/generation/{controls,lifecycle,mcp}.ts`,
+  `packages/cloudflare/src/runtime/given-unique-keys.ts`, and colocated tests.
+- **Context:** Four review findings against base 701e2adea: (6) a gated
+  multi-job retry captured only job0 and a sibling accept promoted a partial
+  set; (7) same-recipe Given+frontend units joined one job whose Then-only
+  context dropped the assigned trait prompt; (8) no production MCP transport
+  existed (controls passed no bridge, resume hardcoded null, tool handlers had
+  no wire caller); (4-Node) the Given seam hashed the root module only, so
+  identical fingerprints hid changed `./fold.js` behavior.
+- **Decision:** Record the complete parent retry set in every job capture
+  before any launch; manual and composed acceptance resolve that set and
+  require all outputs/checks through one journal. Partition retry jobs by
+  preparation stage then compatible recipe (Given first, whole-Then context
+  per frontend job) and render assigned plus context prompts. Serve the live
+  session over a bounded stdio MCP bridge (`node dist/generation/mcp.js
+  --bridge`, host writes candidates, fence-checked calls, line/request/error
+  budgets) attached by default on launch and resume; the session hook stays a
+  test fallback. Verify Given bindings against the exact consumed unit-local
+  import closure under fingerprint v1: staged paths ascending, u64BE length
+  framing, SHA-256 (pinned vector `40a8aff9…19680ea` for the review
+  `fold.js` closure); the compiler lane implements the same unit-id plus
+  file-bytes contract.
+- **Consequences:** Partial retry sets refuse as `incomplete-set` with
+  currents preserved; staged jobs keep every assigned prompt; the public
+  retry path attaches the production bridge while the frozen capability
+  table still gates launches; legacy root-only fingerprints refuse loudly.
+- **Uncertainty:** Authenticated paid-generation runs per CLI remain
+  unobserved by design (mechanism tests plus documented availability only);
+  compiler-side closure hashing and deploy staging of sibling modules land
+  in the parallel lane.
+
 ## 2026-10-12 — standalone browser sign-in and confirmed-form refresh
 
 **Accepted implementation decision.** The owner requested a working standalone
