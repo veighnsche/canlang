@@ -343,10 +343,12 @@ describe("deploy bundle (P-B)", () => {
       verdict: ACTIVE_VERDICT,
     });
     const ops = bundle.modules[HTTP_OPERATIONS_MODULE] as string;
+    expect(bundle.modules["runtime/export-downloads.js"]).toContain("createD1ExportDownloadStore");
     for (const marker of [
       "handleOperationRequest",
       "handleCsvRequest",
       "handleExportRequest",
+      "canonicalJson",
       "handlePageRequest",
       "handlePagePreferencePost",
       "receiverFromIdentity",
@@ -372,6 +374,8 @@ describe("deploy bundle (P-B)", () => {
       const http = await import(pathToFileURL(join(outDir, HTTP_OPERATIONS_MODULE)).href);
       const grant = await import(pathToFileURL(join(outDir, "runtime/grant-route.js")).href);
       expect(http.JSON_BODY_MAX_BYTES).toBe(1_048_576);
+      expect(http.canonicalJson({ b: 2, a: 1 })).toBe('{"a":1,"b":2}');
+      expect(typeof http.handleExportRequest).toBe("function");
       expect(await http.parseJsonBody(new Request("https://test.invalid", {
         method: "POST", body: '{"client_id":"installed"}',
       }))).toEqual({ client_id: "installed" });
