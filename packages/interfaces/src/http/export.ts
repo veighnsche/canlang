@@ -435,6 +435,8 @@ export async function handleExportRequest(deps: HttpDeps, request: Request): Pro
     let descriptor: ExportDescriptor | undefined;
     if (truncated) {
       const digest = await sha256HexText(canonicalJson({
+        appId: deps.app.appId,
+        teamId: identity.team?.team_id ?? null,
         principal: identity.actor.user_id,
         operation,
         args: { parent: parent ?? null, filters: filters ?? null, columns: requested, limit, cursor: cursor ?? null },
@@ -447,9 +449,11 @@ export async function handleExportRequest(deps: HttpDeps, request: Request): Pro
         const nowIso = new Date(deps.clock.nowMs()).toISOString();
         const record: ExportDownloadRecord = {
           handle,
+          appId: deps.app.appId,
+          teamId: identity.team?.team_id ?? null,
           principal: identity.actor.user_id,
           operation,
-          args: { parent: parent ?? null, filters: filters ?? null, columns: requested, limit },
+          args: { parent: parent ?? null, filters: filters ?? null, columns: requested, limit, cursor: cursor ?? null },
           createdAt: nowIso,
           expiresAt: expires_at,
           status: 'pending',
@@ -457,16 +461,13 @@ export async function handleExportRequest(deps: HttpDeps, request: Request): Pro
         };
         const { digest: _empty, ...unsigned } = record;
         const registered: ExportDownloadRecord = { ...record, digest: await downloadRecordDigest(unsigned) };
-        const existing = await store.read(handle);
-        if (existing === null) {
-          await store.save(registered);
-        } else if (sameDownloadIdentity(existing, registered)) {
+        if (!await store.save(registered, null)) {
+          const existing = await store.read(handle);
+          if (existing === null || !sameDownloadIdentity(existing, registered)) {
+            throw buildBusinessError('conflict', 'Export registration changed.');
+          }
           // Replay convergence: keep the original record (and expiry) untouched.
           expires_at = existing.expiresAt;
-        } else {
-          // Same handle, different identity: only a truncated-hash collision can
-          // arrive here. Emit the descriptor unregistered (its URLs 404) rather
-          // than replacing another principal's record or refusing this export.
         }
       }
       descriptor = {
@@ -512,8 +513,25 @@ async function downloadRecordDigest(record: Omit<ExportDownloadRecord, 'digest'>
 
 /** Same export identity: principal, operation and request arguments. */
 function sameDownloadIdentity(left: ExportDownloadRecord, right: ExportDownloadRecord): boolean {
-  return left.principal === right.principal && left.operation === right.operation &&
+  return left.handle === right.handle && left.appId === right.appId && left.teamId === right.teamId &&
+    left.principal === right.principal && left.operation === right.operation &&
     canonicalJson(left.args) === canonicalJson(right.args);
+}
+
+/** Re-resolve the original credential; a stored handle grants no app/owner authority. */
+async function authorizeDownload(
+  deps: HttpDeps, request: Request, record: ExportDownloadRecord,
+): Promise<ResolvedIdentity> {
+  const { identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+  if (sessionToken === null || identity.actor === null || identity.actor.user_id !== record.principal ||
+      deps.app.appId !== record.appId || (identity.team?.team_id ?? null) !== record.teamId) {
+    throw buildBusinessError('forbidden', 'Not authorized for this download.');
+  }
+  await assertExportAuthority(deps, identity);
+  if (deps.clock.nowMs() >= Date.parse(record.expiresAt)) {
+    throw buildBusinessError('not_found', 'Not found.');
+  }
+  return identity;
 }
 
 interface CheckedDownload {
@@ -525,18 +543,6 @@ interface CheckedDownload {
 async function checkDownloadAccess(
   deps: HttpDeps, request: Request, handle: string, pathname: string,
 ): Promise<{ response: Response } | { checked: CheckedDownload }> {
-  const authed = async (): Promise<Response | { identity: ResolvedIdentity }> => {
-    try {
-      const { identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
-      if (sessionToken === null || identity.actor === null) {
-        return deny(deps, buildBusinessError('forbidden', 'Authentication required.'), pathname);
-      }
-      return { identity };
-    } catch (err) {
-      if (err instanceof IdentityError) return deny(deps, caughtToBusinessError(err), pathname);
-      throw err;
-    }
-  };
   if (!DOWNLOAD_HANDLE_PATTERN.test(handle)) {
     return { response: deny(deps, buildBusinessError('not_found', 'Not found.'), pathname) };
   }
@@ -552,16 +558,16 @@ async function checkDownloadAccess(
       deps.clock.nowMs() >= Date.parse(record.expiresAt)) {
     return { response: deny(deps, buildBusinessError('not_found', 'Not found.'), pathname) };
   }
-  const auth = await authed();
-  if (auth instanceof Response) return { response: auth };
-  const { identity } = auth;
-  if (identity.actor === null || identity.actor.user_id !== record.principal) {
-    return { response: deny(deps, buildBusinessError('forbidden', 'Not authorized for this download.'), pathname) };
-  }
+  const identity = await authorizeDownload(deps, request, record);
   if (record.status === 'revoked') {
     return { response: deny(deps, buildBusinessError('forbidden', 'This download was revoked.'), pathname) };
   }
-  if (typeof record.operation !== 'string' || typeof record.args !== 'object' || record.args === null ||
+  if (record.handle !== handle || checkListOperation(record.operation) !== null ||
+      typeof record.args !== 'object' || record.args === null ||
+      !Number.isInteger(record.args.limit) || record.args.limit < 1 || record.args.limit > COLLECTION_MAX_LIMIT ||
+      (record.args.cursor !== null && typeof record.args.cursor !== 'string') ||
+      (record.args.columns !== null && (!Array.isArray(record.args.columns) ||
+        record.args.columns.some((field) => typeof field !== 'string' || field === ''))) ||
       (record.status !== 'pending' && record.status !== 'ready')) {
     return { response: deny(deps, buildBusinessError('validation', 'Stored download record is malformed.'), pathname) };
   }
@@ -585,7 +591,11 @@ async function handleDownloadStatus(deps: HttpDeps, request: Request, handle: st
   try {
     const admitted = await checkDownloadAccess(deps, request, handle, pathname);
     if ('response' in admitted) return admitted.response;
-    const { record } = admitted.checked;
+    const original = admitted.checked.record;
+    const body = await completeExportBody(deps, admitted.checked.identity, original);
+    const final = await recheckDownloadDisclosure(deps, request, handle, pathname, original, body);
+    if ('response' in final) return final.response;
+    const { record } = final.checked;
     if (record.status !== 'pending' && record.status !== 'ready') {
       return deny(deps, buildBusinessError('validation', 'Stored download has an unknown status.'), pathname);
     }
@@ -619,18 +629,24 @@ async function completeExportBody(
   };
   const allRows: ExportPage['rows'][number][] = [];
   let columns: ExportPage['columns'] | undefined;
-  let cursor: string | undefined;
+  let cursor = record.args.cursor ?? undefined;
+  const visited = new Set<string | undefined>();
   for (;;) {
+    if (visited.has(cursor)) throw buildBusinessError('validation', 'Export cursor did not advance.');
+    visited.add(cursor);
     const page = await readExportPage(deps, identity, {
       operation: record.operation,
       inputs: { ...inputsBase, ...(cursor === undefined ? {} : { cursor }) },
     });
+    if (page.rows.length > record.args.limit) {
+      throw buildBusinessError('validation', 'Export read exceeded its page bound.');
+    }
     if (columns === undefined) {
       columns = page.columns;
     } else if (JSON.stringify(page.columns) !== JSON.stringify(columns)) {
       throw buildBusinessError('validation', 'Export schema changed during download completion.');
     }
-    allRows.push(...page.rows.slice(0, record.args.limit));
+    allRows.push(...page.rows);
     if (page.nextCursor === undefined) break;
     cursor = page.nextCursor;
   }
@@ -653,6 +669,40 @@ async function completeExportBody(
   return { csv: projected.csv, rowCount: projected.rowCount };
 }
 
+/** Admission ends at this fresh record/caller check, before response publication.
+ * Canonical current reads, rather than the cached CSV/digest, authorize disclosure. */
+async function recheckDownloadDisclosure(
+  deps: HttpDeps, request: Request, handle: string, pathname: string,
+  original: ExportDownloadRecord, body: { csv: string; rowCount: number },
+): Promise<{ response: Response } | { checked: CheckedDownload }> {
+  const final = await checkDownloadAccess(deps, request, handle, pathname);
+  if ('response' in final) return final;
+  const { record } = final.checked;
+  if (!sameDownloadIdentity(original, record)) {
+    throw buildBusinessError('forbidden', 'Export identity changed.');
+  }
+  if (record.status === 'ready') {
+    if (typeof record.csv !== 'string') throw new Error('Ready download record carries no body.');
+    if (record.csv !== body.csv || record.rowCount !== body.rowCount) {
+      throw buildBusinessError('forbidden', 'Download no longer matches the current authorized output.');
+    }
+  }
+  // Digest computation and storage lookup may await; recheck the original browser caller and expiry.
+  await authorizeDownload(deps, request, record);
+  const current = await deps.exportDownloads!.read(handle);
+  if (current === null || current.status === 'revoked') {
+    throw buildBusinessError('forbidden', 'This download was revoked.');
+  }
+  if (current.digest !== record.digest || current.status !== record.status ||
+      canonicalJson(current) !== canonicalJson(record)) {
+    throw buildBusinessError('conflict', 'Export changed before disclosure.');
+  }
+  // This last store snapshot is the disclosure admission boundary. No further
+  // credential/query/digest await may reopen a revocation window before return.
+  if (deps.clock.nowMs() >= Date.parse(record.expiresAt)) throw buildBusinessError('not_found', 'Not found.');
+  return final;
+}
+
 async function handleDownload(deps: HttpDeps, request: Request, handle: string): Promise<Response> {
   const pathname = requestPath(request.url);
   const store = deps.exportDownloads;
@@ -669,8 +719,13 @@ async function handleDownload(deps: HttpDeps, request: Request, handle: string):
       const completed: ExportDownloadRecord = { ...record, status: 'ready', csv: body.csv, rowCount: body.rowCount, digest: '' };
       const { digest: _prior, ...rest } = completed;
       const finished: ExportDownloadRecord = { ...completed, digest: await downloadRecordDigest(rest) };
-      await store.save(finished);
-      ready = finished;
+      await authorizeDownload(deps, request, record);
+      // The store owns the atomic pending->ready transition. A losing writer
+      // must use and reauthorize the actual winner; it cannot return its draft.
+      await store.save(finished, record.digest);
+      const winner = await checkDownloadAccess(deps, request, handle, pathname);
+      if ('response' in winner) return winner.response;
+      ready = winner.checked.record;
     }
     if (ready.status !== 'ready' || typeof ready.csv !== 'string') {
       const incidentId = logInternalError(deps.logger,
@@ -678,6 +733,10 @@ async function handleDownload(deps: HttpDeps, request: Request, handle: string):
       void incidentId;
       throw new Error('Ready download record carries no body.');
     }
+    const currentBody = await completeExportBody(deps, await authorizeDownload(deps, request, ready), ready);
+    const final = await recheckDownloadDisclosure(deps, request, handle, pathname, record, currentBody);
+    if ('response' in final) return final.response;
+    ready = final.checked.record;
     return new Response(ready.csv, {
       status: 200,
       headers: {

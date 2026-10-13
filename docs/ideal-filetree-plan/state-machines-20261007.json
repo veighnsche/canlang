@@ -1,18 +1,18 @@
 {
  "date": "2026-10-13",
- "integrated_source_pin": "c626e8788f96a73e368f741c1784c3f5f496dc98",
+ "integrated_source_pin": "a0feab3c1404cb956d04338184565865e3ee3250",
  "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
  "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
  "checkpoint_advanced": false,
  "coverage": {
-  "commit_count_since_checkpoint": 2499,
+  "commit_count_since_checkpoint": 2502,
   "net_path_deltas": 11352,
   "history_touched_paths": 11428,
   "history_only_paths": 6,
   "released_feature_paths": 79,
   "new_target_leaves": 30,
   "inherited_paths_without_prior_target_allocation": 9849,
-  "scope": "2026-10-13 durable large-output download backend (DEL-B02, pos33): ExportDownloadStore port plus memory double, register-on-truncated with replay convergence, status/download routes with principal/expiry/revocation/digest checks and lazy completion re-reading current rows. Ten new route tests green; interfaces suite 696/699 with 3 failures proven identical on the untouched base (CSV review, B2 uploads, t19b claims — separate lanes). Complete824 and original holds unchanged."
+  "scope": "2026-10-13 Interfaces export security correction: app/team/original-cursor binding, fresh canonical projection before cached disclosure, atomic pending-digest completion with terminal revocation and store-clock expiry, detached records and final disclosure admission. Normal owning build and25 selected route controls pass; finite independent source review CLEAR. Durable production binding and original compiled mounted consumer remain unfinished; complete824 and all exact holds unchanged."
  },
  "methods": [
   "Retained net/history coverage plus git diff --cached main-parent; checkpoint diff restricted to changed paths and retained rename endpoints",
@@ -30,7 +30,7 @@
   "muse-wind-down": "Finite root source/guard repairs independently reviewed at described scope; foreign IDE/UI/design checkpoints preserved unfinished, no accumulated/full-plan acceptance.",
   "private-nominal-file-assignment": "Genuine root-child final assignment locators, same owning nominal File census, private write versus saved public read boundary, deeply immutable schema preparation and per-call opaque binding with current source/inventory/revision refresh. Owning37 controls, normal emissions and finite source review; full P7 runtime remains unqualified.",
   "d1-guard-preparation": "Worker-profiled immutable completed-guard reuse for D1 file retirement: full live batch plus exact raw comparison per call, derivation memoized on proven-identical inputs, frozen retained preparation, binding/framework/maxRows isolation and malformed-batch no-poison controls. Owning D1/storage/assignment/opaque suites green; full P7 application runtime remains unqualified.",
-  "export-download-backend": "Interfaces HTTP slice review: download store port/memory double, pending registration with deterministic-handle convergence, status/download admission matrix, lazy full-output completion under current grants, refusal envelopes and incident discipline. Owning export-route suite green except pre-existing CSV failure; full P7 and other lanes unchanged."
+  "export-download-backend": "2026-10-13 Interfaces export security correction: app/team/original-cursor binding, fresh canonical projection before cached disclosure, atomic pending-digest completion with terminal revocation and store-clock expiry, detached records and final disclosure admission. Normal owning build and25 selected route controls pass; finite independent source review CLEAR. Durable production binding and original compiled mounted consumer remain unfinished; complete824 and all exact holds unchanged."
  },
  "owner_rules": {
   "packages/<owner>": "Existing package owner; no language/backend responsibility transfer",
