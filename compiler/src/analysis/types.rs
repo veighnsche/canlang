@@ -7538,17 +7538,6 @@ impl<'a> Typer<'a> {
         }
     }
 
-    /// Check a `send ... when=` dispatch guard is pure (`E3010`).
-    fn check_when_pure(&mut self, cx: &Ctx<'_, '_>, when: &SyntaxNode) {
-        for (name, span) in self.effectful_calls(when, cx.text) {
-            self.diags.push(Diagnostic::error(
-                "E3010",
-                format!("when= must be a pure dispatch guard; '{name}' is not allowed here"),
-                span,
-            ));
-        }
-    }
-
     fn check_dispatch_when(&mut self, cx: &Ctx<'_, '_>, when: &SyntaxNode) {
         for (name, span) in self.bounded_membership_effectful_calls(when, cx.text) {
             self.diags.push(Diagnostic::error(
@@ -8248,7 +8237,15 @@ impl<'a> Typer<'a> {
             };
             let ty = self.expr(&when_cx, when, None);
             self.expect_bool(&when_cx, tight_span(text, when), &ty, "`when=`");
-            self.check_when_pure(&when_cx, when);
+            // R26 layer 1 (T37 pilot): a CRUD `when=` is an authorization
+            // guard running for admitted callers, like a send `when=`
+            // (not a pure value). Bounded purity admits membership reads
+            // (the ledger's promised "admitted-actor use passes in
+            // composite policies and CRUD `when=`"); impure builtins
+            // still reject, derive bodies stay pure-gated, and commit-time
+            // revalidation (T32) backstops freshness. Policy `where=`
+            // already admits these calls; this aligns the two guards.
+            self.check_dispatch_when(&when_cx, when);
         }
         for key in ["create", "update"] {
             if let Some(mode) = attribute_value(node, key, text) {

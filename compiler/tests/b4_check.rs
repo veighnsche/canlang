@@ -1110,6 +1110,23 @@ fn t06_bounded_read_stays_gated() {
     assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
 }
 
+/// (R26 layer 1, T37 pilot) A CRUD `when=` is a bounded authorization
+/// guard like a send `when=`: an impure builtin still rejects, even
+/// though membership reads admit (CanDo shape needs the admit half;
+/// the pilot recount proves it on real `staff`/`can_work` calls).
+#[test]
+fn r26_crud_when_impure_builtin_rejects() {
+    let catalog = fixture_with(READ_JSON);
+    let src = "app T\nGiven\n M { t:text }\n policy M read=members\nWhen\n crud M by=members fields=t when=needy(actor)\nThen\n";
+    let diags = check(src, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E3010"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("bounded dispatch guard"),
+        "{}",
+        diags[0].message
+    );
+}
+
 // --- T07 filtered row facts: `where` null tests narrow the selected row ---
 //
 // A `where` passes only rows satisfying it, so its true-facts narrow
