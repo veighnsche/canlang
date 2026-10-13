@@ -14,6 +14,7 @@ pub mod explain;
 pub mod format;
 pub mod ide;
 pub mod json;
+pub mod leases;
 pub mod lint;
 pub mod lsp;
 pub mod policy;

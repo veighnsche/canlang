@@ -254,6 +254,22 @@ impl LineIndex {
     }
 }
 
+/// BGI-04 read-lease hook: snapshot consumed build inputs for compilation.
+///
+/// Refuses while any run journal is unresolved, takes brief read leases in
+/// canonical lock order, and returns immutable copies. Ordinary builds
+/// compile this snapshot — never live files — so an in-flight promotion
+/// cannot serve a mixed group. Thin wrapper over
+/// [`crate::leases::snapshot_inputs`], placed here beside the source intake
+/// every build reader already uses.
+pub fn snapshot_consumed_inputs(
+    root: &std::path::Path,
+    holder: &str,
+    paths: &[&str],
+) -> Result<Vec<crate::leases::ConsumedInput>, crate::leases::LeaseError> {
+    crate::leases::snapshot_inputs(root, holder, paths)
+}
+
 /// Lowercase hex SHA-256 of `bytes`.
 ///
 /// Hash the exact bytes without text or newline normalization.
