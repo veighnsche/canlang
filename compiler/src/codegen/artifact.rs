@@ -15,7 +15,9 @@
 
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::codegen::bdd::BddModule;
-use crate::codegen::ir::{IrItemKind, IrMigrationDirective, IrProgram, ReferencedBuiltin};
+use crate::codegen::ir::{
+    GivenContractIr, IrItemKind, IrMigrationDirective, IrProgram, ReferencedBuiltin,
+};
 use crate::codegen::js::{Emitter, JsModel, JsOperation, JsOutput};
 use crate::codegen::sourcemap::{self, SourceMap};
 use crate::diagnostic::Diagnostic;
@@ -762,4 +764,249 @@ struct TestWire<'a> {
     scope: &'a str,
     module: ModuleWire<'a>,
     fixtures: &'a [String],
+}
+
+// --- BGI-07 Given contract emission ----------------------------------------
+// Checked Given contract emission: lowered trait instantiations and
+// keyword rules become typed artifact descriptors (schemas, producer
+// bindings, wrapper joins, derived references, fingerprints) rendered
+// as compact JSON per `packages/contracts/src/artifact.ts`
+// (`ArtifactGivenTrait`/`ArtifactGivenKeyword`). Standalone by lane
+// design: the BGI-11/12 join folds these descriptors into
+// `CompileArtifact` (`givenContracts`) once saved intake feeds this
+// layer; the JSON shapes below are already that member's content.
+
+/// One emitted contributed field: the typed leaf a trait adds.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenField {
+    /// Field name.
+    pub name: String,
+    /// Checked type text.
+    #[serde(rename = "type")]
+    pub type_name: String,
+    /// Checked default constant (source text), when the template
+    /// carries one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    /// Contributed `trim` normalization.
+    pub trim: bool,
+    /// Contributed `min=` bound (source text), when given.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<String>,
+    /// Contributed `max=` bound (source text), when given.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<String>,
+}
+
+/// One emitted trait instantiation: a saved template applied at one
+/// target, sharing its definition's saved unit with every sibling.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenTrait {
+    /// Compiler-owned instantiation identity.
+    pub id: String,
+    /// Owning module.
+    pub owner: String,
+    /// Trait name (absent for inline attachments).
+    #[serde(rename = "trait", skip_serializing_if = "Option::is_none")]
+    pub trait_name: Option<String>,
+    /// Whether this instance owns a one-off inline attachment.
+    pub inline: bool,
+    /// Definition anchor (the stable association key).
+    pub anchor: String,
+    /// Saved unit this instance reuses.
+    #[serde(rename = "unitId")]
+    pub unit_id: String,
+    /// Canonical target identity (`Owner.Model[.field]`).
+    pub target: String,
+    /// Instantiated template fields.
+    pub fields: Vec<ArtifactGivenField>,
+    /// SHA-256 over the contributions carrier bytes.
+    pub fingerprint: String,
+    /// Source order among the definition's applications.
+    pub order: usize,
+}
+
+/// Typed input schema of an emitted keyword rule.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenInputSchema {
+    /// Input binding name.
+    pub name: String,
+    /// Checked input type.
+    #[serde(rename = "type")]
+    pub type_name: String,
+}
+
+/// Typed result schema of an emitted keyword rule.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenResultSchema {
+    /// Checked result type (producer-fixed).
+    #[serde(rename = "type")]
+    pub type_name: String,
+}
+
+/// One emitted keyword-rule argument: references carry canonical
+/// identities, constants carry their checked source text.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenKeywordArg {
+    /// Argument name.
+    pub name: String,
+    /// Resolved value.
+    pub value: String,
+}
+
+/// One emitted keyword rule: a standalone application bound to its
+/// saved implementation through the checked owner-producer descriptor.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactGivenKeyword {
+    /// Compiler-owned rule identity
+    /// (`Owner.Model.field#keyword`).
+    #[serde(rename = "ruleId")]
+    pub rule_id: String,
+    /// Owning module.
+    pub owner: String,
+    /// Keyword name (the standalone declaration form).
+    pub keyword: String,
+    /// Definition anchor (the stable association key).
+    pub anchor: String,
+    /// Saved unit this rule reuses.
+    #[serde(rename = "unitId")]
+    pub unit_id: String,
+    /// Bound owner-versioned producer (compiler-known).
+    pub producer: String,
+    /// Fixed producer semantics id (compiler-owned).
+    pub semantics: String,
+    /// Producer lifecycle binding (compiler-owned).
+    pub lifecycle: String,
+    /// Saved export implementing the behavior.
+    pub export: String,
+    /// Typed input schema derived from the bound arguments.
+    pub input: ArtifactGivenInputSchema,
+    /// Typed result schema (producer-fixed).
+    pub result: ArtifactGivenResultSchema,
+    /// Admitted reads (empty for pure producers).
+    pub reads: Vec<String>,
+    /// Admitted effects (empty for pure producers).
+    pub effects: Vec<String>,
+    /// Admitted authority (empty: canonical owners admit bindings).
+    pub authority: Vec<String>,
+    /// Canonical value dependencies (the bound fields).
+    pub dependencies: Vec<String>,
+    /// SHA-256 over the saved implementation closure bytes.
+    pub fingerprint: String,
+    /// Canonical target model identity.
+    #[serde(rename = "targetModel")]
+    pub target_model: String,
+    /// Canonical target field identity.
+    #[serde(rename = "targetField")]
+    pub target_field: String,
+    /// Resolved arguments.
+    pub args: Vec<ArtifactGivenKeywordArg>,
+    /// Source order among the definition's applications.
+    pub order: usize,
+}
+
+/// Emitted Given contracts for one program: trait instantiations and
+/// keyword rules in global source order.
+#[derive(Debug, Clone)]
+pub struct GivenContractsArtifact {
+    /// Compiler version.
+    pub tool_version: String,
+    /// Trait instantiations in global source order.
+    pub traits: Vec<ArtifactGivenTrait>,
+    /// Keyword rules in global source order.
+    pub keywords: Vec<ArtifactGivenKeyword>,
+}
+
+/// Assemble emitted Given contracts from lowered records.
+pub fn assemble_given_contracts(
+    ir: &GivenContractIr,
+    tool_version: &str,
+) -> GivenContractsArtifact {
+    GivenContractsArtifact {
+        tool_version: tool_version.to_string(),
+        traits: ir
+            .traits
+            .iter()
+            .map(|instance| ArtifactGivenTrait {
+                id: instance.id.clone(),
+                owner: instance.owner.clone(),
+                trait_name: instance.trait_name.clone(),
+                inline: instance.inline,
+                anchor: instance.anchor.clone(),
+                unit_id: instance.unit_id.clone(),
+                target: instance.target.clone(),
+                fields: instance
+                    .fields
+                    .iter()
+                    .map(|field| ArtifactGivenField {
+                        name: field.name.clone(),
+                        type_name: field.type_name.clone(),
+                        default: field.default.clone(),
+                        trim: field.trim,
+                        min: field.min.clone(),
+                        max: field.max.clone(),
+                    })
+                    .collect(),
+                fingerprint: instance.fingerprint.clone(),
+                order: instance.order,
+            })
+            .collect(),
+        keywords: ir
+            .keywords
+            .iter()
+            .map(|rule| ArtifactGivenKeyword {
+                rule_id: rule.rule_id.clone(),
+                owner: rule.owner.clone(),
+                keyword: rule.keyword.clone(),
+                anchor: rule.anchor.clone(),
+                unit_id: rule.unit_id.clone(),
+                producer: rule.producer.clone(),
+                semantics: rule.semantics.clone(),
+                lifecycle: rule.lifecycle.clone(),
+                export: rule.export.clone(),
+                input: ArtifactGivenInputSchema {
+                    name: rule.input_name.clone(),
+                    type_name: rule.input_type.clone(),
+                },
+                result: ArtifactGivenResultSchema {
+                    type_name: rule.result_type.clone(),
+                },
+                reads: rule.reads.clone(),
+                effects: rule.effects.clone(),
+                authority: rule.authority.clone(),
+                dependencies: rule.dependencies.clone(),
+                fingerprint: rule.fingerprint.clone(),
+                target_model: rule.target_model.clone(),
+                target_field: rule.target_field.clone(),
+                args: rule
+                    .args
+                    .iter()
+                    .map(|(name, value)| ArtifactGivenKeywordArg {
+                        name: name.clone(),
+                        value: value.clone(),
+                    })
+                    .collect(),
+                order: rule.order,
+            })
+            .collect(),
+    }
+}
+
+/// Render emitted Given contracts as compact JSON per `artifact.ts`.
+pub fn given_contracts_to_json(artifact: &GivenContractsArtifact) -> String {
+    let wire = GivenContractsWire {
+        artifact_version: ARTIFACT_VERSION,
+        tool_version: &artifact.tool_version,
+        traits: &artifact.traits,
+        keywords: &artifact.keywords,
+    };
+    crate::json::to_compact_string(&wire).expect("given contract serialization is infallible")
+}
+
+#[derive(Serialize)]
+struct GivenContractsWire<'a> {
+    artifact_version: u32,
+    tool_version: &'a str,
+    traits: &'a [ArtifactGivenTrait],
+    keywords: &'a [ArtifactGivenKeyword],
 }

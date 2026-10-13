@@ -18155,6 +18155,214 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
     }
 }
 
+// --- BGI-07 Given contract lowering ----------------------------------------
+// Lower checked Given contracts ([`crate::analysis::types::GivenContractTables`])
+// to per-application emission records: trait instantiations (the saved
+// template at each target) and keyword rules (the wrapper-join record
+// binding each standalone application to its saved implementation and
+// owner-versioned producer). Instances keep explicit source order and
+// compiler-owned identities; lowering is total over checked tables and
+// reports no diagnostics. Standalone by lane design: the BGI-11/12 join
+// wires it into `build`/`emit` once saved intake feeds this layer.
+
+/// One lowered trait instantiation: a saved template applied at one
+/// target, sharing its definition's saved unit with every sibling
+/// application.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GivenTraitInstanceIr {
+    /// Compiler-owned instantiation identity:
+    /// `{target}#{trait}` for named traits,
+    /// `{target}#inline-trait@{unit}` for one-off attachments.
+    pub id: String,
+    /// Owning module.
+    pub owner: String,
+    /// Trait name (`None` for inline attachments).
+    pub trait_name: Option<String>,
+    /// Whether this instance owns a one-off inline attachment.
+    pub inline: bool,
+    /// Definition anchor (the stable association key).
+    pub anchor: String,
+    /// Saved unit this instance reuses.
+    pub unit_id: String,
+    /// Canonical target identity (`Owner.Model[.field]`).
+    pub target: String,
+    /// Instantiated template fields (a single constraint template for
+    /// field attachments: no new field, compatible default/bounds).
+    pub fields: Vec<GivenContractFieldIr>,
+    /// SHA-256 over the contributions carrier bytes.
+    pub fingerprint: String,
+    /// Source order among the definition's applications.
+    pub order: usize,
+    /// Application span.
+    pub span: Span,
+}
+
+/// One lowered contributed field: the typed leaf a trait adds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GivenContractFieldIr {
+    /// Field name.
+    pub name: String,
+    /// Checked type text.
+    pub type_name: String,
+    /// Checked default constant (source text), when the template
+    /// carries one (field-constraint templates may omit it).
+    pub default: Option<String>,
+    /// Contributed `trim` normalization.
+    pub trim: bool,
+    /// Contributed `min=` bound (source text), when given.
+    pub min: Option<String>,
+    /// Contributed `max=` bound (source text), when given.
+    pub max: Option<String>,
+}
+
+/// One lowered keyword rule: a standalone application bound to its
+/// saved implementation through the checked owner-producer descriptor
+/// (the wrapper-join record the runtime seam consumes).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GivenKeywordRuleIr {
+    /// Compiler-owned rule identity
+    /// (`Owner.Model.field#keyword`).
+    pub rule_id: String,
+    /// Owning module.
+    pub owner: String,
+    /// Keyword name (the standalone declaration form).
+    pub keyword: String,
+    /// Definition anchor (the stable association key).
+    pub anchor: String,
+    /// Saved unit this rule reuses.
+    pub unit_id: String,
+    /// Bound owner-versioned producer (compiler-known).
+    pub producer: String,
+    /// Fixed producer semantics id (compiler-owned).
+    pub semantics: String,
+    /// Producer lifecycle binding (compiler-owned).
+    pub lifecycle: String,
+    /// Saved export implementing the behavior.
+    pub export: String,
+    /// Typed input binding name.
+    pub input_name: String,
+    /// Typed input schema (producer/definition derived).
+    pub input_type: String,
+    /// Typed result schema (producer-fixed).
+    pub result_type: String,
+    /// Admitted reads (empty for pure producers).
+    pub reads: Vec<String>,
+    /// Admitted effects (empty for pure producers).
+    pub effects: Vec<String>,
+    /// Admitted authority (empty: canonical owners admit bindings).
+    pub authority: Vec<String>,
+    /// Canonical value dependencies (the bound fields).
+    pub dependencies: Vec<String>,
+    /// SHA-256 over the saved implementation closure bytes.
+    pub fingerprint: String,
+    /// Canonical target model identity.
+    pub target_model: String,
+    /// Canonical target field identity.
+    pub target_field: String,
+    /// Resolved arguments (references canonical, constants verbatim).
+    pub args: Vec<(String, String)>,
+    /// Source order among the definition's applications.
+    pub order: usize,
+    /// Application span.
+    pub span: Span,
+}
+
+/// Lowered Given contracts in global source order.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GivenContractIr {
+    /// Trait instantiations in global source order.
+    pub traits: Vec<GivenTraitInstanceIr>,
+    /// Keyword rules in global source order.
+    pub keywords: Vec<GivenKeywordRuleIr>,
+}
+
+/// Lower checked Given contracts to per-application emission records.
+/// Trait definitions flatten to one instance per application (all
+/// sharing the saved unit); keyword definitions flatten to one rule
+/// per application (all sharing the saved implementation and producer
+/// binding). Both lists end in global source order.
+pub fn lower_given_contracts(
+    tables: &crate::analysis::types::GivenContractTables,
+) -> GivenContractIr {
+    let mut out = GivenContractIr::default();
+    for contract in &tables.traits {
+        let fields: Vec<GivenContractFieldIr> = contract
+            .contributed_fields
+            .iter()
+            .map(|f| GivenContractFieldIr {
+                name: f.name.clone(),
+                type_name: f.type_name.clone(),
+                default: f.default.clone(),
+                trim: f.trim,
+                min: f.min.clone(),
+                max: f.max.clone(),
+            })
+            .collect();
+        for app in &contract.applications {
+            let owner = app
+                .target_canonical
+                .split('.')
+                .next()
+                .unwrap_or_default()
+                .to_string();
+            let id = match &contract.name {
+                Some(name) => format!("{}#{name}", app.target_canonical),
+                None => format!("{}#inline-trait@{}", app.target_canonical, contract.unit_id),
+            };
+            out.traits.push(GivenTraitInstanceIr {
+                id,
+                owner,
+                trait_name: contract.name.clone(),
+                inline: contract.inline,
+                anchor: contract.anchor.clone(),
+                unit_id: contract.unit_id.clone(),
+                target: app.target_canonical.clone(),
+                fields: fields.clone(),
+                fingerprint: contract.fingerprint.clone(),
+                order: app.order,
+                span: app.span,
+            });
+        }
+    }
+    for contract in &tables.keywords {
+        for app in &contract.applications {
+            let owner = app
+                .target_model
+                .split('.')
+                .next()
+                .unwrap_or_default()
+                .to_string();
+            out.keywords.push(GivenKeywordRuleIr {
+                rule_id: app.rule_id.clone(),
+                owner,
+                keyword: contract.name.clone(),
+                anchor: contract.anchor.clone(),
+                unit_id: contract.unit_id.clone(),
+                producer: contract.producer.clone(),
+                semantics: contract.semantics.clone(),
+                lifecycle: contract.lifecycle.clone(),
+                export: contract.export.clone(),
+                input_name: contract.input.name.clone(),
+                input_type: contract.input.type_name.clone(),
+                result_type: contract.result.clone(),
+                reads: contract.reads.clone(),
+                effects: contract.effects.clone(),
+                authority: contract.authority.clone(),
+                dependencies: contract.dependencies.clone(),
+                fingerprint: contract.fingerprint.clone(),
+                target_model: app.target_model.clone(),
+                target_field: app.target_field.clone(),
+                args: app.args.clone(),
+                order: app.order,
+                span: app.span,
+            });
+        }
+    }
+    out.traits.sort_by_key(|i| (i.span.file.0, i.span.start));
+    out.keywords.sort_by_key(|i| (i.span.file.0, i.span.start));
+    out
+}
+
 #[cfg(test)]
 mod string_payload_tests {
     use super::*;

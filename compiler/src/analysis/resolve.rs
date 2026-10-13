@@ -5,8 +5,9 @@
 //! helper misuse (`E2006`), composition cycles (`E2007`), ownership
 //! (`E2008`), composed-app imports (`E2009`), empty `uses` (`E2010`),
 //! contextual shadowing (`E2012`), unknown members (`E2013`), derive
-//! targets (`E2014`), reference cycles (`E2017`–`E2018`) and semantic
-//! identity capacity (`E2019`). See
+//! targets (`E2014`), reference cycles (`E2017`–`E2018`), semantic
+//! identity capacity (`E2019`) and dangling Given references (`E2011`,
+//! BGI-07 trait/keyword contract checking). See
 //! `can explain` for the per-code allocation.
 //!
 //! Two passes: [`resolve_program`] builds modules, symbols, imports,
@@ -7174,4 +7175,205 @@ fn expr_path_segments<'a>(node: &SyntaxNode, text: &'a str) -> Vec<&'a str> {
             _ => return Vec::new(),
         }
     }
+}
+
+// --- BGI-07 Given contract references --------------------------------------
+// Typed reference facts for Given trait/keyword applications, resolved
+// against the checked program's symbols. BGI-01 discovery validates the
+// same references from one file's CST; this table is cross-file correct
+// and kind-checked (a Contract/Event member is never a model field, a
+// bare name is never an operation). It reports `E2011` for dangling
+// Given references only; definition shape/duplicates stay with
+// discovery and the parser.
+
+/// Checked symbol facts consulted by Given contract checking.
+#[derive(Debug, Clone, Default)]
+pub struct GivenReferenceTables {
+    /// Canonical `Owner.Model` identity of every declared model.
+    pub models: HashMap<String, SymbolId>,
+    /// Canonical `Owner.Model.field` identity of every declared model field.
+    pub fields: HashMap<String, SymbolId>,
+    /// Canonical identities of callable operations (scenarios + CRUD ops).
+    pub operations: HashSet<String>,
+}
+
+/// Collect model/field/operation reference facts from a checked program.
+pub fn collect_given_references(program: &super::CheckedProgram) -> GivenReferenceTables {
+    let mut out = GivenReferenceTables::default();
+    for symbol in &program.symbols {
+        match &symbol.kind {
+            SymbolKind::Model { fields, .. } => {
+                out.models.insert(symbol.canonical.clone(), symbol.id);
+                for field in fields {
+                    if let Some(field) = program.symbols.get(field.0 as usize)
+                        && matches!(field.kind, SymbolKind::Field { .. })
+                    {
+                        out.fields.insert(field.canonical.clone(), field.id);
+                    }
+                }
+            }
+            SymbolKind::Scenario { .. } | SymbolKind::CrudOp { .. } => {
+                out.operations.insert(symbol.canonical.clone());
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// Resolve a `model` argument to its declared model symbol.
+pub fn resolve_given_model(
+    refs: &GivenReferenceTables,
+    owner: &str,
+    model: &str,
+) -> Option<SymbolId> {
+    if model.is_empty() || model.contains('.') {
+        return None;
+    }
+    refs.models.get(&format!("{owner}.{model}")).copied()
+}
+
+/// Resolve a `Model.field` argument to its declared model-field symbol.
+pub fn resolve_given_field(
+    refs: &GivenReferenceTables,
+    owner: &str,
+    model: &str,
+    field: &str,
+) -> Option<SymbolId> {
+    if model.is_empty() || field.is_empty() {
+        return None;
+    }
+    refs.fields
+        .get(&format!("{owner}.{model}.{field}"))
+        .copied()
+}
+
+/// Whether an `operation` argument names a declared scenario or CRUD op.
+pub fn given_operation_known(refs: &GivenReferenceTables, owner: &str, op: &str) -> bool {
+    if op.is_empty() {
+        return false;
+    }
+    refs.operations.contains(&format!("{owner}.{op}"))
+}
+
+/// `E2011`: a Given trait/keyword reference names no declared symbol of
+/// the expected kind.
+pub fn dangling_given_reference(what: &str, name: &str, expected: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "E2011",
+        format!("given {what} `{name}` does not resolve to a declared {expected}"),
+        span,
+    )
+}
+
+/// Resolve every trait-application target and keyword-application
+/// model/field/operation argument against the checked program.
+///
+/// Returns the reference tables plus one `E2011` per dangling reference.
+/// Same-owner references only in v1: cross-module generation references
+/// need explicit import integration (future work, not silent guessing).
+/// Unknown keywords/traits and malformed arguments stay with discovery
+/// (`E2001`/`E2002`); this check never re-reports them.
+pub fn check_given_application_refs(
+    program: &super::CheckedProgram,
+    descriptors: &[super::generation::GenerationDescriptor],
+) -> (GivenReferenceTables, Vec<Diagnostic>) {
+    use super::generation::GenerationKind;
+    let refs = collect_given_references(program);
+    let mut diags = Vec::new();
+    let mut keyword_params: HashMap<(&str, &str), &Vec<super::generation::KeywordParamDescriptor>> =
+        HashMap::new();
+    for d in descriptors {
+        if d.kind == GenerationKind::KeywordDefinition
+            && let Some(label) = d.label.as_deref()
+        {
+            keyword_params
+                .entry((d.owner.as_str(), label))
+                .or_insert(&d.params);
+        }
+    }
+    for d in descriptors {
+        match d.kind {
+            GenerationKind::TraitApplication => {
+                let target = d.target.as_deref().unwrap_or_default();
+                let mut parts = target.splitn(2, '.');
+                let (model, field) = (parts.next().unwrap_or_default(), parts.next());
+                if resolve_given_model(&refs, &d.owner, model).is_none() {
+                    diags.push(dangling_given_reference(
+                        "trait target",
+                        target,
+                        "model",
+                        d.span,
+                    ));
+                    continue;
+                }
+                if let Some(field) = field
+                    && resolve_given_field(&refs, &d.owner, model, field).is_none()
+                {
+                    diags.push(dangling_given_reference(
+                        "trait target",
+                        target,
+                        "model field",
+                        d.span,
+                    ));
+                }
+            }
+            GenerationKind::KeywordApplication => {
+                let Some(label) = d.label.as_deref() else {
+                    continue;
+                };
+                let Some(params) = keyword_params.get(&(d.owner.as_str(), label)) else {
+                    // Unknown keyword: discovery owns `E2001`.
+                    continue;
+                };
+                for arg in &d.args {
+                    let Some(param) = params.iter().find(|p| p.name == arg.name) else {
+                        // Unknown argument: discovery owns `E2001`.
+                        continue;
+                    };
+                    let value = arg.value.trim();
+                    match param.kind.as_str() {
+                        "model" => {
+                            if resolve_given_model(&refs, &d.owner, value).is_none() {
+                                diags.push(dangling_given_reference(
+                                    "keyword model argument",
+                                    value,
+                                    "model",
+                                    arg.span,
+                                ));
+                            }
+                        }
+                        "field" => {
+                            let mut parts = value.splitn(2, '.');
+                            let (model, field) = (parts.next().unwrap_or_default(), parts.next());
+                            match field {
+                                Some(field)
+                                    if resolve_given_field(&refs, &d.owner, model, field)
+                                        .is_some() => {}
+                                _ => diags.push(dangling_given_reference(
+                                    "keyword field argument",
+                                    value,
+                                    "model field",
+                                    arg.span,
+                                )),
+                            }
+                        }
+                        "operation" => {
+                            if !given_operation_known(&refs, &d.owner, value) {
+                                diags.push(dangling_given_reference(
+                                    "keyword operation argument",
+                                    value,
+                                    "scenario or CRUD operation",
+                                    arg.span,
+                                ));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    (refs, diags)
 }

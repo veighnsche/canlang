@@ -58,6 +58,11 @@
 //!   T33-A contract — unknown model/collection, cross-package (cross-owner)
 //!   cohort, `each=` without `on=`, or any other unsupported cohort shape
 //!   (T34-F6; §C9/M10 keep such forms diagnosed, never silently admitted).
+//! - `E4056` unadmitted Given authority: a trait contribution or keyword
+//!   declaration claims operations, effects, reads, storage/auth semantics
+//!   or generated behavior outside its checked producer admission (BGI-07
+//!   trait/keyword contract checking; metadata never self-registers
+//!   authority).
 //!
 //! Each staging ban reports once per statement and stands down when an
 //! earlier finding already covers the statement (fix-and-reveal); the
@@ -5767,4 +5772,50 @@ fn param_shape(text: &str, param: &SyntaxNode) -> ParamShape {
         shape.label = parts.get(i + 2).copied().map(NodeKey::of);
     }
     shape
+}
+
+// --- BGI-07 Given authority admission --------------------------------------
+// A trait contribution or keyword declaration carries no authority of its
+// own: operations, scenarios, policies, storage/index/lifecycle semantics
+// and generated behavior are admitted only through the checked contract
+// (definition signature + compiler-owned producer schema). Anything else
+// is `E4056`: metadata never self-registers authority, storage or a new
+// lifecycle, and hidden declarations never ride along silently.
+
+/// `E4056`: `what` claims authority the Given contract does not admit.
+pub fn refuse_given_authority(what: &str, detail: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "E4056",
+        format!("unadmitted given authority: {what} {detail}"),
+        span,
+    )
+}
+
+/// Check a keyword unit's declared reads/effects/authority against the
+/// producer admission: every non-empty claim refuses with `E4056` naming
+/// the claim. Pure producers (like `state.unique-key@1`) admit none; a
+/// producer with admitted claims needs explicit owner integration here,
+/// never a caller-supplied admission string.
+pub fn check_given_declaration_authority(
+    reads: &[String],
+    effects: &[String],
+    authority: &[String],
+    producer: &str,
+    span: Span,
+) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    for (kind, claims) in [
+        ("read", reads),
+        ("effect", effects),
+        ("authority", authority),
+    ] {
+        for claim in claims {
+            out.push(refuse_given_authority(
+                &format!("{kind} `{claim}`"),
+                &format!("is not admitted by producer `{producer}`"),
+                span,
+            ));
+        }
+    }
+    out
 }
