@@ -16,6 +16,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { nextUnitId } from "./association.js";
 import {
   ControlError,
@@ -30,7 +31,8 @@ import {
   type ControlContext,
 } from "./controls.js";
 import { hashInput, readFence } from "./lifecycle.js";
-import type { McpSession } from "./mcp.js";
+import { createMcpSession, type McpSession } from "./mcp.js";
+import { PreflightError, type McpRole } from "./protocol.js";
 import { readJournal, stageJournal, markCommitted, unresolvedJournals } from "./journal.js";
 import { acquire } from "./leases.js";
 import { parseUnitRecord, sha256HexText } from "./records.js";
@@ -483,6 +485,9 @@ function ctxFor(harness: Harness, overrides: Partial<ControlContext> = {}): Cont
     preflight: noopPreflight,
     resolveExecutable: async () => harness.runner,
     onSession: submitAll(),
+    // Explicit no-transport: these fake-runner flows submit through
+    // the session hook; the production bridge has its own tests.
+    mcpBridge: null,
     ...overrides,
   };
 }
@@ -1579,6 +1584,309 @@ test("real compiler bridge serves the status seam when built", async () => {
     assert.ok(unit.span !== null && typeof unit.span === "object");
   }
   assert.deepEqual(body["produced"], {});
+});
+
+test("full retry records its parent set and accepts only complete", async () => {
+  const h = await harness();
+  await writeTree(h.root, [
+    [
+      "can.gen.toml",
+      'version=1\n[generation]\nrunner="codex"\nmodel="base"\n[generation.profiles.first]\nrunner="codex"\nmodel="a"\n[generation.profiles.second]\nrunner="codex"\nmodel="b"\n',
+    ],
+  ]);
+  h.fake.descriptors.set("app.can", [
+    { ...styleDescriptor("First", "First look", 100, 160), profile: "first" },
+    { ...styleDescriptor("Second", "Second look", 200, 260), profile: "second" },
+  ]);
+  // Seed both current groups so preservation is observable (no run
+  // overrides: the two profiles plan two jobs).
+  const seed = await dispatchControl(
+    req("r-fs0", "retry", { root: h.root, files: ["app.can"], accept: true }),
+    ctxFor(h),
+  );
+  assert.equal(seed.code, 0, seed.envelope);
+  assert.equal(bodyOf(seed.envelope)["state"], "accepted");
+  const oldU1 = await readFile(join(h.root, "can.generated", "u1", "style.css"), "utf8");
+  const oldU2 = await readFile(join(h.root, "can.generated", "u2", "style.css"), "utf8");
+  // A gate failure still records every job capture before any launch.
+  const gated = await dispatchControl(
+    req("r-fs1", "retry", { root: h.root, files: ["app.can"] }),
+    ctxFor(h, {
+      preflight: () => {
+        throw new PreflightError("unsupported-capability", "gated");
+      },
+    }),
+  );
+  assert.equal(gated.code, 2);
+  assert.equal((bodyOf(gated.envelope)["error"] as { code: string }).code, "unsupported-capability");
+  for (const order of [0, 1]) {
+    const capture = JSON.parse(
+      await readFile(join(h.root, ".can/gen/attempts", `r-fs1.j${String(order)}`, "capture.json"), "utf8"),
+    ) as CaptureRecord;
+    assert.deepEqual(capture.parent_set?.attempts, ["r-fs1.j0", "r-fs1.j1"]);
+    assert.deepEqual(capture.parent_set?.units, ["u1", "u2"]);
+  }
+  // Host-submit one sibling's required set, mirroring a partial retry.
+  const hostSubmit = async (attempt: string): Promise<void> => {
+    const dir = join(h.root, ".can/gen/attempts", attempt);
+    const cap = JSON.parse(await readFile(join(dir, "capture.json"), "utf8")) as CaptureRecord;
+    const kinds = new Map(cap.units.map((entry) => [entry.unit_id, entry.kind]));
+    const allowed = Object.entries(cap.handles).map(([handle, entry]) => ({
+      handle,
+      role: entry.role as McpRole,
+      kind: kinds.get(entry.unit) as string,
+      filename: entry.filename,
+    }));
+    const session = await createMcpSession({
+      session: `host-${attempt}`,
+      attempt,
+      source_digest: cap.source_digest,
+      allowed,
+      candidateRoot: join(dir, "candidates"),
+      required: Object.entries(cap.handles)
+        .filter(([, entry]) => entry.required)
+        .map(([handle]) => handle),
+    });
+    const batch = Object.entries(cap.handles)
+      .filter(([, entry]) => entry.required)
+      .map(([handle, entry]) => ({
+        target: handle,
+        role: entry.role,
+        content_text: `/* host ${attempt} ${handle} */\n.tile{color:teal}\n`,
+      }));
+    await session.submit(`host-${attempt}`, batch);
+  };
+  await hostSubmit("r-fs1.j0");
+  // A sibling accept resolves the parent set and refuses the partial
+  // set; both current groups are preserved.
+  const partial = await dispatchControl(
+    req("r-fs2", "accept", { root: h.root, attempt: "r-fs1.j0" }),
+    ctxFor(h),
+  );
+  assert.equal(partial.code, 4);
+  assert.equal((bodyOf(partial.envelope)["error"] as { code: string }).code, "incomplete-set");
+  assert.equal(await readFile(join(h.root, "can.generated", "u1", "style.css"), "utf8"), oldU1);
+  assert.equal(await readFile(join(h.root, "can.generated", "u2", "style.css"), "utf8"), oldU2);
+  // Unit scope likewise refuses a member of a multi-attempt set.
+  const unitAccept = await dispatchControl(
+    req("r-fs4", "accept", { root: h.root, unit_id: "u1" }),
+    ctxFor(h),
+  );
+  assert.equal(unitAccept.code, 2);
+  assert.equal((bodyOf(unitAccept.envelope)["error"] as { code: string }).code, "full-set-required");
+  // Complete the set: the same sibling accept promotes both through
+  // one coordinated journal.
+  await hostSubmit("r-fs1.j1");
+  const full = await dispatchControl(
+    req("r-fs3", "accept", { root: h.root, attempt: "r-fs1.j0" }),
+    ctxFor(h),
+  );
+  assert.equal(full.code, 0, full.envelope);
+  assert.equal(bodyOf(full.envelope)["state"], "accepted");
+  assert.deepEqual((bodyOf(full.envelope)["units"] as string[]).sort(), ["u1", "u2"]);
+  assert.deepEqual(bodyOf(full.envelope)["attempts"], ["r-fs1.j0", "r-fs1.j1"]);
+  const run = bodyOf(full.envelope)["run"] as string;
+  const resolved = JSON.parse(
+    await readFile(join(h.root, ".can/gen/runs", run, "journal.resolved.json"), "utf8"),
+  ) as { scope: string[] };
+  assert.deepEqual([...resolved.scope].sort(), ["u1", "u2"]);
+  for (const id of ["u1", "u2"]) {
+    const current = await readFile(join(h.root, "can.generated", id, "style.css"), "utf8");
+    assert.ok(current.includes("host r-fs1"), current);
+  }
+});
+
+test("mixed retry stages Given before frontend and keeps every prompt", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", [
+    {
+      owner: "Tasks",
+      kind: "named-trait",
+      label: "completable",
+      anchor: "trait completable",
+      prompt: "Add done:bool=false.",
+      profile: null,
+      target: null,
+      signature: null,
+      span: { start: 10, end: 60 },
+    },
+    styleDescriptor("TaskSurface", "Readable task surfaces.", 100, 160),
+    styleDescriptor("EntryArea", "A compact entry area.", 200, 260),
+  ]);
+  // A waiting fake that also dumps the agent prompt it received.
+  const dumper = await writeFake(
+    h.root,
+    "dump-runner",
+    `
+const fs = require("node:fs");
+let stdin = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (c) => { stdin += c; });
+process.stdin.on("end", async () => {
+  let want = Number(process.env.SUBMIT_WAIT_N ?? Number.NaN);
+  if (!Number.isInteger(want) || want < 0) {
+    try {
+      want = JSON.parse(fs.readFileSync("session.json", "utf8")).allowed;
+    } catch { want = 1; }
+  }
+  for (let i = 0; i < 400; i += 1) {
+    let found = 0;
+    try {
+      for (const entry of fs.readdirSync("candidates")) {
+        try { fs.statSync("candidates/" + entry + "/submission.json"); found += 1; } catch {}
+      }
+    } catch {}
+    if (found >= want) {
+      fs.writeFileSync("prompt.txt", stdin);
+      console.log(JSON.stringify({ type: "thread.started", thread_id: "fake-thread-1" }));
+      console.log(JSON.stringify({ status: "ok" }));
+      process.exit(0);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  process.exit(1);
+});
+`,
+  );
+  const result = await dispatchControl(
+    req("r-mx1", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }),
+    ctxFor(h, { resolveExecutable: async () => dumper }),
+  );
+  assert.equal(result.code, 0, result.envelope);
+  assert.equal(bodyOf(result.envelope)["state"], "accepted");
+  const attempts = bodyOf(result.envelope)["attempts"] as { attempt: string; units: string[] }[];
+  assert.equal(attempts.length, 2);
+  const given = attempts.find((entry) => entry.attempt === "r-mx1.j0")!;
+  const frontend = attempts.find((entry) => entry.attempt === "r-mx1.j1")!;
+  assert.deepEqual(given.units, ["u1"]);
+  assert.deepEqual([...frontend.units].sort(), ["u2", "u3"]);
+  assert.deepEqual((bodyOf(result.envelope)["accepted"] as { units: string[] }).units.sort(), ["u1", "u2", "u3"]);
+  const givenPrompt = await readFile(join(h.root, ".can/gen/attempts", "r-mx1.j0", "prompt.txt"), "utf8");
+  assert.ok(givenPrompt.includes("Add done:bool=false."), givenPrompt);
+  assert.ok(!givenPrompt.includes("Readable task surfaces."), givenPrompt);
+  const frontendPrompt = await readFile(join(h.root, ".can/gen/attempts", "r-mx1.j1", "prompt.txt"), "utf8");
+  assert.ok(frontendPrompt.includes("Readable task surfaces."), frontendPrompt);
+  assert.ok(frontendPrompt.includes("A compact entry area."), frontendPrompt);
+  assert.ok(!frontendPrompt.includes("Add done:bool=false."), frontendPrompt);
+});
+
+test("retry serves submissions over the production MCP bridge", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", [styleDescriptor("TaskSurface", "Readable task surfaces.", 100, 160)]);
+  const bridgeScript = fileURLToPath(import.meta.resolve("./mcp.js"));
+  // A fake runner speaking MCP stdio to the real attached bridge: no
+  // session hook, no paid generation, host-owned placement only.
+  const mcpFake = await writeFake(
+    h.root,
+    "mcp-runner",
+    `
+const fs = require("node:fs");
+const { spawn } = require("node:child_process");
+const BRIDGE = ${JSON.stringify(bridgeScript)};
+let stdin = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (c) => { stdin += c; });
+process.stdin.on("end", async () => {
+  const out = { argv: process.argv.slice(2), hadProfile: process.argv.includes("-p"), steps: [] };
+  try {
+    const binding = process.env.CAN_GENERATION_SESSION_FILE;
+    if (!binding) throw new Error("no session binding env");
+    const bridge = spawn(process.execPath, [BRIDGE, "--bridge"], {
+      env: { ...process.env, CAN_GENERATION_SESSION_FILE: binding },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let buf = "";
+    let stderr = "";
+    bridge.stderr.setEncoding("utf8");
+    bridge.stderr.on("data", (c) => { stderr += c; });
+    bridge.stdout.setEncoding("utf8");
+    const waiters = [];
+    bridge.stdout.on("data", (c) => {
+      buf += c;
+      let idx = buf.indexOf("\\n");
+      while (idx >= 0) {
+        const line = buf.slice(0, idx);
+        buf = buf.slice(idx + 1);
+        if (line.trim().length > 0) {
+          const waiter = waiters.shift();
+          if (waiter) waiter(JSON.parse(line));
+        }
+        idx = buf.indexOf("\\n");
+      }
+    });
+    let nextId = 1;
+    const call = (method, params) => new Promise((resolve, reject) => {
+      const id = nextId++;
+      waiters.push((msg) => {
+        if (msg.id === id) resolve(msg);
+        else reject(new Error("out-of-order bridge response"));
+      });
+      bridge.stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\\n");
+    });
+    const init = await call("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fake", version: "0" } });
+    if (!init.result || !init.result.serverInfo) throw new Error("bad initialize: " + JSON.stringify(init));
+    bridge.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\\n");
+    const listed = await call("tools/list", {});
+    const names = ((listed.result && listed.result.tools) || []).map((t) => t.name).sort();
+    if (JSON.stringify(names) !== JSON.stringify(["generation_context", "generation_submit"])) {
+      throw new Error("bad tools: " + names.join(","));
+    }
+    const contextCall = await call("tools/call", { name: "generation_context", arguments: {} });
+    const context = JSON.parse(contextCall.result.content[0].text);
+    const batch = context.allowed.map((target) => target.role === "asset"
+      ? { target: target.handle, role: target.role, content_base64: Buffer.from("asset:" + target.handle).toString("base64") }
+      : { target: target.handle, role: target.role, content_text: "/* bridge:" + target.handle + " */\\n.root{color:blue}\\n" });
+    const submitted = await call("tools/call", { name: "generation_submit", arguments: { session: context.session, batch } });
+    const report = JSON.parse(submitted.result.content[0].text);
+    if (report.complete !== true) throw new Error("bridge reports incomplete: " + JSON.stringify(report));
+    out.steps = ["initialize", "list", "context", "submit"];
+    bridge.stdin.end();
+    const code = await new Promise((resolve) => bridge.on("close", resolve));
+    if (code !== 0) throw new Error("bridge exited " + String(code) + ": " + stderr.slice(0, 500));
+    fs.writeFileSync("bridge-argv.json", JSON.stringify(out));
+    console.log(JSON.stringify({ type: "thread.started", thread_id: "fake-thread-bridge" }));
+    console.log(JSON.stringify({ status: "ok" }));
+    process.exit(0);
+  } catch (error) {
+    fs.writeFileSync("bridge-argv.json", JSON.stringify({ ...out, error: String((error && error.message) || error) }));
+    process.stderr.write("mcp fake failed: " + String((error && error.message) || error) + "\\n");
+    process.exit(1);
+  }
+});
+`,
+  );
+  // Production path: default bridge, isolated Codex home, no hook.
+  const ctx: ControlContext = {
+    compiler: h.fake.compiler,
+    now: nowStub,
+    preflight: noopPreflight,
+    resolveExecutable: async () => mcpFake,
+    codexHome: join(h.root, "codex-home"),
+  };
+  const result = await dispatchControl(
+    req("r-br1", "retry", { root: h.root, files: ["app.can"], ...RECIPE }),
+    ctx,
+  );
+  assert.equal(result.code, 0, result.envelope);
+  const body = bodyOf(result.envelope);
+  assert.equal(body["state"], "candidate");
+  assert.equal(body["complete"], true);
+  const attempts = body["attempts"] as { attempt: string }[];
+  assert.equal(attempts.length, 1);
+  const attemptDir = join(h.root, ".can/gen/attempts", attempts[0]?.attempt as string);
+  const argv = JSON.parse(await readFile(join(attemptDir, "bridge-argv.json"), "utf8")) as {
+    hadProfile: boolean;
+    steps: string[];
+    error?: string;
+  };
+  assert.equal(argv.error, undefined);
+  assert.equal(argv.hadProfile, true);
+  assert.deepEqual(argv.steps, ["initialize", "list", "context", "submit"]);
+  // The host placed the bridge-submitted bytes; the profile layer is gone.
+  const css = await readFile(join(attemptDir, "candidates", "u1-style", "style.css"), "utf8");
+  assert.ok(css.includes("bridge:u1-style"), css);
+  const leftovers = readdirSync(join(h.root, "codex-home")).filter((name) => name.endsWith(".config.toml"));
+  assert.deepEqual(leftovers, []);
 });
 
 

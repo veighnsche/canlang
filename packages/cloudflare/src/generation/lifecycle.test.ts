@@ -199,6 +199,33 @@ test("retry plans every closure prompt grouped by compatible recipe", () => {
   assert.ok(jobs[0]!.order < frontJob.order);
 });
 
+test("same-recipe Given and frontend partition into staged jobs", () => {
+  const closure: ActiveClosure = {
+    app_id: "app-1",
+    root: "/root",
+    source_digest: "digest-1",
+    units: [unit("g1", "given"), unit("f1", "frontend"), unit("f2", "frontend")],
+  };
+  const jobs = buildRetryJobs(closure, () => testRecipe({ model: "m-shared" }));
+  assert.equal(jobs.length, 2);
+  assert.deepEqual(jobs[0]!.units.map((u) => u.unit_id), ["g1"]);
+  assert.deepEqual(jobs[0]!.contextUnits.map((u) => u.unit_id), ["g1"]);
+  assert.equal(jobs[0]!.order, 0);
+  assert.deepEqual(jobs[1]!.units.map((u) => u.unit_id).sort(), ["f1", "f2"]);
+  assert.deepEqual(jobs[1]!.contextUnits.map((u) => u.unit_id).sort(), ["f1", "f2"]);
+  assert.equal(jobs[1]!.order, 1);
+  // Every assigned prompt is reachable from its own job: nothing
+  // assigned drops out of the rendered (assigned + context) prompt.
+  for (const job of jobs) {
+    const rendered = new Set(
+      [...job.units, ...job.contextUnits].map((entry) => entry.unit_id),
+    );
+    for (const assigned of job.units) {
+      assert.ok(rendered.has(assigned.unit_id));
+    }
+  }
+});
+
 test("invalid closures refuse without planning", () => {
   const base: ActiveClosure = { app_id: "a", root: "r", source_digest: "d", units: [unit("u", "given")] };
   const shared = (): EffectiveRecipe => testRecipe();

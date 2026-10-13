@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { createHash } from 'node:crypto';
 import type {
   ArtifactModule,
   CompileArtifact,
@@ -37,8 +36,16 @@ import {
   uuidv7,
 } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from './modules.js';
+import type { AssembledModules } from './modules.js';
 import { AssemblyCorrespondenceError } from './assembly-verification.js';
-import { givenUnitModulePath, joinGivenUniqueKeys, resolveGivenKeywordExport } from './given-unique-keys.js';
+import {
+  givenClosureFingerprint,
+  givenUnitModulePath,
+  joinGivenUniqueKeys,
+  resolveGivenClosure,
+  resolveGivenKeywordExport,
+  scanGivenJsModule,
+} from './given-unique-keys.js';
 
 const EMPTY_MAP: SourceMap = {
   version: 3, file: '', sources: [], sourcesContent: [], names: [], mappings: '',
@@ -46,7 +53,16 @@ const EMPTY_MAP: SourceMap = {
 
 const SAVED_JS = `export function canonicalKey(value) { return value.normalize("NFKC").toLowerCase(); }
 `;
-const FINGERPRINT = createHash('sha256').update(SAVED_JS, 'utf8').digest('hex');
+const FOLD_JS = `export function fold(value) { return value.normalize("NFKC").toLowerCase(); }
+`;
+const SAVED_WITH_IMPORT = `import { fold } from "./fold.js";
+export function canonicalKey(value) { return fold(value); }
+`;
+
+/** Closure fingerprint for one staged root with no imports. */
+async function rootFp(unit: string, js: string): Promise<string> {
+  return givenClosureFingerprint([{ path: givenUnitModulePath(unit), js }]);
+}
 
 function module(path: string, js: string): ArtifactModule {
   return { path, js, map: { ...EMPTY_MAP, file: path } };
@@ -66,7 +82,10 @@ function artifact(modules: ArtifactModule[]): CompileArtifact {
   };
 }
 
-function binding(overrides: Partial<StateUniqueKeyProducerBinding['implementation']> = {}): StateUniqueKeyProducerBinding {
+function binding(
+  fingerprint: string,
+  overrides: Partial<StateUniqueKeyProducerBinding['implementation']> = {},
+): StateUniqueKeyProducerBinding {
   return {
     abi: 'state.unique-key@1',
     rule: 'Tasks.Account.handle#canonical_identity',
@@ -76,7 +95,7 @@ function binding(overrides: Partial<StateUniqueKeyProducerBinding['implementatio
     lifecycle: 'commit-keys',
     input: { name: 'field', type: 'text' },
     result: { type: 'text' },
-    implementation: { unit: 'u3', export: 'canonicalKey', fingerprint: FINGERPRINT, ...overrides },
+    implementation: { unit: 'u3', export: 'canonicalKey', fingerprint, ...overrides },
   };
 }
 
@@ -115,7 +134,7 @@ test('BGI-08 resolver runs the saved export after fingerprint verification', asy
     module('main.js', 'export const main = 1;\n'),
     module('can.generated/u3/server.js', SAVED_JS),
   ]);
-  const evaluate = await resolveGivenKeywordExport(asm, art, binding());
+  const evaluate = await resolveGivenKeywordExport(asm, art, binding(await rootFp('u3', SAVED_JS)));
   assert.equal(await evaluate('Ａlice'), 'alice');
   assert.equal(await evaluate('Bob'), 'bob');
 });
@@ -126,38 +145,39 @@ test('BGI-08 resolver refuses unknown units, changed code and bad exports', asyn
     module('can.generated/u3/server.js', SAVED_JS),
     module('can.generated/u9/server.js', 'export const canonicalKey = 42;\n'),
   ]);
-  const unknown = await resolveGivenKeywordExport(asm, art, binding({ unit: 'missing' })).then(
+  const fp = await rootFp('u3', SAVED_JS);
+  const unknown = await resolveGivenKeywordExport(asm, art, binding(fp, { unit: 'missing' })).then(
     () => null,
     (error: unknown) => error,
   );
   assert.ok(unknown instanceof AssemblyCorrespondenceError);
   assert.match(unknown.message, /unknown saved unit "missing"/);
-  const changed = await resolveGivenKeywordExport(asm, art, binding({ fingerprint: 'f'.repeat(64) })).then(
+  const changed = await resolveGivenKeywordExport(asm, art, binding('f'.repeat(64))).then(
     () => null,
     (error: unknown) => error,
   );
   assert.ok(changed instanceof AssemblyCorrespondenceError);
   assert.match(changed.message, /saved implementation changed/);
   assert.match(changed.message, /re-validate and activate/);
-  const noExport = await resolveGivenKeywordExport(asm, art, binding({ export: 'absent' })).then(
+  const noExport = await resolveGivenKeywordExport(asm, art, binding(fp, { export: 'absent' })).then(
     () => null,
     (error: unknown) => error,
   );
   assert.ok(noExport instanceof AssemblyCorrespondenceError);
   assert.match(noExport.message, /has no export "absent"/);
   // Prototype-chain names are not exports.
-  const proto = await resolveGivenKeywordExport(asm, art, binding({ export: 'constructor' })).then(
+  const proto = await resolveGivenKeywordExport(asm, art, binding(fp, { export: 'constructor' })).then(
     () => null,
     (error: unknown) => error,
   );
   assert.ok(proto instanceof AssemblyCorrespondenceError);
   assert.match(proto.message, /has no export "constructor"/);
   // A non-function export refuses even with a matching fingerprint.
-  const nonFunctionFp = createHash('sha256').update('export const canonicalKey = 42;\n', 'utf8').digest('hex');
+  const nonFunctionFp = await rootFp('u9', 'export const canonicalKey = 42;\n');
   const nonFunction = await resolveGivenKeywordExport(
     asm,
     art,
-    binding({ unit: 'u9', fingerprint: nonFunctionFp }),
+    binding(nonFunctionFp, { unit: 'u9' }),
   ).then(
     () => null,
     (error: unknown) => error,
@@ -173,13 +193,14 @@ test('BGI-08 join shares one evaluator across applications and groups by model',
   ]);
   const empty = await joinGivenUniqueKeys(asm, art, []);
   assert.equal(empty.size, 0);
+  const first = binding(await rootFp('u3', SAVED_JS));
   const second: StateUniqueKeyProducerBinding = {
-    ...binding(),
+    ...first,
     rule: 'Tasks.Member.code#canonical_identity',
     model: 'Tasks.Member' as ModelName,
     field: 'code',
   };
-  const joined = await joinGivenUniqueKeys(asm, art, [binding(), second]);
+  const joined = await joinGivenUniqueKeys(asm, art, [first, second]);
   assert.deepEqual([...joined.keys()].sort(), ['Tasks.Account', 'Tasks.Member']);
   const account = joined.get('Tasks.Account' as ModelName)!;
   const member = joined.get('Tasks.Member' as ModelName)!;
@@ -229,7 +250,7 @@ test('BGI-08 resolved rules stage computed claims into the fenced commit', async
           effects: [],
           authority: [],
           dependencies: ['Tasks.Account.handle'],
-          fingerprint: FINGERPRINT,
+          fingerprint: await rootFp('u3', SAVED_JS),
           targetModel: 'Tasks.Account',
           targetField: 'Tasks.Account.handle',
           args: [
@@ -286,4 +307,104 @@ test('BGI-08 resolved rules stage computed claims into the fenced commit', async
   await commit(await stage('Bob', 'a3'));
   const rows = await store.query({ model: asModel('Tasks.Account'), authority: 'owner' });
   assert.deepEqual(rows.map((row) => row.data['handle']).sort(), ['Alice', 'Bob']);
+});
+
+test('BGI-08 closure fingerprint pins the exact consumed import set', async () => {
+  const members = [
+    { path: givenUnitModulePath('u2'), js: SAVED_WITH_IMPORT },
+    { path: 'can.generated/u2/fold.js', js: FOLD_JS },
+  ];
+  // Cross-host contract pin: the compiler lane reproduces this exact
+  // vector (staged paths ascending, u64BE length framing, SHA-256).
+  assert.equal(
+    await givenClosureFingerprint(members),
+    '40a8aff9588afe4a9d61cbc30bc640d345b6dd69b4cde35de5acba21219680ea',
+  );
+  // Member order never matters; the canonical form sorts by path.
+  assert.equal(await givenClosureFingerprint([...members].reverse()), await givenClosureFingerprint(members));
+  const fp = await givenClosureFingerprint(members);
+  const { asm, art } = await assemble([
+    module('main.js', 'export const main = 1;\n'),
+    module('can.generated/u2/server.js', SAVED_WITH_IMPORT),
+    module('can.generated/u2/fold.js', FOLD_JS),
+  ]);
+  // The resolved closure covers root plus the consumed sibling.
+  assert.deepEqual(
+    resolveGivenClosure(art, 'u2').map((member) => member.path).sort(),
+    ['can.generated/u2/fold.js', 'can.generated/u2/server.js'],
+  );
+  const evaluate = await resolveGivenKeywordExport(asm, art, binding(fp, { unit: 'u2' }));
+  assert.equal(await evaluate('Ａlice'), 'alice');
+  // Identical root bytes with changed sibling bytes refuse: the old
+  // root-only fingerprint can no longer hide changed behavior.
+  const evilFold = `export function fold(value) { return "everything-collides"; }\n`;
+  const evil = await assemble([
+    module('main.js', 'export const main = 1;\n'),
+    module('can.generated/u2/server.js', SAVED_WITH_IMPORT),
+    module('can.generated/u2/fold.js', evilFold),
+  ]);
+  const changed = await resolveGivenKeywordExport(evil.asm, evil.art, binding(fp, { unit: 'u2' })).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  assert.ok(changed instanceof AssemblyCorrespondenceError);
+  assert.match(changed.message, /saved implementation changed/);
+  // The legacy root-only hash no longer verifies anything: it refuses
+  // even against the exact bytes it was computed from.
+  const legacyRoot = await sha256HexText(SAVED_WITH_IMPORT);
+  await assert.rejects(
+    resolveGivenKeywordExport(asm, art, binding(legacyRoot, { unit: 'u2' })),
+    /saved implementation changed/,
+  );
+  // A missing sibling, an escaping import, a bare specifier, a
+  // non-literal dynamic import, and require() all refuse loudly.
+  // These artifacts never assemble (the assembler also pins imports),
+  // so resolution meets them unassembled; it refuses before importing.
+  const unassembled = (
+    mods: ArtifactModule[],
+  ): { asm: AssembledModules; art: CompileArtifact } => ({
+    asm: {} as AssembledModules,
+    art: artifact(mods),
+  });
+  const missing = unassembled([
+    module('main.js', 'export const main = 1;\n'),
+    module('can.generated/u2/server.js', SAVED_WITH_IMPORT),
+  ]);
+  await assert.rejects(
+    resolveGivenKeywordExport(missing.asm, missing.art, binding(fp, { unit: 'u2' })),
+    /no such staged module/,
+  );
+  for (const [name, js, pattern] of [
+    ['escape', `import { x } from "../evil.js";\nexport function canonicalKey(v) { return x(v); }\n`, /never leaves the unit/],
+    ['bare', `import { x } from "fold";\nexport function canonicalKey(v) { return x(v); }\n`, /non-local specifier/],
+    ['dynamic', `export function canonicalKey(v) { return import("./" + v); }\n`, /no such staged module/],
+    ['template', "export function canonicalKey(v) { return import(`./${v}.js`); }\n", /unresolvable import/],
+    ['require', `const f = require("./fold.js");\nexport function canonicalKey(v) { return f(v); }\n`, /require\(/],
+  ] as const) {
+    const bad = unassembled([
+      module('main.js', 'export const main = 1;\n'),
+      module('can.generated/u2/server.js', js),
+      module('can.generated/u2/fold.js', FOLD_JS),
+    ]);
+    await assert.rejects(
+      resolveGivenKeywordExport(bad.asm, bad.art, binding(fp, { unit: 'u2' })),
+      pattern,
+      name,
+    );
+  }
+  // Quoted tokens never certify an edge: imports named in strings,
+  // comments, and template text are invisible to the scan.
+  const scan = scanGivenJsModule(
+    `// import { ghost } from "./ghost.js";\n` +
+      `/* import "./ghost2.js"; */\n` +
+      `const text = "import('./ghost3.js')";\n` +
+      `const tpl = \`prefix \${1 + 1} import "./ghost4.js" suffix\`;\n` +
+      `import { fold } from "./fold.js";\n` +
+      `export function canonicalKey(value) { return fold(value); }\n`,
+  );
+  assert.equal(scan.hasRequire, false);
+  assert.deepEqual(
+    scan.imports.map((edge) => edge.specifier),
+    ['./fold.js'],
+  );
 });

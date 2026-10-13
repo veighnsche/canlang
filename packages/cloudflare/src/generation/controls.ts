@@ -27,6 +27,10 @@
  * - A multi-unit attempt accepts only as a whole (attempt scope);
  *   unit scope serves single-unit attempts. `accept: true` composes
  *   the same validate/promote functions as the separate operations.
+ * - Every execution request records its complete parent retry set
+ *   in each job capture before any launch; manual and composed
+ *   acceptance resolve that set and require all its outputs and
+ *   checks through one journal, never a partial sibling.
  * - Keyword `declaration.json` is authored interface metadata (like
  *   source), checked by BGI-11 and reconciled by `adopt`; the
  *   control layer never derives producer/export claims.
@@ -62,7 +66,8 @@ import {
   type RequestOutcome,
   type RunRegistry,
 } from "./lifecycle.js";
-import { readCandidateInventory, type CandidateSubmission, type McpSession } from "./mcp.js";
+import { defaultMcpBridge, readCandidateInventory, type CandidateSubmission, type McpSession } from "./mcp.js";
+import type { McpBridge } from "./adapters.js";
 import {
   commitJournal,
   groupFiles,
@@ -186,8 +191,23 @@ export interface ControlContext {
   registry?: RunRegistry;
   /** Progress callback (the CLI join maps phases to JSONL events). */
   onEvent?: (phase: string, detail: string) => void;
-  /** Session hook: tests submit through the live MCP session here. */
+  /**
+   * Session hook: tests submit through the live MCP session here.
+   * Production submissions arrive over the MCP bridge instead; the
+   * hook stays a test fallback, never the qualification path.
+   */
   onSession?: (session: McpSession) => void;
+  /**
+   * MCP stdio bridge attached to execution (default: the
+   * production `defaultMcpBridge()` serving each attempt's live
+   * session). Explicit null attaches no transport: the fake/test
+   * path, where submissions arrive through `onSession` instead.
+   */
+  mcpBridge?: McpBridge | null;
+  /** Codex home for the bounded per-attempt profile layer (default: the lifecycle production home). */
+  codexHome?: string;
+  /** Per-attempt profile name override (default: one name per attempt). */
+  profileName?: string;
   /** Git runner (default: spawn `git -C root`). */
   git?: GitRunner;
 }
@@ -1053,6 +1073,23 @@ export interface CaptureUnitState {
   record_json: string | null;
 }
 
+/**
+ * The complete required parent retry set one execution request
+ * planned: every job attempt plus every unit in the request scope.
+ * Recorded in every job capture before any launch, so manual and
+ * composed acceptance resolve the whole set and require all its
+ * outputs and checks through one journal. Absent on older and
+ * single-shot captures (resume, rollback), which accept alone.
+ */
+export interface ParentRetrySet {
+  /** Parent execution request id that planned the set. */
+  request_id: string;
+  /** Every job attempt in the set, in launch order. */
+  attempts: string[];
+  /** Every unit in the set, sorted. */
+  units: string[];
+}
+
 /** The frozen capture behind one job attempt. */
 export interface CaptureRecord {
   version: 1;
@@ -1076,6 +1113,8 @@ export interface CaptureRecord {
   resumed_from: string | null;
   unleased: string[];
   history: { op: string; detail: string; at: string }[];
+  /** Parent retry set, when this attempt belongs to one. */
+  parent_set?: ParentRetrySet;
 }
 
 function isCaptureRecord(value: unknown): value is CaptureRecord {
@@ -1711,7 +1750,7 @@ function issueJobHandles(units: ResolvedUnit[]): {
   return { allowed, handles, required };
 }
 
-/** Render one job's agent prompt from its context units. */
+/** Render one job's agent prompt from its assigned plus context units. */
 function renderJobPrompt(
   job: PlannedJob,
   byId: Map<string, ResolvedUnit>,
@@ -1723,10 +1762,19 @@ function renderJobPrompt(
     `# Generation job (${mode}; ${String(job.units.length)} assigned unit${job.units.length === 1 ? "" : "s"})`,
     "",
   ];
-  for (const context of job.contextUnits) {
+  // Assigned units render first, then context-only units: every
+  // assigned prompt reaches the agent even when the context set
+  // does not cover it (frontend jobs carry the whole Then context
+  // plus their own assignment; Given jobs render their assignment).
+  const assignedIds = new Set(job.units.map((unit) => unit.unit_id));
+  const ordered = [
+    ...job.units,
+    ...job.contextUnits.filter((unit) => !assignedIds.has(unit.unit_id)),
+  ];
+  for (const context of ordered) {
     const unit = byId.get(context.unit_id);
     if (unit === undefined) continue;
-    const assigned = job.units.some((candidate) => candidate.unit_id === unit.unit_id);
+    const assigned = assignedIds.has(unit.unit_id);
     lines.push(
       `## Unit ${unit.unit_id} (${unit.kind}${unit.label === null ? "" : ` ${unit.label}`}; ${assigned ? "assigned" : "context"})`,
       `Contract: target=${unit.contract.target ?? "-"} profile=${unit.contract.profile ?? "-"} signature=${unit.contract.signature ?? "-"}`,
@@ -1850,7 +1898,23 @@ async function executeCaptured(
     }
     return resolveRecipe(loaded, resolved.category, resolved.agent, overrides);
   });
-  const executed: ExecutedJob[] = [];
+  // The complete required parent set is recorded before any
+  // launch: every job capture carries it, so a gate failure on an
+  // early job still leaves the full sibling set on disk for
+  // inspection, and acceptance can require the whole set.
+  const parentAttempts = jobs.map((job) => attemptFor(header.request_id, job.order));
+  const parentUnits = [...new Set(jobs.flatMap((job) => job.units.map((unit) => unit.unit_id)))].sort();
+  const parentSet: ParentRetrySet = { request_id: header.request_id, attempts: parentAttempts, units: parentUnits };
+  const bridge = ctx.mcpBridge === undefined ? defaultMcpBridge() : ctx.mcpBridge;
+  const planned: {
+    job: PlannedJob;
+    attempt: string;
+    attemptDir: string;
+    jobUnits: ResolvedUnit[];
+    issued: ReturnType<typeof issueJobHandles>;
+    prompt: string;
+    capture: CaptureRecord;
+  }[] = [];
   for (const job of jobs) {
     const attempt = attemptFor(header.request_id, job.order);
     const attemptDir = join(root, ATTEMPTS_DIR, attempt);
@@ -1896,6 +1960,7 @@ async function executeCaptured(
       resumed_from: null,
       unleased: [...scope.unleased],
       history: [],
+      parent_set: { request_id: parentSet.request_id, attempts: [...parentSet.attempts], units: [...parentSet.units] },
     };
     await writeFile(join(attemptDir, CAPTURE_FILE), `${JSON.stringify(capture, null, 2)}\n`);
     for (const unit of jobUnits) {
@@ -1912,6 +1977,11 @@ async function executeCaptured(
       });
     }
     ctx.onEvent?.(`job-${String(job.order)}-planned`, `attempt ${JSON.stringify(attempt)} captures ${String(jobUnits.length)} units`);
+    planned.push({ job, attempt, attemptDir, jobUnits, issued, prompt, capture });
+  }
+  const executed: ExecutedJob[] = [];
+  for (const entry of planned) {
+    const { job, attempt, attemptDir, jobUnits, issued, prompt, capture } = entry;
     const outcome = await executeJob({
       request_id: `${header.request_id}.job${String(job.order)}`,
       input: { operation: header.operation, mode, capture: scope.digest, job: job.order, units: jobUnits.map((unit) => unit.unit_id) },
@@ -1923,8 +1993,11 @@ async function executeCaptured(
       attemptDir,
       stateDir: join(root, ".can/gen"),
       required: issued.required,
+      mcpBridge: bridge,
       ...(ctx.registry === undefined ? {} : { registry: ctx.registry }),
       now,
+      ...(ctx.codexHome === undefined ? {} : { codexHome: ctx.codexHome }),
+      ...(ctx.profileName === undefined ? {} : { profileName: ctx.profileName }),
       ...(ctx.preflight === undefined ? {} : { preflight: ctx.preflight }),
       ...(ctx.resolveExecutable === undefined ? {} : { resolveExecutable: ctx.resolveExecutable }),
       onEvent: (phase, detail) => ctx.onEvent?.(`job-${String(job.order)}-${phase}`, detail),
@@ -1934,7 +2007,7 @@ async function executeCaptured(
     const complete = missingHandles(capture, inventory, null).length === 0;
     for (const unit of jobUnits) {
       const handles = Object.entries(issued.handles)
-        .filter(([, entry]) => entry.unit === unit.unit_id)
+        .filter(([, handleEntry]) => handleEntry.unit === unit.unit_id)
         .map(([handle]) => handle);
       await writeUnitIndex(root, {
         attempt,
@@ -2718,6 +2791,14 @@ async function acceptUnit(
       [`send an accept request with attempt ${JSON.stringify(attempt.capture.attempt)}`],
     );
   }
+  if ((attempt.capture.parent_set?.attempts.length ?? 0) > 1) {
+    throw new ControlError(
+      EXIT_INVALID,
+      "full-set-required",
+      `unit ${JSON.stringify(unit_id)} belongs to parent set ${JSON.stringify(attempt.capture.parent_set?.request_id ?? "")}; accept the attempt scope together`,
+      [`send an accept request with attempt ${JSON.stringify(attempt.capture.attempt)}`],
+    );
+  }
   const scope = await promotionScopeFromAttempts(root, [attempt.dir]);
   await validateCandidateSet(ctx, header, root, scope);
   const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept unit");
@@ -2738,6 +2819,66 @@ async function acceptUnit(
   };
 }
 
+/**
+ * Resolve the acceptance set for one captured attempt: the attempt
+ * alone when it carries no parent set, otherwise every sibling
+ * attempt the parent request planned. Missing or foreign siblings
+ * refuse (a partial set never promotes); the scope builder then
+ * requires every sibling's outputs and checks through one journal.
+ */
+async function resolveAcceptSet(
+  root: string,
+  raw: CaptureRecord,
+  attemptDir: string,
+): Promise<{ dirs: string[]; attempts: string[] }> {
+  const set = raw.parent_set;
+  if (set === undefined || set.attempts.length <= 1) {
+    return { dirs: [attemptDir], attempts: [raw.attempt] };
+  }
+  if (
+    typeof set.request_id !== "string" ||
+    set.request_id.length === 0 ||
+    !Array.isArray(set.attempts) ||
+    set.attempts.some((name) => typeof name !== "string")
+  ) {
+    throw new ControlError(
+      EXIT_INVALID,
+      "unknown-attempt",
+      `attempt ${JSON.stringify(raw.attempt)} carries a malformed parent set; acceptance refuses`,
+      ["inspect the attempt, then retry or refine with a new request id"],
+    );
+  }
+  const dirs: string[] = [];
+  for (const name of set.attempts) {
+    if (!safeEntry(name)) {
+      throw new ControlError(EXIT_INVALID, "unknown-attempt", `parent set names ${JSON.stringify(name)}, which is not an attempt id`, [
+        "inspect the attempt, then retry or refine with a new request id",
+      ]);
+    }
+    const dir = join(root, ATTEMPTS_DIR, name);
+    const sibling = await readJsonFile(join(dir, CAPTURE_FILE));
+    if (!isCaptureRecord(sibling)) {
+      throw new ControlError(
+        EXIT_VALIDATION,
+        "incomplete-set",
+        `attempt ${JSON.stringify(raw.attempt)} belongs to parent set ${JSON.stringify(set.request_id)}, whose sibling ${JSON.stringify(name)} has no capture; current files are preserved`,
+        ["inspect the incomplete attempts, then retry or refine with a new request id"],
+      );
+    }
+    const siblingRequest = sibling.parent_set?.request_id ?? sibling.request_id;
+    if (siblingRequest !== set.request_id) {
+      throw new ControlError(
+        EXIT_CONFLICT,
+        "attempt-fenced",
+        `parent set ${JSON.stringify(set.request_id)} changed under attempt ${JSON.stringify(raw.attempt)} (sibling ${JSON.stringify(name)} belongs to ${JSON.stringify(siblingRequest)}); the candidate is preserved`,
+        ["inspect the attempts, then retry or refine with a new request id"],
+      );
+    }
+    dirs.push(dir);
+  }
+  return { dirs, attempts: [...set.attempts] };
+}
+
 async function acceptAttempt(
   header: RequestHeader,
   root: string,
@@ -2754,7 +2895,8 @@ async function acceptAttempt(
       "send a status request to list attempts with candidates",
     ]);
   }
-  const scope = await promotionScopeFromAttempts(root, [attemptDir]);
+  const set = await resolveAcceptSet(root, raw, attemptDir);
+  const scope = await promotionScopeFromAttempts(root, set.dirs);
   await validateCandidateSet(ctx, header, root, scope);
   const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept attempt");
   return {
@@ -2767,6 +2909,7 @@ async function acceptAttempt(
         files: promoted.files,
         units: scope.map((entry) => entry.unit_id),
         attempt: raw.attempt,
+        attempts: set.attempts,
         qualified: true,
       },
       ["rebuild from the promoted saved groups with zero AI"],
@@ -2976,8 +3119,10 @@ async function runResume(
     stateDir: join(params.root, ".can/gen"),
     allowed,
     required,
-    mcpBridge: null,
+    mcpBridge: ctx.mcpBridge === undefined ? defaultMcpBridge() : ctx.mcpBridge,
     now,
+    ...(ctx.codexHome === undefined ? {} : { codexHome: ctx.codexHome }),
+    ...(ctx.profileName === undefined ? {} : { profileName: ctx.profileName }),
     ...(ctx.preflight === undefined ? {} : { preflight: ctx.preflight }),
     ...(ctx.resolveExecutable === undefined ? {} : { resolveExecutable: ctx.resolveExecutable }),
     onEvent: (phase, detail) => ctx.onEvent?.(`resume-${phase}`, detail),
