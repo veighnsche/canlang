@@ -20,14 +20,15 @@
  *   `can.generated/<unit>/` are consumed; static, re-export, and
  *   literal-dynamic edges count, while non-literal, unresolvable,
  *   non-local, or CommonJS edges refuse instead of hashing a subset.
- * - Order: staged path ascending, byte-wise (staged paths are ASCII).
- * - Canonical bytes: per member, u64 big-endian path byte length,
- *   path UTF-8, u64 big-endian JS byte length, JS UTF-8, concatenated.
- * - Fingerprint: lowercase hex SHA-256 over the canonical bytes.
- * Single-member closures hash the framed form, never the bare root
- * bytes; staged siblings stage verbatim beside the root under the
- * unit's staged prefix, and specifiers resolve literally (POSIX, no
- * query/fragment stripping, no extension probing).
+ * - No imports: SHA-256 over the exact root JS bytes, preserving the
+ *   compiler-owned single-file identity.
+ * - With imports: u64 big-endian root byte length, root UTF-8 bytes,
+ *   then imports sorted by unit-relative UTF-8 path bytes. Each import
+ *   contributes u64BE path length, relative path, u64BE JS length, JS.
+ * - Staging changes implementation.js to server.js but does not enter
+ *   that transport path or unit id into the checked code identity.
+ * Specifiers resolve literally (POSIX, no query/fragment stripping,
+ * no extension probing); every consumed byte remains verified.
  */
 
 import { sha256HexBytes } from '@canlang/identity';
@@ -252,18 +253,29 @@ function compareBytes(a: Uint8Array, b: Uint8Array): number {
   return a.length - b.length;
 }
 
-/**
- * Canonical closure bytes: members ordered by staged path ascending
- * (byte-wise), each framed as u64 big-endian path byte length, path
- * UTF-8, u64 big-endian JS byte length, JS UTF-8. Both hosts frame
- * identically; staged paths are ASCII so ordering is unambiguous.
- */
+/** Canonical bytes matching the compiler's checked implementation identity. */
 export function givenClosureBytes(members: readonly GivenClosureMember[]): Uint8Array {
   const encoder = new TextEncoder();
-  const framed = members.map((member) => ({ path: encoder.encode(member.path), js: encoder.encode(member.js) }));
-  framed.sort((a, b) => compareBytes(a.path, b.path));
-  let total = 0;
-  for (const member of framed) total += 8 + member.path.length + 8 + member.js.length;
+  const roots = members.filter(member => /^can\.generated\/[^/]+\/server\.js$/.test(member.path));
+  if (roots.length !== 1) throw new AssemblyCorrespondenceError('Computed-key closure needs exactly one staged root.');
+  const root = roots[0]!;
+  const prefix = root.path.slice(0, -'server.js'.length);
+  const seen = new Set<string>();
+  for (const member of members) {
+    const rel = member.path.slice(prefix.length);
+    if (!member.path.startsWith(prefix) || rel === '' || rel.split('/').some(part => part === '' || part === '.' || part === '..') || seen.has(member.path)) {
+      throw new AssemblyCorrespondenceError('Computed-key closure has duplicate or non-local members.');
+    }
+    seen.add(member.path);
+  }
+  const rootBytes = encoder.encode(root.js);
+  if (members.length === 1) return rootBytes;
+  const imports = members.filter(member => member !== root).map(member => ({
+    path: encoder.encode(member.path.slice(prefix.length)), js: encoder.encode(member.js),
+  }));
+  imports.sort((a, b) => compareBytes(a.path, b.path));
+  let total = 8 + rootBytes.length;
+  for (const member of imports) total += 8 + member.path.length + 8 + member.js.length;
   const out = new Uint8Array(total);
   const view = new DataView(out.buffer);
   let at = 0;
@@ -272,7 +284,10 @@ export function givenClosureBytes(members: readonly GivenClosureMember[]): Uint8
     view.setUint32(at + 4, n % 4294967296);
     at += 8;
   };
-  for (const member of framed) {
+  u64(rootBytes.length);
+  out.set(rootBytes, at);
+  at += rootBytes.length;
+  for (const member of imports) {
     u64(member.path.length);
     out.set(member.path, at);
     at += member.path.length;

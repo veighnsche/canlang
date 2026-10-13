@@ -17,6 +17,8 @@ export * from './http/routes.js';
 export { handlePageRequest } from './http/pages.js';
 export * from './http/operations.js';
 export { handleCsvRequest } from './http/csv.js';
+export { handleExportRequest } from './http/export.js';
+export { canonicalJson } from './http/canonical-json.js';
 export * from './http/fragments.js';
 export * from './http/limits.js';
 export * from './http/auth.js';

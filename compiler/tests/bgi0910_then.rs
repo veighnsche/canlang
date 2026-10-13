@@ -24,10 +24,9 @@ When
   do set task {title="Done"}
 Then
  style TaskSurface $"Readable task surfaces."
- view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls."
+ view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls." $TaskSurface
   edit fields=title
   delete
-  style TaskSurface
  page / title="Todos" $"A calm workspace."
   card "Add a task" $"A compact entry area."
    form Todo.create fields=title
@@ -71,7 +70,7 @@ fn prompted_view_lowers_row_controls_and_root_style() {
         }
     );
     assert_eq!(view.controls[1], ThenControl::Delete);
-    let root = view.root_style.as_ref().expect("root style child");
+    let root = view.root_style.as_ref().expect("root style suffix");
     assert_eq!(root.named.as_deref(), Some("TaskSurface"));
     assert_eq!(THEN_VIEW_CONTRACT_VERSION, "canlang.then-view/1");
 }
@@ -212,6 +211,7 @@ fn nesting_conditions_and_host_rules_scope() {
     )
     .expect("host");
     assert!(host.css.contains("[data-can-style-root^=\"u7:\"]"));
+    assert!(host.css.contains("[data-can-style-root*=\" u7:\"]"));
     assert!(!host.css.contains(":host"));
 }
 
@@ -462,7 +462,7 @@ fn then_bind(root: &str, file: &str, text: &str, kind: GenerationKind, label: &s
 }
 
 /// Release probe: a prompted row view plus a named style, each used.
-const THEN_JOIN_APP: &str = "app Tasks\nGiven\n Todo {title:text}\nWhen\nThen\n style TaskSurface $\"Readable task surfaces.\"\n view TaskTile(row:Todo) $\"Arrange admitted title.\"\n  text row.title\n  style TaskSurface\n page / title=\"Todos\"\n  list Todo as row $TaskSurface\n   show TaskTile {row=row} $TaskSurface\n";
+const THEN_JOIN_APP: &str = "app Tasks\nGiven\n Todo {title:text}\nWhen\nThen\n style TaskSurface $\"Readable task surfaces.\"\n view TaskTile(row:Todo) $\"Arrange admitted title.\" $TaskSurface\n  text row.title\n page / title=\"Todos\"\n  list Todo as row $TaskSurface\n   show TaskTile {row=row} $TaskSurface\n";
 const THEN_JOIN_CSS: &str = "section { padding: 1rem; }\nsection h2 { font-weight: 600; }\n";
 const THEN_JOIN_VIEW_JS: &str = "export function render(row, bindings, context) {\n  return `<section><h2>${bindings.text}</h2></section>`;\n}\nexport function mount(root, context) {}\n";
 const THEN_JOIN_CATALOG: &str =
@@ -511,6 +511,7 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
         &format!("can.generated/{u_view}/implementation.js"),
         THEN_JOIN_VIEW_JS,
     );
+    then_write(dir.path(), &format!("can.generated/{u_view}/style.css"), ":host { border: 1px solid green; }\n");
     let compiled = then_compile(dir.path(), &file);
     assert_eq!(compiled.code, 0, "stdout: {}", compiled.stdout);
     let body = then_envelope(&compiled.stdout);
@@ -530,6 +531,7 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
         "wire version"
     );
     assert!(js.contains("view:\"TaskTile\""), "view name");
+    assert!(js.contains(&format!("rendererStyle:\"{u_view}\"")), "renderer CSS ownership");
     assert!(
         js.contains("rowModel:\"Tasks.Todo\""),
         "canonical row model"
@@ -552,9 +554,18 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
     assert_eq!(paths.len(), 2);
     assert_eq!(paths[1], format!("can.generated/{u_view}/view.js"));
     assert_eq!(modules[1]["js"], THEN_JOIN_VIEW_JS);
+    assert_eq!(
+        body["generatedViews"],
+        serde_json::json!([{
+            "view": "TaskTile",
+            "module": format!("can.generated/{u_view}/view.js"),
+            "renderExport": "render",
+            "mountExport": "mount",
+        }])
+    );
     // The scoped CSS packs with its owner link for the deploy host.
     let sheets = body["stylesheets"].as_array().unwrap();
-    assert_eq!(sheets.len(), 1);
+    assert_eq!(sheets.len(), 2);
     assert_eq!(
         sheets[0]["path"],
         format!("can.generated/{u_style}/style.css")
@@ -571,6 +582,16 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
     let again = then_compile(dir.path(), &file);
     assert_eq!(again.code, 0, "stdout: {}", again.stdout);
     assert_eq!(again.stdout, compiled.stdout);
+    // A renderer without the optional mount carries no browser registration.
+    then_write(
+        dir.path(),
+        &format!("can.generated/{u_view}/implementation.js"),
+        &THEN_JOIN_VIEW_JS.replace("export function mount(root, context) {}\n", ""),
+    );
+    let inert = then_compile(dir.path(), &file);
+    assert_eq!(inert.code, 0, "stdout: {}", inert.stdout);
+    let inert = then_envelope(&inert.stdout);
+    assert!(inert["generatedViews"][0].get("mountExport").is_none());
 }
 
 #[test]
@@ -600,4 +621,113 @@ fn compile_without_then_units_diagnoses_units_and_actions() {
         joined.iter().any(|m| m.contains("style `TaskSurface`")),
         "{joined:?}"
     );
+}
+
+#[test]
+fn inline_root_style_suffix_lowers_without_replacing_renderer_prompt() {
+    let source = wrap(
+        " view Tile(row:Todo) $\"Arrange admitted title.\" $\"Readable root.\"\n  edit fields=title\n",
+    );
+    let tree = parse(&source);
+    let lowering = lower_then_views(&tree, &source);
+    assert!(
+        lowering.diagnostics.is_empty(),
+        "{:?}",
+        lowering.diagnostics
+    );
+    let view = &lowering.views[0];
+    assert_eq!(view.prompt, "Arrange admitted title.");
+    assert_eq!(
+        view.root_style.as_ref().unwrap().inline_prompt.as_deref(),
+        Some("Readable root.")
+    );
+    let discovery = discover_generation(&tree, &source);
+    let prompts = collect_then_prompts(&discovery.descriptors);
+    assert_eq!(prompts.len(), 2);
+    assert!(
+        prompts
+            .iter()
+            .any(|p| p.kind == GenerationKind::ViewRootStyleInline && p.prompt == "Readable root.")
+    );
+}
+
+#[test]
+fn compile_emits_ordinary_named_and_inline_style_hosts() {
+    let source = "app Tasks\nGiven\n Todo {title:text}\nWhen\nThen\n style Surface $\"Shared.\"\n page / title=\"Tasks\" $\"Page.\"\n  card \"Named\" $Surface\n   text \"Inside named\"\n  card \"Inline\" $\"Card.\"\n   text \"Inside inline\"\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = then_write(dir.path(), "app.can", source);
+    let mut units = Vec::new();
+    for (kind, label) in [
+        (GenerationKind::StyleDefinition, "Surface"),
+        (GenerationKind::StyleInline, "Page"),
+        (GenerationKind::StyleInline, "Card"),
+    ] {
+        let unit = then_bind(&root, &file, source, kind, label);
+        then_write(
+            dir.path(),
+            &format!("can.generated/{unit}/style.css"),
+            "section { padding: 1rem; }\n",
+        );
+        units.push(unit);
+    }
+    let compiled = then_compile(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = then_envelope(&compiled.stdout);
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(js.contains("styledComponent as"), "{js}");
+    assert!(js.contains(&format!("style:{{unitId:\"{}\",useId:\"can-style-f0-s", units[1])), "{js}");
+    for unit in [&units[0], &units[2]] {
+        assert!(
+            js.contains(&format!(",\"{unit}\",\"can-style-f0-s")),
+            "{unit}: {js}"
+        );
+    }
+    assert_eq!(artifact["stylesheets"].as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn repeated_saved_view_rows_have_distinct_stable_rendered_instance_ids() {
+    let source = "app Tasks\nGiven\n Todo {title:text}\nWhen\n crud Todo by=members fields=title\nThen\n view Tile(row:Todo) $\"Arrange admitted title.\"\n  edit fields=title\n  delete\n page / title=\"Tasks\"\n  list Todo as row\n   show Tile {row=row}\n";
+    // Place the emitted entry beneath the workspace so the actual shipped
+    // UI package resolves, rather than replacing the renderer with a stub.
+    let dir = tempfile::tempdir_in(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target")).unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = then_write(dir.path(), "app.can", source);
+    let unit = then_bind(&root, &file, source, GenerationKind::ViewDefinition, "Tile");
+    then_write(dir.path(), &format!("can.generated/{unit}/implementation.js"),
+        "export function render({row,bindings,ui}) { return `<p>${ui.escapeHtml(row.fields.title)}</p>${bindings.edit}${bindings.delete}`; }\n");
+    let compiled = then_compile(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = then_envelope(&compiled.stdout);
+    for module in artifact["modules"].as_array().unwrap() {
+        // The delivery host resolves the canonical stdlib to its defining
+        // runtime, including CRUD handlers imported by this form fixture.
+        let js = module["js"].as_str().unwrap().replace("\"@canlang/stdlib\"", "\"@canlang/cloudflare/runtime/stdlib\"");
+        then_write(dir.path(), module["path"].as_str().unwrap(), &js);
+    }
+    then_write(dir.path(), "artifact.json", &compiled.stdout);
+    let entry = artifact["modules"][0]["path"].as_str().unwrap();
+    let page = artifact["pages"][0]["export"].as_str().unwrap();
+    let script = format!(r#"import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {{generatedFields}} from '@canlang/ui';
+import {{catalogFromArtifactOperations}} from '../../../packages/interfaces/dist/src/http/operations.js';
+import {{{page} as page}} from './{entry}';
+const rows=[{{id:'row-a',version:1,fields:{{title:'One'}}}},{{id:'row-b',version:1,fields:{{title:'Two'}}}}];
+const context={{preferredLocales:[],appDefaultLocale:'en',theme:{{mode:'system',accent:'blue',density:'comfortable'}},path:'/',isPartial:false,csrfToken:'test',principal:null,invocation:{{request:'test'}},query:async()=>({{rows,columns:[]}})}};
+const catalog=catalogFromArtifactOperations(JSON.parse(fs.readFileSync(new URL('./artifact.json',import.meta.url),'utf8')));
+context.prepareForm=request=>{{const derived=catalog.derivedFor(request.operation);return {{status:'ready',props:{{context,operation:request.operation,action:'/api/operations/'+request.operation,operationId:'test-operation',mode:'update',derived,fields:generatedFields(derived,'update'),submit:'Edit',timeZone:'UTC',idPrefix:request.occurrence,record:{{id:request.arguments.record.id,version:String(request.arguments.record.version)}}}}}};}};
+const html=await page.render(context,{{}});
+const ids=[...html.matchAll(/data-can-view="([^"]+)"/g)].map(match=>match[1]);
+assert.equal(ids.length,2); assert.notEqual(ids[0],ids[1]);
+assert.match(html,/<p>One<\/p>/); assert.match(html,/<p>Two<\/p>/);
+assert.equal([...html.matchAll(/action="\/api\/operations\/Tasks.Todo.update"/g)].length,2);
+assert.equal([...html.matchAll(/action="\/api\/operations\/Tasks.Todo.delete"/g)].length,2);
+assert.ok(!html.includes('undefined'));
+assert.deepEqual([...String(await page.render(context,{{}})).matchAll(/data-can-view="([^"]+)"/g)].map(match=>match[1]),ids);
+"#);
+    then_write(dir.path(), "render.mjs", &script);
+    let output = std::process::Command::new("node").arg(dir.path().join("render.mjs")).output().unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }

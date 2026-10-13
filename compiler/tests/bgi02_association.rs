@@ -28,10 +28,9 @@ When
   do set task {title="Done"}
 Then
  style TaskSurface $"Readable task surfaces."
- view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls."
+ view TaskTile(row:Todo) $"Arrange admitted title/status and declared controls." $TaskSurface
   edit fields=title
   delete
-  style TaskSurface
  page / title="Todos" $"A calm workspace."
   card "Add a task" $"A compact entry area."
    form Todo.create fields=title
@@ -647,6 +646,14 @@ fn cli_bind_round_trip_then_status_retains() {
     let result = dispatch(&argv(&["gen", "status", &root, &file]));
     assert_eq!(result.code, 0, "stderr: {}", result.stderr);
     assert!(result.stdout.contains("unit u1"), "{}", result.stdout);
+    // The saved closure includes metadata, contributions, imports and assets.
+    write_fixture(dir.path(), "can.generated/u1/contributions.can", "Given\n");
+    write_fixture(
+        dir.path(),
+        "can.generated/u1/helper.js",
+        "export const x = 1;\n",
+    );
+    write_fixture(dir.path(), "can.generated/u1/unused.can", "Given\n");
     // JSON status carries the same association.
     let result = dispatch(&argv(&["gen", "status", "--format=json", &root, &file]));
     assert_eq!(result.code, 0, "stderr: {}", result.stderr);
@@ -665,6 +672,27 @@ fn cli_bind_round_trip_then_status_retains() {
         result.stdout.contains(".can/gen/attempts/u1"),
         "{}",
         result.stdout
+    );
+    let status: serde_json::Value = serde_json::from_str(&result.stdout).unwrap();
+    let unit = status["units"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|u| u["id"] == "u1")
+        .unwrap();
+    let files = unit["current_files"].as_array().unwrap();
+    for path in [
+        "app.can",
+        "can.generated/u1/unit.json",
+        "can.generated/u1/contributions.can",
+        "can.generated/u1/helper.js",
+        "can.generated/u1/unused.can",
+    ] {
+        assert!(files.iter().any(|entry| entry["path"] == path && entry["sha256"].as_str().unwrap().len() == 64), "{path}: {files:?}");
+    }
+    assert_eq!(
+        unit["compiler_sources"],
+        serde_json::json!(["app.can", "can.generated/u1/contributions.can"])
     );
     // Stale revision refuses and writes nothing new.
     let result = dispatch(&argv(&[

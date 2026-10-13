@@ -1581,8 +1581,11 @@ pub(crate) struct ResolvedShow {
     pub unit_id: String,
     /// Declared canonical controls in source order.
     pub controls: Vec<super::then_views::ThenControl>,
+    pub binding_names: Vec<(Span, String)>,
     /// Style unit id styling the renderer root, when declared.
     pub root_style: Option<String>,
+    /// Independent ownership for optional saved renderer CSS.
+    pub renderer_style: Option<String>,
 }
 
 /// Saved Then inputs resolved for one compilation: renderer plans
@@ -1596,6 +1599,8 @@ pub(crate) struct ThenBuildJoin {
     views: HashMap<String, crate::analysis::generation_intake::SavedGroup>,
     /// Consumed style units by unit id, for CSS packing.
     styles: HashMap<String, crate::analysis::generation_intake::SavedGroup>,
+    /// Checked ordinary component/page host span to its saved style unit.
+    style_hosts: HashMap<Span, String>,
     /// Coverage failures: the use/definition span plus its detail
     /// (missing unit, ambiguous association, incompatible group).
     missing: Vec<(Span, String)>,
@@ -1606,6 +1611,15 @@ impl ThenBuildJoin {
     /// prompted view with a usable saved unit.
     pub(crate) fn show_at(&self, span: &Span) -> Option<&ResolvedShow> {
         self.shows.get(span)
+    }
+
+    pub(crate) fn style_at(&self, span: &Span) -> Option<&String> {
+        self.style_hosts.get(span)
+    }
+
+    /// Checked emitted view uses, for derived artifact consumers.
+    pub(crate) fn resolved_shows(&self) -> impl Iterator<Item = &ResolvedShow> {
+        self.shows.values()
     }
 
     /// Consumed view units (saved groups by unit id).
@@ -1641,6 +1655,7 @@ impl ThenBuildJoin {
             edges: Vec<super::then_views::UseEdge>,
             view_spans: Vec<(String, Span)>,
             show_refs: Vec<(String, Span)>,
+            style_hosts: Vec<(Span, Span)>,
         }
         let mut files: Vec<FileThen> = Vec::new();
         for (id, source) in db.iter() {
@@ -1651,8 +1666,16 @@ impl ThenBuildJoin {
                 super::then_views::walk_generation_uses(&tree, &source.text, &found.descriptors);
             let mut view_spans = Vec::new();
             let mut show_refs = Vec::new();
+            let mut style_hosts = Vec::new();
             let mut owner = String::new();
             for node in tree.descendants() {
+                for suffix in node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == crate::syntax::SyntaxKind::StyleSuffix)
+                {
+                    style_hosts.push((suffix.span, node.span));
+                }
                 if matches!(
                     node.kind,
                     crate::syntax::SyntaxKind::App | crate::syntax::SyntaxKind::Package
@@ -1700,6 +1723,7 @@ impl ThenBuildJoin {
                 edges,
                 view_spans,
                 show_refs,
+                style_hosts,
             });
         }
         // A view is consumed when some `show` names it (prompted views
@@ -1890,7 +1914,7 @@ impl ThenBuildJoin {
                 ) {
                     continue;
                 }
-                // The renderer root style: the declared root child
+                // The renderer root style: the declared root suffix
                 // (named or inline) wins, then the use-site `$`
                 // attachment, then the view's colocated `style.css`.
                 let mut root_style: Option<String> = None;
@@ -1981,6 +2005,7 @@ impl ThenBuildJoin {
                 if root_style.is_none() && group.files.iter().any(|f| f.rel_path == "style.css") {
                     root_style = Some(unit_id.clone());
                 }
+                let renderer_style = group.files.iter().any(|file| file.rel_path == "style.css").then(|| unit_id.clone());
                 join.views.insert(unit_id.clone(), group);
                 join.shows.insert(
                     edge.use_span,
@@ -1989,7 +2014,9 @@ impl ThenBuildJoin {
                         row_model: format!("{}.{}", edge.owner, view.row_model),
                         unit_id,
                         controls: view.controls.clone(),
+                        binding_names: view.binding_names.clone(),
                         root_style,
+                        renderer_style,
                     },
                 );
             }
@@ -2084,6 +2111,44 @@ impl ThenBuildJoin {
                     continue;
                 }
                 join.styles.insert(unit_id, group);
+            }
+        }
+        // Bind ordinary style attachments to their exact owning CST host.
+        // Existing saved intake above is the only source of style unit IDs.
+        for file in &files {
+            for (suffix_span, host_span) in &file.style_hosts {
+                if inside_unconsumed(file, suffix_span) {
+                    continue;
+                }
+                let Some(descriptor) = file.descriptors.iter().find(|d| d.span == *suffix_span)
+                else {
+                    continue;
+                };
+                let (kind, label, anchor) = match descriptor.kind {
+                    GenerationKind::StyleNamedUse => {
+                        let name = descriptor.label.clone().unwrap_or_default();
+                        (
+                            intake::UnitKind::Style,
+                            Some(name.clone()),
+                            format!("{}:style:{name}:", descriptor.owner),
+                        )
+                    }
+                    GenerationKind::StyleInline => (
+                        intake::UnitKind::StyleInline,
+                        descriptor.label.clone(),
+                        descriptor.anchor.clone(),
+                    ),
+                    _ => continue,
+                };
+                if let Some((id, _)) = join.styles.iter().find(|(_, group)| {
+                    let source = &group.record.source;
+                    source.owner == descriptor.owner
+                        && source.kind == kind
+                        && source.label == label
+                        && source.anchor == anchor
+                }) {
+                    join.style_hosts.insert(*host_span, id.clone());
+                }
             }
         }
         join
@@ -8227,6 +8292,8 @@ impl<'a> Emitter<'a> {
         ctx: &str,
         argument: &str,
         row: &str,
+        occurrences: &[String],
+        original_row: Option<&str>,
         guard: &str,
         lowered: &[String],
         plan: &ResolvedShow,
@@ -8280,8 +8347,9 @@ impl<'a> Emitter<'a> {
             .as_deref()
             .map(|style| format!(",rootStyle:{}", js_string(style)))
             .unwrap_or_default();
+        let renderer_style = plan.renderer_style.as_ref().map(|unit| format!(",rendererStyle:{}", js_string(unit))).unwrap_or_default();
         let descriptor = format!(
-            "{{version:{},view:{},rowModel:{},controls:[{controls}]{root_style}}}",
+            "{{version:{},view:{},rowModel:{},controls:[{controls}]{root_style}{renderer_style}}}",
             js_string(GENERATED_VIEW_WIRE_VERSION),
             js_string(&plan.view_name),
             js_string(&plan.row_model),
@@ -8292,26 +8360,63 @@ impl<'a> Emitter<'a> {
             .iter()
             .zip(lowered.iter())
             .map(|(child, html)| {
-                let count = counts.entry(child.factory.as_str()).or_insert(0);
+                let source_name = plan.binding_names.iter().find(|(span, _)| *span == child.span)
+                    .map(|(_, name)| name.as_str()).unwrap_or(child.factory.as_str());
+                let count = counts.entry(source_name).or_insert(0);
                 *count += 1;
                 let name = if *count == 1 {
-                    child.factory.clone()
+                    source_name.to_string()
                 } else {
-                    format!("{}{}", child.factory, *count)
+                    format!("{}{}", source_name, *count)
                 };
                 format!("{{name:{},html:await ({html})}}", js_string(&name))
             })
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "await (async({row})=>{{{guard}return await {factory}({{context:{ctx},descriptor:{descriptor},useId:{use_id},row:{row},bindings:[{bindings}],render:{render}}});}})({argument})",
-            use_id = js_string(&view.identity),
+            "await (async({row})=>{{{guard}return await {factory}({{context:{ctx},descriptor:{descriptor},useId:{use_id},row:{presentation_row},bindings:[{bindings}],render:{render}}});}})({argument})",
+            use_id = format!("{}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')", js_string(&view.identity), occurrences.join(",")),
+            presentation_row = original_row.map(str::to_owned).unwrap_or_else(|| format!("(({{id,version,...fields}})=>({{id,version:version===undefined?undefined:version.toString(),fields}}))({row})")),
         )
     }
 
     /// Occurrence identities thread through enclosing collection rows so
     /// repeated tabsets never share their radio group or panel identifiers.
     fn lower_ui_occurrence(
+        &mut self,
+        node: &IrUi,
+        ctx: &str,
+        occurrences: &[String],
+        prepared_form: Option<&str>,
+        view_scope: bool,
+    ) -> String {
+        let style = self
+            .then_join
+            .as_ref()
+            .and_then(|join| join.style_at(&node.span))
+            .cloned();
+        let html =
+            self.lower_ui_occurrence_unstyled(node, ctx, occurrences, prepared_form, view_scope);
+        if let Some(unit) = style {
+            self.ui.insert("styledComponent".to_string());
+            let helper = binding_ident("u", "styledComponent");
+            let mut identity = js_string(&format!(
+                "can-style-f{}-s{}",
+                node.span.file.0, node.span.start
+            ));
+            if !occurrences.is_empty() {
+                identity.push_str(&format!(
+                    "+encodeURIComponent(JSON.stringify([{}]))",
+                    occurrences.join(",")
+                ));
+            }
+            format!("{helper}(({html}),{},{identity})", js_string(&unit))
+        } else {
+            html
+        }
+    }
+
+    fn lower_ui_occurrence_unstyled(
         &mut self,
         node: &IrUi,
         ctx: &str,
@@ -8478,7 +8583,7 @@ impl<'a> Emitter<'a> {
             self.original_ui_rows.push(OriginalUiRow {
                 name: "row".to_string(),
                 model,
-                binding: original,
+                binding: original.clone(),
             });
             let mut nested = occurrences.to_vec();
             nested.push(js_string(&view.identity));
@@ -8512,7 +8617,7 @@ impl<'a> Emitter<'a> {
                 .cloned();
             if let Some(plan) = plan {
                 return self.lower_saved_view_instance(
-                    node, view, ctx, &argument, &row, &guard, &lowered, &plan,
+                    node, view, ctx, &argument, &row, &nested, original.as_deref(), &guard, &lowered, &plan,
                 );
             }
             let children = lowered.join(",");
@@ -9512,6 +9617,13 @@ impl<'a> Emitter<'a> {
         if page.nav_none {
             members.push("nav:\"none\"".to_string());
         }
+        if let Some(style) = self.then_join.as_ref().and_then(|join| join.style_at(&page.span)) {
+            members.push(format!(
+                "style:{{unitId:{},useId:{}}}",
+                js_string(style),
+                js_string(&format!("can-style-f{}-s{}", page.span.file.0, page.span.start))
+            ));
+        }
         if !page.preference_fields.is_empty() {
             let fields = page
                 .preference_fields
@@ -9607,12 +9719,14 @@ impl<'a> Emitter<'a> {
         } else {
             String::new()
         };
+        let content =
+            format!("(await Promise.all([{children}])).filter(value=>value!=null).join('')");
         // The HTTP page owner applies the shared shell once. This function
         // renders only admitted content for both full and partial requests.
         out.push(
             page.span,
             Some(format!("page {}", page.path)),
-            &format!("export async function {func}(c,bindings){{{preamble}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}}"),
+            &format!("export async function {func}(c,bindings){{{preamble}return {content};}}"),
         );
     }
 }
@@ -9677,6 +9791,9 @@ fn ui_uses_details_drawer(node: &IrUi) -> bool {
 }
 
 fn ui_uses_original_row(node: &IrUi) -> bool {
+    if node.view.is_some() {
+        return true;
+    }
     fn protected(expr: &TypedExpr) -> bool {
         let mut pending = vec![expr];
         while let Some(current) = pending.pop() {

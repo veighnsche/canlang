@@ -41,6 +41,7 @@ const CAN_HOOKS = new Set([
   "can-account-label",
   "can-account-icon",
   "can-sidebar",
+  "can-drawer-panel",
   "can-brand",
   "can-delivery",
   "can-gallery-grid",

@@ -162,8 +162,9 @@ export function registeredBinderIds(): ReadonlyArray<string> {
  * saved `mount` by view name; the `generated-view` binder invokes it once
  * per instance root with the server-embedded presentation and tracks the
  * returned cleanup. Replaced roots (morph removal, trims, htmx swaps)
- * release through the binder unbind; in-place morphs keep a live root's
- * mount. Mount state is keyed by use id and every release is idempotent,
+ * release through the binder unbind. In-place morphs release and rebind
+ * after canonical markup changes, restoring the mount's DOM enhancements.
+ * Mount state is keyed by use id and every release is idempotent,
  * so the morph hook and the rescan sweep never double-run cleanup.
  */
 
@@ -171,6 +172,7 @@ export function registeredBinderIds(): ReadonlyArray<string> {
 const GENERATED_VIEW_MOUNTS = new Map<string, GeneratedViewMount>();
 /** Live instance cleanups by use id. */
 const generatedViewCleanups = new Map<string, () => void>();
+const generatedViewRebinds = new WeakSet<object>();
 
 /** Register a unit browser bundle's saved `mount` for one view name. */
 export function registerGeneratedViewMount(view: string, mount: GeneratedViewMount): void {
@@ -222,6 +224,7 @@ function bindGeneratedView(root: ElementLike): () => void {
   // by use id before mounting, and unbind only the cleanup this bind
   // installed (a newer bind for the same id wins).
   releaseGeneratedViewMount(useId);
+  generatedViewRebinds.delete(root);
   const mount = GENERATED_VIEW_MOUNTS.get(presentation.view);
   const cleanup = mount === undefined ? undefined : mount(root, presentation);
   if (typeof cleanup === "function") {
@@ -392,6 +395,11 @@ function compatibleNode(current: DomNode, next: DomNode): boolean {
 
 function morphNode(current: DomNode, next: DomNode, document: DocumentLike, generatedForm = false, settledForm?: ElementLike, acceptedInputs?: DomNode): void {
   if (current.nodeType !== 1) { current.nodeValue = next.nodeValue; return; }
+  const generatedUseId = current.getAttribute?.(GENERATED_VIEW_ATTR);
+  if (generatedUseId) {
+    releaseGeneratedViewMount(generatedUseId);
+    generatedViewRebinds.add(current);
+  }
   const tag = current.tagName?.toLowerCase();
   // Exact metadata includes the comparison-only binding identity. Keeping the
   // occurrence retains its nonce/token/CSRF/version set and submit lifecycle.
@@ -1309,7 +1317,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}|${element.getAttribute('data-can-view') ?? ''}`;
           const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
           const old = bound[oldIndex];
-          if (old !== undefined && old.signature === signature) continue;
+          if (old !== undefined && old.signature === signature &&
+              !(id === 'generated-view' && generatedViewRebinds.has(element))) continue;
           if (old !== undefined) { bound.splice(oldIndex, 1); old.stop(); }
           bound.push({ element, binder: id, signature, stop: binder(element, client, internals) });
         }

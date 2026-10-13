@@ -262,6 +262,90 @@ export async function content(props: ContentProps): Promise<string> {
     .join("");
 }
 
+/** Stamp semantic HTML with the existing CSS ownership hooks, without wrappers.
+ * Already-owned children expose their host to the parent and retain their interior.
+ */
+function stampStyledHtml(html: string, unitId: string, useId: string): string {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(unitId) || !useId) throw new Error("Invalid compiler style identity");
+  const stack: Array<{name:string; blocked:boolean}> = [];
+  const voids = new Set(["area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"]);
+  const raw = new Set(["script","style","textarea","title"]);
+  let output = "", cursor = 0;
+  const attr = (tag:string, name:string): string | undefined => {
+    const match = new RegExp(`\\s${name}\\s*=\\s*(["'])(.*?)\\1`, "i").exec(tag);
+    return match?.[2];
+  };
+  const add = (tag:string, name:string, value:string): string => {
+    const pattern = new RegExp(`(\\s${name}\\s*=\\s*)(["'])(.*?)\\2`, "i");
+    const match = pattern.exec(tag);
+    if (match) {
+      const tokens = new Set((match[3] ?? "").split(/\s+/).filter(Boolean)); tokens.add(value);
+      return tag.replace(pattern, (_all, prefix:string) => `${prefix}"${escapeAttr([...tokens].join(" "))}"`);
+    }
+    return tag.replace(/\s*\/?>$/, ending => ` ${name}="${escapeAttr(value)}"${ending}`);
+  };
+  while (cursor < html.length) {
+    const top = stack[stack.length - 1];
+    if (top !== undefined && raw.has(top.name)) {
+      const close = html.toLowerCase().indexOf(`</${top.name}`, cursor);
+      if (close < 0) { output += html.slice(cursor); break; }
+      output += html.slice(cursor, close); cursor = close;
+    }
+    const start = html.indexOf("<", cursor);
+    if (start < 0) { output += html.slice(cursor); break; }
+    output += html.slice(cursor, start);
+    if (html.startsWith("<!--", start)) {
+      const end = html.indexOf("-->", start + 4);
+      const next = end < 0 ? html.length : end + 3;
+      output += html.slice(start, next); cursor = next; continue;
+    }
+    let end = start + 1, quote = "";
+    for (; end < html.length; end++) {
+      const char = html[end];
+      if (quote) { if (char === quote) quote = ""; }
+      else if (char === '"' || char === "'") quote = char;
+      else if (char === ">") break;
+    }
+    if (end === html.length) { output += html.slice(start); break; }
+    let tag = html.slice(start, end + 1);
+    const parsed = /^<(\/)?([A-Za-z][A-Za-z0-9:-]*)\b/.exec(tag);
+    if (parsed === null) { output += tag; cursor = end + 1; continue; }
+    const name = parsed[2]!.toLowerCase();
+    if (parsed[1]) {
+      const index = stack.map(entry => entry.name).lastIndexOf(name);
+      if (index >= 0) stack.splice(index);
+    } else {
+      const inheritedBlock = stack[stack.length - 1]?.blocked ?? false;
+      const existing = attr(tag, "data-can-style");
+      const ownRoot = stack.length === 0 && existing === unitId;
+      const boundary = !ownRoot && (existing !== undefined || (stack.length > 0 && /\sdata-can-view\s*=/.test(tag)));
+      if (!inheritedBlock) {
+        if (boundary) {
+          tag = add(tag, "data-can-style-host", unitId);
+          if (stack.length === 0) tag = add(tag, "data-can-style-root", `${unitId}:${useId}`);
+        }
+        else {
+          if (existing === undefined) tag = add(tag, "data-can-style", unitId);
+          if (stack.length === 0) tag = add(tag, "data-can-style-root", `${unitId}:${useId}`);
+        }
+      }
+      if (!voids.has(name) && !/\/\s*>$/.test(tag)) stack.push({name,blocked:inheritedBlock || boundary});
+    }
+    output += tag; cursor = end + 1;
+  }
+  return output;
+}
+
+export function styledComponent(html: string, unitId: string, useId: string): string;
+export function styledComponent(html: null, unitId: string, useId: string): null;
+export function styledComponent(html: string | null, unitId: string, useId: string): string | null;
+export function styledComponent(html: Promise<string | null>, unitId: string, useId: string): Promise<string | null>;
+export function styledComponent(html: string | null | Promise<string | null>, unitId: string, useId: string): string | null | Promise<string | null>;
+export function styledComponent(html: string | null | Promise<string | null>, unitId: string, useId: string): string | null | Promise<string | null> {
+  const stamp = (value:string|null): string|null => value === null ? null : stampStyledHtml(value,unitId,useId);
+  return typeof html === "object" && html !== null && "then" in html ? html.then(stamp) : stamp(html);
+}
+
 /**
  * BGI-09 row-bound instance root: admit the caller's props, invoke the
  * saved `render({row, bindings, ui})` exactly once with the already
@@ -281,10 +365,6 @@ export async function generatedViewInstance(props: GeneratedViewInstanceProps): 
     bindings,
     ui: { escapeHtml, escapeAttr },
   });
-  const rootStyle =
-    props.descriptor.rootStyle === undefined
-      ? ""
-      : ` data-can-style="${props.descriptor.rootStyle}" data-can-style-root="${props.descriptor.rootStyle}:${props.useId}"`;
   // Mount presentation for the optional saved browser `mount`: the same
   // admitted row the renderer arranged, so browser enhancement never
   // refetches or re-derives it. Inert markup when the unit ships no
@@ -292,7 +372,12 @@ export async function generatedViewInstance(props: GeneratedViewInstanceProps): 
   const presentation = escapeAttr(
     JSON.stringify({ view: props.descriptor.view, useId: props.useId, row: props.row }),
   );
-  return `<section ${GENERATED_VIEW_ATTR}="${props.useId}"${rootStyle} data-can-view-presentation="${presentation}">${arranged}</section>`;
+  let html = `<section ${GENERATED_VIEW_ATTR}="${props.useId}" data-can-view-presentation="${presentation}">${arranged}</section>`;
+  if (props.descriptor.rendererStyle !== undefined) html = stampStyledHtml(html, props.descriptor.rendererStyle, props.useId);
+  if (props.descriptor.rootStyle !== undefined && props.descriptor.rootStyle !== props.descriptor.rendererStyle) {
+    html = stampStyledHtml(html, props.descriptor.rootStyle, props.useId);
+  }
+  return html;
 }
 
 /** Shared loading/empty/error states with resolved, escaped messages. */

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { encode } from "@jridgewell/sourcemap-codec";
 import { lookup } from "../src/runtime/sourcemap.js";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -10,14 +11,18 @@ import {
   ARTIFACT_MODULE,
   DEPLOY_MAIN_MODULE,
   HTTP_OPERATIONS_MODULE,
+  HTTP_ASSETS_MODULE,
+  generatedStyleResources,
   MCP_HANDLER_MODULE,
   WORKER_MAIN_MISSING,
   assertLinksResolve,
   assertWorkerdLoadable,
   buildDeployBundle,
+  buildDeployBundleWithAssets,
   deployBundleMain,
   writeDeployBundle,
 } from "../src/deploy/bundle.js";
+import { PINNED_COMPATIBILITY_DATE } from "../src/dev/zero-config.js";
 import { startLocalDev } from "../src/dev/local-run.js";
 import { rewriteModuleImports, scanModuleImports } from "../src/deploy/module-imports.js";
 import { resolveProducerFile } from "../src/deploy/producer-files.js";
@@ -346,6 +351,7 @@ describe("deploy bundle (P-B)", () => {
     for (const marker of [
       "handleOperationRequest",
       "handleCsvRequest",
+      "handleExportRequest",
       "handlePageRequest",
       "handlePagePreferencePost",
       "receiverFromIdentity",
@@ -1310,3 +1316,57 @@ describe("assertWorkerdLoadable", () => {
     ).not.toThrow();
   });
 });
+
+
+it("serves packed scoped CSS and browser mounts through the canonical asset bundle", () => {
+  const artifact = testArtifact();
+  const css = '[data-can-style~="u1"] { color: rgb(12, 34, 56); }';
+  artifact.stylesheets = [{path:"can.generated/u1/style.css",css,sha256:createHash("sha256").update(css).digest("hex"),
+    owner:{unitId:"u1",kind:"style",canPath:"app.can",canRevision:"0".repeat(64),start:0,end:1}}];
+  artifact.modules.push({path:"can.generated/u2/view.js",map:{...EMPTY_MAP},
+    js:'export function render() { throw new Error("SERVER_RENDERER_MUST_STAY_OFF_BROWSER"); }\nexport function mount(root) { root.setAttribute("data-generated-mounted", "true"); return () => root.removeAttribute("data-generated-mounted"); }\n'});
+  artifact.generatedViews = [{view:"TaskTile",module:"can.generated/u2/view.js",renderExport:"render",mountExport:"mount"}];
+  const workerDistDir = fakeWorkerDist();
+  try {
+    const bundle = buildDeployBundleWithAssets(artifact,{repoRoot,workerDistDir,verdict:ACTIVE_VERDICT,assets:{browser:true}});
+    const stylesheet = new TextDecoder().decode(bundle.resources["browser/can-style.css"]!.bytes);
+    expect(stylesheet).toContain(css);
+    const client = new TextDecoder().decode(bundle.resources["browser/bootstrap.js"]!.bytes);
+    expect(client).toContain("data-generated-mounted");
+    expect(client).toContain("TaskTile");
+    expect(client).not.toContain("SERVER_RENDERER_MUST_STAY_OFF_BROWSER");
+    expect(Object.keys(bundle.resources).sort()).toEqual(["browser/bootstrap.js","browser/can-style.css","browser/polling.js"]);
+    expect(bundle.modules["worker/http-assets.js"]).toContain(bundle.resourcesSha256);
+    expect(bundle.modules["can.generated/u2/view.js"]).toContain("SERVER_RENDERER_MUST_STAY_OFF_BROWSER");
+  } finally { rmSync(workerDistDir,{recursive:true,force:true}); }
+});
+
+
+it("serves a stylesheet's exact owned asset bytes through encoded workerd paths", async () => {
+  const artifact = testArtifact();
+  const bytes = readFileSync(join(repoRoot,"editors/vscode/images/previews/light-dark-16.png"));
+  const key = "can.generated/u1/paint layer.bin";
+  const route = "can.generated/u1/paint%20layer.bin";
+  const css = `[data-can-style~="u1"] { background-image: url("/assets/${route}?v=1#paint"); }`;
+  const asset = {path:key,contentBase64:bytes.toString("base64"),sha256:createHash("sha256").update(bytes).digest("hex"),contentType:"image/png"};
+  artifact.stylesheets = [{path:"can.generated/u1/style.css",css,sha256:createHash("sha256").update(css).digest("hex"),
+    owner:{unitId:"u1",kind:"style",canPath:"app.can",canRevision:"0".repeat(64),start:0,end:1},assets:[asset]}];
+  const workerDistDir = fakeWorkerDist();
+  let dev: Awaited<ReturnType<typeof startLocalDev>> | undefined;
+  try {
+    const bundle = buildDeployBundleWithAssets(artifact,{repoRoot,workerDistDir,verdict:ACTIVE_VERDICT,assets:{browser:true}});
+    expect(Object.keys(bundle.resources).sort()).toEqual(["browser/bootstrap.js","browser/can-style.css","browser/polling.js",key].sort());
+    expect(new TextDecoder().decode(bundle.resources["browser/can-style.css"]!.bytes)).toContain(`/assets/${route}?v=1#paint`);
+    const manifest = /export const browserAssets = (.*);/.exec(bundle.modules[ARTIFACT_MODULE]!)![1]!;
+    dev = await startLocalDev({workerName:"owned-style-assets",compatibilityDate:PINNED_COMPATIBILITY_DATE,mainModule:"main.js",modules:{
+      "main.js":`import {createHandler} from "./http-assets.js"; const ready = createHandler([],${manifest}); export default {async fetch(request) { return (await ready).fetch(request); }};`,
+      "http-assets.js":bundle.modules[HTTP_ASSETS_MODULE]!}});
+    const response = await dev.dispatchUrl(`https://can.test/assets/${route}?v=1`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
+    expect((await dev.dispatchUrl(`https://can.test/assets/can.generated/u1/missing.bin`)).status).toBe(404);
+    expect(()=>generatedStyleResources({...artifact,stylesheets:[{...artifact.stylesheets[0]!,assets:[{...asset,sha256:"0".repeat(64)}]}]})).toThrow(/invalid owning stylesheet asset bytes/);
+    expect(()=>generatedStyleResources({...artifact,stylesheets:[{...artifact.stylesheets[0]!,assets:[{...asset,path:"can.generated/other/asset.bin"}]}]})).toThrow(/invalid owning stylesheet asset path/);
+  } finally { await dev?.dispose(); rmSync(workerDistDir,{recursive:true,force:true}); }
+},30_000);

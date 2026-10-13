@@ -1,5 +1,5 @@
 ## Accepted reusable named styles and inline static prompts; compiler/generator support is not implemented.
-## CompactCard is generated once and shared by two card scopes; frontend is the shared default.
+## CompactCard names a reusable card prompt for $CompactCard suffixes; the task-list card carries its own one-off style prompt.
 # Keep track of what needs doing.
 app Todos
 Given
@@ -17,16 +17,13 @@ Then
  style CompactCard $"A calm, compact card using the existing theme, clear typography and subtle borders. Keep labels, validation feedback, focus indicators and all interactions intact. Stack controls on phones and align them on wider screens."
  preferences { view:enum(all,open,done)=all label={text="Show",values={all="All",open="Open",done="Done"}} }
  page / title="Todos"
-  style CompactCard
-   card "Add a task"
-    form Todo.create fields=title display=inline
-     input title
-  style CompactCard
-   style $"A calm, compact task-list card with clear typography, subtle borders and readable statuses. Preserve the view selector, search, editing, archive controls, empty states and every existing interaction."
-    card "Your tasks"
-     tabs preferences.view
-     list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty="No tasks here. Add a task or choose another view."
-      text row.title,row.done
-      edit fields=title,done
-      tooltip "Archive this task"
-       delete
+  card "Add a task" $CompactCard
+   form Todo.create fields=title display=inline
+    input title
+  card "Your tasks" $"A calm, compact task-list card with clear typography, subtle borders and readable statuses. Preserve the view selector, search, editing, archive controls, empty states and every existing interaction."
+   tabs preferences.view
+   list Todo as task where preferences.view==all or (preferences.view==open and not task.done) or (preferences.view==done and task.done) order=-created search=title empty="No tasks here. Add a task or choose another view."
+    text row.title,row.done
+    edit fields=title,done
+    tooltip "Archive this task"
+     delete

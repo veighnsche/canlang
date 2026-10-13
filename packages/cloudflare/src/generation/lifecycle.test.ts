@@ -89,6 +89,7 @@ const noopPreflight = (): void => {};
 const DUMP_FAKE = `
 const fs = require("node:fs");
 const path = require("node:path");
+process.chdir(path.dirname(process.env.CAN_GENERATION_SESSION_FILE));
 let stdin = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (c) => { stdin += c; });
@@ -367,6 +368,7 @@ test("default preflight refuses real launch with no attempt artifacts", async ()
   await writeTree(root, [["snapshot/app.can", "app"]]);
   let resolved = 0;
   const options = baseOptions(root, {
+    recipe: testRecipe({ runner: "muse" }),
     resolveExecutable: async () => {
       resolved += 1;
       return "/nonexistent";
@@ -402,6 +404,11 @@ test("fake executable shows argv, attachment, read-only access, host placement",
   assert.deepEqual(dump.argv.slice(0, 6), ["exec", "--json", "--color", "never", "-s", "read-only"]);
   assert.ok(dump.argv.includes("-m"));
   assert.ok(dump.argv.includes("--output-schema"));
+  const finalSchema = JSON.parse(await readFile(join(root, "attempt", "output-schema.json"), "utf8"));
+  assert.equal(finalSchema.type, "object");
+  assert.equal(finalSchema.additionalProperties, false, "native strict structured output refuses open object schemas");
+  assert.deepEqual(finalSchema.required, Object.keys(finalSchema.properties));
+  assert.deepEqual(finalSchema.properties.status, { type: "string" });
   assert.equal(dump.argv[dump.argv.length - 1], "-");
   assert.equal(dump.hasBinding, true);
   assert.equal(dump.binding?.allowed, 2);
@@ -702,6 +709,7 @@ test("resume continues a recorded session with an applicable capture", async () 
   await executeJob(
     baseOptions(root, {
       request_id: "req-rec",
+      recipe: testRecipe({ runner: "claude-code" }),
       attemptDir: recordedDir,
       resolveExecutable: async () => fake,
     }),
@@ -721,7 +729,8 @@ test("resume continues a recorded session with an applicable capture", async () 
   });
   assert.equal(outcome.state, "candidate");
   const dump = await readDump(resumedDir);
-  assert.deepEqual(dump.argv.slice(0, 3), ["exec", "resume", "fake-thread-1"]);
+  assert.ok(dump.argv.includes("--resume"));
+  assert.ok(dump.argv.includes("fake-thread-1"));
   assert.equal(await readFence(recordedDir), 1);
   const record = await readAttempt(resumedDir);
   assert.ok(record.resumed_from !== null);
@@ -735,6 +744,7 @@ test("resume refuses fenced, changed, and unrecorded sessions", async () => {
   await executeJob(
     baseOptions(root, {
       request_id: "req-rec2",
+      recipe: testRecipe({ runner: "claude-code" }),
       attemptDir: recordedDir,
       resolveExecutable: async () => fake,
     }),

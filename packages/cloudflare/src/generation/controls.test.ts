@@ -67,6 +67,8 @@ async function writeFake(dir: string, name: string, body: string): Promise<strin
  */
 const WAIT_FAKE = `
 const fs = require("node:fs");
+const path = require("node:path");
+process.chdir(path.dirname(process.env.CAN_GENERATION_SESSION_FILE));
 let stdin = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (c) => { stdin += c; });
@@ -542,7 +544,7 @@ test("generate prepare skips fresh units and reports them", async () => {
   assert.equal(first.code, 0, first.envelope);
   assert.equal(bodyOf(first.envelope)["state"], "accepted");
   const second = await dispatchControl(
-    req("r-prep2", "generate", { root: h.root, files: ["app.can"], mode: "prepare", ...RECIPE }),
+    req("r-prep2", "generate", { root: h.root, files: ["app.can"], mode: "prepare", accept: true, ...RECIPE }),
     ctxFor(h),
   );
   assert.equal(second.code, 0, second.envelope);
@@ -814,16 +816,14 @@ test("accept unit scope refuses partial acceptance of a full set", async () => {
 test("incomplete sets stay candidates and preserve everything", async () => {
   const h = await harness();
   h.fake.descriptors.set("app.can", twoStyles());
-  process.env.SUBMIT_WAIT_N = "3";
-  try {
+  const partialRunner = await writeFake(h.root, "fake-partial-runner", WAIT_FAKE.replace("let want = Number(process.env.SUBMIT_WAIT_N ?? Number.NaN);", "let want = 3;"));
+  {
     const produced = await dispatchControl(
       req("r-inc1", "retry", { root: h.root, files: ["app.can"], ...RECIPE }),
-      ctxFor(h, { onSession: submitAll(new Set(["u2-style"])) }),
+      ctxFor(h, { onSession: submitAll(new Set(["u2-style"])), resolveExecutable: async () => partialRunner }),
     );
     assert.equal(produced.code, 0, produced.envelope);
     assert.equal(bodyOf(produced.envelope)["complete"], false);
-  } finally {
-    delete process.env.SUBMIT_WAIT_N;
   }
   const attempt = "r-inc1.j0";
   const refused = await dispatchControl(
@@ -923,19 +923,17 @@ test("accept true composes the full flow through one journal", async () => {
 test("accept true with an incomplete set stays a candidate", async () => {
   const h = await harness();
   h.fake.descriptors.set("app.can", twoStyles());
-  process.env.SUBMIT_WAIT_N = "3";
-  try {
+  const partialRunner = await writeFake(h.root, "fake-partial-runner", WAIT_FAKE.replace("let want = Number(process.env.SUBMIT_WAIT_N ?? Number.NaN);", "let want = 3;"));
+  {
     const result = await dispatchControl(
       req("r-ci1", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }),
-      ctxFor(h, { onSession: submitAll(new Set(["u2-style"])) }),
+      ctxFor(h, { onSession: submitAll(new Set(["u2-style"])), resolveExecutable: async () => partialRunner }),
     );
     assert.equal(result.code, 0, result.envelope);
     const body = bodyOf(result.envelope);
     assert.equal(body["state"], "candidate");
     assert.equal(body["accepted"], false);
     assert.equal(body["complete"], false);
-  } finally {
-    delete process.env.SUBMIT_WAIT_N;
   }
   assert.deepEqual(await unresolvedJournals(h.root), []);
 });
@@ -1474,7 +1472,7 @@ test("resume continues a recorded session when the capture holds", async () => {
   const h = await harness();
   h.fake.descriptors.set("app.can", [styleDescriptor("TaskSurface", "Readable task surfaces.", 100, 160)]);
   const produced = await dispatchControl(
-    req("r-rs1", "retry", { root: h.root, files: ["app.can"], ...RECIPE }),
+    req("r-rs1", "retry", { root: h.root, files: ["app.can"], ...RECIPE, runner: "claude-code" }),
     ctxFor(h),
   );
   assert.equal(produced.code, 0, produced.envelope);
@@ -1696,6 +1694,22 @@ test("full retry records its parent set and accepts only complete", async () => 
   }
 });
 
+test("prepare regenerates an identity whose candidate was never accepted", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", [styleDescriptor("TaskSurface", "Readable task surfaces.", 100, 160)]);
+  const first = await dispatchControl(req("r-unborn1", "generate", {
+    root: h.root, files: ["app.can"], mode: "fresh", ...RECIPE,
+  }), ctxFor(h));
+  assert.equal(first.code, 0, first.envelope);
+  const prepared = await dispatchControl(req("r-unborn2", "generate", {
+    root: h.root, files: ["app.can"], mode: "prepare", ...RECIPE,
+  }), ctxFor(h));
+  assert.equal(prepared.code, 0, prepared.envelope);
+  const attempts = bodyOf(prepared.envelope)["attempts"] as { units: string[] }[];
+  assert.deepEqual(attempts.map(attempt => attempt.units), [["u1"]]);
+  await assert.rejects(readFile(join(h.root, "can.generated/u1/style.css")));
+});
+
 test("mixed retry stages Given before frontend and keeps every prompt", async () => {
   const h = await harness();
   h.fake.descriptors.set("app.can", [
@@ -1763,11 +1777,33 @@ process.stdin.on("end", async () => {
   assert.deepEqual((bodyOf(result.envelope)["accepted"] as { units: string[] }).units.sort(), ["u1", "u2", "u3"]);
   const givenPrompt = await readFile(join(h.root, ".can/gen/attempts", "r-mx1.j0", "prompt.txt"), "utf8");
   assert.ok(givenPrompt.includes("Add done:bool=false."), givenPrompt);
-  assert.ok(!givenPrompt.includes("Readable task surfaces."), givenPrompt);
+  assert.ok(givenPrompt.includes(APP), "the complete frozen source supplies structural context");
+  assert.ok(givenPrompt.includes('"role":"contributions","required":true'), givenPrompt);
   const frontendPrompt = await readFile(join(h.root, ".can/gen/attempts", "r-mx1.j1", "prompt.txt"), "utf8");
   assert.ok(frontendPrompt.includes("Readable task surfaces."), frontendPrompt);
   assert.ok(frontendPrompt.includes("A compact entry area."), frontendPrompt);
-  assert.ok(!frontendPrompt.includes("Add done:bool=false."), frontendPrompt);
+  assert.ok(frontendPrompt.includes(APP), "frontend generation also receives the complete source");
+  const capture = JSON.parse(await readFile(join(h.root, ".can/gen/attempts", "r-mx1.j1", "capture.json"), "utf8")) as CaptureRecord;
+  assert.equal(capture.instructions, frontendPrompt);
+  assert.ok(frontendPrompt.includes("Checked Given preparation"), frontendPrompt);
+  assert.ok(frontendPrompt.includes("bare universal * selectors"), frontendPrompt);
+  assert.ok(frontendPrompt.includes("row.fields.done"), frontendPrompt);
+  assert.ok(frontendPrompt.includes("contributions"), frontendPrompt);
+});
+
+test("invalid Given candidates prevent dependent frontend launch", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", [{ owner: "Tasks", kind: "named-trait", label: "completable", anchor: "trait completable", prompt: "Add done:bool=false.", profile: null, target: null, signature: null, span: { start: 10, end: 60 } }, styleDescriptor("TaskSurface", "Readable.", 100, 160)]);
+  h.fake.failValidateUnits.set("u1", "invalid trait schema");
+  let launched = 0;
+  const submit = submitAll();
+  const result = await dispatchControl(req("r-given-invalid", "retry", { root: h.root, files: ["app.can"], ...RECIPE }), ctxFor(h, { onSession: async (session) => { launched += 1; await submit(session); } }));
+  assert.equal(result.code, 4, result.envelope);
+  assert.equal(launched, 1, "frontend must not launch after failed Given validation");
+  const frontend = JSON.parse(await readFile(join(h.root, ".can/gen/attempts/r-given-invalid.j1/capture.json"), "utf8")) as CaptureRecord;
+  assert.ok(frontend.parent_set);
+  assert.equal(existsSync(join(h.root, ".can/gen/attempts/r-given-invalid.j1/session.json")), false);
+  assert.equal(existsSync(join(h.root, "can.generated/u1/contributions.can")), false, "candidate preparation must not promote");
 });
 
 test("retry serves submissions over the production MCP bridge", async () => {
@@ -1885,10 +1921,75 @@ process.stdin.on("end", async () => {
   // The host placed the bridge-submitted bytes; the profile layer is gone.
   const css = await readFile(join(attemptDir, "candidates", "u1-style", "style.css"), "utf8");
   assert.ok(css.includes("bridge:u1-style"), css);
-  const leftovers = readdirSync(join(h.root, "codex-home")).filter((name) => name.endsWith(".config.toml"));
+  const leftovers = readdirSync(join(attemptDir, "codex-home")).filter((name) => name.endsWith(".config.toml"));
   assert.deepEqual(leftovers, []);
 });
 
 
 
 
+
+async function retainedGivenFixture(): Promise<Harness> {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", [
+    { owner: "Tasks", kind: "named-trait", label: "completable", anchor: "trait completable", prompt: "Add done:bool=false.", profile: null, target: null, signature: null, span: { start: 10, end: 60 } },
+    styleDescriptor("TaskSurface", "Readable task surfaces.", 100, 160),
+  ]);
+  const seeded = await dispatchControl(req("retained-seed", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }), ctxFor(h));
+  assert.equal(seeded.code, 0, seeded.envelope);
+  await writeFile(join(h.root, "can.generated/u1/contributions.can"), "app Tasks\nGiven\n completable {done:bool=true}\n");
+  return h;
+}
+
+test("frontend prepare consumes saved edited Given context without generating it", async () => {
+  const h = await retainedGivenFixture();
+  h.fake.descriptors.get("app.can")![1]!.prompt = "Darker task surfaces.";
+  let launches = 0;
+  let instructions = "";
+  let checkedDependency = false;
+  const prepared = await dispatchControl(req("retained-prepare", "generate", { root: h.root, files: ["app.can"], mode: "prepare", accept: true, ...RECIPE }), ctxFor(h, {
+    resolveExecutable: async () => { launches++; return h.runner; },
+    onSession: session => { instructions = session.context().instructions ?? ""; submitAll()(session); },
+    compiler: async json => {
+      const request = JSON.parse(json) as Record<string, unknown>;
+      if (request.operation === "validate" && request.unit_id === "u2") {
+        const scratch = request.root as string;
+        const context = parseUnitRecord(await readFile(join(scratch, "can.generated/u1/unit.json"), "utf8"), "u1");
+        assert.equal(context.source.path, "app.can", "all copied dependency records resolve frozen scratch sources");
+        assert.equal(await readFile(join(scratch, "can.generated/u1/contributions.can"), "utf8"), "app Tasks\nGiven\n completable {done:bool=true}\n");
+        checkedDependency = true;
+      }
+      return h.fake.compiler(json);
+    },
+  }));
+  assert.equal(prepared.code, 0, prepared.envelope);
+  assert.equal(launches, 1);
+  assert.equal(checkedDependency, true);
+  assert.ok(instructions.includes("Checked Given preparation"), instructions);
+  assert.ok(instructions.includes("done:bool=true"), instructions);
+  const attempts = bodyOf(prepared.envelope).attempts as { units: string[] }[];
+  assert.deepEqual(attempts.map(attempt => attempt.units), [["u2"]]);
+  assert.equal(await readFile(join(h.root, "can.generated/u1/contributions.can"), "utf8"), "app Tasks\nGiven\n completable {done:bool=true}\n");
+});
+
+test("scoped frontend refine freezes Given dependencies and refuses their later edits", async () => {
+  const h = await retainedGivenFixture();
+  const oldStyle = await readFile(join(h.root, "can.generated/u2/style.css"), "utf8");
+  let instructions = "";
+  let launches = 0;
+  const generated = await dispatchControl(req("retained-refine", "refine", { root: h.root, unit_id: "u2", instruction: "Make focus clearer.", ...RECIPE }), ctxFor(h, {
+    resolveExecutable: async () => { launches++; return h.runner; },
+    onSession: session => { instructions = session.context().instructions ?? ""; submitAll()(session); },
+  }));
+  assert.equal(generated.code, 0, generated.envelope);
+  assert.equal(launches, 1);
+  assert.ok(instructions.includes("done:bool=true"), instructions);
+  const attempts = bodyOf(generated.envelope).attempts as { attempt: string; units: string[] }[];
+  assert.deepEqual(attempts.map(attempt => attempt.units), [["u2"]]);
+  await writeFile(join(h.root, "can.generated/u1/contributions.can"), "app Tasks\nGiven\n completable {done:bool=false}\n");
+  const accepted = await dispatchControl(req("retained-conflict", "accept", { root: h.root, attempt: attempts[0]!.attempt }), ctxFor(h));
+  assert.equal(accepted.code, 3, accepted.envelope);
+  assert.equal((bodyOf(accepted.envelope).error as { code: string }).code, "context-changed");
+  assert.equal(await readFile(join(h.root, "can.generated/u2/style.css"), "utf8"), oldStyle);
+  assert.equal(await readFile(join(h.root, "can.generated/u1/contributions.can"), "utf8"), "app Tasks\nGiven\n completable {done:bool=false}\n");
+});

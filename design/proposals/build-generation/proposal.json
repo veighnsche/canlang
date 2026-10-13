@@ -19,7 +19,7 @@
       "section": "Then",
       "surface": "style",
       "naming_status": "Reusable named definitions, named attachments and inline component attachments are retained; v1 source is frozen, engine unqualified.",
-      "authoring": "Top-level style Name $\"prompt\" defines reusable CSS without a visual body. Ordinary rendered components/pages/custom instances carry one $\"prompt\" or $Name suffix; nonvisual declarations and top-level anonymous scopes are excluded. Ordinary wrappers are superseded. Generated view renderer prompts stay in the view header, with one optional definition-owned leaf style $\"prompt\" or style Name root-style child alongside canonical controls. Compatible named uses share CSS without AI or copied outputs, with separate checked root/part instances; caller styling respects child-host/interior ownership.",
+      "authoring": "Top-level style Name $\"prompt\" defines reusable CSS without a visual body. Ordinary rendered components/pages/custom instances carry one $\"prompt\" or $Name suffix; nonvisual declarations and top-level anonymous scopes are excluded. Ordinary wrappers are superseded. Generated view renderer prompts stay in the view header, with one optional second $\"prompt\" or $Name suffix on that header for renderer-root styling and canonical controls as its only children; no inline, wrapper or leaf style statement exists. Compatible named uses share CSS without AI or copied outputs, with separate checked root/part instances; caller styling respects child-host/interior ownership.",
       "syntax": [
         "Then\n style CompactCard $\"Calm compact cards with clear focus indicators.\"\n page / $\"A calm responsive workspace.\"\n  card \"Add a task\" $CompactCard\n  card \"Your tasks\" $CompactCard",
         "card \"One-off panel\" $\"Compact layout with clear focus indicators.\"",
@@ -333,7 +333,7 @@
   "implementation_contract": "design/proposals/build-generation/implementation-contract.md",
   "selected_implementation": {
     "authority": "Codex-selected/frozen v1 for explicitly human-authorized Muse implementation; required outcomes remain human-owned and implementation remains unqualified.",
-    "D1": "Explicit keyword signatures and standalone Name key=value uses; named/inline traits retained. Rendered-component $\"...\" / $Name attachments replace ordinary style wrappers; generated views retain bounded root-style leaves.",
+    "D1": "Explicit keyword signatures and standalone Name key=value uses; named/inline traits retained. Rendered-component $\"...\" / $Name attachments are the only style carriers besides the top-level named definition; a generated view carries its root style as a second suffix on its header.",
     "D4": "Checked owner-versioned producers; initial state.unique-key@1 supplies novel NFKC/ASCII-lowercase uniqueness, without limiting future owner integration. Computed-key descriptor/code-closure fingerprints join existing schema activation.",
     "D6": "Compatible-recipe jobs receive whole-Then context; full retry validates/accepts all required outputs together under one run journal. Scoped refinement remains supported.",
     "contract": "design/proposals/build-generation/implementation-contract.md"

@@ -1645,7 +1645,7 @@ export function formFragmentWrap(idPrefix: string, formHtml: string): string {
  * factories with this prefix; refused fields never reach those calls.
  */
 export function viewControlIdPrefix(useId: string, control: string): string {
-  if (!/^can-view-m\d+-f\d+-s\d+$/.test(useId)) {
+  if (!/^can-view-m\d+-f\d+-s\d+(?:-o[0-9a-f]+)?$/.test(useId)) {
     throw new Error(`viewControlIdPrefix: invalid use id ${JSON.stringify(useId)}`);
   }
   if (!/^[a-z][a-z0-9-]*$/.test(control)) {

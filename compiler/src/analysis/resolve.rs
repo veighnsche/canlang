@@ -441,6 +441,9 @@ pub struct ResolveTables {
     pub judgment_generated_symbols: HashSet<SymbolId>,
     /// Declared generated field/parameter types, seeded before ordinary checking.
     pub judgment_types: HashMap<SymbolId, ResolvedType>,
+    /// Checked model-trait fields admitted before ordinary reference checking.
+    pub given_fields: HashMap<SymbolId, super::types::GivenContributedField>,
+    pub given_constraints: HashMap<SymbolId, Vec<super::types::GivenContributedField>>,
     /// Associated enums have type identities independent of result field lookup.
     pub judgment_type_paths: HashMap<String, SymbolId>,
     /// Shared catalog-owned nominal identities used by static judgments.
@@ -595,9 +598,54 @@ pub fn try_resolve_program(
     catalog: Option<&Catalog>,
     diags: &mut Vec<Diagnostic>,
 ) -> Result<ResolveTables, Diagnostic> {
+    try_resolve_program_with_given(db, trees, catalog, None, diags)
+}
+
+pub(crate) fn try_resolve_program_with_given(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    catalog: Option<&Catalog>,
+    given: Option<&super::types::GivenContractTables>,
+    diags: &mut Vec<Diagnostic>,
+) -> Result<ResolveTables, Diagnostic> {
     let mut resolver = Resolver::new(db, catalog);
     resolver.index_modules(trees, diags)?;
     resolver.index_declarations(trees, diags)?;
+    if let Some(given) = given {
+        for contract in &given.traits {
+            for application in &contract.applications {
+                if let Some(name) = &application.target_field {
+                    if let Some(id) = resolver.tables.by_canonical.get(&application.target_canonical).copied() {
+                        for field in &contract.contributed_fields {
+                            let mut constraint = field.clone();
+                            constraint.name = name.clone();
+                            resolver.tables.given_constraints.entry(id).or_default().push(constraint);
+                        }
+                    }
+                    continue;
+                }
+                let Some(owner) = resolver.tables.by_canonical.get(&application.target_canonical).copied() else { continue; };
+                if !matches!(resolver.tables.symbols[owner.0 as usize].kind, SymbolKind::Model { .. }) { continue; }
+                let module = resolver.tables.symbols[owner.0 as usize].module;
+                for field in &contract.contributed_fields {
+                    let canonical = format!("{}.{}", application.target_canonical, field.name);
+                    if resolver.tables.by_canonical.contains_key(&canonical) {
+                        diags.push(Diagnostic::error("E3021", format!("checked trait contribution duplicates field `{canonical}`"), application.span));
+                        continue;
+                    }
+                    let id = SymbolId(semantic_index(resolver.tables.symbols.len(), "Given field", application.span)?);
+                    resolver.tables.symbols.push(Symbol {
+                        id, canonical: canonical.clone(), name: field.name.clone(),
+                        kind: SymbolKind::Field { owner, type_node: NodeKey { file: application.span.file, start: application.span.start, end: application.span.end, kind: SyntaxKind::Field as u8 } },
+                        module, span: application.span, exported: false,
+                    });
+                    resolver.tables.by_canonical.insert(canonical, id);
+                    if let SymbolKind::Model { fields, .. } = &mut resolver.tables.symbols[owner.0 as usize].kind { fields.push(id); }
+                    resolver.tables.given_fields.insert(id, field.clone());
+                }
+            }
+        }
+    }
     resolver.resolve_imports(diags);
     resolver.resolve_ownership(diags);
     resolver.resolve_declarations(trees, diags)?;

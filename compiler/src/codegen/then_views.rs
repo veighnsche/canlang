@@ -64,12 +64,12 @@ impl ThenControl {
     }
 }
 
-/// Definition-owned root style child of a prompted view.
+/// Definition-owned root style suffix of a prompted view.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThenRootStyle {
-    /// Named root style (`style Name`), if any.
+    /// Named root style (`$Name`), if any.
     pub named: Option<String>,
-    /// Inline root style prompt (`style $"..."`), if any.
+    /// Inline root style prompt (`$"..."`), if any.
     pub inline_prompt: Option<String>,
 }
 
@@ -81,6 +81,8 @@ pub struct ThenView {
     pub prompt: String,
     pub profile: Option<String>,
     pub controls: Vec<ThenControl>,
+    /// Source-owned renderer slot names before public factory lowering.
+    pub binding_names: Vec<(Span, String)>,
     /// Definition-level `require` predicates gating the whole expansion.
     pub gates: Vec<String>,
     /// Static presentation leaves (`history`/`text`/`content`) the host
@@ -157,6 +159,11 @@ fn has_prompt(node: &SyntaxNode) -> bool {
 }
 
 fn prompt_text(node: &SyntaxNode) -> Option<String> {
+    if node.kind == SyntaxKind::ViewStyle {
+        return significant(node)
+            .iter()
+            .find_map(|c| c.token().and_then(|t| t.string_value.clone()));
+    }
     significant(node).iter().find_map(|c| {
         if c.kind != SyntaxKind::GenPrompt {
             return None;
@@ -236,7 +243,7 @@ fn collect_models(tree: &SyntaxNode, text: &str) -> HashSet<String> {
 }
 
 /// Lower every prompted view in one parsed file. The parser already admits
-/// only canonical control children and one root style child; this step
+/// only canonical control children and one root style suffix; this step
 /// checks the row target and exposes the renderer contract.
 pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
     let mut views = Vec::new();
@@ -275,10 +282,20 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
             continue;
         }
         let mut controls = Vec::new();
+        let mut binding_names = Vec::new();
         let mut gates = Vec::new();
         let mut leaves = Vec::new();
         let mut root_style: Option<ThenRootStyle> = None;
         for child in significant(node) {
+            let binding = match child.kind {
+                SyntaxKind::Edit => Some("edit".to_string()),
+                SyntaxKind::Form => Some("form".to_string()),
+                SyntaxKind::UiLeaf => names(child, text).into_iter().next().filter(|name| name != "require"),
+                _ => None,
+            };
+            if let Some(binding) = binding {
+                binding_names.push((child.span, binding));
+            }
             match child.kind {
                 SyntaxKind::Edit => {
                     let fields = attribute_value(child, text, "fields")
@@ -342,7 +359,7 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                             named: None,
                             inline_prompt: Some(inline),
                         });
-                    } else if let Some(style) = style_names.into_iter().nth(1) {
+                    } else if let Some(style) = style_names.into_iter().next() {
                         root_style = Some(ThenRootStyle {
                             named: Some(style),
                             inline_prompt: None,
@@ -358,7 +375,7 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                     diagnostics.push(Diagnostic::error(
                         "E2001",
                         format!(
-                            "view `{name}` admits only canonical controls and one root style child"
+                            "view `{name}` admits only canonical controls and one root style suffix"
                         ),
                         child.span,
                     ));
@@ -372,6 +389,7 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
             prompt,
             profile,
             controls,
+            binding_names,
             gates,
             leaves,
             root_style,

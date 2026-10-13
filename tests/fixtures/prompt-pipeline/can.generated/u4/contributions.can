@@ -1,0 +1,3 @@
+app PromptStudio
+Given
+ Item {handle:text trim min=1 max=40}

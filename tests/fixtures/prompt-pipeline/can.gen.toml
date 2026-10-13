@@ -1,0 +1,19 @@
+version = 1
+
+[generation]
+runner = "codex"
+model = "gpt-6.1-sol"
+max_attempts = 1
+timeout_seconds = 600
+
+[generation.native]
+model_reasoning_effort = "medium"
+
+[generation.profiles.frontend]
+runner = "codex"
+model = "gpt-6.1-sol"
+max_attempts = 1
+timeout_seconds = 600
+
+[generation.profiles.frontend.native]
+model_reasoning_effort = "medium"

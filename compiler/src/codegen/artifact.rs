@@ -187,6 +187,17 @@ pub struct ArtifactTestModule {
     pub fixtures: Vec<String>,
 }
 
+/// Checked consumed renderer and optional inert browser enhancement.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactGeneratedView {
+    pub view: String,
+    pub module: String,
+    pub render_export: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mount_export: Option<String>,
+}
+
 /// Root artifact emitted for one program.
 #[derive(Debug, Clone)]
 pub struct CompileArtifact {
@@ -218,6 +229,7 @@ pub struct CompileArtifact {
     /// Packed scoped stylesheets for the style units this build
     /// consumes, in staged-path order. Empty omits the JSON key.
     pub stylesheets: Vec<ArtifactStylesheet>,
+    pub generated_views: Vec<ArtifactGeneratedView>,
     /// Checked standard/custom value type contracts and enum declarations,
     /// when the source program owns any such values.
     pub value_types: Option<crate::codegen::js::JsValueTypes>,
@@ -416,6 +428,7 @@ pub fn assemble(
         // saved-free so direct emission keeps its exact prior posture.
         given_contracts: None,
         stylesheets: Vec::new(),
+        generated_views: Vec::new(),
         value_types: js.value_types.clone(),
         model_policies: js.model_policies.clone(),
         committed_changes: js.committed_changes.clone(),
@@ -634,6 +647,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
             .iter()
             .map(StylesheetWire::new)
             .collect(),
+        generated_views: &artifact.generated_views,
         value_types: artifact.value_types.as_ref(),
         model_policies: artifact.model_policies.as_deref(),
         committed_changes: artifact.committed_changes.as_deref(),
@@ -704,6 +718,11 @@ struct ArtifactWire<'a> {
     given_contracts: Option<GivenContractsMemberWire<'a>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     stylesheets: Vec<StylesheetWire<'a>>,
+    #[serde(
+        rename = "generatedViews",
+        skip_serializing_if = "<[ArtifactGeneratedView]>::is_empty"
+    )]
+    generated_views: &'a [ArtifactGeneratedView],
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "valueTypes")]
     value_types: Option<&'a crate::codegen::js::JsValueTypes>,
@@ -838,6 +857,8 @@ struct StylesheetWire<'a> {
     css: &'a str,
     sha256: &'a str,
     owner: OwnerLinkWire<'a>,
+    #[serde(skip_serializing_if = "<[ArtifactStyleAsset]>::is_empty")]
+    assets: &'a [ArtifactStyleAsset],
 }
 
 impl<'a> StylesheetWire<'a> {
@@ -847,6 +868,7 @@ impl<'a> StylesheetWire<'a> {
             css: &sheet.css,
             sha256: &sheet.sha256,
             owner: OwnerLinkWire::new(&sheet.owner),
+            assets: &sheet.assets,
         }
     }
 }
@@ -1605,6 +1627,44 @@ pub struct ArtifactStylesheet {
     pub sha256: String,
     /// Owning `.can` intent link.
     pub owner: CanOwnerLink,
+    pub assets: Vec<ArtifactStyleAsset>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactStyleAsset {
+    pub path: String,
+    pub content_base64: String,
+    pub sha256: String,
+    pub content_type: String,
+}
+
+/// Finite MIME admission shared by style validation and packing.
+pub fn style_asset_content_type(path: &str, bytes: &[u8]) -> Result<&'static str, String> {
+    let extension = path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    if extension == "css" { return Ok("text/css"); }
+    if extension == "js" || extension == "mjs" { return Ok("application/javascript"); }
+    let ascii = |start: usize, end: usize| bytes.get(start..end).unwrap_or(&[]);
+    let detected = if bytes.starts_with(&[137,80,78,71,13,10,26,10]) { Some("image/png") }
+        else if bytes.starts_with(&[255,216,255]) { Some("image/jpeg") }
+        else if ascii(0,6) == b"GIF87a" || ascii(0,6) == b"GIF89a" { Some("image/gif") }
+        else if ascii(0,4) == b"RIFF" && ascii(8,12) == b"WEBP" { Some("image/webp") }
+        else if ascii(4,8) == b"ftyp" && (ascii(8,12) == b"avif" || ascii(8,12) == b"avis") { Some("image/avif") }
+        else if ascii(0,4) == b"wOFF" { Some("font/woff") }
+        else if ascii(0,4) == b"wOF2" { Some("font/woff2") }
+        else if bytes.starts_with(&[0,1,0,0]) { Some("font/ttf") }
+        else if ascii(0,4) == b"OTTO" { Some("font/otf") }
+        else {
+            let prefix = String::from_utf8_lossy(&bytes[..bytes.len().min(512)]);
+            let mut prefix = prefix.trim_start_matches('\u{feff}').trim_start();
+            if prefix.starts_with("<?xml") { if let Some(end) = prefix.find("?>") { prefix = prefix[end + 2..].trim_start(); } }
+            let root = prefix.get(..4).is_some_and(|head| head.eq_ignore_ascii_case("<svg")) && prefix[4..].chars().next().is_some_and(|ch| ch.is_whitespace() || ch == '>');
+            root.then_some("image/svg+xml")
+        };
+    let expected = match extension.as_str() {
+        "png" => "image/png", "jpg" | "jpeg" => "image/jpeg", "gif" => "image/gif", "webp" => "image/webp", "avif" => "image/avif", "svg" => "image/svg+xml", "woff" => "font/woff", "woff2" => "font/woff2", "ttf" => "font/ttf", "otf" => "font/otf", _ => "",
+    };
+    detected.filter(|mime| extension == "bin" || *mime == expected).ok_or_else(|| format!("unsupported or mismatched owned asset type for `{path}`; submit a supported image/font with matching bytes"))
 }
 
 /// Staged artifact path for one style unit's scoped CSS. Style-family
@@ -1635,6 +1695,15 @@ pub fn pack_saved_stylesheet(
     owner: CanOwnerLink,
     css: &str,
 ) -> Result<ArtifactStylesheet, String> {
+    pack_saved_stylesheet_with_assets(kind, owner, css, &[])
+}
+
+pub fn pack_saved_stylesheet_with_assets(
+    kind: crate::analysis::generation_intake::UnitKind,
+    owner: CanOwnerLink,
+    css: &str,
+    files: &[crate::analysis::generation_intake::SavedFile],
+) -> Result<ArtifactStylesheet, String> {
     if owner.unit_id.is_empty() || owner.kind != kind.as_str() {
         return Err(format!(
             "owner link names unit `{}` kind `{}` but packs a {} stylesheet",
@@ -1643,7 +1712,7 @@ pub fn pack_saved_stylesheet(
             kind.as_str(),
         ));
     }
-    let scoped = crate::css_scope::scope_stylesheet(&owner.unit_id, css).map_err(|errors| {
+    let scoped = crate::css_scope::scope_deployed_stylesheet(&owner.unit_id, css).map_err(|errors| {
         let first = &errors[0];
         let mut message = format!(
             "unit `{}` `style.css` failed scope checks: {} {} (line {}, column {})",
@@ -1654,6 +1723,13 @@ pub fn pack_saved_stylesheet(
         }
         message
     })?;
+    use base64::Engine;
+    let mut assets = Vec::new();
+    for path in &scoped.assets {
+        let file = files.iter().find(|file| &file.rel_path == path).ok_or_else(|| format!("unit `{}` references missing owned asset `{path}`", owner.unit_id))?;
+        let content_type = style_asset_content_type(path, &file.bytes)?;
+        assets.push(ArtifactStyleAsset { path: format!("can.generated/{}/{path}", owner.unit_id), content_base64: base64::engine::general_purpose::STANDARD.encode(&file.bytes), sha256: crate::source::sha256_hex(&file.bytes), content_type: content_type.to_string() });
+    }
     let path = saved_unit_style_path(kind, &owner.unit_id)?;
     let sha256 = crate::source::sha256_hex(scoped.css.as_bytes());
     Ok(ArtifactStylesheet {
@@ -1661,5 +1737,6 @@ pub fn pack_saved_stylesheet(
         css: scoped.css,
         sha256,
         owner,
+        assets,
     })
 }

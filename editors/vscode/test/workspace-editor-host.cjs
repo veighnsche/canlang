@@ -1,4 +1,4 @@
-/** Project acceptance in the real editor host. Use a disposable local workspace. */
+/** Project acceptance in the real editor host. Use disposable local workspace roots, each with the current can-catalog.json. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

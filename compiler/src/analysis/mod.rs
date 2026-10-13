@@ -210,6 +210,16 @@ pub fn check_program(
     files: &[SourceId],
     catalog: Option<&Catalog>,
 ) -> (CheckedProgram, Vec<Diagnostic>) {
+    check_program_with_given(db, files, catalog, None)
+}
+
+/// Apply checked owner-attached Given fields before resolving/checking bodies.
+pub(crate) fn check_program_with_given(
+    db: &SourceDb,
+    files: &[SourceId],
+    catalog: Option<&Catalog>,
+    given: Option<&types::GivenContractTables>,
+) -> (CheckedProgram, Vec<Diagnostic>) {
     let mut trees = Vec::with_capacity(files.len());
     let mut diagnostics = Vec::new();
     for &file in files {
@@ -225,7 +235,7 @@ pub fn check_program(
             diagnostics.extend(found.diagnostics);
         }
     }
-    let resolve_tables = match resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics) {
+    let resolve_tables = match resolve::try_resolve_program_with_given(db, &trees, catalog, given, &mut diagnostics) {
         Ok(tables) => tables,
         Err(diagnostic) => {
             diagnostics.push(diagnostic);

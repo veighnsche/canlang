@@ -33,7 +33,7 @@
   align-items: center;
 }
 
-#can-main {
+:where(#can-main) {
   box-sizing: border-box;
   width: 100%;
   max-width: 72rem;
@@ -45,6 +45,8 @@
   gap: 1.5rem;
 }
 .drawer-content { min-width: 0; }
+/* Component panels must cover the persistent shell navigation. */
+.can-drawer-panel { z-index: 20; }
 .can-page-heading { display: grid; gap: 0.5rem; }
 .can-form { display: grid; gap: 1rem; }
 .can-form > * { min-width: 0; grid-column: 1 / -1; }

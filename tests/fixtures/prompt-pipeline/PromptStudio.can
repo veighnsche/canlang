@@ -1,0 +1,38 @@
+app PromptStudio
+## Real generation acceptance app. All behavior remains in this source.
+Given
+ trait completable $"Add the field done:bool=false to each attached model. This is a reusable model contribution."
+ trait title_text $"Constrain each attached text field with trim, min=1 and max=80. Keep its text type and do not add a default."
+ keyword canonical_identity(target:model,field:field(target,text)) $"Compute a unique key with Unicode NFKC normalization followed by ASCII A-Z lowercasing only. Preserve non-ASCII case and the stored spelling. Return the key as text. Uniqueness, permissions and transactions belong to the canonical owner."
+ Item {title:text title_text,handle:text trait $"Constrain this text field with trim, min=1 and max=40. Keep the field's text type and do not add a default."} completable
+ Note {title:text title_text} completable trait $"Add pinned:bool=false to this model."
+ Alias {handle:text trim min=1 max=40}
+ canonical_identity target=Item field=Item.handle
+ canonical_identity target=Alias field=Alias.handle
+ policy Item read=members
+ policy Note read=members
+ policy Alias read=members
+When
+ crud Item by=members fields=title,handle
+ crud Note by=members fields=title
+ crud Alias by=members fields=handle
+Then
+ style Surface $"Create a refined, calm workspace surface with cream and deep green accents, comfortable spacing, rounded corners and clear focus. Use shared theme values when appropriate. Support cards, fields and the ItemTile root without changing canonical controls. Keep forms and validation readable, and stack at narrow widths."
+ view ItemTile(row:Item) $"Render an elegant compact item card. Display the escaped title and handle; show a small Open or Done status from the contributed done field. Include all canonical edit and delete bindings unchanged exactly once. Export an optional mount that marks this instance with data-enhanced=true, adds no network or state operations, and removes the marker on cleanup. Include a small optional style.css for your renderer-owned class names and coordinate with Surface." $Surface
+  edit fields=title,handle
+  delete
+ page / title="Prompt Studio" $"Make this a polished small collection workspace. Use a centered, generously spaced content column, a clear hierarchy, green accents and a warm neutral background within the owned page. Preserve shared navigation, all controls, validation states and mobile usability."
+  card "New item" $Surface
+   form Item.create fields=title,handle
+  list Item empty="No items yet. Create your first item."
+   show ItemTile {row=row} $Surface
+ page /notes title="Notes"
+  card "New note" $Surface
+   form Note.create fields=title
+  table Note columns=title,done,pinned empty="No notes yet."
+ page /aliases title="Aliases"
+  card "New alias" $Surface
+   form Alias.create fields=handle
+  list Alias empty="No aliases yet."
+   text row.handle
+   delete

@@ -59,10 +59,11 @@ import type {
 } from "@canlang/contracts";
 import type { D1Database } from '@cloudflare/workers-types';
 import type { HttpAuthConfiguration } from '../worker/assembly.js';
-import type { PagePreferenceStore } from '@canlang/interfaces';
+import type { PagePreferenceStore, ExportDownloadStore } from '@canlang/interfaces';
 import { app_url } from '@canlang/values';
 import { createD1AuthRateLimiter } from './auth-rate-limiter.js';
 import { createD1PagePreferenceStore, ensurePagePreferencesSchema } from './page-preferences.js';
+import { createD1ExportDownloadStore, ensureExportDownloadsSchema } from './export-downloads.js';
 
 /** Trusted host assignment; never populated from request inputs. */
 export interface StateTeamBinding {
@@ -425,7 +426,7 @@ export function validateDeploymentBase(value: unknown): string {
  */
 export async function buildProductionDeps(
   env: Record<string, unknown>,
-): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
+): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
   const configuredBase = Object.getOwnPropertyDescriptor(env, 'CAN_DEPLOYMENT_BASE');
   if (configuredBase !== undefined && !('value' in configuredBase)) throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE requires own configuration data');
   const deploymentBase = configuredBase === undefined ? undefined : validateDeploymentBase(configuredBase.value);
@@ -462,10 +463,12 @@ export async function buildProductionDeps(
     const identity = await loadIdentityD1();
     await identity.ensureIdentitySchema(db);
     await ensurePagePreferencesSchema(db as D1Database);
+    await ensureExportDownloadsSchema(db as D1Database);
     const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
       limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
     return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(),
       identityStore: identity.createD1IdentityStore(db), preferences: createD1PagePreferenceStore(db as D1Database),
+      exportDownloads: createD1ExportDownloadStore(db as D1Database),
       stateTeams };
   }
   if (selectedOwner !== undefined) {
@@ -483,10 +486,12 @@ export async function buildProductionDeps(
     const identity = await loadIdentityD1();
     await identity.ensureIdentitySchema(db);
     await ensurePagePreferencesSchema(db as D1Database);
+    await ensureExportDownloadsSchema(db as D1Database);
     const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
       limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
     return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
       preferences: createD1PagePreferenceStore(db as D1Database),
+      exportDownloads: createD1ExportDownloadStore(db as D1Database),
       stateTeam: { owner: selectedOwner, db: stateDb as unknown as D1Database,
         ...(fresh === undefined ? {} : { initializeFresh: true }) } };
   }
@@ -495,6 +500,7 @@ export async function buildProductionDeps(
   await state.ensureSchema(db);
   await identity.ensureIdentitySchema(db);
   await ensurePagePreferencesSchema(db as D1Database);
+  await ensureExportDownloadsSchema(db as D1Database);
   const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
     limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
   return {
@@ -503,5 +509,6 @@ export async function buildProductionDeps(
     store: state.createD1Storage(db),
     identityStore: identity.createD1IdentityStore(db),
     preferences: createD1PagePreferenceStore(db as D1Database),
+    exportDownloads: createD1ExportDownloadStore(db as D1Database),
   };
 }

@@ -23,8 +23,6 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { access, constants } from "node:fs";
-import { delimiter, join } from "node:path";
 import {
   ConfigError,
   loadSettings,
@@ -33,6 +31,7 @@ import {
   type RunOverrides,
 } from "../generation/config.js";
 import { dispatchControl } from "../generation/controls.js";
+import { adapterFor, probeExecutable } from "../generation/adapters.js";
 import {
   ADAPTERS,
   EXIT_INVALID,
@@ -75,25 +74,14 @@ async function readStdinText(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** Unix PATH search mirroring the Rust dispatcher probe. */
+/** Match the runner launch resolver, including explicit host executable selection. */
 async function findOnPath(name: string): Promise<string | null> {
-  const path = process.env["PATH"] ?? "";
-  for (const dir of path.split(delimiter)) {
-    if (dir.length === 0) continue;
-    const candidate = join(dir, name);
-    try {
-      await new Promise<void>((resolvePromise, rejectPromise) => {
-        access(candidate, constants.X_OK, (error) => {
-          if (error === null) resolvePromise();
-          else rejectPromise(error);
-        });
-      });
-      return candidate;
-    } catch {
-      // Keep probing the remaining entries.
-    }
-  }
-  return null;
+  return probeExecutable([name]).catch(() => null);
+}
+
+function selectedBinaries(id: string): { binaries: readonly string[]; error: string | null } {
+  try { return { binaries: adapterFor(id).probeBinaries(), error: null }; }
+  catch (error) { return { binaries: [], error: error instanceof Error ? error.message : String(error) }; }
 }
 
 /** Best-effort request id/operation echo for failed parses. */
@@ -149,8 +137,10 @@ async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promis
   }
   const adapters: unknown[] = [];
   for (const adapter of ADAPTERS) {
+    const selection = selectedBinaries(adapter.id);
+    const binaries = selection.binaries;
     let found: { binary: string; path: string } | null = null;
-    for (const binary of adapter.probe_binaries) {
+    for (const binary of binaries) {
       const path = await findOnPath(binary);
       if (path !== null) {
         found = { binary, path };
@@ -168,8 +158,8 @@ async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promis
       },
       availability:
         found === null
-          ? { found: false, binary: null, path: null, tried: [...adapter.probe_binaries] }
-          : { found: true, binary: found.binary, path: found.path, tried: [...adapter.probe_binaries] },
+          ? { found: false, binary: null, path: null, tried: [...binaries], ...(selection.error === null ? {} : { error: selection.error }) }
+          : { found: true, binary: found.binary, path: found.path, tried: [...binaries] },
     });
   }
   const blockers: string[] = [];
@@ -188,18 +178,21 @@ async function runGenDoctor(header: RequestHeader, params: DoctorParams): Promis
     preflight = { ok: failures.length === 0, failures };
     if (failures.length === 0) {
       const adapter = adapterCapabilities(recipe.runner);
+      const selection = selectedBinaries(recipe.runner);
+      const binaries = selection.binaries;
       let binaryFound = false;
       if (adapter !== undefined) {
-        for (const binary of adapter.probe_binaries) {
+        for (const binary of binaries) {
           if ((await findOnPath(binary)) !== null) {
             binaryFound = true;
             break;
           }
         }
       }
+      if (selection.error !== null) blockers.push(selection.error);
       if (!binaryFound) {
         blockers.push(
-          `runner \`${recipe.runner}\` has no executable on PATH (tried: ${adapter?.probe_binaries.join(", ") ?? ""})`,
+          `runner \`${recipe.runner}\` has no executable for the selected host path (tried: ${binaries.join(", ")})`,
         );
       }
     } else {

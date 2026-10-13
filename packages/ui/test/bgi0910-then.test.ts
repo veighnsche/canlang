@@ -14,7 +14,7 @@ import {
   styleHostAttributes,
   styleUseAttributes,
 } from '@canlang/contracts';
-import { generatedViewInstance } from '../src/components.js';
+import { generatedViewInstance, styledComponent } from '../src/components.js';
 import { formFragmentWrap, viewControlIdPrefix } from '../src/forms.js';
 import { rerenderFormPreservingFocus } from '../src/client.js';
 import {
@@ -78,7 +78,7 @@ describe('generated view instances', () => {
     assert.match(first, /<section data-can-view="can-view-m0-f0-s10"/);
     assert.match(first, /data-can-style="u7" data-can-style-root="u7:can-view-m0-f0-s10"/);
     assert.match(first, /data-can-view-presentation="/);
-    assert.match(first, /<h2>Write tests<\/h2>/);
+    assert.match(first, /<h2 data-can-style="u7">Write tests<\/h2>/);
     assert.match(second, /<section data-can-view="can-view-m0-f0-s99"/);
     assert.ok(!second.includes('can-view-m0-f0-s10'));
   });
@@ -112,6 +112,9 @@ describe('generated view instances', () => {
     const other = viewControlIdPrefix('can-view-m0-f0-s99', 'edit');
     assert.equal(edit, 'can-view-m0-f0-s10-edit');
     assert.notEqual(edit, other);
+    const occurrence = viewControlIdPrefix('can-view-m0-f0-s10-o5b31325d', 'edit');
+    assert.notEqual(edit, occurrence);
+    assert.throws(() => viewControlIdPrefix('can-view-m0-f0-s10-ounchecked', 'edit'), /invalid use id/);
     assert.throws(() => viewControlIdPrefix('bogus', 'edit'), /invalid use id/);
     assert.throws(() => viewControlIdPrefix('can-view-m0-f0-s10', 'Edit!'), /invalid control/);
   });
@@ -248,6 +251,48 @@ describe('generated view mounts', () => {
     }
   });
 
+  it('restores both live roots after refresh and releases each active mount exactly once', async () => {
+    const active = new Set<object>();
+    const mounted: string[] = [], cleaned: string[] = [];
+    registerGeneratedViewMount('TaskTileRefresh', (root, presentation) => {
+      assert.ok(typeof root === 'object' && root !== null);
+      const element = root as { setAttribute(name: string, value: string): void; removeAttribute(name: string): void };
+      assert.equal(active.has(root), false, 'a root cannot have duplicate live mounts');
+      active.add(root);
+      mounted.push(presentation.row.id);
+      element.setAttribute('data-enhanced', 'true');
+      return () => {
+        assert.equal(active.delete(root), true, 'cleanup belongs to one active mount');
+        cleaned.push(presentation.row.id);
+        element.removeAttribute('data-enhanced');
+      };
+    });
+    const render = (id: string, useId: string) => generatedViewInstance({
+      ...props(useId, async () => `<p>${id}</p>`),
+      descriptor: plainDescriptor('TaskTileRefresh'), row: { id, fields: {} },
+    });
+    const first = await render('row-a', 'can-view-m0-f0-s21');
+    const second = await render('row-b', 'can-view-m0-f0-s22');
+    const page = await world(first);
+    try {
+      const document = page.window.document as unknown as Parameters<typeof applyPollResponse>[0];
+      const region = page.window.document.getElementById('can-main') as unknown as Parameters<typeof applyPollResponse>[1];
+      assert.equal(applyPollResponse(document, region, `<main ${MAIN_ATTRS}>${first}${second}</main>`, 200), true);
+      page.client.rescan();
+      assert.equal(page.window.document.querySelectorAll('[data-enhanced="true"]').length, 2);
+      assert.deepEqual(mounted, ['row-a', 'row-a', 'row-b']);
+      assert.deepEqual(cleaned, ['row-a']);
+      page.client.rescan();
+      assert.equal(mounted.length, 3, 'unchanged rescans retain live mounts');
+      assert.equal(applyPollResponse(document, region, `<main ${MAIN_ATTRS}>${first}</main>`, 200), true);
+      page.client.rescan();
+      assert.equal(page.window.document.querySelectorAll('[data-enhanced="true"]').length, 1);
+      assert.deepEqual(cleaned, ['row-a', 'row-a', 'row-b']);
+    } finally { await page.close(); }
+    assert.equal(active.size, 0);
+    assert.equal(cleaned.length, mounted.length);
+  });
+
   it('leaves roots without a registered mount inert', async () => {
     const html = await generatedViewInstance(props('can-view-m0-f0-s30', async () => '<p>plain</p>'));
     const page = await world(html);
@@ -257,5 +302,58 @@ describe('generated view mounts', () => {
     } finally {
       await page.close();
     }
+  });
+});
+
+
+describe('scoped component HTML ownership', () => {
+  it('retains renderer CSS ownership with a separate header root style', async () => {
+    const window = new Window();
+    try {
+      const html = await generatedViewInstance({...props('can-view-m0-f0-s10', () => '<article><h2>Task</h2></article>'),
+        descriptor:{...descriptor(),rendererStyle:'u-render'}});
+      window.document.body.innerHTML = html;
+      const root = window.document.querySelector('[data-can-view]')!;
+      assert.equal(root.getAttribute('data-can-style'),'u-render');
+      assert.equal(root.getAttribute('data-can-style-host'),'u7');
+      assert.equal(root.getAttribute('data-can-style-root'),'u-render:can-view-m0-f0-s10 u7:can-view-m0-f0-s10');
+      assert.equal(window.document.querySelector('h2')!.getAttribute('data-can-style'),'u-render');
+      assert.equal(window.document.querySelector('h2')!.getAttribute('data-can-style-host'),null);
+    } finally { await window.happyDOM.close(); }
+  });
+
+  it('stamps owned elements and exposes only nested child hosts', async () => {
+    const window = new Window();
+    try {
+      const child = styledComponent('<section><label>Child<input value="quoted > value"></label></section>', 'u-child', 'child');
+      const html = styledComponent(`<article><h2>Parent</h2>${child}<section data-can-view="nested"><p>Private renderer</p></section><!-- <fake> --><script>const raw = "<span>";</script></article>`, 'u-parent', 'parent');
+      window.document.body.innerHTML = html!;
+      assert.equal(window.document.querySelector('article')!.getAttribute('data-can-style-root'), 'u-parent:parent');
+      assert.equal(window.document.querySelector('h2')!.getAttribute('data-can-style'), 'u-parent');
+      const sections = window.document.querySelectorAll('section');
+      assert.equal(sections[0]!.getAttribute('data-can-style'), 'u-child');
+      assert.equal(sections[0]!.getAttribute('data-can-style-host'), 'u-parent');
+      const caller = styledComponent(child!, "u-caller", "caller")!;
+      assert.match(caller, /data-can-style-root="u-child:child u-caller:caller"/);
+      assert.equal(window.document.querySelector('input')!.getAttribute('data-can-style'), 'u-child');
+      assert.equal(window.document.querySelector('input')!.getAttribute('value'), 'quoted > value');
+      assert.equal(sections[1]!.getAttribute('data-can-style-host'), 'u-parent');
+      assert.equal(window.document.querySelector('p')!.getAttribute('data-can-style'), null);
+      assert.equal(window.document.querySelector('script')!.textContent, 'const raw = "<span>";');
+      assert.equal(styledComponent(null,'u-parent','null'), null);
+      assert.equal(await styledComponent(Promise.resolve('<p>Async</p>'),'u-parent','async'), '<p data-can-style="u-parent" data-can-style-root="u-parent:async">Async</p>');
+    } finally { await window.happyDOM.close(); }
+  });
+
+  it('stamps the generated renderer interior and retains independently owned controls', async () => {
+    const window = new Window();
+    try {
+      const html = await generatedViewInstance({...props('can-view-m0-f0-s10', ({bindings}) => `<article><h2>Task</h2>${bindings.edit}</article>`),
+        bindings:[{name:'edit',html:styledComponent('<form><input></form>','u-field','field')!}]});
+      window.document.body.innerHTML = html;
+      assert.equal(window.document.querySelector('h2')!.getAttribute('data-can-style'), 'u7');
+      assert.equal(window.document.querySelector('form')!.getAttribute('data-can-style-host'), 'u7');
+      assert.equal(window.document.querySelector('input')!.getAttribute('data-can-style'), 'u-field');
+    } finally { await window.happyDOM.close(); }
   });
 });

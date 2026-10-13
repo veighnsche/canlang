@@ -1,8 +1,8 @@
 {
   "name": "canlang-draft-highlighting",
-  "displayName": "Canlang Draft Syntax",
-  "description": "Syntax highlighting plus a minimal LSP client for the current canlang draft grammar. Spawns `can lsp` for diagnostics.",
-  "version": "0.1.16",
+  "displayName": "Canlang",
+  "description": "Language support for Can: safe project rename, navigation, completion, diagnostics, formatting, folding and syntax highlighting.",
+  "version": "0.1.17",
   "publisher": "canlang",
   "license": "MIT",
   "repository": {
@@ -58,7 +58,12 @@
     "commands": [
       {
         "command": "can.restartServer",
-        "title": "Can: Restart Language Server",
+        "title": "Restart Language Server",
+        "category": "Can"
+      },
+      {
+        "command": "can.serverStatus",
+        "title": "Language Server Status",
         "category": "Can"
       }
     ],
@@ -176,5 +181,14 @@
         "description": "Can readonly semantic modifier."
       }
     ]
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Syntax highlighting and basic editing remain available. Language tools start after you trust the workspace.",
+      "restrictedConfigurations": [
+        "can.serverPath"
+      ]
+    }
   }
 }

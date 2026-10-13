@@ -318,7 +318,7 @@ export async function drawer(props: DrawerProps): Promise<string> {
     `<div class="${escapeAttr(joinClasses("drawer", modifiers))}">` +
     `<input id="${id}" type="checkbox" class="drawer-toggle">` +
     `<div class="drawer-content">${trigger}</div>` +
-    `<div class="drawer-side">` +
+    `<div class="drawer-side can-drawer-panel">` +
     `<label for="${id}" class="drawer-overlay" aria-label="${closeLabel}"></label>` +
     `<aside class="w-80 min-h-full bg-base-200 flex flex-col" aria-labelledby="${id}-title">` +
     `<h2 id="${id}-title" class="px-4 py-3 text-lg font-bold">${escapeHtml(caption)}</h2>` +

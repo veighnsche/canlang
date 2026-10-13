@@ -315,10 +315,10 @@ test('BGI-08 closure fingerprint pins the exact consumed import set', async () =
     { path: 'can.generated/u2/fold.js', js: FOLD_JS },
   ];
   // Cross-host contract pin: the compiler lane reproduces this exact
-  // vector (staged paths ascending, u64BE length framing, SHA-256).
+  // vector (root first, unit-relative imports sorted, u64BE framing).
   assert.equal(
     await givenClosureFingerprint(members),
-    '40a8aff9588afe4a9d61cbc30bc640d345b6dd69b4cde35de5acba21219680ea',
+    '3f7ff6523b4ce0e8b23de0d98f97510fc65941cf5410dece133721ac3f0ff6f5',
   );
   // Member order never matters; the canonical form sorts by path.
   assert.equal(await givenClosureFingerprint([...members].reverse()), await givenClosureFingerprint(members));

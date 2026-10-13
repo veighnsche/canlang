@@ -21,11 +21,41 @@ import { jsonErrorResponse } from './context.js';
 /** Asset mount prefix: the remainder is the exact table key. */
 export const ASSETS_PREFIX = '/assets/';
 
-/** Exact MIME values the table admits (byte-exact JS/CSS only). */
+/** Exact MIME values admitted by the defining asset table. */
 export const ASSET_MIME_JAVASCRIPT = 'application/javascript';
 export const ASSET_MIME_CSS = 'text/css';
 
-const ADMITTED_MIME = new Set([ASSET_MIME_JAVASCRIPT, ASSET_MIME_CSS]);
+const ADMITTED_MIME = new Set([ASSET_MIME_JAVASCRIPT, ASSET_MIME_CSS,
+  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/svg+xml",
+  "font/woff", "font/woff2", "font/ttf", "font/otf"]);
+
+/** Finite owned CSS-asset MIME admission, including MCP's opaque asset.bin. */
+export function assetContentType(path: string, bytes: Uint8Array): string {
+  const extension = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  if (extension === "css") return ASSET_MIME_CSS;
+  if (extension === "js" || extension === "mjs") return ASSET_MIME_JAVASCRIPT;
+  const starts = (signature: readonly number[]): boolean => signature.every((byte,index) => bytes[index] === byte);
+  const ascii = (offset:number, length:number): string => String.fromCharCode(...bytes.slice(offset,offset+length));
+  let detected: string | undefined;
+  if (starts([137,80,78,71,13,10,26,10])) detected = "image/png";
+  else if (starts([255,216,255])) detected = "image/jpeg";
+  else if (["GIF87a","GIF89a"].includes(ascii(0,6))) detected = "image/gif";
+  else if (ascii(0,4) === "RIFF" && ascii(8,4) === "WEBP") detected = "image/webp";
+  else if (ascii(4,4) === "ftyp" && ["avif","avis"].includes(ascii(8,4))) detected = "image/avif";
+  else if (ascii(0,4) === "wOFF") detected = "font/woff";
+  else if (ascii(0,4) === "wOF2") detected = "font/woff2";
+  else if (starts([0,1,0,0])) detected = "font/ttf";
+  else if (ascii(0,4) === "OTTO") detected = "font/otf";
+  else {
+    const prefix = new TextDecoder().decode(bytes.slice(0,512)).replace(/^\uFEFF/, "").trimStart()
+      .replace(/^<\?xml[\s\S]*?\?>\s*/, "");
+    if (/^<svg(?:\s|>)/i.test(prefix)) detected = "image/svg+xml";
+  }
+  const extensions: Record<string,string> = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",avif:"image/avif",svg:"image/svg+xml",
+    woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",otf:"font/otf"};
+  if (detected !== undefined && (extension === "bin" || extensions[extension] === detected)) return detected;
+  throw new Error(`asset table: unsupported or mismatched owned asset type for ${JSON.stringify(path)}.`);
+}
 
 /** Explicit per-row cache policy: max age plus immutability. */
 export interface AssetCachePolicy {

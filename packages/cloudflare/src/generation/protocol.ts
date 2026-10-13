@@ -1052,11 +1052,9 @@ export interface AdapterCapabilities {
 }
 
 /**
- * BGI-03 native table: all four required adapters advertise their
- * launch gates, but none is qualified yet, so every execution
- * preflight fails before launch until BGI-05/06 qualify the real
- * MCP transport and no-write enforcement per adapter. No adapter
- * documents native controls yet, so any native key fails preflight.
+ * Codex is qualified by the retained native run and filesystem boundary
+ * observations. Other required adapters remain prelaunch-gated until
+ * their own MCP/write restrictions are qualified. Unknown native keys refuse.
  */
 export const ADAPTERS: readonly AdapterCapabilities[] = [
   {
@@ -1064,18 +1062,21 @@ export const ADAPTERS: readonly AdapterCapabilities[] = [
     label: "Codex CLI",
     probe_binaries: ["codex"],
     mcp_attachment: {
-      state: "unqualified",
-      note: "BGI-05 qualifies the Codex MCP attachment with observed bounded runs",
+      state: "supported",
+      note: "BGI-05 native macOS Codex 0.162.0-alpha.17.2, gpt-6.1-sol/medium: three host MCP submissions; output/prompt-pipeline/codex-qualification.json",
     },
     write_restriction: {
-      state: "unqualified",
-      note: "BGI-05 qualifies Codex no-write enforcement over protected roots",
+      state: "supported",
+      note: "BGI-05 native read-only sandbox denies source/current/candidate writes; isolated host tools; output/prompt-pipeline/codex-qualification.json",
     },
     session_resume: {
-      state: "unqualified",
-      note: "BGI-05 qualifies Codex recorded-session resume",
+      state: "unsupported",
+      note: "Isolated ephemeral Codex generation has no persisted session; explicit new work is required",
     },
-    native_options: [],
+    native_options: [{
+      name: "model_reasoning_effort", kind: "string",
+      description: "Explicit Codex reasoning effort: low, medium, high, xhigh, max or ultra; model support remains a native CLI gate.",
+    }],
   },
   {
     id: "muse",
@@ -1175,7 +1176,7 @@ function checkLaunchCapability(runner: string, what: string, status: CapabilityS
  * job before spawning any runner; the dispatcher runs it during
  * admission for single-recipe execution requests.
  */
-export function preflightRecipe(recipe: EffectiveRecipe): void {
+export function checkNativeOptions(recipe: EffectiveRecipe): void {
   const adapter = adapterCapabilities(recipe.runner);
   if (adapter === undefined) {
     throw new PreflightError(
@@ -1196,6 +1197,17 @@ export function preflightRecipe(recipe: EffectiveRecipe): void {
       );
     }
   }
+  if (recipe.runner === "codex" && recipe.native["model_reasoning_effort"] !== undefined) {
+    const value = recipe.native["model_reasoning_effort"];
+    if (typeof value !== "string" || !["low", "medium", "high", "xhigh", "max", "ultra"].includes(value)) {
+      throw new PreflightError("invalid-native-option", "Codex model_reasoning_effort must be low, medium, high, xhigh, max or ultra");
+    }
+  }
+}
+
+export function preflightRecipe(recipe: EffectiveRecipe): void {
+  checkNativeOptions(recipe);
+  const adapter = adapterCapabilities(recipe.runner)!;
   checkLaunchCapability(recipe.runner, "custom MCP attachment", adapter.mcp_attachment);
   checkLaunchCapability(recipe.runner, "enforced generator write restrictions", adapter.write_restriction);
 }
@@ -1243,6 +1255,8 @@ export interface GenerationContext {
   source_digest: string;
   /** Server-issued allowed output handles/roles. */
   allowed: AllowedTarget[];
+  /** Captured source, owning interfaces/theme, intents and assignment context. */
+  instructions?: string;
 }
 
 /**
@@ -1288,8 +1302,8 @@ export type McpUnitKind =
  * Admitted (role, logical filename) outputs per identity-carrying
  * unit kind, derived from checked descriptors. Views admit server,
  * browser, style, and asset outputs; styles (including view-root
- * inline styles) admit style and asset; traits and custom keywords
- * admit server implementation plus compiler-readable contributions.
+ * inline styles) admit style and asset. Traits admit only checked
+ * contributions; pure keywords admit only a server implementation.
  */
 export function allowedOutputsFor(kind: McpUnitKind): ReadonlyArray<readonly [McpRole, string]> {
   switch (kind) {
@@ -1309,11 +1323,9 @@ export function allowedOutputsFor(kind: McpUnitKind): ReadonlyArray<readonly [Mc
       ];
     case "named-trait":
     case "inline-trait":
+      return [["contributions", "contributions.can"]];
     case "keyword":
-      return [
-        ["server", "server.js"],
-        ["contributions", "contributions.can"],
-      ];
+      return [["server", "server.js"]];
   }
 }
 

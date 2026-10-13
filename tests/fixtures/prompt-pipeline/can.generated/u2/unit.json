@@ -1,0 +1,32 @@
+{
+  "abi_version": 1,
+  "id": "u2",
+  "source": {
+    "owner": "PromptStudio",
+    "kind": "named-trait",
+    "label": "title_text",
+    "anchor": "PromptStudio:trait:title_text:",
+    "path": "PromptStudio.can",
+    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
+    "start": 209,
+    "end": 339
+  },
+  "contract": {
+    "target": null,
+    "profile": null,
+    "prompt_sha256": "3533378898e87da70711bcc317ef68742416c3babc46b0d192c8204acd8702ff",
+    "signature": null
+  },
+  "original": {
+    "prompt_sha256": "3533378898e87da70711bcc317ef68742416c3babc46b0d192c8204acd8702ff",
+    "files": {
+      "contributions.can": "19ae31fb9036c7d7643327980a1033788c4700781e985aaa3fadb225574ac91b"
+    }
+  },
+  "provenance": {
+    "origin": "generated",
+    "runner": "codex",
+    "model": "gpt-6.1-sol",
+    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j0 (retry retry)"
+  }
+}
