@@ -127,7 +127,7 @@ Required handoffs are concrete data, not completion of another owner's whole lan
 
 ### BGI-09 — Row-bound renderers and browser controls
 
-- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: running at 2026-10-13T07:28Z, Cargo.toml/lock edits (CSS parser pin); forbidden files listed (BGI07 analysis/codegen, accepted generation/leases/cli/source, Node generation/*); awaiting bgi0910_then + retained greens. BGI07 editing all contract files + bgi07 test; BGI03-repair editing config/protocol/cli.
+- [ ] Status: in_progress (coordinator session 01a133ac; Then lane worker 01a13423 covers BGI-09+BGI-10 from base bdae045c). Evidence/handoff: running at fire 29, 2026-10-13T07:41Z, editing codegen/mod.rs + lib.rs + new then_views.rs/css_scope.rs/bgi0910 test + probe (BGI07 accepted, no active conflict); forbidden files listed; awaiting bgi0910_then + retained greens. BGI06 + BGI08 reading clean at fire 29; BGI03-repair accepted 4a47a6f42; BGI07 accepted e9c501cb.
 
 **Owner / targets:** compiler view lowering and Contracts presentation descriptors; UI `components.ts`, `forms.ts`, `client.ts`, `browser/bootstrap.ts`; Interfaces `http/{presentation,form-binding,prepared-validation,operations}.ts`; Cloudflare page/module join. **Needs:** BGI-01/02 checked row/control descriptors and saved export lookup. Consume BGI-07 contributions only where a row model requires them.
 
