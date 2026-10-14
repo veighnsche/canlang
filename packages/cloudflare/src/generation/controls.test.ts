@@ -13,11 +13,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { nextUnitId } from "./association.js";
 import {
   ControlError,
   attemptFor,
@@ -332,7 +331,11 @@ class FakeCompiler {
       signature: descriptor.signature,
     };
     if (unit === "new") {
-      const id = nextUnitId(saved.map((entry) => entry.id));
+      // The fake compiler exercises legacy groups independently of the
+      // production random allocator, covered by association.test.ts.
+      let n = 1;
+      while (saved.some(entry => entry.id === `u${n}`)) n += 1;
+      const id = `u${n}`;
       const record = {
         abi_version: 1,
         id,
@@ -637,6 +640,111 @@ test("ambiguous scope refuses with the bind action", async () => {
   const error = bodyOf(result.envelope)["error"] as { code: string; message: string };
   assert.equal(error.code, "ambiguous-unit");
   assert.match(error.message, /bind/);
+});
+
+test("late ambiguous source entry refuses before earlier new binding or model launch", async () => {
+  const h = await harness();
+  const [first, last] = twoStyles();
+  h.fake.descriptors.set("app.can", [last!]);
+  for (const requestId of ["late-bind-a", "late-bind-b"]) {
+    const bound = await dispatchControl(req(requestId, "bind", { root: h.root, file: "app.can", start: 200, end: 260, revision: sha256HexText(APP), unit: "new" }), ctxFor(h));
+    assert.equal(bound.code, 0, bound.envelope);
+  }
+  h.fake.descriptors.set("app.can", [first!, last!]);
+  const before = currentBytes(h.root);
+  const binds = h.fake.calls.filter(call => call.operation === "bind").length;
+  let launches = 0;
+  const refused = await dispatchControl(req("late-ambiguous", "retry", { root: h.root, files: ["app.can"], ...RECIPE }), ctxFor(h, { preflight: () => { launches += 1; } }));
+  assert.equal(refused.code, 2, refused.envelope);
+  assert.equal((bodyOf(refused.envelope).error as { code: string }).code, "ambiguous-unit");
+  assert.equal(h.fake.calls.filter(call => call.operation === "bind").length, binds);
+  assert.equal(launches, 0);
+  assert.deepEqual(currentBytes(h.root), before);
+});
+
+test("unreadable saved status issues refuse before allocation or model launch", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", twoStyles());
+  let launches = 0;
+  const result = await dispatchControl(req("intake-issue", "retry", { root: h.root, files: ["app.can"], ...RECIPE }), ctxFor(h, {
+    preflight: () => { launches += 1; },
+    compiler: async request => {
+      const reply = await h.fake.compiler(request);
+      if (JSON.parse(request).operation !== "status") return reply;
+      return { ...reply, stdout: JSON.stringify({ ...JSON.parse(reply.stdout), issues: [{ unit: "u-broken", action: "bind", detail: "unit.json is incompatible" }] }) };
+    },
+  }));
+  assert.equal(result.code, 2, result.envelope);
+  assert.equal((bodyOf(result.envelope).error as { code: string }).code, "unresolved-intake");
+  assert.equal(h.fake.calls.some(call => call.operation === "bind"), false);
+  assert.equal(launches, 0);
+  assert.deepEqual(currentBytes(h.root), []);
+});
+
+test("malformed saved status issues refuse before allocation or model launch", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", twoStyles());
+  let preflights = 0;
+  let launches = 0;
+  const result = await dispatchControl(req("malformed-intake-issues", "retry", {
+    root: h.root, files: ["app.can"], ...RECIPE,
+  }), ctxFor(h, {
+    preflight: () => { preflights += 1; },
+    onSession: async () => { launches += 1; },
+    compiler: async request => {
+      const reply = await h.fake.compiler(request);
+      if (JSON.parse(request).operation !== "status") return reply;
+      return { ...reply, stdout: JSON.stringify({ ...JSON.parse(reply.stdout),
+        issues: { unit: "u-broken", detail: "unit.json is incompatible" },
+      }) };
+    },
+  }));
+  assert.equal(result.code, 2, result.envelope);
+  assert.match((bodyOf(result.envelope).error as { message: string }).message, /malformed issues/);
+  assert.equal(h.fake.calls.some(call => call.operation === "bind"), false);
+  assert.equal(preflights, 0);
+  assert.equal(launches, 0);
+  assert.deepEqual(currentBytes(h.root), []);
+});
+
+test("unit selection and acceptance cannot bypass an ambiguous sibling", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", twoStyles());
+  const seed = await dispatchControl(req("unit-preflight-seed", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }), ctxFor(h));
+  assert.equal(seed.code, 0, seed.envelope);
+  const candidate = await dispatchControl(req("unit-preflight-candidate", "generate", { root: h.root, unit_ids: ["u1"], mode: "fresh", ...RECIPE }), ctxFor(h, { now: () => FIXED_NOW + 1000 }));
+  assert.equal(candidate.code, 0, candidate.envelope);
+  const sibling = parseUnitRecord(await readFile(join(h.root, "can.generated/u2/unit.json"), "utf8"), "u2");
+  await mkdir(join(h.root, "can.generated/u3"));
+  await writeFile(join(h.root, "can.generated/u3/unit.json"), JSON.stringify({ ...sibling, id: "u3" }));
+  const before = currentBytes(h.root);
+  let launches = 0;
+  const selected = await dispatchControl(req("unit-preflight-retry", "generate", { root: h.root, unit_ids: ["u1"], mode: "fresh", ...RECIPE }), ctxFor(h, { preflight: () => { launches += 1; } }));
+  assert.equal(selected.code, 2, selected.envelope);
+  assert.equal(launches, 0);
+  const checks = h.fake.calls.filter(call => call.operation === "validate").length;
+  const accepted = await dispatchControl(req("unit-preflight-accept", "accept", { root: h.root, unit_id: "u1" }), ctxFor(h));
+  assert.equal(accepted.code, 2, accepted.envelope);
+  assert.equal((bodyOf(accepted.envelope).error as { code: string }).code, "ambiguous-unit");
+  assert.equal(h.fake.calls.filter(call => call.operation === "validate").length, checks);
+  assert.deepEqual(currentBytes(h.root), before);
+});
+
+test("promotion preserves external selector and local certificate metadata", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", [twoStyles()[0]!]);
+  const seed = await dispatchControl(req("metadata-seed", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }), ctxFor(h));
+  assert.equal(seed.code, 0, seed.envelope);
+  const path = join(h.root, "can.generated/u1/unit.json");
+  const record = parseUnitRecord(await readFile(path, "utf8"), "u1");
+  record.source.selector = '["app:Tasks","style:TaskSurface"]';
+  record.source.region = { container: '["app:Tasks","Then"]', sha256: sha256HexText("normalized region"), count: 1, occurrence: 0 };
+  await writeFile(path, JSON.stringify(record));
+  const changed = await dispatchControl(req("metadata-refine", "refine", { root: h.root, unit_id: "u1", instruction: "Improve focus.", accept: true, ...RECIPE }), ctxFor(h));
+  assert.equal(changed.code, 0, changed.envelope);
+  const after = parseUnitRecord(await readFile(path, "utf8"), "u1");
+  assert.equal(after.source.selector, record.source.selector);
+  assert.deepEqual(after.source.region, record.source.region);
 });
 
 test("empty retry scope refuses", async () => {
@@ -1247,6 +1355,43 @@ test("rollback previous restores with compatibility checking", async () => {
   assert.equal((bodyOf(missing.envelope)["error"] as { code: string }).code, "no-previous");
 });
 
+for (const historicalShape of ["file", "directory"] as const) {
+  test(`rollback previous restores an asset ${historicalShape} across a shape change`, async () => {
+    const h = await harness();
+    h.fake.descriptors.set("app.can", [styleDescriptor("TaskSurface", "Readable task surfaces.", 100, 160)]);
+    const seed = await dispatchControl(req(`shape-${historicalShape}-seed`, "retry", {
+      root: h.root, files: ["app.can"], accept: true, ...RECIPE,
+    }), ctxFor(h));
+    assert.equal(seed.code, 0, seed.envelope);
+    const group = join(h.root, "can.generated/u1");
+    const asset = join(group, "assets/item");
+    const historicalBytes = Buffer.from([0, 255, 128, 13, 10]);
+    await mkdir(join(group, "assets"));
+    if (historicalShape === "directory") await mkdir(asset);
+    const historicalPath = historicalShape === "file" ? asset : join(asset, "part.bin");
+    await writeFile(historicalPath, historicalBytes);
+    await writeFile(join(group, "assets/helper.js"), "export const helper = true;\n");
+    await cp(group, join(h.root, ".can/gen/previous/u1"), { recursive: true });
+    await rm(asset, { recursive: true });
+    if (historicalShape === "file") {
+      await mkdir(asset);
+      await writeFile(join(asset, "newer.bin"), "newer nested asset");
+    } else {
+      await writeFile(asset, "newer flat asset");
+    }
+    const rolled = await dispatchControl(req(`shape-${historicalShape}-rollback`, "rollback", {
+      root: h.root, unit_id: "u1", revision: "previous",
+    }), ctxFor(h, { appAcceptance: async input => {
+      const relativeAsset = relative(group, historicalPath);
+      assert.deepEqual(await readFile(join(input.candidateRoot, "can.generated/u1", relativeAsset)), historicalBytes);
+    } }));
+    assert.equal(rolled.code, 0, rolled.envelope);
+    assert.deepEqual(await readFile(historicalPath), historicalBytes);
+    assert.equal(await readFile(join(group, "assets/helper.js"), "utf8"), "export const helper = true;\n");
+    assert.deepEqual(await unresolvedJournals(h.root), []);
+  });
+}
+
 test("rollback git restores from source control", async () => {
   const { execFileSync } = await import("node:child_process");
   let gitOk = true;
@@ -1283,9 +1428,16 @@ test("rollback git restores from source control", async () => {
   assert.equal(seed.code, 0, seed.envelope);
   const firstCss = await readFile(join(h.root, "can.generated", "u1", "style.css"), "utf8");
   execFileSync("git", ["init"], { cwd: h.root, stdio: "ignore" });
+  const binaryPath = join(h.root, "can.generated/u1/assets/raw.bin");
+  const binary = Buffer.from([0, 255, 128, 13, 10, 0, 254]);
+  await mkdir(join(h.root, "can.generated/u1/assets"));
+  await writeFile(binaryPath, binary);
   execFileSync("git", ["add", "can.generated", "app.can"], { cwd: h.root, stdio: "ignore" });
   execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "first"], { cwd: h.root, stdio: "ignore" });
   await writeFile(join(h.root, "can.generated", "u1", "style.css"), "/* newer */\n.x{color:black}\n");
+  await writeFile(binaryPath, Buffer.from([1, 2, 3]));
+  const extraPath = join(h.root, "can.generated/u1/assets/newer.bin");
+  await writeFile(extraPath, Buffer.from([4, 5]));
   const rolled = await dispatchControl(
     req("r-rg1", "rollback", { root: h.root, unit_id: "u1", revision: "git:HEAD" }),
     ctxFor(h),
@@ -1293,6 +1445,8 @@ test("rollback git restores from source control", async () => {
   assert.equal(rolled.code, 0, rolled.envelope);
   assert.equal(bodyOf(rolled.envelope)["state"], "rolled-back");
   assert.equal(await readFile(join(h.root, "can.generated", "u1", "style.css"), "utf8"), firstCss);
+  assert.deepEqual(await readFile(binaryPath), binary);
+  assert.equal(existsSync(extraPath), false);
   const unknown = await dispatchControl(
     req("r-rg2", "rollback", { root: h.root, unit_id: "u1", revision: "git:does-not-exist" }),
     ctxFor(h),

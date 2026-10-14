@@ -33,6 +33,7 @@ import {
   readFile,
   rename,
   rm,
+  rmdir,
   stat,
   writeFile,
 } from "node:fs/promises";
@@ -50,6 +51,9 @@ import {
 
 /** Unresolved-journal filename inside a run directory. */
 export const JOURNAL_FILE = "journal.json";
+
+/** Journal v2 adds explicit deletions and complete-group replacement. */
+export const JOURNAL_VERSION = 2;
 
 /** Resolved-journal filename (evidence retained after recovery/apply). */
 export const RESOLVED_JOURNAL_FILE = "journal.resolved.json";
@@ -75,13 +79,13 @@ export class JournalError extends Error {
   }
 }
 
-/** One staged file replacement inside a run journal. */
+/** One staged addition/replacement or explicit deletion inside a run journal. */
 export interface JournalEntry {
   unit: string;
   path: string;
   old_sha256: string | null;
-  staged: string;
-  new_sha256: string;
+  staged: string | null;
+  new_sha256: string | null;
 }
 
 export type JournalState = "staged" | "committed";
@@ -92,6 +96,8 @@ export interface RunJournal {
   run_id: string;
   scope: string[];
   state: JournalState;
+  /** Absent in v1 journals, which always describe patches. */
+  mode?: "patch" | "replace";
   entries: JournalEntry[];
 }
 
@@ -99,7 +105,8 @@ export interface RunJournal {
 export interface Replacement {
   unit: string;
   path: string;
-  bytes: Uint8Array;
+  /** null deletes the file; absence from a patch leaves it untouched. */
+  bytes: Uint8Array | null;
 }
 
 /** One file whose current bytes match neither the staged old nor new hash. */
@@ -187,11 +194,13 @@ async function persistFile(path: string, bytes: Uint8Array): Promise<void> {
 }
 
 /**
- * Write replacement bytes to a collision-safe temporary sibling of
- * `target` and return its path. The name is unique per attempt and the
+ * Write replacement bytes to a collision-safe temporary sibling of the
+ * staged payload and return its path. The name is unique per attempt and the
  * file is created exclusively, so a stale or saved sibling (including a
  * literal `*.can-new` file) is never overwritten; only the file this call
- * created is ever removed. The caller renames it onto `target`.
+ * created is ever removed. The caller renames it onto the current target.
+ * A stopped writer leaves only ignored run material. Cross-filesystem
+ * rename refuses rather than falling back to non-atomic copying.
  */
 async function createReplaceTemp(target: string, bytes: Uint8Array): Promise<string> {
   const dir = dirname(target);
@@ -255,13 +264,14 @@ async function isFile(path: string): Promise<boolean> {
 
 async function currentSha256(path: string): Promise<string | null> {
   try {
+    if ((await stat(path)).isDirectory()) return null;
     return sha256Hex(await readFile(path));
   } catch (error) {
     if (
       typeof error === "object" &&
       error !== null &&
       "code" in error &&
-      (error as { code: unknown }).code === "ENOENT"
+      ["ENOENT", "ENOTDIR"].includes((error as { code: string }).code)
     ) {
       return null;
     }
@@ -335,15 +345,18 @@ function orderScope(scope: readonly string[]): string[] {
  * Stage one full-run journal: copy every scope unit's complete current
  * group into `old/`, write every replacement into `new/`, then atomically
  * write `journal.json` with state `staged`. Staging never touches current
- * files; the caller holds the capture/accept write leases.
+ * files; the caller holds the capture/accept write leases. Patch is the
+ * default; replace removes all old owned files omitted from replacements.
  */
 export async function stageJournal(
   root: string,
   runId: string,
   scope: readonly string[],
   replacements: readonly Replacement[],
+  mode: "patch" | "replace" = "patch",
 ): Promise<RunJournal> {
   validateLeaseId("run id", runId);
+  if (mode !== "patch" && mode !== "replace") throw new JournalError("io", "invalid replacement mode");
   const orderedScope = orderScope(scope);
   const dir = runDir(root, runId);
   await mkdir(join(root, RUNS_DIR), { recursive: true });
@@ -372,9 +385,19 @@ export async function stageJournal(
       await mkdir(oldUnit, { recursive: true });
     }
   }
+  // Only complete replacement treats omitted owned files as deletions.
+  const changes = [...replacements];
+  if (mode === "replace") {
+    for (const unit of orderedScope) {
+      const supplied = new Set(replacements.filter((r) => r.unit === unit).map((r) => r.path));
+      for (const path of await listFilesRel(join(dir, OLD_DIR, unit))) {
+        if (!supplied.has(path)) changes.push({ unit, path, bytes: null });
+      }
+    }
+  }
   const entries: JournalEntry[] = [];
   const seen = new Set<string>();
-  for (const replacement of replacements) {
+  for (const replacement of changes) {
     validateLeaseId("unit id", replacement.unit);
     if (!orderedScope.includes(replacement.unit)) {
       throw new JournalError(
@@ -393,22 +416,25 @@ export async function stageJournal(
     seen.add(key);
     const current = join(groupDir(root, replacement.unit), ...replacement.path.split("/"));
     const oldSha256 = await currentSha256(current);
-    const stagedRel = `${NEW_DIR}/${replacement.unit}/${replacement.path}`;
-    await persistFile(joinRel(dir, stagedRel), replacement.bytes);
+    const stagedRel = replacement.bytes === null ? null : `${NEW_DIR}/${replacement.unit}/${replacement.path}`;
+    if (stagedRel !== null && replacement.bytes !== null) {
+      await persistFile(joinRel(dir, stagedRel), replacement.bytes);
+    }
     entries.push({
       unit: replacement.unit,
       path: replacement.path,
       old_sha256: oldSha256,
       staged: stagedRel,
-      new_sha256: sha256Hex(replacement.bytes),
+      new_sha256: replacement.bytes === null ? null : sha256Hex(replacement.bytes),
     });
   }
   entries.sort((a, b) =>
     a.unit < b.unit ? -1 : a.unit > b.unit ? 1 : a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
   );
   const journal: RunJournal = {
-    version: PROTOCOL_VERSION,
+    version: JOURNAL_VERSION,
     run_id: runId,
+    mode,
     scope: orderedScope,
     state: "staged",
     entries,
@@ -442,10 +468,39 @@ export async function readJournal(root: string, runId: string): Promise<RunJourn
     throw error;
   }
   const journal = JSON.parse(text) as RunJournal;
-  if (journal.version !== PROTOCOL_VERSION) {
+  if (journal.version !== 1 && journal.version !== JOURNAL_VERSION) {
     throw new JournalError("io", `journal version ${journal.version} is not supported`);
   }
+  validateJournal(journal, runId);
   return journal;
+}
+
+/** Refuse malformed/traversing recovery instructions before any current write. */
+function validateJournal(journal: RunJournal, runId: string): void {
+  if (journal.run_id !== runId || !["staged", "committed"].includes(journal.state) ||
+      (journal.mode !== undefined && journal.mode !== "patch" && journal.mode !== "replace")) {
+    throw new JournalError("io", "invalid journal identity, state or replacement mode");
+  }
+  const scope = orderScope(journal.scope);
+  if (scope.length !== journal.scope.length) throw new JournalError("io", "duplicate journal scope");
+  const seen = new Set<string>();
+  for (const entry of journal.entries) {
+    validateLeaseId("unit id", entry.unit);
+    validateRel(entry.path);
+    const key = `${entry.unit}\0${entry.path}`;
+    if (!scope.includes(entry.unit) || seen.has(key)) throw new JournalError("io", "invalid journal entry scope");
+    seen.add(key);
+    if ((entry.staged === null) !== (entry.new_sha256 === null) ||
+        (entry.staged !== null && entry.staged !== `${NEW_DIR}/${entry.unit}/${entry.path}`) ||
+        (journal.version === 1 && entry.new_sha256 === null)) {
+      throw new JournalError("io", "invalid journal staged payload/deletion");
+    }
+    for (const hash of [entry.old_sha256, entry.new_sha256]) {
+      if (hash !== null && (typeof hash !== "string" || !/^[a-f0-9]{64}$/.test(hash))) {
+        throw new JournalError("io", "invalid journal content hash");
+      }
+    }
+  }
 }
 
 /**
@@ -476,6 +531,31 @@ export async function markCommitted(root: string, runId: string): Promise<RunJou
  * Entries already at their new hash are skipped, so apply is idempotent.
  * Unexpected bytes stop with a retained conflict.
  */
+async function unexpectedMembership(root: string, journal: RunJournal): Promise<ByteMismatch[]> {
+  if (journal.mode !== "replace") return [];
+  const mismatches: ByteMismatch[] = [];
+  for (const unit of journal.scope) {
+    const allowed = new Set(journal.entries.filter((e) => e.unit === unit).map((e) => e.path));
+    for (const path of await groupFiles(root, unit)) {
+      if (!allowed.has(path)) mismatches.push({
+        unit, path, expected_sha256: null,
+        observed_sha256: await currentSha256(joinRel(groupDir(root, unit), path)),
+      });
+    }
+  }
+  return mismatches;
+}
+
+async function removeEmptyParents(path: string, stop: string): Promise<void> {
+  for (let dir = dirname(path); dir !== stop; dir = dirname(dir)) {
+    try { await rmdir(dir); }
+    catch (error) {
+      if (isErrno(error, "ENOTEMPTY") || isErrno(error, "EEXIST") || isErrno(error, "ENOTDIR")) break;
+      if (!isErrno(error, "ENOENT")) throw error;
+    }
+  }
+}
+
 export async function applyCommitted(root: string, runId: string): Promise<ApplyOutcome> {
   const journal = await readJournal(root, runId);
   if (journal.state !== "committed") {
@@ -485,6 +565,11 @@ export async function applyCommitted(root: string, runId: string): Promise<Apply
     );
   }
   const dir = runDir(root, runId);
+  const extra = await unexpectedMembership(root, journal);
+  if (extra.length > 0) {
+    const conflictPath = await writeConflict(root, runId, "apply", extra);
+    return { kind: "conflict", mismatches: extra, conflictPath };
+  }
   for (const unit of journal.scope) {
     validateLeaseId("unit id", unit);
     const previousUnit = join(root, PREVIOUS_DIR, unit);
@@ -497,10 +582,14 @@ export async function applyCommitted(root: string, runId: string): Promise<Apply
     }
   }
   let files = 0;
-  for (const entry of journal.entries) {
+  // Remove obsolete files first, including file/directory shape changes.
+  const orderedEntries = [...journal.entries.filter((e) => e.new_sha256 === null),
+    ...journal.entries.filter((e) => e.new_sha256 !== null)];
+  for (const entry of orderedEntries) {
     const target = joinRel(groupDir(root, entry.unit), entry.path);
     const observed = await currentSha256(target);
     if (observed === entry.new_sha256) {
+      if (entry.new_sha256 === null) await removeEmptyParents(target, groupDir(root, entry.unit));
       files += 1;
       continue;
     }
@@ -516,14 +605,21 @@ export async function applyCommitted(root: string, runId: string): Promise<Apply
       const conflictPath = await writeConflict(root, runId, "apply", mismatches);
       return { kind: "conflict", mismatches, conflictPath };
     }
-    const stagedBytes = await readFile(joinRel(dir, entry.staged));
+    if (entry.new_sha256 === null) {
+      await rm(target);
+      await removeEmptyParents(target, groupDir(root, entry.unit));
+      files += 1;
+      continue;
+    }
+    const stagedBytes = await readFile(joinRel(dir, entry.staged!));
     if (sha256Hex(stagedBytes) !== entry.new_sha256) {
       throw new JournalError(
         "io",
         `staged payload for \`${entry.path}\` in unit \`${entry.unit}\` no longer matches the journal`,
       );
     }
-    const tmp = await createReplaceTemp(target, stagedBytes);
+    await mkdir(dirname(target), { recursive: true });
+    const tmp = await createReplaceTemp(joinRel(dir, entry.staged!), stagedBytes);
     try {
       await rename(tmp, target);
     } catch (error) {
@@ -571,7 +667,7 @@ export async function recoverJournal(root: string, runId: string): Promise<Recov
     }
     return applied;
   }
-  const mismatches: ByteMismatch[] = [];
+  const mismatches: ByteMismatch[] = await unexpectedMembership(root, journal);
   for (const entry of journal.entries) {
     const target = joinRel(groupDir(root, entry.unit), entry.path);
     const observed = await currentSha256(target);

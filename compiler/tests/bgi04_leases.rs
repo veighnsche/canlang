@@ -8,7 +8,8 @@ use canlang_compiler::leases::{
     CommitOutcome, JournalState, LeaseMode, LeaseToken, RecoveryOutcome, Replacement, acquire,
     apply_committed, canonical_order, commit_journal, escape_rel, group_files, mark_committed,
     new_token, platform_durability, read_journal, recover_journal, recover_stopped_writer, release,
-    snapshot_inputs, stage_journal, unresolved_journals, validate_rel, validate_run_id,
+    snapshot_inputs, stage_complete_journal, stage_journal, stage_journal_with_deletions,
+    unresolved_journals, validate_rel, validate_run_id,
 };
 use canlang_compiler::source::snapshot_consumed_inputs;
 use std::fs;
@@ -445,7 +446,7 @@ fn commit_applies_all_and_retains_one_previous_group() {
     assert!(stage_journal(root, "r5", &["u1"], &[]).is_err());
     let journal_text = fs::read_to_string(root.join(".can/gen/runs/r5/journal.json")).unwrap();
     let journal: serde_json::Value = serde_json::from_str(&journal_text).unwrap();
-    assert_eq!(journal["version"], 1);
+    assert_eq!(journal["version"], 2);
     assert_eq!(journal["state"], "staged");
     assert_eq!(journal["scope"], serde_json::json!(["u1"]));
 }
@@ -913,4 +914,168 @@ fn replacement_temp_never_touches_an_unrequested_sibling() {
         b"saved-helper"
     );
     release(root, &held).unwrap();
+}
+
+#[test]
+fn complete_replacement_recovers_deletions_and_exact_binary_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let old_binary = [0, 255, 128, 13, 10];
+    let new_binary = [255, 0, 129, 10];
+    write_group(
+        root,
+        "u1",
+        &[
+            ("style.css", b"old"),
+            ("obsolete.js", b"helper"),
+            ("image.bin", &old_binary),
+        ],
+    );
+    let journal = stage_complete_journal(
+        root,
+        "complete",
+        &["u1"],
+        &[
+            replacement("u1", "style.css", b"new"),
+            replacement("u1", "image.bin", &new_binary),
+        ],
+    )
+    .unwrap();
+    assert_eq!(journal.version, 2);
+    let deletion = journal
+        .entries
+        .iter()
+        .find(|e| e.path == "obsolete.js")
+        .unwrap();
+    assert_eq!(deletion.staged, None);
+    assert_eq!(deletion.new_sha256, None);
+    mark_committed(root, "complete").unwrap();
+    fs::remove_file(root.join("can.generated/u1/obsolete.js")).unwrap();
+    assert!(matches!(
+        recover_journal(root, "complete").unwrap(),
+        RecoveryOutcome::CompletedNew { files: 3 }
+    ));
+    assert_eq!(
+        group_files(root, "u1").unwrap(),
+        vec!["image.bin", "style.css"]
+    );
+    assert_eq!(read_tree(root, "can.generated/u1/image.bin"), new_binary);
+    assert_eq!(
+        read_tree(root, ".can/gen/previous/u1/image.bin"),
+        old_binary
+    );
+    assert_eq!(
+        read_tree(root, ".can/gen/previous/u1/obsolete.js"),
+        b"helper"
+    );
+    assert!(matches!(
+        recover_journal(root, "complete").unwrap(),
+        RecoveryOutcome::AlreadyResolved
+    ));
+}
+
+#[test]
+fn precommit_complete_recovery_preserves_old_membership() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write_group(root, "u1", &[("old.bin", b"old")]);
+    stage_complete_journal(
+        root,
+        "before-delete",
+        &["u1"],
+        &[replacement("u1", "new.bin", b"new")],
+    )
+    .unwrap();
+    assert!(matches!(
+        recover_journal(root, "before-delete").unwrap(),
+        RecoveryOutcome::RestoredOld
+    ));
+    assert_eq!(group_files(root, "u1").unwrap(), vec!["old.bin"]);
+    assert_eq!(read_tree(root, "can.generated/u1/old.bin"), b"old");
+}
+
+#[test]
+fn explicit_patch_deletion_preserves_untouched_files_and_changed_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write_group(root, "u1", &[("keep.bin", b"keep"), ("remove.bin", b"old")]);
+    stage_journal_with_deletions(root, "patch-delete", &["u1"], &[], &[("u1", "remove.bin")])
+        .unwrap();
+    mark_committed(root, "patch-delete").unwrap();
+    write_group(root, "u1", &[("remove.bin", b"foreign")]);
+    assert!(matches!(
+        recover_journal(root, "patch-delete").unwrap(),
+        RecoveryOutcome::Conflict { .. }
+    ));
+    assert_eq!(read_tree(root, "can.generated/u1/remove.bin"), b"foreign");
+    write_group(root, "u1", &[("remove.bin", b"old")]);
+    assert!(matches!(
+        recover_journal(root, "patch-delete").unwrap(),
+        RecoveryOutcome::CompletedNew { files: 1 }
+    ));
+    assert_eq!(group_files(root, "u1").unwrap(), vec!["keep.bin"]);
+}
+
+#[test]
+fn complete_replacement_refuses_unexpected_membership() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write_group(root, "u1", &[("style.css", b"old")]);
+    stage_complete_journal(
+        root,
+        "extra-file",
+        &["u1"],
+        &[replacement("u1", "style.css", b"new")],
+    )
+    .unwrap();
+    mark_committed(root, "extra-file").unwrap();
+    write_group(root, "u1", &[("foreign.bin", b"foreign")]);
+    assert!(matches!(
+        recover_journal(root, "extra-file").unwrap(),
+        RecoveryOutcome::Conflict { .. }
+    ));
+    assert_eq!(read_tree(root, "can.generated/u1/style.css"), b"old");
+    assert_eq!(read_tree(root, "can.generated/u1/foreign.bin"), b"foreign");
+}
+
+#[test]
+fn complete_replacement_supports_file_directory_transitions_and_v1() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    write_group(root, "u1", &[("asset", b"old")]);
+    stage_complete_journal(
+        root,
+        "to-dir",
+        &["u1"],
+        &[replacement("u1", "asset/part.bin", b"nested")],
+    )
+    .unwrap();
+    commit_journal(root, "to-dir").unwrap();
+    assert_eq!(group_files(root, "u1").unwrap(), vec!["asset/part.bin"]);
+    stage_complete_journal(
+        root,
+        "to-file",
+        &["u1"],
+        &[replacement("u1", "asset", b"flat")],
+    )
+    .unwrap();
+    commit_journal(root, "to-file").unwrap();
+    assert_eq!(group_files(root, "u1").unwrap(), vec!["asset"]);
+    stage_journal(
+        root,
+        "legacy",
+        &["u1"],
+        &[replacement("u1", "asset", b"legacy")],
+    )
+    .unwrap();
+    let path = root.join(".can/gen/runs/legacy/journal.json");
+    let mut journal: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    journal["version"] = serde_json::json!(1);
+    journal.as_object_mut().unwrap().remove("mode");
+    fs::write(path, serde_json::to_vec(&journal).unwrap()).unwrap();
+    mark_committed(root, "legacy").unwrap();
+    assert!(matches!(
+        recover_journal(root, "legacy").unwrap(),
+        RecoveryOutcome::CompletedNew { files: 1 }
+    ));
 }

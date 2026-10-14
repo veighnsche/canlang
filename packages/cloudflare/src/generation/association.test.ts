@@ -101,12 +101,12 @@ test("copies and ambiguous relocations cannot reuse ownership", () => {
     assert(entry.association.type === "ambiguous");
     assert.deepEqual(entry.association.candidates, ["u1"]);
   }
-  // A relocated unit (new anchor) is new: the old ID is never silently
-  // reused via a sole unmatched pair or nearest offset.
+  // A relocated unit needs reconciliation, rather than allocation of a
+  // replacement that would leave its existing implementation disconnected.
   const moved = associate([{ ...unit, anchor: "Tasks:trait:completable:moved" }], saved);
   assert.deepEqual(
     moved.map((entry) => entry.association),
-    [{ type: "new" }],
+    [{ type: "ambiguous", candidates: ["u1"] }],
   );
   // Duplicate saved records for one key refuse to pick one.
   const twin = savedRecord("u99", unit);
@@ -118,10 +118,12 @@ test("copies and ambiguous relocations cannot reuse ownership", () => {
   assert.deepEqual(only.candidates, ["u1", "u99"]);
 });
 
-test("next unit ID fills the smallest gap", () => {
-  assert.equal(nextUnitId(new Set(["u1", "u3"])), "u2");
-  assert.equal(nextUnitId([]), "u1");
-  assert.equal(nextUnitId(["u1", "u2"]), "u3");
+test("independent unit allocations use random portable IDs without a counter", () => {
+  const first = nextUnitId(new Set(["u1", "u3"]));
+  const second = nextUnitId(["u1", "u2"]);
+  assert.match(first, /^g-[0-9a-f]{32}$/);
+  assert.match(second, /^g-[0-9a-f]{32}$/);
+  assert.notEqual(first, second);
 });
 
 function bindRequest(unit: DescriptorInput, revision: string, target: BindRequest["target"]): BindRequest {
@@ -237,7 +239,8 @@ test("explicit bind is honored for its exact captured location only", () => {
   );
   assert.equal(boundCopy.ok, true);
   assert(boundCopy.ok);
-  assert.equal(boundCopy.record.id, "u2");
+  const copiedId = boundCopy.record.id;
+  assert.match(copiedId, /^g-[0-9a-f]{32}$/);
   const saved = [boundOriginal.record, boundCopy.record];
 
   // Without current-location evidence the shared key still refuses.
@@ -253,7 +256,7 @@ test("explicit bind is honored for its exact captured location only", () => {
     honored.map((entry) => entry.association),
     [
       { type: "retained", id: "u1", promptChanged: false },
-      { type: "retained", id: "u2", promptChanged: false },
+      { type: "retained", id: copiedId, promptChanged: false },
     ],
   );
   // Changed or stale source never guesses: a new revision refuses both.
@@ -273,7 +276,7 @@ test("explicit bind is honored for its exact captured location only", () => {
     saved,
   );
   assert.equal(moved[0]?.association.type, "ambiguous");
-  assert.deepEqual(moved[1]?.association, { type: "retained", id: "u2", promptChanged: false });
+  assert.deepEqual(moved[1]?.association, { type: "retained", id: copiedId, promptChanged: false });
 });
 
 test("bind existing refreshes evidence and bind new allocates for copies", () => {
@@ -297,7 +300,67 @@ test("bind existing refreshes evidence and bind new allocates for copies", () =>
   const copy = applyBind(saved, bindRequest(unit, "rev-new", { kind: "new" }), "rev-new");
   assert.equal(copy.ok, true);
   assert(copy.ok);
-  assert.equal(copy.record.id, "u2");
+  assert.match(copy.record.id, /^g-[0-9a-f]{32}$/);
   assert.deepEqual(copy.record.original.files, {});
   assert.equal(copy.record.provenance.origin, "bound");
+});
+
+test("exact local certificates keep duplicate siblings across unrelated revisions and offsets", () => {
+  const selector = '["app:Tasks","page:/","component:Leaf","slot:style-inline"]';
+  const region = { container: '["app:Tasks","page:/"]', sha256: sha256HexText("unchanged normalized siblings"), count: 2, occurrence: 0 };
+  const first = descriptor({ kind: "style-inline", selector, region, location: { path: "app.can", revision: "old", start: 10, end: 60 } });
+  const second = { ...first, region: { ...region, occurrence: 1 }, location: { path: "app.can", revision: "old", start: 70, end: 120 } };
+  const saved = [first, second].map((unit, index) => {
+    const record = savedRecord(`u${index + 1}`, unit);
+    record.source.selector = selector;
+    record.source.region = unit.region!;
+    return record;
+  });
+  const updated = [first, second].map(unit => ({ ...unit, location: { ...unit.location!, revision: "formatted-and-unrelated-edit", start: unit.location!.start + 23, end: unit.location!.end + 23 } }));
+  assert.deepEqual(associate(updated, saved).map(entry => entry.association), [
+    { type: "retained", id: "u1", promptChanged: false },
+    { type: "retained", id: "u2", promptChanged: false },
+  ]);
+  const changed = updated.map(unit => ({ ...unit, region: { ...unit.region!, sha256: sha256HexText("reordered relevant content") } }));
+  assert(associate(changed, saved).every(entry => entry.association.type === "ambiguous"));
+  // Deleting a sibling cannot turn an invalid occurrence into a unique owner.
+  assert.equal(associate([{ ...updated[0]!, region: { ...region, count: 1 } }], saved)[0]?.association.type, "ambiguous");
+});
+
+test("complete source paths and one-to-one claims prevent silent copies", () => {
+  const unit = descriptor({ selector: '["app:Tasks","trait:completable"]', location: { path: "app.can", revision: "old", start: 10, end: 60 } });
+  const saved = savedRecord("u1", unit);
+  saved.source.selector = unit.selector!;
+  const copy = { ...unit, location: { ...unit.location!, path: "copy.can" } };
+  const associations = associate([unit, copy], [saved]).map(entry => entry.association);
+  assert.equal(associations[0]?.type, "ambiguous");
+  assert.equal(associations[1]?.type, "ambiguous");
+  assert.equal(associate([copy], [saved], ["app.can", "copy.can"])[0]?.association.type, "ambiguous");
+  assert(associate([unit], [saved, { ...saved, source: { ...saved.source } }]).every(entry => entry.association.type === "ambiguous"));
+});
+
+test("owner renames and relocations reconcile each displaced kind before generation", () => {
+  const originals = [
+    descriptor({ kind: "named-trait", selector: "old:trait" }),
+    descriptor({ kind: "style", selector: "old:style" }),
+    descriptor({ kind: "view", selector: "old:view" }),
+  ];
+  const saved = originals.map((unit, index) => {
+    const record = savedRecord(`u${index}`, unit);
+    record.source.selector = unit.selector!;
+    return record;
+  });
+  const renamed = originals.map(unit => ({
+    ...unit,
+    owner: "Renamed",
+    selector: unit.selector!.replace("old:", "new:"),
+    location: { path: "moved.can", revision: "new", start: 10, end: 60 },
+  }));
+  assert.deepEqual(associate(renamed, saved).map(entry => entry.association), [
+    { type: "ambiguous", candidates: ["u0"] },
+    { type: "ambiguous", candidates: ["u1"] },
+    { type: "ambiguous", candidates: ["u2"] },
+  ]);
+  // An orphan of another kind does not prevent a fresh definition.
+  assert.equal(associate([renamed[1]!], [saved[2]!])[0]?.association.type, "new");
 });

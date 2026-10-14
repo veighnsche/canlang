@@ -19,7 +19,7 @@
 //! groups identify the exact unit and the generation or reconciliation
 //! action instead of regenerating silently.
 
-use crate::analysis::generation::{GenerationDescriptor, GenerationKind};
+use crate::analysis::generation::{GenerationDescriptor, GenerationKind, LocalRegionCertificate};
 use crate::source::sha256_hex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -38,8 +38,8 @@ pub const UNIT_FILE: &str = "unit.json";
 ///
 /// Opaque means callers never parse structure out of the text: retry and
 /// inspection select units by source association, never by authoring IDs.
-/// Allocation is sequential `u<N>` over the tracked `can.generated/<id>/`
-/// directories (see [`next_unit_id`]); the spelling carries no meaning.
+/// New IDs carry 128 random bits; existing opaque IDs remain readable.
+/// The spelling carries no source ownership or ordering meaning.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct GenerationUnitId(String);
@@ -154,6 +154,12 @@ pub struct SourceAssociation {
     pub label: Option<String>,
     /// Formatting-insensitive non-prompt anchor from BGI-01 discovery.
     pub anchor: String,
+    /// Complete portable semantic selector; absent in legacy records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selector: Option<String>,
+    /// Exact local anonymous-region evidence; no whole-file revision dependency.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<LocalRegionCertificate>,
     /// Workspace-relative source path at bind time.
     pub path: String,
     /// Source revision (SHA-256 of the file text) at bind time.
@@ -240,6 +246,20 @@ impl UnitRecord {
                 record.id
             ));
         }
+        if let Some(region) = &record.source.region {
+            if record.source.selector.is_none()
+                || region.container.is_empty()
+                || region.count == 0
+                || region.occurrence >= region.count
+                || region.sha256.len() != 64
+                || !region
+                    .sha256
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+            {
+                return Err("unit source has an invalid local region certificate".to_string());
+            }
+        }
         Ok(record)
     }
 
@@ -261,6 +281,8 @@ pub fn association_for(
         kind,
         label: descriptor.label.clone(),
         anchor: descriptor.anchor.clone(),
+        selector: descriptor.selector.clone(),
+        region: descriptor.region.clone(),
         path: path.to_string(),
         revision: revision.to_string(),
         start: descriptor.span.start,
@@ -377,168 +399,288 @@ pub fn associate(
     descriptors: &[GenerationDescriptor],
     saved: &[UnitRecord],
 ) -> Vec<(usize, UnitAssociation)> {
-    associate_inner(descriptors, saved, None)
+    associate_inner(descriptors, saved, &HashMap::new())
 }
 
-/// Associate with current source evidence, honoring explicit binds.
-///
-/// Behaves exactly like [`associate`] except under duplicate keys: when a
-/// descriptor's current location (this pass's path/revision plus the
-/// descriptor's own span) exactly equals one saved record's captured bind
-/// evidence (`source.path/revision/start/end` for the same key), that
-/// descriptor retains that record's ID. Changed or stale source never
-/// guesses: a revision or span that no longer matches refuses with
-/// [`UnitAssociation::Ambiguous`] as before, as do two records claiming
-/// the same location.
+/// Compatibility single-source entry point. Complete-scope consumers should
+/// use `associate_with_sources` so copies in another source cannot be hidden.
 pub fn associate_with_source(
     descriptors: &[GenerationDescriptor],
     saved: &[UnitRecord],
     source: &AssociationSource,
 ) -> Vec<(usize, UnitAssociation)> {
-    associate_inner(descriptors, saved, Some(source))
+    let sources = descriptors
+        .iter()
+        .map(|descriptor| (descriptor.span.file, source.clone()))
+        .collect();
+    associate_inner(descriptors, saved, &sources)
+}
+
+/// Resolve all live defining claims once, retaining source provenance per file.
+/// The caller supplies the complete relevant source/record closure in one owner
+/// root. Missing correspondence is never permission to consume another root.
+pub fn associate_with_sources(
+    descriptors: &[GenerationDescriptor],
+    saved: &[UnitRecord],
+    sources: &HashMap<crate::source::SourceId, AssociationSource>,
+) -> Vec<(usize, UnitAssociation)> {
+    associate_inner(descriptors, saved, sources)
 }
 
 fn associate_inner(
     descriptors: &[GenerationDescriptor],
     saved: &[UnitRecord],
-    source: Option<&AssociationSource>,
+    sources: &HashMap<crate::source::SourceId, AssociationSource>,
 ) -> Vec<(usize, UnitAssociation)> {
-    let mut saved_by_key: HashMap<AssociationKey, Vec<&UnitRecord>> = HashMap::new();
-    for record in saved {
-        saved_by_key
-            .entry(AssociationKey::of(&record.source))
-            .or_default()
-            .push(record);
-    }
-    let mut key_counts: HashMap<AssociationKey, usize> = HashMap::new();
-    let mut keyed: Vec<(usize, AssociationKey)> = Vec::new();
-    for (index, descriptor) in descriptors.iter().enumerate() {
-        if UnitKind::of_descriptor(descriptor.kind).is_none() {
-            continue;
-        }
-        let key = AssociationKey {
+    fn key(descriptor: &GenerationDescriptor) -> AssociationKey {
+        AssociationKey {
             owner: descriptor.owner.clone(),
-            kind: UnitKind::of_descriptor(descriptor.kind).expect("identity kind checked above"),
+            kind: UnitKind::of_descriptor(descriptor.kind).expect("identity kind"),
             label: descriptor.label.clone(),
             anchor: descriptor.anchor.clone(),
-        };
-        *key_counts.entry(key.clone()).or_default() += 1;
-        keyed.push((index, key));
-    }
-    /// An explicit bind honored for one descriptor: exactly one same-key
-    /// record captured this exact source revision/location.
-    fn bound_match<'s>(
-        descriptors: &[GenerationDescriptor],
-        group: &[&'s UnitRecord],
-        index: usize,
-        source: &AssociationSource,
-    ) -> Option<&'s UnitRecord> {
-        let span = &descriptors[index].span;
-        let mut hit: Option<&UnitRecord> = None;
-        for record in group {
-            if record.source.path == source.path
-                && record.source.revision == source.revision
-                && record.source.start == span.start
-                && record.source.end == span.end
-            {
-                if hit.is_some() {
-                    return None;
-                }
-                hit = Some(record);
-            }
         }
-        hit
     }
-    fn retained(
-        descriptors: &[GenerationDescriptor],
-        index: usize,
-        record: &UnitRecord,
-    ) -> UnitAssociation {
-        let current = sha256_hex(
-            descriptors[index]
-                .prompt
-                .as_deref()
-                .unwrap_or_default()
-                .as_bytes(),
-        );
+    fn same_claim(descriptor: &GenerationDescriptor, record: &UnitRecord) -> bool {
+        if record.source.owner != descriptor.owner
+            || Some(record.source.kind) != UnitKind::of_descriptor(descriptor.kind)
+        {
+            return false;
+        }
+        match (&record.source.selector, &descriptor.selector) {
+            (Some(saved), Some(current)) => saved == current,
+            (Some(_), None) => false,
+            _ => AssociationKey::of(&record.source) == key(descriptor),
+        }
+    }
+    fn same_descriptor(left: &GenerationDescriptor, right: &GenerationDescriptor) -> bool {
+        if left.owner != right.owner || left.kind != right.kind {
+            return false;
+        }
+        match (&left.selector, &right.selector) {
+            (Some(left), Some(right)) => left == right,
+            _ => key(left) == key(right),
+        }
+    }
+    fn retained(descriptor: &GenerationDescriptor, record: &UnitRecord) -> UnitAssociation {
         UnitAssociation::Retained {
             id: record.id.clone(),
-            prompt_changed: current != record.contract.prompt_sha256,
+            prompt_changed: sha256_hex(descriptor.prompt.as_deref().unwrap_or_default().as_bytes())
+                != record.contract.prompt_sha256,
         }
     }
-    keyed
-        .into_iter()
-        .map(|(index, key)| {
-            let association = if key_counts.get(&key).copied().unwrap_or(0) > 1 {
-                // A copied definition shares its whole key: refuse reuse,
-                // unless an explicit bind captured this exact location.
-                let group: &[&UnitRecord] =
-                    saved_by_key.get(&key).map(Vec::as_slice).unwrap_or(&[]);
-                match source.and_then(|s| bound_match(descriptors, group, index, s)) {
-                    Some(record) => retained(descriptors, index, record),
-                    None => {
-                        let mut candidates: Vec<GenerationUnitId> =
-                            group.iter().map(|r| r.id.clone()).collect();
-                        candidates.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                        UnitAssociation::Ambiguous { candidates }
-                    }
-                }
-            } else {
-                match saved_by_key.get(&key).map(Vec::as_slice) {
-                    Some([record]) => retained(descriptors, index, record),
-                    Some(many) => {
-                        // Duplicate saved records: refuse to pick one,
-                        // unless an explicit bind captured this exact location.
-                        match source.and_then(|s| bound_match(descriptors, many, index, s)) {
-                            Some(record) => retained(descriptors, index, record),
-                            None => {
-                                let mut candidates: Vec<GenerationUnitId> =
-                                    many.iter().map(|r| r.id.clone()).collect();
-                                candidates.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-                                UnitAssociation::Ambiguous { candidates }
-                            }
-                        }
-                    }
-                    None => UnitAssociation::New,
-                }
-            };
-            (index, association)
+    let identity = descriptors
+        .iter()
+        .enumerate()
+        .filter(|(_, descriptor)| {
+            descriptor.has_generation_identity && UnitKind::of_descriptor(descriptor.kind).is_some()
         })
-        .collect()
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    let live_paths = sources
+        .values()
+        .map(|source| source.path.as_str())
+        .collect::<HashSet<_>>();
+    let mut id_counts = HashMap::new();
+    for record in saved {
+        *id_counts.entry(record.id.as_str()).or_insert(0usize) += 1;
+    }
+    let mut outcomes = Vec::new();
+    for &index in &identity {
+        let descriptor = &descriptors[index];
+        let source = sources.get(&descriptor.span.file);
+        let current_count = identity
+            .iter()
+            .filter(|&&other| same_descriptor(descriptor, &descriptors[other]))
+            .count();
+        let claims = saved
+            .iter()
+            .filter(|record| same_claim(descriptor, record))
+            .collect::<Vec<_>>();
+        let candidates = claims
+            .iter()
+            .map(|record| record.id.clone())
+            .collect::<Vec<_>>();
+        let eligible = claims
+            .iter()
+            .copied()
+            .filter(|record| {
+                if id_counts.get(record.id.as_str()) != Some(&1) {
+                    return false;
+                }
+                if let Some(source) = source {
+                    if source.path != record.source.path
+                        && live_paths.contains(record.source.path.as_str())
+                    {
+                        return false;
+                    }
+                }
+                if let Some(region) = &record.source.region {
+                    let conflicting_region =
+                        claims.iter().any(|claim| match &claim.source.region {
+                            Some(other) => {
+                                other.container != region.container
+                                    || other.sha256 != region.sha256
+                                    || other.count != region.count
+                            }
+                            None => true,
+                        });
+                    return !conflicting_region
+                        && descriptor.region.as_ref() == Some(region)
+                        && source.is_none_or(|source| {
+                            source.path == record.source.path
+                                || !live_paths.contains(record.source.path.as_str())
+                        })
+                        && identity
+                            .iter()
+                            .filter(|&&other| {
+                                same_descriptor(descriptor, &descriptors[other])
+                                    && descriptors[other].region.as_ref() == Some(region)
+                            })
+                            .count()
+                            == 1;
+                }
+                if current_count == 1 && claims.len() == 1 {
+                    // A current anonymous interval needs a captured certificate, never
+                    // conversion of an old unique binding into an ordinal guess.
+                    return descriptor.region.is_none();
+                }
+                // Legacy explicit-location evidence remains readable. New records use
+                // local certificates, so unrelated source edits do not lose binding.
+                record.source.selector.is_none()
+                    && source.is_some_and(|source| {
+                        record.source.path == source.path
+                            && record.source.revision == source.revision
+                            && record.source.start == descriptor.span.start
+                            && record.source.end == descriptor.span.end
+                    })
+            })
+            .collect::<Vec<_>>();
+        let association = if eligible.len() == 1 {
+            retained(descriptor, eligible[0])
+        } else if claims.is_empty() {
+            UnitAssociation::New
+        } else {
+            UnitAssociation::Ambiguous { candidates }
+        };
+        outcomes.push((index, association));
+    }
+    // One group cannot satisfy two source slots even if certificates were copied.
+    let mut retained_counts = HashMap::new();
+    for (_, association) in &outcomes {
+        if let UnitAssociation::Retained { id, .. } = association {
+            *retained_counts.entry(id.clone()).or_insert(0usize) += 1;
+        }
+    }
+    for (_, association) in &mut outcomes {
+        if let UnitAssociation::Retained { id, .. } = association {
+            if retained_counts.get(id).is_some_and(|count| *count > 1) {
+                *association = UnitAssociation::Ambiguous {
+                    candidates: vec![id.clone()],
+                };
+            }
+        }
+    }
+    let retained_ids = outcomes
+        .iter()
+        .filter_map(|(_, association)| match association {
+            UnitAssociation::Retained { id, .. } => Some(id.clone()),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    for (index, association) in &mut outcomes {
+        if matches!(association, UnitAssociation::New) {
+            let descriptor = &descriptors[*index];
+            let mut displaced = saved
+                .iter()
+                .filter(|record| {
+                    // Owner names can change during a move or app/package rename.
+                    // The caller already qualifies this collection by output root;
+                    // unmatched same-kind output there still needs reconciliation.
+                    Some(record.source.kind) == UnitKind::of_descriptor(descriptor.kind)
+                        && !retained_ids.contains(&record.id)
+                })
+                .map(|record| record.id.clone())
+                .collect::<Vec<_>>();
+            displaced.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+            displaced.dedup();
+            if !displaced.is_empty() {
+                *association = UnitAssociation::Ambiguous {
+                    candidates: displaced,
+                };
+            }
+        }
+        if let UnitAssociation::Ambiguous { candidates } = association {
+            candidates.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+            candidates.dedup();
+        }
+    }
+    outcomes
 }
 
-/// Allocate the smallest fresh `u<N>` ID outside `used`.
-///
-/// Sequential allocation keeps IDs opaque (no meaning) and deterministic
-/// under tests. Lease-coordinated allocation across writers is BGI-04's
-/// protocol; this pure step only picks the spelling.
-pub fn next_unit_id(used: &HashSet<String>) -> GenerationUnitId {
-    let mut n: u32 = 1;
+/// Allocate 128 OS-random bits, independent of branch-local tracked counters.
+/// Entropy failure returns before any binding/output mutation.
+pub fn try_next_unit_id(used: &HashSet<String>) -> Result<GenerationUnitId, String> {
     loop {
-        let candidate = format!("u{n}");
+        let mut bytes = [0u8; 16];
+        getrandom::fill(&mut bytes)
+            .map_err(|error| format!("cannot allocate generation identity: {error}"))?;
+        let candidate = format!(
+            "g-{}",
+            bytes
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
         if !used.contains(&candidate) {
-            return GenerationUnitId(candidate);
+            return Ok(GenerationUnitId(candidate));
         }
-        n += 1;
     }
+}
+
+/// Existing callers fail closed at their tool-error panic boundary on unavailable entropy.
+pub fn next_unit_id(used: &HashSet<String>) -> GenerationUnitId {
+    try_next_unit_id(used).expect("OS entropy is required to allocate a generation identity")
 }
 
 /// List the unit IDs already tracked under `<root>/can.generated/`.
-/// Missing root means no saved units, not an error.
-pub fn scan_unit_ids(root: &Path) -> Vec<String> {
+/// Missing root means no saved units. Unreadable or malformed membership must
+/// not make existing output disappear and authorize fresh generation.
+pub fn scan_unit_ids(root: &Path) -> Result<Vec<String>, String> {
     let dir = root.join(GENERATED_DIR);
-    let entries = std::fs::read_dir(&dir)
-        .map(|r| r.collect::<Vec<_>>())
-        .unwrap_or_default();
-    let mut ids: Vec<String> = entries
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-        .filter_map(|e| e.file_name().into_string().ok())
-        .filter(|name| GenerationUnitId::parse(name).is_ok())
-        .collect();
+    match std::fs::symlink_metadata(&dir) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(format!("cannot inspect {}: {error}", dir.display())),
+        Ok(metadata) if !metadata.is_dir() || metadata.file_type().is_symlink() => {
+            return Err(format!("{} must be a regular directory", dir.display()));
+        }
+        Ok(_) => {}
+    }
+    let mut ids = Vec::new();
+    for entry in
+        std::fs::read_dir(&dir).map_err(|e| format!("cannot list {}: {e}", dir.display()))?
+    {
+        let entry = entry.map_err(|e| format!("cannot read {}: {e}", dir.display()))?;
+        let kind = entry
+            .file_type()
+            .map_err(|e| format!("cannot inspect {}: {e}", entry.path().display()))?;
+        if kind.is_file() {
+            continue; // Ordinary documentation may accompany the unit directories.
+        }
+        if !kind.is_dir() || kind.is_symlink() {
+            return Err(format!(
+                "saved group {} must be a regular directory",
+                entry.path().display()
+            ));
+        }
+        let name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| "saved group name is not UTF-8".to_string())?;
+        GenerationUnitId::parse(&name)?;
+        ids.push(name);
+    }
     ids.sort();
-    ids
+    Ok(ids)
 }
 
 /// Explicit bind target: an existing saved ID, or a fresh one.
@@ -580,6 +722,8 @@ pub enum BindError {
     StaleSelector { expected: String, actual: String },
     /// No saved record carries the requested existing ID.
     UnknownUnit { id: GenerationUnitId },
+    /// OS entropy was unavailable; no binding has been written.
+    AllocationFailed { detail: String },
     /// The saved unit's kind differs (a trait group cannot become style).
     /// Rebind to an ID of the same kind, or bind `new=true`.
     KindMismatch {
@@ -596,6 +740,7 @@ impl std::fmt::Display for BindError {
                 f,
                 "stale bind selector: inspected revision `{expected}` does not match current `{actual}`; re-inspect the source location"
             ),
+            Self::AllocationFailed { detail } => f.write_str(detail),
             Self::UnknownUnit { id } => {
                 write!(f, "no saved unit `{id}`; bind `new=true` for a fresh ID")
             }
@@ -662,7 +807,8 @@ pub fn apply_bind(
         }
         BindTarget::New => {
             let used: HashSet<String> = saved.iter().map(|r| r.id.as_str().to_string()).collect();
-            let id = next_unit_id(&used);
+            let id =
+                try_next_unit_id(&used).map_err(|detail| BindError::AllocationFailed { detail })?;
             Ok(UnitRecord {
                 abi_version: UNIT_ABI_VERSION,
                 id,
@@ -789,6 +935,8 @@ pub fn adopt_legacy_unit(
             kind,
             label: key.label.clone(),
             anchor: key.anchor.clone(),
+            selector: None,
+            region: None,
             path: evidence.path.clone(),
             revision: evidence.revision.clone(),
             start: evidence.start,
@@ -818,62 +966,6 @@ pub fn adopt_legacy_unit(
         },
     };
     Ok((record, files))
-}
-
-/// Synthesize an empty bound group for an unbound inline style seek.
-///
-/// Inline `$` prompts (`StyleInline`, `ViewStyleInline`) are generation
-/// requests, not references to existing units: when no saved unit can be
-/// adopted for the sought key, the seek lowers as an unstyled bound
-/// group instead of failing coverage. The association is the live sought
-/// key, provenance is [`ProvenanceOrigin::Bound`] with no generated
-/// output yet (the pack stage emits an empty sheet for such groups), and
-/// the unit id is deterministically derived from the key so repeated
-/// compilations stage identically. Named styles, views, traits, and
-/// keywords never synthesize: their missing units stay hard failures.
-pub fn synthesize_inline_unit(
-    key: &AssociationKey,
-    evidence: &AdoptEvidence,
-) -> Option<(UnitRecord, Vec<SavedFile>)> {
-    if !matches!(key.kind, UnitKind::StyleInline | UnitKind::ViewStyleInline) {
-        return None;
-    }
-    let digest = sha256_hex(key.describe().as_bytes());
-    let id = GenerationUnitId(format!("inline-{}", &digest[..16]));
-    let record = UnitRecord {
-        abi_version: UNIT_ABI_VERSION,
-        id: id.clone(),
-        source: SourceAssociation {
-            owner: key.owner.clone(),
-            kind: key.kind,
-            label: key.label.clone(),
-            anchor: key.anchor.clone(),
-            path: evidence.path.clone(),
-            revision: evidence.revision.clone(),
-            start: evidence.start,
-            end: evidence.end,
-        },
-        contract: UnitContract {
-            target: None,
-            profile: None,
-            prompt_sha256: sha256_hex("".as_bytes()),
-            signature: None,
-        },
-        original: OriginalOutput {
-            prompt_sha256: sha256_hex("".as_bytes()),
-            files: BTreeMap::new(),
-        },
-        provenance: UnitProvenance {
-            origin: ProvenanceOrigin::Bound,
-            runner: None,
-            model: None,
-            note: Some(
-                "inline generation request with no saved unit lowers unstyled; generate the unit for real CSS"
-                    .to_string(),
-            ),
-        },
-    };
-    Some((record, Vec::new()))
 }
 
 /// One current file of a saved group: live bytes plus their fresh

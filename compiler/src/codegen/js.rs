@@ -24,7 +24,6 @@
 //! CRUD `create`/`set` with `when`.
 
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
-use crate::analysis::generation_intake as intake;
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
@@ -1590,75 +1589,6 @@ pub(crate) struct ResolvedShow {
     pub renderer_style: Option<String>,
 }
 
-/// Bind-time evidence for a use-site seek: the compiling file's path, its
-/// current revision, and the use span. `None` when the span names no
-/// database source.
-fn use_evidence(db: &crate::source::SourceDb, span: &Span) -> Option<intake::AdoptEvidence> {
-    let (use_path, use_revision) =
-        db.iter()
-            .find(|(id, _)| *id == span.file)
-            .map(|(_, source)| {
-                (
-                    source.path.clone(),
-                    crate::source::sha256_hex(source.text.as_bytes()),
-                )
-            })?;
-    Some(intake::AdoptEvidence {
-        path: use_path,
-        revision: use_revision,
-        start: span.start,
-        end: span.end,
-    })
-}
-
-/// Adopt one handwritten legacy record for the live sought key.
-///
-/// Scans the same source roots the v1 collection uses. Directories the
-/// v1 parse already accepted are never re-read; every other directory is
-/// offered to [`intake::adopt_legacy_unit`], which enforces the exact
-/// kind/label match: `Ok(None)` is genuinely unbound, `Ok(Some)` is the
-/// single adoption, and `Err(count)` is an ambiguous multi-match. The
-/// bind-time evidence is the use-site file: its path, its current
-/// revision, and the use span.
-fn adopt_legacy_for_key(
-    evidence: Option<&intake::AdoptEvidence>,
-    roots: &[std::path::PathBuf],
-    records: &[(std::path::PathBuf, intake::UnitRecord)],
-    key: &intake::AssociationKey,
-) -> Result<Option<(String, intake::SavedGroup)>, usize> {
-    let Some(evidence) = evidence else {
-        return Ok(None);
-    };
-    let mut adopted = Vec::new();
-    for root in roots {
-        for name in intake::scan_unit_ids(root) {
-            let Ok(id) = intake::GenerationUnitId::parse(&name) else {
-                continue;
-            };
-            if records
-                .iter()
-                .any(|(known_root, known)| known_root == root && known.id == id)
-            {
-                continue;
-            }
-            let dir = root.join(intake::GENERATED_DIR).join(id.as_str());
-            if let Ok((record, files)) = intake::adopt_legacy_unit(&dir, &id, key, evidence) {
-                adopted.push((dir, record, files));
-            }
-        }
-    }
-    if adopted.len() > 1 {
-        return Err(adopted.len());
-    }
-    let Some((dir, record, files)) = adopted.into_iter().next() else {
-        return Ok(None);
-    };
-    Ok(Some((
-        record.id.as_str().to_string(),
-        intake::SavedGroup { record, dir, files },
-    )))
-}
-
 /// Saved Then inputs resolved for one compilation: renderer plans
 /// per `show` site, consumed view/style groups for packing, and
 /// coverage failures the driver diagnoses.
@@ -1822,49 +1752,48 @@ impl ThenBuildJoin {
                     && !consumed_views.contains(&(file.owner.clone(), name.clone()))
             })
         };
-        // Saved records by association key, across every source root.
-        // `roots` outlives this block: the legacy-adoption fallback in
-        // `resolve_unit` scans the same roots for handwritten records.
-        let mut records: Vec<(std::path::PathBuf, intake::UnitRecord)> = Vec::new();
-        let mut roots: Vec<std::path::PathBuf> = Vec::new();
-        {
-            for (_, source) in db.iter() {
-                let root = std::path::Path::new(&source.path)
-                    .parent()
-                    .map(std::path::Path::to_path_buf)
-                    .unwrap_or_else(|| std::path::PathBuf::from("."));
-                let root = if root.as_os_str().is_empty() {
-                    std::path::PathBuf::from(".")
-                } else {
-                    root
-                };
-                if !roots.contains(&root) {
-                    roots.push(root);
-                }
-            }
-            for root in &roots {
-                for name in intake::scan_unit_ids(root) {
-                    let Ok(id) = intake::GenerationUnitId::parse(&name) else {
-                        continue;
-                    };
-                    let path = root
-                        .join(intake::GENERATED_DIR)
-                        .join(id.as_str())
-                        .join(intake::UNIT_FILE);
-                    let Ok(text) = std::fs::read_to_string(&path) else {
-                        continue;
-                    };
-                    // Unparseable records stay invisible here; `gen
-                    // status` reports the breakage, and group reads
-                    // below catch missing primaries precisely. Handwritten
-                    // legacy records are adopted on demand in
-                    // `resolve_unit`, never here.
-                    if let Ok(record) = intake::UnitRecord::parse(&text, &id) {
-                        records.push((root.clone(), record));
+        // Library callers get the same snapshot boundary as the CLI. Their
+        // already checked source text must agree with the captured filesystem.
+        let standalone = if db.generation.is_none()
+            && files.iter().any(|file| {
+                file.descriptors
+                    .iter()
+                    .any(|descriptor| descriptor.has_generation_identity)
+            }) {
+            if db
+                .iter()
+                .any(|(_, source)| !std::path::Path::new(&source.path).is_file())
+            {
+                Some(Err(
+                    "saved generation requires readable owning source files".to_string(),
+                ))
+            } else {
+                let mut roots = Vec::new();
+                for (_, source) in db.iter() {
+                    if let Some(root) = std::path::Path::new(&source.path).parent() {
+                        let root = if root.as_os_str().is_empty() {
+                            std::path::PathBuf::from(".")
+                        } else {
+                            root.to_path_buf()
+                        };
+                        if !roots.contains(&root) {
+                            roots.push(root);
+                        }
                     }
                 }
+                Some(crate::analysis::generation_store::FrozenGeneration::capture(&roots).and_then(|snapshot| {
+                if db.iter().any(|(_, source)| snapshot.source(std::path::Path::new(&source.path)) != Some(source.text.as_str())) {
+                    Err("checked source changed before saved-code capture; retry the build".into())
+                } else { Ok(snapshot) }
+            }))
             }
-        }
+        } else {
+            None
+        };
+        let snapshot = db
+            .generation
+            .as_deref()
+            .or_else(|| standalone.as_ref().and_then(|value| value.as_ref().ok()));
         let mut join = ThenBuildJoin::default();
         // Staged identities stay unambiguous: one unit id serves one
         // association key, or the build refuses the skewed staging.
@@ -1896,75 +1825,29 @@ impl ThenBuildJoin {
                             span: Span,
                             what: &str|
          -> Option<(String, intake::SavedGroup)> {
-            let matches: Vec<&(std::path::PathBuf, intake::UnitRecord)> = records
-                .iter()
-                .filter(|(_, record)| intake::AssociationKey::of(&record.source) == *key)
-                .collect();
-            if matches.is_empty() {
-                // Legacy fallback: adopt one handwritten record for the
-                // live sought key. Kind and label must match exactly, so
-                // genuinely unbound units keep reporting `no saved unit`.
-                // Unadoptable inline `$` seeks lower as unstyled bound
-                // groups; every other unbound kind stays a failure.
-                let evidence = use_evidence(db, &span);
-                match adopt_legacy_for_key(evidence.as_ref(), &roots, &records, key) {
-                    Ok(Some(adopted)) => return Some(adopted),
+            match snapshot {
+                Some(snapshot) => match snapshot.resolve(db, key, span) {
+                    Ok(Some(group)) => Some(group),
                     Ok(None) => {
-                        if let Some(evidence) = evidence.as_ref() {
-                            if let Some((record, files)) =
-                                intake::synthesize_inline_unit(key, evidence)
-                            {
-                                // Synthetic units own no directory: the
-                                // marker path must fail loudly if ever
-                                // read, never resolve to real bytes.
-                                let dir = std::path::PathBuf::from("<inline-synthetic>");
-                                return Some((
-                                    record.id.as_str().to_string(),
-                                    intake::SavedGroup { record, dir, files },
-                                ));
-                            }
-                        }
+                        join.missing.push((span, format!("cannot lower {what}: no saved unit is bound to {}; prepare the unit (action: generate)", key.describe())));
+                        None
                     }
-                    Err(count) => {
+                    Err(detail) => {
                         join.missing.push((
                             span,
-                            format!(
-                                "cannot lower {what}: {} saved units match {}; reconcile the association with an explicit bind (action: bind)",
-                                count,
-                                key.describe(),
-                            ),
+                            format!("cannot lower {what}: {detail} (action: bind)"),
                         ));
-                        return None;
+                        None
                     }
-                }
-                join.missing.push((
-                    span,
-                    format!(
-                        "cannot lower {what}: no saved unit is bound to {}; send a generate request to prepare the unit (action: generate)",
-                        key.describe(),
-                    ),
-                ));
-                return None;
-            }
-            if matches.len() > 1 {
-                join.missing.push((
-                    span,
-                    format!(
-                        "cannot lower {what}: {} saved units match {}; reconcile the association with an explicit bind (action: bind)",
-                        matches.len(),
-                        key.describe(),
-                    ),
-                ));
-                return None;
-            }
-            let (root, record) = matches[0];
-            match intake::read_saved_group(root, &record.id) {
-                Ok(group) => Some((record.id.as_str().to_string(), group)),
-                Err(issue) => {
-                    join.missing.push((
-                        span,
-                        format!("cannot lower {what}: saved group is incompatible: {issue}"),
-                    ));
+                },
+                None => {
+                    let detail = standalone
+                        .as_ref()
+                        .and_then(|value| value.as_ref().err())
+                        .map(String::as_str)
+                        .unwrap_or("saved input snapshot unavailable");
+                    join.missing
+                        .push((span, format!("cannot lower {what}: {detail}")));
                     None
                 }
             }
@@ -2264,13 +2147,23 @@ impl ThenBuildJoin {
                     ),
                     _ => continue,
                 };
-                if let Some((id, _)) = join.styles.iter().find(|(_, group)| {
-                    let source = &group.record.source;
-                    source.owner == descriptor.owner
-                        && source.kind == kind
-                        && source.label == label
-                        && source.anchor == anchor
-                }) {
+                let key = intake::AssociationKey {
+                    owner: descriptor.owner.clone(),
+                    kind,
+                    label,
+                    anchor,
+                };
+                if let Some(snapshot) = snapshot {
+                    if let Ok(Some((id, _))) = snapshot.resolve(db, &key, descriptor.span) {
+                        if join.styles.contains_key(&id) {
+                            join.style_hosts.insert(*host_span, id);
+                        }
+                    }
+                } else if let Some((id, _)) = join
+                    .styles
+                    .iter()
+                    .find(|(_, group)| intake::AssociationKey::of(&group.record.source) == key)
+                {
                     join.style_hosts.insert(*host_span, id.clone());
                 }
             }
@@ -2295,7 +2188,11 @@ fn emit_program_with_sources(
     // `show` sites emit saved-renderer calls, and the compile driver
     // reuses the same resolution for coverage and packing.
     if let Some(db) = db {
-        emitter.then_join = Some(ThenBuildJoin::resolve(db));
+        let join = ThenBuildJoin::resolve(db);
+        for (span, detail) in join.missing() {
+            emitter.unsupported("saved generation", detail, *span);
+        }
+        emitter.then_join = Some(join);
     }
     for original in ir.committed_sources.mailbox_event_handlers() {
         let index = original.id.0 as usize;

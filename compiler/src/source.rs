@@ -61,6 +61,8 @@ pub struct SourceDb {
     by_path: HashMap<String, SourceId>,
     // A fresh allocation for every Default/new owner, stable across moves/adds.
     identity: Arc<()>,
+    /// One frozen source/output closure shared by checking and emission.
+    pub(crate) generation: Option<Arc<crate::analysis::generation_store::FrozenGeneration>>,
 }
 
 impl SourceDb {

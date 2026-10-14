@@ -6,8 +6,8 @@ use canlang_compiler::analysis::generation_intake::{
     AssociationKey, AssociationSource, BindError, BindRequest, BindTarget, GENERATED_DIR,
     GenerationUnitId, IntakeAction, OriginalOutput, ProvenanceOrigin, UNIT_ABI_VERSION, UNIT_FILE,
     UnitAssociation, UnitKind, UnitProvenance, UnitRecord, apply_bind, associate,
-    associate_with_source, association_for, contract_for, intake_associated, next_unit_id,
-    read_saved_group, scan_unit_ids,
+    associate_with_source, associate_with_sources, association_for, contract_for,
+    intake_associated, next_unit_id, read_saved_group, scan_unit_ids,
 };
 use canlang_compiler::cli::dispatch;
 use canlang_compiler::format::format_source;
@@ -126,8 +126,22 @@ fn unit_ids_reject_paths_and_blank() {
         assert!(GenerationUnitId::parse(bad).is_err(), "{bad:?} must refuse");
     }
     let used: HashSet<String> = ["u1".to_string(), "u3".to_string()].into_iter().collect();
-    assert_eq!(next_unit_id(&used).as_str(), "u2");
-    assert_eq!(next_unit_id(&HashSet::new()).as_str(), "u1");
+    let first = next_unit_id(&used);
+    let independently_allocated = next_unit_id(&used);
+    for id in [&first, &independently_allocated] {
+        assert_eq!(id.as_str().len(), 34);
+        assert!(id.as_str().starts_with("g-"));
+        assert!(
+            id.as_str()[2..]
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        );
+        assert!(!used.contains(id.as_str()));
+    }
+    assert_ne!(
+        first, independently_allocated,
+        "independent branch allocation must not share a counter"
+    );
 }
 
 #[test]
@@ -263,7 +277,7 @@ fn copies_and_ambiguous_relocation_cannot_reuse_ownership() {
         }
     }
 
-    // A relocated inline trait (new anchor) is New: the old ID is never
+    // A relocated inline trait (new anchor) requires reconciliation: the old ID is never
     // silently reused via a sole unmatched pair or nearest offset.
     let moved = BASE.replace(
         " Note {body:text} trait $\"Add pinned:bool=false.\"",
@@ -278,7 +292,10 @@ fn copies_and_ambiguous_relocation_cannot_reuse_ownership() {
         .iter()
         .find(|(anchor, _)| anchor.contains("Note2"))
         .map(|(_, a)| a);
-    assert_eq!(inline_new, Some(&UnitAssociation::New));
+    assert!(
+        matches!(inline_new, Some(UnitAssociation::Ambiguous { .. })),
+        "possibly displaced saved owner must require reconciliation"
+    );
     // No association may point at the old Note inline unit's ID.
     let old_inline_id = saved
         .iter()
@@ -411,7 +428,8 @@ fn bind_existing_refreshes_evidence_and_bind_new_allocates_for_copies() {
         ..request.clone()
     };
     let fresh = apply_bind(&saved, &copy, "rev-new").unwrap();
-    assert_eq!(fresh.id.as_str(), "u2");
+    assert!(fresh.id.as_str().starts_with("g-"));
+    assert_ne!(fresh.id, saved[0].id);
     assert!(fresh.original.files.is_empty());
     assert_eq!(fresh.provenance.origin, ProvenanceOrigin::Bound);
 }
@@ -524,9 +542,9 @@ fn intake_reads_current_files_and_keeps_original_fingerprints() {
         .unwrap();
     assert_eq!(asset.bytes, vec![0u8, 1, 2, 3]);
     assert!(!group.files.iter().any(|f| f.rel_path == UNIT_FILE));
-    assert_eq!(scan_unit_ids(root), vec!["u1".to_string()]);
+    assert_eq!(scan_unit_ids(root).unwrap(), vec!["u1".to_string()]);
     // Missing root is no saved units, not an error.
-    assert!(scan_unit_ids(&root.join("elsewhere")).is_empty());
+    assert!(scan_unit_ids(&root.join("elsewhere")).unwrap().is_empty());
 }
 
 #[test]
@@ -639,21 +657,41 @@ fn cli_bind_round_trip_then_status_retains() {
         "gen", "bind", &root, &file, &start, &end, &revision, "new",
     ]));
     assert_eq!(result.code, 0, "stderr: {}", result.stderr);
-    assert!(result.stdout.contains("bound u1"), "{}", result.stdout);
-    let unit_json = dir.path().join(GENERATED_DIR).join("u1").join(UNIT_FILE);
+    let allocated = scan_unit_ids(dir.path()).unwrap();
+    assert_eq!(allocated.len(), 1);
+    let id = &allocated[0];
+    assert!(id.starts_with("g-"));
+    assert!(
+        result.stdout.contains(&format!("bound {id}")),
+        "{}",
+        result.stdout
+    );
+    let unit_json = dir.path().join(GENERATED_DIR).join(id).join(UNIT_FILE);
     assert!(unit_json.is_file());
     // Status now retains the bound unit with its current path.
     let result = dispatch(&argv(&["gen", "status", &root, &file]));
     assert_eq!(result.code, 0, "stderr: {}", result.stderr);
-    assert!(result.stdout.contains("unit u1"), "{}", result.stdout);
+    assert!(
+        result.stdout.contains(&format!("unit {id}")),
+        "{}",
+        result.stdout
+    );
     // The saved closure includes metadata, contributions, imports and assets.
-    write_fixture(dir.path(), "can.generated/u1/contributions.can", "Given\n");
     write_fixture(
         dir.path(),
-        "can.generated/u1/helper.js",
+        &format!("can.generated/{id}/contributions.can"),
+        "Given\n",
+    );
+    write_fixture(
+        dir.path(),
+        &format!("can.generated/{id}/helper.js"),
         "export const x = 1;\n",
     );
-    write_fixture(dir.path(), "can.generated/u1/unused.can", "Given\n");
+    write_fixture(
+        dir.path(),
+        &format!("can.generated/{id}/unused.can"),
+        "Given\n",
+    );
     // JSON status carries the same association.
     let result = dispatch(&argv(&["gen", "status", "--format=json", &root, &file]));
     assert_eq!(result.code, 0, "stderr: {}", result.stderr);
@@ -662,14 +700,18 @@ fn cli_bind_round_trip_then_status_retains() {
         "{}",
         result.stdout
     );
-    assert!(result.stdout.contains("\"id\":\"u1\""), "{}", result.stdout);
     assert!(
-        result.stdout.contains("can.generated/u1"),
+        result.stdout.contains(&format!("\"id\":\"{id}\"")),
         "{}",
         result.stdout
     );
     assert!(
-        result.stdout.contains(".can/gen/attempts/u1"),
+        result.stdout.contains(&format!("can.generated/{id}")),
+        "{}",
+        result.stdout
+    );
+    assert!(
+        result.stdout.contains(&format!(".can/gen/attempts/{id}")),
         "{}",
         result.stdout
     );
@@ -678,21 +720,21 @@ fn cli_bind_round_trip_then_status_retains() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|u| u["id"] == "u1")
+        .find(|u| u["id"].as_str() == Some(id.as_str()))
         .unwrap();
     let files = unit["current_files"].as_array().unwrap();
     for path in [
         "app.can",
-        "can.generated/u1/unit.json",
-        "can.generated/u1/contributions.can",
-        "can.generated/u1/helper.js",
-        "can.generated/u1/unused.can",
+        &format!("can.generated/{id}/unit.json"),
+        &format!("can.generated/{id}/contributions.can"),
+        &format!("can.generated/{id}/helper.js"),
+        &format!("can.generated/{id}/unused.can"),
     ] {
         assert!(files.iter().any(|entry| entry["path"] == path && entry["sha256"].as_str().unwrap().len() == 64), "{path}: {files:?}");
     }
     assert_eq!(
         unit["compiler_sources"],
-        serde_json::json!(["app.can", "can.generated/u1/contributions.can"])
+        serde_json::json!(["app.can", &format!("can.generated/{id}/contributions.can")])
     );
     // Stale revision refuses and writes nothing new.
     let result = dispatch(&argv(&[
@@ -700,7 +742,7 @@ fn cli_bind_round_trip_then_status_retains() {
     ]));
     assert_eq!(result.code, 2);
     assert!(result.stderr.contains("stale"), "{}", result.stderr);
-    assert!(!dir.path().join(GENERATED_DIR).join("u2").exists());
+    assert_eq!(scan_unit_ids(dir.path()).unwrap(), allocated);
     // Binding an application span refuses: uses reuse their definition.
     let app = descriptors
         .iter()
@@ -730,6 +772,8 @@ fn copied_inline_styles() -> Vec<GenerationDescriptor> {
     [("one", 1u32, 10u32), ("two", 20u32, 30u32)]
         .into_iter()
         .map(|(_text, start, end)| GenerationDescriptor {
+            selector: None,
+            region: None,
             owner: "Test".to_string(),
             kind: GenerationKind::StyleInline,
             label: Some("UiLeaf".to_string()),
@@ -778,7 +822,8 @@ fn explicit_bind_honored_for_exact_captured_location_only() {
         target: BindTarget::New,
     };
     let bound_copy = apply_bind(&[bound_original.clone()], &bind_copy, revision).unwrap();
-    assert_eq!(bound_copy.id.as_str(), "u2");
+    let copy_id = bound_copy.id.clone();
+    assert!(copy_id.as_str().starts_with("g-"));
     let saved = vec![bound_original, bound_copy];
 
     // Without current-location evidence the shared key still refuses.
@@ -805,7 +850,7 @@ fn explicit_bind_honored_for_exact_captured_location_only() {
     assert!(matches!(
         honored[1].1,
         UnitAssociation::Retained { ref id, prompt_changed: false }
-        if id.as_str() == "u2"
+        if id == &copy_id
     ));
     // Changed or stale source never guesses: a new revision refuses both.
     let stale = AssociationSource {
@@ -832,7 +877,7 @@ fn explicit_bind_honored_for_exact_captured_location_only() {
     assert!(matches!(
         rematched[1].1,
         UnitAssociation::Retained { ref id, prompt_changed: false }
-        if id.as_str() == "u2"
+        if id == &copy_id
     ));
 }
 
@@ -945,4 +990,248 @@ fn source_revision_hook_tracks_exact_bytes() {
     assert_ne!(db.revision(id), db.revision(id2));
     // The original ID still denotes its original bytes.
     assert_eq!(db.revision(id), Some(sha256_hex(BASE.as_bytes()).as_str()));
+}
+
+const ANONYMOUS: &str = r#"app Tasks
+Given
+ Log {line:text}
+When
+Then
+ page / title="Tasks"
+  text "Same" $"Readable"
+  text "Same" $"Readable"
+"#;
+
+fn anonymous_records(text: &str) -> (Vec<GenerationDescriptor>, Vec<UnitRecord>) {
+    let descriptors = discover(text);
+    let saved = descriptors
+        .iter()
+        .filter(|descriptor| descriptor.has_generation_identity)
+        .enumerate()
+        .map(|(index, descriptor)| {
+            saved_record(
+                &format!("u{}", index + 1),
+                descriptor,
+                "app.can",
+                &sha256_hex(text.as_bytes()),
+            )
+        })
+        .collect();
+    (descriptors, saved)
+}
+
+#[test]
+fn anonymous_local_interval_survives_formatting_comments_and_outside_edits() {
+    let (original, saved) = anonymous_records(ANONYMOUS);
+    assert_eq!(saved.len(), 2);
+    assert_eq!(original[0].selector, original[1].selector);
+    assert_eq!(saved[0].source.region.as_ref().unwrap().occurrence, 0);
+    assert_eq!(saved[1].source.region.as_ref().unwrap().occurrence, 1);
+    let changed = ANONYMOUS
+        .replace("When\n", " Audit {entry:text}\nWhen\n")
+        .replace("  text ", "  text    ")
+        .replacen("  text", "  ## unrelated explanatory comment\n  text", 1)
+        + "  text \"Outside\" $\"Other styling\"\n";
+    let edited = discover(&changed);
+    let outcomes = associate_with_source(
+        &edited,
+        &saved,
+        &AssociationSource {
+            path: "app.can".to_string(),
+            revision: sha256_hex(changed.as_bytes()),
+        },
+    );
+    assert_eq!(outcomes.len(), 3);
+    for index in 0..2 {
+        assert!(
+            matches!(&outcomes[index].1, UnitAssociation::Retained { id, prompt_changed:false } if id == &saved[index].id),
+            "{:?}",
+            outcomes[index]
+        );
+    }
+    assert!(matches!(outcomes[2].1, UnitAssociation::New));
+}
+
+#[test]
+fn changed_anonymous_interval_refuses_insertion_and_competing_certificates() {
+    let (_, saved) = anonymous_records(ANONYMOUS);
+    let original_records = saved.clone();
+    let inserted = ANONYMOUS.to_string() + "  text \"Same\" $\"Readable\"\n";
+    for (_, outcome) in associate(&discover(&inserted), &saved) {
+        assert!(
+            matches!(outcome, UnitAssociation::Ambiguous { .. }),
+            "{outcome:?}"
+        );
+    }
+    assert_eq!(
+        saved, original_records,
+        "association preserves every output receipt"
+    );
+    let mut competing = saved.clone();
+    let mut extra = saved[0].clone();
+    extra.id = GenerationUnitId::parse("competing").unwrap();
+    extra.source.region.as_mut().unwrap().sha256 = "0".repeat(64);
+    competing.push(extra);
+    for (_, outcome) in associate(&discover(ANONYMOUS), &competing) {
+        assert!(
+            matches!(outcome, UnitAssociation::Ambiguous { .. }),
+            "{outcome:?}"
+        );
+    }
+    let changed_prompt = ANONYMOUS.replacen("Readable", "Different prompt", 1);
+    for (_, outcome) in associate(&discover(&changed_prompt), &saved) {
+        assert!(
+            matches!(outcome, UnitAssociation::Ambiguous { .. }),
+            "{outcome:?}"
+        );
+    }
+}
+
+#[test]
+fn complete_containment_distinguishes_pages_and_view_prompt_roles() {
+    let source = r#"app Tasks
+Given
+ Item {title:text}
+When
+Then
+ view Tile(row:Item) $"Render" $"Style"
+  text row.title
+ page / title="Tasks"
+  text "Same" $"Readable"
+ page /other title="Other"
+  text "Same" $"Readable"
+"#;
+    let descriptors = discover(source)
+        .into_iter()
+        .filter(|descriptor| descriptor.has_generation_identity)
+        .collect::<Vec<_>>();
+    assert_eq!(descriptors.len(), 4);
+    assert_ne!(
+        descriptors[0].selector, descriptors[1].selector,
+        "renderer/root style roles differ"
+    );
+    assert_eq!(
+        descriptors[2].anchor, descriptors[3].anchor,
+        "legacy nearest-host keys coincide"
+    );
+    assert_ne!(
+        descriptors[2].selector, descriptors[3].selector,
+        "complete page containment differs"
+    );
+    let saved = descriptors
+        .iter()
+        .enumerate()
+        .map(|(index, descriptor)| saved_record(&format!("u{index}"), descriptor, "app.can", "old"))
+        .collect::<Vec<_>>();
+    for (_, outcome) in associate(&descriptors, &saved) {
+        assert!(
+            matches!(outcome, UnitAssociation::Retained { .. }),
+            "{outcome:?}"
+        );
+    }
+}
+
+#[test]
+fn complete_scope_blocks_cross_file_copy_and_duplicate_ids() {
+    let source = "app Tasks\nGiven\nWhen\nThen\n style Surface $\"Readable\"\n";
+    let mut descriptors = discover(source);
+    let saved = vec![saved_record("u1", &descriptors[0], "original.can", "old")];
+    let mut copied = descriptors[0].clone();
+    copied.span.file = SourceId(1);
+    descriptors.push(copied);
+    let sources = [
+        (
+            SourceId(0),
+            AssociationSource {
+                path: "original.can".to_string(),
+                revision: "new".to_string(),
+            },
+        ),
+        (
+            SourceId(1),
+            AssociationSource {
+                path: "copy.can".to_string(),
+                revision: "new".to_string(),
+            },
+        ),
+    ]
+    .into_iter()
+    .collect();
+    for (_, outcome) in associate_with_sources(&descriptors, &saved, &sources) {
+        assert!(
+            matches!(outcome, UnitAssociation::Ambiguous { .. }),
+            "{outcome:?}"
+        );
+    }
+    let mut twin = saved[0].clone();
+    twin.source.selector = Some("another semantic claim".to_string());
+    for (_, outcome) in associate(&descriptors[..1], &[saved[0].clone(), twin]) {
+        assert!(
+            matches!(outcome, UnitAssociation::Ambiguous { .. }),
+            "{outcome:?}"
+        );
+    }
+}
+
+#[test]
+fn owner_rename_requires_reconciliation_for_each_saved_kind() {
+    let original = discover(BASE);
+    let saved = original
+        .iter()
+        .filter(|descriptor| descriptor.has_generation_identity)
+        .enumerate()
+        .map(|(index, descriptor)| {
+            saved_record(&format!("u{index}"), descriptor, "app.can", "old")
+        })
+        .collect::<Vec<_>>();
+    let renamed = BASE.replace("app Tasks", "app Renamed");
+    let current = discover(&renamed);
+    let outcomes = associate_with_source(
+        &current,
+        &saved,
+        &AssociationSource {
+            path: "moved.can".to_string(),
+            revision: sha256_hex(renamed.as_bytes()),
+        },
+    );
+    assert_eq!(outcomes.len(), saved.len());
+    for (index, outcome) in outcomes {
+        let kind = UnitKind::of_descriptor(current[index].kind).unwrap();
+        let expected = saved
+            .iter()
+            .filter(|record| record.source.kind == kind)
+            .map(|record| record.id.clone())
+            .collect::<Vec<_>>();
+        match outcome {
+            UnitAssociation::Ambiguous { candidates } => assert_eq!(candidates, expected),
+            other => panic!("owner rename must reconcile saved {kind:?}: {other:?}"),
+        }
+    }
+    // A genuinely new kind has no displaced same-kind output to reconcile.
+    let view_only = saved
+        .into_iter()
+        .filter(|record| record.source.kind == UnitKind::View)
+        .collect::<Vec<_>>();
+    let current_style = discover("app New\nGiven\nWhen\nThen\n style Fresh $\"Readable\"\n");
+    assert!(matches!(associate(&current_style, &view_only)[0].1, UnitAssociation::New));
+}
+
+#[test]
+fn legacy_records_parse_without_optional_evidence_and_invalid_region_refuses() {
+    let (_, saved) = anonymous_records(ANONYMOUS);
+    let mut document: serde_json::Value = serde_json::from_str(&saved[0].to_json()).unwrap();
+    document["source"]
+        .as_object_mut()
+        .unwrap()
+        .remove("selector");
+    document["source"].as_object_mut().unwrap().remove("region");
+    let legacy = UnitRecord::parse(&document.to_string(), &saved[0].id).unwrap();
+    assert!(legacy.source.selector.is_none() && legacy.source.region.is_none());
+    document = serde_json::from_str(&saved[0].to_json()).unwrap();
+    document["source"]["region"]["occurrence"] = serde_json::json!(2);
+    assert!(
+        UnitRecord::parse(&document.to_string(), &saved[0].id)
+            .unwrap_err()
+            .contains("region certificate")
+    );
 }

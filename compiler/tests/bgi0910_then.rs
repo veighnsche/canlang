@@ -699,17 +699,18 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
     // The scoped CSS packs with its owner link for the deploy host.
     let sheets = body["stylesheets"].as_array().unwrap();
     assert_eq!(sheets.len(), 2);
-    assert_eq!(
-        sheets[0]["path"],
-        format!("can.generated/{u_style}/style.css")
-    );
-    let css = sheets[0]["css"].as_str().unwrap();
+    let sheet = sheets
+        .iter()
+        .find(|sheet| sheet["owner"]["unitId"] == u_style)
+        .expect("named style output");
+    assert_eq!(sheet["path"], format!("can.generated/{u_style}/style.css"));
+    let css = sheet["css"].as_str().unwrap();
     assert!(
         css.contains(&format!("[data-can-style~=\"{u_style}\"]")),
         "{css}"
     );
-    assert_eq!(sheets[0]["owner"]["unitId"], u_style);
-    assert_eq!(sheets[0]["owner"]["kind"], "style");
+    assert_eq!(sheet["owner"]["unitId"], u_style);
+    assert_eq!(sheet["owner"]["kind"], "style");
     // Repeat saved builds are byte-identical with zero AI.
     assert!(!dir.path().join("can.gen.toml").exists());
     let again = then_compile(dir.path(), &file);

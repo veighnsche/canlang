@@ -306,13 +306,20 @@ fn dispatch_with_route(
         return DispatchResult::ok_stdout(global_help());
     };
     match cmd.as_str() {
-        "check" => run_check_like(cmd, &parsed.operands, parsed.format, analyzer),
+        "check" => run_check_like(
+            cmd,
+            &parsed.operands,
+            parsed.format,
+            analyzer,
+            parsed.generation_root.as_deref(),
+        ),
         "lint" => run_lint(&parsed.operands, parsed.format, parsed.fix, analyzer),
         "compile" => run_compile(
             &parsed.operands,
             parsed.format,
             analyzer,
             parsed.native_scenario_receipts,
+            parsed.generation_root.as_deref(),
         ),
         "fmt" => {
             if parsed.format_set {
@@ -523,6 +530,7 @@ struct ParsedArgs {
     /// gains a sorted `fixes` array; text gains one `fix` line each).
     fix: bool,
     native_scenario_receipts: bool,
+    generation_root: Option<String>,
     /// `can docs --locale=TAG`: requested reference locale (selected by
     /// the TS renderer; absent means the app default plus source fallback).
     locale: Option<String>,
@@ -558,6 +566,7 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         fmt_check: false,
         fix: false,
         native_scenario_receipts: false,
+        generation_root: None,
         locale: None,
         locale_set: false,
         out: None,
@@ -580,7 +589,16 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
             continue;
         }
         if !flags_done && arg.starts_with('-') && arg.len() > 1 {
-            if arg == "--help" || arg == "-h" {
+            if arg == "--generation-root" {
+                i += 1;
+                parsed.generation_root =
+                    Some(args.get(i).ok_or("--generation-root needs a path")?.clone());
+            } else if let Some(value) = arg.strip_prefix("--generation-root=") {
+                if value.is_empty() {
+                    return Err("--generation-root needs a path".into());
+                }
+                parsed.generation_root = Some(value.to_string());
+            } else if arg == "--help" || arg == "-h" {
                 parsed.help = true;
             } else if arg == "--version" || arg == "-V" {
                 parsed.version = true;
@@ -691,6 +709,11 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     }
     if parsed.fix && parsed.subcommand.as_deref() != Some("lint") {
         return Err("--fix only applies to can lint".to_string());
+    }
+    if parsed.generation_root.is_some()
+        && !matches!(parsed.subcommand.as_deref(), Some("check" | "compile"))
+    {
+        return Err("--generation-root is available for check and compile".into());
     }
     if parsed.native_scenario_receipts && parsed.subcommand.as_deref() != Some("compile") {
         return Err("--native-scenario-receipts only applies to can compile".to_string());
@@ -806,7 +829,7 @@ fn command_help(cmd: &str) -> String {
         "lint" => format!(
             "can {cmd} — analyze sources, then run lint rules over the checked program (recommended rules; warnings/informational only, never blocking)\n\nUsage: can {cmd} [--fix] [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalysis errors report diagnostics with exit 10 and no lint findings. On a clean analysis the lint findings print as the diagnostic envelope (exit 0: warnings never block). With --fix, machine fixes are computed and reported (JSON gains a sorted `fixes` array; text gains one `fix` line per fix); nothing is written.\n\nExit codes: 0 findings-or-clean, 10 analysis errors reported, 2 tool failure.\n"
         ),
-        "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] [--native-scenario-receipts] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. --native-scenario-receipts emits complete supported retained-result capture for the native State runtime; use its Cloudflare runtime stdlib facade. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
+        "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] [--generation-root=PATH] [--native-scenario-receipts] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. --generation-root selects the app output owner when sources move into subdirectories; saved locators stay relative to that root. --native-scenario-receipts emits complete supported retained-result capture for the native State runtime; use its Cloudflare runtime stdlib facade. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n".to_string(),
         "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\nStdin EOF shuts the server down with the lifecycle exit code; a\nshutdown request followed by the exit notification exits 0, exit\nwithout shutdown exits 1.\n\nExit codes: 0 clean shutdown (shutdown+exit, or stdin EOF), 1 exit without shutdown, 2 tool failure.\n".to_string(),
@@ -821,7 +844,7 @@ fn command_help(cmd: &str) -> String {
         ),
         "dev" => "can dev — JSON control for the local development session\n\nUsage: can dev [COMMAND] [ARGS...]\n\nExecs the installed `can-dev` control adapter and passes every argument through. `can dev help` lists its machine-readable commands and flags. A missing adapter reports E7004. Override search with CAN_DEV_BIN. The adapter's JSON stdout and exit code pass through unchanged.\n".to_string(),
         "validate" => "can validate — validate saved output without AI\n\nUsage: can validate FILE.can [--format=json|text]\n\nCompiles the source and runs the platform build, examples and Playwright checks against saved output. Does not generate or repair output.\n\nExit codes: the platform validation exit code passes through; 2 for invalid usage or missing platform.\n".to_string(),
-        "gen" => "can gen — generate source-owned code or dispatch a generation request\n\nUsage: can gen FILE.can [--retry] [--dry-run] [--settings=PATH] [--format=json|text]\n       can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nFILE.can prepares and accepts missing generation outputs. --retry regenerates all selected units; --dry-run reports planned work without generation or acceptance. Source mode discovers the installed platform or a built checkout relative to the executable/source. --settings PATH (or --settings=PATH) selects an explicit file relative to the invoking working directory for preparation, retry and dry-run; no ancestor search runs.\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
+        "gen" => "can gen — generate source-owned code or dispatch a generation request\n\nUsage: can gen FILE.can [--retry] [--dry-run] [--settings=PATH] [--format=json|text]\n       can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nFILE.can prepares and accepts missing generation outputs. --retry regenerates all selected units; --dry-run reports planned work without generation or acceptance. Source mode discovers the installed platform or a built checkout relative to the executable/source. --settings PATH (or --settings=PATH) selects an explicit file relative to the invoking working directory for preparation, retry and dry-run; no ancestor search runs.\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. JSON bind accepts copy_from with unit=new to fork current saved files without AI; binding an existing ID relocates its metadata and preserves code. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
 }
@@ -857,6 +880,7 @@ fn run_check_like(
     operands: &[String],
     format: OutputFormat,
     analyzer: &dyn Analyzer,
+    generation_root: Option<&str>,
 ) -> DispatchResult {
     if operands.is_empty() {
         return DispatchResult::tool_error(
@@ -864,25 +888,20 @@ fn run_check_like(
             format!("can {cmd} expects at least one FILE.can operand"),
         );
     }
-    let mut db = SourceDb::new();
-    for path in operands {
-        let text = match read_source_file(path) {
-            Ok(text) => text,
-            Err(err) => {
-                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
-            }
-        };
-        if let Err(error) = add_source(&mut db, path.clone(), text) {
-            return error;
-        }
-    }
+    let saved_roots = generation_root
+        .map(|root| vec![PathBuf::from(root)])
+        .unwrap_or_else(|| compile_saved_roots(operands));
+    let mut db = match frozen_source_db(operands, &saved_roots) {
+        Ok(db) => db,
+        Err(error) => return error,
+    };
     let mut owned = analyzer.analyze_owned(&db, tool_version());
     if let Some(program) = &mut owned.program {
         prepare_saved_given(
             &mut db,
             program,
             owned.catalog.as_ref(),
-            &compile_saved_roots(operands),
+            &saved_roots,
             &mut owned.result,
         );
     }
@@ -917,6 +936,7 @@ fn run_compile(
     format: OutputFormat,
     analyzer: &dyn Analyzer,
     native_scenario_receipts: bool,
+    generation_root: Option<&str>,
 ) -> DispatchResult {
     if operands.is_empty() {
         return DispatchResult::tool_error(
@@ -924,18 +944,13 @@ fn run_compile(
             "can compile expects at least one FILE.can operand".to_string(),
         );
     }
-    let mut db = SourceDb::new();
-    for path in operands {
-        let text = match read_source_file(path) {
-            Ok(text) => text,
-            Err(err) => {
-                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
-            }
-        };
-        if let Err(error) = add_source(&mut db, path.clone(), text) {
-            return error;
-        }
-    }
+    let saved_roots = generation_root
+        .map(|root| vec![PathBuf::from(root)])
+        .unwrap_or_else(|| compile_saved_roots(operands));
+    let mut db = match frozen_source_db(operands, &saved_roots) {
+        Ok(db) => db,
+        Err(error) => return error,
+    };
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
     result.finish();
@@ -951,7 +966,6 @@ fn run_compile(
     // compiling silently without them. Repeat saved builds stay
     // zero-AI: this path never invokes generation, it only reads
     // current saved bytes.
-    let saved_roots = compile_saved_roots(operands);
     let given_join = prepare_saved_given(
         &mut db,
         &mut program,
@@ -1045,6 +1059,29 @@ fn run_compile(
     }
 }
 
+/// Load source and saved implementation from one lease-protected snapshot.
+fn frozen_source_db(operands: &[String], roots: &[PathBuf]) -> Result<SourceDb, DispatchResult> {
+    let frozen = std::sync::Arc::new(
+        crate::analysis::generation_store::FrozenGeneration::capture(roots).map_err(|error| {
+            DispatchResult::tool_error("E7002", format!("cannot capture generated inputs: {error}"))
+        })?,
+    );
+    let mut db = SourceDb::new();
+    for path in operands {
+        let text = frozen.source(Path::new(path)).ok_or_else(|| {
+            DispatchResult::tool_error(
+                "E7002",
+                format!(
+                    "source '{path}' is outside the selected generation root or was not captured"
+                ),
+            )
+        })?;
+        add_source(&mut db, path.clone(), text.to_string())?;
+    }
+    db.generation = Some(frozen);
+    Ok(db)
+}
+
 /// Saved-unit roots for one compilation: the distinct parent
 /// directories of the operand files, each contributing its
 /// `can.generated/` records. Operands without a parent directory
@@ -1065,7 +1102,22 @@ fn compile_saved_roots(operands: &[String]) -> Vec<std::path::PathBuf> {
             roots.push(root);
         }
     }
+    let canonical = roots
+        .iter()
+        .map(|root| root.canonicalize().unwrap_or_else(|_| root.clone()))
+        .collect::<Vec<_>>();
     roots
+        .into_iter()
+        .enumerate()
+        .filter(|(index, _)| {
+            !canonical.iter().enumerate().any(|(other, parent)| {
+                other != *index
+                    && canonical[*index] != *parent
+                    && canonical[*index].starts_with(parent)
+            })
+        })
+        .map(|(_, root)| root)
+        .collect()
 }
 
 /// Checked saved Given inputs for one compilation: the BGI-07
@@ -1124,7 +1176,7 @@ fn prepare_saved_given(
 fn join_saved_given(
     db: &mut SourceDb,
     program: &crate::analysis::CheckedProgram,
-    roots: &[std::path::PathBuf],
+    _roots: &[std::path::PathBuf],
     result: &mut DiagnosticResult,
 ) -> Option<GivenJoin> {
     use crate::analysis::generation::{GenerationKind, discover_program};
@@ -1165,13 +1217,6 @@ fn join_saved_given(
             _ => false,
         }
     };
-    let mut records: Vec<(std::path::PathBuf, intake::UnitRecord)> = Vec::new();
-    for root in roots {
-        let (mut saved, _) = load_gen_saved(root);
-        for record in saved.drain(..) {
-            records.push((root.clone(), record));
-        }
-    }
     let mut saved: std::collections::HashMap<
         intake::AssociationKey,
         crate::analysis::types::GivenSavedUnit,
@@ -1192,10 +1237,6 @@ fn join_saved_given(
             label: def.label.clone(),
             anchor: def.anchor.clone(),
         };
-        let matches: Vec<&(std::path::PathBuf, intake::UnitRecord)> = records
-            .iter()
-            .filter(|(_, record)| intake::AssociationKey::of(&record.source) == key)
-            .collect();
         let what = match def.kind {
             GenerationKind::NamedTrait => {
                 format!("trait `{}`", def.label.as_deref().unwrap_or_default())
@@ -1203,46 +1244,30 @@ fn join_saved_given(
             GenerationKind::InlineTrait => "inline trait".to_string(),
             _ => format!("keyword `{}`", def.label.as_deref().unwrap_or_default()),
         };
-        if matches.is_empty() {
-            result.push(crate::diagnostic::Diagnostic::error(
-                "E6008",
-                format!(
-                    "cannot lower {what}: no saved unit is bound to {}; send a generate request to prepare the unit (action: generate)",
-                    key.describe(),
-                ),
-                def.span,
-            ));
-            failed = true;
-            continue;
-        }
-        if matches.len() > 1 {
-            result.push(crate::diagnostic::Diagnostic::error(
-                "E6008",
-                format!(
-                    "cannot lower {what}: {} saved units match {}; reconcile the association with an explicit bind (action: bind)",
-                    matches.len(),
-                    key.describe(),
-                ),
-                def.span,
-            ));
-            failed = true;
-            continue;
-        }
-        let (root, record) = matches[0];
-        let id = &record.id;
-        let group = match intake::read_saved_group(root, id) {
-            Ok(group) => group,
-            Err(issue) => {
+        let resolved = db
+            .generation
+            .as_ref()
+            .ok_or_else(|| "saved input snapshot unavailable".to_string())
+            .and_then(|snapshot| snapshot.resolve(db, &key, def.span));
+        let (staged_id, group) = match resolved {
+            Ok(Some(group)) => group,
+            Ok(None) => {
+                result.push(crate::diagnostic::Diagnostic::error("E6008", format!("cannot lower {what}: no saved unit is bound to {}; prepare the unit (action: generate)", key.describe()), def.span));
+                failed = true;
+                continue;
+            }
+            Err(detail) => {
                 result.push(crate::diagnostic::Diagnostic::error(
                     "E6008",
-                    format!("cannot lower {what}: saved group is incompatible: {issue}"),
+                    format!("cannot lower {what}: {detail} (action: bind)"),
                     def.span,
                 ));
                 failed = true;
                 continue;
             }
         };
-        match given_saved_unit(db, def, id, &group) {
+        let id = intake::GenerationUnitId::parse(&staged_id).expect("validated staged identity");
+        match given_saved_unit(db, def, &id, &group) {
             Ok(unit) => {
                 groups.insert(id.as_str().to_string(), group);
                 saved.insert(key, unit);
@@ -1494,25 +1519,7 @@ fn attach_saved_then(
     style_ids.sort();
     for unit_id in style_ids {
         let group = &join.styles()[unit_id];
-        // Freshly bound units carry no generated output yet: they pack an
-        // empty sheet instead of failing. Anything else without its CSS
-        // stays a coverage failure.
-        let fresh = group.record.provenance.origin
-            == crate::analysis::generation_intake::ProvenanceOrigin::Bound
-            && group.record.original.files.is_empty();
         let Some(css_file) = group.files.iter().find(|f| f.rel_path == "style.css") else {
-            if fresh {
-                sheets.push(
-                    art::pack_saved_stylesheet_with_assets(
-                        group.record.source.kind,
-                        owner_of(group),
-                        "",
-                        &[],
-                    )
-                    .map_err(|detail| fail(format!("cannot lower saved styles: {detail}")))?,
-                );
-                continue;
-            }
             return Err(fail(format!(
                 "unit `{unit_id}` has no saved `style.css`; repair the group or reconcile with adopt"
             )));
@@ -3235,7 +3242,18 @@ fn load_gen_saved(
     use crate::analysis::generation_intake as intake;
     let mut saved = Vec::new();
     let mut issues = Vec::new();
-    for name in intake::scan_unit_ids(root) {
+    let names = match intake::scan_unit_ids(root) {
+        Ok(names) => names,
+        Err(detail) => {
+            issues.push(intake::IntakeIssue {
+                unit: intake::GENERATED_DIR.to_string(),
+                action: intake::IntakeAction::Bind,
+                detail,
+            });
+            return (saved, issues);
+        }
+    };
+    for name in names {
         let id = match intake::GenerationUnitId::parse(&name) {
             Ok(id) => id,
             Err(_) => continue, // scan_unit_ids already validated; stay total.
@@ -3244,6 +3262,14 @@ fn load_gen_saved(
             .join(intake::GENERATED_DIR)
             .join(id.as_str())
             .join(intake::UNIT_FILE);
+        if !std::fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_file()) {
+            issues.push(intake::IntakeIssue {
+                unit: id.as_str().to_string(),
+                action: intake::IntakeAction::Bind,
+                detail: format!("saved record {} must be a readable regular file", path.display()),
+            });
+            continue;
+        }
         let text = match std::fs::read_to_string(&path) {
             Ok(text) => text,
             Err(_) => {
@@ -3279,109 +3305,52 @@ fn load_gen_saved(
 /// applications and named uses reuse their definition and cannot bind.
 /// The bind refuses when REVISION no longer matches the file (stale
 /// selector), when UNIT names no saved group or a different-kind group,
-/// and always leaves saved groups intact on failure. Persistence is one
-/// atomic `unit.json` write; lease coordination arrives with BGI-04.
+/// and always leaves saved groups intact on failure. Both entry points use
+/// the same source/group leases and journaled metadata publication.
 fn run_gen_bind(operands: &[String]) -> DispatchResult {
-    use crate::analysis::generation_intake as intake;
-    let [root, file, start_text, end_text, revision, unit] = operands else {
+    use crate::analysis::generation_protocol as proto;
+    let [root, file, start, end, revision, unit] = operands else {
         return DispatchResult::tool_error(
             "E7001",
-            "can gen bind expects ROOT FILE.can START END REVISION UNIT|new (see can help gen)"
-                .to_string(),
+            "can gen bind expects ROOT FILE.can START END REVISION UNIT|new".into(),
         );
     };
-    let (start, end) = match (start_text.parse::<u32>(), end_text.parse::<u32>()) {
-        (Ok(start), Ok(end)) if start <= end => (start, end),
-        _ => {
-            return DispatchResult::tool_error(
-                "E7001",
-                format!("can gen bind needs byte offsets START<=END, got {start_text}..{end_text}"),
-            );
-        }
-    };
-    let target = if unit == "new" {
-        intake::BindTarget::New
-    } else {
-        match intake::GenerationUnitId::parse(unit) {
-            Ok(id) => intake::BindTarget::Existing(id),
-            Err(reason) => {
-                return DispatchResult::tool_error("E7001", format!("can gen bind: {reason}"));
-            }
-        }
-    };
-    let source_file = generation_source_file(Path::new(root), file);
-    let (_db, _id, text) = match read_gen_source(&source_file) {
-        Ok(loaded) => loaded,
-        Err(error) => return error,
-    };
-    let current_revision = crate::source::sha256_hex(text.as_bytes());
-    let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
-    let found = crate::analysis::generation::discover_generation(&tree, &text);
-    let selected = found.descriptors.iter().find(|d| {
-        intake::UnitKind::of_descriptor(d.kind).is_some()
-            && d.span.start <= start
-            && end <= d.span.end
-    });
-    let Some(descriptor) = selected else {
+    let (Ok(start), Ok(end)) = (start.parse::<u32>(), end.parse::<u32>()) else {
         return DispatchResult::tool_error(
             "E7001",
-            format!(
-                "can gen bind: no generation unit at {file}:{start}..{end}; applications and named uses reuse their definition and cannot bind"
-            ),
+            "bind offsets must be unsigned integers".into(),
         );
     };
-    let root_path = Path::new(root);
-    let (saved, _) = load_gen_saved(root_path);
-    let source_path = generation_source_path(root_path, &source_file);
-    let request = intake::BindRequest {
-        path: source_path.clone(),
-        revision: revision.clone(),
-        start,
-        end,
-        source: match intake::association_for(descriptor, &source_path, revision) {
-            Some(source) => source,
-            None => {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "can gen bind: selected descriptor carries no generation identity".to_string(),
-                );
-            }
-        },
-        contract: match intake::contract_for(descriptor) {
-            Some(contract) => contract,
-            None => {
-                return DispatchResult::tool_error(
-                    "E7001",
-                    "can gen bind: selected descriptor carries no generation identity".to_string(),
-                );
-            }
-        },
-        target,
-    };
-    let record = match intake::apply_bind(&saved, &request, &current_revision) {
-        Ok(record) => record,
-        Err(err) => return DispatchResult::tool_error("E7001", format!("can gen bind: {err}")),
-    };
-    let dir = root_path
-        .join(intake::GENERATED_DIR)
-        .join(record.id.as_str());
-    if let Err(err) = std::fs::create_dir_all(&dir) {
-        return DispatchResult::tool_error(
-            "E7007",
-            format!("cannot write '{}': {err}", dir.display()),
-        );
+    if start > end {
+        return DispatchResult::tool_error("E7001", "bind requires START<=END".into());
     }
-    let unit_path = dir.join(intake::UNIT_FILE);
-    if let Err(err) = write_file_atomic(&unit_path, &record.to_json(), None) {
-        return DispatchResult::tool_error(
-            "E7007",
-            format!("cannot write '{}': {err}", unit_path.display()),
-        );
+    let result = run_gen_bind_json(
+        &proto::RequestHeader {
+            request_id: format!("bind-{}", std::process::id()),
+            operation: proto::GenOperation::Bind,
+        },
+        &proto::BindParams {
+            root: root.clone(),
+            file: file.clone(),
+            start,
+            end,
+            revision: revision.clone(),
+            unit: unit.clone(),
+            copy_from: None,
+        },
+    );
+    if result.code != 0 {
+        let error = serde_json::from_str::<serde_json::Value>(&result.stdout)
+            .ok()
+            .and_then(|value| value["error"]["message"].as_str().map(str::to_string))
+            .unwrap_or_else(|| result.stderr.clone());
+        return DispatchResult::tool_error("E7001", error);
     }
+    let envelope: serde_json::Value = serde_json::from_str(&result.stdout).expect("bind envelope");
     DispatchResult::ok_stdout(format!(
         "bound {} {file}:{start}..{end} -> {}\n",
-        record.id,
-        unit_path.display()
+        envelope["unit"]["id"].as_str().unwrap(),
+        envelope["unit"]["path"].as_str().unwrap()
     ))
 }
 
@@ -3406,22 +3375,51 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
     let mut lines: Vec<String> = Vec::new();
     let mut units_json: Vec<serde_json::Value> = Vec::new();
     let mut matched: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut scope_files = crate::analysis::generation_store::source_files(root_path)
+        .map_err(|error| DispatchResult::tool_error("E7002", error))?;
+    for file in files {
+        let resolved = generation_source_file(root_path, file);
+        let relative = generation_source_path(root_path, &resolved);
+        if !scope_files.contains(&relative) {
+            scope_files.push(relative);
+        }
+    }
+    scope_files.sort();
+    scope_files.dedup();
+    let mut descriptors = Vec::new();
+    let mut evidence = std::collections::HashMap::new();
+    let mut texts = std::collections::HashMap::new();
+    for (index, file) in scope_files.iter().enumerate() {
+        let source_file = generation_source_file(root_path, file);
+        let (_, _, text) = read_gen_source(&source_file)?;
+        let id = SourceId(index as u32);
+        let (tree, _) = crate::syntax::parse_source(id, &text);
+        descriptors
+            .extend(crate::analysis::generation::discover_generation(&tree, &text).descriptors);
+        evidence.insert(
+            id,
+            intake::AssociationSource {
+                path: file.clone(),
+                revision: crate::source::sha256_hex(text.as_bytes()),
+            },
+        );
+        texts.insert(file.clone(), text);
+    }
+    let associations = intake::associate_with_sources(&descriptors, &saved, &evidence);
+    for (_, association) in &associations {
+        if let intake::UnitAssociation::Retained { id, .. } = association {
+            matched.insert(id.as_str().to_string());
+        }
+    }
     for file in files {
         let source_file = generation_source_file(root_path, file);
-        let (_db, _id, text) = read_gen_source(&source_file)?;
-        let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
-        let found = crate::analysis::generation::discover_generation(&tree, &text);
-        // Current captured file/revision evidence: explicit binds are
-        // honored for their exact location, while changed/stale input
-        // still refuses conservatively (BGI02-repair join).
-        let evidence = intake::AssociationSource {
-            path: generation_source_path(root_path, &source_file),
-            revision: crate::source::sha256_hex(text.as_bytes()),
-        };
-        for (index, association) in
-            intake::associate_with_source(&found.descriptors, &saved, &evidence)
-        {
-            let descriptor = &found.descriptors[index];
+        let source_path = generation_source_path(root_path, &source_file);
+        let text = &texts[&source_path];
+        for (index, association) in &associations {
+            let descriptor = &descriptors[*index];
+            if evidence[&descriptor.span.file].path != source_path {
+                continue;
+            }
             let kind = intake::UnitKind::of_descriptor(descriptor.kind)
                 .map(|k| k.as_str())
                 .unwrap_or("?");
@@ -3496,6 +3494,8 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                                 // bind-new selection. Saved history stays
                                 // in unit.json; prompt_changed flags drift.
                                 "prompt": descriptor.prompt,
+                                "selector": descriptor.selector,
+                                "region": descriptor.region,
                                 "contract": intake::contract_for(descriptor)
                                     .map(|contract| contract_json(&contract))
                                     .unwrap_or(serde_json::Value::Null),
@@ -3533,6 +3533,8 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                         "association": "new",
                         // BGI-12 capture seam (additive): see retained.
                         "prompt": descriptor.prompt,
+                                "selector": descriptor.selector,
+                                "region": descriptor.region,
                         "contract": intake::contract_for(descriptor)
                             .map(|contract| contract_json(&contract))
                             .unwrap_or(serde_json::Value::Null),
@@ -3559,6 +3561,8 @@ fn collect_gen_status(root: &str, files: &[String]) -> Result<GenStatusReport, D
                         "association": "ambiguous",
                         // BGI-12 capture seam (additive): see retained.
                         "prompt": descriptor.prompt,
+                                "selector": descriptor.selector,
+                                "region": descriptor.region,
                         "contract": intake::contract_for(descriptor)
                             .map(|contract| contract_json(&contract))
                             .unwrap_or(serde_json::Value::Null),
@@ -3907,6 +3911,31 @@ fn run_gen_inspect(
     use crate::analysis::generation_protocol as proto;
     let root_path = Path::new(&params.root);
     let (saved, _) = load_gen_saved(root_path);
+    let scope_files = match crate::analysis::generation_store::source_files(root_path) {
+        Ok(files) => files,
+        Err(error) => return DispatchResult::tool_error("E7002", error),
+    };
+    let mut descriptors = Vec::new();
+    let mut evidence = std::collections::HashMap::new();
+    for (index, path) in scope_files.iter().enumerate() {
+        let source_file = generation_source_file(root_path, path);
+        let (_, _, text) = match read_gen_source(&source_file) {
+            Ok(value) => value,
+            Err(error) => return error,
+        };
+        let source_id = SourceId(index as u32);
+        let (tree, _) = crate::syntax::parse_source(source_id, &text);
+        descriptors
+            .extend(crate::analysis::generation::discover_generation(&tree, &text).descriptors);
+        evidence.insert(
+            source_id,
+            intake::AssociationSource {
+                path: path.clone(),
+                revision: crate::source::sha256_hex(text.as_bytes()),
+            },
+        );
+    }
+    let associations = intake::associate_with_sources(&descriptors, &saved, &evidence);
     // Resolve the selector to a descriptor plus its association.
     let selected = if let Some(unit_id) = &params.unit_id {
         let id = match intake::GenerationUnitId::parse(unit_id) {
@@ -3937,7 +3966,21 @@ fn run_gen_inspect(
                 ),
             );
         };
-        InspectedUnit::saved(record)
+        if let Some((index, association)) =
+            associations
+                .iter()
+                .find(|(_, association)| match association {
+                    intake::UnitAssociation::Retained { id: retained, .. } => *retained == id,
+                    intake::UnitAssociation::Ambiguous { candidates } => candidates.contains(&id),
+                    _ => false,
+                })
+        {
+            InspectedUnit::spanned(&descriptors[*index], association, &saved)
+        } else {
+            let mut orphaned = InspectedUnit::saved(record);
+            orphaned.association = "orphaned".into();
+            orphaned
+        }
     } else {
         let (Some(file), Some(start), Some(end)) = (params.file.clone(), params.start, params.end)
         else {
@@ -3953,35 +3996,23 @@ fn run_gen_inspect(
             );
         };
         let source_file = generation_source_file(root_path, &file);
-        let (_db, _id, text) = match read_gen_source(&source_file) {
-            Ok(loaded) => loaded,
-            Err(error) => {
-                return gen_envelope_result(
-                    exit::TOOL_FAILURE,
-                    proto::error_envelope(
-                        &header.request_id,
-                        header.operation.as_str(),
-                        "unreadable-input",
-                        tool_message(&error.stderr),
-                        vec!["pass a readable source file and resend".to_string()],
-                    ),
-                );
-            }
-        };
-        let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
-        let found = crate::analysis::generation::discover_generation(&tree, &text);
-        // Current captured file/revision evidence, as in status.
-        let evidence = intake::AssociationSource {
-            path: generation_source_path(root_path, &source_file),
-            revision: crate::source::sha256_hex(text.as_bytes()),
-        };
-        let associations = intake::associate_with_source(&found.descriptors, &saved, &evidence);
-        let located = associations.iter().find(|(index, _)| {
-            let descriptor = &found.descriptors[*index];
-            intake::UnitKind::of_descriptor(descriptor.kind).is_some()
-                && descriptor.span.start <= start
-                && end <= descriptor.span.end
-        });
+        let source_path = generation_source_path(root_path, &source_file);
+        let located = associations
+            .iter()
+            .filter(|(index, _)| {
+                let descriptor = &descriptors[*index];
+                evidence[&descriptor.span.file].path == source_path
+                    && intake::UnitKind::of_descriptor(descriptor.kind).is_some()
+                    && descriptor.span.start <= start
+                    && end <= descriptor.span.end
+            })
+            .min_by_key(|(index, _)| {
+                let span = descriptors[*index].span;
+                (
+                    span.start != start || span.end != end,
+                    span.end - span.start,
+                )
+            });
         let Some((index, association)) = located else {
             return gen_envelope_result(
                 exit::TOOL_FAILURE,
@@ -3996,7 +4027,7 @@ fn run_gen_inspect(
                 ),
             );
         };
-        InspectedUnit::spanned(&found.descriptors[*index], association, &saved)
+        InspectedUnit::spanned(&descriptors[*index], association, &saved)
     };
     // Effective recipe for the unit's category, when one resolves.
     let (recipe_json, recipe_error_json) = inspect_recipe(params, &selected);
@@ -4190,6 +4221,51 @@ fn run_gen_bind_json(
 ) -> DispatchResult {
     use crate::analysis::generation_intake as intake;
     use crate::analysis::generation_protocol as proto;
+    let fail = |code: &str, message: String| {
+        gen_envelope_result(
+            if code == "conflict" {
+                exit::GEN_CONFLICT
+            } else {
+                exit::TOOL_FAILURE
+            },
+            proto::error_envelope(
+                &header.request_id,
+                header.operation.as_str(),
+                code,
+                &message,
+                vec!["re-inspect the source and reconcile with bind".into()],
+            ),
+        )
+    };
+    let root_path = Path::new(&params.root);
+    let _binding_lease = match crate::analysis::generation_store::HeldLease::acquire(
+        root_path,
+        &["can.generated/bindings"],
+        crate::leases::LeaseMode::Write,
+        &header.request_id,
+    ) {
+        Ok(lease) => lease,
+        Err(error) => return fail("conflict", error),
+    };
+    if !crate::leases::unresolved_journals(root_path).is_empty() {
+        return fail(
+            "unresolved-journal",
+            "recover pending publication before binding".into(),
+        );
+    }
+    let scope = match crate::analysis::generation_store::source_files(root_path) {
+        Ok(scope) => scope,
+        Err(error) => return fail("unreadable-input", error),
+    };
+    let _source_lease = match crate::analysis::generation_store::HeldLease::acquire(
+        root_path,
+        &scope.iter().map(String::as_str).collect::<Vec<_>>(),
+        crate::leases::LeaseMode::Read,
+        &header.request_id,
+    ) {
+        Ok(lease) => lease,
+        Err(error) => return fail("conflict", error),
+    };
     let target = if params.unit == "new" {
         intake::BindTarget::New
     } else {
@@ -4228,11 +4304,20 @@ fn run_gen_bind_json(
     let current_revision = crate::source::sha256_hex(text.as_bytes());
     let (tree, _) = crate::syntax::parse_source(SourceId(0), &text);
     let found = crate::analysis::generation::discover_generation(&tree, &text);
-    let selected = found.descriptors.iter().find(|d| {
-        intake::UnitKind::of_descriptor(d.kind).is_some()
-            && d.span.start <= params.start
-            && params.end <= d.span.end
-    });
+    let selected = found
+        .descriptors
+        .iter()
+        .filter(|d| {
+            intake::UnitKind::of_descriptor(d.kind).is_some()
+                && d.span.start <= params.start
+                && params.end <= d.span.end
+        })
+        .min_by_key(|d| {
+            (
+                d.span.start != params.start || d.span.end != params.end,
+                d.span.end - d.span.start,
+            )
+        });
     let Some(descriptor) = selected else {
         return gen_envelope_result(
             exit::TOOL_FAILURE,
@@ -4249,8 +4334,27 @@ fn run_gen_bind_json(
         );
     };
     let root_path = Path::new(&params.root);
-    let (saved, _) = load_gen_saved(root_path);
+    let (saved, saved_issues) = load_gen_saved(root_path);
+    if !saved_issues.is_empty() {
+        return fail(
+            "invalid-saved-record",
+            saved_issues
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; "),
+        );
+    }
     let source_path = generation_source_path(root_path, &source_file);
+    if Path::new(&source_path).is_absolute() || source_path.split('/').any(|part| part == "..") {
+        return fail(
+            "invalid-path",
+            "source must be inside its selected generation root".into(),
+        );
+    }
+    if params.copy_from.is_some() && params.unit != "new" {
+        return fail("invalid-param", "copy_from requires unit=new".into());
+    }
     let source = match intake::association_for(descriptor, &source_path, &params.revision) {
         Some(source) => source,
         None => {
@@ -4290,13 +4394,14 @@ fn run_gen_bind_json(
         contract,
         target,
     };
-    let record = match intake::apply_bind(&saved, &request, &current_revision) {
+    let mut record = match intake::apply_bind(&saved, &request, &current_revision) {
         Ok(record) => record,
         Err(err) => {
             let code = match err {
                 intake::BindError::StaleSelector { .. } => "stale-selector",
                 intake::BindError::UnknownUnit { .. } => "unknown-unit",
                 intake::BindError::KindMismatch { .. } => "kind-mismatch",
+                intake::BindError::AllocationFailed { .. } => "allocation-failed",
             };
             return gen_envelope_result(
                 exit::TOOL_FAILURE,
@@ -4310,34 +4415,174 @@ fn run_gen_bind_json(
             );
         }
     };
-    let dir = root_path
+    let copied = params
+        .copy_from
+        .as_ref()
+        .and_then(|id| saved.iter().find(|record| record.id.as_str() == id));
+    if params.copy_from.is_some() && copied.is_none() {
+        return fail(
+            "unknown-unit",
+            "copy_from does not name a saved unit".into(),
+        );
+    }
+    let previous = copied.or_else(|| saved.iter().find(|old| old.id == record.id));
+    if let Some(old) = previous {
+        if old.source.kind != record.source.kind
+            || old.contract.target != record.contract.target
+            || old.contract.signature != record.contract.signature
+        {
+            return fail(
+                "contract-mismatch",
+                "destination changes the saved implementation contract; saved code was preserved"
+                    .into(),
+            );
+        }
+        record.original = old.original.clone();
+        record.provenance = old.provenance.clone();
+    }
+    // An explicit operation may resolve uncertain correspondence, but it may
+    // not replace a different unit already bound to this exact current slot.
+    if saved.iter().any(|old| {
+        old.id != record.id
+            && old.source.path == record.source.path
+            && old.source.revision == record.source.revision
+            && old.source.start == record.source.start
+            && old.source.end == record.source.end
+    }) {
+        return fail(
+            "occupied-binding",
+            "destination already has a saved binding; no files changed".into(),
+        );
+    }
+    let mut scope_descriptors = Vec::new();
+    let mut scope_evidence = std::collections::HashMap::new();
+    for (index, path) in scope.iter().enumerate() {
+        let text = match read_source_file(root_path.join(path)) {
+            Ok(text) => text,
+            Err(error) => return fail("unreadable-input", error.to_string()),
+        };
+        let source_id = SourceId(index as u32);
+        let (tree, _) = crate::syntax::parse_source(source_id, &text);
+        scope_descriptors
+            .extend(crate::analysis::generation::discover_generation(&tree, &text).descriptors);
+        scope_evidence.insert(
+            source_id,
+            intake::AssociationSource {
+                path: path.clone(),
+                revision: crate::source::sha256_hex(text.as_bytes()),
+            },
+        );
+    }
+    let current_bindings =
+        intake::associate_with_sources(&scope_descriptors, &saved, &scope_evidence);
+    for (index, binding) in current_bindings {
+        let live = &scope_descriptors[index];
+        let is_destination = scope_evidence[&live.span.file].path == record.source.path
+            && live.span.start == descriptor.span.start
+            && live.span.end == descriptor.span.end;
+        if let intake::UnitAssociation::Retained { id, .. } = binding {
+            if is_destination && id != record.id {
+                return fail(
+                    "occupied-binding",
+                    "destination already retains a different saved unit; no files changed".into(),
+                );
+            }
+            if !is_destination && id == record.id {
+                return fail(
+                    "unit-in-use",
+                    "unit still belongs to another live source slot; use copy_from to fork it"
+                        .into(),
+                );
+            }
+        }
+    }
+    let mut guards = vec![
+        format!("{}/{}", intake::GENERATED_DIR, record.id.as_str()),
+        format!(
+            "{}/{}/{}",
+            intake::GENERATED_DIR,
+            record.id.as_str(),
+            intake::UNIT_FILE
+        ),
+    ];
+    if let Some(old) = copied {
+        guards.push(format!("{}/{}", intake::GENERATED_DIR, old.id.as_str()));
+    }
+    let _unit_lease = match crate::analysis::generation_store::HeldLease::acquire(
+        root_path,
+        &guards.iter().map(String::as_str).collect::<Vec<_>>(),
+        crate::leases::LeaseMode::Write,
+        &header.request_id,
+    ) {
+        Ok(lease) => lease,
+        Err(error) => return fail("conflict", error),
+    };
+    let mut replacements = Vec::new();
+    if let Some(old) = copied {
+        if let Err(error) = intake::read_saved_group(root_path, &old.id) {
+            return fail("invalid-saved-group", error.to_string());
+        }
+        let paths = match crate::leases::group_files(root_path, old.id.as_str()) {
+            Ok(paths) => paths,
+            Err(error) => return fail("unreadable-input", error.to_string()),
+        };
+        for path in paths {
+            if path == intake::UNIT_FILE {
+                continue;
+            }
+            let bytes = match std::fs::read(
+                root_path
+                    .join(intake::GENERATED_DIR)
+                    .join(old.id.as_str())
+                    .join(&path),
+            ) {
+                Ok(bytes) => bytes,
+                Err(error) => return fail("unreadable-input", error.to_string()),
+            };
+            replacements.push(crate::leases::Replacement {
+                unit: record.id.as_str().to_string(),
+                path,
+                bytes,
+            });
+        }
+    }
+    replacements.push(crate::leases::Replacement {
+        unit: record.id.as_str().to_string(),
+        path: intake::UNIT_FILE.into(),
+        bytes: record.to_json().into_bytes(),
+    });
+    if read_source_file(&source_file)
+        .ok()
+        .is_none_or(|text| crate::source::sha256_hex(text.as_bytes()) != current_revision)
+    {
+        return fail(
+            "stale-selector",
+            "source changed during bind; saved code was preserved".into(),
+        );
+    }
+    let run_id = format!(
+        "bind-{}",
+        intake::next_unit_id(&std::collections::HashSet::new()).as_str()
+    );
+    if let Err(error) =
+        crate::leases::stage_journal(root_path, &run_id, &[record.id.as_str()], &replacements)
+    {
+        return fail("write-failed", error.to_string());
+    }
+    match crate::leases::commit_journal(root_path, &run_id) {
+        Ok(crate::leases::CommitOutcome::Committed { .. }) => {}
+        Ok(_) => {
+            return fail(
+                "conflict",
+                format!("binding publication conflicted; recover run {run_id}"),
+            );
+        }
+        Err(error) => return fail("write-failed", error.to_string()),
+    }
+    let unit_path = root_path
         .join(intake::GENERATED_DIR)
-        .join(record.id.as_str());
-    if let Err(err) = std::fs::create_dir_all(&dir) {
-        return gen_envelope_result(
-            exit::TOOL_FAILURE,
-            proto::error_envelope(
-                &header.request_id,
-                header.operation.as_str(),
-                "write-failed",
-                &format!("cannot write '{}': {err}", dir.display()),
-                vec!["check the project root is writable and resend".to_string()],
-            ),
-        );
-    }
-    let unit_path = dir.join(intake::UNIT_FILE);
-    if let Err(err) = write_file_atomic(&unit_path, &record.to_json(), None) {
-        return gen_envelope_result(
-            exit::TOOL_FAILURE,
-            proto::error_envelope(
-                &header.request_id,
-                header.operation.as_str(),
-                "write-failed",
-                &format!("cannot write '{}': {err}", unit_path.display()),
-                vec!["check the project root is writable and resend".to_string()],
-            ),
-        );
-    }
+        .join(record.id.as_str())
+        .join(intake::UNIT_FILE);
     let mut payload = serde_json::Map::new();
     payload.insert(
         "unit".to_string(),
@@ -4936,17 +5181,26 @@ fn validate_saved_unit(
     // and non-prompt anchor. Anything else is source drift, which
     // deterministic manual adoption reconciles — never regeneration.
     let found = crate::analysis::generation::discover_generation(&tree, &source_text);
-    let descriptor = found.descriptors.iter().find(|d| {
-        d.owner == record.source.owner
-            && intake::UnitKind::of_descriptor(d.kind) == Some(record.source.kind)
-            && d.label == record.source.label
-            && d.anchor == record.source.anchor
+    let report = match collect_gen_status(root, &[record.source.path.clone()]) {
+        Ok(report) => report,
+        Err(error) => return error,
+    };
+    let current = report
+        .units
+        .iter()
+        .find(|unit| unit["id"].as_str() == Some(id.as_str()) && unit["association"] == "retained");
+    let descriptor = current.and_then(|unit| {
+        found.descriptors.iter().find(|descriptor| {
+            unit["span"]["start"].as_u64() == Some(descriptor.span.start as u64)
+                && unit["span"]["end"].as_u64() == Some(descriptor.span.end as u64)
+                && intake::UnitKind::of_descriptor(descriptor.kind) == Some(record.source.kind)
+        })
     });
     let Some(descriptor) = descriptor else {
         return validation_failure_envelope(
             header,
             ValidationFailure::drift(format!(
-                "unit `{}` source drifted: no {} `{}` at anchor `{}` in current `{}`; the saved group is preserved",
+                "unit `{}` source drifted or binding is ambiguous: no uniquely bound {} `{}` at anchor `{}` in current `{}`; the saved group is preserved",
                 id.as_str(),
                 record.source.kind.as_str(),
                 record.source.label.as_deref().unwrap_or("-"),

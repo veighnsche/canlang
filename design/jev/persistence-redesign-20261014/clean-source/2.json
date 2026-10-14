@@ -1,0 +1,67 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "decision": "Select external binding persistence after the user explicitly rejected any generated IDs or annotations in .can. This user constraint overrides prior source-ID advice; do not revisit it.",
+      "fixed_outcomes": [
+        "Plain existing Can prompt syntax, no generated source IDs, magic comments or required author names for inline prompts. Ordinary build is read-only and zero-AI, including after clone/source archive on another machine.",
+        "Keep actual editable JS/CSS/contributions/assets tracked under can.generated/<opaque-id>. New IDs random128; legacy IDs can remain root-qualified. Current Can source/canonical owners define authority and contracts. Direct code edits remain valid inputs.",
+        "Persist external source-to-unit associations. Named definition applications share their definition; copying a defining prompt must not silently share mutable implementation. Moving/copying via tools may atomically update external bindings and copy current bytes without AI.",
+        "Formatting/comments and unrelated edits outside the relevant unchanged structural region must preserve bindings for already-bound identical anonymous siblings. Unique checked semantic owners can retain identity through prompt-only changes. Relevant changes in an ambiguous anonymous region may require a finite explicit bind/copy/move choice.",
+        "Never infer ownership from nearest offsets, prompt similarity, a naked ordinal or a sole unmatched pair. Use occurrence only inside a complete unchanged uniquely located structural sequence. Duplicate/ambiguous matches preserve code and diagnose. No algorithm can observe a swap of identical source text with different human intentions.",
+        "Git merges source/metadata/code normally. Random independent IDs avoid counters colliding. Post-merge binding/contract validation catches stale or competing mappings; textual merge success is not behavioral acceptance. Git history may help reconciliation but builds require neither it nor editor extensions.",
+        "Prioritize concise authoring, understandable recovery, small mechanisms and total maintenance. New carriers need a demonstrated gap; do not assume existing implementation must win or that maximum automatic inference is mandatory."
+      ],
+      "verified_facts": [
+        "Current per-unit unit.json contains identity, owner/kind/label/anchor, source path/whole-file SHA/span, contract and generation provenance. Both TS/Rust allocate sequential lowest-unused uN. Actual earlier function check gave u3 twice for two independent allocations.",
+        "Current duplicate-key bind uses exact file SHA/span. Actual earlier function check retained two duplicate inline bindings, then made both ambiguous after only file revision changed. Full-source revision is appropriate for candidate capture fencing, not long-lived identity.",
+        "Normal scoped output snapshots/journals exist, but direct compiler live reads and absent deletion journal operations need corrections independent of binding storage. No extra publication or Git history mechanism is required for this carrier decision.",
+        "Independent design comparison: per-unit interval certificates can solve unchanged-region binding without full historical source. Hashes cannot explain edits inside a changed region. A bounded structural baseline can retain unchanged subregions more automatically but requires additional reconciliation representation.",
+        "A per-source file can be the sole binding authority with unit.json retaining only output/provenance, so it need not duplicate authority. Per-unit certificates avoid a new carrier and isolate Git conflicts, but may repeat shared evidence. Multiple per-unit changes can already be journaled together."
+      ],
+      "required_cases": [
+        "two identical bound inline slots then comments/formatting change",
+        "unrelated edits outside exact relevant region",
+        "explicit move retains ID and output",
+        "copy allocates independent ID and optionally copies edited output",
+        "plain ambiguous structural edit refuses locally without regeneration",
+        "branch additions and conflicting records merge/diagnose",
+        "clean clone without editor/history/operational state"
+      ]
+    },
+    "questions": {
+      "external_binding": {
+        "type": "choice",
+        "instructions": "Select the smallest dependable external association design for these same requirements and cases. Weigh reconciliation frequency against added representation and Git merge cost, without assuming arbitrary edits must be inferred.",
+        "criteria": {
+          "source_maps": "One tracked per-source binding sidecar is sole association authority; remove that authority from unit.json. Save one bounded normalized structural baseline with slot-to-random-ID map. Prove unchanged subtrees/intervals and unique semantic correspondences; explicit choices for ambiguity. Shared context can reduce churn and support more local-edit automation; new carrier, baseline algorithm and same-source metadata merge coordination.",
+          "strict_locators": "Keep per-unit records with exact semantic/structural locators and require explicit binding updates for every source change that affects an anonymous locator; no interval baseline. Smallest matcher and clean source; more manual/tool reconciliation, especially duplicate slots under local edits.",
+          "global_map": "Move all source bindings to one tracked application binding file with a normalized shared baseline and IDs, leaving unit records for outputs/provenance. One consistency view and coordinated changes; global merge hotspot, new carrier and larger metadata update scope.",
+          "open": "No option adequately satisfies the stated finite behavior and clean-source constraint; leave only this exact carrier choice open.",
+          "unit_records": "Evolve existing per-unit unit.json as sole external binding owner. Store qualified semantic container/slot role plus normalized local interval certificate, occurrence/count and boundary evidence for duplicates. Reuse only a unique exact unchanged interval; explicit tool move/copy/rebind handles changed ambiguous regions. No new file/index, local Git conflicts; repeated interval evidence across units and less automation inside changed regions."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "external_binding": {
+        "type": "choice",
+        "choice": "unit_records",
+        "confidence": 0.92,
+        "probabilities": {
+          "source_maps": 0.04,
+          "strict_locators": 0.02,
+          "global_map": 0.0,
+          "open": 0.0,
+          "unit_records": 0.94
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1409,
+      "output_tokens": 59
+    }
+  }
+}

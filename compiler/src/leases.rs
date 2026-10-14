@@ -87,8 +87,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Protocol version written into every lock file and journal.
+/// Lock-file and conflict-report protocol version.
 pub const PROTOCOL_VERSION: u32 = 1;
+/// Journal v2 adds explicit deletions and complete-group replacement.
+pub const JOURNAL_VERSION: u32 = 2;
 /// Ignored tooling root for locks, runs and retained groups.
 pub const TOOL_DIR: &str = ".can/gen";
 /// Directory holding lock files.
@@ -569,10 +571,10 @@ pub struct JournalEntry {
     /// SHA-256 of the current bytes at stage time; `None` when the file is
     /// new in this run.
     pub old_sha256: Option<String>,
-    /// Run-relative staged payload (`new/<unit>/<rel>`).
-    pub staged: String,
-    /// SHA-256 of the staged replacement bytes.
-    pub new_sha256: String,
+    /// Run-relative staged payload (`new/<unit>/<rel>`); absent for deletion.
+    pub staged: Option<String>,
+    /// SHA-256 of staged replacement bytes; absent for deletion.
+    pub new_sha256: Option<String>,
 }
 
 /// Journal lifecycle state. `staged` means nothing current has been touched;
@@ -588,7 +590,7 @@ pub enum JournalState {
 /// Shared JSON schema with the Node host.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunJournal {
-    /// Always [`PROTOCOL_VERSION`].
+    /// [`JOURNAL_VERSION`]; version 1 patch journals remain readable.
     pub version: u32,
     /// Run identity; the run directory name.
     pub run_id: String,
@@ -596,8 +598,20 @@ pub struct RunJournal {
     pub scope: Vec<String>,
     /// Lifecycle state.
     pub state: JournalState,
-    /// One entry per replaced file, in canonical (unit, path) order.
+    /// Version 1 journals omit this field and describe patches.
+    #[serde(default)]
+    pub mode: JournalMode,
+    /// One entry per added, replaced or deleted file, in canonical order.
     pub entries: Vec<JournalEntry>,
+}
+
+/// A patch preserves omitted files; a replacement removes omitted owned files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum JournalMode {
+    #[default]
+    Patch,
+    Replace,
 }
 
 /// One caller-supplied replacement for [`stage_journal`].
@@ -738,6 +752,45 @@ pub fn stage_journal(
     scope: &[&str],
     replacements: &[Replacement],
 ) -> Result<RunJournal, LeaseError> {
+    stage_journal_with_mode(root, run_id, scope, replacements, &[], JournalMode::Patch)
+}
+
+/// Stage an exact new group set, deleting current files omitted by the caller.
+pub fn stage_complete_journal(
+    root: &Path,
+    run_id: &str,
+    scope: &[&str],
+    replacements: &[Replacement],
+) -> Result<RunJournal, LeaseError> {
+    stage_journal_with_mode(root, run_id, scope, replacements, &[], JournalMode::Replace)
+}
+
+/// Stage a patch with explicit deleted `(unit, path)` pairs; omitted paths survive.
+pub fn stage_journal_with_deletions(
+    root: &Path,
+    run_id: &str,
+    scope: &[&str],
+    replacements: &[Replacement],
+    deletions: &[(&str, &str)],
+) -> Result<RunJournal, LeaseError> {
+    stage_journal_with_mode(
+        root,
+        run_id,
+        scope,
+        replacements,
+        deletions,
+        JournalMode::Patch,
+    )
+}
+
+fn stage_journal_with_mode(
+    root: &Path,
+    run_id: &str,
+    scope: &[&str],
+    replacements: &[Replacement],
+    deletions: &[(&str, &str)],
+    mode: JournalMode,
+) -> Result<RunJournal, LeaseError> {
     validate_run_id(run_id)?;
     let mut ordered_scope: Vec<String> = Vec::new();
     for unit in scope {
@@ -776,10 +829,31 @@ pub fn stage_journal(
             fs::create_dir_all(&old_unit).map_err(|e| io_error("create old unit dir", e))?;
         }
     }
+    let mut changes: Vec<(String, String, Option<Vec<u8>>)> = replacements
+        .iter()
+        .map(|r| (r.unit.clone(), r.path.clone(), Some(r.bytes.clone())))
+        .collect();
+    changes.extend(
+        deletions
+            .iter()
+            .map(|(unit, path)| (unit.to_string(), path.to_string(), None)),
+    );
+    if mode == JournalMode::Replace {
+        for unit in &ordered_scope {
+            for path in list_files_rel(&dir.join(OLD_DIR).join(unit))? {
+                if !replacements
+                    .iter()
+                    .any(|r| r.unit == *unit && r.path == path)
+                {
+                    changes.push((unit.clone(), path, None));
+                }
+            }
+        }
+    }
     let mut entries: Vec<JournalEntry> = Vec::new();
     let mut seen: BTreeMap<(String, String), ()> = BTreeMap::new();
-    for replacement in replacements {
-        let unit = validate_unit_id(&replacement.unit)?;
+    for (unit_name, path, bytes) in &changes {
+        let unit = validate_unit_id(unit_name)?;
         if !ordered_scope.iter().any(|s| s == unit.as_str()) {
             return Err(LeaseError::new(
                 "invalid-id",
@@ -789,38 +863,38 @@ pub fn stage_journal(
                 ),
             ));
         }
-        validate_rel(&replacement.path)?;
-        let key = (unit.as_str().to_string(), replacement.path.clone());
+        validate_rel(path)?;
+        let key = (unit.as_str().to_string(), path.clone());
         if seen.insert(key, ()).is_some() {
             return Err(LeaseError::new(
                 "invalid-path",
                 format!(
                     "duplicate replacement for `{}` in unit `{}`",
-                    replacement.path,
+                    *path,
                     unit.as_str()
                 ),
             ));
         }
-        let current = group_dir(root, unit.as_str()).join(&replacement.path);
-        let old_sha256 = match fs::read(&current) {
-            Ok(bytes) => Some(sha256_of(&bytes)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(io_error("read current file for staging", e)),
-        };
-        let staged_rel = format!("{NEW_DIR}/{}/{}", unit.as_str(), replacement.path);
-        let staged_path = join_rel(&dir, &staged_rel)?;
-        persist_file(&staged_path, &replacement.bytes)?;
+        let current = group_dir(root, unit.as_str()).join(path);
+        let old_sha256 = current_sha256(&current)?;
+        let staged_rel = bytes
+            .as_ref()
+            .map(|_| format!("{NEW_DIR}/{}/{}", unit.as_str(), path));
+        if let (Some(staged), Some(bytes)) = (&staged_rel, bytes) {
+            persist_file(&join_rel(&dir, staged)?, bytes)?;
+        }
         entries.push(JournalEntry {
             unit: unit.as_str().to_string(),
-            path: replacement.path.clone(),
+            path: path.clone(),
             old_sha256,
             staged: staged_rel,
-            new_sha256: sha256_of(&replacement.bytes),
+            new_sha256: bytes.as_ref().map(|bytes| sha256_of(bytes)),
         });
     }
     entries.sort_by(|a, b| (&a.unit, &a.path).cmp(&(&b.unit, &b.path)));
     let journal = RunJournal {
-        version: PROTOCOL_VERSION,
+        version: JOURNAL_VERSION,
+        mode,
         run_id: run_id.to_string(),
         scope: ordered_scope,
         state: JournalState::Staged,
@@ -852,13 +926,58 @@ pub fn read_journal(root: &Path, run_id: &str) -> Result<RunJournal, LeaseError>
     })?;
     let journal: RunJournal = serde_json::from_str(&text)
         .map_err(|e| LeaseError::new("io", format!("decode journal: {e}")))?;
-    if journal.version != PROTOCOL_VERSION {
+    if journal.version != 1 && journal.version != JOURNAL_VERSION {
         return Err(LeaseError::new(
             "io",
             format!("journal version {} is not supported", journal.version),
         ));
     }
+    validate_journal(&journal, run_id)?;
     Ok(journal)
+}
+
+fn validate_journal(journal: &RunJournal, run_id: &str) -> Result<(), LeaseError> {
+    if journal.run_id != run_id || journal.scope.is_empty() {
+        return Err(LeaseError::new("io", "invalid journal identity or scope"));
+    }
+    let mut scope = BTreeMap::new();
+    for unit in &journal.scope {
+        validate_unit_id(unit)?;
+        if scope.insert(unit, ()).is_some() {
+            return Err(LeaseError::new("io", "duplicate journal scope"));
+        }
+    }
+    let mut seen = BTreeMap::new();
+    for entry in &journal.entries {
+        validate_unit_id(&entry.unit)?;
+        validate_rel(&entry.path)?;
+        if !scope.contains_key(&entry.unit) || seen.insert((&entry.unit, &entry.path), ()).is_some()
+        {
+            return Err(LeaseError::new("io", "invalid journal entry scope"));
+        }
+        if entry.staged.is_some() != entry.new_sha256.is_some()
+            || entry
+                .staged
+                .as_ref()
+                .is_some_and(|path| *path != format!("{NEW_DIR}/{}/{}", entry.unit, entry.path))
+            || (journal.version == 1 && entry.new_sha256.is_none())
+        {
+            return Err(LeaseError::new(
+                "io",
+                "invalid journal staged payload/deletion",
+            ));
+        }
+        for hash in [&entry.old_sha256, &entry.new_sha256].into_iter().flatten() {
+            if hash.len() != 64
+                || !hash
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            {
+                return Err(LeaseError::new("io", "invalid journal content hash"));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn write_journal_state(root: &Path, journal: &RunJournal) -> Result<(), LeaseError> {
@@ -919,9 +1038,19 @@ pub struct ConflictReport {
 }
 
 fn current_sha256(path: &Path) -> Result<Option<String>, LeaseError> {
+    if path.is_dir() {
+        return Ok(None);
+    }
     match fs::read(path) {
         Ok(bytes) => Ok(Some(sha256_of(&bytes))),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e)
+            if matches!(
+                e.kind(),
+                std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+            ) =>
+        {
+            Ok(None)
+        }
         Err(e) => Err(io_error("read current file", e)),
     }
 }
@@ -1031,6 +1160,57 @@ pub enum ApplyOutcome {
 /// idempotent. Current bytes matching neither old nor new stop the apply with
 /// [`ApplyOutcome::Conflict`]; already-replaced entries stay new and the
 /// journal stays unresolved until the conflict is reconciled.
+fn unexpected_membership(
+    root: &Path,
+    journal: &RunJournal,
+) -> Result<Vec<ByteMismatch>, LeaseError> {
+    let mut mismatches = Vec::new();
+    if journal.mode != JournalMode::Replace {
+        return Ok(mismatches);
+    }
+    for unit in &journal.scope {
+        for path in group_files(root, unit)? {
+            if !journal
+                .entries
+                .iter()
+                .any(|e| e.unit == *unit && e.path == path)
+            {
+                mismatches.push(ByteMismatch {
+                    unit: unit.clone(),
+                    observed_sha256: current_sha256(&join_rel(&group_dir(root, unit), &path)?)?,
+                    path,
+                    expected_sha256: None,
+                });
+            }
+        }
+    }
+    Ok(mismatches)
+}
+
+fn remove_empty_parents(path: &Path, stop: &Path) -> Result<(), LeaseError> {
+    let mut current = path.parent();
+    while let Some(dir) = current {
+        if dir == stop {
+            break;
+        }
+        match fs::remove_dir(dir) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::DirectoryNotEmpty | std::io::ErrorKind::NotADirectory
+                ) =>
+            {
+                break;
+            }
+            Err(e) => return Err(io_error("remove empty replaced directory", e)),
+        }
+        current = dir.parent();
+    }
+    Ok(())
+}
+
 pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseError> {
     let journal = read_journal(root, run_id)?;
     if journal.state != JournalState::Committed {
@@ -1040,6 +1220,14 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
         ));
     }
     let dir = run_dir(root, run_id);
+    let extra = unexpected_membership(root, &journal)?;
+    if !extra.is_empty() {
+        let conflict_path = write_conflict(root, run_id, "apply", extra.clone())?;
+        return Ok(ApplyOutcome::Conflict {
+            mismatches: extra,
+            conflict_path,
+        });
+    }
     // Retain one previous group per scope unit from the staged complete old
     // set, wholesale, before replacing anything current.
     for unit in &journal.scope {
@@ -1054,10 +1242,19 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
         }
     }
     let mut files = 0usize;
-    for entry in &journal.entries {
+    // Delete before additions to permit file/directory shape changes.
+    for entry in journal
+        .entries
+        .iter()
+        .filter(|e| e.new_sha256.is_none())
+        .chain(journal.entries.iter().filter(|e| e.new_sha256.is_some()))
+    {
         let target = join_rel(&group_dir(root, &entry.unit), &entry.path)?;
         let observed = current_sha256(&target)?;
-        if observed.as_ref() == Some(&entry.new_sha256) {
+        if observed == entry.new_sha256 {
+            if entry.new_sha256.is_none() {
+                remove_empty_parents(&target, &group_dir(root, &entry.unit))?;
+            }
             files += 1;
             continue;
         }
@@ -1074,9 +1271,15 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
                 conflict_path,
             });
         }
-        let staged_path = join_rel(&dir, &entry.staged)?;
+        let Some(new_sha256) = &entry.new_sha256 else {
+            fs::remove_file(&target).map_err(|e| io_error("delete replaced file", e))?;
+            remove_empty_parents(&target, &group_dir(root, &entry.unit))?;
+            files += 1;
+            continue;
+        };
+        let staged_path = join_rel(&dir, entry.staged.as_ref().unwrap())?;
         let staged_bytes = fs::read(&staged_path).map_err(|e| io_error("read staged file", e))?;
-        if sha256_of(&staged_bytes) != entry.new_sha256 {
+        if sha256_of(&staged_bytes) != *new_sha256 {
             return Err(LeaseError::new(
                 "io",
                 format!(
@@ -1085,8 +1288,11 @@ pub fn apply_committed(root: &Path, run_id: &str) -> Result<ApplyOutcome, LeaseE
                 ),
             ));
         }
-        // Atomic per-file replacement; the staged copy stays for re-apply.
-        let tmp = create_replace_temp(&target, &staged_bytes)?;
+        // Keep temporary payloads in the ignored run, never in current membership.
+        // Rename remains atomic on supported same-filesystem layouts; EXDEV refuses.
+        fs::create_dir_all(target.parent().unwrap())
+            .map_err(|e| io_error("create replacement parent", e))?;
+        let tmp = create_replace_temp(&staged_path, &staged_bytes)?;
         if let Err(e) = fs::rename(&tmp, &target) {
             let _ = fs::remove_file(&tmp);
             return Err(io_error("atomic replace", e));
@@ -1186,7 +1392,7 @@ pub fn recover_journal(root: &Path, run_id: &str) -> Result<RecoveryOutcome, Lea
             }),
         },
         JournalState::Staged => {
-            let mut mismatches = Vec::new();
+            let mut mismatches = unexpected_membership(root, &journal)?;
             for entry in &journal.entries {
                 let target = join_rel(&group_dir(root, &entry.unit), &entry.path)?;
                 let observed = current_sha256(&target)?;

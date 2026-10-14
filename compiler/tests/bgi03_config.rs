@@ -13,7 +13,9 @@ use canlang_compiler::analysis::generation_config::{
     ADAPTERS, LoadedSettings, RUNNERS, RecipeCategory, RunOverrides, SettingsSource,
     adapter_capabilities, load_settings, parse_settings_toml, preflight_recipe, resolve_recipe,
 };
-use canlang_compiler::analysis::generation_intake::{GENERATED_DIR, UNIT_FILE, UnitKind};
+use canlang_compiler::analysis::generation_intake::{
+    GENERATED_DIR, UNIT_FILE, UnitKind, scan_unit_ids,
+};
 use canlang_compiler::analysis::generation_protocol::{
     AllowedTarget, GenOperation, GenerationContext, McpRole, SubmissionEntry, allowed_outputs_for,
     error_envelope, handle_grammar_valid, ok_envelope, parse_request, progress_event,
@@ -714,7 +716,11 @@ fn capability_tables_advertise_all_required_adapters() {
         assert_eq!(adapter.id, runner);
         assert!(!adapter.probe_binaries.is_empty(), "{runner}");
         // Only the actually qualified Codex adapter may launch.
-        let state = if runner == "codex" { "supported" } else { "unqualified" };
+        let state = if runner == "codex" {
+            "supported"
+        } else {
+            "unqualified"
+        };
         assert_eq!(adapter.mcp_attachment.state(), state);
         assert_eq!(adapter.write_restriction.state(), state);
         assert!(
@@ -1134,11 +1140,12 @@ fn bind_json_round_trip_with_typed_errors() {
     assert_eq!(result.code, 0, "stdout: {}", result.stdout);
     let body = envelope(&result.stdout);
     assert_eq!(body["state"], "bound");
-    assert_eq!(body["unit"]["id"], "u1");
+    let unit_id = body["unit"]["id"].as_str().unwrap();
+    assert_random_unit_id(unit_id);
     assert!(
         dir.path()
             .join(GENERATED_DIR)
-            .join("u1")
+            .join(unit_id)
             .join(UNIT_FILE)
             .is_file()
     );
@@ -1156,7 +1163,7 @@ fn bind_json_round_trip_with_typed_errors() {
     let (code, message) = error_of(&result.stdout);
     assert_eq!(code, "stale-selector");
     assert!(message.contains("stale"), "{message}");
-    assert!(!dir.path().join(GENERATED_DIR).join("u2").exists());
+    assert_eq!(scan_unit_ids(dir.path()).unwrap(), vec![unit_id.to_string()]);
     // Unknown units refuse without touching saved groups.
     let request = request_file(
         dir.path(),
@@ -1197,25 +1204,26 @@ fn inspect_reports_unit_contracts_and_recipe() {
         "new",
     ]));
     assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
+    let unit_id = positional_bound_id(&bound.stdout);
     // By unit id: contracts, paths, and the frontend recipe.
     let request = request_file(
         dir.path(),
         "inspect.json",
         &format!(
-            r#"{{"version":1,"request_id":"i1","operation":"inspect","root":{root:?},"unit_id":"u1"}}"#
+            r#"{{"version":1,"request_id":"i1","operation":"inspect","root":{root:?},"unit_id":{unit_id:?}}}"#
         ),
     );
     let result = dispatch(&argv(&["gen", "--request", &request]));
     assert_eq!(result.code, 0, "stdout: {}", result.stdout);
     let body = envelope(&result.stdout);
-    assert_eq!(body["unit"]["id"], "u1");
+    assert_eq!(body["unit"]["id"], unit_id);
     assert_eq!(body["unit"]["kind"], "style");
     assert_eq!(body["unit"]["association"], "retained");
     assert!(
         body["unit"]["paths"]["current"]
             .as_str()
             .unwrap()
-            .contains("can.generated/u1")
+            .contains(&format!("can.generated/{unit_id}"))
     );
     assert_eq!(body["recipe"]["runner"], "muse");
     assert!(
@@ -1235,7 +1243,7 @@ fn inspect_reports_unit_contracts_and_recipe() {
     );
     let result = dispatch(&argv(&["gen", "--request", &request]));
     assert_eq!(result.code, 0, "stdout: {}", result.stdout);
-    assert_eq!(envelope(&result.stdout)["unit"]["id"], "u1");
+    assert_eq!(envelope(&result.stdout)["unit"]["id"], unit_id);
     // Unknown units and empty spans diagnose.
     let request = request_file(
         dir.path(),
@@ -1259,7 +1267,29 @@ fn inspect_reports_unit_contracts_and_recipe() {
     assert_eq!(error_of(&result.stdout).0, "no-unit-at-span");
 }
 
-fn bind_style(root: &str, file: &str) {
+fn assert_random_unit_id(id: &str) {
+    let suffix = id.strip_prefix("g-").expect("new units use random IDs");
+    assert_eq!(suffix.len(), 32, "{id}");
+    assert!(
+        suffix
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+        "{id}"
+    );
+}
+
+fn positional_bound_id(stdout: &str) -> String {
+    let id = stdout
+        .strip_prefix("bound ")
+        .expect("successful bind report")
+        .split_whitespace()
+        .next()
+        .expect("bound unit ID");
+    assert_random_unit_id(id);
+    id.to_string()
+}
+
+fn bind_style(root: &str, file: &str) -> String {
     let revision = sha256_hex(APP.as_bytes());
     let (tree, _) = parse_source(SourceId(0), APP);
     let found = canlang_compiler::analysis::generation::discover_generation(&tree, APP);
@@ -1279,6 +1309,7 @@ fn bind_style(root: &str, file: &str) {
         "new",
     ]));
     assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
+    positional_bound_id(&bound.stdout)
 }
 
 #[test]
@@ -1287,7 +1318,7 @@ fn execution_ops_admit_then_stop_before_launch() {
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", APP);
     write_file(dir.path(), "can.gen.toml", SETTINGS);
-    bind_style(&root, &file);
+    let unit_id = bind_style(&root, &file);
     // generate without a pinned recipe: admitted, handler joins BGI-05.
     let request = request_file(
         dir.path(),
@@ -1341,7 +1372,7 @@ fn execution_ops_admit_then_stop_before_launch() {
         dir.path(),
         "ref.json",
         &format!(
-            r#"{{"version":1,"request_id":"f1","operation":"refine","root":{root:?},"unit_id":"u1","instruction":"darker"}}"#
+            r#"{{"version":1,"request_id":"f1","operation":"refine","root":{root:?},"unit_id":{unit_id:?},"instruction":"darker"}}"#
         ),
     );
     let result = dispatch(&argv(&["gen", "--request", &request]));
@@ -1365,7 +1396,7 @@ fn execution_ops_admit_then_stop_before_launch() {
         dir.path(),
         "ref.json",
         &format!(
-            r#"{{"version":1,"request_id":"f3","operation":"refine","root":{root:?},"unit_id":"u1","instruction_file":"missing.txt"}}"#
+            r#"{{"version":1,"request_id":"f3","operation":"refine","root":{root:?},"unit_id":{unit_id:?},"instruction_file":"missing.txt"}}"#
         ),
     );
     let result = dispatch(&argv(&["gen", "--request", &request]));
@@ -1389,7 +1420,7 @@ fn lifecycle_ops_admit_selectors_then_name_their_join() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", APP);
-    bind_style(&root, &file);
+    let unit_id = bind_style(&root, &file);
     // Unknown units fail admission for every unit-scoped operation.
     for (operation, params) in [
         ("diff", r#""unit_id":"u9""#),
@@ -1412,17 +1443,25 @@ fn lifecycle_ops_admit_selectors_then_name_their_join() {
     // Admitted requests name their joining task (`validate` landed
     // with BGI-11, so it validates instead of naming a join).
     for (operation, params, join) in [
-        ("diff", r#""unit_id":"u1""#, "BGI-05"),
-        ("preview", r#""unit_id":"u1""#, "BGI-05"),
-        ("adopt", r#""unit_id":"u1","files":["app.can"]"#, "BGI-12"),
-        ("accept", r#""unit_id":"u1""#, "BGI-12"),
-        ("cancel", r#""session_id":"s1""#, "BGI-05"),
-        ("reset", r#""attempt":"a1""#, "BGI-05"),
-        ("rollback", r#""unit_id":"u1","revision":"r""#, "BGI-12"),
-        ("resume", r#""session_id":"s1""#, "BGI-05"),
-        ("edit.begin", r#""unit_id":"u1""#, "BGI-04"),
-        ("edit.end", r#""token":"t""#, "BGI-04"),
-        ("lease.recover", r#""lease":"l""#, "BGI-04"),
+        ("diff", format!(r#""unit_id":{unit_id:?}"#), "BGI-05"),
+        ("preview", format!(r#""unit_id":{unit_id:?}"#), "BGI-05"),
+        (
+            "adopt",
+            format!(r#""unit_id":{unit_id:?},"files":["app.can"]"#),
+            "BGI-12",
+        ),
+        ("accept", format!(r#""unit_id":{unit_id:?}"#), "BGI-12"),
+        ("cancel", r#""session_id":"s1""#.to_string(), "BGI-05"),
+        ("reset", r#""attempt":"a1""#.to_string(), "BGI-05"),
+        (
+            "rollback",
+            format!(r#""unit_id":{unit_id:?},"revision":"r""#),
+            "BGI-12",
+        ),
+        ("resume", r#""session_id":"s1""#.to_string(), "BGI-05"),
+        ("edit.begin", format!(r#""unit_id":{unit_id:?}"#), "BGI-04"),
+        ("edit.end", r#""token":"t""#.to_string(), "BGI-04"),
+        ("lease.recover", r#""lease":"l""#.to_string(), "BGI-04"),
     ] {
         let request = request_file(
             dir.path(),
@@ -1444,7 +1483,7 @@ fn lifecycle_ops_admit_selectors_then_name_their_join() {
         dir.path(),
         "op.json",
         &format!(
-            r#"{{"version":1,"request_id":"x","operation":"validate","root":{root:?},"unit_id":"u1"}}"#
+            r#"{{"version":1,"request_id":"x","operation":"validate","root":{root:?},"unit_id":{unit_id:?}}}"#
         ),
     );
     let result = dispatch(&argv(&["gen", "--request", &request]));
@@ -1564,7 +1603,8 @@ fn bound_copies_both_usable_through_status() {
         .collect();
     assert_eq!(styles.len(), 2);
     // Bind the original, then the second location as new.
-    for (index, descriptor) in styles.iter().enumerate() {
+    let mut unit_ids = Vec::new();
+    for descriptor in &styles {
         let bound = dispatch(&argv(&[
             "gen",
             "bind",
@@ -1576,23 +1616,25 @@ fn bound_copies_both_usable_through_status() {
             "new",
         ]));
         assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
-        assert!(
-            bound.stdout.contains(&format!("u{}", index + 1)),
-            "bind {}: {}",
-            index + 1,
-            bound.stdout
-        );
+        unit_ids.push(positional_bound_id(&bound.stdout));
     }
+    assert_ne!(unit_ids[0], unit_ids[1], "copies own independent groups");
     // Current user-edited bytes under both groups.
     let edited_u1 = "/* user-edited u1 */\n.a{color:red}\n";
     let edited_u2 = "/* user-edited u2 */\n.a{color:blue}\n";
     std::fs::write(
-        dir.path().join(GENERATED_DIR).join("u1").join("style.css"),
+        dir.path()
+            .join(GENERATED_DIR)
+            .join(&unit_ids[0])
+            .join("style.css"),
         edited_u1,
     )
     .unwrap();
     std::fs::write(
-        dir.path().join(GENERATED_DIR).join("u2").join("style.css"),
+        dir.path()
+            .join(GENERATED_DIR)
+            .join(&unit_ids[1])
+            .join("style.css"),
         edited_u2,
     )
     .unwrap();
@@ -1604,17 +1646,27 @@ fn bound_copies_both_usable_through_status() {
     assert_eq!(units.len(), 2, "{units:?}");
     for (index, unit) in units.iter().enumerate() {
         assert_eq!(unit["association"], "retained", "{unit:?}");
-        assert_eq!(unit["id"], format!("u{}", index + 1), "{unit:?}");
+        assert_eq!(unit["id"], unit_ids[index], "{unit:?}");
     }
     assert_eq!(report["issues"], serde_json::json!([]), "{report:?}");
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(GENERATED_DIR).join("u1").join("style.css"))
-            .unwrap(),
+        std::fs::read_to_string(
+            dir.path()
+                .join(GENERATED_DIR)
+                .join(&unit_ids[0])
+                .join("style.css")
+        )
+        .unwrap(),
         edited_u1
     );
     assert_eq!(
-        std::fs::read_to_string(dir.path().join(GENERATED_DIR).join("u2").join("style.css"))
-            .unwrap(),
+        std::fs::read_to_string(
+            dir.path()
+                .join(GENERATED_DIR)
+                .join(&unit_ids[1])
+                .join("style.css")
+        )
+        .unwrap(),
         edited_u2
     );
 }
@@ -1676,7 +1728,7 @@ fn request_file_with_stdin_instruction_through_the_binary() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", APP);
-    bind_style(&root, &file);
+    let unit_id = bind_style(&root, &file);
     // --request FILE plus a piped instruction passes carrier
     // admission (the unknown unit then fails, proving the order).
     let request = request_file(
@@ -1695,7 +1747,7 @@ fn request_file_with_stdin_instruction_through_the_binary() {
         dir.path(),
         "ref.json",
         &format!(
-            r#"{{"version":1,"request_id":"std4","operation":"refine","root":{root:?},"unit_id":"u1","instruction_stdin":true}}"#
+            r#"{{"version":1,"request_id":"std4","operation":"refine","root":{root:?},"unit_id":{unit_id:?},"instruction_stdin":true}}"#
         ),
     );
     let output = run_binary(&["gen", "--request", &request], Some(""));
@@ -1941,6 +1993,7 @@ fn spanned_inspect_resolves_current_profile() {
         "new",
     ]));
     assert_eq!(bound.code, 0, "stderr: {}", bound.stderr);
+    let unit_id = positional_bound_id(&bound.stdout);
     // Edit only the owning declaration's agent.
     let new = old.replace("agent=slow", "agent=fast");
     std::fs::write(&file, &new).unwrap();
@@ -1964,7 +2017,7 @@ fn spanned_inspect_resolves_current_profile() {
     let body = envelope(&result.stdout);
     // Identity is retained, but the recipe resolves the current
     // source profile for future attempts.
-    assert_eq!(body["unit"]["id"], "u1");
+    assert_eq!(body["unit"]["id"], unit_id);
     assert_eq!(body["unit"]["association"], "retained");
     assert_eq!(body["unit"]["prompt_changed"], false);
     assert_eq!(body["recipe"]["model"], "fast-model");
@@ -1980,7 +2033,13 @@ fn spanned_inspect_resolves_current_profile() {
     assert_eq!(body["unit"]["contract"]["profile"], "slow");
     // The historical receipt is untouched: no rewrite, no forced
     // adoption of compatible current output.
-    let receipt = std::fs::read_to_string(dir.path().join("can.generated/u1/unit.json")).unwrap();
+    let receipt = std::fs::read_to_string(
+        dir.path()
+            .join(GENERATED_DIR)
+            .join(&unit_id)
+            .join(UNIT_FILE),
+    )
+    .unwrap();
     let saved: serde_json::Value = serde_json::from_str(&receipt).unwrap();
     assert_eq!(saved["contract"]["profile"], "slow");
 }

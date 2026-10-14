@@ -391,3 +391,78 @@ test("journal scope and replacements are validated", async () => {
   const snapshot = await snapshotInputs(root, "build", ["can.generated/u1/style.css"]);
   assert.equal(snapshot.length, 1);
 });
+
+test("complete replacement journals obsolete files and exact binary bytes", async () => {
+  const root = await freshRoot();
+  const oldBinary = Buffer.from([0, 255, 128, 13, 10]);
+  const newBinary = Buffer.from([255, 0, 129, 10]);
+  await writeTree(root, [["can.generated/u1/style.css", "old"], ["can.generated/u1/obsolete.js", "helper"]]);
+  await writeFile(join(root, "can.generated/u1/image.bin"), oldBinary);
+  const changes: Replacement[] = [replacement("u1", "style.css", "new"), { unit: "u1", path: "image.bin", bytes: newBinary }];
+  const journal = await stageJournal(root, "complete", ["u1"], changes, "replace");
+  assert.equal(journal.version, 2);
+  assert.deepEqual(journal.entries.find((e) => e.path === "obsolete.js"), {
+    unit: "u1", path: "obsolete.js", old_sha256: journal.entries.find((e) => e.path === "obsolete.js")?.old_sha256,
+    staged: null, new_sha256: null,
+  });
+  await markCommitted(root, "complete");
+  // Simulate interruption after the deletion but before any replacement.
+  await fs.rm(join(root, "can.generated/u1/obsolete.js"));
+  assert.deepEqual(await recoverJournal(root, "complete"), { kind: "completed-new", files: 3 });
+  assert.deepEqual(await groupFiles(root, "u1"), ["image.bin", "style.css"]);
+  assert.deepEqual(await readFile(join(root, "can.generated/u1/image.bin")), newBinary);
+  assert.deepEqual(await readFile(join(root, ".can/gen/previous/u1/image.bin")), oldBinary);
+  assert.equal(await readTree(root, ".can/gen/previous/u1/obsolete.js"), "helper");
+  assert.deepEqual(await recoverJournal(root, "complete"), { kind: "already-resolved" });
+});
+
+test("precommit deletion recovery preserves old bytes and missing new files", async () => {
+  const root = await freshRoot();
+  await writeTree(root, [["can.generated/u1/old.bin", "old"]]);
+  await stageJournal(root, "before-delete", ["u1"], [replacement("u1", "new.bin", "new")], "replace");
+  assert.deepEqual(await recoverJournal(root, "before-delete"), { kind: "restored-old" });
+  assert.deepEqual(await groupFiles(root, "u1"), ["old.bin"]);
+  assert.equal(await readTree(root, "can.generated/u1/old.bin"), "old");
+});
+
+test("explicit patch deletion preserves untouched files and rejects changed deleted bytes", async () => {
+  const root = await freshRoot();
+  await writeTree(root, [["can.generated/u1/keep.bin", "keep"], ["can.generated/u1/remove.bin", "old"]]);
+  await stageJournal(root, "patch-delete", ["u1"], [{ unit: "u1", path: "remove.bin", bytes: null }]);
+  await markCommitted(root, "patch-delete");
+  await writeTree(root, [["can.generated/u1/remove.bin", "foreign"]]);
+  assert.equal((await recoverJournal(root, "patch-delete")).kind, "conflict");
+  assert.equal(await readTree(root, "can.generated/u1/remove.bin"), "foreign");
+  await writeTree(root, [["can.generated/u1/remove.bin", "old"]]);
+  assert.deepEqual(await recoverJournal(root, "patch-delete"), { kind: "completed-new", files: 1 });
+  assert.deepEqual(await groupFiles(root, "u1"), ["keep.bin"]);
+});
+
+test("complete replacement refuses extra files rather than claiming exact membership", async () => {
+  const root = await freshRoot();
+  await writeTree(root, [["can.generated/u1/style.css", "old"]]);
+  await stageJournal(root, "extra-file", ["u1"], [replacement("u1", "style.css", "new")], "replace");
+  await markCommitted(root, "extra-file");
+  await writeTree(root, [["can.generated/u1/foreign.bin", "foreign"]]);
+  assert.equal((await recoverJournal(root, "extra-file")).kind, "conflict");
+  assert.equal(await readTree(root, "can.generated/u1/style.css"), "old");
+  assert.equal(await readTree(root, "can.generated/u1/foreign.bin"), "foreign");
+});
+
+test("complete replacement supports file-directory transitions and version 1 recovery", async () => {
+  const root = await freshRoot();
+  await writeTree(root, [["can.generated/u1/asset", "old"]]);
+  await stageJournal(root, "to-dir", ["u1"], [replacement("u1", "asset/part.bin", "nested")], "replace");
+  await commitJournal(root, "to-dir");
+  assert.deepEqual(await groupFiles(root, "u1"), ["asset/part.bin"]);
+  await stageJournal(root, "to-file", ["u1"], [replacement("u1", "asset", "flat")], "replace");
+  await commitJournal(root, "to-file");
+  assert.deepEqual(await groupFiles(root, "u1"), ["asset"]);
+  await stageJournal(root, "legacy", ["u1"], [replacement("u1", "asset", "legacy")]);
+  const legacy = await readJournal(root, "legacy");
+  legacy.version = 1;
+  delete legacy.mode;
+  await writeFile(join(root, ".can/gen/runs/legacy/journal.json"), JSON.stringify(legacy));
+  await markCommitted(root, "legacy");
+  assert.deepEqual(await recoverJournal(root, "legacy"), { kind: "completed-new", files: 1 });
+});

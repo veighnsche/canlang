@@ -1,0 +1,142 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "task": "Reconsider Can generated-code persistence from first principles. Recommend a design, not implementation or automatic adoption. Evaluate every candidate at proposal stage, including the current mechanism; ignore sunk cost when judging desired behavior but count mechanism and migration complexity.",
+      "goals": [
+        "A Git clone or source archive contains actual saved JS/CSS/contributions/assets. Ordinary compile/check/bundle consumes them with zero generation-model calls, generation credentials, or dependence on generation logs. Normal deterministic compilation is allowed.",
+        "Can source owns app identity/composition, permissions, interfaces, evaluation order and generation intent. Named definition uses intentionally share output; anonymous/inline prompts need independent ownership. Authors need not invent names or IDs or select IDs for full retry.",
+        "Saved implementation is ordinary editable source. Compatible manual JS/CSS edits become build inputs without another AI call or candidate-acceptance ceremony. Historic provenance must not falsely credit manual edits to the original model.",
+        "Formatting/unrelated source edits preserve association. Ambiguous copies/moves must not attach wrong code. Git branches/clones develop independently. Direct source/code edits and failed/cancelled generation preserve working code.",
+        "Explicit full retry generates all prompts in the active app dependency closure; acceptance validates and publishes the complete set. Existing permission, transaction/replay, target and schema-migration checks remain. No source metadata grants authority.",
+        "Prioritize adoption, concise authoring/token cost, understandable Git diffs, small implementation, finite failure/recovery. Avoid extra registries, module IDs or layers unless necessary. Retain truthful uncertainty; return open if no option adequately resolves its precise choice."
+      ],
+      "verified_current_facts": [
+        "Current tracked can.generated/<id>/unit.json and ordinary code/asset files persist outputs. Ignored .can/gen holds candidates, records, leases and journals. PromptStudio has tracked generated outputs. Git stores content-addressed history itself.",
+        "Rust/TypeScript allocators choose lowest unused u<N>. Root executed actual TS nextUnitId twice on [u1,u2]: both return u3. Local leases cannot coordinate clones.",
+        "Structural association uses source owner spelling, kind, label, normalized non-prompt anchor. Duplicate anchors are disambiguated only by exact path, whole-file SHA and byte span. Root executed actual TS associate on two exactly bound duplicate inline descriptors: retained/retained; changing only whole-file revision yields ambiguous/ambiguous.",
+        "Prompt-only SHA drift is reported separately from association; current intake reads current files rather than enforcing original-output hash equality. Generator/model changes are future generation preferences, not executable authority.",
+        "Current direct compiler reads live source and saved groups and resolves some groups again during emission; the existing guarded immutable snapshot is used by other tooling paths. This is a source-inspected mixed-read risk, not a reproduced end-to-end failure.",
+        "Current journal replacement accepts bytes only; no explicit deletion operation. Acceptance uses per-file rename plus cooperating-reader gating. Exact rollback of added/deleted files needs absence semantics; a text-based Git rollback path also needs binary-safe reads. These source-inspected gaps are independent of directory spelling.",
+        "Current root discovery takes operand parent directories, and one Given map is keyed bare unit ID, so multiple roots with u1 expose an unqualified-key risk. No emitted-artifact corruption reproduced. Explicit generation records can retain an external absolute source path fallback.",
+        "Current inline-style fallback can synthesize an empty unsaved group; named styles/views/traits/keywords fail on missing output. A uniform missing-output failure would change that behavior.",
+        "Existing ## comments are explanatory; static generation literals are $ immediately followed by a JSON string. A view can own two separate prompt slots (renderer and inline root style); a named-style use owns no new output. No proposed identity annotation syntax exists today."
+      ],
+      "comparison_cases": [
+        "clone relocated checkout",
+        "two identical inline prompts then unrelated edit",
+        "rename/move named or inline prompt",
+        "copy a prompt with its metadata",
+        "independent branch additions",
+        "manual code edit and conflicting generated candidate",
+        "remove old helper and add binary asset then rollback",
+        "full retry interruption",
+        "compatible named use added",
+        "change source contract versus prompt prose"
+      ]
+    },
+    "questions": {
+      "storage": {
+        "type": "choice",
+        "instructions": "For where actual accepted implementation bytes should live, select the design that most reliably meets the same stated goals with the least authoring and maintenance burden. Evaluate each declared tradeoff and the verified cases; open is available if none is adequate.",
+        "criteria": {
+          "semantic_companions": "Track ordinary editable groups in readable semantic directories beside sources. Bind source to ID and portable path, or use a derived locator. Easier browsing; renames/moves require pointer updates or lookup rules. No global handwritten registry.",
+          "object_store": "Track immutable content-addressed output objects and a small binding index selecting accepted objects; expose editable materialized files and update objects/index deterministically after compatible edits without approval. Exact snapshots/deduplication; extra representation, index, merge and garbage-collection rules.",
+          "module_bundle": "Track one readable generated code bundle and asset tree per defining module with one record. Fewer files and cohesive output; unrelated unit edits share bundle/record and compiler maintains unit boundaries and source maps.",
+          "embedded": "Store generated text inside owning Can declarations with external binary assets. Direct ownership and one source diff; adds mixed-language syntax and substantial source/token volume, and cannot be mandatory under current no-required-embedded-JS/CSS requirement.",
+          "open": "No listed storage architecture currently resolves the fixed goals sufficiently; retain this exact design question as unresolved.",
+          "editable_groups": "Track ordinary editable code/assets in stable can.generated/<random-id>/ groups with one small per-group record. Derive readable owner labels in inspection. Easy text edits/diffs and no global locator; opaque paths require tooling to navigate. Durable association is chosen separately."
+        }
+      },
+      "binding": {
+        "type": "choice",
+        "instructions": "For how a defining generation prompt remains associated with its saved implementation through source edits and branches, select the design that most reliably meets the same stated goals with the least authoring and maintenance burden. Evaluate each declared tradeoff and the verified cases; open is available if none is adequate.",
+        "criteria": {
+          "sidecar_matching": "Random IDs stay only in per-group records; uniquely match checked owner/kind/normalized structural evidence and explicitly reconcile ambiguity. Source stays shortest and no annotation grammar. Duplicate/moved nodes may repeatedly need reconciliation after unrelated edits; stronger matching cannot resolve indistinguishable swaps.",
+          "hybrid": "Use checked qualified semantic names for named definitions and source-carried random IDs only for anonymous slots. Less annotation volume; named rename/move needs reconciliation and two identity rules are maintained.",
+          "source_sidecar": "Track a per-source structural association table with random IDs and rich ancestry/neighborhood selectors; tools update it during refactors. Source stays clean; plain text edits can make selectors ambiguous, splitting/moving files needs coordinated table changes and explicit recovery.",
+          "hash_identity": "Key output by normalized prompt plus checked contract hash. Deterministic lookup without allocated tokens; identical independent prompts need extra ownership disambiguation and edits switch identities while old/manual code must be retained and rebound.",
+          "open": "No listed binding mechanism currently resolves the fixed goals sufficiently; retain this exact design question as unresolved.",
+          "source_slot": "Compiler-recognized tool-maintained random ID attached to every defining prompt slot, named or inline. Preparation installs it before capture; build never writes it. Explicit identity survives moves/edits; copies diagnose duplicates until explicit no-AI fork. Adds visible machine metadata and grammar/tooling support; one rule and no structural matching."
+        }
+      },
+      "freshness": {
+        "type": "choice",
+        "instructions": "For which changes should block ordinary builds of saved implementation, select the design that most reliably meets the same stated goals with the least authoring and maintenance burden. Evaluate each declared tradeoff and the verified cases; open is available if none is adequate.",
+        "criteria": {
+          "strict_intent": "Fail ordinary builds on changed prompt prose until explicit generation or deterministic no-AI acknowledgement that current implementation meets it. Compatible implementation-only edits still work. Stronger intent synchronization; extra reconciliation for prose edits and acknowledgement is not proof of semantic equivalence.",
+          "strict_all_inputs": "Fail ordinary builds on changed prompt, generation recipe/model or captured context until explicit regeneration or no-AI reconciliation. Broad provenance currentness; added friction and unrelated preference/context changes can block otherwise compatible code.",
+          "open": "No listed freshness policy currently resolves the fixed goals sufficiently; retain this exact design question as unresolved.",
+          "separate": "Keep source association, deterministic compatibility, prompt drift and manual modification as distinct states. Ordinary builds use current compatible saved bytes and report prompt drift; incompatible contracts or missing outputs fail. Explicit generation handles changed intent; no freshness approval needed for ordinary code edits. Prose intent may differ from running behavior until reconciled."
+        }
+      },
+      "publication": {
+        "type": "choice",
+        "instructions": "For how complete generated replacements and ordinary direct edits should coexist with coherent build reads and recovery, select the design that most reliably meets the same stated goals with the least authoring and maintenance burden. Evaluate each declared tradeoff and the verified cases; open is available if none is adequate.",
+        "criteria": {
+          "snapshot_pointer": "Promote a complete immutable accepted directory by a single tracked selector switch. Materialize editable current files and deterministically refresh selected snapshot after manual edits. Coherent selected set; extra editing/snapshot synchronization and index semantics, plus writer fencing still required.",
+          "git_only": "Use Git commits/worktrees to publish and rollback generations, with ordinary code edits in the worktree and build reading a selected tree. Reuses Git history; compiler/generation lifecycle depends on Git operations and must define handling of uncommitted edits/source archives and no automatic commits.",
+          "open": "No listed publication mechanism currently resolves the fixed goals sufficiently; retain this exact design question as unresolved.",
+          "editable_transaction": "Use existing ignored candidate/snapshot/lease/journal mechanism around editable tracked files. Require every compiler entry point to consume one frozen closure; journal upserts and deletions and binary-safe restoration; preserve existing cooperative-writer limit. Fits edits and existing owners; multiple files require coordinated reader gating/recovery."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "storage": {
+        "type": "choice",
+        "choice": "editable_groups",
+        "confidence": 0.42,
+        "probabilities": {
+          "semantic_companions": 0.24,
+          "object_store": 0.05,
+          "module_bundle": 0.05,
+          "embedded": 0.01,
+          "open": 0.13,
+          "editable_groups": 0.52
+        }
+      },
+      "binding": {
+        "type": "choice",
+        "choice": "source_slot",
+        "confidence": 0.41,
+        "probabilities": {
+          "sidecar_matching": 0.04,
+          "hybrid": 0.26,
+          "source_sidecar": 0.01,
+          "hash_identity": 0.01,
+          "open": 0.17,
+          "source_slot": 0.51
+        }
+      },
+      "freshness": {
+        "type": "choice",
+        "choice": "separate",
+        "confidence": 0.93,
+        "probabilities": {
+          "strict_intent": 0.02,
+          "strict_all_inputs": 0.0,
+          "open": 0.03,
+          "separate": 0.95
+        }
+      },
+      "publication": {
+        "type": "choice",
+        "choice": "editable_transaction",
+        "confidence": 0.52,
+        "probabilities": {
+          "snapshot_pointer": 0.03,
+          "git_only": 0.17,
+          "open": 0.16,
+          "editable_transaction": 0.64
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 2621,
+      "output_tokens": 229
+    }
+  }
+}
