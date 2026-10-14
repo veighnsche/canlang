@@ -16156,6 +16156,193 @@ impl<'a> Cx<'a> {
         Some(ui)
     }
 
+    /// Canonical order strings for one preference-order `OrderList`,
+    /// through the checker's `ui_order_selectors` rows (the same
+    /// canonicalization as fixed ordering). A missing row is a
+    /// lowering gap (`E6008`): the dispatch must never silently run a
+    /// partial order.
+    fn preference_order_strings(&mut self, list: &SyntaxNode) -> Option<Vec<String>> {
+        let inner = if list.kind == SyntaxKind::OrderList {
+            kids(list)
+                .into_iter()
+                .find(|part| part.kind == SyntaxKind::Selectors)
+                .unwrap_or(list)
+        } else {
+            list
+        };
+        let mut strings = Vec::new();
+        for path in kids(inner)
+            .into_iter()
+            .filter(|part| matches!(part.kind, SyntaxKind::Path | SyntaxKind::Descending))
+        {
+            let key = if path.kind == SyntaxKind::Descending {
+                kids(path)
+                    .into_iter()
+                    .find(|child| child.kind == SyntaxKind::Path)
+            } else {
+                Some(path)
+            };
+            let Some(canonical) = key
+                .and_then(|key| self.program.types.ui_order_selectors.get(&NodeKey::of(key)))
+                .cloned()
+            else {
+                self.gap(
+                    "preference order selector has no checked field-relative path".to_string(),
+                    path.span,
+                );
+                return None;
+            };
+            strings.push(canonical);
+        }
+        Some(strings)
+    }
+
+    /// Lower a checked preference-dispatched `order=` to the `order`
+    /// object profile (`{by, default, cases}`): `by` is the
+    /// `preferences.<name>` member read, `default` the fallback
+    /// canonical order, and `cases` the per-case canonical orders. The
+    /// checker owns `by`/key/selector validation; lowering trusts the
+    /// checked tables and gaps (`E6008`) on anything unpublished.
+    fn decode_preference_order(&mut self, scope: &Scope, order: &SyntaxNode) -> Option<TypedExpr> {
+        let refuse = |decoder: &mut Self, message: String| {
+            decoder
+                .diags
+                .push(Diagnostic::error("E6008", message, order.span));
+        };
+        let members = ui_attributes(self.db, order);
+        let find = |key: &str| {
+            members
+                .iter()
+                .find(|(name, _)| name == key)
+                .and_then(|(_, value)| *value)
+        };
+        let (Some(by), Some(default), Some(case_map)) =
+            (find("by"), find("default"), find("cases"))
+        else {
+            refuse(
+                self,
+                "preference order needs by=, default= and cases=".to_string(),
+            );
+            return None;
+        };
+        let segments: Vec<String> = kids(by)
+            .into_iter()
+            .filter(|part| part.kind == SyntaxKind::Name)
+            .filter_map(|part| name_text(self.db, part))
+            .collect();
+        if segments.len() != 2 || segments[0] != "preferences" {
+            refuse(
+                self,
+                "preference order by= must name a preference (preferences.<name>)".to_string(),
+            );
+            return None;
+        }
+        let pref = segments[1].clone();
+        let mut preference: Option<(SymbolId, ResolvedType)> = None;
+        for symbol in self.program.symbols.iter() {
+            if symbol.module != scope.module {
+                continue;
+            }
+            if let SymbolKind::Preferences { fields } = &symbol.kind {
+                for field in fields {
+                    if self
+                        .program
+                        .symbols
+                        .get(field.0 as usize)
+                        .is_some_and(|item| item.name == pref)
+                        && let Some(ty) = self.program.types.symbol_types.get(field)
+                    {
+                        preference = Some((symbol.id, ty.clone()));
+                    }
+                }
+            }
+        }
+        let Some((prefs_id, enum_ty)) = preference else {
+            refuse(
+                self,
+                format!("preference order by= names an unpublished preference `{pref}`"),
+            );
+            return None;
+        };
+        let by_expr = TypedExpr::new(
+            IrExpr::Member {
+                base: Box::new(TypedExpr::new(
+                    IrExpr::Name("preferences".to_string()),
+                    ResolvedType::Record {
+                        symbol: prefs_id,
+                        stored: true,
+                    },
+                    by.span,
+                )),
+                field: pref,
+            },
+            enum_ty,
+            by.span,
+        );
+        let text_array = |strings: Vec<String>, span: Span| {
+            TypedExpr::new(
+                IrExpr::Array(
+                    strings
+                        .into_iter()
+                        .map(|canonical| {
+                            TypedExpr::new(
+                                IrExpr::Text(canonical),
+                                ResolvedType::Scalar(Scalar::Text),
+                                span,
+                            )
+                        })
+                        .collect(),
+                ),
+                ResolvedType::Unknown,
+                span,
+            )
+        };
+        let Some(default_order) = self.preference_order_strings(default) else {
+            return None;
+        };
+        let mut cases = Vec::new();
+        for case in kids(case_map)
+            .into_iter()
+            .filter(|kid| kid.kind == SyntaxKind::OrderCase)
+        {
+            let parts = kids(case);
+            let key = parts
+                .iter()
+                .find(|part| part.kind == SyntaxKind::Name)
+                .and_then(|part| name_text(self.db, part));
+            let list = parts
+                .iter()
+                .find(|part| part.kind == SyntaxKind::OrderList)
+                .copied();
+            let (Some(key), Some(list)) = (key, list) else {
+                refuse(
+                    self,
+                    "preference order case needs a name and [...] list".to_string(),
+                );
+                return None;
+            };
+            let Some(strings) = self.preference_order_strings(list) else {
+                return None;
+            };
+            cases.push((key, text_array(strings, list.span)));
+        }
+        Some(TypedExpr::new(
+            IrExpr::Object(vec![
+                ("by".to_string(), by_expr),
+                (
+                    "default".to_string(),
+                    text_array(default_order, default.span),
+                ),
+                (
+                    "cases".to_string(),
+                    TypedExpr::new(IrExpr::Object(cases), ResolvedType::Unknown, case_map.span),
+                ),
+            ]),
+            ResolvedType::Unknown,
+            order.span,
+        ))
+    }
+
     /// Decode a collection (`list`/`table`/`gallery`): model, query
     /// props, presentation props, and row children under `renderRow`.
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
@@ -16416,6 +16603,12 @@ impl<'a> Cx<'a> {
             match name.as_str() {
                 "filter" | "defaults" if matches!(word, "calendar" | "table" | "gallery") => {}
                 "order" | "search" | "filter" | "columns" => {
+                    if name == "order" && value.kind == SyntaxKind::PreferenceOrder {
+                        if let Some(prop) = self.decode_preference_order(scope, value) {
+                            props.push(("order".to_string(), prop));
+                        }
+                        continue;
+                    }
                     if name == "order" && value.kind != SyntaxKind::Selectors {
                         self.diags.push(Diagnostic::error(
                             "E6008",

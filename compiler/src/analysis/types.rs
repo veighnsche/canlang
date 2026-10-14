@@ -6954,7 +6954,9 @@ impl<'a> Typer<'a> {
     /// singular embedded value leaves), descending through singular
     /// embedded values only; descending markers belong to `order=`
     /// (`E2013`/`E3001`). Accepted selectors confer no narrowing fact
-    /// and no permission. Returns the selected dotted paths.
+    /// and no permission. Returns the selected dotted paths. An
+    /// `OrderList` carries the same `Path`/`Descending` children as a
+    /// fixed `order=` list, so preference-order cases share this path.
     fn check_selectors(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -6965,9 +6967,22 @@ impl<'a> Typer<'a> {
         allow_reserved: bool,
     ) -> Vec<String> {
         let mut selected = Vec::new();
-        if selectors.kind != SyntaxKind::Selectors {
+        if !matches!(
+            selectors.kind,
+            SyntaxKind::Selectors | SyntaxKind::OrderList
+        ) {
             return selected;
         }
+        // An `OrderList` wraps one `Selectors` in its brackets; validate
+        // the inner list so preference cases share fixed-order rules.
+        let selectors = if selectors.kind == SyntaxKind::OrderList {
+            kids(selectors)
+                .into_iter()
+                .find(|child| child.kind == SyntaxKind::Selectors)
+                .unwrap_or(selectors)
+        } else {
+            selectors
+        };
         for child in kids(selectors) {
             let (path, descending) = match child.kind {
                 SyntaxKind::Path => (child, false),
@@ -7046,6 +7061,140 @@ impl<'a> Typer<'a> {
             }
         }
         selected
+    }
+
+    /// Ordered-scalar (`E3006`) validation for one fixed or
+    /// preference-case ordering list: each `Path`/`Descending` child
+    /// must end at an ordered scalar. Canonicalization (and path
+    /// navigation) already ran through `check_selectors`.
+    fn check_order_key_list(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        list: &SyntaxNode,
+    ) {
+        // Same `OrderList` normalization as `check_selectors` above.
+        let list = if list.kind == SyntaxKind::OrderList {
+            kids(list)
+                .into_iter()
+                .find(|part| part.kind == SyntaxKind::Selectors)
+                .unwrap_or(list)
+        } else {
+            list
+        };
+        for selector in kids(list) {
+            let path = if selector.kind == SyntaxKind::Descending {
+                kids(selector)
+                    .iter()
+                    .find(|part| part.kind == SyntaxKind::Path)
+                    .copied()
+            } else {
+                Some(selector)
+            };
+            if let Some(path) = path
+                && let Some(ty) = self.ui_selector_type(
+                    model,
+                    &self.ui_order_segments(cx, node, model, &path_segments(path, cx.text)),
+                )
+            {
+                self.check_order_key(cx, path, &ty);
+            }
+        }
+    }
+
+    /// Validate a preference-dispatched `order=` (`E3001`/`E3006`):
+    /// `by=` must name an enum preference, every case key must be one
+    /// of its cases, and `default=` plus every case list must hold
+    /// ordered-scalar selectors over the collection model. Case lists
+    /// canonicalize through `check_selectors`, so lowering reads the
+    /// same `ui_order_selectors` rows as fixed ordering. Enum cases
+    /// without an entry fall back to `default=` at runtime.
+    fn check_preference_order(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        model: SymbolId,
+        order: &SyntaxNode,
+    ) {
+        let Some(by) = attribute_value(order, "by", cx.text) else {
+            return;
+        };
+        // Resolve `by=` through the checked preference declarations,
+        // never expression scope: collection attribute scope carries no
+        // `preferences` binding, so `expr` stays a silent `Error` here.
+        let segments = path_segments(by, cx.text);
+        let cases = if segments.len() == 2 && segments[0] == "preferences" {
+            let declared = self
+                .prefs
+                .get(&cx.module)
+                .copied()
+                .and_then(|prefs| self.record_field_named(prefs, segments[1]))
+                .map(|field| self.decl_type(field));
+            match declared {
+                Some(ResolvedType::Enum { cases, .. }) => Some(cases),
+                Some(_) => {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "preference order by= must name an enum preference".to_string(),
+                        tight_span(cx.text, by),
+                    ));
+                    None
+                }
+                None => {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!("unknown preference `preferences.{}`", segments[1]),
+                        tight_span(cx.text, by),
+                    ));
+                    None
+                }
+            }
+        } else {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "preference order by= must name a preference (preferences.<name>)".to_string(),
+                tight_span(cx.text, by),
+            ));
+            None
+        };
+        if let Some(default) = attribute_value(order, "default", cx.text) {
+            self.check_selectors(cx, node, model, default, "order", true);
+            self.check_order_key_list(cx, node, model, default);
+        }
+        if let Some(case_map) = attribute_value(order, "cases", cx.text) {
+            for case in kids(case_map)
+                .into_iter()
+                .filter(|kid| kid.kind == SyntaxKind::OrderCase)
+            {
+                let key = kids(case)
+                    .iter()
+                    .find(|part| part.kind == SyntaxKind::Name)
+                    .and_then(|part| part.token())
+                    .map(|token| token.text(cx.text).to_string());
+                if let Some(key) = key
+                    && let Some(cases) = &cases
+                    && !cases.contains(&key)
+                {
+                    self.diags.push(Diagnostic::error(
+                        "E3006",
+                        format!(
+                            "unknown order case `{key}`; expected one of {}",
+                            cases.join(", ")
+                        ),
+                        tight_span(cx.text, case),
+                    ));
+                }
+                if let Some(list) = kids(case)
+                    .iter()
+                    .find(|part| part.kind == SyntaxKind::OrderList)
+                    .copied()
+                {
+                    self.check_selectors(cx, node, model, list, "order", true);
+                    self.check_order_key_list(cx, node, model, list);
+                }
+            }
+        }
     }
 
     /// Whether a selector path ends at a delivery-observation leaf
@@ -9414,32 +9563,12 @@ impl<'a> Typer<'a> {
                             self.check_selectors(cx, node, model, sel, key, true);
                         }
                     }
-                    if let Some(order) = attribute_value(node, "order", cx.text)
-                        && order.kind == SyntaxKind::Selectors
-                    {
-                        self.check_selectors(cx, node, model, order, "order", true);
-                        for selector in kids(order) {
-                            let path = if selector.kind == SyntaxKind::Descending {
-                                kids(selector)
-                                    .iter()
-                                    .find(|part| part.kind == SyntaxKind::Path)
-                                    .copied()
-                            } else {
-                                Some(selector)
-                            };
-                            if let Some(path) = path
-                                && let Some(ty) = self.ui_selector_type(
-                                    model,
-                                    &self.ui_order_segments(
-                                        cx,
-                                        node,
-                                        model,
-                                        &path_segments(path, cx.text),
-                                    ),
-                                )
-                            {
-                                self.check_order_key(cx, path, &ty);
-                            }
+                    if let Some(order) = attribute_value(node, "order", cx.text) {
+                        if order.kind == SyntaxKind::Selectors {
+                            self.check_selectors(cx, node, model, order, "order", true);
+                            self.check_order_key_list(cx, node, model, order);
+                        } else if order.kind == SyntaxKind::PreferenceOrder {
+                            self.check_preference_order(cx, node, model, order);
                         }
                     }
                     if let Some(search) = attribute_value(node, "search", cx.text) {
