@@ -4,51 +4,42 @@
 //! no authorization, protected-binding or preference-save lifecycle claim.
 
 #[test]
-fn unsupported_dynamic_order_refuses_at_the_authored_profile() {
+fn preference_dispatched_order_publishes_case_ternary() {
     use std::path::PathBuf;
     use std::process::Command;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
-    let prefix = "app BoundUi\nGiven\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n page / title=\"Page\"\n";
-    {
-        let (body, profile, authored) = (
-            "  list Todo order={by=preferences.view,default=[-created],cases={finished=[title]}} empty=\"No tasks\"\n   text row.title\n",
-            "collection order",
-            "{by=preferences.view,default=[-created],cases={finished=[title]}}",
-        );
-        let scratch = tempfile::tempdir().unwrap();
-        let source = prefix.to_string() + body;
-        let path = scratch.path().join("profile.can");
-        std::fs::write(&path, &source).unwrap();
-        let output = Command::new(env!("CARGO_BIN_EXE_can"))
-            .args(["compile", "--format=json", "--catalog"])
-            .arg(root.join("packages/values/dist/catalog.json"))
-            .arg(path)
-            .env_remove("CAN_CATALOG")
-            .output()
-            .unwrap();
-        assert!(!output.status.success(), "{profile} unexpectedly published");
-        let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        let errors = diagnostic["diagnostics"].as_array().unwrap();
-        let gap = errors.iter().find(|error| {
-            error["code"] == "E6008" && error["message"].as_str().unwrap().contains(profile)
-        });
-        assert!(
-            gap.is_some(),
-            "{profile}: {}",
-            String::from_utf8_lossy(&output.stdout)
-        );
-        let span = &gap.unwrap()["primary"];
-        assert_eq!(
-            source
-                [span["start"].as_u64().unwrap() as usize..span["end"].as_u64().unwrap() as usize]
-                .trim(),
-            authored
-        );
-        assert!(
-            diagnostic.get("modules").is_none(),
-            "blocked profile published modules"
-        );
-    }
+    let prefix = "app BoundUi\nGiven\n Todo { title:text, rank:int }\n policy Todo read=public\nWhen\nThen\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n page / title=\"Page\"\n";
+    let body = "  list Todo order={by=preferences.view,default=[-created],cases={finished=[rank]}} empty=\"No tasks\"\n   text row.title\n";
+    let scratch = tempfile::tempdir().unwrap();
+    let source = prefix.to_string() + body;
+    let path = scratch.path().join("profile.can");
+    std::fs::write(&path, &source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(path)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let compiled: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        compiled.get("modules").is_some(),
+        "dispatched order published no modules"
+    );
+    let js = compiled["modules"][0]["js"].as_str().unwrap();
+    assert!(
+        js.contains("(preferences.view===\"finished\")?[\"rank\"]:[\"-created\"]"),
+        "dispatch ternary: {js}"
+    );
+    assert!(
+        js.contains("const preferences="),
+        "preferences preamble: {js}"
+    );
 }
 
 #[test]

@@ -1077,7 +1077,9 @@ fn draft_outcome_table() {
         ("draft/apps/CanDecide/CanDecide.can", 3),
         ("draft/apps/CanDesk/CanDesk.can", 72),
         ("draft/apps/CanDiscover/CanDiscover.can", 59),
-        ("draft/apps/CanDo/CanDo.can", 41),
+        // Dispatched table order now lowers: the Task table's checked
+        // preference order no longer reports the lowering refusal (-3).
+        ("draft/apps/CanDo/CanDo.can", 38),
         ("draft/apps/CanEnrich/CanEnrich.can", 8),
         ("draft/apps/CanEvent/CanEvent.can", 198),
         ("draft/apps/CanExpense/CanExpense.can", 92),

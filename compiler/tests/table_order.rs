@@ -101,6 +101,115 @@ fn checked_table_orders_reach_the_original_native_query_and_protected_row() {
 }
 
 #[test]
+fn preference_dispatched_order_lowers_to_case_ternary() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let catalog_path = root.join("packages/values/dist/catalog.json");
+    let source = SOURCE
+        .replacen(
+            "order=from",
+            "order={by=preferences.ordering,default=[from],cases={ascending=[from],descending=[-from]}}",
+            1,
+        )
+        .replace(
+            "Then\n",
+            "Then\n preferences {ordering:enum(ascending,descending)=ascending}\n",
+        );
+    let mut db = SourceDb::new();
+    let id = db.add("table-order-dispatched.can".into(), source.clone().into());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[id], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let children = &program.modules[0].pages[0].render[0].children;
+    let table = children
+        .iter()
+        .find(|node| node.factory == "table")
+        .expect("dispatched table");
+    let IrExpr::Object(entries) = &table
+        .props
+        .iter()
+        .find(|(key, _)| key == "order")
+        .unwrap()
+        .1
+        .expr
+    else {
+        panic!("dispatched order object");
+    };
+    let entry = |key: &str| {
+        entries
+            .iter()
+            .find(|(name, _)| name == key)
+            .unwrap_or_else(|| panic!("order entry {key}"))
+            .1
+            .clone()
+    };
+    let texts = |value: &canlang_compiler::codegen::ir::TypedExpr| match &value.expr {
+        IrExpr::Array(items) => items
+            .iter()
+            .map(|item| match &item.expr {
+                IrExpr::Text(text) => text.clone(),
+                _ => panic!("canonical signed selector"),
+            })
+            .collect::<Vec<_>>(),
+        _ => panic!("canonical order array"),
+    };
+    match &entry("by").expr {
+        IrExpr::Member { base, field } => {
+            assert!(matches!(&base.expr, IrExpr::Name(name) if name == "preferences"));
+            assert_eq!(field, "ordering");
+        }
+        _ => panic!("preference member read"),
+    }
+    assert_eq!(texts(&entry("default")), vec!["from"]);
+    let IrExpr::Object(cases) = &entry("cases").expr else {
+        panic!("dispatched order cases");
+    };
+    let case = |key: &str| {
+        texts(
+            &cases
+                .iter()
+                .find(|(name, _)| name == key)
+                .unwrap_or_else(|| panic!("order case {key}"))
+                .1,
+        )
+    };
+    assert_eq!(case("ascending"), vec!["from"]);
+    assert_eq!(case("descending"), vec!["-from"]);
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("table-order-dispatched.can");
+    std::fs::write(&input, source).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(&catalog_path)
+        .arg(&input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = String::from_utf8_lossy(&compiled.stdout);
+    assert!(
+        artifact.contains("order:(preferences.ordering==="),
+        "dispatch ternary: {artifact}",
+    );
+    assert!(
+        artifact.contains("const preferences="),
+        "preferences preamble: {artifact}",
+    );
+}
+
+#[test]
 fn malformed_or_unreleased_table_controls_cannot_publish() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
@@ -110,9 +219,24 @@ fn malformed_or_unreleased_table_controls_cannot_publish() {
         ("foreign", "order=Calendar.title", None),
         ("enum-order", "order=state", Some("E3006")),
         (
-            "dispatched",
-            "order={by=preferences.ordering,default=[from],cases={ascending=[from],descending=[-from]}}",
-            Some("E6008"),
+            "dispatched-unknown-case",
+            "order={by=preferences.ordering,default=[from],cases={ascending=[from],sideways=[from]}}",
+            Some("E3006"),
+        ),
+        (
+            "dispatched-bad-selector",
+            "order={by=preferences.ordering,default=[from],cases={ascending=[missing]}}",
+            Some("E2013"),
+        ),
+        (
+            "dispatched-bad-by",
+            "order={by=row.title,default=[from],cases={ascending=[from]}}",
+            Some("E3001"),
+        ),
+        (
+            "dispatched-unordered-key",
+            "order={by=preferences.ordering,default=[from],cases={ascending=[state]}}",
+            Some("E3006"),
         ),
         (
             "nonenum-filter",
@@ -121,7 +245,7 @@ fn malformed_or_unreleased_table_controls_cannot_publish() {
         ),
     ] {
         let mut source = SOURCE.replacen("order=from", replacement, 1);
-        if name == "dispatched" {
+        if name.starts_with("dispatched") {
             source = source.replace(
                 "Then\n",
                 "Then\n preferences {ordering:enum(ascending,descending)=ascending}\n",

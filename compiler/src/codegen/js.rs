@@ -4241,6 +4241,38 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Lower a preference-dispatched `order` object (`{by, default,
+    /// cases}`) to a case ternary over the live preference read, so
+    /// the query runner still receives a plain string array. Cases
+    /// compare against the checked enum spellings; preference values
+    /// without an entry fall back to `default`. `None` when `value`
+    /// is not the dispatched profile (fixed arrays lower generically).
+    fn lower_dispatched_order(&mut self, value: &TypedExpr) -> Option<String> {
+        let IrExpr::Object(entries) = &value.expr else {
+            return None;
+        };
+        let find = |key: &str| {
+            entries
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, member)| member)
+        };
+        let (by, default, cases) = (find("by")?, find("default")?, find("cases")?);
+        let IrExpr::Object(case_entries) = &cases.expr else {
+            return None;
+        };
+        let read = self.lower_expr(by);
+        let mut out = self.lower_expr(default);
+        for (case, order) in case_entries.iter().rev() {
+            out = format!(
+                "({read}==={})?{}:{out}",
+                js_string(case),
+                self.lower_expr(order)
+            );
+        }
+        Some(out)
+    }
+
     /// Enter hook lowering for one trigger model: statements stage through
     /// `$hookCtx` and ambient-context expressions report `E6008`.
     pub fn enter_hook(&mut self, trigger: SymbolId) {
@@ -9434,6 +9466,14 @@ impl<'a> Emitter<'a> {
                     .expect("history row checked above")
             } else if node.factory == "text" && key == "values" {
                 self.lower_expr(value)
+            } else if key == "order"
+                && matches!(
+                    node.factory.as_str(),
+                    "list" | "table" | "gallery" | "calendar"
+                )
+                && let Some(dispatched) = self.lower_dispatched_order(value)
+            {
+                dispatched
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
             };
