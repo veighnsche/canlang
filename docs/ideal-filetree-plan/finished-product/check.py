@@ -18,7 +18,9 @@ def main():
     requirements=json.loads((HERE/'requirements.json').read_text())
     documentation=json.loads((HERE/'documentation-review.json').read_text()) if (HERE/'documentation-review.json').exists() else {}
     retired_audit=documentation.get('execution',{}).get('completed_editor_audit',{})
-    archived_sources={r['path']:r for r in retired_audit.get('files',[])}
+    historical_archive={r['path']:r for r in retired_audit.get('files',[])}
+    purged_generated_paths=set(retired_audit.get('purged_generated_paths',[]))
+    archived_sources={p:r for p,r in historical_archive.items() if p not in purged_generated_paths}
     archive_bytes={}
     def archived_bytes(path):
         if path not in archive_bytes:
@@ -115,10 +117,12 @@ def main():
                 except subprocess.CalledProcessError:errors.append({'protected_archive_document_unavailable':p})
             elif not (ROOT/p).is_file() or hashlib.sha256((ROOT/p).read_bytes()).hexdigest()!=sha:errors.append({'protected_document_changed':p})
         if retired_audit:
+            if not purged_generated_paths <= set(historical_archive):errors.append('unknown backup-only editor archive record')
+            if any(p.endswith(('.md','.can')) for p in purged_generated_paths):errors.append('editor archive source marked as generated capture')
             if (ROOT/retired_audit['root']).exists():errors.append('retired editor audit remains in working tree')
             try:
                 paths=subprocess.check_output(['git','ls-tree','-r','--name-only',retired_audit['revision'],'--',retired_audit['root']],cwd=ROOT,text=True).splitlines()
-                if set(paths)!=set(archived_sources):errors.append('editor archive recovery inventory differs from pinned Git tree')
+                if set(paths)-purged_generated_paths!=set(archived_sources):errors.append('editor archive recovery inventory differs from pinned Git tree')
                 for p,r in archived_sources.items():
                     b=archived_bytes(p)
                     if len(b)!=r['bytes'] or hashlib.sha256(b).hexdigest()!=r['sha256']:errors.append({'editor_archive_bytes_changed':p})
@@ -199,6 +203,8 @@ def main():
        'documentation_root_cutover':len(relocations),'documentation_topic_consolidation_executed':bool(topic_consolidation),
        'documentation_topic_source_blocks':len(topic_consolidation.get('sources',[])),
        'documentation_editor_archive_files':len(archived_sources),
+       'documentation_editor_archive_historical_files':len(historical_archive),
+       'documentation_editor_archive_backup_only_generated_files':len(purged_generated_paths),
        'documentation_editor_archive_markdown':sum(p.endswith('.md') for p in archived_sources),
        'documentation_editor_archive_recovery_verified':bool(retired_audit) and not any('archive' in str(e) for e in errors),
        'documentation_markdown_reduction':topic_consolidation.get('net_markdown_reduction',0)+sum(p.endswith('.md') for p in archived_sources)},

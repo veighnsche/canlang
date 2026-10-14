@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "checkout": "/Users/vince/Projects/canlang",
-  "source_pin": "fdb059c634c32c83760f35dd9175f49d9821762d",
+  "source_pin": "c36871f48b3b1abe572b5eccce4d8b3735dcdebf",
   "branch": "main",
   "complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "historical_primary": "350163ad661e61b667809a5f78b608c23812a5f0",

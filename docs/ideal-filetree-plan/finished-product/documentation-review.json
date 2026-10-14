@@ -3215,7 +3215,7 @@
     },
     "completed_editor_audit": {
       "root": "editors/vscode/audit-astra",
-      "revision": "e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa",
+      "revision": "1aeec6f363de9abe26209b1e94c41f41af076cb7",
       "observed_at_utc": "2026-10-06T13:34:16.536275+00:00",
       "files": [
         {
@@ -4154,8 +4154,8 @@
           "sha256": "2270bbda45f8f9cc839aa85387793910f569464bbe338d02a193bcf5b05ab365"
         }
       ],
-      "status": "retired from working tree; retained byte-for-byte in reachable Git history",
-      "recovery_command": "git archive e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa editors/vscode/audit-astra",
+      "status": "retired from working tree; source records retained in reachable Git history; listed generated captures retained in original Git backup",
+      "recovery_command": "git archive 1aeec6f363de9abe26209b1e94c41f41af076cb7 editors/vscode/audit-astra",
       "recovery_verification": {
         "method": "git archive to temporary tar; extract full original logical paths; compare all extracted sizes and SHA-256 hashes",
         "files": 187,
@@ -4174,6 +4174,45 @@
         "verdict": "no concrete defects",
         "scope": "Read-only in-memory Git archive reproduction for all187 files/42687533 bytes; all23 protected Markdown hash pins; exact deletion scope; no active checker/grammar/manifest/src/test diff; all187 allocation and retirement rows; commit links resolve; checker exit0 with writes suppressed.",
         "regeneration": "Coordinator separately proved apply_documentation_review idempotent across ten selected artifacts."
+      },
+      "purged_generated_paths": [
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/inline-require-theme-evidence.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/probe-results.json",
+        "editors/vscode/audit-astra/changed-rule-recheck-20261004T020201Z/results.txt",
+        "editors/vscode/audit-astra/corpus-tokens.json",
+        "editors/vscode/audit-astra/description-results.json",
+        "editors/vscode/audit-astra/description-results.txt",
+        "editors/vscode/audit-astra/execution-presentation-latest-results.json",
+        "editors/vscode/audit-astra/execution-presentation-probe-results.json",
+        "editors/vscode/audit-astra/followup-013-theme-evidence.json",
+        "editors/vscode/audit-astra/latest-corpus-tokens.json",
+        "editors/vscode/audit-astra/latest-probe-results.json",
+        "editors/vscode/audit-astra/latest-probe-results.txt",
+        "editors/vscode/audit-astra/probe-results.json",
+        "editors/vscode/audit-astra/probe-results.txt",
+        "editors/vscode/audit-astra/production-coverage.csv",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/execution-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/foundation-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/inline-require-evidence.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/original-probe-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/owned-model-minimal-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/probe-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.json",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/root-focused-results.txt",
+        "editors/vscode/audit-astra/recheck-20261004T014855Z/theme-evidence.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-005813.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-010004.json",
+        "editors/vscode/audit-astra/theme-installation-evidence-010146.json",
+        "editors/vscode/audit-astra/theme-installation-evidence.json"
+      ],
+      "generated_capture_recovery": {
+        "location": "/Users/vince/Backups/can-history-trial-20261014-111827/backup/git-admin.tar.zst",
+        "scope": "Original Git administration archive before history cleanup; contains original repository history and the full historical editor-audit ledger contents. Generated capture paths listed in purged_generated_paths recover from this backup, rather than rewritten reachable Git history.",
+        "original_revision": "e5fa27c3cbe6c00e4ec76ea61005a3f1d3e65faa",
+        "retained_source_recovery": "The revision and recovery_command identify rewritten history containing retained source records. The original_revision identifies the complete archive in the preserved backup. Original files, counts, sizes and hashes remain historical evidence; the checker verifies retained records separately."
       }
     }
   }

@@ -13637,3 +13637,7 @@ static `-`-prefixed lists; no factory/dispatcher change). Touches the
 `table_order.rs` dispatched pin — surface as a contract change when
 built. Not built this turn: validating selectors in codegen would
 duplicate checker duties with soundness risk.
+
+## 2026-10-14 — local history and worktree storage cleanup (accepted)
+
+At the user’s request, remove all 27 secondary worktrees after checking main integration, retaining original Git administration and every worktree’s source/local files in `/Users/vince/Backups/can-history-trial-20261014-111827`. No further code merge is justified: the non-equivalent Muse joins and legacy branches have explicit integration or finite wind-down records. Preserve their recovery branches and uncommitted documentation patch. Purge generated promotional assets, the compiled independent-review probe, obsolete token/result dumps and historical command logs from local history; retain source, all reference images, active planning inputs and source replay archives. These generated records belong in recoverable external evidence storage, not repository history. The existing editor archive ledger retains original facts while checking retained source independently of backup-only generated captures. The user authorized publication of the cleaned history on 2026-10-14; retain the original backups and use explicit old-tip leases for remote updates.
