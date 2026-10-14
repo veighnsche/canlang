@@ -38,7 +38,7 @@
 
 import { spawn } from "node:child_process";
 import { AppAcceptanceError, runAppAcceptance, type AppAcceptanceGate } from "./acceptance.js";
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import {
   ConfigError,
@@ -174,7 +174,7 @@ export type CompilerCaller = (requestJson: string) => Promise<{ code: number; st
 export type GitRunner = (
   args: readonly string[],
   options: { cwd: string },
-) => Promise<{ code: number; stdout: string; stderr: string }>;
+) => Promise<{ code: number; stdout: string | Uint8Array; stderr: string }>;
 
 /** Execution context for one control dispatch. */
 export interface ControlContext {
@@ -294,16 +294,16 @@ export async function defaultCompilerCaller(requestJson: string): Promise<{
 async function defaultGitRunner(
   args: readonly string[],
   options: { cwd: string },
-): Promise<{ code: number; stdout: string; stderr: string }> {
+): Promise<{ code: number; stdout: Uint8Array; stderr: string }> {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn("git", ["-C", options.cwd, ...args], {
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
     });
-    let stdout = "";
+    const stdout: Buffer[] = [];
     let stderr = "";
     child.stdout?.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8");
+      stdout.push(chunk);
     });
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr += chunk.toString("utf8");
@@ -312,7 +312,7 @@ async function defaultGitRunner(
       rejectPromise(cause instanceof Error ? cause : new Error(String(cause)));
     });
     child.on("close", (code) => {
-      resolvePromise({ code: code ?? 1, stdout, stderr });
+      resolvePromise({ code: code ?? 1, stdout: Buffer.concat(stdout), stderr });
     });
   });
 }
@@ -837,6 +837,17 @@ async function compilerStatus(
   if (result.code !== EXIT_OK || result.body["ok"] !== true) {
     throw compilerFailure("status", result);
   }
+  const issues = result.body["issues"];
+  if (issues !== undefined && !Array.isArray(issues)) {
+    throw new Error("the compiler status report carries a malformed issues field");
+  }
+  if (Array.isArray(issues) && issues.length > 0) {
+    const details = issues.slice(0, 16).map(issue => isRecord(issue) && typeof issue["detail"] === "string"
+      ? `${typeof issue["unit"] === "string" ? issue["unit"] + ": " : ""}${issue["detail"]}`
+      : "saved unit intake is unresolved");
+    throw new ControlError(EXIT_INVALID, "unresolved-intake", `saved unit intake must be reconciled before allocation or generation:\n${details.join("\n")}`,
+      ["repair the saved group or send an explicit bind request, then resend"]);
+  }
   const units = result.body["units"];
   if (!Array.isArray(units)) {
     throw new Error("the compiler status report carries no units array");
@@ -848,6 +859,42 @@ async function compilerStatus(
     }
     return parsed;
   });
+}
+
+/** Resolve the complete status before any allocation, launch or publication. */
+function assertResolvableStatus(status: readonly StatusUnit[]): void {
+  const claimed = new Set<string>();
+  for (const entry of status) {
+    if (entry.association === "orphaned") continue;
+    if (entry.association === "ambiguous" || entry.association === "displaced") {
+      const names = entry.candidates.length > 0 ? entry.candidates.join(",") : "(none)";
+      throw new ControlError(EXIT_INVALID, "ambiguous-unit",
+        `scope unit ${entry.owner}/${entry.kind}/${entry.label ?? "-"} has unresolved ownership (candidates: ${names}); reconcile with an explicit bind`,
+        ["send a bind request to reconcile the unit, then resend"]);
+    }
+    if (entry.association !== "new" && entry.association !== "retained") {
+      throw new Error(`the compiler reported an unknown association ${JSON.stringify(entry.association)}`);
+    }
+    if (entry.path === null || entry.prompt === null || entry.contract === null || entry.span === null || !isUnitKind(entry.kind)) {
+      throw new ControlError(EXIT_INVALID, "missing-capture-seam", "the compiler status report carries no complete prompt/contract/location seam; rebuild the compiler and resend");
+    }
+    if (entry.association === "retained") {
+      if (entry.id === null) throw new Error("the compiler reported a retained unit without an id");
+      if (claimed.has(entry.id)) throw new ControlError(EXIT_INVALID, "ambiguous-unit",
+        `saved unit ${JSON.stringify(entry.id)} is claimed by multiple defining slots; reconcile with an explicit bind`);
+      claimed.add(entry.id);
+    }
+  }
+}
+
+async function preflightSavedBindings(ctx: ControlContext, header: RequestHeader, root: string, scope: readonly PromotionUnit[]): Promise<void> {
+  const files = [...new Set(scope.flatMap(entry => entry.capture.files))];
+  const status = await compilerStatus(ctx, header.request_id, root, files);
+  assertResolvableStatus(status);
+  for (const entry of scope) if (!status.some(unit => unit.id === entry.unit_id && unit.association === "retained")) {
+    throw new ControlError(EXIT_INVALID, "stale-association",
+      `saved unit ${JSON.stringify(entry.unit_id)} no longer matches its owning source; reconcile with an explicit bind`);
+  }
 }
 
 /** Route one validated request to its operation handler. */
@@ -1532,6 +1579,8 @@ async function captureFromFiles(
     const reads = leasePaths.length > 0 ? await acquire(root, leasePaths, "read", `gen-capture:${header.request_id}`) : null;
     try {
       const status = await compilerStatus(ctx, header.request_id, root, files);
+      // Do not let a late ambiguous entry follow earlier bind allocations.
+      assertResolvableStatus(status);
       const revisions = await hashScopeFiles(root, files);
       const units: ResolvedUnit[] = [];
       const context: ResolvedUnit[] = [];
@@ -1697,6 +1746,8 @@ async function captureUnitsById(
     const reads = rel === null ? null : await acquire(root, [rel], "read", `gen-capture:${header.request_id}`);
     try {
       const status = await compilerStatus(ctx, header.request_id, root, [record.source.path]);
+      // A selected ID cannot bypass unresolved siblings in its owning source.
+      assertResolvableStatus(status);
       for (const candidate of status) {
         if (candidate.id === null || unit_ids.includes(candidate.id) || context.has(candidate.id)
           || candidate.association !== "retained" || candidate.prompt_changed !== false
@@ -2106,7 +2157,7 @@ async function executeCaptured(
             if (await fileExists(contribution)) lines.push("```can", await readFile(contribution, "utf8"), "```");
           }
           for (const replacement of prepared.replacements) {
-            if (replacement.path === "contributions.can") {
+            if (replacement.path === "contributions.can" && replacement.bytes !== null) {
               lines.push("```can", Buffer.from(replacement.bytes).toString("utf8"), "```");
             }
           }
@@ -2407,7 +2458,7 @@ async function composeAcceptance(
   }
   const scope = await promotionScopeFromAttempts(root, jobs.map((job) => job.attemptDir));
   await validateCandidateSet(ctx, header, root, scope, true);
-  const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "composed accept:true");
+  const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "composed accept:true", ctx);
   return executionEnvelope(header, jobs, [], {
     run: promoted.run,
     files: promoted.files,
@@ -2577,6 +2628,7 @@ async function validateCandidateSet(
   scope: PromotionUnit[],
   acceptance = false,
 ): Promise<{ unit_id: string; fingerprint: string }[]> {
+  await preflightSavedBindings(ctx, header, root, scope);
   await mkdir(join(root, VALIDATE_DIR), { recursive: true });
   const scratch = await mkdtemp(join(root, VALIDATE_DIR, "set-"));
   try {
@@ -2623,13 +2675,29 @@ async function validateCandidateSet(
       } else {
         await mkdir(scratchGroup, { recursive: true });
       }
-      for (const replacement of entry.replacements) {
+      // Match journal publication: remove only explicitly deleted files before
+      // writing additions, pruning empty parents for file/directory transitions.
+      const orderedReplacements = [...entry.replacements.filter(replacement => replacement.bytes === null),
+        ...entry.replacements.filter(replacement => replacement.bytes !== null)];
+      for (const replacement of orderedReplacements) {
         const target = join(scratchGroup, ...replacement.path.split("/"));
         if (relative(scratchGroup, target).startsWith("..")) {
           throw new ControlError(EXIT_INVALID, "invalid-path", `replacement ${JSON.stringify(replacement.path)} escapes its unit`);
         }
-        await mkdir(dirname(target), { recursive: true });
-        await writeFile(target, replacement.bytes);
+        if (replacement.bytes === null) {
+          await rm(target, { force: true });
+          for (let parent = dirname(target); parent !== scratchGroup; parent = dirname(parent)) {
+            try { await rmdir(parent); }
+            catch (error) {
+              const code = (error as NodeJS.ErrnoException).code;
+              if (code === "ENOTEMPTY" || code === "EEXIST" || code === "ENOTDIR") break;
+              if (code !== "ENOENT") throw error;
+            }
+          }
+        } else {
+          await mkdir(dirname(target), { recursive: true });
+          await writeFile(target, replacement.bytes);
+        }
       }
       copied.add(entry.unit_id);
     }
@@ -2733,6 +2801,7 @@ async function promoteSet(
   scope: PromotionUnit[],
   runId: string,
   _reason: string,
+  ctx: ControlContext,
 ): Promise<{ run: string; files: number }> {
   const scopeIds = [...new Set(scope.map((entry) => entry.unit_id))].sort();
   for (const run of await unresolvedJournals(root)) {
@@ -2778,6 +2847,7 @@ async function promoteSet(
   }
   const leases = await acquire(root, leasePaths, "write", `gen-accept:${header.request_id}`);
   try {
+    await preflightSavedBindings(ctx, header, root, scope);
     // Fence first: late, cancelled, reset, or already-accepted
     // attempts refuse before any byte comparison.
     for (const entry of scope) {
@@ -2866,7 +2936,10 @@ async function promoteSet(
       }
     }
     const replacements: Replacement[] = scope.flatMap((entry) => entry.replacements);
-    await stageJournal(root, runId, scopeIds, replacements);
+    // Submitted handles are patches; they do not declare that omitted
+    // authored interfaces, helper modules or assets should disappear.
+    // Rollback, by contrast, restores the complete historical membership.
+    await stageJournal(root, runId, scopeIds, replacements, _reason === "rollback" ? "replace" : "patch");
     const committed = await commitJournal(root, runId);
     if (committed.kind === "conflict") {
       const files = committed.mismatches.map((entry) => `${entry.unit}:${entry.path}`).join(", ");
@@ -2952,6 +3025,7 @@ async function compareRecordSemantics(
   if (live.source.kind !== frozen.source.kind) return "kind drifted";
   if (live.source.label !== frozen.source.label) return "label drifted";
   if (live.source.anchor !== frozen.source.anchor) return "anchor drifted";
+  if (live.source.selector !== frozen.source.selector || stableStringify(live.source.region) !== stableStringify(frozen.source.region)) return "local binding evidence drifted";
   if (live.source.path !== frozen.source.path) return "source path drifted";
   if (live.source.revision !== frozen.source.revision) return "source revision drifted";
   if (live.source.start !== frozen.source.start || live.source.end !== frozen.source.end) {
@@ -3036,7 +3110,7 @@ async function acceptUnit(
   }
   const scope = await promotionScopeFromAttempts(root, [attempt.dir]);
   await validateCandidateSet(ctx, header, root, scope, true);
-  const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept unit");
+  const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept unit", ctx);
   return {
     code: EXIT_OK,
     envelope: okEnvelope(
@@ -3133,7 +3207,7 @@ async function acceptAttempt(
   const set = await resolveAcceptSet(root, raw, attemptDir);
   const scope = await promotionScopeFromAttempts(root, set.dirs);
   await validateCandidateSet(ctx, header, root, scope, true);
-  const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept attempt");
+  const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept attempt", ctx);
   return {
     code: EXIT_OK,
     envelope: okEnvelope(
@@ -3196,6 +3270,7 @@ async function runAdopt(
       throw compilerFailure("validate", validated);
     }
     const status = await compilerStatus(ctx, header.request_id, root, [record.source.path]);
+    assertResolvableStatus(status);
     const entry = status.find((candidate) => candidate.id === params.unit_id && candidate.association === "retained");
     if (entry === undefined || entry.contract === null) {
       throw new ControlError(
@@ -3299,6 +3374,7 @@ async function runResume(
   }
   // Then the unit intents: any prompt/contract drift refuses.
   const status = await compilerStatus(ctx, header.request_id, params.root, capture.files);
+  assertResolvableStatus(status);
   const live = new Map(status.filter((entry) => entry.id !== null).map((entry) => [entry.id as string, entry]));
   for (const unit of capture.units) {
     const entry = live.get(unit.unit_id);
@@ -3454,6 +3530,12 @@ async function runRollback(
       "send a status request to list saved units",
     ]);
   }
+  // Restore absence as well as bytes. Keeping a newer helper or asset
+  // would make rollback a patch rather than the requested old group.
+  const restored = new Set(replacements.map(replacement => replacement.path));
+  for (const path of Object.keys(live)) if (!restored.has(path)) {
+    replacements.push({ unit: params.unit_id, path, bytes: null });
+  }
   const attemptDir = join(root, ATTEMPTS_DIR, attemptFor(header.request_id, 0));
   await mkdir(attemptDir, { recursive: true });
   let sourceRevision: string | null = null;
@@ -3509,7 +3591,7 @@ async function runRollback(
     { unit_id: params.unit_id, record, capture, attemptDir, replacements, origins: replacements.map(() => null) },
   ];
   await validateCandidateSet(ctx, header, root, scope, true);
-  const promoted = await promoteSet(root, header, scope, runFor("rollback", header.request_id), "rollback");
+  const promoted = await promoteSet(root, header, scope, runFor("rollback", header.request_id), "rollback", ctx);
   return {
     code: EXIT_OK,
     envelope: okEnvelope(
@@ -3586,7 +3668,7 @@ async function gitReplacements(
     throw new ControlError(EXIT_INVALID, "invalid-param", "the git revision carries a NUL byte");
   }
   const prefix = `${GENERATED_DIR}/${unit_id}`;
-  let listed: { code: number; stdout: string; stderr: string };
+  let listed: Awaited<ReturnType<GitRunner>>;
   try {
     listed = await git(["ls-tree", "-r", "--name-only", "-z", rev, "--", prefix], { cwd: root });
   } catch (error) {
@@ -3602,7 +3684,8 @@ async function gitReplacements(
       ["pass an existing source-control revision and resend"],
     );
   }
-  const paths = listed.stdout.split("\0").filter((entry) => entry.length > 0 && entry.startsWith(`${prefix}/`));
+  const listing = typeof listed.stdout === "string" ? listed.stdout : Buffer.from(listed.stdout).toString("utf8");
+  const paths = listing.split("\0").filter((entry) => entry.length > 0 && entry.startsWith(`${prefix}/`));
   if (paths.length === 0) {
     throw new ControlError(
       EXIT_INVALID,
@@ -3619,7 +3702,7 @@ async function gitReplacements(
     } catch {
       continue;
     }
-    let shown: { code: number; stdout: string; stderr: string };
+    let shown: Awaited<ReturnType<GitRunner>>;
     try {
       shown = await git(["show", `${rev}:${path}`], { cwd: root });
     } catch (error) {
@@ -3635,7 +3718,7 @@ async function gitReplacements(
         ["pass an existing source-control revision and resend"],
       );
     }
-    replacements.push({ unit: unit_id, path: rel, bytes: new TextEncoder().encode(shown.stdout) });
+    replacements.push({ unit: unit_id, path: rel, bytes: typeof shown.stdout === "string" ? new TextEncoder().encode(shown.stdout) : shown.stdout });
   }
   return replacements;
 }

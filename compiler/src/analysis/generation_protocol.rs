@@ -310,6 +310,8 @@ gen_params!(BindParams {
     revision: String,
     /// Existing unit id or `new`.
     unit: String,
+    /// Fork this unit's complete current group when allocating `unit: new`.
+    copy_from: Option<String>,
 });
 
 gen_params!(GenerateParams {
@@ -619,6 +621,14 @@ fn parse_params(
             require_text(name, "file", &params.file)?;
             require_text(name, "revision", &params.revision)?;
             require_text(name, "unit", &params.unit)?;
+            if let Some(copy_from) = &params.copy_from {
+                require_text(name, "copy_from", copy_from)?;
+                if params.unit != "new" {
+                    return Err(ProtocolError::invalid(
+                        "invalid-param", "bind `copy_from` requires `unit: new`",
+                    ));
+                }
+            }
             if params.start > params.end {
                 return Err(ProtocolError::invalid(
                     "invalid-param",

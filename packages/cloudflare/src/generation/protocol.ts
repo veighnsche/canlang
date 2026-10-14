@@ -295,6 +295,8 @@ export interface BindParams {
   end: number;
   revision: string;
   unit: string;
+  /** Fork this unit's complete current group when allocating `unit: new`. */
+  copy_from?: string;
 }
 /** `generate` parameters (exactly one scope, prepare/fresh mode). */
 export interface GenerateParams extends RecipeParams {
@@ -485,7 +487,7 @@ function parseInspect(obj: Record<string, unknown>, op: GenOperation): GenParams
 }
 
 function parseBind(obj: Record<string, unknown>, op: GenOperation): GenParams {
-  checkKeys(obj, ["root", "file", "start", "end", "revision", "unit"], op);
+  checkKeys(obj, ["root", "file", "start", "end", "revision", "unit", "copy_from"], op);
   const root = asString(obj["root"], op, "root");
   requireText(op, "root", root);
   const file = asString(obj["file"], op, "file");
@@ -496,13 +498,18 @@ function parseBind(obj: Record<string, unknown>, op: GenOperation): GenParams {
   requireText(op, "revision", revision);
   const unit = asString(obj["unit"], op, "unit");
   requireText(op, "unit", unit);
+  const copy_from = obj["copy_from"] === undefined ? undefined : asString(obj["copy_from"], op, "copy_from");
+  if (copy_from !== undefined) {
+    requireText(op, "copy_from", copy_from);
+    if (unit !== "new") throw ProtocolError.invalid("invalid-param", "bind `copy_from` requires `unit: new`");
+  }
   if (start > end) {
     throw ProtocolError.invalid(
       "invalid-param",
       `operation \`${op}\` needs span START<=END, got ${start}..${end}`,
     );
   }
-  return { kind: "bind", params: { root, file, start, end, revision, unit } };
+  return { kind: "bind", params: { root, file, start, end, revision, unit, ...(copy_from === undefined ? {} : { copy_from }) } };
 }
 
 function parseGenerate(obj: Record<string, unknown>, op: GenOperation): GenParams {

@@ -67,6 +67,19 @@ test("unit IDs reject paths and blank", () => {
   }
 });
 
+test("external selector and local certificates survive record parsing", () => {
+  const record = styleRecord("g-0123456789abcdef0123456789abcdef");
+  record.source.selector = '["app:Tasks","page:/","slot:style"]';
+  record.source.region = { container: '["app:Tasks","page:/"]', sha256: sha256HexText("normalized interval"), count: 2, occurrence: 1 };
+  assert.deepEqual(parseUnitRecord(JSON.stringify(record), record.id), record);
+  for (const invalid of [{ ...record.source.region, count: 0 }, { ...record.source.region, occurrence: 2 }, { ...record.source.region, sha256: "bad" }, { ...record.source.region, container: "" }]) {
+    assert.throws(() => parseUnitRecord(JSON.stringify({ ...record, source: { ...record.source, region: invalid } }), record.id), /source.region/);
+  }
+  for (const selector of [undefined, null]) {
+    assert.throws(() => parseUnitRecord(JSON.stringify({ ...record, source: { ...record.source, selector } }), record.id), /source.region.*source.selector/);
+  }
+});
+
 test("intake reads current files and keeps original fingerprints", async () => {
   const root = await mkdtemp(join(tmpdir(), "can-bgi02-records-"));
   try {

@@ -79,6 +79,15 @@ test("request schema validation", () => {
   assert.equal(GEN_OPERATIONS.length, 19);
 });
 
+test("bind forwards zero-AI copy only when allocating a fresh unit", () => {
+  const request = { version: 1, request_id: "copy", operation: "bind", root: ".", file: "copy.can", start: 0, end: 10, revision: "current", unit: "new", copy_from: "u1" };
+  const admitted = parseRequest(JSON.stringify(request));
+  assert.equal(admitted.params.kind, "bind");
+  if (admitted.params.kind === "bind") assert.equal(admitted.params.params.copy_from, "u1");
+  assert.equal(codeOf(() => parseRequest(JSON.stringify({ ...request, unit: "u2" }))), "invalid-param");
+  assert.equal(codeOf(() => parseRequest(JSON.stringify({ ...request, copy_from: "" }))), "invalid-param");
+});
+
 test("unknown fields reject per operation", () => {
   assert.equal(
     codeOf(() =>

@@ -109,6 +109,13 @@ export class RecordError extends Error {
  * Source side of a unit association. Matching uses only owner, kind,
  * label, and anchor; path, revision, and span are bind-time evidence.
  */
+export interface LocalRegionCertificate {
+  container: string;
+  sha256: string;
+  count: number;
+  occurrence: number;
+}
+
 export interface SourceAssociation {
   owner: string;
   kind: UnitKind;
@@ -122,6 +129,10 @@ export interface SourceAssociation {
   /** Inspected byte span at bind time (evidence, not identity). */
   start: number;
   end: number;
+  /** Complete semantic containment and defining slot; absent in legacy records. */
+  selector?: string;
+  /** Occurrence is usable only inside this exact unchanged normalized region. */
+  region?: LocalRegionCertificate;
 }
 
 /** Minimal checked contract refs carried beside the association. */
@@ -204,7 +215,7 @@ function parseSource(value: unknown): SourceAssociation {
   if (!isUnitKind(kind)) {
     throw new RecordError("shape-invalid", "unit.json `source.kind` is not a known unit kind");
   }
-  return {
+  const source: SourceAssociation = {
     owner: asString(value["owner"], "source.owner"),
     kind,
     label: asNullableString(value["label"], "source.label"),
@@ -213,7 +224,31 @@ function parseSource(value: unknown): SourceAssociation {
     revision: asString(value["revision"], "source.revision"),
     start: asUint(value["start"], "source.start"),
     end: asUint(value["end"], "source.end"),
+    ...(value["selector"] === undefined || value["selector"] === null ? {} : {
+      selector: asString(value["selector"], "source.selector"),
+    }),
+    ...(value["region"] === undefined || value["region"] === null ? {} : {
+      region: parseLocalRegion(value["region"]),
+    }),
   };
+  if (source.region !== undefined && source.selector === undefined) {
+    throw new RecordError("shape-invalid", "unit.json `source.region` requires `source.selector`");
+  }
+  return source;
+}
+
+function parseLocalRegion(value: unknown): LocalRegionCertificate {
+  if (!isRecord(value)) throw new RecordError("shape-invalid", "unit.json `source.region` must be an object");
+  const region = {
+    container: asString(value["container"], "source.region.container"),
+    sha256: asString(value["sha256"], "source.region.sha256"),
+    count: asUint(value["count"], "source.region.count"),
+    occurrence: asUint(value["occurrence"], "source.region.occurrence"),
+  };
+  if (region.container.length === 0 || !/^[0-9a-f]{64}$/.test(region.sha256) || region.count === 0 || region.occurrence >= region.count) {
+    throw new RecordError("shape-invalid", "unit.json `source.region` needs a nonempty container, SHA-256 and an occurrence within its nonempty region");
+  }
+  return region;
 }
 
 function parseContract(value: unknown): UnitContract {

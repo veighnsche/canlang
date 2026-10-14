@@ -3,16 +3,17 @@
  * discovered units to saved records, opaque ID allocation, and explicit
  * bind/copy reconciliation.
  *
- * Association evidence is exactly owner/kind/label/normalized-structure.
- * A prompt-only change preserves the ID while the non-prompt anchor is
- * unchanged and unique. Identity is never inferred from a sole unmatched
- * old/new pair, nearest offset, or prompt similarity: ambiguous moves,
- * copies, or renames diagnose and require explicit `bind`. This module is
- * pure (no filesystem); `records.ts` owns saved-group intake.
+ * Current semantic selectors and exact unchanged local certificates
+ * establish ownership; legacy association evidence remains readable.
+ * Displaced or competing claims require explicit `bind`, never prompt
+ * similarity, nearest offsets or an unmatched-pair guess. This module
+ * is pure; `records.ts` owns saved-group intake.
  */
 
+import { randomBytes } from "node:crypto";
 import type {
   GenerationUnitId,
+  LocalRegionCertificate,
   SourceAssociation,
   UnitContract,
   UnitKind,
@@ -49,6 +50,8 @@ export interface DescriptorInput {
    * without an exact captured bind to honor.
    */
   location?: DescriptorLocation;
+  selector?: string;
+  region?: LocalRegionCertificate;
 }
 
 /**
@@ -144,86 +147,90 @@ function retained(descriptor: DescriptorInput, record: UnitRecord): UnitAssociat
 }
 
 /**
- * Conservatively associate discovered units with saved records. A
- * descriptor retains its ID only when its key is unique on both sides
- * and exactly one saved record matches. Copies (duplicate keys on the
- * descriptor side) and duplicate saved records both refuse; relocated
- * units whose anchor changed are `new` rather than silently reusing
- * ownership.
- *
- * The one exception honors an explicit bind: when a descriptor carries
- * its current `location` and exactly one same-key record captured that
- * exact source revision/location, the descriptor retains that record's
- * ID. Changed or stale source never guesses: a revision or span that no
- * longer matches refuses as before, as do two records claiming the same
- * location.
+ * Resolve all defining claims before allocating anything. Modern anonymous
+ * claims retain only exact matching local certificates; legacy explicit
+ * locations remain readable. A possibly displaced group makes apparent
+ * new ownership ambiguous. Supply complete source paths when a live source
+ * has no defining prompts, so its outputs cannot be stolen by a copy.
  */
 export function associate(
   descriptors: readonly DescriptorInput[],
   saved: readonly UnitRecord[],
+  sourcePaths?: readonly string[],
 ): Array<{ index: number; association: UnitAssociation }> {
-  const savedByKey = new Map<string, UnitRecord[]>();
-  for (const record of saved) {
-    const text = keyText(keyOfSource(record.source));
-    const group = savedByKey.get(text);
-    if (group !== undefined) {
-      group.push(record);
-    } else {
-      savedByKey.set(text, [record]);
-    }
-  }
-  const keyCounts = new Map<string, number>();
-  const keyed: Array<{ index: number; key: string }> = [];
-  descriptors.forEach((descriptor, index) => {
-    const text = keyText(keyOfDescriptor(descriptor));
-    keyCounts.set(text, (keyCounts.get(text) ?? 0) + 1);
-    keyed.push({ index, key: text });
-  });
-  return keyed.map(({ index, key }) => {
-    const descriptor = descriptors[index] as DescriptorInput;
-    let association: UnitAssociation;
-    if ((keyCounts.get(key) ?? 0) > 1) {
-      // A copied definition shares its whole key: refuse reuse, unless
-      // an explicit bind captured this exact location.
-      const group = savedByKey.get(key) ?? [];
-      const bound = boundMatch(group, descriptor.location);
-      association =
-        bound !== null
-          ? retained(descriptor, bound)
-          : { type: "ambiguous", candidates: group.map((record) => record.id).sort() };
-    } else {
-      const group = savedByKey.get(key);
-      if (group === undefined) {
-        association = { type: "new" };
-      } else if (group.length === 1) {
-        const only = group[0] as UnitRecord;
-        association = retained(descriptor, only);
-      } else {
-        // Duplicate saved records: refuse to pick one, unless an
-        // explicit bind captured this exact location.
-        const bound = boundMatch(group, descriptor.location);
-        association =
-          bound !== null
-            ? retained(descriptor, bound)
-            : { type: "ambiguous", candidates: group.map((record) => record.id).sort() };
+  const semanticKey = (unit: { owner: string; kind: UnitKind; selector?: string; label: string | null; anchor: string }): string =>
+    unit.selector === undefined ? keyText(unit) : JSON.stringify([unit.owner, unit.kind, unit.selector]);
+  const matches = (descriptor: DescriptorInput, record: UnitRecord): boolean =>
+    record.source.selector === undefined
+      ? keyText(keyOfDescriptor(descriptor)) === keyText(keyOfSource(record.source))
+      : semanticKey(descriptor) === semanticKey(record.source);
+  const knownPaths = new Set(sourcePaths ?? descriptors.flatMap(unit => unit.location === undefined ? [] : [unit.location.path]));
+  const sameDescriptor = (left: DescriptorInput, right: DescriptorInput): boolean =>
+    left.selector !== undefined && right.selector !== undefined
+      ? semanticKey(left) === semanticKey(right)
+      : keyText(keyOfDescriptor(left)) === keyText(keyOfDescriptor(right));
+  const result = descriptors.map((descriptor, index) => {
+    const currentCount = descriptors.filter(current => sameDescriptor(descriptor, current)).length;
+    const group = saved.filter(record => matches(descriptor, record));
+    const eligible = group.filter(record => {
+      if (descriptor.location !== undefined && knownPaths.has(record.source.path)
+        && record.source.path !== descriptor.location.path) return false;
+      if (record.source.region !== undefined) {
+        const region = record.source.region;
+        const conflict = group.some(claim => claim.source.region === undefined
+          || claim.source.region.container !== region.container || claim.source.region.sha256 !== region.sha256
+          || claim.source.region.count !== region.count);
+        return !conflict && sameRegion(region, descriptor.region)
+          && descriptors.filter(current => sameDescriptor(current, descriptor) && sameRegion(region, current.region)).length === 1;
       }
-    }
+      if (currentCount === 1 && group.length === 1) return descriptor.region === undefined;
+      return record.source.selector === undefined && boundMatch([record], descriptor.location) !== null;
+    });
+    const association: UnitAssociation = eligible.length === 1
+      ? retained(descriptor, eligible[0] as UnitRecord)
+      : group.length > 0
+        ? { type: "ambiguous", candidates: group.map(record => record.id).sort() }
+        : { type: "new" };
     return { index, association };
   });
+  // A certificate does not allow two defining slots (or records) to own
+  // one group. Decide every claim before classifying unmatched output.
+  const claims = new Map<string, number>();
+  for (const { association } of result) if (association.type === "retained") {
+    claims.set(association.id, (claims.get(association.id) ?? 0) + 1);
+  }
+  const recordCounts = new Map<string, number>();
+  for (const record of saved) recordCounts.set(record.id, (recordCounts.get(record.id) ?? 0) + 1);
+  for (const entry of result) if (entry.association.type === "retained"
+    && ((claims.get(entry.association.id) ?? 0) > 1 || (recordCounts.get(entry.association.id) ?? 0) > 1)) {
+    entry.association = { type: "ambiguous", candidates: [entry.association.id] };
+  }
+  const consumed = new Set(result.flatMap(({ association }) => association.type === "retained" ? [association.id] : []));
+  for (const entry of result) if (entry.association.type === "new") {
+    const descriptor = descriptors[entry.index] as DescriptorInput;
+    // The saved collection belongs to one output root. An owner rename
+    // cannot turn its displaced same-kind output into a fresh generation.
+    const displaced = saved.filter(record => !consumed.has(record.id)
+      && record.source.kind === descriptor.kind);
+    if (displaced.length > 0) entry.association = { type: "ambiguous", candidates: [...new Set(displaced.map(record => record.id))].sort() };
+  }
+  return result;
+}
+
+function sameRegion(saved: LocalRegionCertificate, current: LocalRegionCertificate | undefined): boolean {
+  return current !== undefined && saved.container === current.container && saved.sha256 === current.sha256
+    && saved.count === current.count && saved.occurrence === current.occurrence;
 }
 
 /**
- * Allocate the smallest fresh `u<N>` ID outside `used`. Sequential
- * allocation keeps IDs opaque (no meaning) and deterministic under tests.
- * Lease-coordinated allocation across writers is BGI-04's protocol.
+ * Allocate an opaque ID with 128 random bits. Existing legacy IDs remain
+ * valid; independent branches need no shared counter or registry.
  */
 export function nextUnitId(used: ReadonlySet<string> | readonly string[]): GenerationUnitId {
   const taken = used instanceof Set ? used : new Set(used);
-  let n = 1;
-  while (taken.has(`u${n}`)) {
-    n += 1;
-  }
-  return `u${n}`;
+  let id: string;
+  do { id = `g-${randomBytes(16).toString("hex")}`; } while (taken.has(id));
+  return id;
 }
 
 /**

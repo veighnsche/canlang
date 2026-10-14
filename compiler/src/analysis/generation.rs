@@ -10,6 +10,7 @@
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, TokenKind};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -46,6 +47,16 @@ pub struct KeywordArgDescriptor {
     pub span: Span,
 }
 
+/// Exact local structure resolving an occurrence in an otherwise anonymous region.
+/// The selector/container are portable JSON paths, never source offsets or IDs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LocalRegionCertificate {
+    pub container: String,
+    pub sha256: String,
+    pub count: u32,
+    pub occurrence: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenerationDescriptor {
     pub owner: String,
@@ -57,6 +68,10 @@ pub struct GenerationDescriptor {
     /// Normalized non-prompt anchor ignoring formatting/comments: a
     /// prompt-only edit preserves it for a uniquely matched unit.
     pub anchor: String,
+    /// Complete semantic containment plus the defining prompt role.
+    pub selector: Option<String>,
+    /// Exact local evidence when a semantic path has anonymous duplicates.
+    pub region: Option<LocalRegionCertificate>,
     pub target: Option<String>,
     pub has_generation_identity: bool,
     pub params: Vec<KeywordParamDescriptor>,
@@ -90,29 +105,35 @@ fn first_name(node: &SyntaxNode, text: &str) -> Option<String> {
 }
 
 fn prompt_of(node: &SyntaxNode) -> Option<(String, Span)> {
-    if matches!(node.kind, SyntaxKind::GenPrompt | SyntaxKind::StyleSuffix | SyntaxKind::ViewStyle) {
+    if matches!(
+        node.kind,
+        SyntaxKind::GenPrompt | SyntaxKind::StyleSuffix | SyntaxKind::ViewStyle
+    ) {
         for part in sig(node) {
             if let Some(tok) = part.token()
-                && let Some(v) = &tok.string_value {
-                    return Some((v.clone(), node.span));
-                }
+                && let Some(v) = &tok.string_value
+            {
+                return Some((v.clone(), node.span));
+            }
         }
     }
     for child in sig(node) {
         if child.kind == SyntaxKind::GenPrompt {
             for part in sig(child) {
                 if let Some(tok) = part.token()
-                    && let Some(v) = &tok.string_value {
-                        return Some((v.clone(), child.span));
-                    }
+                    && let Some(v) = &tok.string_value
+                {
+                    return Some((v.clone(), child.span));
+                }
             }
         }
         if child.kind == SyntaxKind::StyleSuffix {
             for part in sig(child) {
                 if let Some(tok) = part.token()
-                    && let Some(v) = &tok.string_value {
-                        return Some((v.clone(), child.span));
-                    }
+                    && let Some(v) = &tok.string_value
+                {
+                    return Some((v.clone(), child.span));
+                }
             }
         }
     }
@@ -279,6 +300,8 @@ impl<'a> Collector<'a> {
                     // Named definition: [trait, Name, ...]
                     let label = ns[1].clone();
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::NamedTrait,
                         label: Some(label.clone()),
@@ -300,6 +323,8 @@ impl<'a> Collector<'a> {
                         _ => String::new(),
                     };
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::InlineTrait,
                         label: Some(target.clone()),
@@ -325,6 +350,8 @@ impl<'a> Collector<'a> {
                     _ => String::new(),
                 };
                 self.descriptors.push(GenerationDescriptor {
+                    selector: None,
+                    region: None,
                     owner: self.owner.clone(),
                     kind: GenerationKind::TraitApplication,
                     label: Some(label.clone()),
@@ -349,6 +376,8 @@ impl<'a> Collector<'a> {
                     }
                 }
                 self.descriptors.push(GenerationDescriptor {
+                    selector: None,
+                    region: None,
                     owner: self.owner.clone(),
                     kind: GenerationKind::KeywordDefinition,
                     label: Some(label.clone()),
@@ -382,6 +411,8 @@ impl<'a> Collector<'a> {
                     }
                 }
                 self.descriptors.push(GenerationDescriptor {
+                    selector: None,
+                    region: None,
                     owner: self.owner.clone(),
                     kind: GenerationKind::KeywordApplication,
                     label: Some(label.clone()),
@@ -400,6 +431,8 @@ impl<'a> Collector<'a> {
                 let ns = names(node, text);
                 let label = ns.get(1).cloned().unwrap_or_default();
                 self.descriptors.push(GenerationDescriptor {
+                    selector: None,
+                    region: None,
                     owner: self.owner.clone(),
                     kind: GenerationKind::StyleDefinition,
                     label: Some(label.clone()),
@@ -425,6 +458,8 @@ impl<'a> Collector<'a> {
                         self.host.clone()
                     };
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::StyleInline,
                         label: Some(host.clone()),
@@ -440,6 +475,8 @@ impl<'a> Collector<'a> {
                     });
                 } else if let Some(name) = inner_names.into_iter().next() {
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::StyleNamedUse,
                         label: Some(name.clone()),
@@ -474,6 +511,8 @@ impl<'a> Collector<'a> {
                         }
                     }
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::ViewDefinition,
                         label: Some(label.clone()),
@@ -494,6 +533,8 @@ impl<'a> Collector<'a> {
                 let view = self.view.clone().unwrap_or_default();
                 if let Some(p) = prompt {
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::ViewRootStyleInline,
                         label: Some(view.clone()),
@@ -509,6 +550,8 @@ impl<'a> Collector<'a> {
                     });
                 } else if let Some(name) = names(node, text).into_iter().next() {
                     self.descriptors.push(GenerationDescriptor {
+                        selector: None,
+                        region: None,
                         owner: self.owner.clone(),
                         kind: GenerationKind::ViewRootStyleNamed,
                         label: Some(name.clone()),
@@ -558,6 +601,231 @@ fn parse_param(node: &SyntaxNode, text: &str) -> KeywordParamDescriptor {
         target_param: None,
         type_name: None,
     }
+}
+
+/// Serialize syntax by kinds and exact token values, preserving nesting/order.
+/// Trivia and explanatory comments never participate in durable local evidence.
+fn canonical_syntax(node: &SyntaxNode, text: &str) -> serde_json::Value {
+    if let Some(token) = node.token() {
+        return serde_json::json!([
+            format!("{:?}", node.kind),
+            token
+                .string_value
+                .as_deref()
+                .unwrap_or_else(|| token.text(text))
+        ]);
+    }
+    serde_json::json!([
+        format!("{:?}", node.kind),
+        node.children
+            .iter()
+            .filter(|child| !matches!(child.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
+            .map(|child| canonical_syntax(child, text))
+            .collect::<Vec<_>>()
+    ])
+}
+
+/// A declaration/host segment. Prompts, profiles and child suites are excluded.
+/// Named declaration names and page routes remain independent of prompt freshness.
+fn containment_segment(node: &SyntaxNode, text: &str) -> Option<String> {
+    let named = match node.kind {
+        SyntaxKind::Model | SyntaxKind::Field => names(node, text).into_iter().next(),
+        SyntaxKind::View | SyntaxKind::KeywordDef | SyntaxKind::StyleDef => {
+            names(node, text).get(1).cloned()
+        }
+        SyntaxKind::TraitDef => names(node, text).get(1).cloned(),
+        _ => None,
+    };
+    if let Some(name) = named {
+        return Some(
+            serde_json::to_string(&(format!("{:?}", node.kind), name))
+                .expect("selector serialization"),
+        );
+    }
+    if node.kind == SyntaxKind::Section {
+        return Some(format!(
+            "Section:{}",
+            first_name(node, text).unwrap_or_default()
+        ));
+    }
+    if node.kind == SyntaxKind::Page {
+        let route = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Route)?;
+        return Some(
+            serde_json::to_string(&canonical_syntax(route, text)).expect("route serialization"),
+        );
+    }
+    if !matches!(
+        node.kind,
+        SyntaxKind::Section
+            | SyntaxKind::Card
+            | SyntaxKind::Details
+            | SyntaxKind::Collection
+            | SyntaxKind::Form
+            | SyntaxKind::Edit
+            | SyntaxKind::Show
+            | SyntaxKind::CatalogItem
+            | SyntaxKind::UiLeaf
+            | SyntaxKind::Tab
+            | SyntaxKind::Tabs
+    ) {
+        return None;
+    }
+    let header = node
+        .children
+        .iter()
+        .filter(|child| {
+            !matches!(
+                child.kind,
+                SyntaxKind::Trivia
+                    | SyntaxKind::Comment
+                    | SyntaxKind::GenPrompt
+                    | SyntaxKind::StyleSuffix
+                    | SyntaxKind::ViewStyle
+                    | SyntaxKind::Attribute
+            ) && containment_segment_kind(child.kind).is_none()
+        })
+        .map(|child| canonical_syntax(child, text))
+        .collect::<Vec<_>>();
+    Some(
+        serde_json::to_string(&(format!("{:?}", node.kind), header)).expect("header serialization"),
+    )
+}
+
+/// Structural child suites stop host-header normalization.
+fn containment_segment_kind(kind: SyntaxKind) -> Option<()> {
+    matches!(
+        kind,
+        SyntaxKind::Model
+            | SyntaxKind::Field
+            | SyntaxKind::View
+            | SyntaxKind::Page
+            | SyntaxKind::TraitDef
+            | SyntaxKind::KeywordDef
+            | SyntaxKind::StyleDef
+            | SyntaxKind::Section
+            | SyntaxKind::Card
+            | SyntaxKind::Details
+            | SyntaxKind::Collection
+            | SyntaxKind::Form
+            | SyntaxKind::Edit
+            | SyntaxKind::Show
+            | SyntaxKind::CatalogItem
+            | SyntaxKind::UiLeaf
+            | SyntaxKind::Tab
+            | SyntaxKind::Tabs
+    )
+    .then_some(())
+}
+
+/// Enrich discovery without altering legacy anchors. The first anonymous duplicate
+/// interval supplies the certificate; deeper duplicates cannot hide that ambiguity.
+fn attach_local_evidence(tree: &SyntaxNode, text: &str, descriptors: &mut [GenerationDescriptor]) {
+    fn walk(
+        node: &SyntaxNode,
+        text: &str,
+        path: &[String],
+        sealed: bool,
+        descriptors: &mut [GenerationDescriptor],
+    ) {
+        let mut path = path.to_vec();
+        if let Some(segment) = containment_segment(node, text) {
+            path.push(segment);
+        }
+        for descriptor in descriptors
+            .iter_mut()
+            .filter(|descriptor| descriptor.span == node.span)
+        {
+            let mut selector = path.clone();
+            selector.push(format!("slot:{:?}", descriptor.kind));
+            descriptor.selector =
+                Some(serde_json::to_string(&selector).expect("selector serialization"));
+        }
+        let mut regions = Vec::<(usize, usize)>::new();
+        if !sealed {
+            let segments = node
+                .children
+                .iter()
+                .map(|child| containment_segment(child, text))
+                .collect::<Vec<_>>();
+            let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+            for (index, segment) in segments.iter().enumerate() {
+                if let Some(segment) = segment {
+                    groups.entry(segment.clone()).or_default().push(index);
+                }
+            }
+            let mut intervals = groups
+                .values()
+                .filter(|indices| indices.len() > 1)
+                .map(|indices| (indices[0], *indices.last().unwrap()))
+                .collect::<Vec<_>>();
+            intervals.sort_unstable();
+            // Overlapping repeated runs share one exact interval, never
+            // competing certificates assigned according to traversal order.
+            for (first, last) in intervals {
+                if let Some(previous) = regions.last_mut().filter(|previous| first <= previous.1) {
+                    previous.1 = previous.1.max(last);
+                } else {
+                    regions.push((first, last));
+                }
+            }
+            for &(first, last) in &regions {
+                let start = node.children[first].span.start;
+                let end = node.children[last].span.end;
+                let indices = descriptors
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, descriptor)| {
+                        descriptor.has_generation_identity
+                            && descriptor.span.file == node.span.file
+                            && descriptor.span.start >= start
+                            && descriptor.span.end <= end
+                    })
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>();
+                let normalized = node.children[first..=last]
+                    .iter()
+                    .filter(|part| !matches!(part.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
+                    .map(|part| canonical_syntax(part, text))
+                    .collect::<Vec<_>>();
+                let sha256 = crate::source::sha256_hex(
+                    serde_json::to_string(&normalized)
+                        .expect("region serialization")
+                        .as_bytes(),
+                );
+                let container =
+                    serde_json::to_string(&(path.clone(), &segments[first], &segments[last]))
+                        .expect("container serialization");
+                for (occurrence, &descriptor_index) in indices.iter().enumerate() {
+                    descriptors[descriptor_index].region = Some(LocalRegionCertificate {
+                        container: container.clone(),
+                        sha256: sha256.clone(),
+                        count: indices.len() as u32,
+                        occurrence: occurrence as u32,
+                    });
+                }
+            }
+        }
+        for (index, child) in node.children.iter().enumerate() {
+            walk(
+                child,
+                text,
+                &path,
+                sealed
+                    || regions
+                        .iter()
+                        .any(|&(first, last)| index >= first && index <= last),
+                descriptors,
+            );
+        }
+    }
+    let owner = descriptors
+        .first()
+        .map(|descriptor| descriptor.owner.clone())
+        .unwrap_or_default();
+    walk(tree, text, &[owner], false, descriptors);
 }
 
 /// Collect model -> field -> type, scenario names, and crud models.
@@ -649,6 +917,7 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
     };
     collector.walk(tree);
     let mut descriptors = collector.descriptors;
+    attach_local_evidence(tree, text, &mut descriptors);
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let (models, operations) = collect_models(tree, text);
 
@@ -904,10 +1173,9 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
                 for m in nexts.clone() {
                     match state.get(&m).copied().unwrap_or(0) {
                         1 => return true,
-                        0
-                            if dfs(&m, graph, state) => {
-                                return true;
-                            }
+                        0 if dfs(&m, graph, state) => {
+                            return true;
+                        }
                         _ => {}
                     }
                 }
@@ -933,9 +1201,10 @@ pub fn discover_generation(tree: &SyntaxNode, text: &str) -> GenerationDiscovery
     for d in &mut descriptors {
         if d.kind == GenerationKind::StyleDefinition
             && let Some(label) = &d.label
-                && let Some(sites) = use_sites.get(label) {
-                    d.use_sites = sites.clone();
-                }
+            && let Some(sites) = use_sites.get(label)
+        {
+            d.use_sites = sites.clone();
+        }
     }
 
     diagnostics.sort_by(|a, b| (a.primary.start, a.code).cmp(&(b.primary.start, b.code)));
@@ -1095,9 +1364,7 @@ fn check_keyword_arg(
             } else {
                 let inner = &value[1..value.len().saturating_sub(1)];
                 for el in split_top_level(inner) {
-                    if let Some(detail) =
-                        const_element_error(elem, el, models, operations)
-                    {
+                    if let Some(detail) = const_element_error(elem, el, models, operations) {
                         fail(
                             format!(
                                 "keyword argument `{}` requires {elem} array elements: {detail}",
@@ -1164,19 +1431,14 @@ fn const_element_error(
             .map(|_| format!("expected an integer constant, got `{value}`")),
         "bool" | "boolean" => (!matches!(value, "true" | "false"))
             .then(|| format!("expected a boolean constant, got `{value}`")),
-        "model" => {
-            (!models.contains_key(value) || value.contains('.'))
-                .then(|| format!("expected a known model, got `{value}`"))
-        }
-        "operation" => {
-            (!operations.contains(value))
-                .then(|| format!("expected a known operation, got `{value}`"))
-        }
+        "model" => (!models.contains_key(value) || value.contains('.'))
+            .then(|| format!("expected a known model, got `{value}`")),
+        "operation" => (!operations.contains(value))
+            .then(|| format!("expected a known operation, got `{value}`")),
         k if k.starts_with("enum(") => {
             let inner = k.trim_start_matches("enum(").trim_end_matches(')');
             let cases: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
-            (!cases.contains(&value))
-                .then(|| format!("expected one of ({inner}), got `{value}`"))
+            (!cases.contains(&value)).then(|| format!("expected one of ({inner}), got `{value}`"))
         }
         k if k.ends_with("[]") => {
             let elem = k.strip_suffix("[]").unwrap_or(k);

@@ -49,7 +49,7 @@ fn error_of(stdout: &str) -> (String, String) {
 }
 
 /// Bind one identity-carrying descriptor in `text` to a fresh unit id.
-/// Returns the allocated id (`u1`, `u2`, ... in bind order).
+/// Returns the allocated opaque ID (new IDs contain 128 random bits).
 fn bind_new(
     root: &str,
     file: &str,
