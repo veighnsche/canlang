@@ -8676,6 +8676,7 @@ impl<'a> Typer<'a> {
         };
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
+        self.check_action_panel_targets(&cx, node);
         let before = self.diags.len();
         for child in kids(node) {
             if matches!(
@@ -8698,6 +8699,7 @@ impl<'a> Typer<'a> {
     fn phase2_page(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
+        self.check_action_panel_targets(&cx, node);
         let Some(title) = attribute_value(node, "title", text) else {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -9256,13 +9258,60 @@ impl<'a> Typer<'a> {
         self.diags.push(diagnostic);
     }
 
+    fn check_action_panel_targets(&mut self, cx: &Ctx<'_, '_>, owner: &SyntaxNode) {
+        let spelling = |value: &SyntaxNode| {
+            nameref_word(value, cx.text)
+                .map(str::to_owned)
+                .or_else(|| string_literal_value(value))
+        };
+        let panels: HashSet<_> = owner
+            .descendants()
+            .filter(|node| {
+                node.kind == SyntaxKind::CatalogItem
+                    && kids(node)
+                        .iter()
+                        .find_map(|n| name_text(n, cx.text))
+                        .is_some_and(|word| matches!(word, "modal" | "drawer"))
+            })
+            .filter_map(|node| attribute_value(node, "id", cx.text).and_then(spelling))
+            .collect();
+        for primitive in owner.descendants().filter(|node| {
+            node.kind == SyntaxKind::UiLeaf
+                && kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, cx.text))
+                    .is_some_and(|word| matches!(word, "primary" | "secondary"))
+        }) {
+            if let Some(target) = attribute_value(primitive, "opens", cx.text) {
+                if !spelling(target).is_some_and(|name| panels.contains(&name)) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "action opens must name a declared local modal or drawer id".into(),
+                        target.span,
+                    ));
+                }
+            }
+        }
+    }
+
     /// Walk one presentation widget: type the domain, validate closed
     /// NAME sets, required selector lists and selector navigation
     /// against the domain model, then recurse into nested widgets.
     /// `parent` is the immediate enclosing widget kind (`tab` must sit
     /// directly inside `tabs`).
     fn walk_ui_page(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, parent: SyntaxKind) {
-        self.walk_ui_page_with_tab_case(cx, node, parent, None);
+        self.walk_ui_page_with_tab_case(
+            cx,
+            node,
+            parent,
+            None,
+            matches!(parent, SyntaxKind::Form | SyntaxKind::Edit),
+            if parent == SyntaxKind::Page {
+                UiActionOwner::Page
+            } else {
+                UiActionOwner::None
+            },
+        );
     }
 
     /// A bound tabs owner supplies its exact enum only to direct tab headers.
@@ -9273,7 +9322,81 @@ impl<'a> Typer<'a> {
         node: &SyntaxNode,
         parent: SyntaxKind,
         tab_case: Option<&ResolvedType>,
+        form_owner: bool,
+        action_owner: UiActionOwner,
     ) {
+        let word = kids(node)
+            .iter()
+            .find_map(|n| name_text(n, cx.text))
+            .unwrap_or("");
+        let primitive = matches!(word, "primary" | "secondary")
+            && matches!(node.kind, SyntaxKind::Form | SyntaxKind::UiLeaf);
+        if primitive {
+            let submit = attribute_value(node, "submit", cx.text).is_some();
+            let valid = if form_owner {
+                word == "primary" && submit && action_owner == UiActionOwner::Form
+            } else {
+                !submit
+                    && matches!(
+                        action_owner,
+                        UiActionOwner::Page
+                            | UiActionOwner::Card
+                            | UiActionOwner::Row
+                            | UiActionOwner::PanelActions
+                            | UiActionOwner::Drawer
+                    )
+            };
+            if !valid {
+                self.diags.push(Diagnostic::error("E3001", if form_owner {
+                    "an owning form/edit admits only primary submit=true directly in its action region".into()
+                } else if submit {
+                    "submit action requires an owning form/edit action region".into()
+                } else {
+                    format!("{word} needs an explicit action owner: page, card, list/table row, drawer details, or modal/drawer slot actions")
+                }, node.span));
+            }
+        }
+        let child_action_owner = match node.kind {
+            SyntaxKind::Form | SyntaxKind::Edit => UiActionOwner::Form,
+            SyntaxKind::Card if !form_owner => UiActionOwner::Card,
+            SyntaxKind::Collection if !form_owner && matches!(word, "list" | "table") => {
+                UiActionOwner::Row
+            }
+            SyntaxKind::Details
+                if !form_owner
+                    && attribute_value(node, "display", cx.text)
+                        .is_some_and(|value| nameref_word(value, cx.text) == Some("drawer")) =>
+            {
+                UiActionOwner::Drawer
+            }
+            SyntaxKind::CatalogItem if !form_owner && matches!(word, "modal" | "drawer") => {
+                UiActionOwner::Panel
+            }
+            SyntaxKind::Slot
+                if !form_owner
+                    && action_owner == UiActionOwner::Panel
+                    && kids(node)
+                        .iter()
+                        .filter_map(|n| name_text(n, cx.text))
+                        .nth(1)
+                        == Some("actions") =>
+            {
+                UiActionOwner::PanelActions
+            }
+            SyntaxKind::UiLeaf if word == "require" => action_owner,
+            SyntaxKind::Page => UiActionOwner::Page,
+            SyntaxKind::View
+            | SyntaxKind::Card
+            | SyntaxKind::Collection
+            | SyntaxKind::Details
+            | SyntaxKind::CatalogItem
+            | SyntaxKind::Slot
+            | SyntaxKind::Tabs
+            | SyntaxKind::Tab
+            | SyntaxKind::Show
+            | SyntaxKind::UiLeaf => UiActionOwner::None,
+            _ => action_owner,
+        };
         let unknown_presentation = self
             .tables
             .unknown_collection_presentations
@@ -9597,7 +9720,95 @@ impl<'a> Typer<'a> {
                 // separate runtime profiles; fixed ordering is checked above.
             }
             SyntaxKind::Form => {
-                if let Some(domain) = domain {
+                let primitive = kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, cx.text))
+                    .is_some_and(|word| matches!(word, "primary" | "secondary"));
+                if primitive {
+                    if let Some(caption) = kids(node)
+                        .into_iter()
+                        .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+                        .next()
+                    {
+                        self.check_caption(cx, caption, "action caption", None);
+                        let _ = self.expr(cx, caption, None);
+                    }
+                    if let Some(target) = attribute_value(node, "action", cx.text) {
+                        if let Some(operation) =
+                            self.tables.node_symbol.get(&NodeKey::of(target)).copied()
+                        {
+                            let schema = self.action_inputs(operation);
+                            if schema.is_empty()
+                                && !matches!(
+                                    self.tables.symbols[operation.0 as usize].kind,
+                                    SymbolKind::Scenario { .. }
+                                        | SymbolKind::CrudOp { .. }
+                                        | SymbolKind::CapabilityOp { .. }
+                                )
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "E3001",
+                                    "action requires a declared operation".into(),
+                                    target.span,
+                                ));
+                            }
+                            if let SymbolKind::CrudOp { model, op } =
+                                self.tables.symbols[operation.0 as usize].kind
+                            {
+                                if !self.crud_op_enabled(model, op) {
+                                    self.diags.push(Diagnostic::error(
+                                        "E3001",
+                                        "action CRUD operation is disabled".into(),
+                                        target.span,
+                                    ));
+                                }
+                            }
+                            let bound: HashSet<_> = attribute_value(node, "arguments", cx.text)
+                                .map(|arguments| {
+                                    object_entries(arguments, cx.text)
+                                        .into_iter()
+                                        .map(|(name, _, _)| name)
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+                            for input in &schema {
+                                if matches!(
+                                    self.tables.symbols[operation.0 as usize].kind,
+                                    SymbolKind::CrudOp {
+                                        op: CrudOp::Update | CrudOp::Delete,
+                                        ..
+                                    }
+                                ) && input.name == "record"
+                                    && !bound.contains(input.name.as_str())
+                                {
+                                    self.diags.push(Diagnostic::error("E3001", format!("action requires explicit protected record argument '{}'", input.name), target.span));
+                                }
+                            }
+                            if let Some(arguments) = attribute_value(node, "arguments", cx.text) {
+                                for (name, key, value) in object_entries(arguments, cx.text) {
+                                    if !schema.iter().any(|input| input.name == name) {
+                                        self.diags.push(Diagnostic::error(
+                                            "E3001",
+                                            format!("'{name}' is not an input of this action"),
+                                            key.span,
+                                        ));
+                                    }
+                                    self.check_action_value(
+                                        cx, node, operation, &schema, name, key, value,
+                                    );
+                                }
+                            }
+                        } else {
+                            self.diags.push(Diagnostic::error(
+                                "E3001",
+                                "action requires a checked declared operation".into(),
+                                target.span,
+                            ));
+                        }
+                    }
+                }
+                let form_target = attribute_value(node, "action", cx.text).or(domain);
+                if let Some(domain) = form_target {
                     let ty = self.expr(cx, domain, None);
                     if let Some(model) = self.model_of_type(&ty)
                         && let Some(sel) = attribute_value(node, "fields", cx.text)
@@ -9648,6 +9859,51 @@ impl<'a> Typer<'a> {
                 }
             }
             SyntaxKind::UiLeaf => {
+                let primitive = kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, cx.text))
+                    .is_some_and(|word| matches!(word, "primary" | "secondary"));
+                if primitive {
+                    if let Some(caption) = domain {
+                        self.check_caption(cx, caption, "action caption", None);
+                        let _ = self.expr(cx, caption, None);
+                    }
+                    for name in ["target", "submit"] {
+                        if let Some(value) = attribute_value(node, name, cx.text) {
+                            let ty = self.expr(cx, value, None);
+                            let valid = if name == "submit" {
+                                ty == ResolvedType::Scalar(Scalar::Bool)
+                                    && matches!(literal_leaf(value, cx.text), Some((_, "true")))
+                            } else {
+                                matches!(
+                                    ty,
+                                    ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
+                                        | ResolvedType::Error
+                                )
+                            };
+                            if !valid {
+                                self.diags.push(Diagnostic::error(
+                                    "E3001",
+                                    if name == "submit" {
+                                        "action submit requires literal true".into()
+                                    } else {
+                                        format!("action {name} has an invalid target type")
+                                    },
+                                    value.span,
+                                ));
+                            }
+                            for (call, span) in self.effectful_calls(value, cx.text) {
+                                self.diags.push(Diagnostic::error(
+                                    "E3010",
+                                    format!(
+                                        "action {name} must be pure; '{call}' is not allowed here"
+                                    ),
+                                    span,
+                                ));
+                            }
+                        }
+                    }
+                }
                 let require_leaf =
                     kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("require");
                 for child in kids(node) {
@@ -9673,6 +9929,17 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if word == "tooltip"
+                    && node.descendants().any(|child| {
+                        matches!(child.kind, SyntaxKind::Form | SyntaxKind::UiLeaf)
+                            && kids(child)
+                                .iter()
+                                .find_map(|part| name_text(part, cx.text))
+                                .is_some_and(|name| matches!(name, "primary" | "secondary"))
+                    })
+                {
+                    self.diags.push(Diagnostic::error("E3001", "tooltip is noninteractive and cannot contain primary or secondary actions, including nested owners".into(), node.span));
+                }
                 if unknown_presentation.is_some()
                     && let Some(empty) = attribute_value(node, "empty", cx.text)
                 {
@@ -9686,7 +9953,8 @@ impl<'a> Typer<'a> {
                     let _ = self.expr(cx, open, None);
                 }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("button")
-                    && attribute_value(node, "target", cx.text).is_some()
+                    && (attribute_value(node, "target", cx.text).is_some()
+                        || attribute_value(node, "caption", cx.text).is_some())
                 {
                     for name in ["target", "caption"] {
                         let Some(value) = attribute_value(node, name, cx.text) else {
@@ -9907,6 +10175,8 @@ impl<'a> Typer<'a> {
                 } else {
                     None
                 },
+                form_owner || matches!(node.kind, SyntaxKind::Form | SyntaxKind::Edit),
+                child_action_owner,
             );
         }
         if let Some(model) = unknown_presentation {
@@ -11520,6 +11790,18 @@ struct Ctx<'b, 'n> {
 }
 
 /// The types pass: declaration types plus per-node value types.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UiActionOwner {
+    None,
+    Page,
+    Card,
+    Row,
+    Panel,
+    PanelActions,
+    Drawer,
+    Form,
+}
+
 struct Typer<'a> {
     db: &'a SourceDb,
     catalog: Option<&'a Catalog>,
@@ -11864,7 +12146,8 @@ impl<'a> Typer<'a> {
         for (id, field) in &self.tables.given_fields {
             if let Some(ty) = std_schema_type(&field.type_name) {
                 self.decl.insert(*id, ty);
-                self.shapes.insert(*id, (field.default.is_some(), false, false));
+                self.shapes
+                    .insert(*id, (field.default.is_some(), false, false));
             }
         }
         self.types.value_constraints = self.tables.judgment_value_constraints.clone();
@@ -11946,7 +12229,10 @@ impl<'a> Typer<'a> {
         // Existing fields keep their authored shape, while an admitted
         // field-trait default makes omission legal before body checking.
         for (field, constraints) in &self.tables.given_constraints {
-            if constraints.iter().any(|constraint| constraint.default.is_some()) {
+            if constraints
+                .iter()
+                .any(|constraint| constraint.default.is_some())
+            {
                 self.shapes.entry(*field).or_insert((false, false, false)).0 = true;
             }
         }
@@ -20693,13 +20979,13 @@ pub fn given_declaration_for_source(
         && params[1].kind == "field"
         && params[1].target_param.as_deref() == Some(params[0].name.as_str())
         && params[1].type_name.as_deref() == Some("text"))
-        .then(|| GivenSavedDeclaration {
-            producer: GIVEN_PRODUCER_UNIQUE_KEY.to_string(),
-            export: GIVEN_UNIQUE_KEY_EXPORT.to_string(),
-            reads: Vec::new(),
-            effects: Vec::new(),
-            authority: Vec::new(),
-        })
+    .then(|| GivenSavedDeclaration {
+        producer: GIVEN_PRODUCER_UNIQUE_KEY.to_string(),
+        export: GIVEN_UNIQUE_KEY_EXPORT.to_string(),
+        reads: Vec::new(),
+        effects: Vec::new(),
+        authority: Vec::new(),
+    })
 }
 
 /// One consumed unit-local import of a saved implementation: the

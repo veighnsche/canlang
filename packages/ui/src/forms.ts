@@ -51,6 +51,8 @@ import type {
 } from "@canlang/contracts";
 import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import { drawer } from "./overlays.js";
+import { menuDialog } from "./internal/menu-dialog.js";
+import { partitionActionGroups } from "./internal/action-groups.js";
 // C4b explicit-control dispatch + label/validator fragment reuse. This is a
 // forms<->controls import cycle, safe under ESM: both modules touch the
 // other's bindings only inside render-time function bodies, never at module
@@ -87,6 +89,8 @@ import {
  */
 const CHROME = {
   cancel: message("Cancel", { nl: "Annuleren" }),
+  edit: message("Edit", { nl: "Bewerken" }),
+  create: message("Create", { nl: "Aanmaken" }),
   deleteSubmit: message("Delete", { nl: "Verwijderen" }),
   archiveSubmit: message("Archive", { nl: "Archiveren" }),
   retryHint: message("You can retry.", { nl: "U kunt het opnieuw proberen." }),
@@ -275,6 +279,14 @@ function cancelLink(cancelHref: string | undefined, context: PresentationContext
     return "";
   }
   return `<a class="btn btn-ghost" href="${escapeAttr(safeHref(cancelHref))}">${escapeHtml(resolveCaption(CHROME.cancel, context))}</a>`;
+}
+
+/** Menu cancellation belongs beside the canonical submit, inside its form. */
+function dialogFooter(context: PresentationContext, submit: string, cancelHref?: string): string {
+  const cancel = cancelHref === undefined
+    ? `<button type="button" class="btn btn-ghost" data-can-menu-dialog-close>${escapeHtml(resolveCaption(CHROME.cancel, context))}</button>`
+    : cancelLink(cancelHref, context);
+  return `<div class="flex gap-4" data-can-form-actions data-can-dialog-actions>${cancel}${submit}</div>`;
 }
 
 /**
@@ -988,8 +1000,16 @@ export async function form(props: FormProps): Promise<string> {
       `<select id="${escapeAttr(id)}" data-can-choices-select disabled><option value="">Choose a value</option></select>` +
       '<div data-can-choices-feedback role="status" aria-live="polite"></div></div>';
   }).join("");
-  const fieldsHtml = rendered.join("") + choicesHtml;
+  const formParts = partitionActionGroups(rendered);
+  if (formParts.secondary !== "" || /<form\b/i.test(formParts.primary)) {
+    throw new Error("form actions must be direct primary submit controls, not operation forms or secondary controls");
+  }
+  const fieldsHtml = formParts.body + choicesHtml;
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
+  // Zero-input scenarios keep immediate submission and acquire no dialog footer.
+  const immediateScenario = props.mode === "scenario" && props.fields.length === 0 && fieldsHtml.trim() === "";
+  const inMenu = props.display === "menu" && !immediateScenario;
+  const submit = formParts.primary + (props.authoredSubmit || formParts.primary !== "" ? "" : `<button type="submit" class="btn btn-primary" data-can-standard-submit>${submitLabel}</button>`);
   const renderedForm = (
     formOpenTag(postTo, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
     hidden("operation", props.operation) +
@@ -1001,9 +1021,21 @@ export async function form(props: FormProps): Promise<string> {
     unmatchedAlert(unmatched, props.context) +
     (props.derived === undefined ? "" : '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>') +
     fieldsHtml +
-    `<div class="flex gap-4"><button type="submit" class="btn btn-primary">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
+    (inMenu ? dialogFooter(props.context, submit, props.cancelHref)
+      : `<div class="flex gap-4" data-can-form-actions>${submit}${cancelLink(props.cancelHref, props.context)}</div>`) +
     `</form>`
   );
+  // Source actions prepare as scenario forms. With no inputs or authored
+  // explanatory content, keep their existing immediate canonical submit.
+  if (inMenu) {
+    // The source-form preparer defaults to message('Submit', {nl:'Verzenden'})
+    // (interfaces/http/forms.ts). Preserve distinct authored create captions.
+    const defaultSubmit = typeof props.submit !== "string" && props.submit.source === "Submit" &&
+      props.submit.variants["nl"] === "Verzenden" && props.submit.params === undefined;
+    const opener = props.controlLabel ?? (props.mode === "update" ? CHROME.edit
+      : props.mode === "create" && defaultSubmit ? CHROME.create : props.submit);
+    return menuDialog(props.context, props.idPrefix, opener, renderedForm);
+  }
   return props.display === "drawer"
     ? drawer({
         context: props.context,
@@ -1035,20 +1067,25 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
       props.context,
     ),
   );
-  return (
-    `<section class="card bg-base-100 shadow"><div class="card-body">` +
-    `<h2 class="card-title">${heading}</h2>` +
-    `<p>${copy}</p>` +
+  const inMenu = props.display === "menu";
+  const submit = `<button type="submit" class="btn ${tone}">${submitLabel}</button>`;
+  const renderedForm = (
+    (inMenu ? "" : `<section class="card bg-base-100 shadow"><div class="card-body"><h2 class="card-title">${heading}</h2><p>${copy}</p>`) +
     `<form action="${escapeAttr(postTo)}" method="post" class="can-form" data-can-delete-form="${escapeAttr(JSON.stringify({ operation: props.operation }))}">` +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
     hidden("timezone", props.timeZone ?? "UTC") +
     recordHiddens(props.record) +
+    (inMenu ? `<p><strong>${heading}</strong></p><p>${copy}</p>` : "") +
     '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>' +
-    `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
-    `</form></div></section>`
+    (inMenu ? dialogFooter(props.context, submit, props.cancelHref)
+      : `<div class="flex gap-4">${submit}${cancelLink(props.cancelHref, props.context)}</div>`) +
+    `</form>${inMenu ? "" : "</div></section>"}`
   );
+  return props.display === "menu"
+    ? menuDialog(props.context, props.idPrefix, props.controlLabel ?? (props.mode === "remove" ? CHROME.deleteSubmit : CHROME.archiveSubmit), renderedForm)
+    : renderedForm;
 }
 
 /**
@@ -1164,7 +1201,9 @@ export async function action(props: ActionProps): Promise<string> {
   const tone =
     props.variant === "danger" ? "btn-error" : props.variant === "ghost" ? "btn-ghost" : "btn-primary";
   const labelText = escapeHtml(resolveCaption(props.label, props.context));
-  return (
+  const inMenu = props.display === "menu" && ((props.fields?.length ?? 0) > 0 || props.confirm !== undefined);
+  const submit = `<button type="submit" class="btn ${tone}"${tone === "btn-primary" ? " data-can-standard-submit" : ""}>${labelText}</button>`;
+  const renderedForm = (
     formOpenTag(postTo, needsMultipart(props.fields), props.derived, renderedInputs,
       props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
     hidden("operation", props.operation) +
@@ -1175,9 +1214,11 @@ export async function action(props: ActionProps): Promise<string> {
     (props.derived === undefined ? "" : '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>') +
     fieldsHtml +
     confirm +
-    `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${labelText}</button></div>` +
+    (inMenu ? dialogFooter(props.context, submit) : `<div class="flex gap-4">${submit}</div>`) +
     `</form>`
   );
+  return inMenu
+    ? menuDialog(props.context, props.idPrefix, props.label, renderedForm) : renderedForm;
 }
 
 /** Grouped bound operations: each action renders as its own form. */

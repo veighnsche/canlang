@@ -86,6 +86,7 @@ import { preflightLocalPreviewActivation, produceInstalledPortableBundle } from 
 import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples } from "../dev/example-runner.js";
 import { runDocs } from "./docs.js";
 import { runGen } from "./gen.js";
+import { runSourceWorkflow } from "./source-workflow.js";
 // P02.2: envelope/output helpers, bundle loaders, dist/missing helpers and
 // the prepared build/deploy route live in the preparation host module;
 // this CLI keeps parsing, dispatch and the run/test/activate paths.
@@ -408,11 +409,14 @@ async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Pr
     fail("test", "missing-producer", "compiled artifact has zero example rows; zero-row results cannot pass",
       { producer: "@canlang/testkit", contract: "compiled ArtifactTestModule rows" });
   }
-  if (loaded.artifact.sources.length !== 1) {
-    fail("test", "profile-unsupported", "local examples require exactly one captured .can source");
+  // Saved contributions are compiler sources too. Select the owning app and
+  // let capture/verification check its exact generated source closure below.
+  const appSources = loaded.artifact.sources.filter(source => !source.path.split("/").includes("can.generated"));
+  if (appSources.length !== 1) {
+    fail("test", "profile-unsupported", "local examples require exactly one owning .can source plus its saved generated contributions");
   }
   const checkoutRoot = process.cwd();
-  const source = loaded.artifact.sources[0]!;
+  const source = appSources[0]!;
   const compilerPath = process.env["CAN_COMPILER_BIN"] ?? join(checkoutRoot, "compiler/target/debug/can");
   const request = prepareLocalPreviewCapture({
     checkoutRoot, appPath: source.path, compilerPath,
@@ -491,6 +495,11 @@ async function runDeploy(
 }
 
 async function main(): Promise<void> {
+  const [sourceCommand, ...sourceArgs] = process.argv.slice(2);
+  if (sourceCommand === "generate" || sourceCommand === "validate") {
+    await runSourceWorkflow(sourceCommand, sourceArgs);
+    return;
+  }
   const args = parse(process.argv.slice(2));
   if (args.command === "docs") {
     // Renderer pipe: no artifact discovery (stdin carries the model).

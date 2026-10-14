@@ -294,6 +294,9 @@ export interface PageDescriptor {
   }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;
+  /** Direct authored page children for hosts that compose heading groups.
+   * The dispatcher chooses this instead of render, preserving one evaluation. */
+  readonly renderParts?: (context: PresentationContext, bindings: AdmittedBindings) => Promise<readonly string[]>;
 }
 
 /**
@@ -1031,11 +1034,15 @@ export interface FormProps {
   /** Authored body; fields describe its rendered controls for error matching. */
   readonly children?: PageChildren;
   /** Omitted keeps the low-level inline contract; source forms select explicitly. */
-  readonly display?: "inline" | "drawer";
+  readonly display?: "inline" | "drawer" | "menu";
   /** Field errors keyed by JSON Pointer into inputs (wire FieldError). */
   readonly errors?: ReadonlyArray<FieldError>;
   readonly outcome?: FormOutcome;
   readonly submit: MessageValue;
+  /** Explicit source action caption for its visible canonical opener. */
+  readonly controlLabel?: MessageValue;
+  /** Compiler checked explicit submit control already rendered in this form. */
+  readonly authoredSubmit?: boolean;
   readonly cancelHref?: string;
   /** Caller-unique prefix for input ids (deterministic for swaps/tests). */
   readonly idPrefix: string;
@@ -1049,9 +1056,11 @@ export interface OperationFormRequest {
   readonly fields?: readonly string[];
   readonly arguments?: Readonly<Record<string, unknown>>;
   readonly submit?: MessageValue;
+  readonly controlLabel?: MessageValue;
+  readonly authoredSubmit?: boolean;
   /** Captions generated from owning source declarations, not a second schema. */
   readonly labels?: Record<string, MessageValue>;
-  readonly display?: "inline" | "drawer";
+  readonly display?: "inline" | "drawer" | "menu";
   /** Actual authored writable controls; absent selects the automatic body. */
   readonly authoredFields?: readonly string[];
   /** Checked standalone fragment placements, independent of writable controls. */
@@ -1080,6 +1089,9 @@ export interface EditProps extends Omit<FormProps, "mode" | "record"> {
 }
 
 export interface DeleteProps {
+  readonly controlLabel?: MessageValue;
+  /** Compact opener with the canonical confirmation form in a native dialog. */
+  readonly display?: "inline" | "menu";
   readonly context: PresentationContext;
   readonly action: string;
   readonly operation: string;
@@ -1097,6 +1109,7 @@ export interface DeleteProps {
 /** Checked metadata opts into the existing browser submitter; omission retains native POST. */
 export interface ActionProps extends Pick<FormProps,
   "derived" | "sourceBinding" | "sourceBindingIdentity" | "sourceBindingDraftIdentity"> {
+  readonly display?: "inline" | "drawer" | "menu";
   readonly context: PresentationContext;
   readonly action: string;
   readonly operation: string;
@@ -1566,6 +1579,19 @@ export interface ChatBubbleProps {
   readonly tone?: AppearanceTone;
 }
 
+/** Visible controls placed by an explicit page/card/row/panel/form owner. */
+export interface PrimaryActionsProps {
+  readonly context: PresentationContext;
+  readonly children: PageChildren;
+}
+
+/** Compact controls placed in one explicit owner's shared overflow region. */
+export interface ActionMenuProps {
+  readonly context: PresentationContext;
+  readonly id: string;
+  readonly children: PageChildren;
+}
+
 /** `dropdown` explicit trigger and content slots with focus behavior. */
 export interface DropdownProps {
   readonly context: PresentationContext;
@@ -1575,24 +1601,30 @@ export interface DropdownProps {
 
 /** `modal` activated dialog: required caption/content, optional id/slots. */
 export interface ModalProps {
+  /** Compiler-derived checked external opener; suppresses only the default trigger. */
+  readonly externalTrigger?: boolean;
   readonly context: PresentationContext;
   readonly caption: MessageValue;
   readonly id?: string;
   readonly content: PageChildren;
   /** Custom opener; must be an `a[href="#id"]` link — a bare button is inert without JS. */
   readonly trigger?: PageChildren;
+  /** Semantic action owner: primary footer controls and secondary heading overflow. */
   readonly actions?: PageChildren;
   readonly variant?: AppearanceVariant;
 }
 
 /** `drawer` activated side panel: required caption, id and content. */
 export interface DrawerProps {
+  /** Compiler-derived checked external opener; suppresses only the default trigger. */
+  readonly externalTrigger?: boolean;
   readonly context: PresentationContext;
   readonly caption: MessageValue;
   readonly id: string;
   readonly content: PageChildren;
   /** Custom opener; must be a `label[for="id"]` — a bare button cannot toggle without JS. */
   readonly trigger?: PageChildren;
+  /** Semantic action owner: primary footer controls and secondary heading overflow. */
   readonly actions?: PageChildren;
   readonly variant?: AppearanceVariant;
 }

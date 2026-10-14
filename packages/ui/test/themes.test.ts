@@ -32,6 +32,19 @@ const THEME_NAMES = [
 /** Structural `can-*` markup hooks owned by this package (reviewed). */
 const CAN_HOOKS = new Set([
   "can-page-heading",
+  "can-card-heading",
+  "can-card-footer",
+  "can-row-actions",
+  "can-row-content",
+  "can-panel-heading",
+  "can-heading-actions",
+  "can-primary-actions",
+  "can-action-menu",
+  "can-action-menu-trigger",
+  "can-action-menu-popover",
+  "can-page-heading-row",
+  "can-menu-dialog",
+  "can-action-entry",
   "can-form",
   "can-search",
   "can-preference-tabs",
@@ -53,7 +66,7 @@ const CAN_HOOKS = new Set([
 
 function extractClassTokens(): Set<string> {
   const tokens = new Set<string>();
-  for (const file of readdirSync(srcDir)) {
+  for (const file of [...readdirSync(srcDir), "internal/menu-dialog.ts"]) {
     if (!file.endsWith(".ts")) {
       continue;
     }
@@ -187,6 +200,12 @@ describe("themes.css", () => {
 });
 
 describe("class audit", () => {
+  it("stacks complete sibling card/view owners instead of Daisy's shared grid row", () => {
+    const listCss = readFileSync(join(daisyRoot, "components", "list.css"), "utf8");
+    assert.ok(listCss.includes('.list .list-row>*{grid-row-start:1}'));
+    assert.match(sourceCss, /\.list \.list-row:has\(> \.card, > \[data-can-view\]\)\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/);
+  });
+
   it("supplies CSS for emitted classes including their responsive prefixes", () => {
     const unknown: string[] = [];
     for (const token of extractClassTokens()) {

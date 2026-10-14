@@ -597,6 +597,39 @@ fn completion_statement_introducers_and_rhs_keep_distinct_keywords() {
 }
 
 #[test]
+fn contextual_group_completions_stay_at_valid_child_heads() {
+    let text = "app T\nGiven\n Todo {title:text}\nWhen\n crud Todo by=members fields=title\nThen\n view Tile(row:Todo) $\"Arrange.\"\n  card row.title\n   secondary \"Archive\" action=Todo.delete arguments={record=row}\n page / title=\"Tasks\"\n  primary \"Create\" action=Todo.create fields=title\n   input title\n  list Todo\n   card \"Task\"\n    secondary \"Archive\" action=Todo.delete arguments={record=row}\n    badge row.title tone=primary\n";
+    let (db, id) = load(text);
+    let snapshot = Snapshot::analyze(&db, id, None);
+    for needle in ["   secondary", "  primary", "    secondary"] {
+        let offset = text.find(needle).unwrap() as u32
+            + needle.find(|ch: char| !ch.is_whitespace()).unwrap() as u32
+            + 1;
+        let items = snapshot.completions_at(offset);
+        let names = labels(&items);
+        assert!(
+            names.contains(&"primary") && names.contains(&"secondary"),
+            "{needle}: {names:?}"
+        );
+    }
+    for needle in ["   input", "action=Todo", "row.title", "tone=primary"] {
+        let start = text.find(needle).unwrap();
+        let offset = start
+            + if needle.starts_with(' ') {
+                needle.find(|ch: char| !ch.is_whitespace()).unwrap() + 1
+            } else {
+                needle.len()
+            };
+        let items = snapshot.completions_at(offset as u32);
+        assert!(
+            !items.iter().any(|item| item.kind == "Keyword"
+                && matches!(item.label.as_str(), "primary" | "secondary")),
+            "{needle}: {items:?}"
+        );
+    }
+}
+
+#[test]
 fn named_type_completion_uses_checker_admitted_types_and_imports() {
     let catalog = test_catalog("type-context");
     let provider = "package P\n Given\n  export contract Shared {value:text}\n When\n Then\n";

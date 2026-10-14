@@ -34,6 +34,8 @@
  */
 
 import type {
+  ActionMenuProps,
+  PrimaryActionsProps,
   AlertProps,
   AuraProps,
   ChatBubbleProps,
@@ -54,6 +56,7 @@ import type {
   TooltipProps,
 } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
+import { partitionActionGroups } from "./internal/action-groups.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
@@ -91,6 +94,16 @@ async function requireChildren(slot: string, children: PageChildren): Promise<st
     throw new Error(`${slot} must not render empty`);
   }
   return body;
+}
+
+/** Explicit modal/drawer action slot is the only action owner in overlays. */
+async function panelActions(children: PageChildren | undefined): Promise<{ primary: string; secondary: string; body: string }> {
+  if (children === undefined) return { primary: "", secondary: "", body: "" };
+  const parts = typeof children === "function" ? await children() : children;
+  if (parts.length === 0) throw new Error("panel actions needs at least one child");
+  const completed = await Promise.all(parts);
+  if (completed.join("") === "") throw new Error("panel actions must not render empty");
+  return partitionActionGroups(completed);
 }
 
 /**
@@ -232,6 +245,27 @@ export async function chatBubble(props: ChatBubbleProps): Promise<string> {
   return `<div class="${frame}">${avatar}${header}<div class="${bubble}">${content}</div>${footer}</div>`;
 }
 
+/** Immediately visible action controls; empty admission omits the group. */
+export async function primaryActions(props: PrimaryActionsProps): Promise<string> {
+  const children = typeof props.children === "function" ? await props.children() : props.children;
+  const controls = (await Promise.all(children)).filter(child => child != null && child.trim() !== "");
+  return controls.length === 0 ? "" : `<div class="can-primary-actions" data-can-primary-actions>${controls.join("")}</div>`;
+}
+
+/** Compact disclosure over trusted canonical controls; absent controls omit the trigger. */
+export async function actionMenu(props: ActionMenuProps): Promise<string> {
+  assertRegionId(props.id);
+  const children = typeof props.children === "function" ? await props.children() : props.children;
+  const controls = (await Promise.all(children)).filter(child => child != null && child.trim() !== "");
+  if (controls.length === 0) return "";
+  const caption = escapeAttr(resolveCaption(message("More actions", { nl: "Meer acties" }), props.context));
+  const id = escapeAttr(`${props.id}-popover`);
+  return `<div class="can-action-menu" data-can-action-menu>` +
+    `<button type="button" class="btn btn-ghost can-action-menu-trigger" data-can-action-menu-trigger popovertarget="${id}" aria-label="${caption}"><span aria-hidden="true">⋯</span></button>` +
+    `<div id="${id}" popover class="can-action-menu-popover" data-can-action-menu-popover><ul class="menu" aria-label="${caption}">` +
+    controls.map(control => `<li>${control}</li>`).join("") + `</ul></div></div>`;
+}
+
 /**
  * `dropdown`: trigger plus content under the shared focus contract. Both the
  * trigger (role=button, focusable) and the content wrapper are tabbable, so
@@ -269,12 +303,11 @@ export async function modal(props: ModalProps): Promise<string> {
   const content = await requireChildren("modal content", props.content);
   const trigger =
     props.trigger === undefined
-      ? `<a class="btn" href="#${escapeAttr(props.id as string)}">${escapeHtml(caption)}</a>`
+      ? props.externalTrigger ? "" : `<a class="btn" href="#${escapeAttr(props.id as string)}" data-can-panel-open="${escapeAttr(props.id as string)}">${escapeHtml(caption)}</a>`
       : await requireChildren("modal trigger", props.trigger);
-  const actions =
-    props.actions === undefined
-      ? ""
-      : `<div class="modal-action">${await requireChildren("modal actions", props.actions)}</div>`;
+  const actionParts = await panelActions(props.actions);
+  const footer = actionParts.primary + actionParts.body;
+  const actions = footer === "" ? "" : `<div class="modal-action">${footer}</div>`;
   const closeLabel = escapeAttr(resolveCaption(CHROME.close, props.context));
   const idAttr = props.id === undefined ? "" : ` id="${escapeAttr(props.id)}"`;
   const naming =
@@ -284,10 +317,9 @@ export async function modal(props: ModalProps): Promise<string> {
   const titleId = props.id === undefined ? "" : ` id="${escapeAttr(`${props.id}-title`)}"`;
   return (
     `${trigger}` +
-    `<dialog class="${escapeAttr(joinClasses("modal", modifiers))}"${idAttr}${naming}>` +
+    `<dialog class="${escapeAttr(joinClasses("modal", modifiers))}"${idAttr}${naming} data-can-panel="modal">` +
     `<div class="modal-box">` +
-    `<a href="#" class="btn btn-sm btn-circle absolute right-2 top-2" aria-label="${closeLabel}">✕</a>` +
-    `<h3${titleId} class="text-lg font-bold">${escapeHtml(caption)}</h3>` +
+    `<header class="can-panel-heading"><h3${titleId} class="text-lg font-bold">${escapeHtml(caption)}</h3>${actionParts.secondary}<a href="#" class="btn btn-sm btn-circle" data-can-panel-close aria-label="${closeLabel}">✕</a></header>` +
     `${content}${actions}</div></dialog>`
   );
 }
@@ -307,21 +339,20 @@ export async function drawer(props: DrawerProps): Promise<string> {
   const id = escapeAttr(props.id);
   const trigger =
     props.trigger === undefined
-      ? `<label for="${id}" class="btn drawer-button">${escapeHtml(caption)}</label>`
+      ? props.externalTrigger ? "" : `<label for="${id}" class="btn drawer-button" data-can-panel-open="${id}">${escapeHtml(caption)}</label>`
       : await requireChildren("drawer trigger", props.trigger);
-  const actions =
-    props.actions === undefined
-      ? ""
-      : `<footer>${await requireChildren("drawer actions", props.actions)}</footer>`;
+  const actionParts = await panelActions(props.actions);
+  const footer = actionParts.primary + actionParts.body;
+  const actions = footer === "" ? "" : `<footer>${footer}</footer>`;
   const closeLabel = escapeAttr(resolveCaption(CHROME.close, props.context));
   return (
-    `<div class="${escapeAttr(joinClasses("drawer", modifiers))}">` +
+    `<div class="${escapeAttr(joinClasses("drawer", modifiers))}" data-can-panel="drawer">` +
     `<input id="${id}" type="checkbox" class="drawer-toggle">` +
     `<div class="drawer-content">${trigger}</div>` +
     `<div class="drawer-side can-drawer-panel">` +
-    `<label for="${id}" class="drawer-overlay" aria-label="${closeLabel}"></label>` +
-    `<aside class="w-80 min-h-full bg-base-200 flex flex-col" aria-labelledby="${id}-title">` +
-    `<h2 id="${id}-title" class="px-4 py-3 text-lg font-bold">${escapeHtml(caption)}</h2>` +
+    `<label for="${id}" class="drawer-overlay" aria-label="${closeLabel}" data-can-panel-close></label>` +
+    `<aside class="w-80 min-h-full bg-base-200 flex flex-col" tabindex="-1" aria-labelledby="${id}-title">` +
+    `<header class="can-panel-heading"><h2 id="${id}-title" class="px-4 py-3 text-lg font-bold">${escapeHtml(caption)}</h2>${actionParts.secondary}<label for="${id}" class="btn btn-sm btn-circle" data-can-panel-close aria-label="${closeLabel}">✕</label></header>` +
     `<div class="flex-1 overflow-y-auto">${content}</div>${actions}` +
     `</aside></div></div>`
   );

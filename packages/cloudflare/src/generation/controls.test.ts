@@ -36,6 +36,7 @@ import { PreflightError, type McpRole } from "./protocol.js";
 import { readJournal, stageJournal, markCommitted, unresolvedJournals } from "./journal.js";
 import { acquire } from "./leases.js";
 import { parseUnitRecord, sha256HexText } from "./records.js";
+import { AppAcceptanceError } from "./acceptance.js";
 
 const FIXED_NOW = 1798765432100;
 const nowStub = (): number => FIXED_NOW;
@@ -51,6 +52,21 @@ async function writeTree(root: string, files: [string, string][]): Promise<void>
     await mkdir(join(full, ".."), { recursive: true });
     await writeFile(full, text);
   }
+}
+
+/** Preserve membership and every byte, including unit metadata. */
+function currentBytes(root: string): [string, string][] {
+  const files: [string, string][] = [];
+  const base = join(root, "can.generated");
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else files.push([relative(base, path), readFileSync(path).toString("hex")]);
+    }
+  };
+  if (existsSync(base)) walk(base);
+  return files.sort(([a], [b]) => a.localeCompare(b));
 }
 
 async function writeFake(dir: string, name: string, body: string): Promise<string> {
@@ -483,6 +499,7 @@ async function harness(files: [string, string][] = [["app.can", APP]]): Promise<
 function ctxFor(harness: Harness, overrides: Partial<ControlContext> = {}): ControlContext {
   return {
     compiler: harness.fake.compiler,
+    appAcceptance: async () => {},
     now: nowStub,
     preflight: noopPreflight,
     resolveExecutable: async () => harness.runner,
@@ -905,10 +922,24 @@ test("cancelled attempts cannot late-accept", async () => {
 test("accept true composes the full flow through one journal", async () => {
   const h = await harness();
   h.fake.descriptors.set("app.can", twoStyles());
+  let gateCalls = 0;
   const result = await dispatchControl(
     req("r-ct1", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }),
-    ctxFor(h),
+    ctxFor(h, { appAcceptance: async input => {
+      gateCalls += 1;
+      assert.equal(input.root, h.root);
+      assert.notEqual(input.candidateRoot, h.root);
+      assert.deepEqual(input.files, ["app.can"]);
+      assert.equal(await readFile(join(input.candidateRoot, "app.can"), "utf8"), APP);
+      for (const unit of ["u1", "u2"]) {
+        assert.match(await readFile(join(input.candidateRoot, "can.generated", unit, "style.css"), "utf8"), new RegExp(`${unit}-style`));
+        assert.equal(existsSync(join(h.root, "can.generated", unit, "style.css")), false, "current must remain unpromoted during app checks");
+        assert.equal(parseUnitRecord(await readFile(join(h.root, "can.generated", unit, "unit.json"), "utf8"), unit).provenance.origin, "bound");
+      }
+      assert.deepEqual(await unresolvedJournals(h.root), []);
+    } }),
   );
+  assert.equal(gateCalls, 1);
   assert.equal(result.code, 0, result.envelope);
   const body = bodyOf(result.envelope);
   assert.equal(body["state"], "accepted");
@@ -918,6 +949,95 @@ test("accept true composes the full flow through one journal", async () => {
   assert.deepEqual(await unresolvedJournals(h.root), []);
   assert.ok((await readFile(join(h.root, "can.generated", "u1", "style.css"), "utf8")).includes("u1-style"));
   assert.ok((await readFile(join(h.root, "can.generated", "u2", "style.css"), "utf8")).includes("u2-style"));
+});
+
+for (const stage of ["build", "test", "playwright"]) {
+  test(`manual accept preserves the complete current set and candidates when ${stage} fails`, async () => {
+    const h = await harness();
+    try {
+      h.fake.descriptors.set("app.can", twoStyles());
+      const seeded = await dispatchControl(req(`gate-${stage}-seed`, "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }), ctxFor(h));
+      assert.equal(seeded.code, 0, seeded.envelope);
+      await writeTree(h.root, [["can.generated/u1/style.css", ".prior-one {color:blue}"], ["can.generated/u2/style.css", ".prior-two {color:green}"]]);
+      const produced = await dispatchControl(req(`gate-${stage}-candidate`, "retry", { root: h.root, files: ["app.can"], ...RECIPE }), ctxFor(h, {
+        appAcceptance: async () => { assert.fail("candidate generation must not run app acceptance"); },
+      }));
+      assert.equal(produced.code, 0, produced.envelope);
+      const attempt = (bodyOf(produced.envelope).attempts as { attempt: string }[])[0]!.attempt;
+      const attemptDir = join(h.root, ".can/gen/attempts", attempt);
+      const candidates = await Promise.all(["u1", "u2"].map(unit => readFile(join(attemptDir, "candidates", `${unit}-style`, "style.css"))));
+      const before = currentBytes(h.root);
+      let gateCalls = 0;
+      const requestId = `gate-${stage}-accept`;
+      const refused = await dispatchControl(req(requestId, "accept", { root: h.root, attempt }), ctxFor(h, {
+        appAcceptance: async input => {
+          gateCalls += 1;
+          assert.deepEqual(currentBytes(h.root), before);
+          for (const [index, unit] of ["u1", "u2"].entries()) {
+            assert.deepEqual(await readFile(join(input.candidateRoot, "can.generated", unit, "style.css")), candidates[index]);
+          }
+          throw new AppAcceptanceError(stage, "check failure sentinel");
+        },
+      }));
+      assert.equal(gateCalls, 1);
+      assert.equal(refused.code, 4, refused.envelope);
+      const error = bodyOf(refused.envelope).error as { code: string; message: string };
+      assert.equal(error.code, "app-acceptance-failed");
+      assert.match(error.message, new RegExp(`${stage}: check failure sentinel`));
+      assert.deepEqual(currentBytes(h.root), before);
+      for (const [index, unit] of ["u1", "u2"].entries()) {
+        assert.deepEqual(await readFile(join(attemptDir, "candidates", `${unit}-style`, "style.css")), candidates[index]);
+      }
+      assert.equal(await readFence(attemptDir), 0);
+      assert.equal(existsSync(join(attemptDir, "accepted.json")), false);
+      assert.equal(existsSync(join(h.root, ".can/gen/runs", runFor("run", requestId), "journal.json")), false);
+      assert.equal(existsSync(join(h.root, ".can/gen/runs", runFor("run", requestId), "journal.resolved.json")), false);
+      assert.deepEqual(await unresolvedJournals(h.root), []);
+    } finally { await rm(h.root, { recursive: true, force: true }); }
+  });
+}
+
+test("accept refuses a candidate overlay altered by the app check hook", async () => {
+  const h = await harness();
+  try {
+    h.fake.descriptors.set("app.can", twoStyles());
+    const produced = await dispatchControl(req("gate-mutation-candidate", "retry", { root: h.root, files: ["app.can"], ...RECIPE }), ctxFor(h));
+    assert.equal(produced.code, 0, produced.envelope);
+    const attempt = (bodyOf(produced.envelope).attempts as { attempt: string }[])[0]!.attempt;
+    const before = currentBytes(h.root);
+    const candidatePath = join(h.root, ".can/gen/attempts", attempt, "candidates/u1-style/style.css");
+    const candidate = await readFile(candidatePath);
+    const refused = await dispatchControl(req("gate-mutation-accept", "accept", { root: h.root, attempt }), ctxFor(h, {
+      appAcceptance: async input => { await writeFile(join(input.candidateRoot, "can.generated/u1/style.css"), ".tampered {}\n"); },
+    }));
+    assert.equal(refused.code, 4, refused.envelope);
+    const error = bodyOf(refused.envelope).error as { code: string; message: string };
+    assert.equal(error.code, "app-acceptance-failed");
+    assert.match(error.message, /inputs: candidate inputs changed during checks/);
+    assert.deepEqual(currentBytes(h.root), before);
+    assert.deepEqual(await readFile(candidatePath), candidate);
+    assert.deepEqual(await unresolvedJournals(h.root), []);
+    assert.equal(existsSync(join(h.root, ".can/gen/attempts", attempt, "accepted.json")), false);
+  } finally { await rm(h.root, { recursive: true, force: true }); }
+});
+
+test("accept refuses an authored interface changed while app checks run", async () => {
+  const h = await harness();
+  h.fake.descriptors.set("app.can", twoStyles());
+  const seeded = await dispatchControl(req("interface-seed", "retry", {
+    root: h.root, files: ["app.can"], accept: true, ...RECIPE,
+  }), ctxFor(h));
+  assert.equal(seeded.code, 0, seeded.envelope);
+  const current = await readFile(join(h.root, "can.generated/u1/style.css"), "utf8");
+  const result = await dispatchControl(req("interface-race", "retry", {
+    root: h.root, files: ["app.can"], accept: true, ...RECIPE,
+  }), ctxFor(h, { appAcceptance: async () => {
+    await writeFile(join(h.root, "can.generated/u1/declaration.json"), '{"changed":true}\n');
+  } }));
+  assert.equal(result.code, 3, result.envelope);
+  assert.equal((bodyOf(result.envelope).error as { code: string }).code, "interface-changed");
+  assert.equal(await readFile(join(h.root, "can.generated/u1/style.css"), "utf8"), current);
+  assert.deepEqual(await unresolvedJournals(h.root), []);
 });
 
 test("accept true with an incomplete set stays a candidate", async () => {
@@ -1710,7 +1830,7 @@ test("prepare regenerates an identity whose candidate was never accepted", async
   await assert.rejects(readFile(join(h.root, "can.generated/u1/style.css")));
 });
 
-test("mixed retry stages Given before frontend and keeps every prompt", async () => {
+test("mixed retry stages Given before frontend and checks app acceptance only after the complete set", async () => {
   const h = await harness();
   h.fake.descriptors.set("app.can", [
     {
@@ -1762,10 +1882,19 @@ process.stdin.on("end", async () => {
 });
 `,
   );
+  let appChecks = 0;
   const result = await dispatchControl(
     req("r-mx1", "retry", { root: h.root, files: ["app.can"], accept: true, ...RECIPE }),
-    ctxFor(h, { resolveExecutable: async () => dumper }),
+    ctxFor(h, { resolveExecutable: async () => dumper, appAcceptance: async input => {
+      appChecks += 1;
+      assert.match(await readFile(join(input.candidateRoot, "can.generated/u1/contributions.can"), "utf8"), /u1-contributions/);
+      for (const unit of ["u2", "u3"]) {
+        assert.match(await readFile(join(input.candidateRoot, "can.generated", unit, "style.css"), "utf8"), new RegExp(`${unit}-style`));
+      }
+      assert.equal(existsSync(join(h.root, "can.generated/u1/contributions.can")), false);
+    } }),
   );
+  assert.equal(appChecks, 1, "Given preparation must not run the complete app gate before frontend candidates exist");
   assert.equal(result.code, 0, result.envelope);
   assert.equal(bodyOf(result.envelope)["state"], "accepted");
   const attempts = bodyOf(result.envelope)["attempts"] as { attempt: string; units: string[] }[];

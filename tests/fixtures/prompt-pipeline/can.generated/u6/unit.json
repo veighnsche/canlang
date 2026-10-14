@@ -7,26 +7,26 @@
     "label": "Surface",
     "anchor": "PromptStudio:style:Surface:",
     "path": "PromptStudio.can",
-    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
-    "start": 1250,
-    "end": 1585
+    "revision": "0d426e655ba6c425b3d72c3ff0cd02e1821ad44fca4dbf695b46c4c2558b93ea",
+    "start": 1862,
+    "end": 2374
   },
   "contract": {
     "target": null,
     "profile": null,
-    "prompt_sha256": "0b67c4ff59de3330e0965879ceff36368aa6036c29126343c1e0d8196ca5268d",
+    "prompt_sha256": "1ee61bdb3880974d773f89e1a06fdfdf77c801ef8ba10558637cf0fa1e6d6991",
     "signature": null
   },
   "original": {
-    "prompt_sha256": "0b67c4ff59de3330e0965879ceff36368aa6036c29126343c1e0d8196ca5268d",
+    "prompt_sha256": "1ee61bdb3880974d773f89e1a06fdfdf77c801ef8ba10558637cf0fa1e6d6991",
     "files": {
-      "style.css": "8c238b8bb89df6758d0b1f9fd1a90ef59a39c434d509f4c5731af2095d40ee8f"
+      "style.css": "2e1518aad450a1f3d0f78b76d36e6c597c68539efdb0e75943ca784afa05f85a"
     }
   },
   "provenance": {
     "origin": "generated",
     "runner": "codex",
     "model": "gpt-6.1-sol",
-    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j1 (retry retry)"
+    "note": "accepted attempt source-af7f9095-451f-4572-8920-07ab43d5a00b.j0 (generate prepare)"
   }
 }

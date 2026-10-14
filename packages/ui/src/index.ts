@@ -151,6 +151,8 @@ export {
   chatBubble,
   drawer,
   dropdown,
+  actionMenu,
+  primaryActions,
   fab,
   hover3d,
   hoverGallery,
@@ -444,3 +446,4 @@ export type {
 } from "./csv/confirm.js";
 
 export { policyPage } from "./policyPage.js";
+export { actionBindings, renderActionScope } from "./internal/action-groups.js";

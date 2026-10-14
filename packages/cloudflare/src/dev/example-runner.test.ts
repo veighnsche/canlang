@@ -113,6 +113,24 @@ Then
   assert.equal(exampleCase.rows[0]?.outcome, "passed");
 });
 
+test("native record observations use the canonical caller projection and typed predicates", async () => {
+  const artifact = compiled(`app RunnerProbe
+Given
+ Entry {name:text}
+ policy Entry read=members
+When
+ crud Entry by=public fields=name
+  examples create
+   as,name -> count(Entry),count(Entry as entry where entry.name=="First")
+   members,"First" -> 1,1
+   public,"First" -> 0,0
+Then
+`);
+  const result = await runCompiledExamples(await input(artifact));
+  assert.equal(result.ok, true, JSON.stringify(result.report));
+  assert.equal(result.executed, 2);
+});
+
 test("default adapter respects input, request and caller selector channels for stored fixtures", async () => {
   const artifact = compiled(`app RunnerProbe
 Given

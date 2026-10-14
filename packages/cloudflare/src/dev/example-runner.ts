@@ -19,7 +19,8 @@ import { decodeValue, encodeValue } from "@canlang/values";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
-import { loadCanonicalDescriptors } from "../runtime/invoke.js";
+import { invokeReadCanonical, loadCanonicalDescriptors } from "../runtime/invoke.js";
+import type { CanonicalEffectsScope, CanonicalReadQuery } from "../runtime/context.js";
 import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from "../worker/assembly.js";
 
 /** Structural port to the real @canlang/testkit exports; no runtime edge. */
@@ -536,6 +537,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
   const references = new WeakMap<ExampleRowScope, Map<object, StoredFixtureBinding>>();
   return {
     async materializeFixtures({ scope, fixtures, required }) {
+      if (required.length > 0) await loadCanonicalDescriptors(asm, artifact);
       const values = new Map(fixtures);
       const rowBindings = new Map<string, StoredFixtureBinding>();
       const objectBindings = new Map<object, StoredFixtureBinding>();
@@ -573,12 +575,40 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
           created: now, updated: now, createdBy: actor, updatedBy: actor,
           archivedAt: null, parent: null, data,
         };
-        await scope.store.commit({
-          expectedRevision: await scope.store.readRevision(),
-          writes: [{ kind: "insert", model: model.name as ModelName, row }],
-          history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
-        });
-        const stored = await scope.store.load(model.name as ModelName, row.id);
+        let stored: StoredRow | null;
+        if (artifact.givenContracts?.keywords.some(binding => binding.producer === "state.unique-key@1" && binding.targetModel === model.name)) {
+          // Computed keys live on the canonical model table, not artifact field
+          // metadata. Seed through the same create admission and fenced claims
+          // as the operation under test rather than inserting an unclaimed row.
+          const creation = operations.find(operation => operation.name === `${model.name}.create` && operation.kind === "create");
+          const acceptedFields = new Set(creation?.inputs.fields.map(field => field.name));
+          if (creation === undefined || Object.keys(fields).some(name => !acceptedFields.has(name))) {
+            throw new Error(`example runner: fixture ${recipe.name} cannot be represented by its canonical create operation`);
+          }
+          const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
+          const outcome = await buildInvoker(artifact, asm, scope.store, {
+            memberships: scope.identities, source: "example",
+            ...(scope.ownerStorage === undefined ? {} : { ownerStorage: scope.ownerStorage }),
+          }).invokeMutation({ operation: `${model.name}.create` as FqOperationName,
+            operation_id: freshOperationId(),
+            inputs: Object.fromEntries(Object.keys(fields).map(name => [name, data[name]])) as ClosedInputs,
+          }, identity);
+          if ("error" in outcome) throw new Error(`example runner: fixture ${recipe.name} canonical create failed: ${outcome.error.code}`);
+          const served = isRecord(outcome.result) ? outcome.result : undefined;
+          const changed = Array.isArray(served?.["records"]) && served["records"].length === 1 ? served["records"][0] : undefined;
+          const result = isRecord(served?.["result"]) ? served["result"] : changed;
+          if (!isRecord(result) || typeof result["id"] !== "string") {
+            throw new Error(`example runner: fixture ${recipe.name} canonical create returned no stored row`);
+          }
+          stored = await scope.store.load(model.name as ModelName, result["id"] as RecordId);
+        } else {
+          await scope.store.commit({
+            expectedRevision: await scope.store.readRevision(),
+            writes: [{ kind: "insert", model: model.name as ModelName, row }],
+            history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
+          });
+          stored = await scope.store.load(model.name as ModelName, row.id);
+        }
         if (stored === null) throw new Error(`example runner: fixture ${recipe.name} was not stored`);
         const view = fixtureView(artifact, model.name, stored);
         const binding = { model: model.name, id: stored.id as string, version: stored.version as number };
@@ -619,6 +649,9 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
       for (const [name, fields] of overrides) {
         const binding = rowBindings.get(name)!;
         const model = models.find(candidate => candidate.name === binding.model)!;
+        if (artifact.givenContracts?.keywords.some(rule => rule.producer === "state.unique-key@1" && rule.targetModel === model.name)) {
+          throw new Error(`example runner: fixture ${name} computed-key row cells need canonical update materialization`);
+        }
         const stored = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
         if (stored === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
         const data = { ...stored.data };
@@ -770,13 +803,19 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     };
     const reportBuilder = createReport({ digest, sourceRevision: input.sourceRevision });
     let expectedRows = 0;
-    const bindings = input.bindings ?? { self: "self", other: "other", imported: {} };
+    const authoredBindings = input.bindings ?? { self: "self", other: "other", imported: {} };
     for (const [moduleIndex, test] of artifact.tests.entries()) {
       if (input.signal?.aborted) throw cancellationError();
       if (input.selectedRow !== undefined && test.scope !== input.selectedRow.operation) continue;
       const url = asm.moduleUrls[test.module.path];
       if (url === undefined) throw new Error(`example runner: test module ${test.module.path} was not staged`);
       const rowCallers = new WeakMap<object, ResolvedCaller>();
+      const rowIdentities = new WeakMap<object, ResolvedIdentity>();
+      let observationScope: CanonicalEffectsScope | undefined;
+      const bindings = new Proxy(authoredBindings, {
+        get: (target, property, receiver) => property === "canonical"
+          ? observationScope : Reflect.get(target, property, receiver),
+      });
       const activeScopes = new Set<ExampleRowScope>();
       const disposals = new WeakMap<ExampleRowScope, Promise<void>>();
       const ownedScopes = new WeakMap<ExampleRowScope, ExampleRowScope>();
@@ -830,6 +869,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
           }
           const fixtures = checkedFixtureValues(fixtureValuesOf(call.scope), test.scope);
           const identity = await withCancellation(input.signal, () => call.scope.identityFor(call.by, caller, fixtures));
+          rowIdentities.set(call.scope, identity);
           return withCancellation(input.signal, () => runtimeHooks.invoke({ call, identity, rowCaller: caller }));
         },
         observeScope: async (scope, stashed) => withCancellation(input.signal, () => runtimeHooks.observeLive({
@@ -868,8 +908,45 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
           rowCallers.set(scope, caller);
           return withCancellation(input.signal, () => row.invoke(scope, caller));
         },
-        observe: async (scope: ExampleRowScope): Promise<ReportValue[]> =>
-          withCancellation(input.signal, () => row.observe(scope)),
+        observe: async (scope: ExampleRowScope): Promise<ReportValue[]> => {
+          if (input.hooks !== undefined) return withCancellation(input.signal, () => row.observe(scope));
+          const caller = rowCallers.get(scope);
+          if (caller === undefined) throw new Error("example runner: observation caller was not resolved");
+          const identity = rowIdentities.get(scope);
+          if (identity === undefined) throw new Error("example runner: observation identity was not resolved");
+          const store = scope.ownerStorage === undefined ? scope.store : await scope.ownerStorage.forIdentity(identity);
+          const revision = await store.readRevision();
+          const refuse = async (): Promise<never> => { throw new Error("example runner: observations are read only"); };
+          const read = async (model: string, query: CanonicalReadQuery) => {
+            if (Object.keys(query).some(key => key !== "where") ||
+                query.where !== undefined && typeof query.where !== "function") {
+              throw new Error("example runner: unsupported observation query shape");
+            }
+            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+            const served = await invokeReadCanonical({ asm, artifact: moduleArtifact, operation: `${model}.read`,
+              inputs: {} as ClosedInputs, identity, store, memberships: scope.identities, source: "example" });
+            if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: observation read returned no records");
+            if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+            return served.records;
+          };
+          observationScope = { operation: test.scope, stageWrite: refuse, readModel: read,
+            readRecords: async (model, query) => {
+              const served = await read(model, query);
+              const views = served.map(record => fixtureView(moduleArtifact, model, record));
+              if (query.where === undefined) return views;
+              const selected: Record<string, unknown>[] = [];
+              for (const view of views) {
+                const admitted: unknown = await (query.where as (record: unknown) => unknown)(view);
+                if (typeof admitted !== "boolean") throw new Error("example runner: observation predicate must return bool");
+                if (admitted) selected.push(view);
+              }
+              if (await store.readRevision() !== revision) throw new Error("example runner: observation state changed");
+              return selected;
+            },
+          };
+          try { return await withCancellation(input.signal, () => row.observe(scope)); }
+          finally { observationScope = undefined; }
+        },
       }));
       let result: TableCaseResult;
       try {

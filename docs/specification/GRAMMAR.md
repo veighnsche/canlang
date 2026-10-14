@@ -416,14 +416,17 @@ A scenario-attached sequence starts with a sole `do` child instead of a table he
 
 ## Presentation and routes
 
-The [approved full daisyUI catalog](../../design/UI-COMPONENTS.md#grammar-and-option-boundaries) extends these core productions with all 68 contextual component words and their finite header/body profiles. Its field-placement, exclusive button bindings, named slots, repetition and shared-state/navigation rules are normative design contracts. The old short UI production list is not an exhaustive allowlist. Parser/checker/renderer delivery is separate; lane 1 and lane 5 must agree on the same producer-owned catalog and finish its checked per-component appearance matrix. Unknown words, unsupported options and invalid parent/child/binding shapes remain errors. No context `shell` setting is added: all apps retain the shared right-sidebar shell, bottom-right user menu, user configuration dialog and login screen.
+The [approved full daisyUI catalog](../../design/UI-COMPONENTS.md#grammar-and-option-boundaries) extends these core productions with all 68 contextual component words and their finite header/body profiles. Its field-placement, exclusive button bindings, named slots, repetition and shared-state/navigation rules are normative design contracts. The old short UI production list is not an exhaustive allowlist. Parser/checker/renderer delivery is separate; lane 1 and lane 5 must agree on the same producer-owned catalog and finish its checked per-component appearance matrix. Unknown words, unsupported options and invalid parent/child/binding shapes remain errors. No context `shell` setting is added: all apps retain the shared left-sidebar shell, bottom-left user menu, user configuration dialog and login screen.
 
 ```ebnf
 then_item      = page | line(preferences) | line(invariant) ;
 page           = "page" route attributes optional_suite(ui_body) ;
 ui_body        = {ui_item} ;
 ui_item        = core_ui_item | catalog_item | preference_panel | edit_group ;
-core_ui_item   = line(ui_leaves) | ui_group | collection | form | tabs_group ;
+core_ui_item   = line(ui_leaves) | ui_group | collection | form | tabs_group | action_priority ;
+action_priority = ("primary" | "secondary") expr action_binding attributes optional_suite(ui_body) ;
+action_binding  = "action" "=" expr | "submit" "=" "true"
+                | "opens" "=" NAME | "target" "=" expr ;
 preference_panel = "preferences" suite(ui_body) ;
 edit_group     = "edit" attributes suite(ui_body) ;
 slot_item      = "slot" NAME suite(ui_body) ;
@@ -457,6 +460,37 @@ STATIC_SEGMENT = /[A-Za-z0-9_-]+/ ;
 ```
 
 `catalog_item` expands through the approved catalog's exhaustive profile table and slot schemas, using these same expression, selector, observation and suite productions. Overlapping words such as card/list/table/tabs lower to the same existing semantic nodes, not a second runtime. Calendar headers with both endpoints select the agenda; a selector without endpoints is a date control only in the catalog's field-placement context. A partial endpoint header is invalid rather than inferred from types. All component words remain contextual outside their declaration slots.
+
+`primary` and `secondary` declare individual actions, each with one text/message
+caption and exactly one checked binding. For example,
+`primary "Approve" action=approve arguments={request=row}` and
+`secondary "Archive" action=Request.delete arguments={record=row}`. CRUD create,
+update and delete targets reuse their owning canonical operation; `fields=` and
+authored input controls and fieldsets may configure an operation's prepared input form.
+A primitive's suite is limited to those canonical input controls and `require`
+guards; it cannot contain other actions or arbitrary presentation groups. Existing inline,
+read-result, import/review and dynamic-action forms retain their owning flow.
+Panel openers, form submits and safe destinations reuse the existing exclusive
+`opens=`, `submit=true` and `target=` contracts. No raw callback or endpoint binding
+is introduced. Captions support the ordinary localization syntax.
+
+A bare priority suite is invalid. Multiple actions of either priority are valid;
+Can supplies their fixed design rather than admitting per-action tone, size,
+variant or style prompts. Primary actions are visible, with card actions in the
+footer; secondary actions appear in the owning overflow menu. Their standard
+presentation does not weaken operation admission, record scope, validation,
+versioning or confirmation. Input and confirmation dialogs retain canonical
+cancel/focus behavior. The checked owners are page, card, list/table record row,
+modal/drawer `slot actions`, and `details ... display=drawer`. Canonical form/edit
+accepts only a directly owned `primary ... submit=true`; secondary and independent
+targets inside a form are invalid. Nonvisual guards retain the current owner.
+Tooltip, tab, fieldset, join, hero, disclosure, generic slot and other visual
+wrappers do not inherit action ownership. Tooltip descendants reject priority
+actions even through nested cards or expanded views. A generated view is not an owner;
+source declares a canonical card and its renderer preserves the complete opaque
+`card` binding, including nested controls. Existing expression-list `actions` and
+appearance values on other components retain their meanings.
+
 
 Presentation suites are nonempty when present. A bare list/table/form remains valid without descendants. Top-level Then accepts pages, the unnamed preferences configuration-dialog declaration and its owning validation invariants, not arbitrary effects, authored navigation trees or free-standing business handlers. Within pages, `card`/`details` are scope-transparent groups; collections bind `row` and retain the enclosing record chain. A read form's result is scoped to its descendants; page `data` provides page-level result. The grammar does not infer a current record from a model name.
 

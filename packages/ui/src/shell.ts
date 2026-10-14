@@ -7,6 +7,7 @@
  * dispatcher-supplied ShellData and fail closed when it is absent.
  */
 
+import { partitionActionGroups } from "./internal/action-groups.js";
 import {
   CSRF_FIELD,
   PRESESSION_FIELD,
@@ -190,9 +191,9 @@ function renderSettings(shell: ShellData, context: PresentationContext): string 
   );
 }
 
-async function renderChildren(children: PageChildren): Promise<string> {
+async function renderChildren(children: PageChildren): Promise<readonly string[]> {
   const list = typeof children === "function" ? await children() : children;
-  return (await Promise.all(list)).join("");
+  return await Promise.all(list);
 }
 
 export const renderPage: RenderPageFn = async (
@@ -223,8 +224,16 @@ export const renderPage: RenderPageFn = async (
   // Validate applicable protected account actions before authored child effects.
   const accountHtml = !context.isPartial && shell?.account.authenticated === true
     ? renderAccount(shell, context) : undefined;
-  const body = await renderChildren(children);
-  const pageHeading = `<header class="can-page-heading"><h1 class="text-3xl font-bold">${escapeHtml(resolveText(descriptor.title, context))}</h1>` +
+  const parts = await renderChildren(children);
+  // Legacy render returns joined HTML with no direct-child boundaries. Only
+  // the explicit parts producer qualifies it for heading composition.
+  const { primary, secondary, body } = descriptor.renderParts === undefined
+    ? { primary: "", secondary: "", body: parts.join("") } : partitionActionGroups(parts);
+  const actions = primary + secondary;
+  const titleHtml = `<h1 class="text-3xl font-bold">${escapeHtml(resolveText(descriptor.title, context))}</h1>`;
+  const headingRow = actions === "" ? titleHtml
+    : `<div class="can-page-heading-row">${titleHtml}<div class="can-heading-actions">${actions}</div></div>`;
+  const pageHeading = `<header class="can-page-heading">${headingRow}` +
     (descriptor.description === undefined ? "" : `<p>${escapeHtml(resolveText(descriptor.description, context))}</p>`) + `</header>`;
   const mainHtml = `<main id="can-main"${contextAttr}${pollAttrs}>${pageHeading}${body}</main>`;
   const main = styleUnit === undefined || styleUse === undefined ? mainHtml : styledComponent(mainHtml, styleUnit, styleUse);

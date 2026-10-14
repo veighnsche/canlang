@@ -1,0 +1,46 @@
+app ActionForms
+## Inspect canonical input workflows and their shared submit/cancel behavior.
+Given
+ Sample {title:text trim min=1 max=80,note:text max=240} label="Sample"
+ policy Sample read=members
+ fixture example_sample=Sample {title="Example sample",note="Neutral example data"}
+When
+ crud Sample by=members fields=title,note
+  examples create
+   as,title,note -> count(Sample)
+   members,"Example sample","Neutral example data" -> 1
+   outsider,"Denied sample","Neutral example data" -> error(forbidden)
+  examples update seed=[example_sample] record=example_sample changes={title="Updated sample"}
+   as -> example_sample.title
+   members -> "Updated sample"
+   outsider -> error(forbidden)
+Then
+ page / title="Shared form actions"
+  require members
+  text "A canonical form or edit owns one direct primary submit. Secondary actions and independent operation controls are unsupported inside forms."
+  card "Inline create form"
+   form Sample.create display=inline fields=title,note
+    input title
+    textarea note
+    primary "Save inline sample" submit=true
+  card "Canonical operation dialog"
+   text "Open the shared input dialog to inspect its native submit and Cancel controls. Inline forms keep their existing submit-only behavior."
+   primary "Open create form" action=Sample.create fields=title,note
+  button target="/edit" caption="Inspect update and edit forms"
+  table Sample columns=title,note empty="Create one neutral sample above to inspect updates."
+ page /edit title="Shared update actions"
+  require members
+  button target="/" caption="Return to create forms"
+  list Sample empty="Create a sample on the forms page first."
+   card "Inline update form"
+    text row.title,row.note
+    form Sample.update arguments={record=row} display=inline fields=title,note
+     input title
+     textarea note
+     primary "Save inline update" submit=true
+   card "Canonical edit control"
+    text row.title,row.note
+    edit fields=title,note
+     input title
+     textarea note
+     primary "Save edit" submit=true

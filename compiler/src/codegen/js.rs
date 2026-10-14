@@ -2125,7 +2125,11 @@ impl ThenBuildJoin {
                 if root_style.is_none() && group.files.iter().any(|f| f.rel_path == "style.css") {
                     root_style = Some(unit_id.clone());
                 }
-                let renderer_style = group.files.iter().any(|file| file.rel_path == "style.css").then(|| unit_id.clone());
+                let renderer_style = group
+                    .files
+                    .iter()
+                    .any(|file| file.rel_path == "style.css")
+                    .then(|| unit_id.clone());
                 join.views.insert(unit_id.clone(), group);
                 join.shows.insert(
                     edge.use_span,
@@ -2713,6 +2717,10 @@ fn is_ui_factory(factory: &str) -> bool {
     matches!(
         factory,
         "action"
+            | "actionMenu"
+            | "actionBindings"
+            | "renderActionScope"
+            | "primaryActions"
             | "actions"
             | "alert"
             | "badge"
@@ -2817,7 +2825,13 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "history" => matches!(key, "model" | "record"),
         "form" => matches!(
             key,
-            "operation" | "fields" | "arguments" | "submit" | "display"
+            "operation"
+                | "fields"
+                | "arguments"
+                | "submit"
+                | "controlLabel"
+                | "authoredSubmit"
+                | "display"
         ),
         "input" | "textarea" | "radio" | "select" => {
             matches!(key, "field" | "tone" | "size" | "variant")
@@ -2860,7 +2874,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             "value" | "tone" | "variant" | "orientation" | "regionId"
         ),
         "button" => matches!(key, "caption" | "target" | "opens" | "submit"),
-        "modal" | "drawer" => matches!(key, "caption" | "id" | "variant"),
+        "modal" | "drawer" => matches!(key, "caption" | "id" | "variant" | "externalTrigger"),
         "chatBubble" => matches!(key, "side" | "tone" | "variant"),
         "fab" => key == "label",
         "deleteRecord" => matches!(
@@ -2871,8 +2885,10 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "action"
                 | "operationId"
                 | "itemLabel"
+                | "controlLabel"
                 | "confirm"
                 | "idPrefix"
+                | "display"
         ),
         _ => false,
     }
@@ -2925,7 +2941,8 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "orientation" => Some(&["horizontal", "vertical"]),
         "side" => Some(&["start", "end"]),
         "layout" => Some(&["stack", "columns"]),
-        "display" if factory == "form" => Some(&["inline", "drawer"]),
+        "display" if factory == "form" => Some(&["inline", "drawer", "menu"]),
+        "display" if factory == "deleteRecord" => Some(&["inline", "menu"]),
         "display" if matches!(factory, "list" | "table") => Some(&["split"]),
         _ => None,
     }
@@ -8566,6 +8583,8 @@ impl<'a> Emitter<'a> {
                 // operation per control, so action groups name their
                 // kind only; the runtime does not consume controls.
                 ThenControl::Actions { .. } => format!("{{kind:{}}}", js_string("actions")),
+                ThenControl::Primary => format!("{{kind:{}}}", js_string("primary")),
+                ThenControl::Secondary => format!("{{kind:{}}}", js_string("secondary")),
             })
             .collect::<Vec<_>>()
             .join(",");
@@ -8574,7 +8593,11 @@ impl<'a> Emitter<'a> {
             .as_deref()
             .map(|style| format!(",rootStyle:{}", js_string(style)))
             .unwrap_or_default();
-        let renderer_style = plan.renderer_style.as_ref().map(|unit| format!(",rendererStyle:{}", js_string(unit))).unwrap_or_default();
+        let renderer_style = plan
+            .renderer_style
+            .as_ref()
+            .map(|unit| format!(",rendererStyle:{}", js_string(unit)))
+            .unwrap_or_default();
         let descriptor = format!(
             "{{version:{},view:{},rowModel:{},controls:[{controls}]{root_style}{renderer_style}}}",
             js_string(GENERATED_VIEW_WIRE_VERSION),
@@ -8582,26 +8605,45 @@ impl<'a> Emitter<'a> {
             js_string(&plan.row_model),
         );
         let mut counts: HashMap<&str, usize> = HashMap::new();
-        let bindings = node
-            .children
-            .iter()
-            .zip(lowered.iter())
-            .map(|(child, html)| {
-                let source_name = plan.binding_names.iter().find(|(span, _)| *span == child.span)
-                    .map(|(_, name)| name.as_str()).unwrap_or(child.factory.as_str());
-                let count = counts.entry(source_name).or_insert(0);
-                *count += 1;
-                let name = if *count == 1 {
-                    source_name.to_string()
-                } else {
-                    format!("{}{}", source_name, *count)
-                };
-                format!("{{name:{},html:await ({html})}}", js_string(&name))
-            })
-            .collect::<Vec<_>>()
-            .join(",");
+        let mut bindings = Vec::new();
+        let mut has_priorities = false;
+        for (child, html) in node.children.iter().zip(lowered.iter()) {
+            let source_name = plan
+                .binding_names
+                .iter()
+                .find(|(span, _)| *span == child.span)
+                .map(|(_, name)| name.as_str())
+                .unwrap_or(child.factory.as_str());
+            let priority = matches!(source_name, "primary" | "secondary");
+            has_priorities |= priority;
+            let count = counts.entry(source_name).or_insert(0);
+            *count += 1;
+            let name = if *count == 1 || priority {
+                source_name.to_string()
+            } else {
+                format!("{}{}", source_name, *count)
+            };
+            bindings.push(format!(
+                "{{name:{},html:(await ({html}))??\"\"}}",
+                js_string(&name)
+            ));
+        }
+        let bindings = bindings.join(",");
+        let bindings = if has_priorities {
+            self.ui.insert("actionBindings".into());
+            let entries = binding_ident("b", "view_entries");
+            let grouped = binding_ident("b", "view_actions");
+            // Evaluate every original binding in authored order first. Only
+            // then combine exact trusted action roots into one opaque binding.
+            format!(
+                "(({entries})=>{{const {grouped}={}({entries}.filter(value=>value.name===\"primary\"||value.name===\"secondary\").map(value=>value.html));const seen=new Set();return {entries}.flatMap(value=>{{if(value.name!==\"primary\"&&value.name!==\"secondary\")return [value];if(seen.has(value.name))return [];seen.add(value.name);return [{{name:value.name,html:{grouped}[value.name]}}];}});}})([{bindings}])",
+                binding_ident("u", "actionBindings")
+            )
+        } else {
+            format!("[{bindings}]")
+        };
         format!(
-            "await (async({row})=>{{{guard}return await {factory}({{context:{ctx},descriptor:{descriptor},useId:{use_id},row:{presentation_row},bindings:[{bindings}],render:{render}}});}})({argument})",
+            "await (async({row})=>{{{guard}return await {factory}({{context:{ctx},descriptor:{descriptor},useId:{use_id},row:{presentation_row},bindings:{bindings},render:{render}}});}})({argument})",
             use_id = format!("{}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')", js_string(&view.identity), occurrences.join(",")),
             presentation_row = original_row.map(str::to_owned).unwrap_or_else(|| format!("(({{id,version,...fields}})=>({{id,version:version===undefined?undefined:version.toString(),fields}}))({row})")),
         )
@@ -8655,6 +8697,16 @@ impl<'a> Emitter<'a> {
         let sequence_children = node.children.iter().any(ui_immediate_uses_async)
             || node.factory == "gallery"
             || (view_scope && node.factory == "chatBubble");
+        let direct_priorities = node
+            .children
+            .iter()
+            .any(|child| matches!(child.factory.as_str(), "primaryActions" | "actionMenu"));
+        let scope_children = if direct_priorities {
+            self.ui.insert("renderActionScope".into());
+            format!("{}(children)", binding_ident("u", "renderActionScope"))
+        } else {
+            "children.filter(value=>value!=null).join('')".into()
+        };
         if node.factory == "callbackValueCard" {
             if !self.ir.callback_grants.matches_value_list(self.ir, node) {
                 self.unsupported(
@@ -8682,7 +8734,7 @@ impl<'a> Emitter<'a> {
                 .collect::<Vec<_>>()
                 .join("");
             return format!(
-                "await (async()=>{{{guard}const children=[];{children}return '<section class=\"card bg-base-100 shadow\"><div class=\"card-body\">'+children.filter(value=>value!=null).join('')+'</div></section>';}})()"
+                "await (async()=>{{{guard}const children=[];{children}return '<section class=\"card bg-base-100 shadow\"><div class=\"card-body\">'+{scope_children}+'</div></section>';}})()"
             );
         }
         if matches!(
@@ -8778,14 +8830,14 @@ impl<'a> Emitter<'a> {
                 // A nonexistent form owner prevents these presentation radios from
                 // adding inputs to any enclosing business form.
                 return format!(
-                    r#"await (async()=>{{{guard}const values={source};{empty}const rows=[];let {index}=0;for(const {row} of values){{const children=[];{children}rows.push('<li class="list-row">'+children.filter(value=>value!=null).join('')+'</li>');{index}++;}}if(rows.length<=25)return '<ul class="list">'+rows.join('')+'</ul>';const id={group}+{occurrence};const pages=Math.ceil(rows.length/25);let controls='',panels='',css='#'+id+'>[data-can-inspection-page]{{display:none}}';for(let page=0;page<pages;page++){{const input=id+'-page-'+page;const label={caption}({message}("Page {{number}}",{{nl:"Pagina {{number}}"}},{{number:{{type:"int",value:BigInt(page+1)}}}}),{ctx});controls+='<input type="radio" class="radio" id="'+input+'" name="'+id+'" form="'+id+'-presentation" aria-controls="'+id+'-panel-'+page+'"'+(page===0?' checked':'')+'><label class="btn btn-sm" for="'+input+'">'+{escape_html}(label)+'</label>';panels+='<ul class="list" id="'+id+'-panel-'+page+'" data-can-inspection-page="'+page+'">'+rows.slice(page*25,(page+1)*25).join('')+'</ul>';css+='#'+input+':checked~[data-can-inspection-page="'+page+'"]{{display:block}}';}}const legend={caption}({message}("Pages",{{nl:"Pagina’s"}}),{ctx});return '<fieldset id="'+id+'"><legend>'+{escape_html}(legend)+'</legend><style>'+css+'</style>'+controls+panels+'</fieldset>';}})()"#,
+                    r#"await (async()=>{{{guard}const values={source};{empty}const rows=[];let {index}=0;for(const {row} of values){{const children=[];{children}rows.push('<li class="list-row">'+{scope_children}+'</li>');{index}++;}}if(rows.length<=25)return '<ul class="list">'+rows.join('')+'</ul>';const id={group}+{occurrence};const pages=Math.ceil(rows.length/25);let controls='',panels='',css='#'+id+'>[data-can-inspection-page]{{display:none}}';for(let page=0;page<pages;page++){{const input=id+'-page-'+page;const label={caption}({message}("Page {{number}}",{{nl:"Pagina {{number}}"}},{{number:{{type:"int",value:BigInt(page+1)}}}}),{ctx});controls+='<input type="radio" class="radio" id="'+input+'" name="'+id+'" form="'+id+'-presentation" aria-controls="'+id+'-panel-'+page+'"'+(page===0?' checked':'')+'><label class="btn btn-sm" for="'+input+'">'+{escape_html}(label)+'</label>';panels+='<ul class="list" id="'+id+'-panel-'+page+'" data-can-inspection-page="'+page+'">'+rows.slice(page*25,(page+1)*25).join('')+'</ul>';css+='#'+input+':checked~[data-can-inspection-page="'+page+'"]{{display:block}}';}}const legend={caption}({message}("Pages",{{nl:"Pagina’s"}}),{ctx});return '<fieldset id="'+id+'"><legend>'+{escape_html}(legend)+'</legend><style>'+css+'</style>'+controls+panels+'</fieldset>';}})()"#,
                     group = js_string(&group)
                 );
             }
             // Only constant wrappers are authored here; all business values
             // remain escaped by their existing presentation factories.
             return format!(
-                "await (async()=>{{{guard}const values={source};{empty}let output='<ul class=\"list\">';let {index}=0;for(const {row} of values){{const children=[];{children}output+='<li class=\"list-row\">'+children.filter(value=>value!=null).join('')+'</li>';{index}++;}}return output+'</ul>';}})()"
+                "await (async()=>{{{guard}const values={source};{empty}let output='<ul class=\"list\">';let {index}=0;for(const {row} of values){{const children=[];{children}output+='<li class=\"list-row\">'+{scope_children}+'</li>';{index}++;}}return output+'</ul>';}})()"
             );
         }
         if let Some(view) = &node.view {
@@ -8844,13 +8896,67 @@ impl<'a> Emitter<'a> {
                 .cloned();
             if let Some(plan) = plan {
                 return self.lower_saved_view_instance(
-                    node, view, ctx, &argument, &row, &nested, original.as_deref(), &guard, &lowered, &plan,
+                    node,
+                    view,
+                    ctx,
+                    &argument,
+                    &row,
+                    &nested,
+                    original.as_deref(),
+                    &guard,
+                    &lowered,
+                    &plan,
                 );
             }
             let children = lowered.join(",");
-            return format!(
-                "await (async({row})=>{{{guard}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}})({argument})"
+            let rendered =
+                format!("(await Promise.all([{children}])).filter(value=>value!=null).join('')");
+            return format!("await (async({row})=>{{{guard}return {rendered};}})({argument})");
+        }
+        if matches!(node.factory.as_str(), "actionMenu" | "primaryActions") {
+            self.ui.insert(node.factory.clone());
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|gate| self.lower_business_expr(gate, "action menu gate"));
+            let children = node
+                .children
+                .iter()
+                .map(|child| {
+                    sequence_ui_child(
+                        self.lower_ui_occurrence(
+                            child,
+                            ctx,
+                            occurrences,
+                            prepared_form,
+                            view_scope,
+                        ),
+                        sequence_children,
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            let id = format!(
+                "{}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')",
+                js_string(&format!(
+                    "can-action-menu-f{}-s{}",
+                    node.span.file.0, node.span.start
+                )),
+                occurrences.join(",")
             );
+            let identity = if node.factory == "actionMenu" {
+                format!(",id:{id}")
+            } else {
+                String::new()
+            };
+            let call = format!(
+                "await {}({{context:{ctx}{identity},children:[{children}]}})",
+                binding_ident("u", &node.factory)
+            );
+            return match gate {
+                Some(gate) => format!("{gate} ? {call} : null"),
+                None => call,
+            };
         }
         // Checked source action groups contain ordinary protected forms.
         // Their grouping adds no native container or presentation choice.
@@ -9501,12 +9607,29 @@ impl<'a> Emitter<'a> {
             } else {
                 value
             };
-            let value = if ((panel_tabs && key == "id")
+            let value = if node.factory == "deleteRecord"
+                && key == "idPrefix"
+                && form_prop_text(node, "display").as_deref() == Some("menu")
+                && !occurrences.is_empty()
+            {
+                format!(
+                    "{value}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')",
+                    occurrences.join(",")
+                )
+            } else if !occurrences.is_empty()
+                && ((matches!(node.factory.as_str(), "modal" | "drawer") && key == "id")
+                    || (node.factory == "button" && key == "opens"))
+            {
+                // Activation ids must match the shared ASCII identifier
+                // contract. Each row/view chain names both ends identically.
+                format!(
+                    "{value}+'-o'+JSON.stringify([{}]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')",
+                    occurrences.join(",")
+                )
+            } else if ((panel_tabs && key == "id")
                 || (view_scope
-                    && matches!(
-                        key.as_str(),
-                        "id" | "idPrefix" | "regionId" | "target" | "opens"
-                    )))
+                    && (matches!(key.as_str(), "id" | "idPrefix" | "regionId" | "opens")
+                        || (key == "target" && node.factory != "button"))))
                 && !occurrences.is_empty()
             {
                 format!(
@@ -9835,6 +9958,11 @@ impl<'a> Emitter<'a> {
     pub fn lower_page(&mut self, page: &IrPage, out: &mut JsWriter) {
         let descriptor = page_binding(page, "descriptor");
         let func = page_binding(page, "render");
+        let has_direct_priorities = page
+            .render
+            .iter()
+            .any(|node| matches!(node.factory.as_str(), "primaryActions" | "actionMenu"));
+        let parts_func = page_binding(page, "render_parts");
         let mut members = vec![
             format!("owner:{}", js_string(&page.owner)),
             format!("path:{}", js_string(&page.path)),
@@ -9852,11 +9980,18 @@ impl<'a> Emitter<'a> {
         if page.nav_none {
             members.push("nav:\"none\"".to_string());
         }
-        if let Some(style) = self.then_join.as_ref().and_then(|join| join.style_at(&page.span)) {
+        if let Some(style) = self
+            .then_join
+            .as_ref()
+            .and_then(|join| join.style_at(&page.span))
+        {
             members.push(format!(
                 "style:{{unitId:{},useId:{}}}",
                 js_string(style),
-                js_string(&format!("can-style-f{}-s{}", page.span.file.0, page.span.start))
+                js_string(&format!(
+                    "can-style-f{}-s{}",
+                    page.span.file.0, page.span.start
+                ))
             ));
         }
         if !page.preference_fields.is_empty() {
@@ -9869,9 +10004,14 @@ impl<'a> Emitter<'a> {
                         labels.push_str(&format!(",caption:{}", self.lower_message(caption)));
                     }
                     if !field.option_labels.is_empty() {
-                        let values = field.option_labels.iter().map(|(case, caption)|
-                            format!("{}:{}", object_key(case), self.lower_message(caption))
-                        ).collect::<Vec<_>>().join(",");
+                        let values = field
+                            .option_labels
+                            .iter()
+                            .map(|(case, caption)| {
+                                format!("{}:{}", object_key(case), self.lower_message(caption))
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",");
                         labels.push_str(&format!(",optionLabels:{{{values}}}"));
                     }
                     format!(
@@ -9923,6 +10063,9 @@ impl<'a> Emitter<'a> {
         };
         members.push(format!("admit:{admit_body}"));
         members.push(format!("render:{func}"));
+        if has_direct_priorities {
+            members.push(format!("renderParts:{parts_func}"));
+        }
         out.push(
             page.span,
             Some(format!("page {}", page.path)),
@@ -9954,15 +10097,19 @@ impl<'a> Emitter<'a> {
         } else {
             String::new()
         };
-        let content =
-            format!("(await Promise.all([{children}])).filter(value=>value!=null).join('')");
+        let parts = format!("(await Promise.all([{children}])).filter(value=>value!=null)");
         // The HTTP page owner applies the shared shell once. This function
         // renders only admitted content for both full and partial requests.
-        out.push(
-            page.span,
-            Some(format!("page {}", page.path)),
-            &format!("export async function {func}(c,bindings){{{preamble}return {content};}}"),
-        );
+        let render = if has_direct_priorities {
+            format!(
+                "export async function {parts_func}(c,bindings){{{preamble}return {parts};}}\nexport async function {func}(c,bindings){{return (await {parts_func}(c,bindings)).join('');}}"
+            )
+        } else {
+            format!(
+                "export async function {func}(c,bindings){{{preamble}return {parts}.join('');}}"
+            )
+        };
+        out.push(page.span, Some(format!("page {}", page.path)), &render);
     }
 }
 
@@ -9988,6 +10135,7 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
                 | "textMessageValueList"
         )
         || node.factory == "form"
+        || matches!(node.factory.as_str(), "actionMenu" | "primaryActions")
         || node.factory == "detailsDrawer"
         || node.factory == "gallery"
         || node.factory == "history"
@@ -10009,6 +10157,7 @@ fn ui_uses_async(node: &IrUi) -> bool {
                 | "textMessageValueList"
         )
         || node.factory == "form"
+        || matches!(node.factory.as_str(), "actionMenu" | "primaryActions")
         || node.factory == "detailsDrawer"
         || node.factory == "gallery"
         || node.factory == "history"

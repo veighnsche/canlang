@@ -9933,10 +9933,37 @@ impl<'a> Cx<'a> {
     ) {
         let empty = (false, None, None, IrModifiers::default(), None, None);
         if let Some(field) = self.program.types.given_fields.get(&symbol.id) {
-            let ty = self.program.types.symbol_types.get(&symbol.id).cloned().unwrap_or(ResolvedType::Error);
-            let default = field.default.as_ref().map(|value| IrDefault::Literal(given_constant_expr(value, &ty, symbol.span)));
-            let bound_ty = if matches!(ty, ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)) { ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal) } else { ResolvedType::Scalar(crate::analysis::types::Scalar::Int) };
-            let modifiers = IrModifiers { trim: field.trim, min: field.min.as_ref().map(|value| given_constant_expr(value, &bound_ty, symbol.span)), max: field.max.as_ref().map(|value| given_constant_expr(value, &bound_ty, symbol.span)), ..IrModifiers::default() };
+            let ty = self
+                .program
+                .types
+                .symbol_types
+                .get(&symbol.id)
+                .cloned()
+                .unwrap_or(ResolvedType::Error);
+            let default = field
+                .default
+                .as_ref()
+                .map(|value| IrDefault::Literal(given_constant_expr(value, &ty, symbol.span)));
+            let bound_ty = if matches!(
+                ty,
+                ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)
+            ) {
+                ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)
+            } else {
+                ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
+            };
+            let modifiers = IrModifiers {
+                trim: field.trim,
+                min: field
+                    .min
+                    .as_ref()
+                    .map(|value| given_constant_expr(value, &bound_ty, symbol.span)),
+                max: field
+                    .max
+                    .as_ref()
+                    .map(|value| given_constant_expr(value, &bound_ty, symbol.span)),
+                ..IrModifiers::default()
+            };
             return (false, default, None, modifiers, None, None);
         }
         let data = self
@@ -10015,7 +10042,19 @@ impl<'a> Cx<'a> {
         self.inherit_field_modifiers(symbol, &mut modifiers);
         self.apply_given_field_constraints(symbol.id, &mut modifiers);
         if default.is_none() {
-            default = self.program.types.given_constraints.get(&symbol.id).and_then(|constraints| constraints.iter().find_map(|field| field.default.as_ref())).map(|value| IrDefault::Literal(given_constant_expr(value, &self.program.types.symbol_types[&symbol.id], symbol.span)));
+            default = self
+                .program
+                .types
+                .given_constraints
+                .get(&symbol.id)
+                .and_then(|constraints| constraints.iter().find_map(|field| field.default.as_ref()))
+                .map(|value| {
+                    IrDefault::Literal(given_constant_expr(
+                        value,
+                        &self.program.types.symbol_types[&symbol.id],
+                        symbol.span,
+                    ))
+                });
         }
         let label = data
             .label
@@ -10043,15 +10082,39 @@ impl<'a> Cx<'a> {
     }
 
     fn apply_given_field_constraints(&self, field: SymbolId, modifiers: &mut IrModifiers) {
-        let Some(constraints) = self.program.types.given_constraints.get(&field) else { return; };
+        let Some(constraints) = self.program.types.given_constraints.get(&field) else {
+            return;
+        };
         let symbol = &self.program.symbols[field.0 as usize];
-        let ty = if matches!(self.program.types.symbol_types.get(&field), Some(ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal))) { ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal) } else { ResolvedType::Scalar(crate::analysis::types::Scalar::Int) };
+        let ty = if matches!(
+            self.program.types.symbol_types.get(&field),
+            Some(ResolvedType::Scalar(
+                crate::analysis::types::Scalar::Decimal
+            ))
+        ) {
+            ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)
+        } else {
+            ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
+        };
         for constraint in constraints {
             modifiers.trim |= constraint.trim;
-            for (slot, value, minimum) in [(&mut modifiers.min, &constraint.min, true), (&mut modifiers.max, &constraint.max, false)] {
+            for (slot, value, minimum) in [
+                (&mut modifiers.min, &constraint.min, true),
+                (&mut modifiers.max, &constraint.max, false),
+            ] {
                 if let Some(value) = value {
                     let bound = given_constant_expr(value, &ty, symbol.span);
-                    if slot.as_ref().is_none_or(|old| compare_literal_bounds(&bound, old).is_some_and(|order| if minimum { order == std::cmp::Ordering::Greater } else { order == std::cmp::Ordering::Less })) { *slot = Some(bound); }
+                    if slot.as_ref().is_none_or(|old| {
+                        compare_literal_bounds(&bound, old).is_some_and(|order| {
+                            if minimum {
+                                order == std::cmp::Ordering::Greater
+                            } else {
+                                order == std::cmp::Ordering::Less
+                            }
+                        })
+                    }) {
+                        *slot = Some(bound);
+                    }
                 }
             }
         }
@@ -11695,6 +11758,7 @@ impl<'a> Cx<'a> {
                 }
             }
         }
+        bind_external_panel_triggers(&mut render);
         if page.data.is_some() {
             self.diags.push(Diagnostic::error(
                 "E6008",
@@ -12018,6 +12082,9 @@ impl<'a> Cx<'a> {
                 })
             }
             SyntaxKind::Details => self.decode_disclosure(scope, node, "details", row_ctx),
+            SyntaxKind::Form if matches!(word.as_str(), "primary" | "secondary") => {
+                self.decode_contextual_actions(scope, node, row_ctx)
+            }
             SyntaxKind::Form => self.decode_form(scope, node, row_ctx),
             SyntaxKind::Collection => self.decode_collection(scope, node, &word),
             SyntaxKind::Tabs => {
@@ -12605,7 +12672,10 @@ impl<'a> Cx<'a> {
                 default_value: Some(default_value),
                 nullable: false,
                 caption: label.as_ref().and_then(|label| label.text.clone()),
-                option_labels: label.as_ref().map(|label| label.values.clone()).unwrap_or_default(),
+                option_labels: label
+                    .as_ref()
+                    .map(|label| label.values.clone())
+                    .unwrap_or_default(),
             });
         }
         let text = |value: String| {
@@ -13169,6 +13239,14 @@ impl<'a> Cx<'a> {
                 "cannot lower tooltip: needs one nonempty ordinary content suite".to_string(),
                 node.span,
             ));
+            return None;
+        }
+        fn contains_priority(node: &IrUi) -> bool {
+            matches!(node.factory.as_str(), "primaryActions" | "actionMenu")
+                || node.children.iter().any(contains_priority)
+        }
+        if children.iter().any(contains_priority) {
+            self.diags.push(Diagnostic::error("E6008", "cannot lower tooltip: tooltip is noninteractive and cannot contain priority actions, including expanded views".into(), node.span));
             return None;
         }
         Some(IrUi {
@@ -13941,6 +14019,146 @@ impl<'a> Cx<'a> {
             gate: None,
             span,
         }
+    }
+
+    /// Each priority primitive owns one canonical control. Owner factories
+    /// arrange the resulting opaque bindings without changing evaluation scope.
+    fn decode_contextual_actions(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        let priority = ui_word(self.db, node);
+        let headers: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .collect();
+        let caption = headers.first().copied()?;
+        let caption = self.decode_ui_header_value(scope, caption);
+        if let Some(child) = node.descendants().find(|child| {
+            is_ui_node(child.kind)
+                && !std::ptr::eq(*child, node)
+                && !matches!(
+                    ui_word(self.db, child).as_str(),
+                    "input"
+                        | "textarea"
+                        | "select"
+                        | "checkbox"
+                        | "toggle"
+                        | "radio"
+                        | "range"
+                        | "file_input"
+                        | "calendar"
+                        | "label"
+                        | "validator"
+                        | "fieldset"
+                        | "require"
+                )
+        }) {
+            self.diags.push(Diagnostic::error("E6008", "action primitive suites accept authored inputs and require guards, never nested controls".into(), child.span));
+            return None;
+        }
+        let mut control = if node.kind == SyntaxKind::Form {
+            let target = ui_attributes(self.db, node)
+                .into_iter()
+                .find(|(name, _)| name == "action")
+                .and_then(|(_, value)| value)?;
+            let operation = self.resolve_operation_target(scope.module, target)?;
+            if let SymbolKind::CrudOp {
+                model,
+                op: CrudOp::Delete,
+            } = self.program.symbols.get(operation.0 as usize)?.kind
+            {
+                let arguments = ui_attributes(self.db, node)
+                    .into_iter()
+                    .find(|(name, _)| name == "arguments")
+                    .and_then(|(_, value)| value)?;
+                let arguments = self.decode_expr(scope, arguments);
+                let IrExpr::Object(entries) = arguments.expr else {
+                    return None;
+                };
+                let record = entries
+                    .into_iter()
+                    .find(|(name, _)| name == "record")
+                    .map(|(_, value)| value)?;
+                let mut delete = self.decode_delete_leaf(scope, node, Some((model, "row".into())));
+                delete
+                    .props
+                    .retain(|(key, _)| key != "record" && key != "idPrefix");
+                delete.props.push(("record".into(), record));
+                delete.props.push((
+                    "idPrefix".into(),
+                    TypedExpr::new(
+                        IrExpr::Text(format!(
+                            "can-delete-f{}-s{}",
+                            node.span.file.0, node.span.start
+                        )),
+                        ResolvedType::Scalar(Scalar::Text),
+                        node.span,
+                    ),
+                ));
+                delete
+            } else {
+                let mut form = self.decode_form(scope, node, row_ctx)?;
+                form.props.retain(|(key, _)| key != "submit");
+                form.props.push(("submit".into(), caption.clone()));
+                form
+            }
+        } else {
+            let mut props = vec![("caption".into(), caption.clone())];
+            for (name, value) in ui_attributes(self.db, node) {
+                let Some(value) = value else {
+                    continue;
+                };
+                let decoded = if name == "opens" {
+                    TypedExpr::new(
+                        IrExpr::Text(opens_spelling(self.db, value)?),
+                        ResolvedType::Scalar(Scalar::Text),
+                        value.span,
+                    )
+                } else {
+                    self.decode_expr(scope, value)
+                };
+                props.push((name, decoded));
+            }
+            IrUi {
+                view: None,
+                factory: "button".into(),
+                props,
+                children: Vec::new(),
+                row_scope: None,
+                gate: None,
+                span: node.span,
+            }
+        };
+        if control.factory != "button" {
+            control.props.push(("controlLabel".into(), caption));
+            control.props.push((
+                "display".into(),
+                TypedExpr::new(
+                    IrExpr::Text("menu".into()),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
+        }
+        // The primitive's guard encloses preparation and admission once.
+        control.gate = None;
+        Some(IrUi {
+            view: None,
+            factory: if priority == "primary" {
+                "primaryActions"
+            } else {
+                "actionMenu"
+            }
+            .into(),
+            props: Vec::new(),
+            children: vec![control],
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     /// `actions` is a private grouping of ordinary protected operation forms.
@@ -15024,6 +15242,17 @@ impl<'a> Cx<'a> {
         );
         let mut form = self.protected_action_form(operation.op, arguments, node.span);
         form.children = children;
+        if ui_owns_submit(self.db, node) {
+            form.props.push((
+                "authoredSubmit".into(),
+                TypedExpr::new(
+                    IrExpr::Bool(true),
+                    ResolvedType::Scalar(Scalar::Bool),
+                    node.span,
+                ),
+            ));
+        }
+
         form.props.push((
             "fields".to_string(),
             TypedExpr::new(
@@ -15065,15 +15294,21 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
         let mut props = Vec::new();
-        let target = kids(node)
-            .iter()
-            .find(|n| {
-                matches!(
-                    n.kind,
-                    SyntaxKind::Member | SyntaxKind::Path | SyntaxKind::NameRef
-                )
-            })
-            .copied();
+        let target = ui_attributes(self.db, node)
+            .into_iter()
+            .find(|(name, _)| name == "action")
+            .and_then(|(_, value)| value)
+            .or_else(|| {
+                kids(node)
+                    .iter()
+                    .find(|n| {
+                        matches!(
+                            n.kind,
+                            SyntaxKind::Member | SyntaxKind::Path | SyntaxKind::NameRef
+                        )
+                    })
+                    .copied()
+            });
         let mut operation_target: Option<SymbolId> = None;
         if let Some(target) = target
             && let Some(op) = self.resolve_operation_target(scope.module, target)
@@ -15223,6 +15458,16 @@ impl<'a> Cx<'a> {
                         })
                         .collect()
                 });
+        if ui_owns_submit(self.db, node) {
+            props.push((
+                "authoredSubmit".into(),
+                TypedExpr::new(
+                    IrExpr::Bool(true),
+                    ResolvedType::Scalar(Scalar::Bool),
+                    node.span,
+                ),
+            ));
+        }
         let children = self.decode_ui_children(&owned, node, row_ctx);
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
@@ -17061,6 +17306,9 @@ impl<'a> Cx<'a> {
         word: &str,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
+        if matches!(word, "primary" | "secondary") {
+            return self.decode_contextual_actions(scope, node, row_ctx);
+        }
         if word == "actions" {
             return self.decode_actions(scope, node, row_ctx);
         }
@@ -17248,6 +17496,76 @@ fn slot_name(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
 }
 
 /// Factory word of a UI node (the leading name, lowercased).
+/// Derive external panel openers from canonical bindings in the same
+/// declaration/result/row scope. This changes no gate or evaluation order.
+fn bind_external_panel_triggers(nodes: &mut [IrUi]) {
+    fn private_scope(node: &IrUi) -> bool {
+        node.view.is_some() || node.row_scope.is_some() || node.factory == "form"
+    }
+    fn collect(nodes: &[IrUi], targets: &mut HashSet<String>) {
+        for node in nodes {
+            if private_scope(node) {
+                continue;
+            }
+            if node.factory == "button" {
+                if let Some((_, value)) = node.props.iter().find(|(key, _)| key == "opens") {
+                    if let IrExpr::Text(target) = &value.expr {
+                        targets.insert(target.clone());
+                    }
+                }
+            }
+            collect(&node.children, targets);
+        }
+    }
+    fn mark(nodes: &mut [IrUi], targets: &HashSet<String>) {
+        for node in nodes {
+            if private_scope(node) {
+                bind_external_panel_triggers(&mut node.children);
+                continue;
+            }
+            if matches!(node.factory.as_str(), "modal" | "drawer")
+                && node.props.iter().any(|(key, value)| {
+                    key == "id" && matches!(&value.expr, IrExpr::Text(id) if targets.contains(id))
+                })
+                && !node
+                    .children
+                    .iter()
+                    .any(|child| ui_slot_name(child) == Some("trigger"))
+            {
+                node.props.push((
+                    "externalTrigger".into(),
+                    TypedExpr::new(
+                        IrExpr::Bool(true),
+                        ResolvedType::Scalar(Scalar::Bool),
+                        node.span,
+                    ),
+                ));
+            }
+            mark(&mut node.children, targets);
+        }
+    }
+    let mut targets = HashSet::new();
+    collect(nodes, &mut targets);
+    mark(nodes, &targets);
+}
+
+fn ui_owns_submit(db: &SourceDb, node: &SyntaxNode) -> bool {
+    kids(node).into_iter().any(|child| {
+        if matches!(child.kind, SyntaxKind::Form | SyntaxKind::Edit) {
+            return false;
+        }
+        if child.kind == SyntaxKind::UiLeaf
+            && matches!(ui_word(db, child).as_str(), "primary" | "secondary")
+            && ui_attributes(db, child)
+                .iter()
+                .any(|(name, _)| name == "submit")
+        {
+            return true;
+        }
+        is_ui_node(child.kind) && ui_owns_submit(db, child)
+    })
+}
+
 fn ui_word(db: &SourceDb, node: &SyntaxNode) -> String {
     kids(node)
         .iter()
@@ -18728,18 +19046,35 @@ pub struct GivenContractIr {
 fn given_constant_expr(value: &str, ty: &ResolvedType, span: Span) -> TypedExpr {
     use crate::analysis::types::Scalar;
     let text = value.trim();
-    let expr = if text == "null" { IrExpr::Null } else {
+    let expr = if text == "null" {
+        IrExpr::Null
+    } else {
         match ty {
             ResolvedType::Nullable(inner) => return given_constant_expr(text, inner, span),
             ResolvedType::Array { element, .. } => {
-                let body = text.strip_prefix('[').and_then(|v| v.strip_suffix(']')).unwrap_or("");
-                IrExpr::Array(crate::analysis::types::split_given_consts(body).iter().filter(|v| !v.is_empty()).map(|v| given_constant_expr(v, element, span)).collect())
+                let body = text
+                    .strip_prefix('[')
+                    .and_then(|v| v.strip_suffix(']'))
+                    .unwrap_or("");
+                IrExpr::Array(
+                    crate::analysis::types::split_given_consts(body)
+                        .iter()
+                        .filter(|v| !v.is_empty())
+                        .map(|v| given_constant_expr(v, element, span))
+                        .collect(),
+                )
             }
             ResolvedType::Scalar(Scalar::Bool) => IrExpr::Bool(text == "true"),
-            ResolvedType::Scalar(Scalar::Int) => IrExpr::Int(text.parse().expect("checked Given integer")),
+            ResolvedType::Scalar(Scalar::Int) => {
+                IrExpr::Int(text.parse().expect("checked Given integer"))
+            }
             ResolvedType::Scalar(Scalar::Decimal) => IrExpr::Decimal(text.to_string()),
-            ResolvedType::Scalar(Scalar::Date) => IrExpr::Date(serde_json::from_str(text).unwrap_or_else(|_| text.to_string())),
-            ResolvedType::Scalar(Scalar::Datetime) => IrExpr::Datetime(serde_json::from_str(text).unwrap_or_else(|_| text.to_string())),
+            ResolvedType::Scalar(Scalar::Date) => {
+                IrExpr::Date(serde_json::from_str(text).unwrap_or_else(|_| text.to_string()))
+            }
+            ResolvedType::Scalar(Scalar::Datetime) => {
+                IrExpr::Datetime(serde_json::from_str(text).unwrap_or_else(|_| text.to_string()))
+            }
             _ => IrExpr::Text(serde_json::from_str(text).unwrap_or_else(|_| text.to_string())),
         }
     };
@@ -18787,7 +19122,16 @@ pub fn lower_given_contracts(
                 anchor: contract.anchor.clone(),
                 unit_id: contract.unit_id.clone(),
                 target: app.target_canonical.clone(),
-                fields: fields.iter().cloned().map(|mut field| { if let Some(target) = &app.target_field { field.name = target.clone(); } field }).collect(),
+                fields: fields
+                    .iter()
+                    .cloned()
+                    .map(|mut field| {
+                        if let Some(target) = &app.target_field {
+                            field.name = target.clone();
+                        }
+                        field
+                    })
+                    .collect(),
                 fingerprint: contract.fingerprint.clone(),
                 order: app.order,
                 span: app.span,

@@ -565,7 +565,7 @@ describe("button", () => {
       caption: "Score",
       opens: "review_details",
     });
-    assert.equal(html, `<a class="btn" href="#review_details">Score</a>`);
+    assert.equal(html, `<a class="btn" href="#review_details" data-can-panel-open="review_details">Score</a>`);
   });
 
   it("rejects zero bindings and two-or-more bindings", async () => {
@@ -1268,7 +1268,7 @@ describe("themeController", () => {
       assert.equal(radios[1]?.getAttribute("value"), "can-dark-blue");
       assert.ok(html.includes(`value="can-dark-blue" checked`), html);
       assert.ok(!html.includes(`value="can-light-blue" checked`), html);
-      assert.ok(html.includes(`<button type="submit" class="btn btn-primary">Save</button>`), html);
+      assert.ok(html.includes(`<button type="submit" class="btn btn-primary" data-can-standard-submit>Save</button>`), html);
     } finally {
       await page.close();
     }

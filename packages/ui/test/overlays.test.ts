@@ -411,7 +411,7 @@ describe("modal", () => {
       id: "review_details",
       content: ["<p>Body</p>"],
     });
-    assert.ok(html.startsWith(`<a class="btn" href="#review_details">Score review</a>`), html);
+    assert.ok(html.startsWith(`<a class="btn" href="#review_details" data-can-panel-open="review_details">Score review</a>`), html);
   });
 
   it("renders a provided anchor trigger against the dialog id", async () => {
@@ -433,7 +433,7 @@ describe("modal", () => {
       trigger: [`<a class="btn" href="#notice">Show</a>`],
       content: ["<p>Body</p>"],
     });
-    assert.ok(html.includes(`<dialog class="modal" aria-label="Notice">`), html);
+    assert.ok(html.includes(`<dialog class="modal" aria-label="Notice" data-can-panel="modal">`), html);
   });
 
   it("localizes the close control", async () => {
@@ -507,7 +507,7 @@ describe("drawer", () => {
       content: [`<ul class="menu"><li>F</li></ul>`],
       actions: [`<button class="btn">Apply</button>`],
     });
-    assert.ok(html.startsWith(`<div class="drawer">`), html);
+    assert.ok(html.startsWith(`<div class="drawer" data-can-panel="drawer">`), html);
     assert.ok(html.includes(`<input id="filters" type="checkbox" class="drawer-toggle">`), html);
     assert.ok(html.includes(`<div class="drawer-content">`), html);
     assert.ok(html.includes(`<div class="drawer-side can-drawer-panel">`), html);
@@ -523,7 +523,7 @@ describe("drawer", () => {
       id: "filters",
       content: ["<p>Body</p>"],
     });
-    assert.ok(html.includes(`<label for="filters" class="btn drawer-button">Filters</label>`), html);
+    assert.ok(html.includes(`<label for="filters" class="btn drawer-button" data-can-panel-open="filters">Filters</label>`), html);
     assert.ok(html.includes(`aria-labelledby="filters-title"`), html);
     assert.ok(html.includes(`<h2 id="filters-title"`), html);
   });
@@ -542,7 +542,7 @@ describe("drawer", () => {
       assert.equal(toggle?.getAttribute("id"), "panel");
       assert.equal(toggle?.getAttribute("type"), "checkbox");
       const labels = page.document.querySelectorAll('label[for="panel"]');
-      assert.equal(labels.length, 2);
+      assert.equal(labels.length, 3);
     } finally {
       await page.close();
     }

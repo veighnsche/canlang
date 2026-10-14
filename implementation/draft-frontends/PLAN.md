@@ -1,6 +1,6 @@
 # Draft frontend implementation plan
 
-Status: **proposed execution sequence, 13 October 2026; implementation not dispatched by this planning turn.** The user requires every draft app to work through the real dev server, look good, and have functional and screenshot evidence. Generated styles, components, traits and custom-keyword logic must use **Codex GPT-6.1 Sol (`gpt-6.1-sol`) at medium reasoning**.
+Status: **partial implementation, 13 October 2026.** The user authorized app-local Playwright setup and reference comparisons; a separate agent owns reference-image generation. The user requires every draft app to work through the real dev server, look good, and have functional and screenshot evidence. Generated styles, components, traits and custom-keyword logic must use **Codex GPT-6.1 Sol (`gpt-6.1-sol`) at medium reasoning**.
 
 This is the current execution view for draft adoption and frontend acceptance, with IDs **DFE-01–07**. The [BGI-01–13 plan](../../design/proposals/build-generation/implementation-plan.md) remains the sole execution view for the generation engine. The [dev-server plan](../can-dev-server/PLAN.md) and its linked Compiler, Capability and Packages assignments retain their existing owners and accepted results. A dependency here requires its named output, not completion of that owner's whole programme. This plan does not restart the stopped dev-server programme or reassign the separately authorized BGI implementer.
 
@@ -8,13 +8,13 @@ This is the current execution view for draft adoption and frontend acceptance, w
 
 | Evidence already available | Scope retained |
 | --- | --- |
-| [Corpus audit](../../output/draft-frontends/corpus/index.html) and [validation runbook](../../docs/draft-frontend-validation.md) | 50 source groups, 57 app declarations, 122 authored pages, 100 literal prompts, 119 named uses and 2,425 example rows. These are lexical counts; selected-app closures and route membership still need compiler output. |
+| Corpus audit (`../../output/draft-frontends/corpus/index.html`, local run output) and [validation runbook](../../docs/draft-frontend-validation.md) | 50 source groups, 57 app declarations, 122 authored pages, 100 literal prompts, 119 named uses and 2,425 example rows. These are lexical counts; selected-app closures and route membership still need compiler output. |
 | Complete baseline analysis | 862 diagnostics, zero omitted. This predates the two focused source corrections; it is not 862 independent bugs. Unsupported prompt syntax causes cascading failures. |
 | CanDiscover pending-record and CanPromptLab archive-field corrections | The two specific diagnostics are absent in the complete focused check. Their app workflows remain unqualified. |
 | ModelFreePreview and HelpOffice captures | Four inspected desktop/mobile resting-state images using shipped styling; four HelpOffice example rows pass. These qualify neither a draft app nor generated styles. The later broad HelpOffice attempt did not complete. |
 | Existing dev T00–T13 and G1/G2 | Original Office acceptance stays closed at its recorded frozen inputs. Its separate G3/A7 unfamiliar-agent benchmark is externally held and is not a prerequisite here. |
 
-The current dev admission profile rejects explicit packages, imports, `app … uses=` and multiple app declarations. Every draft source group uses packages/composition. The BGI execution view currently records engine tasks as planned; handwritten `can.generated` files have no real generation provenance. No complete draft frontend is accepted by this validation work yet.
+The current dev admission profile rejects explicit packages, imports, `app … uses=` and multiple app declarations. Every draft source group uses packages/composition. The BGI execution view now records actual PromptStudio generation and candidate compile/build/native/Playwright acceptance. The draft apps still retain 100 legacy handwritten saved-unit records without real generation provenance; those records are not compatible with current saved-unit intake. No complete draft frontend is accepted by this validation work yet.
 
 ## Delivery order
 
@@ -80,9 +80,11 @@ CanTable is a useful first domain app because it has one page, one inline style 
 
 ### DFE-05 — Execute complete functional journeys
 
-**Status:** planned.
+**Status:** partial implementation. All 50 app groups now have local configs, entries and 127 concrete journey bodies: source-specific permitted/denied access, fresh-store views and reloads, saved preferences, incomplete-input refusal and CanApprove validation/create/readback. All 57 coverage checks still fail for listed unmet workflows/states and permitted identities; these bodies are authored, not accepted app executions. Real business-role/serving-data provisioning and composed preview remain prerequisites. The actual CanTable attempt fails `PROFILE_UNSUPPORTED` before capture. See the current rollout result below; source examples and initial-page checks cannot close this task.
 
-**Owner / files:** existing `tests/e2e/apps/`, `tests/e2e/fixtures/` and owning runtime/example tests; extend `scripts/capture-dev-frontend.mjs` only for reusable dev-session/capture needs. Use existing Playwright and Testkit rather than create a new framework.
+The shared session helper is qualified on actual ModelFreePreview authentication/rendering/capture and all four HelpOffice example rows, with matching source/build identity and owned cleanup. Two concrete preview bundle omissions were fixed in the existing Cloudflare owner: stage `export-downloads.js` and expose its existing `canonicalJson` dependency through the HTTP facade. This restores the ordinary preview seam and does not implement composed-app support.
+
+**Owner / files:** `draft/apps/*/playwright/app.spec.ts` and adjacent journey notes, shared `tests/e2e/drafts/` session/suite helpers, and owning runtime/example tests. Use the existing Playwright dependency and owner-only dev protocol.
 
 **Prerequisite output:** DFE-01 coverage for the app; current DFE-02 preview, relevant DFE-03 resources and accepted DFE-04 outputs. Journey authoring can start earlier from the source requirements.
 
@@ -94,9 +96,9 @@ CanTable is a useful first domain app because it has one page, one inline style 
 
 ### DFE-06 — Inspect prompt fidelity, images and responsive quality
 
-**Status:** planned; reuse the capture tool, not its unrelated fixture verdicts.
+**Status:** partial setup. The app specs now map 108 current reference concepts to source routes. App-local capture/accessibility/side-by-side reports and tolerant inspected-baseline regression checks are implemented. A direct Chromium helper qualification passes pending capture, matching baseline and material mismatch reporting; it qualifies the helper only. No original draft capture or visual acceptance is claimed. A separate agent supplies app-local reference concepts; this implementation generates none.
 
-**Owner / files:** UI/draft quality owner; source style/view prompts, generated editable outputs and existing Playwright screenshot assertions/results under `output/draft-frontends/`.
+**Owner / files:** UI/draft quality owner; source style/view prompts and generated editable outputs; app-local `playwright/references/`, `playwright/baselines/` and ignored `playwright/results/`; shared `tests/e2e/drafts/visual.ts`.
 
 **Prerequisite output:** current DFE-05 setup and meaningful browser states. Capture only after consumed source, runtime outputs, catalog and accepted generated groups are fixed.
 
@@ -108,7 +110,7 @@ Image-bearing apps additionally use genuine admitted test image files through th
 
 ### DFE-07 — Roll out the corpus and keep the result repeatable
 
-**Status:** planned.
+**Status:** partial rollout. All 50 app-local `playwright.config.ts` files are compatible with candidate acceptance; the shared suite consumes candidate source bytes while retaining authored companion requirements. `test:draft`, `test:draft:coverage` and `typecheck:draft` discover 828 cases across 50 entries. Coverage still fails for every selection, and no saved-output CI acceptance is claimed. Existing DFE-01–06 gaps remain prerequisites for acceptance, not prerequisites for adding the local test files.
 
 **Owner / files:** draft integration owner; existing audit/capture scripts, Playwright config/specs, appropriate existing CI workflow and [runbook](../../docs/draft-frontend-validation.md).
 
@@ -117,6 +119,81 @@ Image-bearing apps additionally use genuine admitted test image files through th
 **Change:** add one documented command that selects authored apps, runs their saved-output functional/visual checks and emits the coverage summary using existing reports. Derive selection/routes from checked source rather than a parallel app manifest; test-specific fixture data and expected outcomes remain in the owning tests. CI validates accepted saved output without model calls. Real generation is a separate explicit, bounded qualification run after relevant prompt/generator changes. Publish screenshots and diffs as test artifacts, with missing/stale/held coverage clearly distinct from passes.
 
 **Done when:** all current source groups and selected app declarations are accounted for, every required journey and route/state passes, and no required binding/provider/visual gate remains unreported. Shared package examples and generator mechanisms are counted once and linked to every consumer; composed apps still exercise their own routing, authority and layout joins. A new app, route or requirement causes an explicit coverage gap until added. Full acceptance is withheld while any required row is failed, unsupported, uninspected or externally held. Changed inputs rerun only affected checks; unchanged acceptance is reused.
+
+## Current rollout result — 13 October 2026
+
+The readiness result (`../../output/draft-frontends/rollout-readiness.json`, local run output) replaces the old diagnostic counts for this rollout: all 57 selections are outside current composed-preview admission; corpus analysis returns 394 diagnostics, complete with none omitted. CanTable plus authentic Employee/Location sources passes analysis but native compilation reports 41 emission failures (40 E6008, one E6007), including scoped query/control and imported derive/hook lowering. These are operand-closure failures, not proof every imported declaration belongs to the minimal selected closure. CanPromptLab has 61 analysis diagnostics rooted in field-trait parsing and missing generated bindings. Compiler owns those fixes and selected dependency closure; Dev owns composed capture and genuine serving actor/record provisioning. Merely removing admission is insufficient.
+
+The coverage run (`../../output/draft-frontends/rollout-coverage.json`, local run output) executed all 57 lexical coverage cases: 57 fail, zero skipped/flaky. Each app's `playwright/results/coverage/` names missing operations, companion requirements, states and permitted page actors. Counts shared across alternative compositions are not additional canonical assignments. Both E2E typechecks and diff checks pass; discovery (`../../output/draft-frontends/rollout-discovery.json`, local run output) lists 828 cases, not 828 successful executions. Candidate-overlay discovery preserves companion requirements and substitutes candidate routes; private `.can` directories are excluded from source discovery.
+
+The real shared-session check (`../../output/draft-frontends/rollout-harness/report.json`, local run output) passes anonymous direct JSON refusal, actual HTML sign-in recovery without an Identity cookie, member HTTP200 rendering, currentness and owned cleanup. Its initial 403-for-HTML assumption was corrected against actual authentication behavior; similarly new app tests use canonical validation rather than nonexistent native-required/email widget behavior. Custom-role denied actors remain distinct from explicit permitted `pageActors`. This qualifies the changed helper only. No original draft screenshot/reference comparison or complete workflow is accepted; those remain DFE-02–06 gates. No reference images, generated implementations or production data were changed in this rollout.
+
+### Action primitive rollout — 14 October 2026
+
+**Explicit-owner correction, 14 October:** all 50 sources now contain 681
+priorities (526 primary, 155 secondary) under the declared owner matrix. Eighteen
+tooltip wrappers no longer own actions; useful localized explanations remain in
+the same row/card scope. Fieldset submits move to their form footer, modal/drawer
+controls to `slot actions`, and generated views declare whole canonical cards.
+Existing read/result workflows retain canonical forms; ordinary dropdown triggers
+retain ordinary checked buttons. Meaningful cards establish ownership within
+otherwise unsupported visual scopes, preserving captions, aliases and guards.
+
+The current whole-corpus check (`../../output/draft-frontends/action-owners-check.json`, local run output)
+completed all 53 app/shared sources with no omitted diagnostics and no action-owner
+admission diagnostics. It still reports 399 diagnostics for the recorded broader
+compiler/composition gaps. Two description-placement errors were repaired; a
+previously masked nullable-person diagnostic in CanReception became visible.
+This source check does not claim successful compilation, generation, browser
+acceptance or reference comparison of the complete corpus. The native working
+app owner-variant browser check is recorded once in the BGI execution view.
+
+
+DFE-01's source migration is complete at its defined scope: all 50 app files now
+contain **539 primary and 162 secondary individual labeled actions**. Bare
+priority suites were removed; targets, localized labels and required row bindings
+are explicit. Canonical inline, result-owning, import/review and dynamic forms
+remain complete forms. Given/When and the indentation of surviving source
+statements are preserved, including CanRent availability guards. New lexical
+state discovery retains operation validation/pending/success and adds secondary
+menu-open and explicit panel-open states; its focused direct test passes.
+
+Native generation plans (`../../output/draft-frontends/action-primitives-plans.json`, local run output)
+resolve all 50 source files with `--settings=draft/can.gen.toml`: all 95 discovered
+units request `gpt-6.1-sol` / medium, with zero model jobs during planning. This
+qualifies recipe selection, not generation. Explicit shared settings are now an
+ordinary `can gen FILE.can --settings=PATH` option; no ancestor search is added.
+
+The current native whole-corpus check (`../../output/draft-frontends/action-primitives-check.json`, local run output)
+contains all 53 app/shared sources, is complete with zero omitted diagnostics,
+and reports **400 diagnostics**. New migration/control-owner errors found during
+integration were fixed. Remaining failures include missing generated
+contributions, existing type and scoped-row gaps, and unsupported native
+contracts; they are not 400 independent rollout tasks. CanTable with its genuine
+Employees/Locations operands has **36 emission diagnostics** (35 E6008, one
+E6007), including filter declarations, membership-dependent predicates and
+imported hooks. The compile result (`../../output/draft-frontends/action-primitives-table-compile.json`, local run output)
+records those exact operands; it does not establish a minimal selected closure.
+
+A real native CanTable generation attempt (`../../output/draft-frontends/action-primitives-table-generation.json`, local run output)
+used Sol 6.1/medium and produced a candidate. Its acceptance gate rejected it at
+compilation because the source workflow omitted the imported source closure;
+31 diagnostics name the missing providers and dependent names. Current generated
+output was preserved. Do not spend calls regenerating every remaining app against
+this shared unresolved prerequisite. **DFE-02 remains open:** Compiler must supply
+checked selected-app/import closure; BGI acceptance and Dev must capture/compile
+that same closure and preserve app selection. Removing the one-file admission
+check does not satisfy this requirement. The independent complete-operand
+emission failures above also remain with their existing Compiler owners.
+
+The refreshed Playwright coverage run (`../../output/draft-frontends/action-primitives-coverage.json`, local run output)
+executes all 57 selections: 57 fail their explicitly missing workflow/state/actor
+coverage, with no skips or flaky cases. App-local configurations/tests and existing
+reference mappings remain present for all 50 apps. No original draft browser
+journey or reference-image comparison is credited by this rollout. DFE-04–06 stay
+open for those outcomes. The BGI execution view separately records real native
+PromptStudio acceptance of the shared action implementation; it cannot substitute
+for draft acceptance. No reference images were generated or replaced.
 
 ## Rollout batches
 

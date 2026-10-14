@@ -1825,8 +1825,8 @@ function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: Local
       lines.push(`registerGeneratedViewMount(${JSON.stringify(view.view)}, mount${index});`);
     }
     // The defining bootstrap may have started on an already parsed document.
-    // Restart its own client after registration so that inert bindings mount.
-    lines.push('if (typeof window !== "undefined" && window.document.readyState !== "loading") { startNativeBrowserClient(window).stop(); startNativeBrowserClient(window); }');
+    // Mount newly registered views without disposing live forms or panels.
+    lines.push('if (typeof window !== "undefined" && window.document.readyState !== "loading") { startNativeBrowserClient(window).rescan(); }');
     writeFileSync(entry, lines.join("\n"), "utf8");
     execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], bunBuildOptions(lifetime));
     return new Uint8Array(readFileSync(output));

@@ -14,8 +14,8 @@
  *
  * Join rules, kept in this file and nowhere else:
  * - Candidates validate as a complete set in a scratch overlay
- *   through the unmodified BGI-11 validator, then promote through
- *   one coordinated run journal. The role-to-saved filename map is
+ *   through the BGI-11 validator, compile/build/example/browser checks,
+ *   then promote through one coordinated run journal. The role-to-saved filename map is
  *   the logical filename except role `server`, which lands at the
  *   intake primary `implementation.js` (the BGI-11 packer derives
  *   `server.js`/`view.js` from there at pack time).
@@ -37,6 +37,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { AppAcceptanceError, runAppAcceptance, type AppAcceptanceGate } from "./acceptance.js";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import {
@@ -210,6 +211,10 @@ export interface ControlContext {
   profileName?: string;
   /** Git runner (default: spawn `git -C root`). */
   git?: GitRunner;
+  /** Mandatory candidate app checks; injection is for host tests only. */
+  appAcceptance?: AppAcceptanceGate;
+  /** Installed tooling workspace; source-file hosts need not run from it. */
+  workspace?: string;
 }
 
 /** Job-scoped attempt dirs live directly under this root. */
@@ -612,6 +617,10 @@ export async function dispatchControl(
 /** Map a producer failure to a control failure, or null when infrastructural. */
 function mapFailure(error: unknown): ControlError | null {
   if (error instanceof ControlError) return error;
+  if (error instanceof AppAcceptanceError) {
+    return new ControlError(EXIT_VALIDATION, "app-acceptance-failed", error.message,
+      ["inspect the app check report, repair the candidate or tests, then resend accept with a new request id"]);
+  }
   if (error instanceof ProtocolError) {
     return new ControlError(error.exit, error.code, error.detail, [
       "fix the request and resend",
@@ -1809,8 +1818,8 @@ function renderJobPrompt(
     "Generated view input uses RowView={id,version,fields}. Model data is projected under row.fields: read row.fields.title, row.fields.handle or row.fields.done, never row.title/row.handle/row.done. Row identity and version are row.id and row.version.",
     "Traits: submit only contributions.can. It is a Can source carrier beginning with `app <owning app>`, then `Given`. A named model trait uses a template model named after the trait, e.g. `completable {done:bool=false}`. An inline model trait names its attached model. A field trait uses one field of the attached type with the requested constraints; a named field trait template is `clean {value:text trim min=1}`, while an inline field trait names its model and field. Do not redeclare unrelated source fields, add executable code, or emit a server module for a trait.",
     "Keywords: the admitted v1 source signature (target:model, field:field(target,text)) binds the compiler-owned pure state.unique-key@1 producer. Submit a JavaScript ES module exporting `canonicalKey(value)` with an exact text input and text result. No contributions carrier, metadata, store, network, permissions, or effect handles. The compiler owns uniqueness, transactions, namespaces, and source applications. Preserve stored spelling; implement the prompt's key semantics only.",
-    "Views: submit an ES module exporting `render({row, bindings, ui})` returning HTML (or a Promise of HTML). `row` is the already admitted data; escape displayed values with ui.escapeHtml and attributes with ui.escapeAttr. `bindings` contains canonical HTML keyed by child factory in source order (edit, delete, form, action, actions; repeated names add 2, 3, ...). Include each binding exactly once, unchanged. Do not invent controls, endpoints or hidden fields. Optional `mount(root,presentation)` in the SAME module enhances only its instance and returns cleanup. Do not access browser globals at module scope. The host creates the instance root and supplies {view,useId,row}. View style.css and assets are optional.",
-    "Styles: submit ordinary CSS for the attached component and its owned parts. Use :host for the attachment root, :host(.class) for a root condition, and ordinary selectors for owned descendants. The compiler scopes selectors and local custom properties/keyframes. Do not use html, body, :root, :scope, :has(), global escapes, @import, remote URLs, or redefine shared theme variables. Read existing --color-base-100/200/300, --color-base-content, --color-primary, --color-accent, --color-error, --radius-box/field and --border with var(). Keep accessible focus, usable contrast and responsive layouts. Coordinate all Then intents and component uses shown below. Do not hide canonical controls or their validation states.",
+    "Views: submit an ES module exporting `render({row, bindings, ui})` returning HTML (or a Promise of HTML). `row` is already admitted data; escape displayed values with ui.escapeHtml and attributes with ui.escapeAttr. `bindings` contains complete canonical HTML keyed by child factory in source order (card, edit, delete, form, action, actions; repeated names add 2, 3, ...). Include each binding exactly once, unchanged. A card binding includes its source-authored content, primary footer and secondary heading menu; Can owns the whole card composition and design. Do not rebuild the card, duplicate its metadata, or extract or independently position its nested controls. Primary and secondary are labeled checked actions allowed only in semantic owner regions: page heading, card footer/header, list/table row, modal/drawer actions slot, detail drawer, or canonical form submission. Views and annotation/layout wrappers such as tooltip, tab, fieldset or join are not action owners. Do not invent controls, endpoints or hidden fields. Do not hide or restyle canonical controls. Optional `mount(root,presentation)` in the SAME module enhances only its instance and returns cleanup. Do not access browser globals at module scope. The host creates the instance root and supplies {view,useId,row}. View style.css and assets are optional.",
+    "Styles: submit ordinary CSS for the attached component and its owned parts. Use :host for the attachment root, :host(.class) for a root condition, and ordinary selectors for owned descendants. The compiler scopes selectors and local custom properties/keyframes. Do not use html, body, :root, :scope, :has(), global escapes, @import, remote URLs, or redefine shared theme variables. Read existing --color-base-100/200/300, --color-base-content, --color-primary, --color-accent, --color-error, --radius-box/field and --border with var(). Keep accessible focus, usable contrast and responsive layouts. Coordinate all Then intents and component uses shown below. Do not hide canonical controls or their validation states. Primary/secondary controls and standard form submits are shared design boundaries: do not restyle their internals, typography, color, dimensions or placement within their owning action region.",
     "",
   ];
   for (const source of sources) {
@@ -2397,7 +2406,7 @@ async function composeAcceptance(
     };
   }
   const scope = await promotionScopeFromAttempts(root, jobs.map((job) => job.attemptDir));
-  await validateCandidateSet(ctx, header, root, scope);
+  await validateCandidateSet(ctx, header, root, scope, true);
   const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "composed accept:true");
   return executionEnvelope(header, jobs, [], {
     run: promoted.run,
@@ -2415,6 +2424,8 @@ export interface PromotionUnit {
   replacements: Replacement[];
   /** Candidate handle behind each replacement (parallel to replacements). */
   origins: (string | null)[];
+  /** Authored interface bytes actually validated, including retained dependencies. */
+  checkedDeclarations?: Record<string, string | null>;
 }
 
 /** Read one saved record or refuse with the unit's reconciliation action. */
@@ -2564,6 +2575,7 @@ async function validateCandidateSet(
   header: RequestHeader,
   root: string,
   scope: PromotionUnit[],
+  acceptance = false,
 ): Promise<{ unit_id: string; fingerprint: string }[]> {
   await mkdir(join(root, VALIDATE_DIR), { recursive: true });
   const scratch = await mkdtemp(join(root, VALIDATE_DIR, "set-"));
@@ -2662,10 +2674,47 @@ async function validateCandidateSet(
         ["inspect the failures, repair or regenerate with a new request id, then resend accept"],
       );
     }
+    if (acceptance) {
+      // Compile/test the frozen overlay, never temporarily replace current outputs.
+      // The preparation-only Given pass above deliberately remains static: its
+      // frontend siblings do not exist until the next generation job completes.
+      const before = await candidateInputDigest(scratch, copiedSources);
+      const checkedDeclarations: Record<string, string | null> = {};
+      for (const unit of copied) {
+        const path = join(scratch, GENERATED_DIR, unit, "declaration.json");
+        checkedDeclarations[unit] = await fileExists(path) ? sha256HexBytes(await readFile(path)) : null;
+      }
+      await (ctx.appAcceptance ?? runAppAcceptance)({ root, candidateRoot: scratch,
+        files: [...new Set(scope.map(entry => relative(resolve(root), scopeAbs(root, entry.record.source.path))))],
+        compiler: defaultCompilerPath(), reportDir: join(root, ".can/gen/checks", runFor("run", header.request_id)),
+        ...(ctx.workspace === undefined ? {} : { workspace: ctx.workspace }),
+        ...(ctx.onEvent === undefined ? {} : { onEvent: ctx.onEvent }),
+      });
+      if (await candidateInputDigest(scratch, copiedSources) !== before) {
+        throw new AppAcceptanceError("inputs", "candidate inputs changed during checks; current outputs are unchanged");
+      }
+      if (scope[0] !== undefined) scope[0].checkedDeclarations = checkedDeclarations;
+    }
     return validated;
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
+}
+
+/** Tests may write reports, but must not rewrite the bytes being certified. */
+async function candidateInputDigest(scratch: string, sources: Set<string>): Promise<string> {
+  const files = new Map<string, string>();
+  async function walk(dir: string): Promise<void> {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.isFile()) files.set(relative(scratch, path), sha256HexBytes(await readFile(path)));
+      else throw new AppAcceptanceError("inputs", "candidate files must be regular files");
+    }
+  }
+  await walk(join(scratch, GENERATED_DIR));
+  for (const source of sources) files.set(source, sha256HexBytes(await readFile(join(scratch, source))));
+  return hashInput([...files].sort(([a], [b]) => a.localeCompare(b)));
 }
 
 /** Acceptance marker inside an attempt dir (explicit, never inferred). */
@@ -2705,6 +2754,9 @@ async function promoteSet(
   }
   const leasePaths: string[] = [];
   for (const entry of scope) {
+    for (const unit of Object.keys(entry.checkedDeclarations ?? {})) {
+      leasePaths.push(`${GENERATED_DIR}/${unit}/declaration.json`);
+    }
     for (const rel of await groupFiles(root, entry.unit_id)) {
       leasePaths.push(`${GENERATED_DIR}/${entry.unit_id}/${rel}`);
     }
@@ -2729,6 +2781,14 @@ async function promoteSet(
     // Fence first: late, cancelled, reset, or already-accepted
     // attempts refuse before any byte comparison.
     for (const entry of scope) {
+      // Declarations may be reconciled before validation, but must not change
+      // while app checks run: otherwise promotion would activate untested code.
+      for (const [unit, checked] of Object.entries(entry.checkedDeclarations ?? {})) {
+        const path = join(root, GENERATED_DIR, unit, "declaration.json");
+        const observed = await fileExists(path) ? sha256HexBytes(await readFile(path)) : null;
+        if (observed !== checked) throw new ControlError(EXIT_CONFLICT, "interface-changed",
+          `saved interface ${JSON.stringify(unit)} changed during app checks; candidates and current files are preserved`);
+      }
       const live = await readFence(entry.attemptDir);
       if (live !== entry.capture.fence) {
         throw new ControlError(
@@ -2975,7 +3035,7 @@ async function acceptUnit(
     );
   }
   const scope = await promotionScopeFromAttempts(root, [attempt.dir]);
-  await validateCandidateSet(ctx, header, root, scope);
+  await validateCandidateSet(ctx, header, root, scope, true);
   const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept unit");
   return {
     code: EXIT_OK,
@@ -3072,7 +3132,7 @@ async function acceptAttempt(
   }
   const set = await resolveAcceptSet(root, raw, attemptDir);
   const scope = await promotionScopeFromAttempts(root, set.dirs);
-  await validateCandidateSet(ctx, header, root, scope);
+  await validateCandidateSet(ctx, header, root, scope, true);
   const promoted = await promoteSet(root, header, scope, runFor("run", header.request_id), "accept attempt");
   return {
     code: EXIT_OK,
@@ -3448,7 +3508,7 @@ async function runRollback(
   const scope: PromotionUnit[] = [
     { unit_id: params.unit_id, record, capture, attemptDir, replacements, origins: replacements.map(() => null) },
   ];
-  await validateCandidateSet(ctx, header, root, scope);
+  await validateCandidateSet(ctx, header, root, scope, true);
   const promoted = await promoteSet(root, header, scope, runFor("rollback", header.request_id), "rollback");
   return {
     code: EXIT_OK,

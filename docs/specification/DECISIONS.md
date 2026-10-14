@@ -13478,7 +13478,9 @@ FILE.can` checks saved output without AI. Both commands accept an ordinary sourc
 path from the repository root or app directory. Preserve the versioned JSON and
 status/bind interfaces for automation. The native entry canonicalizes one source,
 passes arguments directly, locates the existing platform and fixes its compiler
-identity to the invoking executable. Remove the PromptStudio generation wrapper;
+identity to the invoking executable. Resolve the real executable before walking
+checkout ancestors so a user-local symlink works for source-less recovery commands
+on macOS as well as direct source commands. Remove the PromptStudio generation wrapper;
 its behavior belongs to the generic host. The existing JavaScript tooling runtime
 remains an internal dependency; this is not a port of that runtime to Rust.
 
@@ -13622,22 +13624,257 @@ so page Create reuses established behavior. Broader overlay/collection placement
 is separately proposed, not part of this implementation. The earlier naming
 consultation remains historical evidence; the user's explicit choice governs.
 
-## Proposal: preference-dispatched order (2026-10-13, session 01a13580)
+Page heading composition preserves direct child boundaries through an optional
+`PageDescriptor.renderParts` producer. Full and partial HTTP rendering select it
+instead of the legacy joined-string renderer, so admission and authored children
+still execute once. Legacy renderers keep their body intact. Cards already retain
+separate child results; generated views retain their opaque bindings. Repeated
+menu and confirmation identities encode the enclosing row occurrence using the
+activation-safe hexadecimal alphabet. These are implementation details of the
+existing page/control owners, not new source syntax or action invocation paths.
 
-`order={by=preferences.view,default=[...],cases={...}}` stays refused
-until the checker validates dispatched maps: `check_selectors` only
-visits static `Selectors` (`types.rs` order gate), so case entries have
-no `ui_order_selectors`, and no checked preferences table exists to
-validate `by` paths or case keys. Prerequisite (checker owner):
-validate `by` against declared preference options, case keys against
-those options, and each case selector as an order selector. Codegen
-after that is small: emit a JS conditional over the preference value
-selecting among static order lists (the query layer already serves
-static `-`-prefixed lists; no factory/dispatcher change). Touches the
-`table_order.rs` dispatched pin — surface as a contract change when
-built. Not built this turn: validating selectors in codegen would
-duplicate checker duties with soundness risk.
+Real browser verification also requires native dialog lifecycle ownership:
+settlement/removal calls `close()` before changing markup, while background reads
+preserve an unrelated open dialog and its draft. A closed secondary popover keeps
+its ancestor box renderable only while its owned modal is open; the popover stays
+invisible and ignores pointer events, and the modal remains interactive. This
+preserves canonical DOM/form ownership without parsing HTML or relocating forms.
+The final native Can gate passed compile/build, seven examples and the complete
+PromptStudio browser journey, and accepted the retained Sol 6.1/medium renderer.
+The [existing execution view](../../design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13)
+records the single accepted report, eleven screenshots and scoped checks.
+
+## 2026-10-14 — card primary actions belong in the footer
+
+Accepted user correction to the action-priority placement above: a card's
+`primary` group is a visible action row below its content; `secondary` stays in
+the header overflow menu. Page actions retain their toolbar placement. A `view`
+is a renderer boundary, not a physical component: card-shaped views follow the
+card rule rather than arranging both groups beside the title. Generation
+instructions and the PromptStudio prompts now state this explicitly.
+
+Visible placement and visual emphasis are distinct. Save and Cancel belong in
+the same visible editing action area, with a quieter Cancel; cancellation is not
+an overflow action. Existing form, preferences and overlay owners still supply
+their canonical submit/cancel behavior. This does not invent independent Save or
+Cancel control syntax. Direct priority-group hosts remain page, card and row-bound
+view. Modal/drawer already have trailing `slot actions`; adding the priority
+keywords there or to collection toolbars remains proposed, not implemented.
+Fields, text, badges, metrics and navigation are not independent action owners.
+
+The visual defect also came from double-framed generated cards and the default
+list row's auto-sized column. A generated card owns one surface; attached styles
+must not duplicate that surface/padding. Existing direct card/view DOM roots now
+span their list row, with no extra row padding or separator. This needs no new
+compiler flag, presentation carrier or dependency. Actual screenshots, title
+width and footer/header placement are acceptance criteria; passing click tests
+alone does not establish adequate design. Native `can gen PromptStudio.can`
+regenerated u6/u7/u8 with Sol 6.1/medium and accepted seven files after compile,
+build, all seven examples and Playwright passed. The current BGI execution view
+records the accepted report, eleven screenshots and focused verification.
+
+Supporting guidance: [Carbon menus](https://www.carbondesignsystem.com/building-blocks/core/components/menu/guidelines)
+reserve disclosure for less frequent options, while
+[modal actions](https://www.carbondesignsystem.com/building-blocks/core/components/modal/guidelines)
+belong to their owning dialog. The user's requested card footer rule governs this
+implementation; these references are guidance, not a universal placement rule.
+
+## 2026-10-14 — connect card actions to their content
+
+Accepted follow-up to the user's visual feedback: footer placement alone left
+the Edit control isolated at the opposite edge of a sparse full-width card.
+Card primary groups now align with the content's inline start, with compact
+separation and a subtle divider. Routine canonical dialog openers use a quiet
+outlined treatment; page toolbar openers retain the theme accent. Direct-child
+selectors preserve authored action variants and the submit/danger controls inside
+dialogs. The semantic meaning of `primary` remains visible placement.
+
+Generated record cards should group related metadata, use deliberate compact
+spacing and avoid stretch spacers. PromptStudio expresses a responsive collection
+grid in its page prompt and compact card composition in its view prompt. These
+are app-level layout choices, not a forced grid for every collection. Shared
+generation guidance carries the content/action cohesion rule. Existing operation
+bindings, permissions and secondary-menu behavior remain unchanged. Native Can
+accepted u7/u8 after compile/build, seven examples and Playwright passed. Desktop,
+mobile and ordinary-card screenshots were inspected; the existing BGI execution
+view records this result and the focused checks.
+
+## Accepted: preference-dispatched order (2026-10-13/14, session 01a13580)
+
+`order={by=preferences.view,default=[...],cases={...}}` now lowers
+end to end; the prerequisite stated in the earlier proposal is met by
+this lane's own checker addition (no checker-owner handoff was needed:
+the declarations live in the same checked tables). Checker
+(`types.rs`): `check_selectors` accepts the `OrderList` inner
+`Selectors`, `by=` resolves through the declared preferences table
+(E3001 on non-`preferences.<name>` shape, non-enum target, or unknown
+preference), case keys must be enum cases (E3006), and
+`default=`/every case list validates as ordered-scalar selectors
+(E2013/E3006) while writing the same `ui_order_selectors` rows as
+fixed ordering. IR: `order` becomes the object profile
+`{by, default, cases}` with canonical signed strings; missing rows gap
+(E6008), never partial. JS: the profile emits a case ternary over the
+live preference read with `default` fallback, so the runner still
+receives a plain string array; the existing page `preferences`
+preamble fires via the object-entries walk. Contract changes surfaced:
+`table_order.rs` refusal pin replaced by a positive ternary test plus
+four negative pins (unknown case, bad selector, bad `by`, unordered
+key); `ui_adapter.rs` dynamic-order refusal converted to a publish
+test; `analysis.rs` CanDo row 41→38 (Task table order now lowers).
+Verified: table_order 3/3, ui_adapter 12/12, codegen 135/135, check
+38/38, facts 11/11, standard_completion 5/5+2/2; good/negative probes
+all behave (E3001/E3006/E2013/E6008 as designed). Remaining red is
+foreign dirt, not this change: `bgi01` negative-parse (worktree
+parser lane), `syntax` golden-corpus CanPromptLab E1005 (committed
+file vs worktree parser), `analysis` pin rows other than CanDo (13
+files; 12 contain no dispatched order, CanLearn's draws zero order
+diagnostics — all proven against a clean-HEAD baseline worktree where
+the pin passes). Collection expression scope still carries no
+`preferences` binding (checker resolves `by` through declarations,
+lowering constructs the member read directly) — a checker/lowering
+quirk worth knowing, not a defect.
+
+## 2026-10-14 — primary and secondary are labeled action primitives
+
+Accepted user correction: each `primary` or `secondary` statement declares one
+control, with required text/message caption and exactly one checked target. The
+former bare priority suites and the claim that primary only means placement are
+superseded. For example:
+
+```can
+primary "Approve" action=approve arguments={request=row}
+secondary "Archive" action=Request.delete arguments={record=row}
+```
+
+Reuse the existing exclusive `action=`, `submit=true`, `opens=` and `target=`
+bindings. Operation arguments retain their declared names/types and protected
+record bindings; an action cannot infer authority from its visual placement.
+Prepared operation controls reuse canonical admission, field grants, validation,
+CSRF, version checks and delete confirmation. Complete inline, result-owning and
+import/review forms remain canonical forms, with shared submit design. An authored
+submit primitive suppresses the automatic submit instead of adding a duplicate.
+
+Shared UI owns a fixed visible filled primary design and compact secondary menu
+entries. No action-level style, tone, size or generated prompt overrides apply.
+Cards place primary controls below their content and secondary controls in the
+header; page controls use the toolbar. Multiple direct actions aggregate into one
+action row and one menu while retaining canonical control identities and source
+order. Nested owners and row/guard scopes retain their controls. Generated views
+receive complete opaque `primary` and `secondary` bindings and reuse shared card
+markup/classes for the surface, heading, metadata and footer. Scoped styles must
+not enter canonical action or standard-submit markup.
+
+The [three independent JEV requests](../../design/jev/action-primitives-20261014/)
+unanimously preferred reusing the existing checked binding family over limiting
+primitives to operations or inventing another target language. This is design
+advice, not verification of the implementation. Remaining uncertainty is actual
+host-specific composition and draft workflow support; the BGI and DFE execution
+views record the checks and unmet scope separately. All 50 draft sources were
+migrated (539 primary, 162 secondary), preserving Given/When and complete form
+workflows. Browser acceptance of every draft is not implied by this source change.
+
+
+## 2026-10-14 — action owners determine shared placement
+
+Accepted correction to the preceding action-primitive migration: priority syntax
+is not meaningful under every visual component. In particular, a tooltip cannot
+own a primary or secondary action. The previous migration preserved a tooltip
+around CanLoyalty's redemption operation, and the compiler failed to reject that
+placement. Generic aggregation at the authored position did not provide the
+promised component-specific defaults.
+
+The finite owner matrix is page, card, list/table record row, modal/drawer
+`slot actions`, and the `details display=drawer` panel. Page actions occupy the
+heading toolbar; card and panel primary actions occupy their footer and secondary
+actions their heading menu; row actions occupy a trailing action area. Split
+collections render the selected row actions in their detail panel heading/footer,
+without evaluating unselected row suites. Canonical
+form/edit permits only direct primary submit controls in its submit footer.
+Fieldsets and other visual wrappers do not inherit action ownership. Active form
+ownership excludes independent primitive operation/navigation/panel targets even
+through a nested card. Existing read/result forms keep their original flow.
+
+Tooltips, tabs, disclosures, heroes, joins, dropdowns and generic item slots are
+not owners. Tooltip descendants cannot introduce priorities through cards or
+expanded views. Other wrappers may contain a meaningful canonical owner or use
+their existing ordinary checked trigger controls. Migrations preserve record aliases, permission
+guards and result scope; they do not hoist controls to obtain admission.
+
+This supersedes the preceding decision's direct generated-view priority bindings:
+a generated view declares a canonical card in source and receives one complete
+opaque `card` binding. The shared renderer owns its content and action placement;
+the generated renderer cannot rearrange internal priority controls. This reuses
+the existing card factory, checked targets and generated-binding carrier.
+
+The [three independently worded JEV requests](../../design/jev/action-owner-matrix-20261014/)
+all advised explicit concrete owners over page/card-only wrapping or inherited
+wrapper ownership (confidence 0.91, 0.95 and 0.96). There was no disagreement to
+investigate. This is design advice, not evidence of browser acceptance. The
+remaining uncertainty is integration of the complete draft corpus; the existing
+DFE execution view retains its concrete compiler, composed-app and journey gaps.
+
+The dedicated `tests/fixtures/action-gallery/ActionGallery.can` and
+`tests/fixtures/action-forms/ActionForms.can` apps make these shared defaults
+inspectable without an application's generated styling. The gallery covers page,
+card, list/table row, modal, drawer, detail drawer and both split-collection
+variants. The forms app covers direct primary submits and canonical cancellation;
+it does not invent secondary actions inside forms. Each owns its native
+validation entry point, Playwright journeys and desktop/mobile captures. Captures
+are inspection evidence, not automatically approved visual references.
+
+Browser integration exposed two shared-default defects. Complete sibling cards
+inside a list row must stack in source order instead of sharing the upstream
+list grid cell. Saved view mount registration must rescan the existing browser
+client instead of stopping it: whole-client teardown clears selected detail
+panels and can interrupt unrelated controls. View registration therefore changes
+only the matching generated-view bindings. These are shared runtime fixes; the
+inspection sources supply no special CSS or JavaScript workarounds.
+
+## 2026-10-14 — canonical dialogs share one action footer
+
+Accepted user correction: edit/create and confirmation dialogs place Cancel and
+the committing action together in one footer, Cancel first and the committing
+action second. Cancel remains a plain ghost control; its dismissal role does not
+make it a hidden secondary-menu action. The canonical form renders both controls,
+while the dialog wrapper owns the single surface and heading. Archive/remove
+confirmation in a dialog retains its item identity and confirmation copy without
+the standalone confirmation card's nested surface. Explicit navigation cancels
+retain their declared target; inline and drawer form behavior remains unchanged.
+
+This corrects the previous wrapper composition, which put a second Cancel row
+outside the form and retained a card within archive dialogs. Shared UI owns the
+fix across apps. Browser acceptance checks actual action adjacency and the single
+surface on desktop/mobile, including the reported dark table dialogs. No new
+language keywords or generated app-specific styling are required.
+
+The runtime commit includes its shared action-rendering prerequisites: UI owns
+`internal/action-groups.ts`, `internal/menu-dialog.ts`, owner-specific placement,
+standard action styling and browser activation. Contracts owns the presentation
+props; Interfaces forwards form captions and authored submits and preserves page
+child boundaries through `renderParts`. Cloudflare's generated-view registration
+rescans the existing browser client so selected panels survive late mounts.
+These are existing package responsibilities, with no app-specific workaround.
+
+Verified in the working integration through native `can validate ActionGallery.can`:
+compile/build, four examples and Playwright pass, with 74 desktop/mobile captures
+and a closed owned session. Dark edit/archive captures were inspected at both
+viewport sizes. Shared UI checks pass (130 unchanged checks plus the repaired
+drawer-label assertion); the package build, catalog and E2E typecheck pass.
+The source-language, native CLI, draft rollout and inspection-fixture changes
+remain separate from this runtime commit. This browser evidence does not claim
+standalone source integration at the runtime-only commit or approve every design
+detail.
 
 ## 2026-10-14 — local history and worktree storage cleanup (accepted)
 
 At the user’s request, remove all 27 secondary worktrees after checking main integration, retaining original Git administration and every worktree’s source/local files in `/Users/vince/Backups/can-history-trial-20261014-111827`. No further code merge is justified: the non-equivalent Muse joins and legacy branches have explicit integration or finite wind-down records. Preserve their recovery branches and uncommitted documentation patch. Purge generated promotional assets, the compiled independent-review probe, obsolete token/result dumps and historical command logs from local history; retain source, all reference images, active planning inputs and source replay archives. These generated records belong in recoverable external evidence storage, not repository history. The existing editor archive ledger retains original facts while checking retained source independently of backup-only generated captures. The user authorized publication of the cleaned history on 2026-10-14; retain the original backups and use explicit old-tip leases for remote updates.
+
+## 2026-10-14 — ready prompt/action work and artifact boundaries (accepted)
+
+Publish the reviewed native Can source workflow, generated-app acceptance gate, standardized primary/secondary action primitives and shared layout defaults together with their source fixtures and app-local browser harnesses. Retain saved `can.generated` implementations/manifests because they are executable fixture inputs, along with authored reference images and approved baselines. Exclude build/dependency output, generation journals, command reports and actual Playwright run screenshots; remove the eight previously tracked actual screenshots from the index while retaining local/backup copies. Keep JEV consultation records as the design advice required by this repository.
+
+The readiness review closes two concrete defects: form primitives require literal `submit=true`, and native owner modals share menu-dialog reconciliation (preserve an open modal on unrelated background reads; call native close on settled submit or subtree removal). Catalog test inventories include the two action primitives/compiler helpers. Deploy tests canonicalize temporary roots before invoking publication safety. These repairs preserve existing permissions, evaluation order and rejection/current-file recovery semantics.
+
+Verification: focused compiler suites passed (29 BGI, 135 codegen, 50 IDE; after the submit repair, 10 affected primitive and 5 source-command checks). Five shared TypeScript packages build; generation/source-workflow checks pass 86/86, deploy CLI 25/25, interfaces 56/56, and changed UI/action checks pass. The broader UI run initially passed 1131/1138: two related catalog assertions were corrected and passed their focused rerun; five unchanged login/Intl.Locale expectations remain failing and are not claimed fixed here. Draft source inventory test and TypeScript pass; Playwright discovers 828 draft tests across 50 files. Existing native browser evidence is reused at its recorded scope; this commit does not close every draft's functional or visual acceptance.
+
+Remove stale local and remote branches after preserving the cleaned local branch graph in the external backup bundle. All five deleted remote feature heads were ancestors of their repository main. Unique local wind-down/recovery/CI proposal tips remain recoverable from the bundle; they are not implicitly merged or declared completed. Preserve both original archives.

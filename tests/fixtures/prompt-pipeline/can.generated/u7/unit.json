@@ -7,27 +7,27 @@
     "label": "ItemTile",
     "anchor": "PromptStudio:view:ItemTile:Item",
     "path": "PromptStudio.can",
-    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
-    "start": 1585,
-    "end": 2117
+    "revision": "92e9cdd1bcc5f17b3a1064c2917e8c9cd623a651d073eb59dd9c1c5bbf77342c",
+    "start": 2374,
+    "end": 3286
   },
   "contract": {
     "target": "Item",
     "profile": null,
-    "prompt_sha256": "76ba1ce1600f97bcfcea8fd8635ed4702aa1e9b7f2f6a8eb1cb3b79d98574a79",
+    "prompt_sha256": "60eb0754c9cdda9fe73fe3f5e9b60c6b428936488e7c6cc55b1a2bbb8cf69f73",
     "signature": null
   },
   "original": {
-    "prompt_sha256": "76ba1ce1600f97bcfcea8fd8635ed4702aa1e9b7f2f6a8eb1cb3b79d98574a79",
+    "prompt_sha256": "60eb0754c9cdda9fe73fe3f5e9b60c6b428936488e7c6cc55b1a2bbb8cf69f73",
     "files": {
-      "implementation.js": "d29e3426aba43bd19ba10135189ed34176c2492d6d964e11249ab6a227dda04b",
-      "style.css": "6e2e4e5f7d689eb604749e5129db6813078c66b7dffaa89e212ca7b3be47b4e8"
+      "implementation.js": "f4c72cf227e950d5500172ee9a7d894a449d6051ada8f91e9fe17294994b8d22",
+      "style.css": "01dfc48bcaa184ab91558bd06413cec58f45e4745e3b8d1e4035cd974e8d4f54"
     }
   },
   "provenance": {
     "origin": "generated",
     "runner": "codex",
     "model": "gpt-6.1-sol",
-    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j1 (retry retry)"
+    "note": "accepted attempt source-56933ce6-a5dc-43c0-aa32-2c227e5404e5.j0 (generate prepare)"
   }
 }

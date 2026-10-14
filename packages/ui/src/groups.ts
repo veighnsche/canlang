@@ -48,6 +48,7 @@ import type {
   TimelineProps,
 } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
+import { partitionActionGroups } from "./internal/action-groups.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { selectionHref, selectionCloseHref } from "./internal/collection-selection.js";
 import { renderTextValue } from "./components.js";
@@ -198,15 +199,15 @@ export async function detailsDrawer(props: DetailsDrawerProps): Promise<string> 
   if (props.context.collectionSelections?.get(props.occurrence) !== recordId) return opener;
   const children = await props.renderBody(props.record, props.context);
   const kids = typeof children === "function" ? await children() : children;
-  const body = (await Promise.all(kids)).join("");
+  const { primary, secondary, body } = partitionActionGroups(await Promise.all(kids));
   const close = escapeHtml(resolveCaption(CLOSE_DETAILS, props.context));
   return `<div class="drawer drawer-end" data-can-split>` +
     `<input id="${toggle}" type="checkbox" class="drawer-toggle" checked aria-label="${caption}" aria-controls="${panel}">` +
     `<div class="drawer-content">${opener}</div><div class="drawer-side">` +
     `<a class="drawer-overlay" href="${escapeAttr(closeHref)}" aria-label="${close}"></a>` +
     `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
-    `<h2 id="${title}">${caption}</h2><a class="btn" data-can-split-close href="${escapeAttr(closeHref)}">${close}</a>` +
-    `${body}</dialog></div></div>`;
+    `<header class="can-panel-heading"><h2 id="${title}">${caption}</h2>${secondary}</header><a class="btn" data-can-split-close href="${escapeAttr(closeHref)}">${close}</a>` +
+    `${body}${primary === "" ? "" : `<footer>${primary}</footer>`}</dialog></div></div>`;
 }
 
 /** Native details/summary disclosure group with a required caption. */

@@ -44,6 +44,7 @@ import type {
 } from "@canlang/contracts";
 import { BUSINESS_ERROR_CODES, CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
+
 import { pickAppearance } from "./internal/appearance-props.js";
 import { escapeAttr, escapeHtml, operationPostPath } from "./escape.js";
 import { collapse } from "./groups.js";
@@ -203,7 +204,7 @@ export async function tabs(props: TabsProps): Promise<string> {
       `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
       (binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`) +
       `<fieldset>${legend}<div class="${escapeAttr(joinClasses("tabs tabs-border", modifiers))}">${radios}</div></fieldset>` +
-      `<div class="flex gap-2"><button type="submit" class="btn btn-primary">${save}</button></div></form>`
+      `<div class="flex gap-2"><button type="submit" class="btn btn-primary" data-can-standard-submit>${save}</button></div></form>`
     );
   }
 
@@ -254,7 +255,7 @@ export async function tabs(props: TabsProps): Promise<string> {
     `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
     (props.binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(props.binding.version)}">`) +
     set +
-    `<div class="flex gap-2"><button type="submit" class="btn btn-primary">${save}</button></div></form>`
+    `<div class="flex gap-2"><button type="submit" class="btn btn-primary" data-can-standard-submit>${save}</button></div></form>`
   );
 }
 

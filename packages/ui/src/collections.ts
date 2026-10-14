@@ -27,6 +27,7 @@ import type {
 } from "@canlang/contracts";
 import { CSRF_FIELD, COLLECTION_FILTER_PREFIX, collectionCursorName, collectionFilterName } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
+import { partitionActionGroups } from "./internal/action-groups.js";
 import { pickAppearance } from "./internal/appearance-props.js";
 import { selectionHref } from "./internal/collection-selection.js";
 import { renderState, rowHeading } from "./components.js";
@@ -77,8 +78,12 @@ async function splitBody(props: Pick<ListProps, "context" | "model" | "parent">,
   renderRow: ListProps["renderRow"] | undefined): Promise<string> {
   const locator = props.context.collectionSelections?.get(occurrence);
   const selected = rows.find(row => row.id === locator);
-  const body = selected === undefined || renderRow === undefined ? ""
-    : await resolveChildren(await renderRow(selected, props.context));
+  let body = "", primary = "", secondary = "";
+  if (selected !== undefined && renderRow !== undefined) {
+    const children = await renderRow(selected, props.context);
+    const parts = typeof children === "function" ? await children() : children;
+    ({ body, primary, secondary } = partitionActionGroups(await Promise.all(parts)));
+  }
   const scope = JSON.stringify([props.context.path, props.model, props.parent?.id ?? null, occurrence]);
   const id = `can-split-${Array.from({ length: scope.length }, (_, index) =>
     scope.charCodeAt(index).toString(16).padStart(4, "0")).join("")}`;
@@ -92,8 +97,9 @@ async function splitBody(props: Pick<ListProps, "context" | "model" | "parent">,
     `<label for="${toggle}" class="btn drawer-button lg:hidden" aria-controls="${panel}">${open}</label></div>` +
     `<div class="drawer-side"><label for="${toggle}" class="drawer-overlay" aria-label="${close}"></label>` +
     `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
-    `<div class="flex gap-2"><h2 id="${title}">${caption}</h2>` +
-    `<button type="button" class="btn lg:hidden" data-can-split-close aria-controls="${panel}">${close}</button></div>${body}</dialog></div></div>`;
+    `<header class="can-panel-heading"><h2 id="${title}">${caption}</h2>${secondary}` +
+    `<button type="button" class="btn lg:hidden" data-can-split-close aria-controls="${panel}">${close}</button></header>${body}` +
+    `${primary === "" ? "" : `<footer>${primary}</footer>`}</dialog></div></div>`;
 }
 
 /** Scalar cell types rendered through formatScalar; see renderCell. */
@@ -262,10 +268,17 @@ export async function list(props: ListProps): Promise<string> {
     const selected = metas.length === 0 ? "" : `<dl>${metas.map(meta =>
       `<dt>${escapeHtml(resolveCaption(meta.label, props.context))}</dt>` +
       `<dd>${renderCell(meta, row.fields[meta.field], props.context)}</dd>`).join("")}</dl>`;
-    const body = occurrence === undefined
-      ? await resolveChildren(await props.renderRow(row, props.context))
-      : `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
-    items.push(`<li class="list-row">${selected}${body}</li>`);
+    if (occurrence === undefined) {
+      const children = await props.renderRow(row, props.context);
+      const parts = typeof children === "function" ? await children() : children;
+      const { primary, secondary, body } = partitionActionGroups(await Promise.all(parts));
+      const actions = primary + secondary;
+      items.push(actions === "" ? `<li class="list-row">${selected}${body}</li>`
+        : `<li class="list-row" data-can-row-actions><div class="can-row-content">${selected}${body}</div><div class="can-row-actions">${actions}</div></li>`);
+    } else {
+      const body = `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
+      items.push(`<li class="list-row">${selected}${body}</li>`);
+    }
   }
   const summaries = `<ul class="list">${items.join("")}</ul>`;
   const rowsHtml = occurrence === undefined ? summaries
@@ -493,21 +506,29 @@ export async function table(props: TableProps): Promise<string> {
     }
     metas.push(meta);
   }
-  const head = metas
+  let head = metas
     .map((meta) => `<th scope="col">${escapeHtml(resolveCaption(meta.label, props.context))}</th>`)
     .join("") + (occurrence === undefined ? "" : `<th scope="col">${escapeHtml(resolveCaption(DETAILS, props.context))}</th>`);
   const body: string[] = [];
+  const renderedRows: { cells: string; selection: string; actions: string; detail: string }[] = [];
   for (const row of result.rows) {
     const cells = metas
       .map((meta) => `<td>${renderCell(meta, row.fields[meta.field], props.context)}</td>`)
       .join("");
     const selection = occurrence === undefined ? ""
       : `<td><a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${escapeHtml(resolveCaption(OPEN_DETAILS, props.context))}</a></td>`;
-    body.push(`<tr>${cells}${selection}</tr>`);
     if (occurrence === undefined && props.renderRow !== undefined) {
-      const detail = await resolveChildren(await props.renderRow(row, props.context));
-      body.push(`<tr><td colspan="${Math.max(1, metas.length)}">${detail}</td></tr>`);
-    }
+      const children = await props.renderRow(row, props.context);
+      const parts = typeof children === "function" ? await children() : children;
+      const { primary, secondary, body: detail } = partitionActionGroups(await Promise.all(parts));
+      renderedRows.push({ cells, selection, actions: primary + secondary, detail });
+    } else renderedRows.push({ cells, selection, actions: "", detail: "" });
+  }
+  const hasActions = renderedRows.some(row => row.actions !== "");
+  if (hasActions) head += `<th scope="col">${escapeHtml(resolveCaption(message("Actions", { nl: "Acties" }), props.context))}</th>`;
+  for (const row of renderedRows) {
+    body.push(`<tr>${row.cells}${row.selection}${hasActions ? `<td><div class="can-row-actions">${row.actions}</div></td>` : ""}</tr>`);
+    if (row.detail !== "") body.push(`<tr><td colspan="${Math.max(1, metas.length + (hasActions ? 1 : 0))}">${row.detail}</td></tr>`);
   }
   const summaries =
     `<table class="table"><thead><tr>${head}</tr></thead>` +

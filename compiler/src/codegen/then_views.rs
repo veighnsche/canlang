@@ -52,6 +52,8 @@ pub enum ThenControl {
     Actions {
         operations: Vec<String>,
     },
+    Primary,
+    Secondary,
 }
 
 impl ThenControl {
@@ -293,8 +295,14 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
         let mut root_style: Option<ThenRootStyle> = None;
         for child in significant(node) {
             let binding = match child.kind {
+                SyntaxKind::Card => Some("card".to_string()),
                 SyntaxKind::Edit => Some("edit".to_string()),
-                SyntaxKind::Form => Some("form".to_string()),
+                SyntaxKind::Form => Some(
+                    names(child, text)
+                        .into_iter()
+                        .next()
+                        .unwrap_or_else(|| "form".into()),
+                ),
                 SyntaxKind::UiLeaf => names(child, text)
                     .into_iter()
                     .next()
@@ -305,6 +313,10 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                 binding_names.push((child.span, binding));
             }
             match child.kind {
+                SyntaxKind::Card => {
+                    leaves.push("card".into());
+                    collect_card_controls(child, text, &mut controls);
+                }
                 SyntaxKind::Edit => {
                     let fields = attribute_value(child, text, "fields")
                         .map(|v| selector_fields(v, text))
@@ -312,9 +324,19 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                     controls.push(ThenControl::Edit { fields });
                 }
                 SyntaxKind::Form => {
-                    let operation = significant(child)
-                        .iter()
-                        .find(|c| !matches!(c.kind, SyntaxKind::Name | SyntaxKind::Attribute))
+                    let priority = names(child, text).into_iter().next().unwrap_or_default();
+                    if matches!(priority.as_str(), "primary" | "secondary") {
+                        diagnostics.push(Diagnostic::error("E2001", "a generated view must declare an owning card or supported action owner around priorities".into(), child.span));
+                    }
+                    let operation = attribute_value(child, text, "action")
+                        .or_else(|| {
+                            significant(child)
+                                .iter()
+                                .find(|c| {
+                                    !matches!(c.kind, SyntaxKind::Name | SyntaxKind::Attribute)
+                                })
+                                .copied()
+                        })
                         .map(|c| operation_text(c, text))
                         .unwrap_or_default();
                     let fields = attribute_value(child, text, "fields")
@@ -325,6 +347,7 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
                 SyntaxKind::UiLeaf => {
                     let word = names(child, text).into_iter().next().unwrap_or_default();
                     match word.as_str() {
+                        "primary" | "secondary" => diagnostics.push(Diagnostic::error("E2001", "a generated view must declare an owning card or supported action owner around priorities".into(), child.span)),
                         "delete" => controls.push(ThenControl::Delete),
                         "action" => {
                             let operation = significant(child)
@@ -405,6 +428,62 @@ pub fn lower_then_views(tree: &SyntaxNode, text: &str) -> ThenLowering {
         });
     }
     ThenLowering { views, diagnostics }
+}
+
+/// Card control metadata describes the canonical subtree; only the whole
+/// card is a renderer binding. Local gates stay on their owning IR nodes.
+fn collect_card_controls(card: &SyntaxNode, text: &str, controls: &mut Vec<ThenControl>) {
+    for child in card.descendants() {
+        match child.kind {
+            SyntaxKind::Edit => controls.push(ThenControl::Edit {
+                fields: attribute_value(child, text, "fields")
+                    .map(|value| selector_fields(value, text))
+                    .unwrap_or_default(),
+            }),
+            SyntaxKind::Form => {
+                let word = names(child, text).into_iter().next().unwrap_or_default();
+                if word == "primary" {
+                    controls.push(ThenControl::Primary);
+                }
+                if word == "secondary" {
+                    controls.push(ThenControl::Secondary);
+                }
+                let operation = attribute_value(child, text, "action")
+                    .or_else(|| {
+                        significant(child).into_iter().find(|node| {
+                            !matches!(node.kind, SyntaxKind::Name | SyntaxKind::Attribute)
+                        })
+                    })
+                    .map(|node| operation_text(node, text))
+                    .unwrap_or_default();
+                let fields = attribute_value(child, text, "fields")
+                    .map(|value| selector_fields(value, text))
+                    .unwrap_or_default();
+                controls.push(ThenControl::Form { operation, fields });
+            }
+            SyntaxKind::UiLeaf => match names(child, text).into_iter().next().as_deref() {
+                Some("primary") => controls.push(ThenControl::Primary),
+                Some("secondary") => controls.push(ThenControl::Secondary),
+                Some("delete") => controls.push(ThenControl::Delete),
+                Some("action") => controls.push(ThenControl::Action {
+                    operation: significant(child)
+                        .into_iter()
+                        .find(|node| node.kind != SyntaxKind::Name)
+                        .map(|node| operation_text(node, text))
+                        .unwrap_or_default(),
+                }),
+                Some("actions") => controls.push(ThenControl::Actions {
+                    operations: significant(child)
+                        .into_iter()
+                        .filter(|node| node.kind != SyntaxKind::Name)
+                        .map(|node| operation_text(node, text))
+                        .collect(),
+                }),
+                _ => {}
+            },
+            _ => {}
+        }
+    }
 }
 
 fn module_owner(tree: &SyntaxNode, text: &str) -> String {

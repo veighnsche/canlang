@@ -10,16 +10,258 @@ This is the current observation for the existing BGI tasks; earlier per-task run
 
 | Canonical owners | Accepted observation and existing evidence |
 | --- | --- |
-| BGI-03, BGI-05, BGI-06 | The installed bundled Codex client `0.162.0-alpha.17.2` runs the exact requested `gpt-6.1-sol` with native `model_reasoning_effort=medium`; provider-reported model/effort remain unknown. An isolated authenticated home exposes only host-owned context/submission MCP tools; actual three-output submission and protected source/current/candidate OS write denial are recorded once in [codex-qualification.json](../../../output/prompt-pipeline/codex-qualification.json). `CAN_CODEX_BIN` explicitly selects the installed executable. Ephemeral Codex resume remains unsupported; other adapters retain their own external gates. |
-| BGI-01, BGI-07–BGI-12; BGI-13 consumer | Public prepare accepted all eight PromptStudio units (five Given, three frontend; seventeen saved files) in [initial acceptance](../../../output/prompt-pipeline/generation-prompt-pipeline-07c18806-ff0e-4f7f-a591-e92a77b3135f.json). Public full retry regenerated the same eight IDs and atomically accepted the complete set in [full retry](../../../output/prompt-pipeline/generation-prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.json). Two recipe jobs preserve Given-before-frontend ordering and whole-Then context; failed earlier validation preserved current outputs. Source/owner repairs include checked trait fields/constraints, standalone keyword closure reuse, portable associations, RowView fields, CSS admission and per-use style/view roots. These observations close their fixture scope, not the whole draft corpus. |
-| BGI-02, BGI-04, BGI-11, BGI-12 | [Saved prepare reuse](../../../output/prompt-pipeline/generation-prompt-pipeline-f7f2d522-6fb2-4941-b802-bf61732e60af.json) validates all eight units with zero attempts and an unavailable Codex executable. [Direct saved CSS edit](../../../output/prompt-pipeline/saved-edit.json) uses public `edit.begin`/`edit.end`, appends the requested u8 outline-offset rule, releases its lease and validates source/scope/fingerprint with `CAN_CODEX_BIN=/nonexistent/codex`. No AI is required. |
+| BGI-03, BGI-05, BGI-06 | The installed bundled Codex client `0.162.0-alpha.17.2` runs the exact requested `gpt-6.1-sol` with native `model_reasoning_effort=medium`; provider-reported model/effort remain unknown. An isolated authenticated home exposes only host-owned context/submission MCP tools; actual three-output submission and protected source/current/candidate OS write denial are recorded once in codex-qualification.json (`../../../output/prompt-pipeline/codex-qualification.json`, local run output). `CAN_CODEX_BIN` explicitly selects the installed executable. Ephemeral Codex resume remains unsupported; other adapters retain their own external gates. |
+| BGI-01, BGI-07–BGI-12; BGI-13 consumer | Public prepare accepted all eight PromptStudio units (five Given, three frontend; seventeen saved files) in initial acceptance (`../../../output/prompt-pipeline/generation-prompt-pipeline-07c18806-ff0e-4f7f-a591-e92a77b3135f.json`, local run output). Public full retry regenerated the same eight IDs and atomically accepted the complete set in full retry (`../../../output/prompt-pipeline/generation-prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.json`, local run output). Two recipe jobs preserve Given-before-frontend ordering and whole-Then context; failed earlier validation preserved current outputs. Source/owner repairs include checked trait fields/constraints, standalone keyword closure reuse, portable associations, RowView fields, CSS admission and per-use style/view roots. These observations close their fixture scope, not the whole draft corpus. |
+| BGI-02, BGI-04, BGI-11, BGI-12 | Saved prepare reuse (`../../../output/prompt-pipeline/generation-prompt-pipeline-f7f2d522-6fb2-4941-b802-bf61732e60af.json`, local run output) validates all eight units with zero attempts and an unavailable Codex executable. Direct saved CSS edit (`../../../output/prompt-pipeline/saved-edit.json`, local run output) uses public `edit.begin`/`edit.end`, appends the requested u8 outline-offset rule, releases its lease and validates source/scope/fingerprint with `CAN_CODEX_BIN=/nonexistent/codex`. No AI is required. |
 | BGI-08 | The actual Worker exposed duplicate trait folding: compiler models already contain the checked fields. State now reuses an existing field only when its complete admitted runtime schema matches the contribution; conflicting fields and duplicate sibling contributions still refuse. The owning State build, 21 focused checks and actual compiled three-model/two-keyword artifact load pass. Compiler source-authored collision checks remain unchanged. |
 | BGI-08–BGI-10; Dev/UI consumers | Runtime computed-key fingerprints now match the compiler’s established exact-byte closure identity (6 focused checks). Source `edit`/`delete` slot names survive public factory lowering; the actual unchanged saved renderer produces two update and two delete controls (focused actual-module regression plus retained Then checks). UI drawer stacking and page-style precedence pass 8 focused checks and real desktop/mobile clicks; generated roots clean up before morph and remount afterward (20 focused view/form-refresh checks). Owning native/package builds pass. |
 | BGI-04, BGI-11, BGI-12 | Focused retained-context checks pass 3/3: saved edited Given feeds frontend preparation without generation; scratch validation consumes frozen dependencies and rebased records; acceptance refuses participating edits. Reuse unchanged owner checks rather than rerunning the historical suite. |
 
 **Dev/browser integration gate: CLOSED for PromptStudio.** The actual protected D1/Identity dev preview consumed the saved outputs with `CAN_CODEX_BIN=/nonexistent/codex`. `bunx playwright test --config=playwright.prompts.config.ts` passed 1/1 (54.7 seconds; 55.3 seconds total), covering create/update/archive, archived-key retention, duplicate refusal and retained form values, trimmed fields, two false trait defaults, keyword reuse across models, NFKC/ASCII folding with distinct non-ASCII case, repeated view identities/mounts and all three pages. The run checked source/build currentness, no horizontal overflow and no browser errors, saved eight [app-local screenshots](../../../tests/fixtures/prompt-pipeline/playwright/screenshots/), and released its owned session. Final desktop, drawer, error, mobile, defaults and alias captures were inspected: controls render and work, defaults are visible, and the narrow layout stays within the viewport. The E2E TypeScript check passes. Earlier browser failures drove the owner fixes above; archive retention and bidi text were corrected test assumptions, not changed runtime semantics. No design-reference match is claimed.
 
-The broader DFE draft rollout, design-reference comparison, other-adapter qualification and unrelated held runtime/publication outcomes remain separately open. Existing BGI-13 review/closure gates retain their original scope; this integration adds no stricter prerequisite and does not turn historical completed criteria into new assignments.
+**BGI-12 — subsequent user-requested execution gate: CLOSED for the implemented
+local profile.** Candidate promotion requires the existing compiler/build,
+native example executor and app-local Playwright checks over the frozen overlay.
+Missing or failed checks retain current outputs. The incorrect keyword run (`../../../output/prompt-pipeline/acceptance/run-QmEzld/summary.json`, local run output)
+executed seven native examples and refused promotion. After concurrent compiler
+edits invalidated browser startup, the affected browser cases (`../../../output/prompt-pipeline/acceptance/run-7r2GXT/summary.json`, local run output)
+were rerun with frozen inputs: the empty renderer failed after real navigation;
+working saved code passed seven native examples and Playwright 1/1 (51.6 seconds),
+saved eight screenshots, closed its dev session and atomically promoted all eight
+units. Both deliberate failures preserved every current file and unit record
+byte-for-byte. These deterministic submissions exercise the production acceptance
+gate with zero AI calls; earlier actual Codex generation evidence remains above.
+The 71 focused control/process/cleanup checks pass using retained results plus
+the corrected cleanup case rerun; the native caller-projection regression and
+installed build command case each pass 1/1. Owning builds, E2E typechecks and the
+bounded native-runner review pass. This closes the new finite acceptance condition
+without reopening historical accepted tests or claiming broader draft coverage.
+
+**BGI-03/05/12 — native source commands, 14 October 2026.** Implement
+`can gen FILE.can [--retry] [--dry-run] [--format=json|text]` and
+`can validate FILE.can [--format=json|text]`; preserve the existing JSON/status/bind
+interfaces. The generic host now owns app-local settings, prepare/accept, full
+retry and immutable saved-output validation. Source mode discovers the platform,
+uses the invoking compiler, and works from the app folder. Delete the fixture
+`generate.mjs` wrapper and document direct Can commands. Generic generation errors
+retain their exit/error/state and offer native-command recovery. Keywords use the
+Given recipe even when frontend settings differ.
+
+Verification: native source-command 4/4 (including an executable symlink), existing executable 12/12 and generation
+protocol/configuration 30/30 pass; source-host 8/8 pass, including failure/current
+input changes and truthful zero-promotion reuse. Normal producer builds and nine
+existing Values catalog tests pass after restoring generic `active_member` external
+availability; only the existing runtime-qualified native catalog marks it implemented.
+`can` is available on PATH through the previously empty user-local symlink.
+Direct root/app dry-runs resolve all eight Sol 6.1/medium units. From the app folder,
+`can validate PromptStudio.can` with unavailable Codex passed compile/build, seven
+examples and Playwright 1/1 (52.56 seconds), eight screenshots, three navigations
+and confirmed session closure. Its report is
+[here](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/source-feefcb1a-9e95-4f4a-8fe2-a931413d13eb/report.json).
+Default source generation (`../../../output/prompt-pipeline/can-cli-reuse-20261014.json`, local run output)
+likewise passes the full gate with zero attempts, all eight saved units validated
+and `accepted:false`. One earlier reuse run correctly refused a stale compiler;
+only that affected command was retried after the external rebuild.
+
+Actual native full retry (`../../../output/prompt-pipeline/can-cli-retry-20261014.json`, local run output)
+ran the qualified installed Codex client with the configured Sol 6.1/medium recipe
+and produced complete five-Given/three-frontend candidate jobs. Compilation, build
+and all seven examples passed. Concurrent edits/rebuilds of compiler `ir.rs` and
+`js.rs` invalidated browser serving identity, so promotion refused (exit4) and
+all current generated files remain byte-identical to their tracked version. The
+[failed gate report](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-4f7160db-69fa-4ac4-990d-9f03821168ed/report.json)
+and candidates are retained. The user then paused the compiler writer. Recovery
+exposed a macOS executable-symlink discovery bug, fixed by resolving the real
+executable before walking checkout ancestors; the four source-command and twelve
+executable tests pass. Stale installed Contracts/runtime outputs were rebuilt with
+the normal owning build and catalog commands; no source requirement or gate was
+weakened.
+
+**New-candidate browser qualification: CLOSED for PromptStudio.** The
+retained-candidate acceptance (`../../../output/prompt-pipeline/can-cli-accept-20261014.json`, local run output)
+used the native Can recovery interface with an unavailable Codex executable, so no
+new generation occurred. Compilation/build, all seven examples and Playwright 1/1
+(53.76 seconds, zero skipped/flaky/unexpected tests) passed, with eight screenshots,
+three real navigations and confirmed session closure. All eight units/seventeen
+files were atomically promoted; native status resolves the same eight IDs.
+The [gate report](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-accept-d36808a1-c61f-430a-b9e9-7e4493c6b0c4/report.json)
+retains the checks and adjacent screenshots. Desktop/mobile captures were inspected
+for readable controls and layout; no concept-reference comparison is claimed.
+This closes the requested native PromptStudio generation/validation scope without
+another AI run or an unchanged post-promotion browser rerun. Original draft and
+composed-app acceptance remain outside this result.
+
+**BGI-09/10/12 — compact archive follow-up, 14 October 2026: CLOSED.**
+The user found that ItemTile's always-visible confirmation panel dominated the
+card. Its source prompt now requires a compact, initially closed native Archive
+disclosure containing the unchanged canonical delete binding. The normal native
+`can gen PromptStudio.can` selected only u7 with Sol 6.1/medium and
+accepted its three files (`../../../output/prompt-pipeline/compact-archive-generation-20261014.json`, local run output).
+The E2E typecheck, actual compile/build, seven examples and real Playwright 1/1
+(51.47 seconds, no skipped/flaky/unexpected tests) pass. New checks constrain the
+collapsed disclosure to a single row (at most56px), verify keyboard open/dismiss,
+no mutation on cancellation and the original archive/unique-key behavior.
+Nine [screenshots and the gate report](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-293dae9c-247f-4cd4-adc4-255d8d5dccbc/report.json)
+include closed desktop/mobile and open mobile confirmation. Those three states
+were visually inspected; three real navigations and session closure are recorded.
+No global canonical-control change, image generation or other-app acceptance is
+implied.
+
+**BGI-09/10/12 — labeled primitives, 14 October 2026: CLOSED at the
+preceding PromptStudio scope.** Native generation used Sol 6.1/medium for the
+changed view. The accepted retained candidate (`../../../output/prompt-pipeline/action-primitives-accept-20261014.json`, local run output)
+passed compile/build, seven examples and Playwright after correcting URL targets
+that incorrectly received row-instance suffixes. Its [gate report](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-action-primitives-20261014-navigation/report.json)
+records all stages passed; the browser receipt records three navigations and
+`closed:true`. This qualifies labeled targets and the preceding card/menu design.
+The user's subsequent explicit-owner correction below supersedes broad host
+admission and renderer-controlled card layout; it does not reopen unchanged
+trait/keyword acceptance.
+
+**BGI-09/10/12 — explicit semantic action owners, 14 October 2026: CLOSED at
+the PromptStudio and component-inspection scope.** Checker/IDE admission is page, card, list/table row, modal/drawer
+`slot actions`, drawer details, and direct primary form/edit submission only.
+Split collections use their selected detail panel heading/footer. Tooltips and
+other annotation/layout wrappers are not action owners. Shared UI supplies each
+owner's placement; generated views consume an entire opaque canonical card.
+CanLoyalty's tooltip now leaves its explanation beside the row-owned redemption
+action. The [accepted decision](../../../docs/specification/DECISIONS.md#2026-10-14--action-owners-determine-shared-placement)
+records the matrix and JEV advice.
+
+Focused verification: compiler prompt/view 28/28, codegen 133/133 and IDE 50/50
+pass; host controls/source workflow 65/65 pass. Shared UI owner tests pass,
+including the corrected form footer and selected/unselected split behavior.
+The owning package build, catalog emission and E2E typecheck pass. Native
+candidate acceptance and browser verification now pass, with `/actions` and
+`/split` covering the additional owner placements.
+Full draft acceptance remains owned by the DFE view and its explicit unmet gates.
+
+The standalone [ActionGallery](../../../tests/fixtures/action-gallery/README.md)
+inspection app passed native `can validate`: compile/build, four examples and
+Playwright (1/1, 103.1 seconds, no skipped/flaky tests). Its 70 desktop/mobile
+captures exercise all nine non-form owner variants, with real create, edit
+dialogs, secondary menus, archive confirmation and cancellation. The shared
+split-panel binder now preserves selected state when navigation rebinds an
+existing owner; its focused UI regression passes. Tooltip priorities are also
+rejected through nested cards and expanded views. The paired
+[ActionForms](../../../tests/fixtures/action-forms/README.md) now also passes native
+compile/build, four examples and Playwright (1/1, 56.9 seconds, no skipped/flaky
+tests). Its 14 desktop/mobile captures include validation, cancellation and
+persisted inline/edit saves. Browser verification exposed overlapping sibling
+cards in list rows; shared UI now stacks complete card/view siblings in source
+order. The focused action-menu/theme suites pass 29/29; retained passing gallery
+coverage is not repeated.
+
+PromptStudio's retained Sol 6.1/medium candidate was
+accepted through native Can (`../../../output/prompt-pipeline/action-owners-accept-20261014.json`, local run output).
+The [final gate](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-action-owners-20261014-mount/report.json)
+passes compile/build, seven examples and Playwright (1/1, 67.0 seconds, no
+skipped/flaky tests), with 18 app-local captures, eight navigations and a closed
+owned session. The browser run exposed a generated-bundle startup defect:
+registering saved mounts restarted the whole client and closed selected details.
+The bundle now rescans the existing client; only views with changed registered
+mounts rebind. UI view/mount tests pass 14/14 and the focused packed-browser-mount
+bundle test passes 1/1. Detail and mobile split captures were inspected. No new AI
+generation, image generation, visual-baseline approval or all-draft acceptance is
+implied by these checks.
+
+The subsequent user-reported dialog footer defect is closed in shared UI:
+canonical menu forms own one footer with ghost Cancel before the committing
+action, and archive/remove dialogs omit the standalone nested card. Native
+ActionGallery validation passes compile/build, four examples and Playwright
+(1/1, 93.0 seconds, no skipped/flaky tests), with 74 captures and 19 navigations;
+the owned session closed. Layout assertions cover action adjacency and a single
+surface, including desktop/mobile dark table dialogs. Shared UI checks pass
+(130 retained passes and one repaired drawer-label assertion); the package
+build, catalog and E2E typecheck pass. An earlier attempt was invalidated by an
+external compiler rebuild before browser testing; only that gate was retried.
+ActionForms and PromptStudio's unchanged scope retains the results above.
+
+**BGI-09/10/12 — compiler-owned action priorities, 14 October 2026: CLOSED.**
+Implement contextual `primary` and `secondary` suites directly under page, card
+and row-bound view, with one nonempty group of each per host. Reuse canonical
+form/edit/delete/action bindings and existing scope/grant checks. Shared UI owns
+visible primary controls, compact secondary popovers, input/confirmation dialogs,
+focus return and cancellation; generated views receive whole opaque bindings.
+Page `renderParts` preserves direct child boundaries and evaluates the chosen
+renderer once. Repeated dialog IDs use the activation-safe occurrence encoding.
+The fixture exercises page Create, generated-view Edit/Archive and ordinary-card
+Archive. Only u7 was regenerated with the existing Sol 6.1/medium recipe; its
+retained candidate was accepted through native Can (`../../../output/prompt-pipeline/action-priorities-accept-20261014.json`, local run output)
+after the full gate passed, atomically promoting three files.
+
+Focused parser/checker/metadata/codegen/IDE checks pass (six original cases and
+two affected codegen cases after the integration repair). Relevant shared UI,
+catalog and forms checks, six page handoff/layout cases, normal owning package
+and native builds, catalog emission and E2E typechecking pass. Browser runs exposed
+native dialog lifecycle and hidden-popover ancestor defects: settled/removing
+dialogs now close before DOM mutation, unrelated active drafts remain open, and
+secondary confirmations stay visible while their popover is closed. Fifteen
+menu/form-refresh cases and six theme cases pass after these repairs. The test
+helper uses semantic dialog open state instead of animation visibility.
+
+With compiler inputs frozen after an external edit, the [final gate](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-priorities-de90f9aa-1e55-4252-8760-e3c77fac4abf/report.json)
+passed compilation/build, all seven examples and real Playwright 1/1 (57.5 seconds).
+It covers primary visibility, keyboard and pointer menu operation, native input
+and confirmation dialogs, cancellation/Escape and focus return, repeated view and
+ordinary-card identities, long-title mobile layout, and the existing canonical
+create/update/archive/validation/trait/keyword workflows. Eleven adjacent
+screenshots were captured; desktop, mobile, menu, confirmation and ordinary-card
+states were visually inspected. Three navigations and owned-session closure are
+recorded. Failed attempts preserved current output; recovery reused the same
+candidate with zero additional AI calls. No other-app or design-reference
+acceptance is claimed.
+
+**BGI-09/10/12 — card footer correction, 14 October 2026: CLOSED.**
+Following the user's placement correction, ordinary cards put primary controls
+in a footer after their body and secondary controls in the header menu. Page
+toolbars retain their placement; generated card views receive the same explicit
+rule. Primary describes visibility, independently of button emphasis. Canonical
+form and overlay owners retain Save/Cancel behavior. The existing direct hosts
+remain page, card and row-bound view; direct modal/drawer or collection groups
+remain proposed.
+
+Existing direct card/view roots now fill their list row without duplicate row
+padding or separators. Generation guidance and PromptStudio prompts require one
+surface, readable title width and footer placement; the duplicated Surface
+attachment was removed from ItemTile. Native `can gen PromptStudio.can` used the
+requested Sol 6.1/medium recipe for changed frontend units u6/u7/u8, preserving
+the five unchanged Given units, and accepted seven files (`../../../output/prompt-pipeline/card-footer-generation-20261014.json`, local run output).
+
+The owning package build, catalog, 74 focused UI checks and E2E typecheck pass.
+The [current gate](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-af7f9095-451f-4572-8920-07ab43d5a00b/report.json)
+passed compile/build, all seven examples and real Playwright 1/1 (57.9 seconds)
+on the first candidate. The journey additionally checks footer placement on
+ordinary/generated cards, a usable mobile title width, single framing and full
+list-row width. Eleven adjacent screenshots were captured; desktop/mobile cards,
+ordinary Alias cards, mobile menu and confirmation were visually inspected.
+Three real navigations and owned-session closure are recorded. No compiler
+rebuild, new presentation carrier, image generation or other-app acceptance was
+needed or claimed.
+
+**BGI-09/10/12 — card content/action cohesion, 14 October 2026: CLOSED.**
+The user found the footer actions still visually disconnected from the card
+content. Shared primary groups now align inline-start; ordinary card footers use
+compact separation and a subtle divider. Direct canonical record dialog openers
+use a neutral outline, while page toolbar openers retain accent fill. Narrow
+selectors preserve authored variants and controls inside dialogs. PromptStudio's
+view groups metadata and avoids stretch spacers, and its page prompt owns a
+responsive two-column collection. Generation guidance retains these cohesion
+principles without imposing the fixture's grid on other apps.
+
+The owning build, catalog, six theme/class checks and E2E typecheck pass. Native
+`can gen PromptStudio.can` regenerated only u7/u8 with Sol 6.1/medium and
+accepted five files (`../../../output/prompt-pipeline/card-cohesion-generation-20261014.json`, local run output)
+on the first candidate. The [gate](../../../tests/fixtures/prompt-pipeline/.can/gen/checks/run-source-2655fe8a-42ed-40bd-bbe1-e9308268f05e/report.json)
+passed compile/build, all seven examples and real Playwright 1/1. The existing
+journey now checks relaxed content/button alignment, metadata-to-action spacing
+and desktop columns in addition to its existing interactions. Eleven screenshots
+were captured; desktop/mobile item cards and ordinary Alias cards were visually
+inspected. Three navigations and owned-session closure are recorded. No new
+compiler or interaction behavior, other-app acceptance or image generation is
+claimed.
+
+The broader DFE draft rollout, design-reference comparison, other-adapter qualification and unrelated held runtime/publication outcomes remain separately open. Existing BGI-13 review/closure gates retain their original scope; this integration does not turn historical completed criteria into new assignments.
 
 ## Accepted Given forms
 

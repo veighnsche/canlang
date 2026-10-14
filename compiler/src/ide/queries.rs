@@ -2315,6 +2315,88 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
     if chain.iter().any(|node| node.kind == SyntaxKind::DoBlock) {
         return effect_keywords();
     }
+    // Contextual action groups are child introducers, never attribute,
+    // field, expression or nested-control vocabulary.
+    let before = &text[..offset.min(text.len() as u32) as usize];
+    let line_head = before.rsplit('\n').next().unwrap_or("").trim_start();
+    if line_head
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    {
+        let host = chain.iter().rev().find(|node| {
+            matches!(
+                node.kind,
+                SyntaxKind::Page
+                    | SyntaxKind::View
+                    | SyntaxKind::Card
+                    | SyntaxKind::Details
+                    | SyntaxKind::Collection
+                    | SyntaxKind::Form
+                    | SyntaxKind::Edit
+                    | SyntaxKind::UiLeaf
+                    | SyntaxKind::CatalogItem
+                    | SyntaxKind::Slot
+                    | SyntaxKind::Tabs
+                    | SyntaxKind::Tab
+                    | SyntaxKind::Show
+            ) && !kids(node).first().is_some_and(|head| {
+                head.kind == SyntaxKind::Name
+                    && head.span.start <= offset
+                    && offset <= head.span.end
+            })
+        });
+        let word = |node: &SyntaxNode| {
+            kids(node)
+                .into_iter()
+                .find_map(|child| name_text(child, text))
+                .unwrap_or("")
+        };
+        let active_form = chain.iter().any(|node| {
+            node.kind == SyntaxKind::Edit || (node.kind == SyntaxKind::Form && word(node) == "form")
+        });
+        if let Some(host) = host {
+            if active_form {
+                if host.kind == SyntaxKind::Edit
+                    || (host.kind == SyntaxKind::Form && word(host) == "form")
+                {
+                    return vec!["primary"];
+                }
+                return Vec::new();
+            }
+            let drawer_details = host.kind == SyntaxKind::Details
+                && kids(host).into_iter().any(|attr| {
+                    attr.kind == SyntaxKind::Attribute
+                        && word(attr) == "display"
+                        && kids(attr).into_iter().any(|value| {
+                            value.kind == SyntaxKind::NameRef
+                                && text[value.span.start as usize..value.span.end as usize].trim()
+                                    == "drawer"
+                        })
+                });
+            let panel_actions = host.kind == SyntaxKind::Slot
+                && kids(host)
+                    .into_iter()
+                    .filter_map(|child| name_text(child, text))
+                    .nth(1)
+                    == Some("actions")
+                && chain
+                    .iter()
+                    .position(|node| std::ptr::eq(*node, *host))
+                    .and_then(|index| index.checked_sub(1))
+                    .and_then(|index| chain.get(index))
+                    .is_some_and(|parent| {
+                        parent.kind == SyntaxKind::CatalogItem
+                            && matches!(word(parent), "modal" | "drawer")
+                    });
+            if matches!(host.kind, SyntaxKind::Page | SyntaxKind::Card)
+                || (host.kind == SyntaxKind::Collection && matches!(word(host), "list" | "table"))
+                || drawer_details
+                || panel_actions
+            {
+                return vec!["primary", "secondary"];
+            }
+        }
+    }
     // Section body: declaration introducers for the enclosing section.
     if let Some(marker) = enclosing_section_marker(tree, text, offset) {
         return match marker {

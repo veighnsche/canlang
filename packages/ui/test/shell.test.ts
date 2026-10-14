@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   CSRF_FIELD,
@@ -14,6 +14,7 @@ import type {
   ShellData,
 } from "@canlang/contracts";
 import type { Element } from "happy-dom";
+import { actionMenu, primaryActions } from "../src/overlays.js";
 import { styledComponent } from "../src/components.js";
 import { message } from "../src/messages.js";
 import { buildNavigation, selectDiscoveryCandidates } from "../src/navigation.js";
@@ -1201,4 +1202,41 @@ describe("compiler page style root", () => {
       assert.equal(card.querySelector('input')!.getAttribute('data-can-style-host'),null);
     } finally { await page.close(); }
   });
+});
+
+
+describe("page heading action groups", () => {
+  it("moves only completed direct groups into the page heading while preserving evaluation", async () => {
+    const context = makeContext({ isPartial: true });
+    const calls: string[] = [];
+    const nested = '<section class="card"><div class="can-action-menu" data-can-action-menu>Nested</div></section>';
+    const html = await renderPage(context, { ...makeDescriptor("Items"), renderParts: async () => [] }, [
+      Promise.resolve().then(() => { calls.push("body"); return nested; }),
+      Promise.resolve().then(async () => { calls.push("secondary"); return actionMenu({ context, id: "page-menu", children: ['<button type="button">Archive</button>'] }); }),
+      Promise.resolve().then(async () => { calls.push("primary"); return primaryActions({ context, children: ['<button type="button">Create</button>'] }); }),
+    ]);
+    assert.deepEqual(calls, ["body", "secondary", "primary"]);
+    const page = await loadHtml(html);
+    try {
+      const heading = page.document.querySelector(".can-page-heading")!;
+      assert.equal(heading.querySelector("h1")?.textContent, "Items");
+      const actions = heading.querySelector(".can-heading-actions")!;
+      assert.equal(actions.children[0]?.hasAttribute("data-can-primary-actions"), true);
+      assert.equal(actions.children[1]?.hasAttribute("data-can-action-menu"), true);
+      assert.equal(page.document.querySelector("main > section.card [data-can-action-menu]")?.textContent, "Nested");
+      assert.equal(page.document.querySelectorAll("[data-can-primary-actions]").length, 1);
+    } finally { await page.close(); }
+  });
+});
+
+
+test("legacy joined page HTML stays in the body even when it begins with a group", async () => {
+  const context = makeContext({ isPartial: true });
+  const group = await primaryActions({ context, children: ['<button type="button">Create</button>'] });
+  const page = await loadHtml(await renderPage(context, makeDescriptor("Items"), [group + '<ul id="items"><li>Item</li></ul>']));
+  try {
+    assert.equal(page.document.querySelector(".can-page-heading [data-can-primary-actions]"), null);
+    assert.ok(page.document.querySelector("main > [data-can-primary-actions]"));
+    assert.ok(page.document.querySelector("main > ul#items"));
+  } finally { await page.close(); }
 });

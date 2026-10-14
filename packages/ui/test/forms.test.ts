@@ -301,7 +301,7 @@ describe("form hidden fields and roots", () => {
 
   it("renders the primary submit button and an optional ghost cancel link", async () => {
     const plain = await form(makeFormProps());
-    assert.ok(plain.includes('<button type="submit" class="btn btn-primary">Save</button>'));
+    assert.ok(plain.includes('<button type="submit" class="btn btn-primary" data-can-standard-submit>Save</button>'));
     assert.ok(!plain.includes("btn-ghost"));
     const withCancel = await form(makeFormProps({ cancelHref: "/back" }));
     assert.ok(withCancel.includes('<a class="btn btn-ghost" href="/back">Cancel</a>'));
@@ -311,8 +311,8 @@ describe("form hidden fields and roots", () => {
     const authored = await form({ ...props, children: async () => ["<section>", authoredControl, "</section>"] });
     assert.ok(authored.includes('<section><fieldset class="fieldset">'));
     assert.equal((authored.match(/name="inputs\[title\]"/g) ?? []).length, 1);
-    assert.ok(authored.includes('</section><div class="flex gap-4">'));
-    assert.ok(authored.includes('<button type="submit" class="btn btn-primary">Publish</button>'));
+    assert.ok(authored.includes('</section><div class="flex gap-4" data-can-form-actions>'));
+    assert.ok(authored.includes('<button type="submit" class="btn btn-primary" data-can-standard-submit>Publish</button>'));
     assert.ok(authored.includes('<a class="btn btn-ghost" href="/back">Cancel</a>'));
     for (const name of ["operation", "operation_id", CSRF_FIELD, "timezone"]) {
       assert.ok(authored.includes(`type="hidden" name="${name}"`));
@@ -320,8 +320,13 @@ describe("form hidden fields and roots", () => {
 
     const inDrawer = await form({ ...props, display: "drawer", children: [authoredControl] });
     assert.ok(inDrawer.includes('<input id="f1-drawer" type="checkbox" class="drawer-toggle">'));
-    assert.ok(inDrawer.includes('<label for="f1-drawer" class="btn drawer-button">Publish</label>'));
-    assert.ok(inDrawer.includes('<div class="drawer-side">'));
+    const drawerPage = await loadHtml(inDrawer);
+    try {
+      const opener = drawerPage.document.querySelector('label[for="f1-drawer"].drawer-button');
+      assert.equal(opener?.textContent, 'Publish');
+      assert.equal(opener?.getAttribute('data-can-panel-open'), 'f1-drawer');
+    } finally { await drawerPage.close(); }
+    assert.match(inDrawer, /<div class="(?:[^"]*\s)?drawer-side(?:\s[^"]*)?">/);
     assert.ok(inDrawer.includes('<label for="f1-drawer" class="drawer-overlay"'));
     assert.ok(inDrawer.includes('<form action="/submit" method="post" class="can-form">'));
 
@@ -1175,7 +1180,7 @@ describe("action", () => {
     assert.ok(html.includes('<input type="hidden" name="inputs[count]" value="3">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[big]" value="9007199254740993">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[flag]" value="true">'));
-    assert.ok(html.includes('<button type="submit" class="btn btn-primary">Complete</button>'));
+    assert.ok(html.includes('<button type="submit" class="btn btn-primary" data-can-standard-submit>Complete</button>'));
     assert.ok(!html.includes('<fieldset class="fieldset">'));
   });
 
@@ -1184,8 +1189,10 @@ describe("action", () => {
     assert.ok(primary.includes('class="btn btn-primary"'));
     const danger = await action(makeActionProps({ variant: "danger" }));
     assert.ok(danger.includes('class="btn btn-error"'));
+    assert.ok(!danger.includes('data-can-standard-submit'));
     const ghost = await action(makeActionProps({ variant: "ghost" }));
     assert.ok(ghost.includes('class="btn btn-ghost"'));
+    assert.ok(!ghost.includes('data-can-standard-submit'));
   });
 
   it("renders a scenario mini-form when fields are present", async () => {

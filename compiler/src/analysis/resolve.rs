@@ -615,32 +615,78 @@ pub(crate) fn try_resolve_program_with_given(
         for contract in &given.traits {
             for application in &contract.applications {
                 if let Some(name) = &application.target_field {
-                    if let Some(id) = resolver.tables.by_canonical.get(&application.target_canonical).copied() {
+                    if let Some(id) = resolver
+                        .tables
+                        .by_canonical
+                        .get(&application.target_canonical)
+                        .copied()
+                    {
                         for field in &contract.contributed_fields {
                             let mut constraint = field.clone();
                             constraint.name = name.clone();
-                            resolver.tables.given_constraints.entry(id).or_default().push(constraint);
+                            resolver
+                                .tables
+                                .given_constraints
+                                .entry(id)
+                                .or_default()
+                                .push(constraint);
                         }
                     }
                     continue;
                 }
-                let Some(owner) = resolver.tables.by_canonical.get(&application.target_canonical).copied() else { continue; };
-                if !matches!(resolver.tables.symbols[owner.0 as usize].kind, SymbolKind::Model { .. }) { continue; }
+                let Some(owner) = resolver
+                    .tables
+                    .by_canonical
+                    .get(&application.target_canonical)
+                    .copied()
+                else {
+                    continue;
+                };
+                if !matches!(
+                    resolver.tables.symbols[owner.0 as usize].kind,
+                    SymbolKind::Model { .. }
+                ) {
+                    continue;
+                }
                 let module = resolver.tables.symbols[owner.0 as usize].module;
                 for field in &contract.contributed_fields {
                     let canonical = format!("{}.{}", application.target_canonical, field.name);
                     if resolver.tables.by_canonical.contains_key(&canonical) {
-                        diags.push(Diagnostic::error("E3021", format!("checked trait contribution duplicates field `{canonical}`"), application.span));
+                        diags.push(Diagnostic::error(
+                            "E3021",
+                            format!("checked trait contribution duplicates field `{canonical}`"),
+                            application.span,
+                        ));
                         continue;
                     }
-                    let id = SymbolId(semantic_index(resolver.tables.symbols.len(), "Given field", application.span)?);
+                    let id = SymbolId(semantic_index(
+                        resolver.tables.symbols.len(),
+                        "Given field",
+                        application.span,
+                    )?);
                     resolver.tables.symbols.push(Symbol {
-                        id, canonical: canonical.clone(), name: field.name.clone(),
-                        kind: SymbolKind::Field { owner, type_node: NodeKey { file: application.span.file, start: application.span.start, end: application.span.end, kind: SyntaxKind::Field as u8 } },
-                        module, span: application.span, exported: false,
+                        id,
+                        canonical: canonical.clone(),
+                        name: field.name.clone(),
+                        kind: SymbolKind::Field {
+                            owner,
+                            type_node: NodeKey {
+                                file: application.span.file,
+                                start: application.span.start,
+                                end: application.span.end,
+                                kind: SyntaxKind::Field as u8,
+                            },
+                        },
+                        module,
+                        span: application.span,
+                        exported: false,
                     });
                     resolver.tables.by_canonical.insert(canonical, id);
-                    if let SymbolKind::Model { fields, .. } = &mut resolver.tables.symbols[owner.0 as usize].kind { fields.push(id); }
+                    if let SymbolKind::Model { fields, .. } =
+                        &mut resolver.tables.symbols[owner.0 as usize].kind
+                    {
+                        fields.push(id);
+                    }
                     resolver.tables.given_fields.insert(id, field.clone());
                 }
             }
@@ -6414,8 +6460,26 @@ impl<'a> Resolver<'a> {
                         self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     }
                 }
+                if kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .is_some_and(|word| matches!(word, "primary" | "secondary"))
+                {
+                    if let Some(target) = attribute_value(node, "action", text) {
+                        self.walk_expr(module, scope, target, text, ExprCtx::bare(), diags)?;
+                        let segments = expr_path_segments(target, text);
+                        if let Some(operation) =
+                            self.resolve_op_path(module, &segments, target, text, diags)
+                        {
+                            self.tables
+                                .node_symbol
+                                .insert(NodeKey::of(target), operation);
+                        }
+                    }
+                }
                 let mut form_scope = self.new_scope(Some(scope), node.span)?;
-                let target = kids(node).into_iter().find(|n| is_expression(n.kind));
+                let target = attribute_value(node, "action", text)
+                    .or_else(|| kids(node).into_iter().find(|n| is_expression(n.kind)));
                 if let Some(target) = target {
                     self.bind_result(module, text, form_scope, target);
                 }
@@ -6443,9 +6507,22 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::Edit | SyntaxKind::UiLeaf => {
+                if kids(node)
+                    .iter()
+                    .find_map(|n| name_text(n, text))
+                    .is_some_and(|word| matches!(word, "primary" | "secondary"))
+                {
+                    for name in ["target", "submit"] {
+                        if let Some(value) = attribute_value(node, name, text) {
+                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                        }
+                    }
+                }
                 for child in kids(node) {
                     if is_expression(child.kind) {
                         self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
+                    } else if node.kind == SyntaxKind::Edit && is_ui_child(child.kind) {
+                        self.walk_ui(text, module, scope, child, diags)?;
                     }
                 }
             }
@@ -6491,7 +6568,8 @@ impl<'a> Resolver<'a> {
                 }
                 // Destination controls carry real expressions, not catalog words.
                 if kids(node).iter().find_map(|n| name_text(n, text)) == Some("button")
-                    && attribute_value(node, "target", text).is_some()
+                    && (attribute_value(node, "target", text).is_some()
+                        || attribute_value(node, "caption", text).is_some())
                 {
                     for name in ["target", "caption"] {
                         if let Some(value) = attribute_value(node, name, text) {
