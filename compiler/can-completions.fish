@@ -3,7 +3,7 @@
 # (or eval it: `can completions fish | source`).
 # Embedded in the binary too: `can completions fish` prints this file.
 
-set -l commands activate build check compile completions deploy dev docs explain fmt gen help lint lsp policy run test
+set -l commands activate build check compile completions deploy dev docs explain fmt gen help lint lsp policy run test validate
 
 complete -c can -f -n __fish_use_subcommand -a activate -d 'Thin lane-7 entry: exec can-platform activate (passthrough)'
 complete -c can -f -n __fish_use_subcommand -a build -d 'Thin lane-7 entry: exec can-platform build (passthrough)'
@@ -15,12 +15,13 @@ complete -c can -f -n __fish_use_subcommand -a dev -d 'JSON control for the loca
 complete -c can -f -n __fish_use_subcommand -a docs -d 'Generate the localized internal declaration reference'
 complete -c can -f -n __fish_use_subcommand -a explain -d 'Print a diagnostic catalog entry'
 complete -c can -f -n __fish_use_subcommand -a fmt -d 'Format sources in place (or check with --check)'
-complete -c can -f -n __fish_use_subcommand -a gen -d 'Minimal generation bind/status selectors'
+complete -c can -f -n __fish_use_subcommand -a gen -d 'Generate source-owned code or dispatch generation requests'
 complete -c can -f -n __fish_use_subcommand -a help -d 'Show help (global or per command)'
 complete -c can -f -n __fish_use_subcommand -a lint -d 'Run lint rules over sources (warnings only, never blocks)'
 complete -c can -f -n __fish_use_subcommand -a lsp -d 'Run the language server over stdio'
 complete -c can -f -n __fish_use_subcommand -a policy -d 'Dump the declared policy surface'
 complete -c can -f -n __fish_use_subcommand -a run -d 'Thin lane-7 entry: exec can-platform run (passthrough)'
+complete -c can -f -n __fish_use_subcommand -a validate -d 'Compile, build and test saved output without AI'
 complete -c can -f -n __fish_use_subcommand -a test -d 'Thin lane-7 entry: exec can-platform test (passthrough)'
 complete -c can -f -n __fish_use_subcommand -s h -l help -d 'Show help'
 complete -c can -f -n __fish_use_subcommand -s V -l version -d 'Show version'
@@ -54,6 +55,12 @@ complete -c can -f -n '__fish_seen_subcommand_from gen' -a 'bind status' -d 'Gen
 complete -c can -f -n '__fish_seen_subcommand_from gen' -l request -r -d 'Versioned JSON request file'
 complete -c can -f -n '__fish_seen_subcommand_from gen' -l format -x -a 'json text' -d 'Machine or human output'
 complete -c can -f -n '__fish_seen_subcommand_from gen' -s h -l help -d 'Show help'
+
+complete -c can -f -n '__fish_seen_subcommand_from gen' -l retry -d 'Regenerate all selected units'
+complete -c can -f -n '__fish_seen_subcommand_from gen' -l dry-run -d 'Report planned work without generation'
+complete -c can -n '__fish_seen_subcommand_from gen validate' -a '(__fish_complete_suffix .can)'
+complete -c can -f -n '__fish_seen_subcommand_from validate' -l format -x -a 'json text' -d 'Machine or human output'
+complete -c can -f -n '__fish_seen_subcommand_from validate' -s h -l help -d 'Show help'
 
 # lsp takes no operands.
 complete -c can -f -n '__fish_seen_subcommand_from lsp' -s h -l help -d 'Show help'

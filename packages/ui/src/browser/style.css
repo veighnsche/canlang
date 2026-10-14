@@ -196,3 +196,191 @@ dialog.modal {
     scroll-behavior: auto !important;
   }
 }
+
+/* Canonical overflow placement uses normal flow; generated grid roots retain
+ * their authored display while the menu aligns at the end of its own cell. */
+:where([data-can-view]:has(.can-action-menu)) {
+  display: flow-root;
+}
+.can-action-menu {
+  float: inline-end;
+  margin-inline-start: .75rem;
+  justify-self: end;
+}
+.can-action-menu-trigger {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  flex-shrink: 0;
+  font-size: 1.75rem;
+}
+.can-action-menu-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  min-width: 10rem;
+  max-width: calc(100vw - 16px);
+  overflow: auto;
+  padding: .25rem;
+  border: 1px solid var(--color-base-300, #ccc);
+  border-radius: .5rem;
+  background: var(--color-base-100, white);
+  color: var(--color-base-content, black);
+  box-shadow: 0 8px 24px #0003;
+}
+.can-action-menu-popover [data-can-menu-dialog-open] {
+  min-height: 44px;
+  width: 100%;
+  text-align: start;
+}
+.can-menu-dialog .can-form { margin-block-start: 1rem; }
+
+.can-card-heading, .can-page-heading-row { display: flex; align-items: start; gap: .75rem; }
+.can-card-heading > .card-title, .can-page-heading-row > h1 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.can-heading-actions { display: flex; align-items: start; justify-content: end; flex-wrap: wrap; gap: .5rem; max-width: 60%; }
+.can-heading-actions > .can-action-menu { float: none; margin-inline-start: 0; }
+.can-primary-actions { display: flex; align-items: center; justify-content: start; flex-wrap: wrap; gap: .5rem; }
+/* Standard action treatment is limited to the owner's visible control.
+ * Inputs, confirmation submits and cancel controls inside dialogs retain the
+ * canonical form behavior and presentation. */
+[data-can-standard-submit],
+.can-primary-actions > [data-can-menu-dialog] > .can-action-entry[data-can-menu-dialog-open],
+.can-primary-actions > form > button[type="submit"],
+.can-primary-actions > .can-form > div > button[type="submit"],
+.can-primary-actions > .btn {
+  min-height: 44px;
+  border-radius: var(--radius-field, .5rem);
+  border: 1px solid var(--color-primary, #2563eb);
+  background: var(--color-primary, #2563eb);
+  color: var(--color-primary-content, white);
+  font-size: .875rem;
+  font-weight: 600;
+  padding: .625rem 1rem;
+  box-shadow: none;
+}
+[data-can-standard-submit]:hover,
+.can-primary-actions > [data-can-menu-dialog] > .can-action-entry[data-can-menu-dialog-open]:hover,
+.can-primary-actions > form > button[type="submit"]:hover,
+.can-primary-actions > .can-form > div > button[type="submit"]:hover,
+.can-primary-actions > .btn:hover { filter: brightness(.95); }
+.can-primary-actions > [data-can-menu-dialog] > .can-action-entry[data-can-menu-dialog-open]:focus-visible {
+  outline: 2px solid var(--color-primary, #2563eb);
+  outline-offset: 2px;
+}
+.can-primary-actions > form { margin: 0; }
+.can-action-menu-popover li > form { margin: 0; }
+.can-action-menu-popover li > [data-can-menu-dialog] > button,
+.can-action-menu-popover li > form > button,
+.can-action-menu-popover li > .can-form > div > button,
+.can-action-menu-popover li > .btn {
+  min-height: 36px;
+  width: 100%;
+  justify-content: start;
+  text-align: start;
+  padding: .5rem .75rem;
+  border-radius: var(--radius-field, .5rem);
+  font-size: .875rem;
+  font-weight: 500;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 480px) {
+  .can-page-heading-row { flex-wrap: wrap; }
+  .can-page-heading-row > .can-heading-actions { margin-inline-start: auto; max-width: 100%; }
+}
+
+/* A modal remains owned by its canonical secondary control after the popover
+ * closes. Keep the closed ancestor box renderable while that modal is open;
+ * only the top-layer dialog is visible or receives pointer events. */
+[data-can-action-menu-popover]:not(:popover-open):has(dialog[data-can-menu-dialog-panel][open]) {
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+}
+[data-can-action-menu-popover] dialog[data-can-menu-dialog-panel][open] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Canonical cards own one surface; primary controls finish the card body. */
+.card[data-can-card] {
+  border: 1px solid var(--color-base-300, #ccc);
+  border-radius: var(--radius-box, .75rem);
+  box-shadow: none;
+}
+.card[data-can-card] > .card-body { padding: 1.25rem; gap: 1rem; }
+.card[data-can-card] .card-title { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
+@media (max-width: 480px) {
+  .card[data-can-card] > .card-body { padding: 1rem; }
+}
+.can-card-footer {
+  display: flex;
+  justify-content: start;
+  padding-block-start: .25rem;
+}
+.can-card-footer > .can-primary-actions { max-width: 100%; }
+
+/* Complete card/view roots span Daisy's summary columns. Text, projections
+ * and split-selection links retain their existing list-row presentation. */
+.list-row > .card,
+.list-row > [data-can-view] { grid-column: 1 / -1; width: 100%; min-width: 0; }
+/* Daisy pins every list child to grid row 1. Complete card/view bodies must
+ * instead stack in source order, including multiple sibling owners. */
+.list .list-row:has(> .card, > [data-can-view]) { display: flex; flex-direction: column; align-items: stretch; padding: 0; }
+.list-row:has(> .card, > [data-can-view])::after { display: none; }
+.list:has(> .list-row > .card, > .list-row > [data-can-view]) { gap: 1rem; }
+
+/* Shared grouped record metadata for canonical and generated cards. */
+.can-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem .75rem;
+  font-size: .875rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-base-content, #222) 75%, var(--color-base-100, white));
+}
+
+/* Concrete row and panel owners share action placement. */
+.can-row-actions { display: flex; align-items: center; justify-content: end; flex-wrap: wrap; gap: .5rem; }
+.list-row > .can-row-actions { grid-column: 1 / -1; }
+.can-row-actions > .can-action-menu, .can-panel-heading > .can-action-menu { float: none; margin-inline-start: 0; }
+.can-panel-heading { display: flex; align-items: center; gap: .75rem; }
+.can-panel-heading > :is(h2, h3) { flex: 1; min-width: 0; }
+[data-can-form-actions] { align-items: center; flex-wrap: wrap; }
+/* Actionable list rows keep authored content before their trailing controls;
+ * rows without controls retain the existing direct card/view grid contract. */
+.list-row[data-can-row-actions] { display: flex; align-items: center; gap: 1rem; }
+.can-row-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.list-row[data-can-row-actions] > .can-row-actions { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .list-row[data-can-row-actions] { flex-wrap: wrap; }
+  .list-row[data-can-row-actions] > .can-row-content { flex-basis: 100%; }
+  .list-row[data-can-row-actions] > .can-row-actions { max-width: 100%; flex-shrink: 1; }
+}
+/* Canonical menu dialogs own one end-aligned form footer: cancel first,
+ * followed immediately by the committing control. Long captions wrap safely. */
+.can-menu-dialog [data-can-dialog-actions] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding-block-start: 1rem;
+}
+.can-menu-dialog [data-can-dialog-actions] > .btn {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.can-menu-dialog [data-can-dialog-actions] > .btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}

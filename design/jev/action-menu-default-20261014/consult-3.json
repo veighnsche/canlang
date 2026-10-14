@@ -1,0 +1,46 @@
+{
+  "request": {
+    "state": {
+      "verified_context": [
+        "Desired outcome: Then source declares secondary controls once; the shared UI places a small card corner trigger, reveals Archive, and asks for confirmation before the canonical mutation.",
+        "Verified code: actions rejects content suites and supports ordinary operation expressions; menu accepts only route descriptors; dropdown has neither source decoding nor activated-button semantics.",
+        "Generated view contracts pass immutable pre-rendered control bindings, including actions. Their allowed children exclude structural groups. Delete currently emits its canonical confirmation inline, so every option needs a compact opener for that existing form."
+      ],
+      "alternatives": {
+        "A": "Add the previously invalid suite shape to actions with overflow as the default for that shape. Reuse canonical control rendering and preserve expression-based actions unchanged.",
+        "B": "Add a purpose-specific action_menu suite, reuse canonical controls and provide the corner trigger, entries and confirmation defaults under the new name.",
+        "C": "Make existing dropdown slots compile and compose explicit trigger/content at every callsite, using canonical control confirmation openers. Retain explicit layout responsibilities in source."
+      }
+    },
+    "questions": {
+      "design": {
+        "type": "choice",
+        "instructions": "Select the best bounded implementation route for the requested declarative secondary-action menu, considering compatibility, simplicity and semantic clarity equally.",
+        "criteria": {
+          "A": "Add the previously invalid suite shape to actions with overflow as the default for that shape. Reuse canonical control rendering and preserve expression-based actions unchanged.",
+          "B": "Add a purpose-specific action_menu suite, reuse canonical controls and provide the corner trigger, entries and confirmation defaults under the new name.",
+          "C": "Make existing dropdown slots compile and compose explicit trigger/content at every callsite, using canonical control confirmation openers. Retain explicit layout responsibilities in source."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "design": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.72,
+        "probabilities": {
+          "A": 0.18,
+          "B": 0.81,
+          "C": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 652,
+      "output_tokens": 38
+    }
+  }
+}

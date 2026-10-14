@@ -1,0 +1,78 @@
+app ActionGallery
+## Inspect only shared action defaults and their admitted presentation owners.
+Given
+ Sample {title:text trim min=1 max=80,note:text max=240} label="Sample"
+ policy Sample read=members
+ fixture example_sample=Sample {title="Example sample",note="Neutral example data"}
+When
+ crud Sample by=members fields=title,note
+  examples create
+   as,title,note -> count(Sample)
+   members,"Example sample","Neutral example data" -> 1
+   outsider,"Denied sample","Neutral example data" -> error(forbidden)
+  examples update seed=[example_sample] record=example_sample changes={title="Updated sample"}
+   as -> example_sample.title
+   members -> "Updated sample"
+   outsider -> error(forbidden)
+Then
+ page / title="Shared action gallery"
+  require members
+  primary "Create sample" action=Sample.create fields=title,note
+  secondary "Inspect row owners" target="/rows"
+  text "Create one neutral sample, then inspect its actions in each shared component. No generated styling or custom renderer is attached."
+  list Sample empty="No samples yet. Create a sample to inspect every owner."
+   card row.title
+    text row.note
+    primary "Edit card sample" action=Sample.update arguments={record=row} fields=title,note
+    secondary "Archive card sample" action=Sample.delete arguments={record=row}
+    secondary "Inspect overlays" target="/overlays"
+ page /page title="Page heading owner"
+  require members
+  primary "Create page sample" action=Sample.create fields=title,note
+  secondary "Inspect row owners" target="/rows"
+  text "Page actions belong to the heading. This static page opens the canonical create dialog and provides secondary navigation."
+ page /rows title="Collection row owners"
+  require members
+  card "List rows"
+   list Sample empty="Create a sample on the gallery page first."
+    text row.title,row.note
+    primary "Edit list sample" action=Sample.update arguments={record=row} fields=title,note
+    secondary "Archive list sample" action=Sample.delete arguments={record=row}
+  card "Table rows"
+   table Sample columns=title,note empty="Create a sample on the gallery page first."
+    primary "Edit table sample" action=Sample.update arguments={record=row} fields=title,note
+    secondary "Archive table sample" action=Sample.delete arguments={record=row}
+ page /overlays title="Overlay owners"
+  require members
+  list Sample empty="Create a sample on the gallery page first."
+   text row.title,row.note
+   primary "Open sample modal" opens=sample_modal
+   primary "Open sample drawer" opens=sample_drawer
+   modal "Modal sample" id=sample_modal
+    slot content
+     text row.title,row.note
+    slot actions
+     primary "Edit modal sample" action=Sample.update arguments={record=row} fields=title,note
+     secondary "Archive modal sample" action=Sample.delete arguments={record=row}
+   drawer "Drawer sample" id=sample_drawer
+    slot content
+     text row.title,row.note
+    slot actions
+     primary "Edit drawer sample" action=Sample.update arguments={record=row} fields=title,note
+     secondary "Archive drawer sample" action=Sample.delete arguments={record=row}
+   details "Sample details" display=drawer
+    text row.title,row.note
+    primary "Edit detail sample" action=Sample.update arguments={record=row} fields=title,note
+    secondary "Archive detail sample" action=Sample.delete arguments={record=row}
+ page /split-list title="Split list owner"
+  require members
+  list Sample display=split empty="Create a sample on the gallery page first."
+   text row.title,row.note
+   primary "Edit split list sample" action=Sample.update arguments={record=row} fields=title,note
+   secondary "Archive split list sample" action=Sample.delete arguments={record=row}
+ page /split-table title="Split table owner"
+  require members
+  table Sample columns=title,note display=split empty="Create a sample on the gallery page first."
+   text row.title,row.note
+   primary "Edit split table sample" action=Sample.update arguments={record=row} fields=title,note
+   secondary "Archive split table sample" action=Sample.delete arguments={record=row}

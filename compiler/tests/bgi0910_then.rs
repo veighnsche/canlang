@@ -76,6 +76,132 @@ fn prompted_view_lowers_row_controls_and_root_style() {
 }
 
 #[test]
+fn action_primitives_have_opaque_bindings_and_canonical_metadata() {
+    let text = wrap(
+        " view Tile(row:Todo) $\"Arrange actions first.\"\n  card row.title\n   require row.title != \"\"\n   primary \"Approve\" action=x arguments={t=row}\n   secondary \"Review\" action=x arguments={t=row}\n   secondary \"Inspect\" target=\"/inspect\"\n",
+    );
+    let tree = parse(&text);
+    let lowering = lower_then_views(&tree, &text);
+    assert!(
+        lowering.diagnostics.is_empty(),
+        "{:?}",
+        lowering.diagnostics
+    );
+    let view = &lowering.views[0];
+    assert_eq!(
+        view.binding_names
+            .iter()
+            .map(|(_, name)| name.as_str())
+            .collect::<Vec<_>>(),
+        ["card"]
+    );
+    assert!(view.gates.is_empty(), "card guard stays local");
+    assert_eq!(
+        view.controls,
+        [
+            ThenControl::Primary,
+            ThenControl::Form {
+                operation: "x".into(),
+                fields: vec![]
+            },
+            ThenControl::Secondary,
+            ThenControl::Form {
+                operation: "x".into(),
+                fields: vec![]
+            },
+            ThenControl::Secondary
+        ]
+    );
+}
+
+#[test]
+fn action_primitives_refuse_missing_bindings_old_suites_and_design_overrides() {
+    for source in [
+        "secondary\n delete",
+        "primary action=x",
+        "primary \"Approve\"",
+        "secondary \"Delete\" action=x target=\"/\"",
+        "primary\n form Todo.create",
+        "secondary \"Delete\" action=x\n delete",
+        "primary \"Approve\" action=x tone=primary",
+        "primary \"Approve\" action=x $\"Red.\"",
+    ] {
+        let text = wrap(&format!(
+            " page / title=\"Tasks\"\n  {}\n",
+            source.replace('\n', "\n  ")
+        ));
+        let (_, diagnostics) = parse_source(SourceId(0), &text);
+        assert!(!diagnostics.is_empty(), "accepted {source}");
+    }
+}
+
+#[test]
+fn action_primitives_admit_only_declared_owner_regions() {
+    for suite in [
+        "  primary \"Browse\" target=\"/\"\n",
+        "  card \"Task\"\n   primary \"Browse\" target=\"/\"\n",
+        "  list Todo\n   secondary \"Browse\" target=\"/\"\n",
+        "  table Todo columns=title\n   primary \"Browse\" target=\"/\"\n",
+        "  modal \"Panel\" id=panel\n   slot content\n    text \"Body\"\n   slot actions\n    primary \"Browse\" target=\"/\"\n    secondary \"More\" target=\"/more\"\n",
+        "  drawer \"Panel\" id=panel\n   slot content\n    text \"Body\"\n   slot actions\n    primary \"Browse\" target=\"/\"\n",
+        "  list Todo\n   details \"Task\" display=drawer\n    secondary \"Browse\" target=\"/\"\n",
+        "  form x\n   primary \"Submit\" submit=true\n",
+        "  list Todo\n   edit fields=title\n    primary \"Submit\" submit=true\n",
+    ] {
+        let text = wrap(&format!(" page / title=\"Tasks\"\n{suite}"));
+        let mut db = canlang_compiler::source::SourceDb::new();
+        let id = db.add("owners.can".into(), text);
+        let (_, diagnostics) = canlang_compiler::analysis::check_program(&db, &[id], None);
+        assert!(
+            !diagnostics
+                .iter()
+                .any(|d| d.message.contains("action owner") || d.message.contains("action region")),
+            "{suite}: {diagnostics:?}"
+        );
+    }
+    for suite in [
+        "  tooltip \"Hint\"\n   primary \"Browse\" target=\"/\"\n",
+        "  details \"Task\"\n   primary \"Browse\" target=\"/\"\n",
+        "  collapse \"Task\"\n   primary \"Browse\" target=\"/\"\n",
+        "  gallery Todo image=title\n   primary \"Browse\" target=\"/\"\n",
+        "  board Todo by=title\n   primary \"Browse\" target=\"/\"\n",
+        "  calendar Todo start=title end=title\n   primary \"Browse\" target=\"/\"\n",
+        "  form x\n   fieldset \"Inputs\"\n    primary \"Submit\" submit=true\n",
+        "  form x\n   card \"Nested\"\n    primary \"Call\" action=x\n",
+        "  form x\n   secondary \"Submit\" submit=true\n",
+        "  modal \"Panel\" id=panel\n   slot content\n    primary \"Browse\" target=\"/\"\n",
+    ] {
+        let text = wrap(&format!(" page / title=\"Tasks\"\n{suite}"));
+        let mut db = canlang_compiler::source::SourceDb::new();
+        let id = db.add("wrong-owners.can".into(), text);
+        let (_, diagnostics) = canlang_compiler::analysis::check_program(&db, &[id], None);
+        assert!(
+            diagnostics.iter().any(|d| d.code == "E3001"
+                && (d.message.contains("action owner") || d.message.contains("action region"))),
+            "{suite}: {diagnostics:?}"
+        );
+    }
+    let text =
+        wrap(" view Tile(row:Todo) $\"Arrange.\"\n  primary \"Call\" action=x arguments={t=row}\n");
+    let tree = parse(&text);
+    assert!(
+        lower_then_views(&tree, &text)
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("owning card"))
+    );
+    let mut db = canlang_compiler::source::SourceDb::new();
+    let id = db.add("unowned-view.can".into(), text);
+    let (_, diagnostics) = canlang_compiler::analysis::check_program(&db, &[id], None);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "E3001" && d.message.contains("action owner")),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
 fn form_and_action_controls_carry_operations() {
     let text = wrap(
         " view Tile(row:Todo) $\"Arrange.\"\n  form Todo.create fields=title\n  action Todo.create\n",
@@ -511,7 +637,11 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
         &format!("can.generated/{u_view}/implementation.js"),
         THEN_JOIN_VIEW_JS,
     );
-    then_write(dir.path(), &format!("can.generated/{u_view}/style.css"), ":host { border: 1px solid green; }\n");
+    then_write(
+        dir.path(),
+        &format!("can.generated/{u_view}/style.css"),
+        ":host { border: 1px solid green; }\n",
+    );
     let compiled = then_compile(dir.path(), &file);
     assert_eq!(compiled.code, 0, "stdout: {}", compiled.stdout);
     let body = then_envelope(&compiled.stdout);
@@ -531,7 +661,10 @@ fn compile_emits_saved_renderer_call_hooks_import_and_css() {
         "wire version"
     );
     assert!(js.contains("view:\"TaskTile\""), "view name");
-    assert!(js.contains(&format!("rendererStyle:\"{u_view}\"")), "renderer CSS ownership");
+    assert!(
+        js.contains(&format!("rendererStyle:\"{u_view}\"")),
+        "renderer CSS ownership"
+    );
     assert!(
         js.contains("rowModel:\"Tasks.Todo\""),
         "canonical row model"
@@ -676,7 +809,13 @@ fn compile_emits_ordinary_named_and_inline_style_hosts() {
     let artifact = then_envelope(&compiled.stdout);
     let js = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(js.contains("styledComponent as"), "{js}");
-    assert!(js.contains(&format!("style:{{unitId:\"{}\",useId:\"can-style-f0-s", units[1])), "{js}");
+    assert!(
+        js.contains(&format!(
+            "style:{{unitId:\"{}\",useId:\"can-style-f0-s",
+            units[1]
+        )),
+        "{js}"
+    );
     for unit in [&units[0], &units[2]] {
         assert!(
             js.contains(&format!(",\"{unit}\",\"can-style-f0-s")),
@@ -691,25 +830,33 @@ fn repeated_saved_view_rows_have_distinct_stable_rendered_instance_ids() {
     let source = "app Tasks\nGiven\n Todo {title:text}\nWhen\n crud Todo by=members fields=title\nThen\n view Tile(row:Todo) $\"Arrange admitted title.\"\n  edit fields=title\n  delete\n page / title=\"Tasks\"\n  list Todo as row\n   show Tile {row=row}\n";
     // Place the emitted entry beneath the workspace so the actual shipped
     // UI package resolves, rather than replacing the renderer with a stub.
-    let dir = tempfile::tempdir_in(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target")).unwrap();
+    let dir = tempfile::tempdir_in(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target"))
+        .unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = then_write(dir.path(), "app.can", source);
     let unit = then_bind(&root, &file, source, GenerationKind::ViewDefinition, "Tile");
-    then_write(dir.path(), &format!("can.generated/{unit}/implementation.js"),
-        "export function render({row,bindings,ui}) { return `<p>${ui.escapeHtml(row.fields.title)}</p>${bindings.edit}${bindings.delete}`; }\n");
+    then_write(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        "export function render({row,bindings,ui}) { return `<p>${ui.escapeHtml(row.fields.title)}</p>${bindings.edit}${bindings.delete}`; }\n",
+    );
     let compiled = then_compile(dir.path(), &file);
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     let artifact = then_envelope(&compiled.stdout);
     for module in artifact["modules"].as_array().unwrap() {
         // The delivery host resolves the canonical stdlib to its defining
         // runtime, including CRUD handlers imported by this form fixture.
-        let js = module["js"].as_str().unwrap().replace("\"@canlang/stdlib\"", "\"@canlang/cloudflare/runtime/stdlib\"");
+        let js = module["js"].as_str().unwrap().replace(
+            "\"@canlang/stdlib\"",
+            "\"@canlang/cloudflare/runtime/stdlib\"",
+        );
         then_write(dir.path(), module["path"].as_str().unwrap(), &js);
     }
     then_write(dir.path(), "artifact.json", &compiled.stdout);
     let entry = artifact["modules"][0]["path"].as_str().unwrap();
     let page = artifact["pages"][0]["export"].as_str().unwrap();
-    let script = format!(r#"import assert from 'node:assert/strict';
+    let script = format!(
+        r#"import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {{generatedFields}} from '@canlang/ui';
 import {{catalogFromArtifactOperations}} from '../../../packages/interfaces/dist/src/http/operations.js';
@@ -726,8 +873,67 @@ assert.equal([...html.matchAll(/action="\/api\/operations\/Tasks.Todo.update"/g)
 assert.equal([...html.matchAll(/action="\/api\/operations\/Tasks.Todo.delete"/g)].length,2);
 assert.ok(!html.includes('undefined'));
 assert.deepEqual([...String(await page.render(context,{{}})).matchAll(/data-can-view="([^"]+)"/g)].map(match=>match[1]),ids);
-"#);
+"#
+    );
     then_write(dir.path(), "render.mjs", &script);
-    let output = std::process::Command::new("node").arg(dir.path().join("render.mjs")).output().unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let output = std::process::Command::new("node")
+        .arg(dir.path().join("render.mjs"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn repeated_native_row_panels_match_activation_safe_external_openers() {
+    let source = "app Tasks\nGiven\n Todo {title:text}\n policy Todo read=members\nWhen\nThen\n page / title=\"Tasks\"\n  list Todo\n   card row.title\n    primary \"Details\" opens=details\n    secondary \"Drawer\" opens=tools\n    secondary \"Notes\" target=\"/notes\"\n    modal \"Details panel\" id=details\n     slot content\n      text row.title\n    drawer \"Tools panel\" id=tools\n     slot content\n      text row.title\n";
+    let dir = tempfile::tempdir_in(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target"))
+        .unwrap();
+    let file = then_write(dir.path(), "app.can", source);
+    let compiled = then_compile(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = then_envelope(&compiled.stdout);
+    for module in artifact["modules"].as_array().unwrap() {
+        let js = module["js"].as_str().unwrap().replace(
+            "\"@canlang/stdlib\"",
+            "\"@canlang/cloudflare/runtime/stdlib\"",
+        );
+        then_write(dir.path(), module["path"].as_str().unwrap(), &js);
+    }
+    let entry = artifact["modules"][0]["path"].as_str().unwrap();
+    let page = artifact["pages"][0]["export"].as_str().unwrap();
+    let script = format!(
+        r#"import assert from 'node:assert/strict';
+import {{{page} as page}} from './{entry}';
+const rows=[{{id:'row-a',version:1,fields:{{title:'One'}}}},{{id:'row-b',version:1,fields:{{title:'Two'}}}}];
+const context={{preferredLocales:[],appDefaultLocale:'en',theme:{{mode:'system',accent:'blue',density:'comfortable'}},path:'/',isPartial:false,csrfToken:'test',principal:null,invocation:{{request:'test'}},query:async()=>({{rows,columns:[]}})}};
+const html=await page.render(context,{{}});
+const cards=[...html.matchAll(/<section\b[^>]*data-can-card[^>]*>[\s\S]*?<\/section>/g)].map(match=>match[0]);
+assert.equal(cards.length,2);
+const all=[];
+for(const card of cards){{
+ const targets=[...card.matchAll(/data-can-panel-open="([^"]+)"/g)].map(match=>match[1]);
+ const ids=new Set([...card.matchAll(/<(?:dialog|input)\b[^>]*\bid="([^"]+)"/g)].map(match=>match[1]));
+ assert.equal(targets.length,2,'external openers suppress implicit duplicates');
+ for(const target of targets){{assert.match(target,/^[A-Za-z][A-Za-z0-9_-]*$/);assert.ok(ids.has(target),'opener belongs to this row panel');}}
+ assert.ok(card.includes('href="/notes"'),'navigation URL retains its exact value');
+ all.push(...targets);
+}}
+assert.equal(new Set(all).size,4,'repeated rows have distinct modal and drawer identities');
+assert.deepEqual([...String(await page.render(context,{{}})).matchAll(/data-can-panel-open="([^"]+)"/g)].map(match=>match[1]),all,'row activation identities are stable');
+"#
+    );
+    then_write(dir.path(), "render.mjs", &script);
+    let output = std::process::Command::new("node")
+        .arg(dir.path().join("render.mjs"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

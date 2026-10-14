@@ -196,6 +196,55 @@ describe('generated view mounts', () => {
     };
   }
 
+  it('acquires late or replaced mounts for only their view while preserving an active split panel', async () => {
+    const mounted: string[] = [], cleaned: string[] = [];
+    registerGeneratedViewMount('ReadySiblingMount', () => {
+      mounted.push('sibling'); return () => { cleaned.push('sibling'); };
+    });
+    const pending = await generatedViewInstance({ ...props('can-view-m0-f0-s71', async () => '<p>Pending</p>'),
+      descriptor: plainDescriptor('LateOwnerMount') });
+    const sibling = await generatedViewInstance({ ...props('can-view-m0-f0-s72', async () => '<p>Sibling</p>'),
+      descriptor: plainDescriptor('ReadySiblingMount') });
+    const window = new Window({ url: 'https://can.test/todos?selected=row' });
+    window.document.body.innerHTML = `<main ${MAIN_ATTRS}><div data-can-split><input class="drawer-toggle" type="checkbox" checked><dialog data-can-split-panel><p>Selected detail</p></dialog></div>${pending}${sibling}</main>`;
+    const checkbox = window.document.querySelector('input')!;
+    const pane = window.document.querySelector('dialog')!;
+    let closes = 0;
+    Object.defineProperty(checkbox, 'getClientRects', { value: () => ({ length: 1 }) });
+    Object.defineProperty(pane, 'show', { value: () => pane.setAttribute('open', '') });
+    Object.defineProperty(pane, 'showModal', { value: () => pane.setAttribute('open', '') });
+    Object.defineProperty(pane, 'close', { value: () => {
+      closes++; pane.removeAttribute('open'); queueMicrotask(() => pane.dispatchEvent(new window.Event('close')));
+    } });
+    const client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'],
+      fetchImpl: async () => ({ status: 200, headers: { get: () => 'text/html' }, text: async () => '' }) });
+    try {
+      assert.equal(checkbox.checked, true);
+      assert.equal(pane.open, true);
+      assert.deepEqual(mounted, ['sibling']);
+      registerGeneratedViewMount('LateOwnerMount', () => {
+        mounted.push('late'); return () => { cleaned.push('late'); };
+      });
+      client.rescan(); client.rescan();
+      assert.deepEqual(mounted, ['sibling', 'late']);
+      assert.equal(cleaned.length, 0);
+      assert.equal(closes, 0, 'registering a view does not dispose unrelated split bindings');
+      assert.equal(checkbox.checked, true);
+      assert.equal(pane.open, true);
+      const replacement = () => { mounted.push('replacement'); return () => { cleaned.push('replacement'); }; };
+      registerGeneratedViewMount('LateOwnerMount', replacement);
+      client.rescan();
+      registerGeneratedViewMount('LateOwnerMount', replacement);
+      client.rescan();
+      assert.deepEqual(mounted, ['sibling', 'late', 'replacement']);
+      assert.deepEqual(cleaned, ['late']);
+      assert.equal(checkbox.checked, true);
+      assert.equal(pane.open, true);
+      assert.equal(closes, 0);
+    } finally { client.stop(); await window.happyDOM.close(); }
+    assert.deepEqual(cleaned.sort(), ['late', 'replacement', 'sibling']);
+  });
+
   it('mounts each instance once with its presentation and cleans up only replaced roots', async () => {
     const mounted: string[] = [];
     const cleaned: string[] = [];

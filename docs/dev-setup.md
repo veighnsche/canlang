@@ -127,15 +127,16 @@ use the [draft frontend validation runbook](draft-frontend-validation.md).
 It separates source checking, live browser smoke checks and still-open full-app acceptance.
 
 The [prompt pipeline fixture](../tests/fixtures/prompt-pipeline/README.md)
-uses the public native `can gen` command for explicit generation, then the real
-protected dev preview and Playwright for saved-output acceptance:
+uses the native `can` CLI for generation and full app validation:
 
 ```sh
 bun run catalog
 bun run build:compiler
-node tests/fixtures/prompt-pipeline/generate.mjs --dry-run
-bun run generate:prompts
-bun run test:e2e:prompts
+export PATH="$PWD/compiler/target/debug:$PATH"
+cd tests/fixtures/prompt-pipeline
+can gen PromptStudio.can --dry-run
+can gen PromptStudio.can
+can validate PromptStudio.can
 ```
 
 Its committed recipes request Codex `gpt-6.1-sol` with medium reasoning for
@@ -146,11 +147,22 @@ There is no automatic model substitution. Ordinary compilation and the dev
 server consume saved outputs without invoking a coding agent.
 
 The generator receives an immutable source snapshot and submits logical outputs
-through the private generation MCP server. The host validates candidates and
-promotes a complete set; submissions alone never overwrite working code.
-`node tests/fixtures/prompt-pipeline/generate.mjs --retry` deliberately
-regenerates all prompts in this app.
-Screenshots are saved under the fixture's `playwright/screenshots/` folder.
+through the private generation MCP server. Before promotion the host compiles
+the frozen candidate, runs `can build` and all compiled Can example rows, then
+runs the app's own `playwright.config.ts` (or JS equivalent) against the candidate
+through the real dev server. Missing examples/config/browser dependencies,
+skipped browser tests, failed checks or changed candidate inputs block
+acceptance. Current saved files remain active. Reports and candidate screenshots
+are retained under the app's `.can/gen/checks/` directory. Submissions alone never
+overwrite working code.
+`can gen PromptStudio.can --retry` deliberately regenerates all prompts in this
+app. Default generation reuses fresh saved units and validates the whole app
+without AI; `can validate` always checks saved output without generation.
+Both commands work from the repository root with the full source path, discover
+the built platform automatically, and accept `--format=json`. The platform's
+JavaScript runtime remains an internal dependency; users do not invoke it or a
+fixture wrapper. Acceptance screenshots remain with their `.can/gen/checks/`
+report; standalone browser runs save the fixture's `playwright/screenshots/`.
 
 ## Troubleshooting
 

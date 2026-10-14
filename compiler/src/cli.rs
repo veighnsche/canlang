@@ -425,6 +425,7 @@ fn dispatch_with_route(
                 parsed.format,
                 false,
                 false,
+                None,
                 std::env::var("CAN_PLATFORM_BIN").ok(),
             )
         }
@@ -446,13 +447,14 @@ fn dispatch_with_route(
                     parsed.format,
                     parsed.retry,
                     parsed.dry_run,
+                    parsed.settings.as_deref(),
                     std::env::var("CAN_PLATFORM_BIN").ok(),
                 );
             }
-            if parsed.retry || parsed.dry_run {
+            if parsed.retry || parsed.dry_run || parsed.settings.is_some() {
                 return DispatchResult::tool_error(
                     "E7001",
-                    "--retry and --dry-run require can gen FILE.can".to_string(),
+                    "--retry, --dry-run and --settings require can gen FILE.can".to_string(),
                 );
             }
             run_gen(
@@ -540,6 +542,7 @@ struct ParsedArgs {
     request_set: bool,
     retry: bool,
     dry_run: bool,
+    settings: Option<String>,
     help: bool,
     version: bool,
 }
@@ -563,6 +566,7 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         request_set: false,
         retry: false,
         dry_run: false,
+        settings: None,
         help: false,
         version: false,
     };
@@ -584,6 +588,21 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                 parsed.retry = true;
             } else if arg == "--dry-run" {
                 parsed.dry_run = true;
+            } else if arg == "--settings" || arg.starts_with("--settings=") {
+                if parsed.settings.is_some() {
+                    return Err("--settings may only be supplied once".to_string());
+                }
+                let value = if let Some(value) = arg.strip_prefix("--settings=") {
+                    value
+                } else {
+                    i += 1;
+                    args.get(i)
+                        .ok_or_else(|| "missing value for --settings; want a PATH".to_string())?
+                };
+                if value.is_empty() || value.starts_with("--") {
+                    return Err("--settings requires a non-empty PATH".to_string());
+                }
+                parsed.settings = Some(value.to_string());
             } else if arg == "--check" {
                 parsed.fmt_check = true;
             } else if arg == "--fix" {
@@ -663,6 +682,9 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     }
     if (parsed.retry || parsed.dry_run) && parsed.subcommand.as_deref() != Some("gen") {
         return Err("--retry and --dry-run only apply to can gen FILE.can".to_string());
+    }
+    if parsed.settings.is_some() && parsed.subcommand.as_deref() != Some("gen") {
+        return Err("--settings only applies to can gen FILE.can".to_string());
     }
     if parsed.fmt_check && parsed.subcommand.as_deref() != Some("fmt") {
         return Err("--check only applies to can fmt".to_string());
@@ -759,6 +781,7 @@ Options:
   --native-scenario-receipts  Emit retained-result capture for the native State runtime (compile only)
   --retry              Regenerate all selected source units (gen FILE.can only)
   --dry-run            Report planned generation without changes (gen FILE.can only)
+  --settings=PATH      Use an explicit generation settings file (gen FILE.can only)
   --locale=TAG         Reference locale (docs only; default is the app default + source fallback)
   --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)
   -h, --help           Show help (global or `can <COMMAND> --help`)
@@ -798,7 +821,7 @@ fn command_help(cmd: &str) -> String {
         ),
         "dev" => "can dev — JSON control for the local development session\n\nUsage: can dev [COMMAND] [ARGS...]\n\nExecs the installed `can-dev` control adapter and passes every argument through. `can dev help` lists its machine-readable commands and flags. A missing adapter reports E7004. Override search with CAN_DEV_BIN. The adapter's JSON stdout and exit code pass through unchanged.\n".to_string(),
         "validate" => "can validate — validate saved output without AI\n\nUsage: can validate FILE.can [--format=json|text]\n\nCompiles the source and runs the platform build, examples and Playwright checks against saved output. Does not generate or repair output.\n\nExit codes: the platform validation exit code passes through; 2 for invalid usage or missing platform.\n".to_string(),
-        "gen" => "can gen — generate source-owned code or dispatch a generation request\n\nUsage: can gen FILE.can [--retry] [--dry-run] [--format=json|text]\n       can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nFILE.can prepares and accepts missing generation outputs. --retry regenerates all selected units; --dry-run reports planned work without generation or acceptance. Source mode discovers the installed platform or a built checkout relative to the executable/source.\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
+        "gen" => "can gen — generate source-owned code or dispatch a generation request\n\nUsage: can gen FILE.can [--retry] [--dry-run] [--settings=PATH] [--format=json|text]\n       can gen --request FILE\n       can gen < request.json\n       can gen status [--format=json|text] ROOT FILE.can...\n       can gen bind ROOT FILE.can START END REVISION UNIT|new\n\nFILE.can prepares and accepts missing generation outputs. --retry regenerates all selected units; --dry-run reports planned work without generation or acceptance. Source mode discovers the installed platform or a built checkout relative to the executable/source. --settings PATH (or --settings=PATH) selects an explicit file relative to the invoking working directory for preparation, retry and dry-run; no ancestor search runs.\n\nThe dispatcher reads one v1 JSON request (FILE, or stdin when bare)\nand prints exactly one final JSON envelope on stdout: version,\nrequest_id, operation, ok, state, the operation payload (units,\npaths, effective recipe, phases, validation summaries), structured\nerrors, and bounded next actions. Optional JSONL progress goes to\nstderr, ending in that envelope. Typed operations: doctor, status,\ninspect, bind, generate, refine, retry, resume, diff, preview,\nvalidate, adopt, accept, cancel, reset, rollback, edit.begin,\nedit.end, lease.recover. refine carries exactly one instruction\ncarrier: inline `instruction`, an `instruction_file` path, or\n`instruction_stdin` (with --request FILE only). Settings come from\nROOT/can.gen.toml or an explicit `settings` file (no ambient\nsearch); explicit run values override the selected complete\nrunner/model recipe, and a runner override requires an explicit\nmodel. status/bind keep their positional sugar above; status\nconsults no settings, recipe, or MCP server.\n\nExit codes: 0 requested outcome succeeded, 2 invalid\nrequest/config/selection, 3 conflict/held lease, 4 validation\nfailure, 5 runner failure, 6 unknown completion.\n".to_string(),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
 }
@@ -1996,7 +2019,11 @@ fn locate_platform_bin(
 /// Locate the built platform from an executable or source's checkout ancestors.
 /// This uses only the package-owned entry point, never a fixture-specific script.
 fn checkout_platform(source: Option<&Path>) -> Option<String> {
-    let executable = std::env::current_exe().ok();
+    // macOS may report the invoked symlink rather than its target. Discovery
+    // follows the real executable's checkout, even from a user-local bin dir.
+    let executable = std::env::current_exe()
+        .ok()
+        .map(|path| std::fs::canonicalize(&path).unwrap_or(path));
     for anchor in source.into_iter().chain(executable.as_deref()) {
         for ancestor in anchor.ancestors().skip(1) {
             if !ancestor.join("packages/cloudflare/package.json").is_file() {
@@ -2019,6 +2046,7 @@ fn run_source_entry(
     format: OutputFormat,
     retry: bool,
     dry_run: bool,
+    settings: Option<&str>,
     platform_bin: Option<String>,
 ) -> DispatchResult {
     let command_name = if operation == "generate" {
@@ -2064,6 +2092,10 @@ fn run_source_entry(
     }
     if dry_run {
         command.arg("--dry-run");
+    }
+    if let Some(settings) = settings {
+        // The platform resolves this public path against the unchanged caller cwd.
+        command.arg(format!("--settings={settings}"));
     }
     command.arg(match format {
         OutputFormat::Json => "--format=json",

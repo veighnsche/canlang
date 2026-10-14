@@ -12,27 +12,80 @@ Given
  policy Item read=members
  policy Note read=members
  policy Alias read=members
+ fixture fullwidth_alias=Alias {handle="Ａlice"}
+ fixture uppercase_alias=Alias {handle="Ä"}
 When
  crud Item by=members fields=title,handle
  crud Note by=members fields=title
  crud Alias by=members fields=handle
+  examples create
+   as,handle -> count(Alias),count(Alias as alias where alias.handle=="Ａlice")
+   members,"  Ａlice  " -> 1,1
+   members,"   " -> error(validation)
+   outsider,"Alice" -> error(forbidden)
+  examples create seed=[fullwidth_alias]
+   as,handle -> count(Alias)
+   members,"Alice" -> error(conflict)
+   members,"ALICE" -> error(conflict)
+   members,"Bob" -> 2
+  examples create seed=[uppercase_alias]
+   as,handle -> count(Alias),count(Alias as alias where alias.handle=="ä")
+   members,"ä" -> 2,1
 Then
- style Surface $"Create a refined, calm workspace surface with cream and deep green accents, comfortable spacing, rounded corners and clear focus. Use shared theme values when appropriate. Support cards, fields and the ItemTile root without changing canonical controls. Keep forms and validation readable, and stack at narrow widths."
- view ItemTile(row:Item) $"Render an elegant compact item card. Display the escaped title and handle; show a small Open or Done status from the contributed done field. Include all canonical edit and delete bindings unchanged exactly once. Export an optional mount that marks this instance with data-enhanced=true, adds no network or state operations, and removes the marker on cleanup. Include a small optional style.css for your renderer-owned class names and coordinate with Surface." $Surface
-  edit fields=title,handle
-  delete
- page / title="Prompt Studio" $"Make this a polished small collection workspace. Use a centered, generously spaced content column, a clear hierarchy, green accents and a warm neutral background within the owned page. Preserve shared navigation, all controls, validation states and mobile usability."
-  card "New item" $Surface
-   form Item.create fields=title,handle
+ style Surface $"Ordinary form cards already receive their single surface and 20px inner padding from the shared canonical card. Add no outer host padding, background, border, shadow or second frame. Lightly style only owned typography and form spacing using the shared theme's existing accent consistently. Keep forms and validation readable, let content use the available width, and stack at narrow widths. Preserve canonical markup and visible focus on interactive controls; add no whole-card focus outline."
+ view ItemTile(row:Item) $"Render the complete canonical card binding exactly once, unchanged. The source-owned card includes its title, handle, status, primary footer action and secondary header menu; Can owns its surface, spacing and control placement. Add no frame, duplicate metadata, control markup or styling inside the card. The instance should fill its responsive collection grid cell and retain natural height. Export an optional mount that marks this instance with data-enhanced=true and removes that marker on cleanup; add no network or state operations. Optional CSS may size only the instance root, not the card or controls."
+  card row.title
+   text row.handle
+   badge choose(row.done,"Done","Open")
+   primary "Edit item" action=Item.update arguments={record=row} fields=title,handle
+   secondary "Archive item" action=Item.delete arguments={record=row}
+   secondary "Open notes" target="/notes"
+ page / title="Prompt Studio" $"Make this a calm collection workspace with a clear heading and the unchanged page primary Create control in the page header. Use a centered readable content column and a neutral background, with the shared theme accent consistently applied by canonical controls. Lay out the item collection as an intentional responsive card grid: two columns when about 320px per card fits, and one column on mobile. For example, use auto-fit columns with minmax(min(100%,20rem),1fr) in a column sized for two cards. Cards fill their own grid cells and retain natural content height with start alignment. Keep consistent gaps between the page heading, collection and cards. Add no oversized tinted enclosing frame or duplicate card surfaces. Preserve shared navigation, all controls, validation states and mobile usability."
+  primary "Create item" action=Item.create fields=title,handle
   list Item empty="No items yet. Create your first item."
-   show ItemTile {row=row} $Surface
+   show ItemTile {row=row}
  page /notes title="Notes"
   card "New note" $Surface
-   form Note.create fields=title
+   primary "Create note" action=Note.create fields=title
   table Note columns=title,done,pinned empty="No notes yet."
  page /aliases title="Aliases"
   card "New alias" $Surface
-   form Alias.create fields=handle
+   primary "Create alias" action=Alias.create fields=handle
   list Alias empty="No aliases yet."
-   text row.handle
-   delete
+   card row.handle
+    primary "Edit alias" action=Alias.update arguments={record=row} fields=handle
+    secondary "Archive alias" action=Alias.delete arguments={record=row}
+ page /actions title="Action owners"
+  primary "Open tools" opens=item_tools
+  secondary "Open drawer" opens=item_drawer
+  list Item
+   text row.title
+   primary "Edit list item" action=Item.update arguments={record=row} fields=title,handle
+   secondary "List notes" target="/notes"
+   details "Item detail" display=drawer
+    text row.handle
+    primary "Edit detail item" action=Item.update arguments={record=row} fields=title,handle
+    secondary "Detail notes" target="/notes"
+  table Item columns=title,handle
+   primary "Edit table item" action=Item.update arguments={record=row} fields=title,handle
+   secondary "Table notes" target="/notes"
+  modal "Item tools" id=item_tools
+   slot content
+    text "Tools for this workspace."
+   slot actions
+    primary "Create from tools" action=Item.create fields=title,handle
+    secondary "Tool notes" target="/notes"
+  drawer "Item drawer" id=item_drawer
+   slot content
+    text "Additional workspace tools."
+   slot actions
+    primary "Create from drawer" action=Item.create fields=title,handle
+    secondary "Drawer notes" target="/notes"
+  card "Inline item"
+   form Item.create display=inline fields=title,handle
+    primary "Save item" submit=true
+ page /split title="Split items"
+  list Item display=split
+   text row.title,row.handle
+   primary "Edit split item" action=Item.update arguments={record=row} fields=title,handle
+   secondary "Split notes" target="/notes"

@@ -2,7 +2,57 @@
 
 `PromptStudio.can` covers named and inline traits, a reusable standalone canonical-identity keyword, component styles and a row-bound renderer with canonical controls. Ordinary When behavior stays authored Can. Generated files live beside the app under `can.generated/`.
 
+The current source declares each action as an individual `primary` or `secondary`
+primitive, with explicit text and target:
+
+```can
+primary "Edit item" action=Item.update arguments={record=row} fields=title,handle
+secondary "Archive item" action=Item.delete arguments={record=row}
+secondary "Open notes" target="/notes"
+```
+
+Shared UI owns the visible primary button design and the secondary overflow menu.
+Input and confirmation controls retain canonical dialogs, permission checks,
+protected bindings and mutations. ItemTile declares a canonical card in source;
+its generated renderer receives one opaque `bindings.card`, including all content
+and controls. Can supplies its surface, heading menu and primary footer. A view,
+tooltip or layout wrapper cannot independently own primary/secondary actions.
+
+The app exercises Create in its page toolbar, Edit in each card footer, and
+Archive plus navigation behind the header menu. Playwright checks compact menus,
+multiple entries, keyboard dismissal and focus, cancellation, validation,
+mutation/readback, desktop/mobile layout, title width and content/action cohesion.
+The `/actions` page also exercises list/table row placement, modal/drawer/detail
+heading menus and footers, and an explicit inline form submit. The allowed owner
+matrix lives in [UI components](../../../design/UI-COMPONENTS.md).
+The current owner gate (`.can/gen/checks/run-source-action-owners-20261014-mount/report.json`, local run output)
+passed compilation, build, seven examples and the complete Playwright journey on
+14 October 2026 (67.0 seconds, no skipped/flaky tests). Native Can accepted the
+retained generated candidate. Its 18 captures include `/actions` and `/split`;
+the browser receipt records eight navigations and a closed owned session.
+
 Generation is explicit and uses the committed `can.gen.toml`: Codex, `gpt-6.1-sol`, medium reasoning, one bounded attempt per job. Playwright opens the real protected dev preview and consumes saved outputs; it never invokes AI generation.
+
+The app-local `playwright.config.ts` owns the browser journey. Candidate acceptance
+sets `CAN_ACCEPTANCE_SOURCE` to the absolute scratch `PromptStudio.can` path,
+`CAN_ACCEPTANCE_WORKSPACE` to the installed workspace root, and
+`CAN_ACCEPTANCE_OUTPUT` to its private browser output directory. The same journey
+then consumes candidate generated files beside that scratch source and stores
+screenshots under the private output directory. The root
+`playwright.prompts.config.ts` reuses this configuration for ordinary saved runs.
+The shared protected-dev-session helper also enforces the candidate source when
+these variables are set. After verifying the serving identity and releasing its
+owned session, it writes `browser-session.json` with the absolute source,
+source revision, serving build, a positive `browserNavigations` count and
+`closed:true`. It records each owned server in `browser-owner-*.json` at startup
+so the outer gate can stop it even if Playwright is interrupted. The gate requires
+this receipt alongside a passing Playwright report. Browser tests using another
+helper must provide the equivalent current candidate session receipt.
+
+Seven authored Alias create examples exercise trimmed stored spelling, empty-input
+validation, member permission, NFKC and ASCII case uniqueness, successful distinct
+keys and preserved non-ASCII case. Generated trait defaults and constraints remain
+covered by the real browser journey.
 
 From the repository root, prepare the installed producers and compiler using the commands in [developer setup](../../../docs/dev-setup.md):
 
@@ -19,30 +69,55 @@ If a fresh checkout reports that the Values binding predates its Rust sources,
 run `bun run build:values-wasm`, rebuild Values, and emit its catalog. This local
 native rebuild does not invoke a coding agent.
 
-Check the helper without making AI calls:
+Add the native compiler to this shell's PATH after building, then run the app directly:
 
 ```sh
-node tests/fixtures/prompt-pipeline/generate.mjs --help
-node tests/fixtures/prompt-pipeline/generate.mjs --dry-run
+export PATH="$PWD/compiler/target/debug:$PATH"
+cd tests/fixtures/prompt-pipeline
+can gen PromptStudio.can --dry-run
+can gen PromptStudio.can
+can validate PromptStudio.can
 ```
 
-Use Node 22 or newer and a natively authenticated Codex CLI. When the supported executable is the bundled current CLI rather than the one on PATH, select its absolute path explicitly:
+The same commands accept `tests/fixtures/prompt-pipeline/PromptStudio.can` from
+the repository root. Can discovers the installed platform automatically. No
+fixture script, JSON request or explicit Node command is needed. The existing
+platform runtime remains an internal dependency.
+
+Generation uses a natively authenticated Codex CLI. If the supported client is
+not the executable on PATH, select its absolute path with
+`export CAN_CODEX_BIN=/absolute/path/to/codex`. The committed app-local recipe
+requests `gpt-6.1-sol` with medium reasoning for every prompt category; Can never
+substitutes another model. `--dry-run` shows the effective recipes and selected
+units without starting a coding agent.
+
+`can gen PromptStudio.can` prepares missing or changed output, checks the complete
+candidate app and atomically accepts it only after compilation, build, all seven
+Can examples and the app-local Playwright journey pass. Existing current files
+survive any failure. If every saved unit is fresh, it runs those same checks
+without AI or promotion. `can validate PromptStudio.can` explicitly checks the
+saved app without AI. Reports and candidate screenshots stay in `.can/gen/checks/`.
+Use `--format=json` for a machine-readable result.
+
+The earlier native CLI run on 14 October accepted all eight generated units after
+the full gate passed. A subsequent accepted view-only generation used a compact,
+initially collapsed Archive disclosure, with keyboard opening and cancellation
+covered by that browser journey. The historical disclosure gate report (`.can/gen/checks/run-source-293dae9c-247f-4cd4-adc4-255d8d5dccbc/report.json`, local run output)
+and nine historical disclosure screenshots (`.can/gen/checks/run-source-293dae9c-247f-4cd4-adc4-255d8d5dccbc/1/screenshots/`, local run output)
+remain beside the app; the execution view records the checks and recovery.
+
+To regenerate every prompt, including successful styles and views:
 
 ```sh
-export CAN_CODEX_BIN=/absolute/path/to/codex
-node tests/fixtures/prompt-pipeline/generate.mjs
-bunx playwright test --config=playwright.prompts.config.ts
+can gen PromptStudio.can --retry
 ```
 
-The helper calls the public `compiler/target/debug/can gen` JSON interface. It resolves `CAN_PLATFORM_BIN` to the built workspace platform entry, keeps that child on the same Node runtime, and requests prepare, validation and complete-set acceptance. New candidates must be complete and accepted. When prepare skips every fresh saved unit and starts no job, the helper validates each reused unit without AI and records `reuse.validated=true`; it retains the host’s `accepted=false` because nothing new was promoted. Incomplete candidates and failed reuse checks report an error. Its summary report under `output/prompt-pipeline/` retains host outcome and attempt identifiers, excluding native diagnostics, prompts and credentials. The host keeps candidates and its normal recovery records under the fixture's `.can/gen/` directory.
+The implementation's separate fault-injection integration lives in
+`verify-acceptance.mjs`; it is an internal test of rejection and recovery, not the
+app-generation entry point. Its retained results are linked from the
+[current execution view](../../../design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13).
 
-For a fresh regeneration of every prompt in this app, including successful styles and views:
-
-```sh
-node tests/fixtures/prompt-pipeline/generate.mjs --retry
-```
-
-Saved JavaScript and CSS remain directly editable through the generation edit-lease controls. For a compatible CSS edit, send these version-1 requests to `compiler/target/debug/can gen` on stdin, with `CAN_PLATFORM_BIN` set to the built workspace `packages/cloudflare/dist/cli/platform.js` and the same Node runtime on PATH:
+Saved JavaScript and CSS remain directly editable through the generation edit-lease controls. For a compatible CSS edit, send these version-1 requests to `compiler/target/debug/can gen` on stdin, using the low-level automation interface:
 
 1. Use `status` with `root` equal to this fixture's absolute directory and `files:["PromptStudio.can"]` to identify the owning style unit.
 2. Send `edit.begin` for the exact existing CSS path. Retain its returned token and confirm `state:"editing"` before writing.
@@ -63,7 +138,10 @@ Saved JavaScript and CSS remain directly editable through the generation edit-le
 {"version":1,"request_id":"css-edit-validate-1","operation":"validate","root":"/absolute/project/tests/fixtures/prompt-pipeline","unit_id":"STYLE_UNIT_ID"}
 ```
 
-A valid result has `state:"validated"` and passing checks. Compatible saved-code edits need no adoption or acceptance call. Run Playwright or an ordinary build to consume the edited CSS.
+A valid low-level unit result has `state:"validated"` and passing static checks.
+That JSON operation checks one unit only. Run `can validate PromptStudio.can`
+after direct edits to check the full app, examples and browser behavior.
+Compatible saved-code edits need no adoption ceremony.
 
 The integration run generated and atomically accepted all eight units with the
 requested Codex `gpt-6.1-sol` / medium recipe, then completed a full retry with the
@@ -72,23 +150,20 @@ same unit identities. Saved prepare reused and validated all eight units with
 without AI. The bounded native and generation reports are linked from the
 [current execution record](../../../design/proposals/build-generation/implementation-plan.md#current-codex-integration-execution-view--2026-10-13).
 
-Real dev-server Playwright acceptance passed (1 test, 54.7 seconds) with
-`CAN_CODEX_BIN=/nonexistent/codex`. It verifies authenticated create/update/archive,
+Historical real dev-server Playwright acceptance passed (1 test, 54.7 seconds) with
+`CAN_CODEX_BIN=/nonexistent/codex`. That run verified authenticated create/update/archive,
 archived-key retention, duplicate errors and retained form values, trimmed fields,
 both generated false defaults, keyword reuse and Unicode behavior, repeated mounts,
 and all three pages. Each capture checks the current source/build and horizontal
 overflow; the journey asserts no browser errors and releases its dev session.
 
-Eight inspected screenshots live beside this app:
+Run screenshots remain local under ignored `playwright/screenshots/` or the acceptance output directory. Regenerate them with `can validate PromptStudio.can`; they are not approved reference images and are not checked into Git.
 
-- [Empty desktop](playwright/screenshots/01-empty-desktop.png)
-- [Create drawer](playwright/screenshots/02-create-form.png)
-- [Created item](playwright/screenshots/03-created-desktop.png)
-- [Duplicate error](playwright/screenshots/04-duplicate-error.png)
-- [Edited desktop](playwright/screenshots/05-edited-desktop.png)
-- [Populated mobile](playwright/screenshots/06-populated-mobile.png)
-- [Trait defaults](playwright/screenshots/07-trait-defaults.png)
-- [Reused keyword](playwright/screenshots/08-reused-keyword.png)
+The standalone [action gallery](../action-gallery/README.md) and
+[forms app](../action-forms/README.md) expose every admitted action owner using
+shared defaults, with 88 additional desktop/mobile inspection captures and no
+generated styling. Captures support human inspection; they are not automatically
+approved visual references.
 
 Transient failure artifacts stay under ignored `output/prompt-pipeline/playwright/`.
 This fixture does not establish acceptance for the other draft apps or their design

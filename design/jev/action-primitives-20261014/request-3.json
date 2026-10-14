@@ -1,0 +1,48 @@
+{
+  "request": {
+    "state": {
+      "requirement": "User explicitly requires primary and secondary to be individual action primitives with text, checked action targets and standardized design. Primary visible card footer/page toolbar; secondary items in owning overflow. Migrate all draft workflows without removing functionality, scope, permissions, evaluation order or canonical form behavior.",
+      "verified_mechanisms": [
+        "Current primary/secondary are bare suites; user rejected this model.",
+        "Existing button binding has mutually exclusive action, submit, opens, target; compiler checks these and canonical form lowering prepares input scenarios.",
+        "Existing form/edit/delete machinery owns CRUD, protected arguments, fields, validation, confirmation, CSRF, versioning and admission.",
+        "Drafts use operation actions, CRUD forms, input forms inside modals/drawers, modal openers, form submit buttons and navigation links.",
+        "Draft operations can require user inputs or confirmation.",
+        "Custom generated views receive opaque canonical HTML bindings and must preserve them unchanged."
+      ],
+      "constraint": "Prefer the smallest complete extension using existing checked execution and owning flows. Do not introduce raw endpoint/callback targets or silently turn navigation/cancellation into mutations."
+    },
+    "questions": {
+      "target_contract": {
+        "type": "choice",
+        "instructions": "Which alternative should the implementation adopt to standardize individual priority actions without losing existing operation, input-form, panel and submission workflows?",
+        "criteria": {
+          "existing_bindings": "Use individual captioned priority primitives with the existing checked exclusive action/submit/opens/target binding choices; operation targets reuse canonical CRUD/scenario/form preparation. Keep ordinary navigation links and existing form definitions when their flow owns content, and standardize priority presentation separately from execution.",
+          "operations_only": "Restrict priority primitives to business operation targets only. Retain ordinary buttons for submit, dialog openers and navigation, even when these are visible priority actions in a draft workflow.",
+          "new_target_dsl": "Define one new action-target expression language spanning calls, opening panels, submissions and navigation, replacing the existing binding attributes across owners.",
+          "insufficient": "Evidence does not permit choosing any of these designs safely."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "target_contract": {
+        "type": "choice",
+        "choice": "existing_bindings",
+        "confidence": 1.0,
+        "probabilities": {
+          "existing_bindings": 1.0,
+          "operations_only": 0.0,
+          "new_target_dsl": 0.0,
+          "insufficient": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 733,
+      "output_tokens": 57
+    }
+  }
+}

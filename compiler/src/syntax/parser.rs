@@ -3395,6 +3395,7 @@ enum HeaderKind {
     Calendar,
     Gallery,
     Form,
+    ActionPrimitive,
     Edit,
     Migration,
     Theme,
@@ -3485,6 +3486,9 @@ fn attr_kind(header: HeaderKind, name: &str) -> Option<AttrKind> {
         (HeaderKind::Gallery, "search" | "filter") => AttrKind::Selectors,
         (HeaderKind::Gallery, "empty") => AttrKind::Expr,
         (HeaderKind::Gallery, "defaults") => AttrKind::Object,
+        (HeaderKind::ActionPrimitive, "action" | "opens" | "target" | "submit") => AttrKind::Expr,
+        (HeaderKind::ActionPrimitive, "arguments") => AttrKind::Object,
+        (HeaderKind::ActionPrimitive, "fields") => AttrKind::Selectors,
         (HeaderKind::Form, "arguments") => AttrKind::Object,
         (HeaderKind::Form, "fields") => AttrKind::Selectors,
         (HeaderKind::Form, "submit") => AttrKind::Expr,
@@ -6763,11 +6767,14 @@ impl<'a> Parser<'a> {
                     if prompted
                         && !matches!(
                             child_word.as_str(),
-                            "edit"
+                            "card"
+                                | "edit"
                                 | "delete"
                                 | "form"
                                 | "action"
                                 | "actions"
+                                | "primary"
+                                | "secondary"
                                 | "button"
                                 | "require"
                                 | "history"
@@ -6997,6 +7004,107 @@ impl<'a> Parser<'a> {
                 self.builder.push_inner(kids, node);
                 let span = cursor.eof;
                 self.swallow_children(kids, children, word.as_str(), span);
+                Ok(())
+            }
+            "primary" | "secondary" => {
+                let mut inner = Vec::new();
+                self.builder.leaf(&mut inner, &head);
+                if cursor.done() || (cursor.at_any_name() && cursor.peek_is_eq()) {
+                    return Err(Fail::new(
+                        "E1204",
+                        format!("{word} requires an explicit caption and one checked target"),
+                        head.span,
+                    ));
+                }
+                let stop: Stop = &|w| attr_kind(HeaderKind::ActionPrimitive, w).is_some();
+                let caption = self.parse_expr(cursor, stop, true, true)?;
+                self.builder.push_inner(&mut inner, caption);
+                self.parse_attributes(cursor, &mut inner, HeaderKind::ActionPrimitive)?;
+                let bindings: Vec<_> = inner
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, attr)| {
+                        attr.kind == SyntaxKind::Attribute
+                            && matches!(
+                                self.first_token_text(attr),
+                                Some("action" | "opens" | "target" | "submit")
+                            )
+                    })
+                    .map(|(index, _)| index)
+                    .collect();
+                if bindings.len() != 1 {
+                    return Err(Fail::new(
+                        "E1204",
+                        format!("{word} requires exactly one of action, opens, target or submit"),
+                        head.span,
+                    ));
+                }
+                let binding = bindings[0];
+                let action = self.first_token_text(&inner[binding]) == Some("action");
+                if !action
+                    && inner.iter().any(|attr| {
+                        matches!(self.first_token_text(attr), Some("arguments" | "fields"))
+                    })
+                {
+                    return Err(Fail::new(
+                        "E1203",
+                        "arguments and fields require action=",
+                        head.span,
+                    ));
+                }
+                if cursor.at_p(Punct::Dollar) || cursor.at_name("agent") {
+                    return Err(Fail::new(
+                        "E1203",
+                        format!(
+                            "{word} uses the standard action design; styling overrides are not supported"
+                        ),
+                        cursor.span_here(),
+                    ));
+                }
+                cursor.end()?;
+                for child in children {
+                    let child_word = child.tokens.first().map(|token| token.text(self.text));
+                    if !child.tokens.is_empty()
+                        && (!action
+                            || !matches!(
+                                child_word,
+                                Some(
+                                    "input"
+                                        | "toggle"
+                                        | "textarea"
+                                        | "select"
+                                        | "checkbox"
+                                        | "radio"
+                                        | "range"
+                                        | "file_input"
+                                        | "calendar"
+                                        | "label"
+                                        | "validator"
+                                        | "fieldset"
+                                        | "require"
+                                )
+                            ))
+                        && child_word != Some("require")
+                    {
+                        return Err(Fail::new(
+                            "E1200",
+                            format!(
+                                "{word} accepts authored inputs and require guards, never control groups"
+                            ),
+                            child.tokens[0].span,
+                        ));
+                    }
+                    self.parse_ui_child(&mut inner, child);
+                }
+                let node = SyntaxNode::enclosing(
+                    if action {
+                        SyntaxKind::Form
+                    } else {
+                        SyntaxKind::UiLeaf
+                    },
+                    inner,
+                );
+                self.builder.push_inner(kids, node);
                 Ok(())
             }
             "action" | "actions" | "text" | "content" | "metrics" => {

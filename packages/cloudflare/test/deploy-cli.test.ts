@@ -68,12 +68,12 @@ interface RunResult {
   stderr: string;
 }
 
-function runCli(args: string[], timeout = 15000): Promise<RunResult> {
+function runCli(args: string[], timeout = 15000, cwd?: string): Promise<RunResult> {
   return new Promise((resolve) => {
     execFile(
       process.execPath,
       [CLI.pathname, ...args],
-      { timeout },
+      { timeout, ...(cwd === undefined ? {} : { cwd }) },
       (error, stdout, stderr) => {
         const code =
           error !== null && "code" in error && typeof error.code === "number" ? error.code : 0;
@@ -114,7 +114,7 @@ function validArtifact(): Record<string, unknown> {
 
 /** Deploy bundle next to the artifact (activate bundle convention). */
 function deployBundle(): { dir: string; artifact: string } {
-  const dir = mkdtempSync(join(tmpdir(), "can-deploy-cli-"));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "can-deploy-cli-")));
   const artifact = join(dir, "teamtasks.artifact.json");
   writeFileSync(artifact, JSON.stringify(validArtifact()));
   writeFileSync(
@@ -187,7 +187,7 @@ describe("can-platform deploy/test/build local paths (B5-J3)", () => {
   it("deploy --yes writes plan files; second preview shows no changes", async () => {
     const { dir, artifact } = deployBundle();
     const first = await runCli(["deploy", "--artifact", artifact, "--env", "prod", "--yes"]);
-    expect(first.code).toBe(0);
+    expect(first.code, first.stdout + first.stderr).toBe(0);
     const firstBody = envelope(first.stdout);
     expect(firstBody).toMatchObject({ ok: true, command: "deploy", wrote: true });
     expect(existsSync(join(dir, "teamtasks.deploy-plan.json"))).toBe(true);
@@ -213,10 +213,10 @@ describe("can-platform deploy/test/build local paths (B5-J3)", () => {
     expect(envelope(result.stdout)).toMatchObject({ ok: false, command: "deploy", code: "incompatible" });
   });
 
-  it("build validates the artifact and reports the release", async () => {
+  it("build validates the artifact and installed release tree from an app directory", async () => {
     const { artifact } = deployBundle();
-    const result = await runCli(["build", "--artifact", artifact]);
-    expect(result.code).toBe(0);
+    const result = await runCli(["build", "--artifact", artifact], 15000, dirname(artifact));
+    expect(result.code, result.stdout + result.stderr).toBe(0);
     const body = envelope(result.stdout);
     expect(body).toMatchObject({ ok: true, command: "build", release: "0.1.0" });
     expect(body["modules"]).toBe(1);

@@ -109,6 +109,8 @@ interface FormDataConstructor {
 
 /** Minimal structural window (satisfied by DOM Window and fakes). */
 export interface WindowLike {
+  readonly innerWidth?: number;
+  readonly innerHeight?: number;
   readonly document: DocumentLike;
   readonly location: { readonly hash: string; readonly pathname?: string; readonly search?: string; readonly href?: string };
   addEventListener(type: string, listener: (event: EventLike) => void): void;
@@ -173,6 +175,8 @@ const GENERATED_VIEW_MOUNTS = new Map<string, GeneratedViewMount>();
 /** Live instance cleanups by use id. */
 const generatedViewCleanups = new Map<string, () => void>();
 const generatedViewRebinds = new WeakSet<object>();
+/** Callable acquired by each root; late registration rebinds only that view. */
+const generatedViewMountBindings = new WeakMap<object, GeneratedViewMount | undefined>();
 
 /** Register a unit browser bundle's saved `mount` for one view name. */
 export function registerGeneratedViewMount(view: string, mount: GeneratedViewMount): void {
@@ -227,6 +231,7 @@ function bindGeneratedView(root: ElementLike): () => void {
   generatedViewRebinds.delete(root);
   const mount = GENERATED_VIEW_MOUNTS.get(presentation.view);
   const cleanup = mount === undefined ? undefined : mount(root, presentation);
+  generatedViewMountBindings.set(root, mount);
   if (typeof cleanup === "function") {
     generatedViewCleanups.set(useId, cleanup);
   }
@@ -239,6 +244,7 @@ function bindGeneratedView(root: ElementLike): () => void {
 
 /** Release mounts for a removed subtree: the root itself plus descendants. */
 function releaseMountsIn(node: DomNode): void {
+  closeManagedDialogsIn(node);
   const direct = node.nodeType === 1 ? node.getAttribute?.(GENERATED_VIEW_ATTR) : null;
   if (direct !== null && direct !== undefined && direct !== "") {
     releaseGeneratedViewMount(direct);
@@ -304,6 +310,8 @@ function parseIntervalSeconds(value: string | null): number | null {
 /** Native DOM capabilities used by the bounded main-region morph. */
 interface DomNode {
   readonly nodeType: number;
+  readonly open?: boolean;
+  close?(): void;
   nodeValue: string | null;
   readonly childNodes: ArrayLike<DomNode>;
   readonly parentNode?: DomNode | null;
@@ -326,6 +334,18 @@ interface DomNode {
   selected?: boolean;
   readonly defaultSelected?: boolean;
   readonly files?: { readonly length: number } | null;
+}
+
+function managedDialog(node: DomNode): boolean {
+  return node.tagName?.toLowerCase() === 'dialog' &&
+    (node.getAttribute?.('data-can-menu-dialog-panel') != null || node.getAttribute?.('data-can-panel') === 'modal');
+}
+
+/** Native close releases modal top-layer/inert state before subtree mutation. */
+function closeManagedDialogsIn(node: DomNode): void {
+  const panels = [...node.querySelectorAll?.('dialog[data-can-menu-dialog-panel], dialog[data-can-panel="modal"]') ?? []];
+  if (managedDialog(node)) panels.unshift(node);
+  for (const panel of panels) if (panel.open) panel.close?.();
 }
 
 function formIdentity(node: DomNode, generatedOverride?: string): string {
@@ -413,6 +433,16 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   const selected = tag === 'select'
     ? [...(keepInput ? current : next).querySelectorAll?.('option') ?? []].filter((option) => option.selected).map((option) => option.value) : null;
   const attributes = new Map([...next.attributes ?? []].map((attribute) => [attribute.name, attribute.value]));
+  if (managedDialog(current) && current.open) {
+    if (settledForm !== undefined && current.contains?.(settledForm) === true) {
+      // Removing the open attribute alone leaves a native modal's top layer
+      // and document inertness active. Settle it through the native lifecycle.
+      current.close?.();
+    } else {
+      // A background read cannot dismiss an unrelated in-progress dialog.
+      attributes.set('open', '');
+    }
+  }
   if (keepForm || (tag === 'form' && current === (settledForm as unknown))) {
     for (const name of tag === 'form' ? ['aria-busy', 'data-can-submit-state'] :
       tag === 'input' && current.getAttribute?.('type') === 'hidden' ? ['value'] : []) {
@@ -476,6 +506,7 @@ export function applyPollResponse(document: DocumentLike, region: ElementLike, b
     // The admitted denial withdraws old actions; its body supplies no markup or
     // authority. Removing forms also detaches pending submission callbacks.
     const root = region as unknown as DomNode;
+    closeManagedDialogsIn(root);
     for (const control of root.querySelectorAll?.('form, input, button, select, textarea, [data-can-once], [hx-post], [hx-put], [hx-patch], [hx-delete]') ?? []) {
       control.parentNode?.removeChild(control);
     }
@@ -1150,7 +1181,20 @@ const bindSplitCollection: ComponentBinder = (root, _client, internals) => {
     if (event.target?.hasAttribute('data-can-split-close')) close();
   };
   const releases: Array<() => void> = [];
+  const acquiredToggle = toggle();
   const pane = dialog();
+  // Disposal owns only acquired nodes. A retained root may already contain
+  // the replacement request's selected pane when the old binder releases.
+  const dispose = (): void => {
+    const owned = (node: ElementLike): boolean => {
+      const owner = (node as ElementLike & { closest?: (selector: string) => ElementLike | null }).closest?.('[data-can-split]');
+      // Reconciliation may transfer these nodes into a new connected owner
+      // before releasing this root. Its new binder owns their live state.
+      return !node.isConnected || owner == null || owner === root;
+    };
+    if (acquiredToggle !== null && owned(acquiredToggle)) acquiredToggle.checked = false;
+    if (pane?.open && owned(pane)) pane.close?.();
+  };
   try {
     releases.push(() => root.removeEventListener('change', sync));
     root.addEventListener('change', sync);
@@ -1165,12 +1209,136 @@ const bindSplitCollection: ComponentBinder = (root, _client, internals) => {
     sync();
   } catch (error) {
     stopped = true;
-    try { releaseClientResources([...releases, close]); } catch { /* Preserve acquisition failure. */ }
+    try { releaseClientResources([...releases, dispose]); } catch { /* Preserve acquisition failure. */ }
     throw error;
   }
   return () => {
     stopped = true;
-    releaseClientResources([...releases.splice(0), close]);
+    releaseClientResources([...releases.splice(0), dispose]);
+  };
+};
+
+/** Native popover owns keyboard/light dismissal; this binder owns viewport placement. */
+const bindActionMenu: ComponentBinder = (root, _client, internals) => {
+  type Box = ElementLike & { getBoundingClientRect?: () => { left: number; right: number; top: number; bottom: number; width: number; height: number }; style?: { left: string; top: string; maxHeight: string }; matches?: (selector: string) => boolean };
+  const trigger = root.querySelector?.('[data-can-action-menu-trigger]') as Box | null;
+  const panel = root.querySelector?.('[data-can-action-menu-popover]') as Box | null;
+  const window = internals.windowRef as WindowLike & { innerWidth?: number; innerHeight?: number };
+  const place = () => {
+    if (!trigger?.getBoundingClientRect || !panel?.getBoundingClientRect || !panel.style) return;
+    const anchor = trigger.getBoundingClientRect(), bounds = panel.getBoundingClientRect();
+    const width = window.innerWidth ?? 1024, height = window.innerHeight ?? 768;
+    const below = height - anchor.bottom - 8, above = anchor.top - 8;
+    const goesBelow = bounds.height <= below || below >= above;
+    panel.style.maxHeight = `${Math.max(0, goesBelow ? below : above)}px`;
+    panel.style.left = `${Math.max(8, Math.min(anchor.right - bounds.width, width - bounds.width - 8))}px`;
+    panel.style.top = `${Math.max(8, goesBelow ? anchor.bottom : anchor.top - Math.min(bounds.height, above))}px`;
+  };
+  const resized = () => { if (panel?.matches?.(':popover-open')) place(); };
+  panel?.addEventListener('toggle', place);
+  window.addEventListener('resize', resized);
+  window.addEventListener('scroll', resized);
+  return () => {
+    panel?.removeEventListener('toggle', place);
+    window.removeEventListener('resize', resized);
+    window.removeEventListener('scroll', resized);
+  };
+};
+
+/** Compact controls open the existing canonical form in a modal dialog. */
+const bindMenuDialog: ComponentBinder = (root, _client, internals) => {
+  type Native = ElementLike & { open?: boolean; showModal?: () => void; close?: () => void; hidePopover?: () => void; closest?: (selector: string) => Native | null };
+  const opener = root.querySelector?.('[data-can-menu-dialog-open]') as Native | null;
+  const dialog = root.querySelector?.('dialog') as Native | null;
+  const cancel = root.querySelector?.('[data-can-menu-dialog-close]');
+  let returnTo: ElementLike | null = opener;
+  let stopped = false;
+  const open = () => {
+    if (!dialog?.showModal || dialog.open) return;
+    const menu = opener?.closest?.('[data-can-action-menu]');
+    returnTo = menu?.querySelector?.('[data-can-action-menu-trigger]') ?? opener;
+    const panel = opener?.closest?.('[popover]');
+    panel?.hidePopover?.();
+    dialog.showModal();
+  };
+  const close = () => { if (dialog?.open) dialog.close?.(); };
+  const closed = () => { if (!stopped && returnTo?.isConnected) returnTo.focus(); };
+  opener?.addEventListener('click', open);
+  cancel?.addEventListener('click', close);
+  dialog?.addEventListener('close', closed);
+  return () => {
+    stopped = true;
+    opener?.removeEventListener('click', open);
+    cancel?.removeEventListener('click', close);
+    dialog?.removeEventListener('close', closed);
+    close();
+  };
+};
+
+/** Checked local panel targets add activation only, never routes or authority. */
+const bindPanel: ComponentBinder = (root, _client, internals) => {
+  type Native = ElementLike & { checked?: boolean; open?: boolean; showModal?: () => void; close?: () => void;
+    closest?: (selector: string) => Native | null; hidePopover?: () => void };
+  const modal = root.getAttribute('data-can-panel') === 'modal';
+  const pane = (modal ? root : root.querySelector?.('aside') ?? null) as Native | null;
+  const target = (modal ? root : root.querySelector?.('input.drawer-toggle') ?? null) as Native | null;
+  let returnTo: ElementLike | null = null;
+  let active = false;
+  let stopped = false;
+  const restore = () => {
+    if (!active) return;
+    active = false;
+    if (!stopped && returnTo?.isConnected) returnTo.focus();
+  };
+  const close = () => {
+    if (modal) { if (pane?.open) pane.close?.(); }
+    else if (target !== null) { target.checked = false; restore(); }
+  };
+  const clicked = (event: EventLike) => {
+    const origin = event.target as Native | null;
+    const opener = origin?.closest?.('[data-can-panel-open]');
+    const id = target?.getAttribute('id');
+    if (opener !== null && opener !== undefined && id && opener.getAttribute('data-can-panel-open') === id &&
+        internals.document.getElementById(id) === target) {
+      if (modal && pane?.showModal === undefined) return;
+      event.preventDefault();
+      if (active) return;
+      const menu = opener.closest?.('[data-can-action-menu]');
+      returnTo = menu?.querySelector?.('[data-can-action-menu-trigger]') ?? opener;
+      opener.closest?.('[popover]')?.hidePopover?.();
+      active = true;
+      if (modal) pane?.showModal?.();
+      else if (target !== null) { target.checked = true; pane?.focus(); }
+      return;
+    }
+    const control = origin?.closest?.('[data-can-panel-close]');
+    if (control?.closest?.('[data-can-panel]') === root) {
+      event.preventDefault();
+      close();
+    }
+  };
+  const changed = () => {
+    if (!modal && target?.checked === false) restore();
+  };
+  const escaped = (event: EventLike) => {
+    if (!modal && active && (event as EventLike & { key?: string }).key === 'Escape' &&
+        (internals.document.activeElement as Native | null)?.closest?.('[data-can-panel]') === root) {
+      event.preventDefault(); close();
+    }
+  };
+  internals.windowRef.addEventListener('click', clicked);
+  internals.windowRef.addEventListener('keydown', escaped);
+  target?.addEventListener('change', changed);
+  if (modal) pane?.addEventListener('close', restore);
+  return () => {
+    stopped = true;
+    releaseClientResources([
+      () => internals.windowRef.removeEventListener('click', clicked),
+      () => internals.windowRef.removeEventListener('keydown', escaped),
+      () => target?.removeEventListener('change', changed),
+      () => { if (modal) pane?.removeEventListener('close', restore); },
+      close,
+    ]);
   };
 };
 
@@ -1183,6 +1351,9 @@ registerBinder("preference-cancel", bindPreferenceCancel);
 registerBinder("once-action", (root) => bindOnceAction(root));
 registerBinder("split-collection", bindSplitCollection);
 registerBinder("gallery", bindGallery);
+registerBinder("action-menu", bindActionMenu);
+registerBinder("menu-dialog", bindMenuDialog);
+registerBinder("panel", bindPanel);
 registerBinder("generated-view", (root) => bindGeneratedView(root));
 
 /** Scan hooks: selector per core binder id. */
@@ -1196,6 +1367,9 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["split-collection", "[data-can-split]"],
   ["gallery", "[data-can-gallery]"],
   ["generated-view", "[data-can-view]"],
+  ["action-menu", "[data-can-action-menu]"],
+  ["menu-dialog", "[data-can-menu-dialog]"],
+  ["panel", "[data-can-panel]"],
 ];
 
 /** Live clients by document: starting twice returns the same client. */
@@ -1317,9 +1491,22 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
           const signature = `${client.contextKey()}|${element.getAttribute('data-can-poll-url') ?? ''}|${element.getAttribute('data-can-poll-interval') ?? ''}|${element.getAttribute('data-can-poll-context') ?? ''}|${element.getAttribute('data-can-generated-form') ?? ''}|${element.getAttribute('data-can-delete-form') ?? ''}|${element.getAttribute('action') ?? ''}|${element.getAttribute('data-can-view') ?? ''}`;
           const oldIndex = bound.findIndex((entry) => entry.element === element && entry.binder === id);
           const old = bound[oldIndex];
+          const changedMount = id === 'generated-view' &&
+            GENERATED_VIEW_MOUNTS.get(generatedViewPresentationOf(element).view) !== generatedViewMountBindings.get(element);
           if (old !== undefined && old.signature === signature &&
-              !(id === 'generated-view' && generatedViewRebinds.has(element))) continue;
-          if (old !== undefined) { bound.splice(oldIndex, 1); old.stop(); }
+              !(id === 'generated-view' && (generatedViewRebinds.has(element) || changedMount))) continue;
+          if (old !== undefined) {
+            // Releasing a split binder closes its native modal. Preserve the
+            // current request's selected checkbox for the replacement binder;
+            // cleanup must not erase a selection delivered by the new read.
+            const toggle = id === 'split-collection'
+              ? element.querySelector?.('.drawer-toggle') as (ElementLike & { checked?: boolean }) | null | undefined : null;
+            const selected = toggle?.checked;
+            bound.splice(oldIndex, 1); old.stop();
+            if (toggle?.isConnected && selected !== undefined && element.querySelector?.('.drawer-toggle') === toggle) {
+              toggle.checked = selected;
+            }
+          }
           bound.push({ element, binder: id, signature, stop: binder(element, client, internals) });
         }
       }
@@ -1336,6 +1523,9 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
             (entry.binder === 'preference-cancel' && !entry.element.hasAttribute('data-can-preference-cancel')) ||
             (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')) ||
             (entry.binder === 'gallery' && !entry.element.hasAttribute('data-can-gallery')) ||
+            (entry.binder === 'action-menu' && !entry.element.hasAttribute('data-can-action-menu')) ||
+            (entry.binder === 'menu-dialog' && !entry.element.hasAttribute('data-can-menu-dialog')) ||
+            (entry.binder === 'panel' && !entry.element.hasAttribute('data-can-panel')) ||
             (entry.binder === 'generated-view' && !entry.element.hasAttribute('data-can-view')))) {
           bound.splice(index, 1);
           entry.stop();
@@ -1383,6 +1573,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
 
 /** Browser globals are adapted here; importing this module on the server has no effects. */
 interface NativeWindow {
+  readonly innerWidth?: number;
+  readonly innerHeight?: number;
   readonly document: DocumentLike & {
     readonly visibilityState: string;
     readonly readyState?: string;
@@ -1413,6 +1605,8 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
   let suspended = false;
   const windowRef: WindowLike = {
     document: native.document, location: native.location,
+    get innerWidth() { return native.innerWidth ?? 1024; },
+    get innerHeight() { return native.innerHeight ?? 768; },
     addEventListener: (type, listener) => native.addEventListener(type, listener),
     removeEventListener: (type, listener) => native.removeEventListener(type, listener),
     setTimeout: (callback, ms) => native.setTimeout(callback, ms),

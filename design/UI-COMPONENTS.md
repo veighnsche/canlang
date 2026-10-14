@@ -140,6 +140,68 @@ These headers follow the approved design. Exactly one of `action`, `submit`, `ta
 
 Existing `action`/`actions`, implicit submits and `copy`/`delete` remain concise canonical compositions. The checker lowers explicit action buttons into their existing binding node; it does not implement a second invocation path. Multiple submit presentations may share one form draft and one operation identity per submitted invocation. A button cannot contain another interactive binding or attach an arbitrary callback.
 
+Use `primary` and `secondary` to declare individual checked actions:
+
+```can
+page /items title="Items"
+ primary "Create item" action=Item.create fields=title
+ list Item
+  card row.title
+   primary "Edit item" action=Item.update arguments={record=row} fields=title
+   secondary "Archive item" action=Item.delete arguments={record=row}
+```
+
+Each declaration owns a text/message caption and exactly one binding. Ordinary
+operations use `action=` and checked `arguments=`; canonical CRUD targets retain
+their permissions, record version and confirmation. The existing exclusive
+`submit=true`, `opens=` and `target=` bindings cover form submits, declared panel
+openers and safe destinations. Labels are explicit and localizable. No raw
+endpoint, callback, per-action styling or bare priority container is admitted.
+
+The shared UI supplies a consistent filled primary button, a compact secondary
+menu entry, touch sizing, focus, pending behavior and canonical form feedback.
+An action's owner is explicit and checked; visual wrappers cannot inherit action
+ownership merely because a page or card appears farther up the source tree.
+
+| Action owner | Primary placement | Secondary placement |
+| --- | --- | --- |
+| `page` | Heading toolbar | Heading overflow menu |
+| `card` | Content-aligned footer | Heading overflow menu |
+| `list` / `table` record row | Trailing row action area | Same area's overflow menu |
+| `modal` / `drawer`, in `slot actions` | Panel footer | Panel heading overflow menu |
+| `details ... display=drawer` | Detail panel footer | Detail panel heading overflow menu |
+| Canonical `form` / `edit` | Submit footer, `submit=true` only | Not admitted |
+
+For a list/table using `display=split`, the selected row owns a detail panel: its
+primary actions use the panel footer and secondary actions its heading menu.
+Unselected rows do not evaluate their detail actions.
+
+Declare form submit primitives directly in their owning form/edit suite, outside
+fieldsets. Independent operation, navigation and panel-opener primitives cannot
+be nested inside a form, even through another visual component. Existing
+read/result, import/review and dynamic canonical form workflows retain their
+owning structure and shared submit design.
+
+Tooltips, badges, tabs, disclosures (`collapse` and plain `details`), fieldsets,
+joins, heroes, dropdown slots and other annotation/layout wrappers are not action
+owners. A tab or repeated visual item may contain a meaningful canonical card;
+its card then owns its actions. Tooltip descendants cannot introduce priority
+actions, including through nested cards or expanded views. Use an ordinary checked button where a component's trigger/menu contract
+calls for a control rather than a prioritized owner action.
+
+Nonvisual permission guards remain in the current owner and evaluation scope.
+No action moves across a row, guard, panel or form boundary. Action controls
+evaluate in authored order before the owner places their completed markup.
+Multiple secondary actions share one owning menu, preserving their forms.
+
+A standard card has one surface, compact typography and spacing, and a footer
+connected to its content. A generated view is not an action owner: its source
+declares a canonical card, and its renderer receives that entire card as one
+opaque `card` binding, including content and controls. It must preserve that
+binding unchanged. Generated styles cannot stamp or restyle standard action
+controls. Apps still own their identity, composition and content.
+
+
 `modal "Caption" id=NAME` and `drawer "Caption" id=NAME` declare optional local activation identities; an external `button opens=NAME` requires the matching declaration to supply `id`. Identities are unique per lexical page scope; repeated rows get runtime-owned instance identities from the existing row chain. A trigger resolves a visible declaration in that same render context, never an arbitrary DOM id or another row's private content. An admitted `slot trigger` or matching external opener suppresses the implicit opener for that instance; otherwise the runtime generates a captioned opener. A trigger slot receives its enclosing component's activation binding automatically and cannot also submit, navigate or invoke a business operation. One active record detail, dismissal, focus containment/return, accepted input preservation and revocation handling remain shared obligations.
 
 ### Groups, slots and repetition
@@ -170,7 +232,7 @@ Repeated item components may take an existing query or typed readable sequence a
 
 Bare `menu`, `navbar`, `dock` and `megamenu` consume the canonical authorized page descriptors; bare `breadcrumbs` consumes the current declared destination ancestry. Actual subsets/order differences can supply a `pages=["/route",...]` attribute using declared static route shapes. Their titles, URLs, admission and locale variants remain owner-derived. This is a checked presentation selector, not a second route registry. Dynamic destinations use an explicit `link target=expr` in their current authorized context; no model id or access grant is inferred. `caption=expr` is optional when a safe destination caption already exists and required otherwise.
 
-Every app uses the same static shell: a collapsible **right sidebar page menu**, the **user menu at the bottom right**, the common **user configuration dialog**, and the canonical **login screen**. Static describes the shared structure, not frozen permissions, captions or state: destinations still derive from admitted page descriptors. Mobile adapts this same shell to an accessible dismissible drawer. Apps do not select a different shell layout or author replacement account/settings/authentication controls. `menu`, `navbar`, `dock` and `megamenu` remain available as page-local presentations of canonical destinations; their availability is not a shell override. No `shell navigation=...` source setting is adopted.
+Every app uses the same static shell: a collapsible **left sidebar page menu**, the **user menu at the bottom left**, the common **user configuration dialog**, and the canonical **login screen**. Static describes the shared structure, not frozen permissions, captions or state: destinations still derive from admitted page descriptors. Mobile adapts this same shell to an accessible dismissible drawer. Apps do not select a different shell layout or author replacement account/settings/authentication controls. `menu`, `navbar`, `dock` and `megamenu` remain available as page-local presentations of canonical destinations; their availability is not a shell override. No `shell navigation=...` source setting is adopted.
 
 `theme_controller` consumes the one existing Appearance setting and its finite theme mapping, previews, cancel/save and self-only persistence. `pagination` inside a collection consumes that collection's admitted cursor/filter/order state; elsewhere it is an error. Neither control invents an independent state store. `swap` without a selector owns only transient local view state; an explicit owned bool preference reuses canonical preference persistence. A readable business bool selects display only and cannot be toggled by the widget.
 

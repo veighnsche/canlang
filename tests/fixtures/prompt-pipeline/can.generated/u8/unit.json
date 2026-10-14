@@ -7,26 +7,26 @@
     "label": "Page",
     "anchor": "PromptStudio:style-inline:Page:Page",
     "path": "PromptStudio.can",
-    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
-    "start": 2147,
-    "end": 2417
+    "revision": "118de95a1e60514c0a1ad70c2f9998067b87c3d2703764fbdeff81e551fcf311",
+    "start": 4351,
+    "end": 5162
   },
   "contract": {
     "target": "Page",
     "profile": null,
-    "prompt_sha256": "9d6e38e0ef390b49e8c536d0c0df23eef43eba3d1600c9615bcc236e8ff8c10a",
+    "prompt_sha256": "833a3e9b21ad2f09d3756788b5a3b41ec5e3192473c056e6f6cfac2191eefbc6",
     "signature": null
   },
   "original": {
-    "prompt_sha256": "9d6e38e0ef390b49e8c536d0c0df23eef43eba3d1600c9615bcc236e8ff8c10a",
+    "prompt_sha256": "833a3e9b21ad2f09d3756788b5a3b41ec5e3192473c056e6f6cfac2191eefbc6",
     "files": {
-      "style.css": "e5f69d1487f11f5efb361666b7fee0f6cddfdfea2c9dc64895218ad5da363b4c"
+      "style.css": "d054968067d70a0192337cd7fd7760ccc3fdaed53d5c3072d64e8d68c0b87c3b"
     }
   },
   "provenance": {
     "origin": "generated",
     "runner": "codex",
     "model": "gpt-6.1-sol",
-    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j1 (retry retry)"
+    "note": "accepted attempt source-2655fe8a-42ed-40bd-bbe1-e9308268f05e.j0 (generate prepare)"
   }
 }

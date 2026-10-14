@@ -1,37 +1,50 @@
 :host {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(1.5rem, 4vw, 2.75rem);
+  display: grid;
+  gap: 24px;
   box-sizing: border-box;
-  width: 100%;
-  max-width: 58rem;
-  min-width: 0;
+  inline-size: 100%;
+  max-inline-size: 46rem;
+  min-inline-size: 0;
   margin-inline: auto;
-  padding: clamp(1.25rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem);
-  color: var(--color-base-content, #183b30);
-  background: color-mix(in srgb, var(--color-base-100, #fffdf6) 88%, #f3ead6);
-  border-radius: var(--radius-box, 1rem);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  line-height: 1.55;
+  padding: 24px;
+  color: var(--color-base-content);
+  background: var(--color-base-100);
 }
-h1 {
+:host > :where(header, .page-header, .can-page-header) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  min-inline-size: 0;
+}
+:host > h1,
+:host > :where(header, .page-header, .can-page-header) h1 {
   margin: 0;
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 650;
-  letter-spacing: -.045em;
-  line-height: 1.15;
-  color: var(--color-primary, #245b43);
+  min-inline-size: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.2;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
-:where(h2, h3) { line-height: 1.3; letter-spacing: -.02em; }
-:where(ul, ol) { display: grid; gap: 1rem; padding-inline-start: 1.4rem; margin-block: 0; }
-li { min-width: 0; }
-:where(p, label, li) { overflow-wrap: anywhere; }
-:where(input, textarea, select) { max-width: 100%; box-sizing: border-box; }
-:where(a, button, input, textarea, select):focus-visible { outline: 3px solid var(--color-primary, #245b43); outline-offset: 3px; }
-:where([role="alert"], .error, .field-error, .validation-error) { color: var(--color-error, #a52a36); line-height: 1.5; }
-@media (max-width: 480px) {
-  :host { gap: 1.5rem; padding: 1.5rem 1rem; }
-  h1 { font-size: 2rem; }
+:host > :where(ul, ol),
+:where(.list, .can-list, .collection, [role="list"]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  align-items: start;
+  gap: 16px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-/* Saved code edit: spacing for the page outline. */
-:host { outline-offset: 2px; }
+:host > :where(ul, ol) > li,
+:where(.list, .can-list, .collection, [role="list"]) > :where(li, .list-item, .can-list-item) {
+  min-inline-size: 0;
+}
+@media (max-width: 40rem) {
+  :host {
+    padding: 16px;
+    gap: 20px;
+  }
+}

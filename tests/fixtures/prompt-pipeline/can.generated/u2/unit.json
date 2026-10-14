@@ -7,7 +7,7 @@
     "label": "title_text",
     "anchor": "PromptStudio:trait:title_text:",
     "path": "PromptStudio.can",
-    "revision": "39467a858530c44c9fa31ad67b3d12a1e493912ba42105f68341fed9153d68d3",
+    "revision": "8730ac5fddbce7b8d8e343c3edca58ff2d201b200d51f6f86c01041e6f067377",
     "start": 209,
     "end": 339
   },
@@ -27,6 +27,6 @@
     "origin": "generated",
     "runner": "codex",
     "model": "gpt-6.1-sol",
-    "note": "accepted attempt prompt-pipeline-5312a08c-7ae6-4bfb-8a0e-675335c78774.j0 (retry retry)"
+    "note": "accepted attempt source-4f7160db-69fa-4ac4-990d-9f03821168ed.j0 (retry retry)"
   }
 }

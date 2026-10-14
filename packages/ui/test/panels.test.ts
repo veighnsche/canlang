@@ -155,7 +155,7 @@ describe("tabs", () => {
     assert.ok(html.includes(`name="view" value="b"`), html);
     assert.ok(html.includes('value="b" aria-label="Second" aria-selected="true"'), html);
     assert.ok(html.includes(`name="_csrf" value="csrf-123"`), html);
-    assert.ok(html.includes(`<button type="submit" class="btn btn-primary">Save</button>`), html);
+    assert.ok(html.includes(`<button type="submit" class="btn btn-primary" data-can-standard-submit>Save</button>`), html);
   });
 
   it("refuses foreign bound-tab POST targets before bodies and preserves mounted protected inputs", async () => {

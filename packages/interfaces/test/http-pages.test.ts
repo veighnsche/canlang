@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken, IdentityError } from '@canlang/identity';
-import { breadcrumbs } from '@canlang/ui';
+import { primaryActions, breadcrumbs } from '@canlang/ui';
 import type {
   AdmittedBindings,
   PageDescriptor,
@@ -1101,4 +1101,28 @@ test('full and partial breadcrumbs use admitted declared route winners without i
       for (const name of ['Unrelated', 'Boundary', 'Shadowed']) assert.equal(calls.get(name), 1);
     }
   }
+});
+
+
+test('full and partial page dispatch consume direct render parts once and preserve the body', async () => {
+  let partsCalls = 0, legacyCalls = 0;
+  const page = helloPage({
+    render: async () => { legacyCalls++; return '<p>legacy</p>'; },
+    renderParts: async context => {
+      partsCalls++;
+      return [await primaryActions({ context, children: ['<button type="button">Create</button>'] }), '<ul id="items"><li>Item</li></ul>'];
+    },
+  });
+  const { deps, identity } = await createTestDeps({ descriptors: [page] });
+  const handler = createHttpHandler(deps, spySub());
+  for (const partial of [false, true]) {
+    const response = await handler(testRequest('/hello', { cookie: identity.cookie, headers: partial ? { 'HX-Request': 'true' } : {} }));
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    const headingEnd = html.indexOf('</header>');
+    assert.ok(html.indexOf('data-can-primary-actions>') < headingEnd);
+    assert.ok(html.indexOf('<ul id="items">') > headingEnd);
+  }
+  assert.equal(partsCalls, 2);
+  assert.equal(legacyCalls, 0);
 });

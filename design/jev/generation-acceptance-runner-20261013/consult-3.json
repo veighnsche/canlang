@@ -1,0 +1,48 @@
+{
+  "request": {
+    "state": {
+      "requirement": "Before accepting generated code, compile/build the frozen candidate, run compiled Can examples and real dev-server Playwright; any failure preserves current outputs.",
+      "verified_facts": [
+        "Can example fixture materialization currently writes raw rows with uniqueClaims:[], bypassing generated keyword computed-key claims; canonical modeltable uses loaded.givenUniqueKeys.",
+        "Generated count(Alias) example observation closures currently receive fixture bindings without canonical read scope and fail T17 records() admission.",
+        "The concrete acceptance fixture has emitted member-authorized Alias.create with only handle input, generated canonicalKey, and seeded duplicate/non-ASCII examples.",
+        "Existing canonical invocation and canonical read APIs enforce owner permissions and commit behavior. Scope is native local example runner, not a new general execution engine."
+      ],
+      "alternatives": {
+        "A": "For generated-key fixture models only, seed through the existing emitted canonical create operation with a provisioned fixture actor; refuse clearly if fixture fields or operation cannot be represented. Keep other fixtures unchanged. Use canonical read scope for observations.",
+        "B": "Add an internal fixture-seed hook to the canonical owner that accepts complete authored rows and computes generated claims; use canonical read scope for observations. More owner API changes, but supports hidden fields and custom source operation shapes without public create side effects.",
+        "C": "Refuse fixtures involving generated-key models until a dedicated owner fixture API exists; use canonical read scope for observations. Preserves semantic strictness but cannot yet exercise the requested seeded generated-key behavior."
+      }
+    },
+    "questions": {
+      "choice": {
+        "type": "choice",
+        "question": "For this bounded generated-code acceptance scenario, which repair should we implement now after balancing semantic preservation, implementation scope, and honest unsupported cases?",
+        "criteria": {
+          "A": "For generated-key fixture models only, seed through the existing emitted canonical create operation with a provisioned fixture actor; refuse clearly if fixture fields or operation cannot be represented. Keep other fixtures unchanged. Use canonical read scope for observations.",
+          "B": "Add an internal fixture-seed hook to the canonical owner that accepts complete authored rows and computes generated claims; use canonical read scope for observations. More owner API changes, but supports hidden fields and custom source operation shapes without public create side effects.",
+          "C": "Refuse fixtures involving generated-key models until a dedicated owner fixture API exists; use canonical read scope for observations. Preserves semantic strictness but cannot yet exercise the requested seeded generated-key behavior."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "choice": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.86,
+        "probabilities": {
+          "A": 0.91,
+          "B": 0.08,
+          "C": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 782,
+      "output_tokens": 38
+    }
+  }
+}

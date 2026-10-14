@@ -125,6 +125,8 @@ export function createOperationFormPreparer(
         context, action: `${OPERATIONS_PREFIX}${encodeURIComponent(derived.operation)}`,
         operation: derived.operation, operationId: mintOperationId(clock.nowMs()), mode, derived,
         timeZone, fields: renderedFields, submit: request.submit ?? SUBMIT,
+        ...(request.controlLabel === undefined ? {} : { controlLabel: request.controlLabel }),
+        ...(request.authoredSubmit === undefined ? {} : { authoredSubmit: request.authoredSubmit }),
         ...(authored === undefined ? {} : { authoredFields: authored }),
         ...(authoredLabels === undefined ? {} : { authoredLabels }),
         ...(authoredValidators === undefined ? {} : { authoredValidators }),

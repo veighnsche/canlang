@@ -1,16 +1,19 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import type { BrowserContext } from "@playwright/test";
+import type { BrowserContext, Page, Response as BrowserResponse } from "@playwright/test";
 
 export interface DraftSession {
   readonly session: string;
   readonly app: string;
   readonly identity: Readonly<{ revision: string; sourceRevision: string; servingBuild: string }>;
   /** Use a fresh context with tracing disabled: cookie injection carries real credentials. */
-  authenticate(context: BrowserContext, actorLabel?: string): Promise<string>;
+  /** Null retains only preview transport access, with no application identity. */
+  authenticate(context: BrowserContext, actorLabel?: string | null): Promise<string>;
   assertCurrent(): Promise<void>;
   runExamples(operation?: string, row?: number): Promise<unknown>;
   close(): Promise<void>;
@@ -44,8 +47,12 @@ export async function openDraftSession(options: {
     throw new Error("Draft session timeout must be 1..3600000 milliseconds");
   }
   if (Number(process.versions.node.split(".")[0]) < 22) throw new Error("Draft sessions require Node 22 or newer");
-  const root = resolve(options.root);
-  const source = resolve(root, options.source);
+  const acceptanceSource = process.env.CAN_ACCEPTANCE_SOURCE;
+  if (acceptanceSource !== undefined && !isAbsolute(acceptanceSource)) {
+    throw new Error("CAN_ACCEPTANCE_SOURCE must be an absolute candidate source path");
+  }
+  const root = resolve(acceptanceSource === undefined ? options.root : process.env.CAN_ACCEPTANCE_WORKSPACE ?? options.root);
+  const source = resolve(root, acceptanceSource ?? options.source);
   const app = options.app;
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(app)) throw new Error("Draft session requires a declared app name");
   const deadline = Date.now() + timeoutMs;
@@ -58,6 +65,11 @@ export async function openDraftSession(options: {
   let owned = false;
   let closed = false;
   let closing: Promise<void> | undefined;
+  let acceptanceIdentity: DraftSession["identity"] | undefined;
+  let verifyAcceptanceCurrent: (() => Promise<void>) | undefined;
+  let browserNavigations = 0;
+  const watchedContexts = new WeakSet<BrowserContext>();
+  const browserListeners: (() => void)[] = [];
   const flags = (): string[] => ["--root", root, "--session", session, "--app", app, "--profile", "local-d1-identity"];
   async function control(command: string, args: string[], cleanup = false): Promise<JsonObject> {
     let stdout: string;
@@ -82,19 +94,37 @@ export async function openDraftSession(options: {
   }
   const close = (): Promise<void> => {
     closing ??= (async () => {
+      let receiptCurrent = false;
+      let currentError: unknown;
+      if (verifyAcceptanceCurrent !== undefined) {
+        try { await verifyAcceptanceCurrent(); receiptCurrent = true; }
+        catch (error) { currentError = error; }
+      }
       closed = true;
       if (!owned || !session) return;
-      try {
-        const stopped = object((await control("stop", flags(), true)).result);
-        if (stopped.stopped !== true) throw new Error("Owned session stop was not acknowledged");
-      } catch {
-        // Stop can remove its socket before acknowledging. Only absence of this exact owner is sufficient.
-        try { await control("discover", flags(), true); }
-        catch (error) {
-          if (error instanceof ControlFailure && error.endpointAbsent) return;
-          throw new Error("Owned draft session cleanup could not verify endpoint absence");
+      const stopOwned = async (): Promise<void> => {
+        try {
+          const stopped = object((await control("stop", flags(), true)).result);
+          if (stopped.stopped !== true) throw new Error("Owned session stop was not acknowledged");
+        } catch {
+          // Stop can remove its socket before acknowledging. Only absence of this exact owner is sufficient.
+          try { await control("discover", flags(), true); }
+          catch (error) {
+            if (error instanceof ControlFailure && error.endpointAbsent) return;
+            throw new Error("Owned draft session cleanup could not verify endpoint absence");
+          }
+          throw new Error("Owned draft session cleanup failed; its endpoint still exists");
         }
-        throw new Error("Owned draft session cleanup failed; its endpoint still exists");
+      };
+      await stopOwned();
+      for (const remove of browserListeners) remove();
+      if (currentError !== undefined) throw currentError;
+      if (receiptCurrent && acceptanceIdentity !== undefined && process.env.CAN_ACCEPTANCE_OUTPUT !== undefined) {
+        await mkdir(process.env.CAN_ACCEPTANCE_OUTPUT, { recursive: true });
+        await writeFile(resolve(process.env.CAN_ACCEPTANCE_OUTPUT, "browser-session.json"), `${JSON.stringify({
+          source, sourceRevision: acceptanceIdentity.sourceRevision, servingBuild: acceptanceIdentity.servingBuild,
+          browserNavigations, closed: true,
+        }, null, 2)}\n`);
       }
     })();
     return closing;
@@ -112,6 +142,13 @@ export async function openDraftSession(options: {
     const start = object(started.result);
     owned = start.attached === false;
     if (!owned) throw new Error("An existing session owns this draft; implicit attachment is ambiguous");
+    if (acceptanceSource !== undefined && process.env.CAN_ACCEPTANCE_OUTPUT !== undefined) {
+      await mkdir(process.env.CAN_ACCEPTANCE_OUTPUT, { recursive: true });
+      const ownerKey = createHash("sha256").update(session).digest("hex");
+      await writeFile(resolve(process.env.CAN_ACCEPTANCE_OUTPUT, `browser-owner-${ownerKey}.json`), `${JSON.stringify({
+        workspace: root, source, session, app, owned: true,
+      }, null, 2)}\n`);
+    }
     let status = object((await control("status", flags())).result);
     while (!current(status)) {
       if (status.revision !== null) {
@@ -136,8 +173,12 @@ export async function openDraftSession(options: {
       if (!current(state) || state.revision !== identity.revision || state.source_revision !== identity.sourceRevision ||
           state.serving_build !== identity.servingBuild) throw new Error("Draft source or serving identity changed; this run is invalidated");
     };
+    if (acceptanceSource !== undefined) {
+      acceptanceIdentity = identity;
+      verifyAcceptanceCurrent = assertCurrent;
+    }
     let origin: string | undefined;
-    const authenticate = async (context: BrowserContext, actorLabel = "Ava"): Promise<string> => {
+    const authenticate = async (context: BrowserContext, actorLabel: string | null = "Ava"): Promise<string> => {
       await assertCurrent();
       const opened = object((await control("preview.open", flags())).result);
       if (opened.schema !== "can.dev.preview-open.v1" || opened.serving_build !== identity.servingBuild) {
@@ -151,13 +192,25 @@ export async function openDraftSession(options: {
         throw new Error("Protected preview must retain its loopback HTTP origin");
       }
       origin = bootstrap.origin;
+      if (acceptanceSource !== undefined && !watchedContexts.has(context)) {
+        watchedContexts.add(context);
+        const watchPage = (page: Page): void => {
+          const navigation = (response: BrowserResponse): void => {
+            if (response.status() < 200 || response.status() >= 300 || !response.request().isNavigationRequest()) return;
+            try {
+              if (response.frame() === page.mainFrame() && new URL(response.url()).origin === origin) browserNavigations += 1;
+            } catch { /* Closed/detached frames cannot establish candidate navigation. */ }
+          };
+          page.on("response", navigation);
+          browserListeners.push(() => page.off("response", navigation));
+        };
+        context.on("page", watchPage);
+        browserListeners.push(() => context.off("page", watchPage));
+        for (const page of context.pages()) watchPage(page);
+      }
       if (!Array.isArray(opened.actors)) throw new Error("Protected preview lacks real seeded Identity actors");
       const actors = opened.actors.map(object).filter(actor => actor.label === actorLabel);
-      if (actors.length !== 1) throw new Error("Requested seeded Identity actor is absent or ambiguous");
-      const actor = actors[0]!;
-      const email = text(actor.email, "actor email");
-      const password = text(actor.password, "actor credential");
-      if (!Array.isArray(actor.teams)) throw new Error("Seeded Identity actor lacks team membership information");
+      if (actorLabel !== null && actors.length !== 1) throw new Error("Requested seeded Identity actor is absent or ambiguous");
       // Native fetch keeps bootstrap URLs, login bodies and auth responses out of Playwright traces.
       const jar = new Map<string, { value: string; httpOnly: boolean; secure: boolean; sameSite: "Strict" | "Lax" | "None"; path: string; expires: number }>();
       async function request(url: string, phase: string, init: RequestInit = {}): Promise<Response> {
@@ -199,6 +252,18 @@ export async function openDraftSession(options: {
       const boot = await request(bootstrap.href, "bootstrap");
       if (![200, 302, 303, 401, 403].includes(boot.status) || jar.size === 0) throw new Error("Protected preview bootstrap failed to issue its access cookie");
       await boot.body?.cancel();
+      if (actorLabel === null) {
+        if (jar.has("can_session") || (await context.cookies(origin)).some(cookie => cookie.name === "can_session")) {
+          throw new Error("Anonymous preview needs a fresh browser context without Identity cookies");
+        }
+        await context.addCookies([...jar].map(([name, cookie]) => ({ name, ...cookie, domain: bootstrap.hostname })));
+        await assertCurrent();
+        return origin;
+      }
+      const actor = actors[0]!;
+      const email = text(actor.email, "actor email");
+      const password = text(actor.password, "actor credential");
+      if (!Array.isArray(actor.teams)) throw new Error("Seeded Identity actor lacks team membership information");
       const descriptor = await json(await request(`${origin}/auth/login`, "descriptor"), "descriptor");
       const preSessionToken = text(descriptor.preSessionToken, "pre-session token");
       const login = await request(`${origin}/auth/login`, "login", { method: "POST", headers: { origin, "content-type": "application/json" },

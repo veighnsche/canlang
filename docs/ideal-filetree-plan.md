@@ -4,6 +4,29 @@ This is the current planning entry for the intended finished Canlang, derived fr
 
 The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/finished-product/target-tree.md), with its [machine allocation](ideal-filetree-plan/finished-product/target-tree.json). The previous current-checkout tree and twelve-package/TS-only recommendation are historical inputs, superseded as the complete intended-product target. Reusable prior source reviews remain at their actual byte/scope pins. Current typed descriptions, forms, receipts, fanout and HTTP serving source supersede blanket historical absence claims only at their observed mechanism scope.
 
+### Shared action runtime intake — 2026-10-14
+
+The requested shared layout and ignore-file commit is made directly on local
+`main`, whose parent `3fde6c3b5` already contains fetched `origin/main`; no merge
+or new source checkpoint is needed. This scoped intake retains all accumulated
+coverage and open review gates below. The complete checkpoint is unchanged.
+
+UI retains action layout, canonical forms and browser activation. The three new
+leaves are `packages/ui/src/internal/action-groups.ts` (completed direct-child
+grouping), `packages/ui/src/internal/menu-dialog.ts` (single dialog surface), and
+`packages/ui/test/action-menu.test.ts` (shared placement/lifecycle regressions).
+Their defining owner and target remain UI. Existing Contracts presentation props,
+Interfaces form/page bridges, and Cloudflare generated-view mount registration
+complete the runtime joins without changing authority or evaluation ownership.
+`.gitignore` excludes transient captures/caches while preserving app references
+and curated screenshots. No source leaf is retired.
+
+The [accepted footer decision](specification/DECISIONS.md#2026-10-14--canonical-dialogs-share-one-action-footer)
+records retained checks and the boundary: compiler syntax, native CLI, draft
+rollout and inspection fixtures remain separate uncommitted consumer work.
+Working-integration browser evidence is not a standalone committed-source claim;
+the full draft and accumulated semantic/target review gates remain open.
+
 | Baseline | Recorded scope |
 | --- | --- |
 | Last complete reconciled checkpoint; unchanged | `ba8387795f54f924d6d0a54561b3140627e182b1` |
@@ -480,3 +503,7 @@ Main integration completed at `05dd4ce55`. The original local State delivery-inp
 ### 2026-10-14 — local storage and history cleanup
 
 All 27 secondary worktrees were checked against main and removed after preserving their complete source/local changes and Git administration in `/Users/vince/Backups/can-history-trial-20261014-111827`. Ancestor and equivalent patches were already integrated; explicit integration records cover the six Muse joins and four legacy wind-down branches. No new merge or implementation intake was needed. Generated posters, a compiled probe, retired token/result dumps and historical command captures were removed from local history. Source, replay source archives, active planning inputs and reference images remain. Original generated evidence remains recoverable from the backup. The source checkpoint above only changes identity through history rewriting; its coverage does not advance. The user authorized GitHub publication on 2026-10-14 with the original backups retained.
+
+### 2026-10-14 — readiness publication and branch pruning
+
+The reviewed prompt/source CLI, acceptance gate, shared action primitives/layout and app-local Playwright infrastructure are ready for publication with their focused checks and explicit corpus limitations recorded in DECISIONS. Actual screenshots and generated run reports remain outside Git; saved executable fixture contributions and conceptual references remain source inputs. Two acceptance defects found during review were repaired: reject false/computed form-submit targets and preserve native modal lifecycle during reconciliation. All remote feature heads were integrated before deletion; the cleaned local branch graph is retained in the external backup bundle, including unfinished historical proposals. No new merge occurred and the full coverage checkpoint is not advanced.

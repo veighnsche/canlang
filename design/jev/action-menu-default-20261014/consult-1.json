@@ -1,0 +1,46 @@
+{
+  "request": {
+    "state": {
+      "verified_context": [
+        "User wants a Then primitive with a card top-right menu button, Archive entry and confirmation before mutation.",
+        "Existing actions op,op lowers to protected operation forms and rejects suites. Generic menu currently renders route links only. dropdown uses focus-within wrappers and has no source lowering.",
+        "Prompted views receive opaque HTML bindings for declared controls. Their parser currently allows actions but no groups. Canonical delete owns permissions, CSRF, version and confirmation; its current rendering is a large inline confirmation card."
+      ],
+      "alternatives": {
+        "A": "Extend actions with a nonempty suite of canonical controls. A suite defaults to overflow menu presentation, while the existing operation-list form keeps its behavior. Add shared compact entries and confirmation presentation without new invocation logic.",
+        "B": "Introduce action_menu as a distinct Then grouping for canonical controls, with default overflow placement, shared entries and confirmation. Keep actions unchanged; add a new catalog word.",
+        "C": "Implement generic dropdown trigger/content source slots and use them explicitly with canonical controls; add shared compact entries and confirmation but author the trigger and positioning in each app."
+      }
+    },
+    "questions": {
+      "design": {
+        "type": "choice",
+        "instructions": "Choose the smallest complete source design for a shared overflow action menu, balancing concise authoring, existing meaning, and implementation clarity.",
+        "criteria": {
+          "A": "Extend actions with a nonempty suite of canonical controls. A suite defaults to overflow menu presentation, while the existing operation-list form keeps its behavior. Add shared compact entries and confirmation presentation without new invocation logic.",
+          "B": "Introduce action_menu as a distinct Then grouping for canonical controls, with default overflow placement, shared entries and confirmation. Keep actions unchanged; add a new catalog word.",
+          "C": "Implement generic dropdown trigger/content source slots and use them explicitly with canonical controls; add shared compact entries and confirmation but author the trigger and positioning in each app."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "design": {
+        "type": "choice",
+        "choice": "A",
+        "confidence": 0.56,
+        "probabilities": {
+          "A": 0.71,
+          "B": 0.28,
+          "C": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 693,
+      "output_tokens": 38
+    }
+  }
+}

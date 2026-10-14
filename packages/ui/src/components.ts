@@ -31,6 +31,7 @@ import {
   GENERATED_VIEW_ATTR,
   assertGeneratedViewInstanceProps,
 } from "@canlang/contracts";
+import { partitionActionGroups } from "./internal/action-groups.js";
 import { escapeAttr, escapeHtml, isolate, safeHref } from "./escape.js";
 import {
   canonicalDefaultTag,
@@ -148,12 +149,18 @@ export function rowHeading(
 export async function card(props: CardProps): Promise<string> {
   const heading = escapeHtml(resolveCaption(props.title, props.context));
   const kids = typeof props.children === "function" ? await props.children() : props.children;
-  const rendered = (await Promise.all(kids)).join("");
+  const parts = await Promise.all(kids);
+  // Controls evaluate in authored order; only their completed presentation
+  // moves into its owning heading or footer region.
+  const { primary, secondary, body: rendered } = partitionActionGroups(parts);
   const body =
-    props.layout === "columns"
+    props.layout === "columns" && rendered !== ""
       ? `<div class="grid gap-4 sm:grid-cols-2">${rendered}</div>`
       : rendered;
-  return `<section class="card bg-base-100 shadow"><div class="card-body"><h2 class="card-title">${heading}</h2>${body}</div></section>`;
+  const header = secondary === "" ? `<h2 class="card-title">${heading}</h2>`
+    : `<div class="can-card-heading"><h2 class="card-title">${heading}</h2><div class="can-heading-actions">${secondary}</div></div>`;
+  const footer = primary === "" ? "" : `<footer class="can-card-footer">${primary}</footer>`;
+  return `<section class="card bg-base-100 shadow" data-can-card><div class="card-body">${header}${body}${footer}</div></section>`;
 }
 
 /** Semantic heading; defaults to level 2 when no level is given. */
@@ -318,7 +325,10 @@ function stampStyledHtml(html: string, unitId: string, useId: string): string {
       const inheritedBlock = stack[stack.length - 1]?.blocked ?? false;
       const existing = attr(tag, "data-can-style");
       const ownRoot = stack.length === 0 && existing === unitId;
-      const boundary = !ownRoot && (existing !== undefined || (stack.length > 0 && /\sdata-can-view\s*=/.test(tag)));
+      // Standard action primitives own their appearance; generated styles may
+      // arrange the containing region but never acquire their control subtree.
+      const standardAction = /\sdata-can-(?:primary-actions|action-menu|standard-submit)(?:\s|>|=)/.test(tag);
+      const boundary = standardAction || (!ownRoot && (existing !== undefined || (stack.length > 0 && /\sdata-can-view\s*=/.test(tag))));
       if (!inheritedBlock) {
         if (boundary) {
           tag = add(tag, "data-can-style-host", unitId);

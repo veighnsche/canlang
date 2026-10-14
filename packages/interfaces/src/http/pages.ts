@@ -474,15 +474,17 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
         appId: deps.app.appId, sessionToken,
         clock: deps.clock,
       });
-      let children: string;
+      let children: readonly string[];
       try {
-        children = await match.descriptor.render(context, bindings);
+        children = match.descriptor.renderParts === undefined
+          ? [await match.descriptor.render(context, bindings)]
+          : await match.descriptor.renderParts(context, bindings);
       } catch (err) {
         return renderThrowResponse(deps, err, pathname);
       }
       let html: string;
       try {
-        html = await renderPage(context, match.descriptor, [children]);
+        html = await renderPage(context, match.descriptor, children);
       } catch (err) {
         return internalResponse(deps, err, pathname);
       }
@@ -543,15 +545,17 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
       appId: deps.app.appId, sessionToken,
       clock: deps.clock,
     });
-    let children: string;
+    let children: readonly string[];
     try {
-      children = await match.descriptor.render(context, bindings);
+      children = match.descriptor.renderParts === undefined
+          ? [await match.descriptor.render(context, bindings)]
+          : await match.descriptor.renderParts(context, bindings);
     } catch (err) {
       return renderThrowResponse(deps, err, pathname);
     }
     let html: string;
     try {
-      html = await renderPage(context, match.descriptor, [children], {
+      html = await renderPage(context, match.descriptor, children, {
         ...shell, settings: renderEnumPreferenceSettings({
           context, owner: match.descriptor.owner,
           caption: deps.app.ownerLabels.get(match.descriptor.owner) ?? match.descriptor.owner,

@@ -9,7 +9,7 @@ _can_complete() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     cmd="${COMP_WORDS[1]}"
 
-    local commands="activate build check compile completions deploy dev docs explain fmt gen help lint lsp policy run test"
+    local commands="activate build check compile completions deploy dev docs explain fmt gen help lint lsp policy run test validate"
 
     # First operand: the subcommand.
     if (( COMP_CWORD == 1 )); then
@@ -37,7 +37,7 @@ _can_complete() {
                 COMPREPLY=($(compgen -f -- "$cur"))
                 return 0
                 ;;
-            --format|--catalog|--out|--locale) takes_value=1 ;;
+            --format|--catalog|--out|--locale|--request) takes_value=1 ;;
         esac
     done
 
@@ -46,7 +46,7 @@ _can_complete() {
             COMPREPLY=($(compgen -W "json text" -- "$cur"))
             return 0
             ;;
-        --catalog|--out)
+        --catalog|--out|--request)
             COMPREPLY=($(compgen -f -- "$cur"))
             return 0
             ;;
@@ -80,7 +80,10 @@ _can_complete() {
             COMPREPLY=($(compgen -W "--format --format=json --format=text --help" -- "$cur"))
             ;;
         gen)
-            COMPREPLY=($(compgen -W "bind status --request --format --format=json --format=text --help" -f -- "$cur"))
+            COMPREPLY=($(compgen -W "bind status --request --retry --dry-run --format --format=json --format=text --help" -f -- "$cur"))
+            ;;
+        validate)
+            COMPREPLY=($(compgen -W "--format --format=json --format=text --help" -f -- "$cur"))
             ;;
         lsp)
             COMPREPLY=($(compgen -W "--help" -- "$cur"))

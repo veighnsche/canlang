@@ -21,6 +21,17 @@ describe("component catalog", () => {
     }
   });
 
+  it("catalogs contextual primary and secondary groups under their source names", () => {
+    const byId = new Map(UI_CATALOG.entries.map(entry => [entry.id, entry]));
+    for (const [id, factory] of [["primary", "primaryActions"], ["secondary", "actionMenu"]] as const) {
+      const entry = byId.get(id)!;
+      assert.equal(entry.js, factory);
+      assert.equal(entry.profile, "group");
+      assert.equal(entry.header, "none");
+    }
+    assert.equal(byId.has("action-menu"), false);
+  });
+
   it("matches implemented entries to real exports, with no phantoms", () => {
     const exported = new Set(Object.keys(ui));
     for (const entry of UI_CATALOG.entries) {
@@ -103,6 +114,8 @@ describe("component catalog", () => {
       indicator: 1,
       chatBubble: 1,
       dropdown: 1,
+      actionMenu: 1,
+      primaryActions: 1,
       modal: 1,
       drawer: 1,
       swap: 1,
@@ -157,7 +170,7 @@ describe("component catalog", () => {
     assert.equal(entry.header, "query");
   });
 
-  it("covers all 69 approved Can words plus 23 infrastructure entries", () => {
+  it("covers all 69 approved Can words plus 25 semantic/infrastructure entries", () => {
     const wordIds = [
       "accordion", "alert", "aura", "avatar", "badge", "breadcrumbs", "button",
       "calendar", "card", "carousel", "chat_bubble", "checkbox", "collapse",
@@ -173,12 +186,12 @@ describe("component catalog", () => {
     ];
     const infraIds = [
       "page-shell", "navigation", "title", "text", "content", "state", "form",
-      "edit", "delete", "action", "actions", "settings", "export", "print",
+      "edit", "delete", "action", "actions", "primary", "secondary", "settings", "export", "print",
       "history", "copy", "board", "review", "csv-import", "file",
       "csv-review-form", "csv-preview", "csv-confirm",
     ];
     assert.equal(wordIds.length, 69);
-    assert.equal(infraIds.length, 23);
+    assert.equal(infraIds.length, 25);
     const words = new Set(wordIds);
     const infra = new Set(infraIds);
     const seen = new Set<string>();
@@ -195,8 +208,8 @@ describe("component catalog", () => {
       }
     }
     assert.equal(wordCount, 69);
-    assert.equal(infraCount, 23);
-    assert.equal(UI_CATALOG.entries.length, 92);
+    assert.equal(infraCount, 25);
+    assert.equal(UI_CATALOG.entries.length, 94);
     for (const id of [...wordIds, ...infraIds]) {
       assert.ok(seen.has(id), `catalog is missing entry ${id}`);
     }
@@ -384,6 +397,7 @@ describe("component catalog", () => {
       pageDirection: "writing-direction helper, not a component",
       pageLocale: "locale helper, not a component",
       renderLogin: "canonical login surface, not a selectable word",
+      renderEnumPreferenceSettings: "owned enum preference settings fragment, not a selectable word",
       policyPage: "policy-page renderer, not a selectable word",
       // components.ts: internal text/heading fragments (card/title/text/content/state are cataloged).
       renderTextValue: "text-value fragment, not a component",
@@ -392,6 +406,9 @@ describe("component catalog", () => {
       // components.ts: BGI-09 generated view instance root (a saved-renderer
       // join over declared controls, not a selectable Can word).
       generatedViewInstance: "generated view instance renderer, not a selectable word",
+      styledComponent: "compiler-owned style attachment wrapper, not a selectable word",
+      actionBindings: "compiler-owned action region bindings, not a selectable word",
+      renderActionScope: "compiler-owned direct action group composition, not a selectable word",
       // collections.ts: control primitives (list/table/board/csv-import/export/print are cataloged).
       collectionPagination: "pagination control renderer, not a word",
       collectionShareControls: "share control renderer, not a word",
@@ -483,7 +500,7 @@ describe("component catalog", () => {
     }
   });
 
-  it("pins zero planned entries: all 92 are honestly implemented", () => {
+  it("pins zero planned entries: all 94 are honestly implemented", () => {
     const planned = UI_CATALOG.entries.filter(
       (entry) => entry.availability !== "implemented",
     );
@@ -492,6 +509,6 @@ describe("component catalog", () => {
       0,
       `planned entries remain: ${planned.map((entry) => `${entry.id}->${entry.js}`).join(", ")}`,
     );
-    assert.equal(UI_CATALOG.entries.length, 92);
+    assert.equal(UI_CATALOG.entries.length, 94);
   });
 });

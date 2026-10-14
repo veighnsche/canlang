@@ -17,12 +17,13 @@ _can() {
         'docs:Generate the localized internal declaration reference'
         'explain:Print a diagnostic catalog entry'
         'fmt:Format sources in place (or check with --check)'
-        'gen:Minimal generation bind/status selectors'
+        'gen:Generate source-owned code or dispatch generation requests'
         'help:Show help (global or per command)'
         'lint:Run lint rules over sources (warnings only, never blocks)'
         'lsp:Run the language server over stdio'
         'policy:Dump the declared policy surface'
         'run:Thin lane-7 entry: exec can-platform run (passthrough)'
+        'validate:Compile, build and test saved output without AI'
         'test:Thin lane-7 entry: exec can-platform test (passthrough)'
     )
 
@@ -41,7 +42,7 @@ _can() {
         fi
         case "$words[i]" in
             --) _files; return ;;
-            --format|--catalog|--out|--locale) takes_value=1 ;;
+            --format|--catalog|--out|--locale|--request) takes_value=1 ;;
         esac
     done
 
@@ -87,11 +88,19 @@ _can() {
             ;;
         gen)
             _arguments \
+                '--retry[regenerate all selected units]' \
+                '--dry-run[report planned work without generation]' \
                 '--request=[versioned JSON request file]:file:_files' \
                 '--format=[output format]:format:(json text)' \
                 '(-h --help)'{-h,--help}'[show help]' \
-                '1:gen operation:(bind status)' \
+                '1:source file or gen operation:_files' \
                 '*:file:_files'
+            ;;
+        validate)
+            _arguments \
+                '--format=[output format]:format:(json text)' \
+                '(-h --help)'{-h,--help}'[show help]' \
+                '1:source file:_files -g "*.can"'
             ;;
         lsp)
             _arguments '(-h --help)'{-h,--help}'[show help]'

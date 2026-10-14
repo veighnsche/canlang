@@ -429,7 +429,7 @@ export async function button(props: ButtonProps): Promise<string> {
   if (override === undefined) {
     throw new Error("button opens needs the panel caption as its caption");
   }
-  return `<a class="${cls}" href="#${escapeAttr(opens)}">${override}</a>`;
+  return `<a class="${cls}" href="#${escapeAttr(opens)}" data-can-panel-open="${escapeAttr(opens)}">${override}</a>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -673,7 +673,7 @@ export async function themeController(props: ThemeControllerProps): Promise<stri
     formOpen(props.postTo) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
     `<fieldset><legend>${label}</legend><div class="flex flex-col gap-2">${options}</div></fieldset>` +
-    `<div class="flex gap-2"><button type="submit" class="btn btn-primary">${save}</button>` +
+    `<div class="flex gap-2"><button type="submit" class="btn btn-primary" data-can-standard-submit>${save}</button>` +
     `<button type="reset" class="btn btn-ghost">${cancel}</button></div></form>`
   );
 }

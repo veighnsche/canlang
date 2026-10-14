@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": {
+      "verified_context": [
+        "User requests contextual primary and secondary Then groups under suitable components. Primary controls stay visible; secondary actions use an overflow dropdown. Existing canonical forms, permissions and confirmation must remain authoritative.",
+        "Compiler already lowers canonical form operations without row scope; edit/delete/action row operations retain their existing row checks. Cards and generated row views already have the pending action-group layout implementation. Page renderer already owns a heading and an evaluated array of child HTML. Dialog/drawer have named slots; collection rows differ between table/list.",
+        "Adding page host plus canonical form child would use existing form preparation with a compact dialog opener, allow page Create actions, and require page-heading partition/layout tests. Restricting to card/view avoids that work but cannot express a page Create action. Dialog/collection support would need additional placement contracts."
+      ]
+    },
+    "questions": {
+      "host_set": {
+        "type": "choice",
+        "instructions": "Which initial host set best completes the user-requested primary/secondary action priorities with clear ownership and proportionate implementation?",
+        "criteria": {
+          "A": "Support card and row-bound view only, with edit/delete/action children. Explicitly reject other hosts and document future possibilities.",
+          "B": "Support page, card and row-bound view with canonical form/edit/delete/action children. Each child retains its owning scope rules; existing form preparation supports row-free Create. Define shared heading placement and postpone other hosts.",
+          "C": "Support page, card, view, dialog/drawer and collection row hosts now, defining each placement and preserving canonical scope rules. More complete vocabulary with more integration work."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "host_set": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.83,
+        "probabilities": {
+          "A": 0.11,
+          "B": 0.89,
+          "C": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 610,
+      "output_tokens": 39
+    }
+  }
+}

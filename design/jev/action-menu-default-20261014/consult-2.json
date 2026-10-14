@@ -1,0 +1,46 @@
+{
+  "request": {
+    "state": {
+      "verified_context": [
+        "The required UI has an ellipsis in the card upper-right, a dropdown Archive choice and a separate confirmation step; opening or cancelling must leave data untouched.",
+        "actions currently takes operation expressions without a child body and concatenates protected forms. menu is implemented as navigation links; dropdown is a CSS focus wrapper without compiler lowering.",
+        "Saved prompted renderers arrange compiler-provided control HTML exactly once. They already admit actions. Delete confirmation, permission and concurrency controls belong to the canonical delete renderer and must remain there."
+      ],
+      "alternatives": {
+        "A": "Allow a control body under actions; distinguish it from the old expression header. Give that new body the shared overflow defaults and canonical entry-to-confirmation behavior, retaining old calls.",
+        "B": "Define a separate action_menu component word for a canonical control body and shared overflow/confirmation defaults. Existing actions remains expression-only.",
+        "C": "Complete dropdown slot lowering, compose a trigger plus canonical controls in its content, and require applications to specify placement. Canonical controls gain the necessary compact confirmation entry mode."
+      }
+    },
+    "questions": {
+      "design": {
+        "type": "choice",
+        "instructions": "Which option gives this requested card action pattern the clearest reusable language contract for the least necessary change?",
+        "criteria": {
+          "A": "Allow a control body under actions; distinguish it from the old expression header. Give that new body the shared overflow defaults and canonical entry-to-confirmation behavior, retaining old calls.",
+          "B": "Define a separate action_menu component word for a canonical control body and shared overflow/confirmation defaults. Existing actions remains expression-only.",
+          "C": "Complete dropdown slot lowering, compose a trigger plus canonical controls in its content, and require applications to specify placement. Canonical controls gain the necessary compact confirmation entry mode."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "design": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.45,
+        "probabilities": {
+          "A": 0.33,
+          "B": 0.63,
+          "C": 0.04
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 666,
+      "output_tokens": 38
+    }
+  }
+}

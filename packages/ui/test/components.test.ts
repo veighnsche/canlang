@@ -39,7 +39,7 @@ const XSS = `<script>alert(1)</script><img src=x onerror=alert(2)>`;
 describe("card", () => {
   it("renders a daisyUI card with a literal title", async () => {
     const html = await card({ context: makeContext(), title: "Tasks", children: ["<p>one</p>"] });
-    assert.match(html, /<section class="card bg-base-100 shadow">/);
+    assert.match(html, /<section class="card bg-base-100 shadow" data-can-card>/);
     assert.match(html, /<div class="card-body">/);
     assert.match(html, /<h2 class="card-title">Tasks<\/h2>/);
     assert.ok(html.includes("<p>one</p>"));

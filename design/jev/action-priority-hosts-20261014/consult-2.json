@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": {
+      "verified_context": [
+        "The author wants primary groups as visible actions and secondary groups as revealable actions, standardized by compiler/UI rather than generated ad-hoc HTML.",
+        "Existing form lowering supports a named operation independently of a record; edit/delete/row action lowering requires the existing stored row. Card/view layouts are being added. Page rendering owns its header and receives child results individually. Modal/drawer uses slots and collection renderers have different row structures.",
+        "Including page and form enables a normal visible Create opener using current protected form APIs, with extra page-header layout and checks. Card/view-only qualifies record actions but excludes page-level Create. Dialogs and collections need further decisions about placement."
+      ]
+    },
+    "questions": {
+      "host_set": {
+        "type": "choice",
+        "instructions": "Select the clearest bounded set of containers and controls for this new action-priority syntax.",
+        "criteria": {
+          "A": "Limit admission to card/view record controls and reject page, panel and collection placement for now.",
+          "B": "Admit page/card/view with form as well as existing record controls, keeping every existing binding and row requirement; qualify page/card heading defaults and leave slots/collections out.",
+          "C": "Admit all listed page/card/view/dialog/drawer/collection surfaces and implement their distinct action regions in this change."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "host_set": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.95,
+        "probabilities": {
+          "A": 0.03,
+          "B": 0.97,
+          "C": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 555,
+      "output_tokens": 39
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "request": {
+    "state": {
+      "verified_context": [
+        "Required behavior is explicit primary versus secondary groups in Then, visible primary buttons and overflow secondary controls with existing confirmations.",
+        "The compiler can already prepare forms for operations outside a row. It separately enforces row ownership for edit/delete/row action. Shared card and generated-view group rendering is underway; shared page has a title header and evaluated child list. Slot-based overlays and collection rows have distinct layouts.",
+        "Page support with form children reuses protected input preparation and dialog presentation for Create; it adds heading layout tests. Omitting page leaves the new feature confined to record cards. Supporting overlays and collection rows as well requires additional layout semantics."
+      ]
+    },
+    "questions": {
+      "host_set": {
+        "type": "choice",
+        "instructions": "Which scope best balances the requested reusable action hierarchy, known owner APIs and finite acceptance?",
+        "criteria": {
+          "A": "Ship record card and view hosts only; retain canonical row-control children and fail other placements.",
+          "B": "Ship page/card/view hosts and canonical form plus record-control children, preserving scope checks and adding page-header defaults; reject other containers.",
+          "C": "Ship groups in all relevant page/card/view/overlay/collection containers with new placement contracts for each."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "host_set": {
+        "type": "choice",
+        "choice": "B",
+        "confidence": 0.98,
+        "probabilities": {
+          "A": 0.01,
+          "B": 0.99,
+          "C": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 536,
+      "output_tokens": 39
+    }
+  }
+}

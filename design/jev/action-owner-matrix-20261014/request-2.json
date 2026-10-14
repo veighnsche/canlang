@@ -1,0 +1,42 @@
+{
+  "request": {
+    "state": {
+      "user_requirement": "Primary and secondary are labeled checked action primitives with fixed shared design and semantic placement. User rejects tooltip containing primary in CanLoyalty and random placement from mechanical migration. Need explicit component owner rules, enforced in compiler across all apps, preserving workflows, row aliases, guards, form ownership and evaluation order.",
+      "verified_current": "Only page (header toolbar) and card (primary footer/secondary header) have semantic placement. Current other UI helpers aggregate at authored position without semantic placement. List/table render per-record child callbacks. Modals/drawers/details panels already have headings and footer/action slots. Canonical form/edit owns POST and submit/cancel behavior. Tooltip wraps a trigger and annotations but provides no action region. Generic tabs/fieldset/join/hero are wrappers; view is a renderer/declaration boundary. Generated views can consume opaque canonical children; canonical Card exists but current prompted-view metadata needs a finite extension to admit one opaque card binding and avoid duplicate nestedbindings.",
+      "corpus": "701 actions across50 apps:528 operations,142 panel openers,3 destinations,28 submits.18 inside tooltip,13 inside fieldset (all submits),21 inside join,35 inside slot,3 inside hero. Rows/cards/forms use existing native permissions and protected arguments. Adding wrappers or hoisting cannot change aliases or guards.",
+      "options_considered": "No new raw callback DSL or generic layout inference is needed. Existing canonical owners can implement a finite placement matrix. Ordinary annotation components may still annotate nonpriority triggers, but are not priority owners. Keep external unsupported language/runtime features loud."
+    },
+    "questions": {
+      "ownership": {
+        "type": "choice",
+        "instructions": "Choose the most appropriate finite component contract for standardized action placement, considering implementation scope and preservation of existing draft behavior equally.",
+        "criteria": {
+          "concrete_owners": "Admit page, card, list/table record-row, modal/drawer/details-panel owners with explicit shared action regions; form/edit accepts primary submit only. Views contain canonical owners, not direct priorities. Reject tooltip/fieldset/join/tab/hero and other generic/decorative owners. Repair sources within current record/guard scope.",
+          "minimal_owners": "Admit only page/card plus form/edit primary submit. Require canonical card wrappers everywhere else, including record rows and dialogs, to obtain existing semantic placement without implementing more owner regions.",
+          "transparent_wrappers": "Treat wrappers such as tooltip/fieldset/join as transparent for priorities and infer the nearest page/card/row/dialog owner, retaining annotation structure while gathering actions into that owners regions. Validate against context but allow authoring priorities under wrappers.",
+          "insufficient": "Defer the ownership contract because the facts do not support a safe choice."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ownership": {
+        "type": "choice",
+        "choice": "concrete_owners",
+        "confidence": 0.95,
+        "probabilities": {
+          "concrete_owners": 0.96,
+          "minimal_owners": 0.04,
+          "transparent_wrappers": 0.0,
+          "insufficient": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 877,
+      "output_tokens": 61
+    }
+  }
+}

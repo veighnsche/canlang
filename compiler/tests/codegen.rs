@@ -1369,7 +1369,7 @@ fn golden_expenseflow_structure() {
         "divider caption"
     );
     assert!(
-        entry.contains("$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"approve_expense\"}),$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"reject_expense\"})]})"),
+        entry.contains("$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"approve_expense\"+'-o'+JSON.stringify([$can$l$303a726f77.id]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')}),$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"reject_expense\"+'-o'+JSON.stringify([$can$l$303a726f77.id]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')})]})"),
         "join with opener buttons"
     );
     let approve_occurrence = entry
@@ -1396,7 +1396,7 @@ fn golden_expenseflow_structure() {
         )
     );
     assert!(
-        entry.contains(&"$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\",content:[await ((($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]})))]})".replace(",labels:", &format!(",occurrence:{approve_occurrence},labels:"))),
+        entry.contains(&"$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\"+'-o'+JSON.stringify([$can$l$303a726f77.id]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join(''),externalTrigger:true,content:[await ((($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]})))]})".replace(",labels:", &format!(",occurrence:{approve_occurrence},labels:"))),
         "approve modal with content slot"
     );
     assert!(
@@ -3794,11 +3794,17 @@ fn form_fields_default_to_model_schema() {
     // `form Note.create display=inline` (examples/TeamTasks.can:50) has no
     // `fields=`: both stored Note fields are writable, in schema order,
     // exactly the explicit `fields=title,content` array.
+    let request = entry
+        .split("prepareForm({operation:\"TeamNotes.Note.create\",")
+        .nth(1)
+        .expect("Note create preparation")
+        .split("occurrence:")
+        .next()
+        .unwrap();
     assert!(
-        entry.contains(
-            "operation:\"TeamNotes.Note.create\",display:\"inline\",fields:[\"title\",\"content\"]"
-        ),
-        "defaulted form fields:\n{entry}"
+        request.contains("display:\"inline\"")
+            && request.contains("fields:[\"title\",\"content\"]"),
+        "defaulted form fields: {request}"
     );
 }
 
@@ -3862,8 +3868,8 @@ fn catalog_factories_lower_from_source() {
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.name})",
         "$can$l$303a726f77.name !== \"\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]}) : null",
         "$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"More\",{nl:\"Meer\"},undefined,\"en\")})",
-        "$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"dlg\"})]})",
-        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Dialog\",{nl:\"Dialoog\"},undefined,\"en\"),id:\"dlg\",content:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})",
+        "$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"dlg\"+'-o'+JSON.stringify([$can$l$303a726f77.id]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join('')})]})",
+        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Dialog\",{nl:\"Dialoog\"},undefined,\"en\"),id:\"dlg\"+'-o'+JSON.stringify([$can$l$303a726f77.id]).split('').map(value=>value.charCodeAt(0).toString(16).padStart(4,'0')).join(''),externalTrigger:true,content:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})",
         "$can$u$73746174({context:c,value:1n})",
     ] {
         assert!(entry.contains(marker), "missing {marker}:\n{entry}");
@@ -3894,6 +3900,268 @@ fn catalog_factories_lower_from_source() {
     assert!(
         !entry.contains("throw new Error"),
         "nothing throws:\n{entry}"
+    );
+}
+
+#[test]
+fn action_primitives_preserve_canonical_controls_and_source_scope() {
+    let src = "app Tasks\nGiven\n Todo {title:text}\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\n scenario finish(task:Todo) by=members\n  do set task {title=\"Done\"}\nThen\n page / title=\"Tasks\"\n  primary \"Create\" action=Todo.create fields=title\n   input title\n  list Todo\n   card \"Task\"\n    require row.title != \"\"\n    primary \"Approve\" action=finish arguments={task=row}\n    primary \"Review\" action=finish arguments={task=row}\n    secondary \"Edit\" action=Todo.update arguments={record=row} fields=title\n    secondary \"Archive\" action=Todo.delete arguments={record=row}\n";
+    let mut db = SourceDb::new();
+    let id = db.add("action-primitives.can".into(), src.into());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .all(|d| d.severity != Severity::Error),
+        "{:?}",
+        result.diagnostics
+    );
+    let (artifact, diagnostics) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(catalog_path);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let js = &artifact.modules[0].js;
+    assert_eq!(
+        js.matches("await $can$u$616374696f6e4d656e75({").count(),
+        2,
+        "{js}"
+    );
+    assert_eq!(
+        js.matches("await $can$u$7072696d617279416374696f6e73({")
+            .count(),
+        3,
+        "{js}"
+    );
+    assert_eq!(js.matches(".prepareForm(").count(), 4, "{js}");
+    assert!(
+        js.contains("controlLabel:\"Approve\"") && js.contains("controlLabel:\"Archive\""),
+        "{js}"
+    );
+    assert!(
+        js.contains("mode:\"archive\"")
+            && js.contains("confirm:\"Archive this Todo?\"")
+            && js.contains("version.toString(10)"),
+        "{js}"
+    );
+    assert!(
+        js.contains("Tasks.Todo.update")
+            && js.contains("Tasks.Todo.delete")
+            && js.contains("Tasks.finish"),
+        "{js}"
+    );
+    assert!(
+        js.contains("JSON.stringify([$can$l$303a726f77.id]).split('')"),
+        "{js}"
+    );
+}
+
+#[test]
+fn action_primitives_check_operation_arguments() {
+    for (argument, expected) in [("typo=row", "not an input"), ("task=42", "expected")] {
+        let src = format!(
+            "app Tasks\nGiven\n Todo {{title:text}}\nWhen\n scenario finish(task:Todo) by=members\n  do set task {{title=\"Done\"}}\nThen\n page / title=\"Tasks\"\n  list Todo\n   secondary \"Approve\" action=finish arguments={{{argument}}}\n"
+        );
+        let mut db = SourceDb::new();
+        let id = db.add("bad-action.can".into(), src);
+        let (_, diagnostics) = check_program(&db, &[id], None);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "E3001" && d.message.contains(expected)),
+            "{diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn action_primitives_refuse_nested_controls_inside_input_groups() {
+    let src = "app Tasks\nGiven\n Todo {title:text}\nWhen\n crud Todo by=members fields=title\nThen\n page / title=\"Tasks\"\n  primary \"Create\" action=Todo.create fields=title\n   fieldset \"Fields\"\n    primary \"Nested\" action=Todo.create fields=title\n";
+    let mut db = SourceDb::new();
+    let id = db.add("nested-action.can".into(), src.into());
+    let (program, _) = check_program(&db, &[id], None);
+    let (_, diagnostics) = canlang_compiler::codegen::ir::build(&program, &db, None);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("never nested controls")),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn action_primitives_use_checked_submit_panel_and_destination_bindings() {
+    let src = "app Tasks\nGiven\n Todo {title:text}\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\nThen\n page / title=\"Tasks\"\n  form Todo.create fields=title\n   input title\n   primary \"Save\" submit=true\n  primary \"Open\" opens=details\n  secondary \"Browse\" target=\"/tasks\"\n  modal \"Details\" id=details\n   slot content\n    text \"Information\"\n  list Todo\n   edit fields=title\n    input title\n    primary \"Update\" submit=true\n";
+    let mut db = SourceDb::new();
+    let id = db.add("other-actions.can".into(), src.into());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .all(|d| d.severity != Severity::Error),
+        "{:?}",
+        result.diagnostics
+    );
+    let (artifact, diagnostics) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(catalog_path);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("authoredSubmit:true")
+            && js.contains("caption:\"Save\",submit:true")
+            && js.contains("opens:\"details\"")
+            && js.contains("target:\"/tasks\""),
+        "{js}"
+    );
+}
+
+#[test]
+fn action_primitives_refuse_unowned_submit_unknown_panel_and_wrong_destination_type() {
+    for (control, expected) in [
+        ("primary \"Save\" submit=true", "owning form"),
+        ("primary \"Open\" opens=missing", "declared local"),
+        ("secondary \"Browse\" target=42", "invalid target type"),
+    ] {
+        let src = format!("app Tasks\nGiven\nWhen\nThen\n page / title=\"Tasks\"\n  {control}\n");
+        let mut db = SourceDb::new();
+        let id = db.add("bad-bound-action.can".into(), src);
+        let (_, diagnostics) = check_program(&db, &[id], None);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "E3001" && d.message.contains(expected)),
+            "{diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn action_primitives_refuse_false_or_computed_submit() {
+    for value in ["false", "1 == 1"] {
+        let src = format!(
+            "app Tasks\nGiven\n Todo {{title:text}}\nWhen\n crud Todo by=members fields=title\nThen\n page / title=\"Tasks\"\n  form Todo.create fields=title\n   input title\n   primary \"Save\" submit={value}\n"
+        );
+        let mut db = SourceDb::new();
+        let id = db.add("invalid-submit.can".into(), src);
+        let (_, diagnostics) = check_program(&db, &[id], None);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "E3001" && d.message.contains("submit requires literal true")),
+            "{diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn action_primitives_keep_view_card_ownership() {
+    let src = "app Tasks\nGiven\n Todo {title:text}\n policy Todo read=members\nWhen\n crud Todo by=members fields=title\nThen\n view Tile(row:Todo)\n  card row.title\n   secondary \"Edit\" action=Todo.update arguments={record=row} fields=title\n   text row.title\n   secondary \"Archive\" action=Todo.delete arguments={record=row}\n page / title=\"Tasks\"\n  list Todo\n   show Tile {row=row}\n";
+    let mut db = SourceDb::new();
+    let id = db.add("view-actions.can".into(), src.into());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diagnostics) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(catalog_path);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let js = &artifact.modules[0].js;
+    assert!(
+        js.contains("$can$u$63617264({context:")
+            && js.matches("await $can$u$616374696f6e4d656e75({").count() == 2,
+        "{js}"
+    );
+}
+
+#[test]
+fn action_primitives_keep_unbound_user_selected_record_inputs() {
+    let src = "app Tables\nGiven\n Location {name:text}\n Cafe {location:Location}\n policy Cafe read=members\n policy Location read=members\nWhen\n crud Cafe by=members fields=location\n scenario reserve(table:Cafe) by=members\n  do set table {location=table.location}\nThen\n page / title=\"Tables\"\n  primary \"Create cafe\" action=Cafe.create fields=location\n   select location\n  secondary \"Reserve\" action=reserve fields=table\n   select table\n";
+    let mut db = SourceDb::new();
+    let id = db.add("record-input-actions.can".into(), src.into());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .all(|d| d.severity != Severity::Error),
+        "{:?}",
+        result.diagnostics
+    );
+    let (_, diagnostics) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(catalog_path);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+}
+
+#[test]
+fn action_primitives_and_buttons_derive_external_panel_triggers_in_scope() {
+    for opener in [
+        "primary \"Open\" opens=panel",
+        "secondary \"Open\" opens=panel",
+        "button opens=panel caption=\"Open\"",
+    ] {
+        for panel in ["modal", "drawer"] {
+            let src = format!(
+                "app T\nGiven\nWhen\nThen\n page / title=\"T\"\n  {opener}\n  {panel} \"Panel\" id=panel\n   slot content\n    text \"Body\"\n"
+            );
+            let mut db = SourceDb::new();
+            let id = db.add("external-panel.can".into(), src);
+            let (catalog, catalog_path) = golden_catalog();
+            let (program, result) = check_example(&db, id, Some(&catalog));
+            let (artifact, diagnostics) = emit_test_only(&program, &db, &result, Some(&catalog));
+            let _ = std::fs::remove_file(catalog_path);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert!(
+                artifact.modules[0].js.contains("externalTrigger:true"),
+                "{opener}: {}",
+                artifact.modules[0].js
+            );
+        }
+    }
+    let src = "app T\nGiven\n Todo {title:text}\n policy Todo read=members\nWhen\nThen\n page / title=\"T\"\n  modal \"Outer\" id=panel\n   slot content\n    text \"Outer body\"\n  list Todo\n   button opens=panel caption=\"Open\"\n";
+    let mut db = SourceDb::new();
+    let id = db.add("private-row-panel.can".into(), src.into());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    let (artifact, diagnostics) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(catalog_path);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        !artifact.modules[0].js.contains("externalTrigger:true"),
+        "another row cannot suppress outer opener"
+    );
+}
+
+#[test]
+fn action_primitives_refuse_tooltip_descendants_and_view_expansions() {
+    for child in [
+        "primary \"Browse\" target=\"/\"",
+        "card \"Nested\"\n primary \"Browse\" target=\"/\"",
+    ] {
+        let src = format!(
+            "app T\nGiven\nWhen\nThen\n page / title=\"T\"\n  tooltip \"Hint\"\n   {}\n",
+            child.replace('\n', "\n   ")
+        );
+        let mut db = SourceDb::new();
+        let id = db.add("tooltip-priority.can".into(), src);
+        let (_, diagnostics) = check_program(&db, &[id], None);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "E3001" && d.message.contains("tooltip is noninteractive")),
+            "{diagnostics:?}"
+        );
+    }
+    let src = "app T\nGiven\n Todo {title:text}\n policy Todo read=members\nWhen\nThen\n view Tile(row:Todo)\n  card row.title\n   primary \"Browse\" target=\"/\"\n page / title=\"T\"\n  list Todo\n   tooltip \"Hint\"\n    show Tile {row=row}\n";
+    let mut db = SourceDb::new();
+    let id = db.add("tooltip-view-priority.can".into(), src.into());
+    let (program, _) = check_program(&db, &[id], None);
+    let (_, diagnostics) = canlang_compiler::codegen::ir::build(&program, &db, None);
+    assert!(
+        diagnostics.iter().any(|d| d.code == "E6008"
+            && d.message.contains("tooltip is noninteractive")
+            && d.message.contains("expanded views")),
+        "{diagnostics:?}"
     );
 }
 
@@ -8160,7 +8428,7 @@ fn a2b_composite_unique_emits_sparse_member_and_registry_rule() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("uniques:[{fields:[\"x\"],where:\"M.unique.1\"}]"),
+        js.contains("uniques:[{fields:[\"x\"],where:\"M.unique.1\""),
         "sparse uniques member:\n{js}"
     );
     assert!(
