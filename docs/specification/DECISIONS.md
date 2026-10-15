@@ -16643,3 +16643,16 @@ Analysis1, source8 and leading plan1 checks pass with corruptions. No new langua
 primitive, authority carrier or broader cohort is introduced; emitted/native and
 mixed-body acceptance remain open. Existing settled source correspondence rules
 apply; no additional JEV language decision is needed.
+
+
+### 2026-10-15 — issue the original helper predicate in its emitted owner
+
+Implemented the accepted private callback direction: reuse the existing derive
+argument capture and emit the original predicate with its exact owner query/call
+selector and actual invocation context. A module-private WeakMap provides the
+verified getter; no callback copying, argument reevaluation, global current-call
+state or unproved collection fallback. Rust compilation and captured imported
+Employee artifact/source verification pass. Native journey remains unqualified:
+real D1 setup exposes the existing nullable-Date invariant publication gap, which
+must be repaired without dropping Employee's rule. Reuse the earlier JEV advice
+and CF component tests; this adds no language primitive or permission grant.

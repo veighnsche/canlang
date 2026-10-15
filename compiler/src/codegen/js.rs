@@ -2410,6 +2410,7 @@ fn emit_program_with_sources(
             emitter.native_query_sources.insert(
                 item.id,
                 NativeQuerySource {
+                    owner: item.canonical.clone(),
                     queries: checked_queries,
                     transcripts,
                     inline_selections,
@@ -2507,6 +2508,18 @@ fn emit_program_with_sources(
         }
     }
     let mut body = JsWriter::new();
+    if native_receipts
+        && emitter.query_any.is_some_and(|owners| {
+            owners.values().any(|metadata| {
+                metadata
+                    .as_array()
+                    .is_some_and(|queries| queries.iter().any(|query| query["kind"] == "predicate"))
+            })
+        })
+    {
+        body.push(entry_span, Some("canScenarioQueryPredicateSource".into()),
+            "const $can$query$predicates=new WeakMap();function $can$query$issue(marker,context,predicate){$can$query$predicates.set(predicate,{marker,context});return predicate;}export function canScenarioQueryPredicateSource(predicate){const issued=$can$query$predicates.get(predicate);return issued===undefined?null:{marker:JSON.parse(issued.marker),context:issued.context};}");
+    }
     if native_receipts && !emitter.membership_predicates.is_empty() {
         body.push(entry_span, Some("canReadPredicateSource".into()),
             "const $can$read$predicates=new WeakMap();function $can$read$issue(source,predicate){$can$read$predicates.set(predicate,source);return predicate;}export function canReadPredicateSource(predicate){const source=$can$read$predicates.get(predicate);return source===undefined?null:JSON.parse(source);}");
@@ -3412,6 +3425,7 @@ struct OriginalUiRow {
 
 #[derive(Clone)]
 struct NativeQuerySource {
+    owner: String,
     queries: Vec<crate::analysis::scenario_disclosure::DisclosureQuery>,
     transcripts: Vec<crate::analysis::scenario_disclosure::CheckedTranscriptSource>,
     inline_selections: Vec<crate::analysis::scenario_disclosure::CheckedInlineSelectionSource>,
@@ -6050,8 +6064,7 @@ impl<'a> Emitter<'a> {
         at: Span,
         result: &ResolvedType,
     ) -> Option<String> {
-        if !self.receipt_calls.is_empty()
-            || !matches!(target,IrCallTarget::Builtin {id,awaited:false} if id == "any")
+        if !matches!(target,IrCallTarget::Builtin {id,awaited:false} if id == "any")
             || slots.is_some_and(|slots| slots != [Some(0), Some(1)])
             || *result != ResolvedType::Scalar(Scalar::Bool)
         {
@@ -6077,8 +6090,94 @@ impl<'a> Emitter<'a> {
                 source.node == fact.node
                     && source.alias == Some(collection.alias)
                     && source.predicate.is_some()
+                    && source.dependencies.iter().all(|read| {
+                        read.calls
+                            .iter()
+                            .map(|call| Span::new(call.file, call.start, call.end))
+                            .eq(self.receipt_calls.iter().copied())
+                    })
             })?
             .clone();
+        if !self.receipt_calls.is_empty() {
+            let owner = &self.query_capture.as_ref()?.owner;
+            let mut metadata = self
+                .query_any
+                .and_then(|metadata| metadata.get(owner))
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter(|metadata| {
+                    metadata["kind"] == "predicate" && metadata["queryId"] == source.id
+                });
+            let selected = metadata.next().cloned().unwrap_or(serde_json::Value::Null);
+            if selected.is_null()
+                || metadata.next().is_some()
+                || selected["dependencyIds"]
+                    != serde_json::json!(
+                        source
+                            .dependencies
+                            .iter()
+                            .map(|read| &read.id)
+                            .collect::<Vec<_>>()
+                    )
+                || selected["sourceCall"]["siteIndex"].as_u64().is_none()
+                || selected["sourceCall"]["callIndex"].as_u64().is_none()
+                || source.dependencies.is_empty()
+                || source.first.is_some()
+                || source.count.is_some()
+                || source.projection.is_some()
+                || source.cardinality_guard.is_some()
+                || source.dependencies.iter().any(|read| {
+                    read.role != crate::analysis::scenario_disclosure::DependencyRole::Control
+                        || read.source != source.source
+                        || read.model != source.model
+                })
+                || collection.builtin != "any"
+                || collection.overload != 0
+                || Span::new(
+                    collection.node.file,
+                    collection.node.start,
+                    collection.node.end,
+                ) != at
+                || collection.query != source.node
+                || collection.model != source.model
+                || collection.predicate.as_ref().is_none_or(|retained| {
+                    Some(retained.node) != source.predicate || retained.ty != body.ty
+                })
+                || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+                || body.ty != predicate.ty
+                || query.parent.is_some()
+                || query.where_pred.is_some()
+                || query.where_async
+                || query.select.is_some()
+                || query.select_param.is_some()
+                || !query.order.is_empty()
+                || query.value_order.is_some()
+                || query.limit.is_some()
+                || query.archived.is_some()
+                || query.contract_collection_call.is_some()
+            {
+                self.unsupported(
+                    "helper ANY",
+                    "original checked predicate source-call correspondence is unavailable",
+                    at,
+                );
+                return Some(self.throw_expr("helper ANY lacks its original predicate source"));
+            }
+            let marker = serde_json::json!({"queryId":source.id,
+                "siteIndex":selected["sourceCall"]["siteIndex"],
+                "callIndex":selected["sourceCall"]["callIndex"]});
+            self.enter_scope();
+            let param = self.bind(param);
+            let predicate = self.lower_expr(body);
+            self.exit_scope();
+            self.stdlib.insert("executeScenarioReceiptAny".into());
+            return Some(format!(
+                "(await executeScenarioReceiptAny(c,{},$can$query$issue({},c,async({param})=>{predicate})))",
+                js_string(&source.id),
+                js_string(&descriptor_json(&marker)),
+            ));
+        }
         let [dependency] = source.dependencies.as_slice() else {
             return None;
         };
