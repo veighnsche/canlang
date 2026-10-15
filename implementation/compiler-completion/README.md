@@ -2,6 +2,15 @@
 
 ## Current remainder and finite completion
 
+**C02 unsupported selected-field safety (2026-10-15, qualified).**
+Nullable text/enum/text-array Requires reproduced the same missing execution
+observation after independent-result pruning. Known first-field provenance now
+retains them in the authority census and the existing typed receiver refuses;
+separately bound required-Model reference operands remain on their original path.
+Affected15 compiler controls pass/1.94s and lockedCLIbuild passes. Execution of
+these unsupported field profiles remains a local implementation gap, not a
+semantic restriction or completed reuse outcome.
+
 **C02 complete original Partner lock intake (2026-10-15, source qualified).**
 All6 original invariant profiles already matched; checked lock fields Email/
 Money/Datetime/nullable Model blocked all-or-none publication. Reuse exact owning

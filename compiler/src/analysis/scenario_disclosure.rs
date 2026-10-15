@@ -5157,12 +5157,12 @@ impl<'a> Closure<'a> {
 
     /// Census unsupported helper shapes too: an unproved execution read must
     /// refuse at the existing original-call join, never disappear with pruning.
-    fn first_query_stored_scalar_read(
+    fn first_query_stored_require_read(
         &self,
         read: &DisclosureDependency,
         module: ModuleId,
     ) -> bool {
-        if !primitive_type(&read.ty) || read.query_id.is_some() {
+        if read.query_id.is_some() || self.reference_operand_type_id(&read.ty).is_some() {
             return false;
         }
         let Some((mut receiver, field)) = self.count_member(read.node) else {
@@ -14394,7 +14394,7 @@ impl<'a> Closure<'a> {
                                     matches!(&read.ty, ResolvedType::Record {symbol, ..}
                                         if self.resolve.symbols.get(symbol.0 as usize)
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
-                                        || self.first_query_stored_scalar_read(read, module)
+                                        || self.first_query_stored_require_read(read, module)
                                 }).cloned().collect(),
                                 ..ValuePath::default()
                             })?.reads;

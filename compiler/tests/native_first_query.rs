@@ -1198,3 +1198,24 @@ fn unsupported_first_scalar_helper_shapes_refuse_instead_of_dropping_field_autho
         );
     }
 }
+
+#[test]
+fn unsupported_first_field_types_retain_require_authority_and_refuse() {
+    for (field, guard) in [
+        ("secret:text?", "budget.secret==null"),
+        ("secret:enum(Open,Closed)", "budget.secret==Open"),
+        ("secret:text[]", "budget.secret==[\"a\"]"),
+    ] {
+        let source = format!(
+            "app FirstSources\nGiven\n Budget {{account:user,{field}}}\n policy Budget read=members\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and {guard}\n   return true\nThen\n"
+        );
+        let (db, program, _, catalog) = fixture_source("unsupported-first-field.can", &source);
+        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{field}: {diagnostics:?}"
+        );
+    }
+}
