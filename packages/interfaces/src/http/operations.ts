@@ -30,6 +30,7 @@ import { ARTIFACT_VERSION } from '@canlang/contracts';
 import type {
   ArtifactOperation,
   BusinessError,
+  FormRetry,
   ClosedInputs,
   DerivedOperationInputs,
   DerivedWritableInput,
@@ -58,6 +59,7 @@ import {
   assertPostCsrf,
   caughtToBusinessError,
   jsonErrorResponse,
+  mintOperationId,
   resolveRequestIdentity,
 } from './context.js';
 import { formBindingFor, renderFormError, wantsHtmlRerender } from './formErrors.js';
@@ -89,10 +91,17 @@ export const INPUT_CHOICES_VERSION = 1;
  */
 export const FORM_REFUSAL_HEADER = 'can-form-refusal';
 
-function deny(deps: HttpDeps, error: BusinessError, operation: string): Response {
+function denialResponse(error: BusinessError, status: number, retry?: FormRetry): Response {
+  if (retry === undefined) return jsonErrorResponse(error, status);
+  return new Response(JSON.stringify({ error, retry }), {
+    status, headers: { 'content-type': 'application/json; charset=utf-8' },
+  });
+}
+
+function deny(deps: HttpDeps, error: BusinessError, operation: string, retry?: FormRetry): Response {
   logBusinessError(deps.logger, error, { route: 'operation', operation });
   const { status, body } = toHttpResponse(error);
-  return jsonErrorResponse(body, status);
+  return denialResponse(body, status, retry);
 }
 
 /** Best-effort redisplay state captured once the body parses to a record. */
@@ -115,12 +124,13 @@ async function denyOrRerender(
   error: BusinessError,
   seen: SeenDrafts | null,
   authed: { identity: ResolvedIdentity; sessionToken: string } | null,
+  retry?: FormRetry,
 ): Promise<Response> {
   const binding = seen === null || authed === null || !wantsHtmlRerender(request)
     ? undefined
     : formBindingFor(operation);
   if (binding === undefined || seen === null || authed === null) {
-    return deny(deps, error, operation);
+    return deny(deps, error, operation, retry);
   }
   logBusinessError(deps.logger, error, { route: 'operation', operation });
   try {
@@ -139,6 +149,7 @@ async function denyOrRerender(
       error,
       draftInputs: seen.inputs,
       operationId: seen.operationId,
+      ...(retry === undefined ? {} : { retry }),
       binding,
       context,
       fragment,
@@ -156,7 +167,7 @@ async function denyOrRerender(
   } catch (err) {
     logInternalError(deps.logger, err, { route: 'operation-form', operation });
     const { status, body } = toHttpResponse(error);
-    return jsonErrorResponse(body, status);
+    return denialResponse(body, status, retry);
   }
 }
 
@@ -448,6 +459,7 @@ export async function handleOperationRequest(
           buildBusinessError('forbidden', 'This form binding is no longer available. Reload the page.'), seen, authed);
       }
       businessInputs = restored;
+      seen = { operationId, inputs: businessInputs };
     }
     const prepared = await runSourceHttpPlan(deps.catalog, operation, businessInputs);
     const closedError = prepared === undefined ? checkClosedInputs(businessInputs, shape) : prepared.ok ? null : prepared.error;
@@ -481,7 +493,31 @@ export async function handleOperationRequest(
       ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
       : await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {
-      return denyOrRerender(deps, request, operation, outcome.error, seen, authed);
+      // Only the trusted invoker's exact durable rejection can start a new
+      // attempt. Unknown outcomes keep their original identity for replay.
+      const error = outcome.receipt === 'rejected' ? { ...outcome.error, operation_id: operationId } : outcome.error;
+      let retry: FormRetry | undefined;
+      if (outcome.receipt === 'rejected' && !retainedBinding && !retainedScenario && idError === null &&
+          derived !== null && ['create', 'update', 'scenario'].includes(derived.kind)) {
+        try {
+          await assertSourceValidationCurrent(deps.catalog, operation);
+          const nextId = mintOperationId(deps.clock.nowMs());
+          if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
+            const token = record[SOURCE_FORM_BINDING_FIELD];
+            const renewed = typeof token !== 'string' || typeof deps.formBindings?.renew !== 'function' ? null :
+              await deps.formBindings.renew({ appId: deps.app.appId, sessionToken, identity, derived,
+                operationId, nowMs: deps.clock.nowMs() }, token, nextId);
+            if (typeof renewed === 'string' && renewed.length > 0) retry = { operation_id: nextId, form_binding: renewed };
+          } else {
+            retry = { operation_id: nextId };
+          }
+          assertSourceValidationStable(deps.catalog, operation);
+        } catch {
+          // Renewal is optional recovery, never a replacement denial.
+          retry = undefined;
+        }
+      }
+      return denyOrRerender(deps, request, operation, error, seen, authed, retry);
     }
     return new Response(JSON.stringify(outcome.result), {
       status: 200,

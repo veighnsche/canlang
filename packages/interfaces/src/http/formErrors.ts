@@ -24,6 +24,7 @@ import type {
   FormMode,
   FormOutcome,
   FormProps,
+  FormRetry,
   MutationRef,
   PresentationContext,
 } from '@canlang/contracts';
@@ -317,6 +318,8 @@ export interface RenderFormErrorInput {
   readonly draftInputs: ClosedInputs;
   /** Idempotency key carried for the retry (may be `''` when missing). */
   readonly operationId: string;
+  /** Server-issued fresh attempt after a confirmed rejection. */
+  readonly retry?: FormRetry;
   readonly binding: FormErrorBinding;
   readonly context: PresentationContext;
   /** True for `HX-Request` partials: bare fragment, no document shell. */
@@ -357,7 +360,8 @@ export async function renderFormError(input: RenderFormErrorInput): Promise<Rend
     context: input.context,
     action: binding.action,
     operation: binding.operation,
-    operationId: input.operationId,
+    operationId: input.retry?.operation_id ?? input.operationId,
+    ...(input.retry?.form_binding === undefined ? {} : { sourceBinding: input.retry.form_binding }),
     mode: binding.mode,
     ...(record === undefined ? {} : { record }),
     timeZone: binding.timeZone,

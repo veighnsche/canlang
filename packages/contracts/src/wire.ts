@@ -225,6 +225,16 @@ export interface MutationResult {
   readonly result?: unknown;
 }
 
+/** A fresh form attempt issued only after a confirmed rejected receipt.
+ * The enclosing error's operation_id identifies the submitted attempt. A
+ * protected form receives a replacement binding for the same selected refs;
+ * unknown outcomes carry no replacement and retain their original identity.
+ */
+export interface FormRetry {
+  readonly operation_id: string;
+  readonly form_binding?: string;
+}
+
 /** Pure reads return their declared shape (DESIGN section 10). */
 export type ReadResult = unknown;
 

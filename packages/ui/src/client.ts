@@ -23,6 +23,7 @@ import type {
   ClosedInputs,
   DerivedOperationInputs,
   FieldError,
+  FormRetry,
   MutationEnvelope,
   MutationResult,
 } from "@canlang/contracts";
@@ -137,7 +138,7 @@ export type GeneratedSubmitResult =
       readonly status: number;
       readonly fragment: boolean;
     }
-  | { readonly kind: "denied"; readonly error: BusinessError; readonly status: number };
+  | { readonly kind: "denied"; readonly error: BusinessError; readonly status: number; readonly retry?: FormRetry };
 
 export interface SubmitGeneratedFormInput {
   readonly derived: DerivedOperationInputs;
@@ -507,7 +508,8 @@ function isFieldErrorShaped(value: unknown): value is FieldError {
 }
 
 /** Validate the JSON denial envelope; misshapen extras never survive. */
-function checkedBusinessError(body: string, status: number, operation: string): BusinessError {
+function checkedBusinessError(body: string, status: number, operation: string,
+  flat: Record<string, string>): { error: BusinessError; retry?: FormRetry } {
   const fail = (): GeneratedSubmitError =>
     new GeneratedSubmitError(
       "contract",
@@ -523,27 +525,45 @@ function checkedBusinessError(body: string, status: number, operation: string): 
   if (!isRecord(parsed)) {
     throw fail();
   }
-  const code = parsed["code"];
+  const envelope = parsed;
+  const wrapped = Object.hasOwn(envelope, "error");
+  const details = wrapped ? envelope["error"] : envelope;
+  if (!isRecord(details)) throw fail();
+  const code = details["code"];
   if (typeof code !== "string" || !isBusinessErrorCode(code)) {
     throw fail();
   }
-  if (typeof parsed["message"] !== "string") {
+  if (typeof details["message"] !== "string") {
     throw fail();
   }
-  const fields = Array.isArray(parsed["fields"])
-    ? parsed["fields"].filter(isFieldErrorShaped).map((field) => ({
+  const fields = Array.isArray(details["fields"])
+    ? details["fields"].filter(isFieldErrorShaped).map((field) => ({
         path: field.path,
         code: field.code,
         message: field.message,
       }))
     : undefined;
-  return {
+  const error: BusinessError = {
     code,
-    message: parsed["message"],
-    ...(typeof parsed["operation_id"] === "string" ? { operation_id: parsed["operation_id"] } : {}),
+    message: details["message"],
+    ...(typeof details["operation_id"] === "string" ? { operation_id: details["operation_id"] } : {}),
     ...(fields === undefined ? {} : { fields }),
-    ...(typeof parsed["retryable"] === "boolean" ? { retryable: parsed["retryable"] } : {}),
+    ...(typeof details["retryable"] === "boolean" ? { retryable: details["retryable"] } : {}),
   };
+  if (!Object.hasOwn(envelope, "retry")) return { error };
+  const retry = envelope["retry"];
+  const bound = Object.hasOwn(flat, SOURCE_FORM_BINDING_FIELD);
+  if (!wrapped || !isRecord(retry) || error.operation_id !== flat["operation_id"] ||
+      Object.keys(retry).some(key => key !== "operation_id" && key !== SOURCE_FORM_BINDING_FIELD) ||
+      typeof retry["operation_id"] !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(retry["operation_id"]) ||
+      retry["operation_id"].toLowerCase() === flat["operation_id"]!.toLowerCase() ||
+      Object.hasOwn(retry, SOURCE_FORM_BINDING_FIELD) !== bound ||
+      bound && (typeof retry[SOURCE_FORM_BINDING_FIELD] !== "string" || retry[SOURCE_FORM_BINDING_FIELD] === "")) {
+    throw fail();
+  }
+  return { error, retry: { operation_id: retry["operation_id"],
+    ...(bound ? { form_binding: retry[SOURCE_FORM_BINDING_FIELD] as string } : {}) } };
 }
 
 /**
@@ -800,7 +820,7 @@ async function submitMutationRequest(operation: string, flat: Record<string, str
   }
   return {
     kind: "denied",
-    error: checkedBusinessError(body, response.status, operation),
+    ...checkedBusinessError(body, response.status, operation, flat),
     status: response.status,
   };
 }

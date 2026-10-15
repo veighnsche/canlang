@@ -20,6 +20,7 @@ import { ARTIFACT_VERSION, SOURCE_FORM_BINDING_FIELD } from '@canlang/contracts'
 import type { ArtifactOperation } from '@canlang/contracts';
 import type {
   ClosedInputs,
+  FormRetry,
   ListQueryResult,
   MutationEnvelope,
   MutationResult,
@@ -28,12 +29,13 @@ import type {
   RowView,
 } from '@canlang/contracts';
 import { DEFAULT_THEME } from '@canlang/contracts';
-import type { MutationOutcome } from '../src/ports.js';
+import type { MutationOutcome, SchemaCatalog } from '../src/ports.js';
 import { buildBusinessError } from '../src/errors/envelope.js';
 import { UUID_V7_PATTERN, extractUuidV7Ms, validateOperationId } from '../src/envelope/validate.js';
 import { deriveOperationInputs, catalogFromArtifactOperations } from '../src/http/operations.js';
 import { FORM_REFUSAL_HEADER, handleOperationRequest } from '../src/http/operations.js';
 import { createSourceFormBindings } from '../src/http/form-binding.js';
+import { createSourceValidationCatalog } from '../src/http/prepared-validation.js';
 import { csrfTokenForSession, mintOperationId, resolveRequestIdentity } from '../src/http/context.js';
 import { buildPresentationContext } from '../src/http/presentation.js';
 import {
@@ -875,7 +877,7 @@ test('expired signed CRUD and scenario forms dispatch only the dedicated retaine
       async invokeRetainedMutation(envelope: MutationEnvelope) {
         retained++;
         assert.deepEqual(JSON.parse(JSON.stringify(envelope.inputs)), { title: 'Exact retry', record: { id: 'g1', version: '7' } });
-        if (retainedError !== null) return { error: buildBusinessError(retainedError, 'Retained receipt unavailable.') };
+        if (retainedError !== null) return { error: buildBusinessError(retainedError, 'Retained receipt unavailable.'), receipt: 'rejected' as const };
         return { result: { status: 'committed' as const, operation_id: envelope.operation_id, result: null } };
       },
     };
@@ -919,7 +921,8 @@ test('expired signed CRUD and scenario forms dispatch only the dedicated retaine
             retainedError = code;
             const denied = await submit(nativeBody);
             assert.equal(denied.status, code === 'not_found' ? 404 : 409);
-            assert.equal((await denied.json() as { code: string }).code, code);
+            const denial = await denied.json() as { code: string; retry?: unknown };
+            assert.equal(denial.code, code); assert.equal(denial.retry, undefined, 'retained outcomes cannot issue a new attempt');
           }
           retainedError = null;
         }
@@ -1672,4 +1675,110 @@ test('calendar agenda page rows prepare distinct signed update forms in the curr
   const unavailable = await context.prepareForm!({ operation: 'Shop.missing', fields: ['title'] });
   assert.equal(unavailable.status, 'unavailable');
   assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('confirmed rejected form attempts renew protected inputs while corrected submissions use a fresh receipt', async () => {
+  // Interfaces owns the real HTTP/preparer/proof bridge. This existing pilot
+  // seam records exact outcomes; native State receipt ownership is separate.
+  const pilot = createPilotStore();
+  pilot.rows.set('existing-gadget', { id: 'existing-gadget', version: '7', title: 'Original' });
+  const receipts = new Map<string, { inputs: string; outcome: MutationOutcome }>();
+  const invoked: MutationEnvelope[] = [];
+  let unknown = false;
+  let invalidateSource: (() => void) | undefined;
+  const handler = (envelope: MutationEnvelope, principal: ResolvedIdentity): MutationOutcome => {
+    invoked.push(envelope);
+    if (unknown) return { error: buildBusinessError('busy', 'Outcome unavailable.') };
+    const inputs = JSON.stringify(envelope.inputs), saved = receipts.get(envelope.operation_id);
+    if (saved !== undefined) {
+      return saved.inputs === inputs ? saved.outcome : { error: buildBusinessError('conflict', 'Different inputs for existing receipt.') };
+    }
+    const result = pilot.handlers[envelope.operation]!(envelope, principal);
+    const outcome: MutationOutcome = 'error' in result ? { ...result, receipt: 'rejected' } : result;
+    receipts.set(envelope.operation_id, { inputs, outcome });
+    invalidateSource?.();
+    return outcome;
+  };
+  const { deps, identity } = await createTestDeps({ mutations: {
+    [STORE_UPDATE_OP.name]: handler, [STORE_CREATE_OP.name]: handler,
+  } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: PILOT_OPS });
+  const bindings = await createSourceFormBindings(new Uint8Array(32).fill(98), 'rejected-form-retry');
+  const session = await deps.identity.store.findSessionByTokenHash(await sha256HexText(identity.sessionToken));
+  assert.ok(session); await deps.identity.store.setSessionTeam(session.session_id, identity.teamId);
+  const csrf = await deriveCsrfToken(identity.sessionToken);
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const context = buildPresentationContext({ request: testRequest('/forms', { cookie: identity.cookie }),
+    pathname: '/forms', isPartial: false, appDefaultLocale: 'en', csrfToken: csrf, principal,
+    query: pilotQueryRunner(pilot), catalog, clock: deps.clock, formBindings: bindings,
+    appId: deps.app.appId, sessionToken: identity.sessionToken,
+  });
+  const prepared = await context.prepareForm!({ operation: STORE_UPDATE_OP.name, fields: ['title'],
+    arguments: { record: { id: 'existing-gadget', version: 7n, title: 'Original' } } });
+  assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected protected form');
+  const submit = (operation: string, body: Record<string, unknown>, selectedBindings = bindings,
+    selectedCatalog: SchemaCatalog = catalog, html = false) => handleOperationRequest({ ...deps, catalog: selectedCatalog, formBindings: selectedBindings },
+    opRequest({ cookie: identity.cookie, csrf, acceptHtml: html, body: JSON.stringify(body) }), operation);
+  const original = { operation_id: prepared.props.operationId, form_binding: prepared.props.sourceBinding, inputs: { title: 'banned' } };
+  const rejected = await submit(STORE_UPDATE_OP.name, original);
+  assert.equal(rejected.status, 422);
+  const denial = await rejected.json() as { error: { code: string; operation_id: string }; retry: FormRetry };
+  assert.equal(denial.error.code, 'rule_failed'); assert.equal(denial.error.operation_id, original.operation_id);
+  assert.match(denial.retry.operation_id, UUID_V7_PATTERN); assert.notEqual(denial.retry.operation_id, original.operation_id);
+  assert.equal(typeof denial.retry.form_binding, 'string');
+  const retryContext = { appId: deps.app.appId, sessionToken: identity.sessionToken, identity: principal,
+    derived: prepared.derived, operationId: denial.retry.operation_id, nowMs: deps.clock.nowMs() };
+  assert.deepEqual({ ...await bindings.restore(retryContext, denial.retry.form_binding!, { title: 'Corrected' }) },
+    { title: 'Corrected', record: { id: 'existing-gadget', version: '7' } });
+  assert.equal(await bindings.restore(retryContext, denial.retry.form_binding!, { title: 'Corrected', record: { id: 'other', version: '8' } }), null);
+  const corrected = { operation_id: denial.retry.operation_id, form_binding: denial.retry.form_binding, inputs: { title: 'Corrected' } };
+  assert.equal((await submit(STORE_UPDATE_OP.name, { ...corrected, form_binding: original.form_binding })).status, 403,
+    'new nonce plus old token cannot be submitted');
+  const oldChanged = await submit(STORE_UPDATE_OP.name, { ...original, inputs: corrected.inputs });
+  assert.equal(oldChanged.status, 409); assert.equal((await oldChanged.json() as Record<string, unknown>)['retry'], undefined);
+  const committed = await submit(STORE_UPDATE_OP.name, corrected);
+  assert.equal(committed.status, 200); assert.equal(pilot.rows.get('existing-gadget')?.title, 'Corrected');
+  assert.equal(pilot.rows.get('existing-gadget')?.version, '8');
+  assert.deepEqual({ ...invoked.at(-1)?.inputs }, { title: 'Corrected', record: { id: 'existing-gadget', version: '7' } });
+  const committedChanged = await submit(STORE_UPDATE_OP.name, { ...corrected, inputs: { title: 'Changed after commit' } });
+  assert.equal(committedChanged.status, 409); assert.equal((await committedChanged.json() as Record<string, unknown>)['retry'], undefined);
+
+  const unbound = { operation_id: mintOperationId(deps.clock.nowMs()), inputs: { title: 'banned' } };
+  const unboundDenied = await submit(STORE_CREATE_OP.name, unbound);
+  const unboundBody = await unboundDenied.json() as { error: { operation_id: string }; retry: FormRetry };
+  assert.equal(unboundBody.error.operation_id, unbound.operation_id);
+  assert.match(unboundBody.retry.operation_id, UUID_V7_PATTERN); assert.equal(unboundBody.retry.form_binding, undefined);
+  assert.equal((await submit(STORE_CREATE_OP.name, { operation_id: unboundBody.retry.operation_id, inputs: { title: 'Created after refusal' } })).status, 200);
+  assert.equal([...pilot.rows.values()].some(row => row.title === 'Created after refusal'), true);
+  unknown = true;
+  const unavailable = await submit(STORE_CREATE_OP.name, { operation_id: mintOperationId(deps.clock.nowMs()), inputs: { title: 'Unknown outcome' } });
+  assert.equal((await unavailable.json() as Record<string, unknown>)['retry'], undefined, 'unknown outcomes cannot mint attempts');
+  unknown = false;
+  for (const renew of [async () => null, async () => { throw new Error('renew unavailable'); }]) {
+    const response = await submit(STORE_UPDATE_OP.name, original, { ...bindings, renew });
+    const unchanged = await response.json() as Record<string, unknown>;
+    assert.equal(unchanged['code'], 'rule_failed'); assert.equal(unchanged['operation_id'], original.operation_id);
+    assert.equal(unchanged['retry'], undefined);
+  }
+  let stale = false;
+  invalidateSource = () => { stale = true; };
+  const sourceCatalog = createSourceValidationCatalog(catalog, async () => ({ ownerRevision: 'source-v1', descriptor: null,
+    assertCurrent: async () => { if (stale) throw new Error('source changed'); }, assertStable: () => { if (stale) throw new Error('source changed'); },
+  }));
+  const staleResponse = await submit(STORE_CREATE_OP.name, { operation_id: mintOperationId(deps.clock.nowMs()), inputs: { title: 'banned' } }, bindings, sourceCatalog);
+  const staleBody = await staleResponse.json() as Record<string, unknown>;
+  assert.equal(staleBody['code'], 'rule_failed'); assert.equal(staleBody['retry'], undefined, 'changed source preserves the original denial without renewal');
+  invalidateSource = undefined;
+
+  clearFormBindings();
+  try {
+    const derived = deriveOperationInputs(STORE_CREATE_OP);
+    registerFormBinding(bindingFromDerived({ derived, mode: 'create', action: '/api/operations/'+STORE_CREATE_OP.name,
+      fields: generatedFields(derived, 'create'), submit: 'Create', idPrefix: 'renew-denial', timeZone: 'UTC' }));
+    const htmlResponse = await submit(STORE_CREATE_OP.name, { operation_id: mintOperationId(deps.clock.nowMs()), inputs: { title: 'banned' } }, bindings, catalog, true);
+    const html = await htmlResponse.text(), issued = hiddenValue(html, 'operation_id');
+    assert.ok(issued); assert.match(issued, UUID_V7_PATTERN); assert(html.includes('value="banned"'), 'draft remains rendered');
+    assert.equal((await submit(STORE_CREATE_OP.name, { operation_id: issued, inputs: { title: 'Corrected HTML' } })).status, 200);
+  } finally { clearFormBindings(); }
 });

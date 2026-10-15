@@ -4,6 +4,7 @@ import type { ClosedInputs } from '@canlang/contracts';
 import { encodeValue } from '@canlang/values';
 import type { CsvReviewBindingContext, SourceFormBindingContext, SourceFormBindings } from '../ports.js';
 import { checkBoundArguments } from '../mcp/schemas.js';
+import { validateOperationId } from '../envelope/validate.js';
 
 const DOMAIN = 'can-source-form-binding';
 const VERSION = 1;
@@ -35,14 +36,14 @@ function validContext(context: SourceFormBindingContext): boolean {
     ['create', 'update', 'scenario'].includes(context.derived.kind);
 }
 
-/** The first contract binds only normalized singular refs with expected versions. */
+/** Bind normalized singular refs with their observed expected versions. */
 function validSelection(context: SourceFormBindingContext, bound: unknown, editable: unknown): bound is ClosedInputs {
   if (!record(bound) || !Array.isArray(editable) || editable.some(name => typeof name !== 'string') ||
       new Set(editable).size !== editable.length || Object.keys(bound).length === 0) return false;
   const declared = new Map(context.derived.inputs.map(input => [input.name, input]));
   for (const name of Object.keys(bound)) {
     const input = declared.get(name), value = bound[name];
-    if (input?.kind !== 'ref' || input.versioned !== true || input.array !== undefined ||
+    if (input?.kind !== 'ref' || input.array !== undefined ||
         !record(value) || Object.keys(value).length !== 2 ||
         !Object.hasOwn(value, 'id') || !Object.hasOwn(value, 'version')) return false;
     try {
@@ -81,8 +82,8 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
     operation: context.derived.operation, schema: await sha256HexText(JSON.stringify(context.derived)),
     nonce: context.operationId,
   });
-  const restore = async (context: SourceFormBindingContext, token: string, inputs: ClosedInputs, retained: boolean): Promise<ClosedInputs | null> => {
-    if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS || !record(inputs)) return null;
+  const selection = async (context: SourceFormBindingContext, token: string, retained: boolean): Promise<{ bound: ClosedInputs; editable: string[] } | null> => {
+    if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS) return null;
     if (retained && !['create', 'update', 'delete', 'scenario'].includes(context.derived.kind)) return null;
     const segments = token.split('.');
     if (segments.length !== 2) return null;
@@ -100,9 +101,44 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
         (retained ? (parsed['expires'] as number) > context.nowMs : (parsed['expires'] as number) <= context.nowMs) ||
         (parsed['expires'] as number) !== (parsed['issued'] as number) + LIFETIME_MS ||
         !validSelection(context, parsed['bound'], parsed['editable'])) return null;
-    const bound = parsed['bound'], editable = new Set(parsed['editable'] as string[]);
-    if (Object.keys(inputs).some(name => Object.hasOwn(bound, name) || !editable.has(name))) return null;
-    return Object.assign(Object.create(null) as ClosedInputs, inputs, bound);
+    return { bound: parsed['bound'], editable: parsed['editable'] as string[] };
+  };
+  const restore = async (context: SourceFormBindingContext, token: string, inputs: ClosedInputs, retained: boolean): Promise<ClosedInputs | null> => {
+    if (!record(inputs)) return null;
+    const selected = await selection(context, token, retained);
+    if (selected === null) return null;
+    const editable = new Set(selected.editable);
+    if (Object.keys(inputs).some(name => Object.hasOwn(selected.bound, name) || !editable.has(name))) return null;
+    return Object.assign(Object.create(null) as ClosedInputs, inputs, selected.bound);
+  };
+  const seal: SourceFormBindings['seal'] = async (context, bound, editable) => {
+    if (Object.hasOwn(context, 'occurrence') && (typeof context.occurrence !== 'string' ||
+        !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/.test(context.occurrence))) {
+      throw new TypeError('Source form occurrence must be a nonempty well-formed string.');
+    }
+    if (!validContext(context) || !validSelection(context, bound, editable)) {
+      throw new TypeError('Source form bindings require declared singular refs with observed versions and disjoint editable inputs.');
+    }
+    const refs = Object.fromEntries(Object.keys(bound).sort().map(name => {
+      const value = bound[name];
+      const ref = value as { id: string; version: string };
+      return [name, { id: ref.id, version: ref.version }];
+    }));
+    const selectedEditable = [...editable].sort();
+    const currentClaims = await claims(context);
+    const payload = new TextEncoder().encode(JSON.stringify({
+      ...currentClaims, issued: context.nowMs, expires: context.nowMs + LIFETIME_MS, bound: refs, editable: selectedEditable,
+    }));
+    const signature = await globalThis.crypto.subtle.sign('HMAC', signingKey, payload);
+    const token = `${bytesToBase64Url(payload)}.${bytesToBase64Url(new Uint8Array(signature))}`;
+    if (token.length > MAX_TOKEN_CHARS) throw new TypeError('Source form binding exceeds the token size limit.');
+    const { nonce: _nonce, ...bindingContext } = currentClaims;
+    void _nonce;
+    const comparison = context.occurrence === undefined ? {} : { occurrence: context.occurrence };
+    const identity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: refs, editable: selectedEditable }));
+    const boundIds = Object.fromEntries(Object.entries(refs).map(([name, ref]) => [name, { id: ref.id }]));
+    const draftIdentity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: boundIds, editable: selectedEditable }));
+    return { token, identity, draftIdentity };
   };
   return {
     csvReview: {
@@ -135,34 +171,12 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
           ? parsed['expires'] as number : null;
       },
     },
-    async seal(context, bound, editable) {
-      if (Object.hasOwn(context, 'occurrence') && (typeof context.occurrence !== 'string' ||
-          !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/.test(context.occurrence))) {
-        throw new TypeError('Source form occurrence must be a nonempty well-formed string.');
-      }
-      if (!validContext(context) || !validSelection(context, bound, editable)) {
-        throw new TypeError('Source form bindings require declared versioned refs and disjoint editable inputs.');
-      }
-      const refs = Object.fromEntries(Object.keys(bound).sort().map(name => {
-        const value = bound[name];
-        const ref = value as { id: string; version: string };
-        return [name, { id: ref.id, version: ref.version }];
-      }));
-      const selectedEditable = [...editable].sort();
-      const currentClaims = await claims(context);
-      const payload = new TextEncoder().encode(JSON.stringify({
-        ...currentClaims, issued: context.nowMs, expires: context.nowMs + LIFETIME_MS, bound: refs, editable: selectedEditable,
-      }));
-      const signature = await globalThis.crypto.subtle.sign('HMAC', signingKey, payload);
-      const token = `${bytesToBase64Url(payload)}.${bytesToBase64Url(new Uint8Array(signature))}`;
-      if (token.length > MAX_TOKEN_CHARS) throw new TypeError('Source form binding exceeds the token size limit.');
-      const { nonce: _nonce, ...bindingContext } = currentClaims;
-      void _nonce;
-      const comparison = context.occurrence === undefined ? {} : { occurrence: context.occurrence };
-      const identity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: refs, editable: selectedEditable }));
-      const boundIds = Object.fromEntries(Object.entries(refs).map(([name, ref]) => [name, { id: ref.id }]));
-      const draftIdentity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: boundIds, editable: selectedEditable }));
-      return { token, identity, draftIdentity };
+    seal,
+    async renew(context, token, operationId) {
+      if (!validContext(context) || typeof operationId !== 'string' || operationId === context.operationId || validateOperationId(operationId, { nowMs: () => context.nowMs }) !== null) return null;
+      const selected = await selection(context, token, false);
+      if (selected === null) return null;
+      return (await seal({ ...context, operationId }, selected.bound, selected.editable)).token;
     },
     restore: (context, token, inputs) => restore(context, token, inputs, false),
     restoreRetained: (context, token, inputs) => restore(context, token, inputs, true),

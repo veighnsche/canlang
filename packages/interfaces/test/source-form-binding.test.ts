@@ -227,7 +227,7 @@ test('retained source restoration accepts expired checked CRUD and scenario clai
   }
 });
 
-test('source binding admits only normalized singular versioned refs and preserves own prototype-named inputs', async () => {
+test('source binding admits only normalized singular refs with observed versions and preserves own prototype-named inputs', async () => {
   const service = await createSourceFormBindings(hostKey, revision);
   for (const occurrence of ['', undefined, null, 1, '\uD800', '\uDC00']) {
     await assert.rejects(service.seal({ ...context, occurrence } as SourceFormBindingContext, bound, ['title']), TypeError);
@@ -238,7 +238,13 @@ test('source binding admits only normalized singular versioned refs and preserve
   await assert.rejects(service.seal(context, bound, ['record']), TypeError);
   await assert.rejects(service.seal(context, bound, ['title', 'title']), TypeError);
   const unversioned = { ...context, derived: { ...derived, inputs: derived.inputs.map(input => input.name === 'record' ? { ...input, versioned: false } : input) } };
-  await assert.rejects(service.seal(unversioned, bound, ['title']), TypeError);
+  const optionalVersionProof = await service.seal(unversioned, bound, ['title']);
+  assert.deepEqual({ ...await service.restore(unversioned, optionalVersionProof.token, { title: 'Child' }) },
+    { title: 'Child', ...bound }, 'an optional-version declaration retains the exact observed version');
+  assert.equal(await service.restore(unversioned, optionalVersionProof.token,
+    { record: { id: 'entry-1', version: '8' } }), null, 'submitted refs cannot replace the protected observed version');
+  await assert.rejects(service.seal(unversioned, { record: { id: 'entry-1' } }, ['title']), TypeError);
+  await assert.rejects(service.seal(unversioned, { record: { id: 'entry-1', version: '07' } }, ['title']), TypeError);
   const arrayRef = { ...context, derived: { ...derived, inputs: derived.inputs.map(input => input.name === 'record' ? { ...input, array: { required: true } } : input) } };
   await assert.rejects(service.seal(arrayRef, bound, ['title']), TypeError);
   const ownContext = { ...context, derived: { ...derived, inputs: [
@@ -259,4 +265,54 @@ test('source binding requires an explicit correctly sized key, canonical key enc
   const encoded = bytesToBase64Url(hostKey), alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   const alias = encoded.slice(0, -1) + alphabet[alphabet.indexOf(encoded.at(-1)!) + 1];
   await assert.rejects(createSourceFormBindings(alias, revision), TypeError);
+});
+
+test('rejected-attempt renewal revalidates the original proof and preserves exact protected selection', async () => {
+  const service = await createSourceFormBindings(hostKey, revision);
+  assert.ok(service.renew);
+  const parentContext: SourceFormBindingContext = { ...context, occurrence: 'entry-create', derived: {
+    operation: 'Store.Entry.create', kind: 'create', artifactVersion: 1, inputs: [
+      { name: 'parent', kind: 'ref', model: 'Store.Catalog', versioned: false, required: true },
+      { name: 'title', kind: 'string', required: true },
+      { name: 'unselected', kind: 'string', required: false },
+    ],
+  } };
+  const parent = { parent: { id: 'catalog-1', version: '7' } };
+  const original = await service.seal(parentContext, parent, ['title']);
+  const nowMs = context.nowMs + 1_000;
+  const nextId = '00000000-0000-7000-8000-000000000001';
+  // Use the actual owner clock's UUIDv7 encoding rather than a wall-clock ID.
+  const time = nowMs.toString(16).padStart(12, '0');
+  const operationId = `${time.slice(0, 8)}-${time.slice(8)}-7000-8000-000000000001`;
+  const current = { ...parentContext, nowMs };
+  const token = await service.renew(current, original.token, operationId);
+  assert.equal(typeof token, 'string'); assert.ok(token);
+  const renewed = { ...current, operationId };
+  assert.deepEqual({ ...await service.restore(renewed, token, { title: 'Corrected' }) }, { title: 'Corrected', ...parent });
+  assert.equal(await service.restore(current, token, { title: 'Corrected' }), null);
+  assert.equal(await service.restore(renewed, original.token, { title: 'Corrected' }), null);
+  assert.equal(await service.restore(renewed, token, { title: 'Corrected', unselected: 'extra' }), null);
+  assert.equal(await service.restore(renewed, token, { title: 'Corrected', parent: { id: 'other', version: '8' } }), null);
+  const decoded = (proof: string) => JSON.parse(new TextDecoder().decode(base64UrlToBytes(proof.split('.')[0]!)!)) as Record<string, unknown>;
+  assert.deepEqual(decoded(token)['bound'], parent);
+  assert.deepEqual(decoded(token)['editable'], ['title']);
+  const comparison = await service.seal(renewed, parent, ['title']);
+  assert.equal(comparison.identity, original.identity); assert.equal(comparison.draftIdentity, original.draftIdentity);
+  for (const changed of [
+    { ...current, appId: 'other' }, { ...current, sessionToken: 'other' },
+    { ...current, operationId: 'other' },
+    { ...current, identity: { ...identity, actor: { ...identity.actor!, user_id: 'other' } } },
+    { ...current, identity: { ...identity, team: { ...identity.team!, team_id: 'other' } } },
+    { ...current, derived: { ...parentContext.derived, inputs: parentContext.derived.inputs.slice(0, 1) } },
+    { ...current, nowMs: parentContext.nowMs - 1 },
+    { ...current, nowMs: parentContext.nowMs + 900_000 },
+  ]) assert.equal(await service.renew(changed, original.token, operationId), null);
+  assert.equal(await service.renew(current, `${original.token}x`, operationId), null);
+  assert.equal(await service.renew(current, original.token, current.operationId), null);
+  assert.equal(await service.renew(current, original.token, 'not-an-operation-id'), null);
+  assert.equal(await service.renew(current, original.token, nextId), null, 'a stale replacement ID is refused');
+  for (const foreign of [await createSourceFormBindings(hostKey, 'changed-source'),
+    await createSourceFormBindings(new Uint8Array(32).fill(78), revision)]) {
+    assert.equal(await foreign.renew!(current, original.token, operationId), null);
+  }
 });

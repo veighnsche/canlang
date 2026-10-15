@@ -124,6 +124,9 @@ export interface SourceFormBindings {
   restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
   /** Expired checked mutation proof; recovered inputs require receipt-only invocation. */
   restoreRetained?(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
+  /** Recheck an unexpired original proof and preserve its exact protected
+   * selection under a new server-issued attempt identity; never a grant. */
+  renew?(context: SourceFormBindingContext, token: string, operationId: string): Promise<string | null>;
 }
 
 /** Owning-app facts the shell needs. L1 binds from appDefinition. */
@@ -142,7 +145,11 @@ export interface PageRegistry {
 }
 
 /** Canonical invocation outcome: result or safe business error. */
-export type MutationOutcome = { result: MutationResult } | { error: BusinessError };
+export type MutationOutcome = { result: MutationResult } | {
+  error: BusinessError;
+  /** State observed this exact invocation's durable rejected receipt. */
+  receipt?: 'rejected';
+};
 export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
 
 /** L3 canonical invocation callable (admission + commit + projection). */

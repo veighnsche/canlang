@@ -883,6 +883,31 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
               action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json', fetchImpl,
             });
         if (alive()) {
+          if (result.kind === 'denied' && result.retry !== undefined) {
+            type Hidden = ElementLike & { value: string };
+            const oneHidden = (name: string): Hidden => {
+              const matches = [...form.querySelectorAll?.(`input[name="${name}"]`) ?? []];
+              const control = matches[0] as Hidden | undefined;
+              if (matches.length !== 1 || control?.getAttribute('type') !== 'hidden' ||
+                  control.value !== flat[name] || control.getAttribute('value') !== flat[name]) {
+                throw new GeneratedSubmitError('contract', 'Submitted form retry metadata changed.', false);
+              }
+              return control;
+            };
+            oneHidden('operation');
+            const nonce = oneHidden('operation_id');
+            const binding = result.retry.form_binding === undefined ? undefined : oneHidden(SOURCE_FORM_BINDING_FIELD);
+            if (binding === undefined && [...form.querySelectorAll?.(`input[name="${SOURCE_FORM_BINDING_FIELD}"]`) ?? []].length !== 0) {
+              throw new GeneratedSubmitError('contract', 'Submitted form retry metadata changed.', false);
+            }
+            // All response and live-pair checks precede either metadata update.
+            nonce.value = result.retry.operation_id;
+            nonce.setAttribute('value', result.retry.operation_id);
+            if (binding !== undefined) {
+              binding.value = result.retry.form_binding!;
+              binding.setAttribute('value', result.retry.form_binding!);
+            }
+          }
           form.setAttribute('data-can-submit-state', result.kind);
           if (result.kind === 'denied') {
             feedback(result.error.code, [

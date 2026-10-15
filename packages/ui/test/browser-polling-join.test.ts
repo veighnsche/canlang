@@ -383,6 +383,72 @@ async function pollingFormPage(fetchImpl: SubmitFetch) {
 }
 
 describe('source form polling occurrence lifecycle', () => {
+  it('renews only a rejected form identity pair and submits the retained draft with both fresh values', async () => {
+    const freshId = '01999999-0000-7000-8000-000000000002';
+    const calls: SubmitFetchInit[] = [];
+    const page = await pollingFormPage(async (_url, init) => {
+      if (init.method === 'GET') return response(async () => pollingFormHtml('completed', true));
+      calls.push(init);
+      return { status: 400, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({
+        error: { code: 'validation', message: 'Correct this draft.', operation_id: JSON.parse(init.body as string).operation_id },
+        retry: { operation_id: calls.length === 1 ? freshId : '01999999-0000-7000-8000-000000000003', form_binding: 'renewed-sealed-token' },
+      }) };
+    });
+    try {
+      const form = page.window.document.querySelector('form')!;
+      const control = (name: string) => form.querySelector<typeof page.window.HTMLInputElement.prototype>(`input[name="${name}"]`)!;
+      const title = form.querySelectorAll<typeof page.window.HTMLInputElement.prototype>('input[name="inputs[title]"]')[1]!;
+      title.value = 'Retained edited draft'; title.focus();
+      const csrf = control('_csrf'), version = control('inputs[owner__version]');
+      page.submit(); await settle();
+      assert.equal(form.getAttribute('data-can-submit-state'), 'denied');
+      assert.deepEqual([control('operation_id').value, control('operation_id').getAttribute('value'),
+        control('form_binding').value, control('form_binding').getAttribute('value')],
+      [freshId, freshId, 'renewed-sealed-token', 'renewed-sealed-token']);
+      assert.equal(control('_csrf'), csrf); assert.equal(csrf.value, 'csrf');
+      assert.equal(control('inputs[owner__version]'), version); assert.equal(version.value, '7');
+      assert.equal(title.value, 'Retained edited draft'); assert.equal(page.window.document.activeElement, title);
+      assert.equal(form.querySelector('[data-can-form-feedback]')!.textContent, 'Correct this draft.');
+      await page.clock.tick();
+      assert.equal(page.window.document.querySelector('form'), form);
+      assert.equal(control('operation_id').value, freshId);
+      page.submit(); await settle();
+      assert.equal(calls.length, 2);
+      const submitted = JSON.parse(calls[1]!.body as string);
+      assert.equal(submitted.operation_id, freshId); assert.equal(submitted.form_binding, 'renewed-sealed-token');
+      assert.equal(submitted.inputs.title, 'Retained edited draft');
+    } finally { await page.close(); }
+  });
+
+  it('leaves both identity controls untouched for stale or malformed renewal and unknown transport failure', async () => {
+    for (const kind of ['stale-error', 'missing-binding', 'transport', 'changed-live-pair'] as const) {
+      let finish!: (response: SubmitFetchResponse) => void;
+      const page = await pollingFormPage(async () => {
+        if (kind === 'transport') throw new Error('unknown transport outcome');
+        return new Promise(resolve => { finish = resolve; });
+      });
+      try {
+        const form = page.window.document.querySelector('form')!;
+        const control = (name: string) => form.querySelector<typeof page.window.HTMLInputElement.prototype>(`input[name="${name}"]`)!;
+        page.submit(); await settle();
+        if (kind === 'changed-live-pair') control('operation_id').value = 'changed-while-pending';
+        const before = ['operation_id', 'form_binding', '_csrf', 'inputs[owner__version]']
+          .map(name => [control(name).value, control(name).getAttribute('value')]);
+        if (kind !== 'transport') finish({ status: 400, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({
+          error: { code: 'validation', message: 'Rejected.', operation_id: kind === 'stale-error' ? 'another-submission' : 'rendered-operation-id' },
+          retry: { operation_id: '01999999-0000-7000-8000-000000000002',
+            ...(kind === 'missing-binding' ? {} : { form_binding: 'fresh-sealed' }) },
+        }) });
+        await settle();
+        assert.equal(form.getAttribute('data-can-submit-state'), 'error', kind);
+        assert.deepEqual(['operation_id', 'form_binding', '_csrf', 'inputs[owner__version]']
+          .map(name => [control(name).value, control(name).getAttribute('value')]), before, kind);
+        assert.equal(form.querySelector('[data-can-form-feedback]')!.textContent,
+          'The submission could not be confirmed. Please try again.');
+      } finally { await page.close(); }
+    }
+  });
+
   it('retains the occurrence nonce, sealed binding, CSRF/version and feedback with edited input and focus', async () => {
     const fresh = (await pollingFormHtml('completed', true))
       .replace('rendered-operation-id', 'fresh-operation-id').replace('original-sealed-token', 'fresh-sealed-token')
