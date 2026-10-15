@@ -32,7 +32,7 @@ function currentInputs(): LockstepInputs {
 
 describe("release stamp (B5-J3)", () => {
   it("pins the release version constants", () => {
-    expect(RELEASE_VERSION).toBe("0.1.0");
+    expect(RELEASE_VERSION).toBe("0.1.1");
     expect(RELEASE_CONTRACTS_VERSION).toBe(1);
     expect(LOCKSTEP_EXEMPT_PACKAGES).toEqual({
       "@canlang/files": "0.0.0",

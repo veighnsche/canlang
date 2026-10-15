@@ -17821,7 +17821,8 @@ other explicit cleanup gaps remain. No push or release publication is performed.
 ## 2026-10-15 — publish the next standalone release through existing gates
 
 Accepted: use unused patch version `0.1.1` for the standalone distribution and
-compiler, preserving `v0.1.0` and the independently versioned workspace owners.
+compiler and existing lockstep workspace owners, preserving `v0.1.0` and the
+three exempt `0.0.0` workspace owners.
 Reuse the canonical installer, native macOS arm64/Linux x64 glibc qualification
 matrix and publication helper. Resolve one release tag for both platform
 archive/checksum pairs; publish only after both native qualifications pass and
@@ -17834,3 +17835,11 @@ installation results in the installation reference. The website installer URL
 currently returns 404; its synchronization and deployment belong to the website
 checkout. Supply that owner with the published pinned installer URL. No website
 source or deployment is authorized by this release task.
+
+The first hosted assembly correctly refused a partial version bump: the existing
+release stamp still pinned `0.1.0`. Advance that stamp, platform CLI constant,
+lockstep workspace manifests and Bun lock together, retaining the existing
+Files/Services/Work exemptions and contracts schema version. This fixes the
+reported lockstep failure without weakening the release gate. Add native
+post-publication workflow checks for the five public core URLs and default
+streamed installs in disposable shell configurations.
