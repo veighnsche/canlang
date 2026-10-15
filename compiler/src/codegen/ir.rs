@@ -13467,6 +13467,7 @@ impl<'a> Cx<'a> {
                 self.decode_action_button(scope, node, row_ctx)
             }
             "button" => Some(self.decode_button(scope, node, row_ctx)),
+            "link" => Some(self.decode_link(scope, node, row_ctx)),
             "modal" | "drawer" => Some(self.decode_modal(scope, node, word, row_ctx)),
             "divider" => Some(self.decode_divider(scope, node, row_ctx)),
             "badge" => Some(self.decode_badge(scope, node, row_ctx)),
@@ -14997,6 +14998,60 @@ impl<'a> Cx<'a> {
         IrUi {
             view: None,
             factory: "button".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        }
+    }
+
+    /// A checked destination shares the existing URL/File presentation boundary.
+    fn decode_link(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> IrUi {
+        self.check_ui_attributes(node, "link", &["target", "caption", "tone", "variant"]);
+        let mut props = Vec::new();
+        if kids(node).iter().any(|child| is_expression(child.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower link: destinations take no positional header".to_string(),
+                node.span,
+            ));
+        }
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                let decoded = if name == "caption" {
+                    self.decode_ui_header_value(scope, value)
+                } else if matches!(name.as_str(), "tone" | "variant") {
+                    self.decode_word_attr(scope, &name, value)
+                } else {
+                    self.decode_expr(scope, value)
+                };
+                props.push((name, decoded));
+            }
+        }
+        if props.iter().filter(|(name, _)| name == "target").count() != 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower link: exactly one target is required".to_string(),
+                node.span,
+            ));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower link: destinations take no content suite".to_string(),
+                node.span,
+            ));
+        }
+        IrUi {
+            view: None,
+            factory: "link".to_string(),
             props,
             children,
             row_scope: None,

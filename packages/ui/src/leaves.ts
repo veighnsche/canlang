@@ -43,6 +43,7 @@ import type {
 } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
+import { checkedFile, checkedFileLink, OPEN_FILE } from "./internal/file-link.js";
 import { nativeTextScalar } from "./internal/native-text.js";
 import { renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
@@ -205,12 +206,20 @@ export async function divider(props: DividerProps): Promise<string> {
  */
 export async function link(props: LinkProps): Promise<string> {
   const modifiers = appearanceClasses("link", "link", pickAppearance(props));
-  const href = escapeAttr(safeHref(props.target));
-  const text =
-    props.caption === undefined
-      ? escapeHtml(props.target)
-      : escapeHtml(captionText(props.caption, props.context));
-  return `<a class="${escapeAttr(joinClasses("link", modifiers))}" href="${href}">${text}</a>`;
+  const cls = escapeAttr(joinClasses("link", modifiers));
+  const override = props.caption === undefined ? undefined : escapeHtml(captionText(props.caption, props.context));
+  const unavailable = () => `<span class="${cls}" role="link" aria-disabled="true">${override ?? escapeHtml(resolveCaption(OPEN_FILE, props.context))}</span>`;
+  if (props.target === null) return unavailable();
+  if (typeof props.target === "string") {
+    return `<a class="${cls}" href="${escapeAttr(safeHref(props.target))}">${override ?? escapeHtml(props.target)}</a>`;
+  }
+  const file = checkedFile(props.target, "link");
+  const present = props.context.presentFile;
+  if (typeof present !== "function") throw new Error("link File presentation requires a source-bound presenter");
+  const view = await present(file);
+  if (view === null) return unavailable();
+  const link = checkedFileLink(view, props.context, "link");
+  return `<a class="${cls}" href="${escapeAttr(link.href)}">${override ?? escapeHtml(link.caption)}</a>`;
 }
 
 // ---------------------------------------------------------------------------

@@ -2796,6 +2796,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "input"
             | "join"
             | "label"
+            | "link"
             | "list"
             | "modal"
             | "pagination"
@@ -2923,6 +2924,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
             "value" | "tone" | "variant" | "orientation" | "regionId"
         ),
         "button" => matches!(key, "caption" | "target" | "opens" | "submit"),
+        "link" => matches!(key, "caption" | "target" | "tone" | "variant"),
         "modal" | "drawer" => matches!(key, "caption" | "id" | "variant" | "externalTrigger"),
         "chatBubble" => matches!(key, "side" | "tone" | "variant"),
         "fab" => key == "label",
@@ -9987,13 +9989,14 @@ impl<'a> Emitter<'a> {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
+                "caption" if node.factory == "link" && value.ty == ResolvedType::Scalar(Scalar::Url) => true,
                 "caption" | "title" | "text" | "label" | "message" => matches!(
                     value.ty,
                     ResolvedType::Scalar(Scalar::Text)
                         | ResolvedType::InlineMessage
                         | ResolvedType::Message(_)
                 ),
-                "target" if node.factory == "button" => {
+                "target" if matches!(node.factory.as_str(), "button" | "link") => {
                     matches!(
                         value.ty,
                         ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
@@ -10921,9 +10924,9 @@ fn sequence_ui_child(value: String, sequence: bool) -> String {
     }
 }
 
-/// Only File destinations add asynchronous presentation to an ordinary button.
+/// File destinations await the existing source-bound presenter before siblings.
 fn ui_has_file_destination(node: &IrUi) -> bool {
-    node.factory == "button" && node.props.iter().any(|(key, value)| key == "target" &&
+    matches!(node.factory.as_str(), "button" | "link") && node.props.iter().any(|(key, value)| key == "target" &&
         (value.ty == ResolvedType::Scalar(Scalar::File) ||
          matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))))
 }

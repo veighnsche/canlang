@@ -1022,13 +1022,12 @@ fn nullable_file_destinations_reach_presenter_once_in_authored_order() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let scratch = tempfile::tempdir().unwrap();
-    let source = scratch.path().join("file-target.can");
-    std::fs::write(
-        &source,
-        r#"app FileTargets
+    for component in ["button", "link"] {
+        let scratch = tempfile::tempdir().unwrap();
+        let source = scratch.path().join("file-target.can");
+        let specimen = r#"app FileTargets
 Given
- Item {caption:text, pdf:file?, direct:file, show:bool}
+ Item {caption:text, pdf:file?, direct:file, show:bool, destination:url}
  policy Item read=members
 When
 Then
@@ -1039,45 +1038,59 @@ Then
    primary "Direct PDF" target=row.direct
     require row.show
    text "After files"
-"#,
-    )
-    .unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
-        .arg(root.join("packages/values/dist/catalog.json"))
-        .arg(&source)
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stdout)
-    );
-    let artifact = scratch.path().join("artifact.json");
-    std::fs::write(&artifact, output.stdout).unwrap();
-    let runner = scratch.path().join("consume.mjs");
-    std::fs::write(&runner, r#"
+ page /urls title="URLs"
+  list Item
+   link target=row.destination caption=row.destination
+  link target="/safe" caption="Go"@{nl="Ga"}
+"#;
+        let specimen = if component == "link" {
+            specimen
+                .replace("button caption=row.caption", "link caption=row.caption")
+                .replace(
+                    "primary \"Direct PDF\" target=row.direct",
+                    "link caption=\"Direct PDF\" target=row.direct",
+                )
+        } else {
+            specimen.to_string()
+        };
+        std::fs::write(&source, specimen).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(&source)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let artifact = scratch.path().join("artifact.json");
+        std::fs::write(&artifact, output.stdout).unwrap();
+        let runner = scratch.path().join("consume.mjs");
+        std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
 import {writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-const [root,artifactPath,scratch]=process.argv.slice(2);
+const [root,artifactPath,scratch,component]=process.argv.slice(2);
 const load=path=>import(pathToFileURL(resolve(root,path)));
 const {loadArtifactFile}=await load('packages/cloudflare/dist/runtime/artifact.js');
 const {assembleModules}=await load('packages/cloudflare/dist/runtime/modules.js');
 const fixture={trace:[],show:true,target:null,withheld:false,failure:false};
 globalThis.fileTargetFixture=fixture;
 const native={show:true};
-for(const name of ['show','caption','pdf','direct']) Object.defineProperty(native,name,{enumerable:true,configurable:true,get(){
+for(const name of ['show','caption','pdf','direct','destination']) Object.defineProperty(native,name,{enumerable:true,configurable:true,get(){
  fixture.trace.push(name);
  if(name==='show')return fixture.show;
+ if(name==='destination')return 'https://example.test/referral';
  if(!fixture.show)throw new Error('hidden target evaluated');
  return name==='caption'?'Open <PDF>':name==='pdf'?fixture.target:{kind:'file',id:'direct'};
 }});
 fixture.native=native;
 const uiPath=resolve(scratch,'ui.mjs');
 writeFileSync(uiPath,`export * from ${JSON.stringify(pathToFileURL(resolve(root,'packages/ui/dist/src/index.js')).href)};
-export async function list(props){const f=globalThis.fileTargetFixture;return (await props.renderRow({id:'item',version:'1',fields:{}},props.context,f.native)).join('');}`);
+export async function list(props){const f=globalThis.fileTargetFixture;return (await Promise.all(await props.renderRow({id:'item',version:'1',fields:{}},props.context,f.native))).join('');}`);
 const loaded=loadArtifactFile(artifactPath);
 const asm=await assembleModules(loaded,{workDir:resolve(scratch,'modules'),stdlibUrl:pathToFileURL(resolve(root,'packages/cloudflare/dist/runtime/stdlib.js')).href,uiUrl:pathToFileURL(uiPath).href});
 const ref=loaded.artifact.pages[0],module=await import(asm.moduleUrls[ref.module]);
@@ -1089,7 +1102,8 @@ const context={path:'/',preferredLocales:[],appDefaultLocale:'en',memberships:[]
  return fixture.withheld?null:{href:`/files/read/${file.id}`};
 }};
 let html=await page.render(context,{});
-assert.ok(html.includes('disabled aria-disabled="true">Open &lt;PDF&gt;'));
+assert.ok(html.includes('aria-disabled="true">Open &lt;PDF&gt;'));
+assert.ok(html.includes(component==='button'?'disabled aria-disabled':'role="link" aria-disabled'));
 assert.ok(html.includes('href="/files/read/direct"'));
 assert.deepEqual(fixture.trace,['show','caption','pdf','show','direct','present:direct:start','present:direct:end']);
 fixture.trace=[];fixture.target={kind:'file',id:'optional'};
@@ -1098,48 +1112,54 @@ assert.ok(html.indexOf('/files/read/optional')<html.indexOf('/files/read/direct'
 assert.ok(html.indexOf('/files/read/direct')<html.indexOf('After files'));
 assert.deepEqual(fixture.trace,['show','caption','pdf','present:optional:start','present:optional:end','show','direct','present:direct:start','present:direct:end']);
 fixture.trace=[];fixture.withheld=true;
-html=await page.render(context,{});assert.equal((html.match(/disabled aria-disabled/g)||[]).length,2);assert.ok(!html.includes('href='));
+html=await page.render(context,{});assert.equal((html.match(/aria-disabled/g)||[]).length,2);assert.ok(!html.includes('href='));
 fixture.trace=[];fixture.show=false;
 html=await page.render(context,{});assert.deepEqual(fixture.trace,['show','show']);assert.ok(!html.includes('Open &lt;PDF&gt;'));
 fixture.trace=[];fixture.show=true;fixture.failure=true;
 await assert.rejects(page.render(context,{}),/presenter-failed/);
 assert.deepEqual(fixture.trace,['show','caption','pdf','present:optional:start'],'first presenter failure prevents following sibling evaluation');
+const urlRef=loaded.artifact.pages[1],urlModule=await import(asm.moduleUrls[urlRef.module]);
+const urlHtml=await urlModule[urlRef.export].render({...context,preferredLocales:['nl']},{});
+assert.ok(urlHtml.includes('href="https://example.test/referral">https://example.test/referral</a>'),urlHtml);
+assert.ok(urlHtml.includes('href="/safe">Ga</a>'));
 delete globalThis.fileTargetFixture;
 "#).unwrap();
-    let result = Command::new("node")
-        .arg(runner)
-        .arg(root)
-        .arg(artifact)
-        .arg(scratch.path())
-        .output()
-        .unwrap();
-    assert!(
-        result.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&result.stdout),
-        String::from_utf8_lossy(&result.stderr)
-    );
-    // The extension is exact File?, not arbitrary nullable destinations or collections.
-    for ty in ["url?", "file[]"] {
-        let bad = format!(
-            "app InvalidFileTarget\nGiven\n Item {{target:{ty}}}\nWhen\nThen\n page / title=\"Files\"\n  list Item\n   button caption=\"Open\" target=row.target\n"
-        );
-        std::fs::write(&source, bad).unwrap();
-        let output = Command::new(env!("CARGO_BIN_EXE_can"))
-            .args(["check", "--format=json", "--catalog"])
-            .arg(root.join("packages/values/dist/catalog.json"))
-            .arg(&source)
+        let result = Command::new("node")
+            .arg(runner)
+            .arg(root)
+            .arg(artifact)
+            .arg(scratch.path())
+            .arg(component)
             .output()
             .unwrap();
-        assert!(!output.status.success(), "{ty} unexpectedly accepted");
-        let diagnostics: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert!(
-            diagnostics["diagnostics"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|d| d["code"] == "E3001"),
-            "{diagnostics}"
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
         );
+        // The extension is exact File?, not arbitrary nullable destinations or collections.
+        for ty in ["url?", "file[]"] {
+            let bad = format!(
+                "app InvalidFileTarget\nGiven\n Item {{target:{ty}}}\nWhen\nThen\n page / title=\"Files\"\n  list Item\n   {component} caption=\"Open\" target=row.target\n"
+            );
+            std::fs::write(&source, bad).unwrap();
+            let output = Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["check", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(&source)
+                .output()
+                .unwrap();
+            assert!(!output.status.success(), "{ty} unexpectedly accepted");
+            let diagnostics: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert!(
+                diagnostics["diagnostics"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|d| d["code"] == "E3001"),
+                "{diagnostics}"
+            );
+        }
     }
 }

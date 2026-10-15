@@ -6596,7 +6596,8 @@ impl<'a> Resolver<'a> {
                     self.walk_expr(module, scope, open, text, ExprCtx::bare(), diags)?;
                 }
                 // Destination controls carry real expressions, not catalog words.
-                if kids(node).iter().find_map(|n| name_text(n, text)) == Some("button")
+                if kids(node).iter().find_map(|n| name_text(n, text))
+                    .is_some_and(|word| matches!(word, "button" | "link"))
                     && (attribute_value(node, "target", text).is_some()
                         || attribute_value(node, "caption", text).is_some())
                 {
