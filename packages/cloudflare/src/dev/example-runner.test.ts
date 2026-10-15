@@ -251,12 +251,14 @@ When
 Then
 `);
   artifact.tests = [testModule("RunnerProbe.echo", `
+import {same} from "@canlang/stdlib";
 const entries=Array.from({length:30},(_,i)=>({model:"RunnerProbe.Entry",dependencies:[],value:async()=>({name:"Entry "+i})}));
 const selected=s=>Array.from({length:30},(_,i)=>s["f"+i]).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).at(-1);
 export function exampleFixtures(){return {fixtures:Object.fromEntries(entries.map((entry,i)=>["f"+i,entry])),examples:[{
  operation:"RunnerProbe.echo",dependencies:entries,inputs:async(_b,s)=>({entry:selected(s)}),selectors:["as"],
- observations:[async(_b,s)=>s.result.name],rows:[{dependencies:entries,values:async()=>["members"],
- expected:async(_b,s)=>[selected(s).name]}]}]};}
+ observations:[async(_b,s)=>s.result.name,async(_b,s)=>same(s.result,selected(s)),
+ async(_b,s)=>{try{same({...s.result},selected(s));return false;}catch{return true;}}],rows:[{dependencies:entries,values:async()=>["members"],
+ expected:async(_b,s)=>[selected(s).name,true,true]}]}]};}
 `)];
   const result = await runCompiledExamples(await input(artifact));
   assert.equal(result.ok, true, JSON.stringify(result.report));

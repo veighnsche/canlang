@@ -17281,3 +17281,10 @@ Compiler owning10 pass1.10s. State18 controls are qualified (16 unchanged reused
 Accepted implementation correction: forward the existing private owner policy-domain port through the stored source/target coherent conjunction and existing-Model row-id reader. Keep actual stage snapshots; final row-id checks use retained domains over actual owner writes. Ordinary no-owner behavior, source/target Identity conjunction, revocation, query lifetime and field grants remain unchanged. Unrelated SEND/File/assignment consumers are outside this demanded batch.
 
 Normal State/CF builds and all44 affected stored-reference/query/source-policy controls pass (.46s), including two new root/parent collection and late-authority/rollback controls. Original complete promotion now reaches the successful existing-deal return; all operation outcomes match. The sixth case still fails its unchanged Then expression `result==prospect` because the observation passes a noncanonical record value to `same`; no native-six or draft-source acceptance is claimed until that defining observation adapter is fixed.
+
+
+## 2026-10-15 — canonical identity in model example observations
+
+Accepted implementation correction: fixtureView binds its newly converted view to the actual verified Model and authorized/materialized StoredRow id/version using the existing native record identity mechanism. Both fixture and returned-record observation views follow this boundary. No structural guessing or permissive fallback is added to `same`; copied views remain unbranded and refuse. Operation admission and read policies are unchanged.
+
+Normal Cloudflare build passes. The affected existing real observation check passes1/3.197s: a returned record beyond the first inspection page equals its selected fixture by canonical identity, its independent name observation remains unchanged, and a spread copy refuses. Full original CRM six-case Then validation remains the next consumer once the current compiler/receiver closure is frozen.

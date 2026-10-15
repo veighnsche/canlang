@@ -21,6 +21,7 @@ import { resolveExampleFixtureImports } from "./example-fixture-imports.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
 import { invokeReadCanonical, loadCanonicalDescriptors, materializeCanonicalExampleSnapshots } from "../runtime/invoke.js";
+import { bindNativeRecord } from "../runtime/native-records.js";
 import type { CanonicalEffectsScope, CanonicalReadQuery } from "../runtime/context.js";
 import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from "../worker/assembly.js";
 
@@ -526,6 +527,7 @@ function fixtureView(artifact: CompileArtifact, modelName: string, row: StoredRo
   for (const field of model.fields) {
     if (Object.hasOwn(row.data, field.name)) view[field.name] = nativeFixtureField(field, row.data[field.name], schema);
   }
+  bindNativeRecord(view, modelName, row.id, row.version);
   return view;
 }
 
