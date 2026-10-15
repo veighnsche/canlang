@@ -16350,5 +16350,36 @@ nominal validation ahead of execution and now leaves no receipt. Its pre-change
 admission skipped nonreference nominal fields; this demonstrated failure-phase
 regression is ready local work, not a stale assertion to relax. The schedule
 fixture stops at the existing declared-event input-carrier refusals, before its
-schedule assertions. Original24-source qualification follows this small tested
-commit; the retained703-diagnostic capture is not relabelled as a new result.
+schedule assertions. Small tested unit80f213d9 precedes original24-source
+qualification: exit10 after388.82s,701 diagnostics (675 E6008,26 E6007), complete=true,
+omitted=0 and identical source inventory. Full comparison removes exactly both
+missing offer-schema refusals, adds none, and restores the exact retained701
+remainder. No complete CanCRM artifact or training readiness is claimed.
+
+
+2026-10-15 — C02: restore root CRUD Contract receiving phases.
+
+The independent ordinary Contract runtime assertion exposed e4c4eaab's phase
+regression: whole nominal-field validation moved before execution, preventing the
+existing defaulted hook from seeing/repairing receiving fields and losing rejected
+receipts. Restore root create/update fields to their existing post-hook canonical
+field pipeline. Scenario parameters retain early normalization; owner-stage
+receiving behavior and protected-value restrictions retain their existing scope.
+No new source-language decision is introduced by restoring the recorded behavior.
+
+Admission still follows the owning schema and decodes exact Model leaves only,
+retaining expected-version grammar/current rows, source paths and reference order.
+Ordinary business scalars and unknown receiving fields remain for field validation;
+raw union/array containers cannot supply reference identity or conceal a selected
+Model leaf using a runtime tag. The shared primitive and existing traversal remain.
+
+Normal State build and39 affected admission checks pass. The original emitted
+ordinary Contract runtime case passes unchanged, including its exact rejected
+receipt assertions. New coverage retains default/hook/normalization order, hook
+repair, scenario early refusal, no effects, version/missing/forged target failures
+and outsider denial. Actual captured CLI/verified assembly/D1/Identity1/1 passes
+68.54s with the original permission, lock, reference-version, rollback, replay and
+recovery assertions intact. Reuse the unchanged compiler capture above. Post-hook composite Model validation remains a separately
+unqualified consumer observation; locate its accepted source/workflow requirement
+before extending the model-pipeline owner, and do not claim it from initial input
+checks. No permission or assertion is relaxed.
