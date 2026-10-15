@@ -17816,3 +17816,21 @@ authorize additional implementation.
 
 Original CanCRM's nullable URL source diagnostic/masked backend baseline and the
 other explicit cleanup gaps remain. No push or release publication is performed.
+
+
+## 2026-10-15 — publish the next standalone release through existing gates
+
+Accepted: use unused patch version `0.1.1` for the standalone distribution and
+compiler, preserving `v0.1.0` and the independently versioned workspace owners.
+Reuse the canonical installer, native macOS arm64/Linux x64 glibc qualification
+matrix and publication helper. Resolve one release tag for both platform
+archive/checksum pairs; publish only after both native qualifications pass and
+the complete upload succeeds in a draft. Keep bundled runtime dependencies and
+separate optional browser development sidecars.
+
+Assemble the release branch with manual workflow dispatch before creating the
+matching tag. Record hosted qualification, publication and disposable streamed
+installation results in the installation reference. The website installer URL
+currently returns 404; its synchronization and deployment belong to the website
+checkout. Supply that owner with the published pinned installer URL. No website
+source or deployment is authorized by this release task.
