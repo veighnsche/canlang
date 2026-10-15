@@ -428,12 +428,31 @@ validation exits **10** after **382.59s** with the same **701** diagnostics
 identical source inventory. Original sources/catalog are unchanged and no usable
 native artifact exists; this prerequisite does not qualify the whole CRM.
 
+**Completed C02/C10 State prerequisite — observed reference target identity (2026-10-15).**
+The existing required stored-reference reader now accepts the canonical data-ID
+target dependency using whole-record readability, without an authored `id`
+field/data property or ID field grant. It retains exact observed source row,
+reference field, current owner stage, source/target/ancestor projection, complete
+Identity conjunction and final-effect guards. Nullable/array identity promotion
+remains outside this backend path. No signature, descriptor or carrier changes.
+The local State build and **44/44** reader/model-result/query-model-result checks
+pass. New tests use a genuine owner row with no admitted input, then promote,
+observe the target ID and bind its existing result with zero business writes;
+they retain copied/unobserved/wrong-pair/control-ID/stage refusals, source/target/
+ancestor/related-Identity loss and restoration, lifetime loss and exact late
+failure rollback. These are State component checks, not an actual selected-row
+native consumer. Reuse the unchanged original **701**-diagnostic static capture;
+compiler/source/catalog inputs are unchanged.
+
 **Current C02/C10 leaf — selected-reference result and branch correspondence.**
 The unchanged CRM lookup expression now has a bounded source-inventory check. Its early
 `return existing.deal` still needs promotion of the genuine selected row's
 stored reference, a target ID observation and model-result binding; its later
 created Deal return must retain creation provenance. Both actual branch returns
-must join their original source paths rather than one final-return node. Existing
+must join their original source paths rather than one final-return node. The
+next native bridge output is the same required-reference call with genuine
+observed owner source capture and its reserved target-ID leaf: Cloudflare still
+requires an admitted parameter source and authored scalar target field. Existing
 private owner/query/reference mechanisms are the defining owners. Direct model
 parameter aliases also retain a local result-provenance gap. Unrelated hook
 context IR failures still close whole-cohort fresh preparation; that local gate

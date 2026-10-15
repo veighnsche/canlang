@@ -15671,3 +15671,29 @@ omitted=0, none added/removed and identical source inventory. Original sources/
 catalog are unchanged and no usable native artifact is produced.
 Selected-reference/branch result correspondence and whole-cohort hook context
 preparation remain locally unfinished; full CanCRM is not yet qualified.
+
+2026-10-15 — C02: promote an observed required reference to its target identity.
+
+State's existing required stored-reference reader accepts the canonical DATA
+id:text dependency as target metadata. Use record readability, not a fabricated
+authored id field/data property or field grant. Keep source field observation,
+exact current-stage owner issuance, source/target/ancestor policies, complete
+Identity conjunction, final-effect guards and error/rollback behavior. Nullable
+and array ID promotion remain refused by this backend path. Public signatures,
+receipt descriptors and carriers are unchanged. This reuses the settled reserved
+identity/reference authority contract; no new language choice requires JEV.
+
+Local State build and44 focused reader/model-result/query-model-result checks
+pass. Four new tests use a genuine owner-issued source with no admitted input,
+promote/observe the target DATA ID and bind its existing result with no business
+writes/history. Shared dependencies across distinct return paths retain original
+declaration-ID membership. Copied/unobserved/wrong-pair/control-ID/missing-ID/
+cross-stage sources refuse; source/target/ancestor/related-Identity loss, saved
+withholding/restoration, target lifetime loss and exact late business failure
+rollback remain checked. Seed expectations retain actual canonical stored rows.
+Reuse the unchanged701-diagnostic original static capture: compiler/.can/catalog
+inputs did not change (the Values catalog remained untouched by dependency
+TypeScript builds). This is a State component prerequisite, not first-selected
+native/CRM qualification. Cloudflare's admitted-input-only source capture and
+authored-scalar-only target validation, plus compiler reference/branch source
+joins, are the next local owners; they need no new runtime API.

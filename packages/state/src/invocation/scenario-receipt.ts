@@ -2421,13 +2421,18 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     const observations = state.observations.filter(observation => observation.dependencyId === input.sourceDependencyId);
     const observation = observations[0], issued = observation === undefined ? undefined : storedParentInputs.get(observation);
     const source = ownerRows.get(input.sourceRow);
+    // Reserved identity is a DATA dependency on the readable target record,
+    // never an authored field or nullable-reference scalar projection.
+    const targetId = !nullable && scalar !== undefined && scalar.role === 'data' && scalar.field === 'id' &&
+      scalar.type === 'text' && state.bound.idDependencies.has(scalar.id);
     if (owner === undefined || owner.session === null || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || source?.session !== owner || source.stage !== owner.stage ||
         reference?.profile.kind !== 'field' || reference.profile.array || reference.profile.nullable !== nullable ||
         reference.dependency.queryId !== undefined || scalar === undefined || scalar.queryId !== undefined ||
-        scalar.model !== reference.profile.target || state.bound.models.get(scalar.model)?.fields.get(scalar.field) !==
-          (state.bound.narrowedDependencies.get(scalar.id)?.declarationType ?? scalar.type) ||
-        state.bound.idDependencies.has(scalar.id) || state.bound.referenceDependencies.has(scalar.id) ||
+        scalar.model !== reference.profile.target || !targetId && (
+          state.bound.models.get(scalar.model)?.fields.get(scalar.field) !==
+            (state.bound.narrowedDependencies.get(scalar.id)?.declarationType ?? scalar.type) ||
+          state.bound.idDependencies.has(scalar.id)) || state.bound.referenceDependencies.has(scalar.id) ||
         state.bound.nominalDependencies.has(scalar.id) || state.bound.fileDependencies.has(scalar.id) ||
         source.model !== reference.dependency.model || observations.length !== 1 || issued?.call !== call ||
         issued.owner !== owner || issued.stage !== owner.stage || issued.row !== input.sourceRow ||
@@ -2458,7 +2463,8 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     if (wire !== null && (target === null || target.archivedAt !== null)) throw new StateError('forbidden', 'Stored scalar target lifetime is unavailable.');
     const narrowed = state.bound.narrowedDependencies.get(scalar.id);
     if (target !== null && narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, target);
-    const targetAuthority = target === null ? null : await observeModelQuerySourceAuthority(call, store, owner, state, scalar.model, target, [scalar.field], 1); healthy();
+    const targetAuthority = target === null ? null : await observeModelQuerySourceAuthority(call, store, owner, state,
+      scalar.model, target, targetId ? [] : [scalar.field], 1); healthy();
     await issued.revalidate(); healthy();
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Stored scalar projection moved beyond its admitted checkpoint.');
     healthy();
@@ -2489,8 +2495,11 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
           throw error;
         }
         healthy();
-        if (projected.record === null || !projected.grants.some(grant => grant.fields.includes(entry.field)) ||
-            !Object.hasOwn(projected.record.data, entry.field)) throw new StateError('forbidden', 'Stored scalar source or target authority is unavailable.');
+        if (projected.record === null || (targetId && entry.model === scalar.model && entry.field === 'id'
+          ? projected.record.id !== entry.row.id
+          : !projected.grants.some(grant => grant.fields.includes(entry.field)) || !Object.hasOwn(projected.record.data, entry.field))) {
+          throw new StateError('forbidden', 'Stored scalar source or target authority is unavailable.');
+        }
       }
       return true;
     }); healthy();
