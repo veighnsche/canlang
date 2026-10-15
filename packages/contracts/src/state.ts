@@ -508,6 +508,22 @@ export interface UniqueRelease {
   readonly keyValue: string;
 }
 
+/** Compiler-owned normalized text-to-bool field validation binding. */
+export interface StateFieldValidationProducerBinding {
+  readonly abi: 'state.field-validation@1';
+  readonly rule: string;
+  readonly model: ModelName;
+  readonly field: string;
+  readonly lifecycle: 'validate-fields';
+  readonly input: { readonly name: 'value'; readonly type: 'text' };
+  readonly result: { readonly type: 'bool' };
+  readonly implementation: {
+    readonly unit: string;
+    readonly export: 'check';
+    readonly fingerprint: string;
+  };
+}
+
 /**
  * BGI-07 `state.unique-key@1` producer binding: the checked join State
  * consumes for one compiler-bound canonical-identity rule. The
@@ -666,6 +682,12 @@ export interface StoragePort {
   readRevision(): Promise<Revision>;
   /** Load one stored row by identity (authority checks happen above). */
   load(model: ModelName, id: RecordId): Promise<StoredRow | null>;
+  /**
+   * Trusted owner lookup of an exact persisted unique claim in this backend's
+   * owner namespace. Does not load or validate the owning row. State-dependent
+   * consumers retain their ordinary revision fence; no source/request access.
+   */
+  uniqueOwner?(model: ModelName, keyName: string, keyValue: string): Promise<RecordId | null>;
   /** Execute an authorized query at the current checkpoint. */
   query(spec: QuerySpec): Promise<ReadonlyArray<StoredRow>>;
   /**

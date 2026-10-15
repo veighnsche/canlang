@@ -25,7 +25,7 @@ import type {
   WireValue,
 } from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
-import type { GivenUniqueKeyRule } from '../effects/staging.js';
+import type { GivenUniqueKeyRule, GivenFieldValidationRule } from '../effects/staging.js';
 import { checkFieldMachine } from '../internal/machine.js';
 import { collectPredicateFields, isMetadataPath, validatePredicateShape } from '../policy/grants.js';
 
@@ -302,6 +302,7 @@ export interface InterimModelDef {
    * no computed keys (pre-BGI-08 tables are unaffected).
    */
   readonly givenUniqueKeys?: ReadonlyArray<GivenUniqueKeyRule>;
+  readonly givenFieldValidations?: ReadonlyArray<GivenFieldValidationRule>;
   /** Engine-local source-derived ordered required ref/enum constraints. */
   readonly uniqueGroups?: ReadonlyArray<ReadonlyArray<string>>;
   /** Optional owning row conditions for these indexed fields. Omitted keys
@@ -693,6 +694,19 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
     // A rule on a builtin-unique field is a programmer bug here: the
     // descriptor loader rejects that clash for generated tables, and a
     // hand-built table must not smuggle it in either.
+    if (def.givenFieldValidations !== undefined) {
+      if (!Array.isArray(def.givenFieldValidations)) throw new Error('Field validations must be an array.');
+      const seen = new Set<string>();
+      for (const rule of def.givenFieldValidations) {
+        if (typeof rule !== 'object' || rule === null || typeof rule.rule !== 'string' || rule.rule === '' || seen.has(rule.rule) ||
+            typeof rule.field !== 'string' || typeof rule.evaluate !== 'function') throw new Error('Invalid field validation rule.');
+        const field = def.fields[rule.field];
+        if (field === undefined || field.valueType !== 'text' || field.nullable === true || field.array !== undefined) {
+          throw new Error('Field validation needs a nonnullable native text field.');
+        }
+        seen.add(rule.rule);
+      }
+    }
     if (def.givenUniqueKeys !== undefined) {
       if (!Array.isArray(def.givenUniqueKeys)) {
         throw new Error(`Invalid model ${JSON.stringify(model)}: givenUniqueKeys must be an array.`);
@@ -908,6 +922,9 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         ...(containment !== undefined ? { containment: Object.freeze(containment) } : {}),
         // BGI-08: evaluators pass through like hook `run` functions (never
         // cloned); the frozen copies keep rule/field/evaluate together.
+        ...(def.givenFieldValidations === undefined ? {} : {
+          givenFieldValidations: Object.freeze(def.givenFieldValidations.map(rule => Object.freeze({ ...rule }))),
+        }),
         ...(def.givenUniqueKeys === undefined ? {} : {
           givenUniqueKeys: Object.freeze(
             def.givenUniqueKeys.map((rule) =>
@@ -1009,6 +1026,7 @@ export interface CanonicalModelTableOptions extends ModelTableOptions {
    * saved evaluators). Models without an entry carry no computed keys.
    */
   readonly givenUniqueKeys?: ReadonlyMap<ModelName, ReadonlyArray<GivenUniqueKeyRule>>;
+  readonly givenFieldValidations?: ReadonlyMap<ModelName, ReadonlyArray<GivenFieldValidationRule>>;
 }
 
 /**
@@ -1104,6 +1122,7 @@ export function buildModelTableFromCanonical(
       throw new Error(`Conditional unique cannot weaken an unconditional key on model ${JSON.stringify(model.name)}.`);
     }
     const givenUniqueKeys = opts.givenUniqueKeys?.get(model.name);
+    const givenFieldValidations = opts.givenFieldValidations?.get(model.name);
     defs.push({
       model: model.name,
       fields,
@@ -1117,7 +1136,11 @@ export function buildModelTableFromCanonical(
       locks: [],
       ...(containment !== undefined ? { containment: { ...containment } } : {}),
       ...(givenUniqueKeys === undefined ? {} : { givenUniqueKeys: [...givenUniqueKeys] }),
+      ...(givenFieldValidations === undefined ? {} : { givenFieldValidations: [...givenFieldValidations] }),
     });
   }
   return buildModelTable(defs, opts);
 }
+
+/** Installed owner capability for normalized pure field checks. */
+export const FIELD_VALIDATION_VERSION = 1;

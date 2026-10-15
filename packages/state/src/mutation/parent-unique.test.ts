@@ -10,10 +10,10 @@ import {createD1Storage, ensureSchema} from '../storage/d1.js';
 import {StorageConstraintError, FenceConflictError} from '../storage/port.js';
 import {canonicalUniqueRowValue} from '../internal/unique-value.js';
 import {buildModelTable, type InterimModelDef, type ModelTable} from './models.js';
-import {beginOwnerMutation, runMutationWrites, type MutationWritesResult} from './pipeline.js';
+import {beginOwnerMutation, runMutationWrites, repairGivenUniqueKeyScopes, type MutationWritesResult} from './pipeline.js';
 import {activate, stageNextChunk, validateStaged, validateTransition} from '../migration/index.js';
 import {makeInstalled, makeTransition, oldLocks, fixedClock, installSnapshot} from '../../test/migration/fixtures.js';
-import {makeBatch} from '../../test/invocation/fixtures.js';
+import {makeBatch, makeRow} from '../../test/invocation/fixtures.js';
 import {asId, asModel, field, hook, invariant, modelDef, mustLoad, pipelineContext} from '../../test/mutation/fixtures.js';
 
 const BRANCH = asModel('chat.Branch'), TURN = asModel('chat.Turn');
@@ -120,4 +120,151 @@ test('Memory/D1 migration uses actual staged/live parents and reindexes legacy c
       assert.equal((await mustLoad(store, TURN, 'original-turn')).parent?.id, 'original');
     }
   } finally {await worker.dispose();}
+});
+
+test('computed keys retain actual parent scope across owner swaps, archive and removal', async () => {
+  const store = createTestMemoryStorage().store;
+  const computed = (mode: 'archive' | 'remove' = 'remove') => buildModelTable([
+    modelDef(BRANCH, {deleteMode: 'remove'}),
+    {...modelDef(TURN, {fields: {position: {...field({required: true}), valueType: 'text'}}, deleteMode: mode}),
+      containment: {parent: BRANCH}, givenUniqueKeys: [{rule: 'chat.Turn.position#canonical', field: 'position',
+        evaluate: (value: string) => value.normalize('NFKC').toLowerCase()}]},
+  ]);
+  const table = computed(); await branches(store, table);
+  await write(store, table, [create('alice-original', 'original', 'Ａlice'), create('alice-fork', 'fork', 'Alice'), create('bob', 'original', 'Bob')]);
+  await assert.rejects(write(store, table, [create('duplicate', 'original', 'ALICE')]), conflict);
+  await assert.rejects(write(store, table, [update('bob', 'Alice')]), conflict);
+  const swap = await beginOwnerMutation({store, table, context: context(), bounds});
+  await swap.stage(update('alice-original', 'Bob'), cause);
+  await swap.stage(update('bob', 'Alice'), cause);
+  await commit(store, await swap.finalize());
+  assert.equal((await mustLoad(store, TURN, 'alice-original')).data.position, 'Bob');
+  assert.equal((await mustLoad(store, TURN, 'alice-fork')).data.position, 'Alice');
+  await write(store, computed('archive'), [{op: 'remove', model: TURN, id: asId('bob')}]);
+  await assert.rejects(write(store, table, [create('archived-duplicate', 'original', 'Alice')]), conflict);
+  await write(store, table, [{op: 'remove', model: TURN, id: asId('bob')}]);
+  await write(store, table, [create('released', 'original', 'Alice')]);
+  await assert.rejects(write(store, table, [create('fork-still-reserved', 'fork', 'Alice')]), conflict);
+});
+
+test('computed declaration change reindexes root claims into parent scope through fenced activation', async () => {
+  const store = createTestMemoryStorage().store;
+  const defs = (declared: boolean): InterimModelDef[] => [modelDef(BRANCH), {
+    ...modelDef(TURN, {fields: {position: {...field({required: true}), valueType: 'text'}}}),
+    ...(declared ? {containment: {parent: BRANCH}} : {}),
+    givenUniqueKeys: [{rule: 'chat.Turn.position#canonical', field: 'position',
+      evaluate: declared ? (value: string) => value.normalize('NFKC').toLowerCase() : (value: string) => value}],
+  }];
+  // A real predecessor root declaration has unscoped claims. This transition
+  // changes ownership; it does not pretend to repair a buggy parent-owned index.
+  const oldModels = buildModelTable(defs(false)), desiredModels = buildModelTable(defs(true));
+  await branches(store, oldModels);
+  await write(store, oldModels, [create('original-alice', 'original', 'Alice'), create('fork-alice', 'fork', 'Ａlice')]);
+  const plan = validateTransition(makeInstalled({owner: 'chat'}), makeTransition({owner: 'chat', directives: [{kind: 'backfill', model: TURN}]}), oldModels, desiredModels);
+  await installSnapshot(store, makeInstalled({owner: 'chat'}));
+  await stageNextChunk({store, plan, oldModels, desiredModels, chunkSize: 10, mappers: new Map([[TURN, () => {}]])});
+  assert.equal((await validateStaged({store, plan, oldModels, desiredModels, oldLocks: oldLocks([])})).phase, 'staged');
+  await activate({store, plan, oldModels, desiredModels, inventory: [], chunkSize: 10, clock: fixedClock()});
+  await assert.rejects(write(store, desiredModels, [create('duplicate', 'original', 'ALICE')]), conflict);
+  await assert.rejects(write(store, desiredModels, [create('fork-duplicate', 'fork', 'Alice')]), conflict);
+  await write(store, desiredModels, [create('third', 'probe', 'Alice')]);
+  // The explicitly authored backfill is a conversion and advances each row once.
+  assert.equal((await mustLoad(store, TURN, 'original-alice')).version, 2);
+  assert.equal((await mustLoad(store, TURN, 'fork-alice')).version, 2);
+});
+
+
+function scopedComputedTable() {
+  return buildModelTable([modelDef(BRANCH), {...modelDef(TURN, {
+    fields: {position: {...field({required: true}), valueType: 'text'}}, deleteMode: 'remove'}),
+    containment: {parent: BRANCH}, givenUniqueKeys: [{rule: 'chat.Turn.position#canonical', field: 'position',
+      evaluate: (value: string) => value.normalize('NFKC').toLowerCase()}]}]);
+}
+const computedName = 'given:chat.Turn.position#canonical';
+
+test('contained computed mutations refuse legacy claims until explicit fenced index repair', async () => {
+  const store = createTestMemoryStorage().store, table = scopedComputedTable();
+  await branches(store, table);
+  const row = {...makeRow({id: 'legacy', data: {position: 'Ａlice'}}), parent: parent('original')};
+  await store.commit(makeBatch(await store.readRevision(), {writes: [{kind: 'insert', model: TURN, row}],
+    uniqueClaims: [{model: TURN, keyName: computedName, keyValue: 'alice', recordId: row.id}]}));
+  const before = await mustLoad(store, TURN, 'legacy'), history = await store.historyFor(TURN, row.id);
+  for (const branch of ['original', 'fork']) {
+    const session = await beginOwnerMutation({store, table, context: context(), bounds});
+    await assert.rejects(session.stage(create('blocked', branch, 'Alice'), cause), /explicit fenced index repair/);
+    await assert.rejects(session.finalize(), /poisoned/);
+  }
+  await repairGivenUniqueKeyScopes({store, table, context: context(), bounds});
+  assert.deepEqual(await mustLoad(store, TURN, 'legacy'), before);
+  assert.deepEqual(await store.historyFor(TURN, row.id), history);
+  assert.equal(await store.uniqueOwner!(TURN, computedName, 'alice'), null);
+  await assert.rejects(write(store, table, [create('same-parent', 'original', 'Alice')]), conflict);
+  await write(store, table, [create('different-parent', 'fork', 'Alice')]);
+  await write(store, table, [{op: 'remove', model: TURN, id: row.id}]);
+  await write(store, table, [create('released', 'original', 'Alice')]);
+  await assert.rejects(write(store, table, [create('fork-still-held', 'fork', 'Alice')]), conflict);
+  const {uniqueOwner: _unsupportedRead, ...unsupported} = store;
+  const session = await beginOwnerMutation({store: unsupported, table, context: context(), bounds});
+  await assert.rejects(session.stage(create('missing-port', 'probe', 'new'), cause), /native unique ownership/);
+});
+
+test('computed legacy guard distinguishes current scoped strings and repairs mixed index overlaps atomically', async () => {
+  const store = createTestMemoryStorage().store;
+  const catalog = asModel('keys.catalog'), entry = asModel('keys.entry'), name = 'given:keys.entry.code#canonical';
+  const table = buildModelTable([modelDef(catalog), {...modelDef(entry, {fields: {code: {...field(), valueType: 'text'}}}),
+    containment: {parent: catalog}, givenUniqueKeys: [{rule: 'keys.entry.code#canonical', field: 'code', evaluate: (value: string) => value}]}]);
+  await write(store, table, ['one', 'two'].map(id => ({op: 'create' as const, model: catalog, id: asId(id)})));
+  const currentKey = JSON.stringify(['field', [catalog, 'one'], 'seed']);
+  const overlap = JSON.stringify(['field', [catalog, 'one'], currentKey]);
+  const a = {...makeRow({id: 'current', data: {code: 'seed'}}), parent: {model: catalog, id: asId('one')}};
+  const b = {...makeRow({id: 'legacy', data: {code: overlap}}), parent: {model: catalog, id: asId('two')}};
+  await store.commit(makeBatch(await store.readRevision(), {writes: [{kind: 'insert', model: entry, row: a}, {kind: 'insert', model: entry, row: b}],
+    uniqueClaims: [{model: entry, keyName: name, keyValue: currentKey, recordId: a.id},
+      {model: entry, keyName: name, keyValue: overlap, recordId: b.id}]}));
+  const candidate = {op: 'create' as const, model: entry, id: asId('new'), parent: a.parent, data: {code: currentKey}};
+  await assert.rejects(write(store, table, [candidate]), /explicit fenced index repair/,
+    'the desired scoped key is a real legacy claim, while its raw key is another valid current claim');
+  const originalCommit = store.commit;
+  let repaired = false;
+  store.commit = async batch => {
+    repaired = true;
+    assert.deepEqual(batch.writes, []); assert.deepEqual(batch.history, []);
+    assert.equal(batch.uniqueReleases.some(touch => touch.keyValue === currentKey), false, 'a current scoped string is not released as legacy raw text');
+    return originalCommit(batch);
+  };
+  await repairGivenUniqueKeyScopes({store, table, context: context(), bounds});
+  assert.equal(repaired, true); store.commit = originalCommit;
+  assert.equal(await store.uniqueOwner!(entry, name, currentKey), a.id);
+  assert.equal(await store.uniqueOwner!(entry, name, overlap), null);
+  await write(store, table, [candidate]);
+  assert.equal(await store.uniqueOwner!(entry, name, overlap), candidate.id);
+  assert.deepEqual(await store.load(entry, a.id), a); assert.deepEqual(await store.load(entry, b.id), b);
+});
+
+test('computed index repair refuses collisions, overflow and changed fences without changing rows or claims', async () => {
+  for (const failure of ['collision', 'bounds', 'fence'] as const) {
+    const store = createTestMemoryStorage().store, table = scopedComputedTable();
+    await branches(store, table);
+    const rows = ['one', 'two'].map((id, index) => ({...makeRow({id, data: {position: failure === 'collision' ? 'Alice' : id}}),
+      parent: parent(index === 0 || failure === 'collision' ? 'original' : 'fork')}));
+    await store.commit(makeBatch(await store.readRevision(), {writes: rows.map(row => ({kind: 'insert' as const, model: TURN, row}))}));
+    const before = await store.query({model: TURN, authority: 'owner', archived: 'include'});
+    let commits = 0; const actualCommit = store.commit; store.commit = async batch => {commits++; return actualCommit(batch);};
+    if (failure === 'fence') {
+      const lookup = store.uniqueOwner!;
+      let changed = false;
+      store.uniqueOwner = async (...args) => {
+        const owner = await lookup(...args);
+        if (!changed) { changed = true; await actualCommit(makeBatch(await store.readRevision())); }
+        return owner;
+      };
+    }
+    await assert.rejects(repairGivenUniqueKeyScopes({store, table, context: context(),
+      bounds: failure === 'bounds' ? {...bounds, maxRows: 1} : bounds}), error => error instanceof StateError &&
+        error.code === (failure === 'bounds' ? 'validation' : 'conflict'));
+    assert.equal(commits, 0);
+    assert.deepEqual(await store.query({model: TURN, authority: 'owner', archived: 'include'}), before);
+    assert.equal(await store.uniqueOwner!(TURN, computedName, 'alice'), null);
+    assert.deepEqual(await store.historyFor(TURN, rows[0]!.id), []);
+  }
 });

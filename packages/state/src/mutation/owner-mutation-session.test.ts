@@ -371,3 +371,233 @@ test('owner receipt defaults reuse stable ordered write attribution across direc
   assert.deepEqual(retry.history, first.history);
   assert.equal((await store.query({ model: ITEM, authority: 'owner' })).length, 0);
 });
+
+test('installed CRUD admission sees normalized candidates and pre-write views once, including existing delete rows', async () => {
+  const { store } = createTestMemoryStorage();
+  let removeHooks = 0, calls = 0;
+  const table = buildModelTable([
+    modelDef('Acme.Item', { fields: { title: { ...field({ default: '  omitted  ' }), valueType: 'text', trim: true } },
+      deleteMode: 'remove', hooks: [
+        hook('adjust', ['create'], (candidate, ctx) => {
+          assert.equal(candidate.title, 'omitted');
+          ctx.stage({ op: 'create', model: LINK, id: asId('secondary'), data: { title: 'secondary' } });
+          return { ...candidate, title: 'hooked' };
+        }),
+        hook('remove', ['remove'], candidate => { removeHooks++; return candidate; }),
+      ] }),
+    modelDef('Acme.Link', { fields: { title: field() } }),
+  ]);
+  const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await session.stage({ op: 'create', model: ITEM, id: asId('earlier'), data: { title: 'earlier' } }, options);
+  await session.stage({ op: 'create', model: ITEM, id: asId('item') }, {
+    cause: 'crud', input: {}, admitCandidate: async (candidate, views) => {
+      calls++;
+      assert.ok(Object.isFrozen(candidate) && Object.isFrozen(candidate.data));
+      assert.equal(candidate.data.title, 'hooked');
+      assert.equal(await views.final.get(ITEM, asId('item')), null);
+      assert.deepEqual((await views.final.query({ model: ITEM, authority: 'owner', limit: 10 })).map(row => row.id), ['earlier']);
+      assert.deepEqual(await views.final.query({ model: LINK, authority: 'owner', limit: 10 }), []);
+      return true;
+    },
+  });
+  assert.equal(calls, 1, 'hook secondary does not inherit the CRUD callback');
+  await session.stage(update('item', { title: '  next  ' }), {
+    cause: 'crud', input: { title: '  next  ' }, admitCandidate: async (candidate, views) => {
+      calls++;
+      assert.equal(candidate.data.title, 'next');
+      assert.equal((await views.final.get(ITEM, asId('item')))?.data.title, 'hooked');
+      return true;
+    },
+  });
+  await session.stage({ op: 'remove', model: ITEM, id: asId('item') }, {
+    cause: 'crud', input: {}, admitCandidate: async (candidate, views) => {
+      calls++;
+      assert.equal(removeHooks, 0, 'delete admission precedes hooks');
+      assert.equal(candidate.data.title, 'next');
+      assert.equal(candidate.archivedAt, null);
+      assert.equal((await views.final.get(ITEM, asId('item')))?.data.title, 'next');
+      return true;
+    },
+  });
+  assert.equal(calls, 3); assert.equal(removeHooks, 1);
+  const effects = await session.finalize();
+  assert.equal(effects.writes.some(write => write.model === ITEM &&
+    (write.kind === 'insert' ? write.row.id : write.id) === 'item'), false);
+  assert.equal(await store.load(ITEM, asId('earlier')), null, 'candidate admission stages nothing in storage');
+});
+
+test('installed CRUD admission rejects false/nonbool and preserves thrown identity before staging', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { title: { ...field(), valueType: 'text', trim: true } } })]);
+  await seedRow(store, ITEM, { id: 'item', data: { title: 'before' } });
+  const sentinel = new StateError('conflict', 'original candidate failure');
+  for (const kind of ['false', 'nonbool', 'throw'] as const) {
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+    let calls = 0;
+    await assert.rejects(session.stage(update('item', { title: 'after' }), {
+      cause: 'crud', input: {}, admitCandidate: () => {
+        calls++; if (kind === 'throw') throw sentinel;
+        return kind === 'false' ? false : 'true' as never;
+      },
+    }), error => kind === 'throw' ? error === sentinel : error instanceof StateError &&
+      error.code === (kind === 'false' ? 'rule_failed' : 'validation'));
+    assert.equal(calls, 1);
+    await assert.rejects(session.finalize(), /poisoned/);
+    assert.equal((await store.load(ITEM, asId('item')))?.data.title, 'before');
+    assert.deepEqual(await store.historyFor(ITEM, asId('item')), []);
+  }
+  const invalid = await beginOwnerMutation({ table, store, context: context(), bounds });
+  let calls = 0;
+  await assert.rejects(invalid.stage(update('item', { title: 123 }), {
+    cause: 'crud', input: {}, admitCandidate: () => { calls++; return true; },
+  }), error => error instanceof StateError && error.code === 'validation');
+  assert.equal(calls, 0, 'field validation precedes candidate admission');
+});
+
+test('candidate callbacks cannot swallow the first bounded owner read/work failure', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { title: field() } })]);
+  await seedRow(store, ITEM, { id: 'one', data: { title: 'one' } });
+  await seedRow(store, ITEM, { id: 'two', data: { title: 'two' } });
+  for (const kind of ['query', 'work'] as const) {
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds: { maxRows: 1, maxWork: 1000 } });
+    let first: unknown;
+    await assert.rejects(session.stage(update('one', { title: 'after' }), {
+      cause: 'crud', input: {}, admitCandidate: async (_candidate, views) => {
+        try {
+          if (kind === 'query') await views.final.query({ model: ITEM, authority: 'owner', limit: 1 });
+          else views.consumeWork(1001);
+        } catch (error) { first = error; }
+        if (kind === 'work') throw new Error('later callback failure must not replace budget failure');
+        return true;
+      },
+    }), error => error === first && error instanceof StateError && error.code === 'validation');
+    assert.ok(first instanceof StateError);
+    await assert.rejects(session.finalize(), /poisoned/);
+    assert.equal((await store.load(ITEM, asId('one')))?.data.title, 'one');
+  }
+});
+
+test('candidate admission is an own installed CRUD-only option', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { title: field() } })]);
+  let reads = 0;
+  for (const invalid of [
+    { cause: 'scenario', admitCandidate: () => true },
+    { cause: 'crud', input: {}, admitCandidate: undefined },
+    Object.assign(Object.create({ admitCandidate: () => true }), { cause: 'crud', input: {} }),
+    Object.defineProperty({ cause: 'crud', input: {} }, 'admitCandidate', { enumerable: true, get: () => { reads++; return () => true; } }),
+  ]) {
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds });
+    await assert.rejects(session.stage({ op: 'create', model: ITEM, id: asId('item'), data: {} }, invalid as never), /own installed CRUD callback/);
+    await assert.rejects(session.finalize(), /poisoned/);
+  }
+  assert.equal(reads, 0);
+});
+
+test('fixture snapshots retain normalized historical domain state, final invariants and version one without CRUD effects', async () => {
+  const { store } = createTestMemoryStorage();
+  let hooks = 0, sources = 0, locks = 0, invariants = 0;
+  const table = buildModelTable([
+    modelDef('Acme.Item', { fields: {
+      title: { ...field({ default: '  default  ' }), valueType: 'text', trim: true, max: 10 },
+      author: { ...field({ serverOnly: true }), server: 'actor' },
+    }, uniqueKeys: ['title'], hooks: [hook('create', ['create', 'update'], candidate => { hooks++; return candidate; })] }),
+    { ...modelDef('Acme.Link', { fields: { title: field() } }), containment: { parent: ITEM } },
+  ]);
+  const descriptor: CanonicalOwnerModelPolicies = { abi: 'state.owner-model-policies@1', model: ITEM,
+    module: 'owner.mjs', ownerPackage: 'Acme', hooks: [], rules: [
+      { id: 'locked', kind: 'lock', fields: ['title'] },
+      { id: 'valid', kind: 'invariant', dependencies: [] },
+    ] };
+  const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor], bindings: [
+    { id: 'locked', kind: 'lock', module: 'owner.mjs', ownerPackage: 'Acme', model: ITEM,
+      evaluate: () => { locks++; return true; } },
+    { id: 'valid', kind: 'invariant', module: 'owner.mjs', ownerPackage: 'Acme', model: ITEM,
+      evaluate: (_ctx, row) => { invariants++; return row.data.title !== 'invalid'; } },
+  ] });
+  const fixtureContext = pipelineContext({ operation: 'Acme.fixture', kind: 'test' });
+  const open = (now = fixtureContext.now) => beginOwnerMutation({ table, store, context: { ...fixtureContext, now }, bounds,
+    policies, stageSources: async () => { sources++; return []; } });
+  const baseline = await open();
+  await baseline.stage([
+    { op: 'create', model: LINK, id: asId('link'), parent: { model: ITEM, id: asId('item') }, data: { title: 'child' } },
+    { op: 'create', model: ITEM, id: asId('item') },
+    { op: 'create', model: ITEM, id: asId('other'), data: { title: 'other', author: { id: 'other-user' } } },
+  ], { cause: 'fixture' });
+  const initial = await baseline.finalize();
+  assert.deepEqual(initial.history, []);
+  assert.deepEqual(initial.schedules, []);
+  await commit(store, initial);
+  const before = (await store.load(ITEM, asId('item')))!;
+  assert.equal(before.data.title, 'default');
+  assert.deepEqual(before.data.author, { id: 'user-alice' });
+  assert.deepEqual((await store.load(ITEM, asId('other')))?.data.author, { id: 'other-user' });
+  const overrides = await open(fixtureContext.now + 1000);
+  // Intermediate duplicate keys are not committed: both independent overrides form one final snapshot.
+  await overrides.stage([
+    update('item', { title: '  other  ', author: { id: 'historical-user' } }),
+    update('other', { title: 'changed' }),
+  ], { cause: 'fixture' });
+  const final = await overrides.finalize();
+  assert.deepEqual(final.history, []);
+  assert.deepEqual(final.schedules, []);
+  const after = final.writes.find(write => write.kind === 'update' && write.id === 'item');
+  assert.ok(after?.kind === 'update');
+  assert.deepEqual({ ...after.row, data: before.data }, before, 'snapshot override preserves all stored metadata');
+  assert.equal(after.row.version, 1);
+  assert.equal(after.row.data.title, 'other');
+  assert.deepEqual(after.row.data.author, { id: 'historical-user' });
+  await commit(store, final);
+  assert.equal(hooks, 0); assert.equal(sources, 0); assert.equal(locks, 0);
+  assert.equal(invariants, 4, 'both baseline and combined overrides validate final rows');
+});
+
+test('fixture snapshots reject invalid stored data, references, uniqueness and final invariants before invocation', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = buildModelTable([
+    modelDef('Acme.Item', { fields: { title: { ...field({ required: true }), valueType: 'text', trim: true, max: 10 } },
+      uniqueKeys: ['title'], invariants: [invariant('valid', view => {
+        if (view.get(ITEM, asId('item'))?.data.title === 'invalid') throw new StateError('rule_failed', 'Invalid snapshot');
+      })] }),
+    { ...modelDef('Acme.Link', { fields: { title: field() } }), containment: { parent: ITEM } },
+  ]);
+  const open = () => beginOwnerMutation({ table, store, context: pipelineContext({ operation: 'Acme.fixture', kind: 'test' }), bounds });
+  for (const data of [{ title: 123 }, { title: 'too long for bounds' }, { title: null }, { title: 'ok', id: 'reserved' }]) {
+    const session = await open();
+    await assert.rejects(session.stage({ op: 'create', model: ITEM, id: asId('item'), data }, { cause: 'fixture' }),
+      error => error instanceof StateError && error.code === 'validation');
+    await assert.rejects(session.finalize(), /poisoned/);
+  }
+  const missingParent = await open();
+  await missingParent.stage({ op: 'create', model: LINK, id: asId('link'), parent: { model: ITEM, id: asId('missing') } }, { cause: 'fixture' });
+  await assert.rejects(missingParent.finalize(), /parent record is missing/);
+  const invalidInvariant = await open();
+  await invalidInvariant.stage({ op: 'create', model: ITEM, id: asId('item'), data: { title: 'invalid' } }, { cause: 'fixture' });
+  await assert.rejects(invalidInvariant.finalize(), /Invalid snapshot/);
+  const duplicate = await open();
+  await duplicate.stage(['item', 'other'].map(id => ({ op: 'create' as const, model: ITEM, id: asId(id), data: { title: 'same' } })), { cause: 'fixture' });
+  await assert.rejects(commit(store, await duplicate.finalize()), error => error instanceof Error && /unique/i.test(error.message));
+  assert.equal(await store.load(ITEM, asId('item')), null);
+  assert.equal(await store.load(LINK, asId('link')), null);
+});
+
+test('fixture snapshots require the isolated test cause and refuse production stages or reserved write controls', async () => {
+  const { store } = createTestMemoryStorage();
+  const table = buildModelTable([modelDef('Acme.Item', { fields: { title: field() } })]);
+  const write = { op: 'create' as const, model: ITEM, id: asId('item'), data: { title: 'initial' } };
+  const ordinary = await beginOwnerMutation({ table, store, context: context(), bounds });
+  await assert.rejects(ordinary.stage(write, { cause: 'fixture' }), /isolated test owner/);
+  for (const extra of [{ version: 2 }, { created: 0 }, { when: { op: 'true' } }, { transition: {} }, { op: 'remove' }]) {
+    const session = await beginOwnerMutation({ table, store, context: pipelineContext({ operation: 'Acme.fixture', kind: 'test' }), bounds });
+    await assert.rejects(session.stage({ ...write, ...extra } as never, { cause: 'fixture' }), /only declared create\/update/);
+    await assert.rejects(session.finalize(), /poisoned/);
+  }
+  for (const cause of ['crud', 'scenario'] as const) {
+    const session = await beginOwnerMutation({ table, store, context: pipelineContext({ operation: 'Acme.fixture', kind: 'test' }), bounds });
+    await session.stage(write, { cause: 'fixture' });
+    await assert.rejects(session.stage(update('item', { title: 'changed' }), { cause, input: {} }), /cannot mix/);
+  }
+  const callback = await beginOwnerMutation({ table, store, context: pipelineContext({ operation: 'Acme.fixture', kind: 'test' }), bounds });
+  await assert.rejects(callback.stage(write, { cause: 'fixture', admitCandidate: () => true }), /only the fixture cause/);
+});

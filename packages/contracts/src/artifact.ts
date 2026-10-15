@@ -519,6 +519,19 @@ export interface ArtifactGivenTrait {
   fingerprint: string;
   /** Source order among the definition's applications. */
   order: number;
+  /** Source-derived pure text field check; never supplied authority. */
+  validation?: {
+    producer: 'state.field-validation@1';
+    export: 'check';
+    lifecycle: 'validate-fields';
+    input: { name: 'value'; type: 'text' };
+    result: { type: 'bool' };
+    reads: [];
+    effects: [];
+    authority: [];
+    /** SHA-256 over the saved implementation and its consumed imports. */
+    fingerprint: string;
+  };
 }
 
 /**

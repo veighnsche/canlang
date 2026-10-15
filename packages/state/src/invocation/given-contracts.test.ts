@@ -37,6 +37,7 @@ import { createTestMemoryStorage } from '../storage/memory.js';
 import { StorageConstraintError } from '../storage/port.js';
 import { StateError } from '../errors.js';
 import type { GivenUniqueKeyRule } from '../effects/staging.js';
+import { setupMutation, crudCreate, crudUpdate } from '../../test/mutation/fixtures.js';
 import {
   FIXED_NOW,
   asId,
@@ -61,6 +62,159 @@ const QUOTE = 'Tasks.Quote';
 const RULE = 'Tasks.Account.handle#canonical_identity';
 const MEMBER_RULE = 'Tasks.Member.code#canonical_identity';
 const FINGERPRINT = '0'.repeat(64);
+
+const FIELD_VALIDATION: NonNullable<ArtifactGivenTrait['validation']> = {
+  producer: 'state.field-validation@1', export: 'check', lifecycle: 'validate-fields',
+  input: { name: 'value', type: 'text' }, result: { type: 'bool' },
+  reads: [], effects: [], authority: [], fingerprint: '1'.repeat(64),
+};
+
+it('field-check descriptors bind exact text targets and reject capability, authority and schema tampering', async () => {
+  const trait = traitInstance({ target: `${ACCOUNT}.handle`, fields: [{ name: 'value', type: 'text', trim: false }], validation: FIELD_VALIDATION });
+  const model = accountModel();
+  model.fields[0]!.valueType = 'text';
+  const checked = () => ({ ...sliceWith([model], { traits: [trait], keywords: [] }),
+    requires: [{ capability: 'state.field-validation', min_version: 1 }] });
+  const converted = artifactToDescriptorSet(checked());
+  assert.deepEqual(converted.givenFieldValidations, [{
+    abi: 'state.field-validation@1', rule: trait.id, model: ACCOUNT, field: 'handle', lifecycle: 'validate-fields',
+    input: { name: 'value', type: 'text' }, result: { type: 'bool' },
+    implementation: { unit: 'u1', export: 'check', fingerprint: '1'.repeat(64) },
+  }]);
+  for (const validation of [
+    { ...FIELD_VALIDATION, producer: 'state.unknown@1' },
+    { ...FIELD_VALIDATION, export: 'other' },
+    { ...FIELD_VALIDATION, effects: ['write'] },
+    { ...FIELD_VALIDATION, input: { name: 'value', type: 'text?' } },
+    { ...FIELD_VALIDATION, result: { type: 'text' } },
+    { ...FIELD_VALIDATION, fingerprint: 'not a fingerprint' },
+    { ...FIELD_VALIDATION, arbitrary: true },
+  ]) {
+    const artifact = checked();
+    artifact.givenContracts = { traits: [{ ...trait, validation } as ArtifactGivenTrait], keywords: [] };
+    await captureArtifactError(() => artifactToDescriptorSet(artifact));
+  }
+  for (const changes of [{ target: ACCOUNT }, { owner: 'Foreign' }, { unitId: '../foreign' }]) {
+    const artifact = checked();
+    artifact.givenContracts = { traits: [{ ...trait, ...changes }], keywords: [] };
+    await captureArtifactError(() => artifactToDescriptorSet(artifact));
+  }
+  for (const type of ['email', 'text?', 'text[]']) {
+    const changed = structuredClone(model);
+    changed.fields[0]!.valueType = type;
+    if (type === 'text?') changed.fields[0]!.nullable = true;
+    if (type === 'text[]') changed.fields[0]!.array = { required: false };
+    const artifact = { ...checked(), models: [changed] };
+    await captureArtifactError(() => artifactToDescriptorSet(artifact));
+  }
+  const missing = checked();
+  missing.requires = [];
+  await captureArtifactError(() => artifactToDescriptorSet(missing));
+  let read = false;
+  const accessor = { ...trait };
+  Object.defineProperty(accessor, 'validation', { get() { read = true; return FIELD_VALIDATION; } });
+  const artifact = checked();
+  artifact.givenContracts = { traits: [accessor], keywords: [] };
+  await captureArtifactError(() => artifactToDescriptorSet(artifact));
+  assert.equal(read, false, 'descriptor admission does not execute validation claims');
+});
+
+it('archive evidence folds nullable native user/datetime without losing their exact value associations', async () => {
+  const trait = traitInstance({ target: TODO, fields: [
+    { name: 'archived', type: 'bool', trim: false, default: 'false' },
+    { name: 'archived_by', type: 'user?', trim: false, default: 'null' },
+    { name: 'archive_recorded_at', type: 'datetime?', trim: false, default: 'null' },
+  ] });
+  const converted = artifactToDescriptorSet(sliceWith([{ name: TODO, fields: [], deleteMode: 'remove' }], { traits: [trait], keywords: [] }));
+  const evidence = converted.set.models[0]!.fields;
+  assert.equal(evidence['archived_by']?.valueType, 'user?');
+  assert.equal(evidence['archive_recorded_at']?.valueType, 'datetime?');
+  const table = buildModelTableFromCanonical(converted.set.models, { refs: converted.refs, nullableFields: converted.nullableFields });
+  assert.equal(table.get(asModel(TODO))?.fields['archived_by']?.nullable, true);
+  assert.equal(table.get(asModel(TODO))?.fields['archive_recorded_at']?.nullable, true);
+  const world = await setupMutation([...table.values()]);
+  assert.equal((await crudCreate(world, TODO, { id: 'evidence', data: {} })).out.status, 'committed');
+  assert.deepEqual((await world.store.load(asModel(TODO), asId('evidence')))?.data,
+    { archived: false, archived_by: null, archive_recorded_at: null });
+  const by = { id: world.alice.user.user_id };
+  const at = '2026-10-14T10:00:00.000Z';
+  assert.equal((await crudUpdate(world, TODO, 'evidence', { version: 1,
+    patch: { archived: true, archived_by: by, archive_recorded_at: at } })).out.status, 'committed');
+  assert.deepEqual((await world.store.load(asModel(TODO), asId('evidence')))?.data,
+    { archived: true, archived_by: by, archive_recorded_at: at });
+
+});
+
+it('contributed native leaves retain exact defaults, wrappers and enum cases through model creation', async () => {
+  const cases: Array<[string, string, unknown]> = [
+    ['boolean', 'true', true], ['integer', '9223372036854775807', '9223372036854775807'],
+    ['decimal', '12345678901234567890.1200', '12345678901234567890.12'],
+    ['text', '"a,b"', 'a,b'], ['email', '"hello@example.com"', 'hello@example.com'],
+    ['timezone', '"Europe/Brussels"', 'Europe/Brussels'], ['date', '"2026-10-14"', '2026-10-14'],
+    ['datetime', '"2026-10-14T10:00:00.000Z"', '2026-10-14T10:00:00.000Z'],
+    ['datetime', '"2026-10-14T12:00:00+02:00"', '2026-10-14T10:00:00.000Z'],
+    ['duration', '2s', '2000'], ['enum(open, closed)', 'open', 'open'],
+    ['int[]', '[1,9223372036854775807]', ['1', '9223372036854775807']],
+    ['decimal[]', '[1.50,2]', ['1.5', '2']], ['text[]', '["a,b","c"]', ['a,b', 'c']],
+    ['enum(open,closed)[]', '[closed,open]', ['closed', 'open']],
+    ['bool[]?', 'null', null], ['date[]', '[]', []], ['datetime[]', '[]', []],
+    ['duration[]', '[1s,2ms]', ['1000', '2']], ['email[]', '[]', []], ['timezone[]', '[]', []],
+    ['user?', 'null', null], ['file?', 'null', null], ['money?', 'null', null],
+    ['user[]', '[]', []], ['file[]', '[]', []], ['money[]', '[]', []],
+  ];
+  const fields = cases.map(([type, value], index) => ({ name: `v${index}`, type, default: value, trim: false }));
+  const converted = artifactToDescriptorSet(sliceWith([{ name: TODO, fields: [], deleteMode: 'remove' }], {
+    traits: [traitInstance({ target: TODO, fields })], keywords: [],
+  }));
+  const table = buildModelTableFromCanonical(converted.set.models, { refs: converted.refs, nullableFields: converted.nullableFields });
+  const world = await setupMutation([...table.values()]);
+  assert.equal((await crudCreate(world, TODO, { id: 'native', data: {} })).out.status, 'committed');
+  assert.deepEqual((await world.store.load(asModel(TODO), asId('native')))?.data,
+    Object.fromEntries(cases.map(([, , value], index) => [`v${index}`, value])));
+  for (const [index, [type, , value]] of cases.entries()) {
+    const field = converted.set.models[0]!.fields[`v${index}`]!;
+    assert.equal(field.valueType, type.replace(/\s/g, '').replace(/^boolean/, 'bool').replace(/^integer/, 'int'));
+    assert.deepEqual(field.default, { kind: 'literal', value });
+  }
+  for (const [type, value] of [['user?', undefined], ['int[]', undefined], ['datetime', '"2026-10-14T10:00:00"'],
+    ['int', '9223372036854775808'], ['enum(open,closed)[]', '[missing]'], ['user', '"someone"']] as const) {
+    assert.throws(() => artifactToDescriptorSet(sliceWith([{ name: TODO, fields: [], deleteMode: 'remove' }], {
+      traits: [traitInstance({ target: TODO, fields: [{ name: 'invalid', type, trim: false, ...(value === undefined ? {} : { default: value }) }] })], keywords: [],
+    })));
+  }
+});
+
+it('compiler-materialized native defaults agree after canonical codec normalization', () => {
+  const model: ArtifactModel = { name: TODO, deleteMode: 'remove', fields: [
+    { name: 'amount', field: { kind: 'decimal' }, required: false, serverOnly: false,
+      default: { kind: 'literal', value: '1.50' }, min: '0.00' },
+    { name: 'states', field: { kind: 'enum', values: ['open', 'closed'] }, valueType: 'enum(open,closed)[]',
+      array: { required: false }, required: false, serverOnly: false, default: { kind: 'literal', value: ['open'] } },
+  ] };
+  const converted = artifactToDescriptorSet(sliceWith([model], { traits: [traitInstance({ target: TODO, fields: [
+    { name: 'amount', type: 'decimal', trim: false, default: '1.5', min: '0' },
+    { name: 'states', type: 'enum(open,closed)[]', trim: false, default: '[open]' },
+  ] })], keywords: [] }));
+  assert.deepEqual(Object.keys(converted.set.models[0]!.fields), ['amount', 'states']);
+  assert.deepEqual(converted.set.models[0]!.fields['amount']!.default, { kind: 'literal', value: '1.50' });
+});
+
+it('native constraint templates preserve exact scalar bounds and array defaults', () => {
+  const model: ArtifactModel = { name: TODO, deleteMode: 'remove', fields: [
+    { name: 'count', field: { kind: 'integer' }, valueType: 'int', required: true, serverOnly: false, min: '9007199254740992' },
+    { name: 'states', field: { kind: 'enum', values: ['open', 'closed'] }, valueType: 'enum(open,closed)[]',
+      array: { required: false }, required: false, serverOnly: false, default: { kind: 'literal', value: ['open'] }, max: 4 },
+  ] };
+  const converted = artifactToDescriptorSet(sliceWith([model], { traits: [
+    traitInstance({ target: `${TODO}.count`, fields: [{ name: 'value', type: 'int', trim: false, min: '9007199254740993', max: '9223372036854775807' }] }),
+    traitInstance({ target: `${TODO}.states`, fields: [{ name: 'value', type: 'enum(open,closed)[]', trim: false, default: '[open]', max: '2' }] }),
+  ], keywords: [] }));
+  const fields = converted.set.models[0]!.fields;
+  assert.equal(fields['count']!.min, '9007199254740993');
+  assert.equal(fields['count']!.max, '9223372036854775807');
+  assert.deepEqual(fields['states']!.default, { kind: 'literal', value: ['open'] });
+  assert.equal(fields['states']!.max, 2);
+});
 
 /** Saved-implementation fixture: NFKC-normalize, then lowercase. */
 function canonicalKey(value: string): string {
@@ -346,7 +500,7 @@ describe('BGI-08 loader: trait fold', () => {
     // Types outside the v1 runtime set refuse explicitly.
     error = await captureArtifactError(() => loadArtifactDescriptors(
       sliceWith([base], {
-        traits: [traitInstance({ target: QUOTE, trait: 'rich', fields: [{ name: 'file', type: 'file', default: '"x"', trim: false }] })],
+        traits: [traitInstance({ target: QUOTE, trait: 'rich', fields: [{ name: 'bytes', type: 'bytes', default: '"x"', trim: false }] })],
         keywords: [],
       }),
       { by: 'members' },

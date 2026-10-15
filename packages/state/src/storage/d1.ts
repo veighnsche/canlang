@@ -346,6 +346,11 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
     async readRevision(): Promise<Revision> {
       return readRevisionInner(db);
     },
+    async uniqueOwner(model, keyName, keyValue): Promise<RecordId | null> {
+      const claim = await db.prepare('SELECT record_id FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?')
+        .bind(model, keyName, keyValue).first<{ record_id: string }>();
+      return claim === null ? null : claim.record_id as RecordId;
+    },
 
     async cohortIdentityPage(input: CohortIdentityPageRequest): Promise<ReadonlyArray<RecordId>> {
       input = captureCohortRequest(input, 'identity');

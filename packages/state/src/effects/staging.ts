@@ -23,10 +23,13 @@ import type {
   OperationName,
   OutboxIntent,
   RecordId,
+  StoredRow,
   ScheduleOp,
   UniqueClaim,
   UniqueRelease,
 } from '@canlang/contracts';
+import { canonicalUniqueScopeValue } from '../internal/unique-value.js';
+import type { ModelTable } from '../mutation/models.js';
 import { decodeValue } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { checkJsonSafe, jsonClone } from '../internal/json.js';
@@ -411,6 +414,31 @@ export interface GivenUniqueKeyRule {
   readonly evaluate: (value: string) => string | Promise<string>;
 }
 
+/** Pure checks observe only a required normalized text value. */
+export interface GivenFieldValidationRule {
+  readonly rule: string;
+  readonly field: string;
+  readonly evaluate: (value: string) => boolean | Promise<boolean>;
+}
+
+/** Shared by canonical writes, staged-schema validation and isolated fixtures. */
+export async function validateGivenFields(
+  rules: ReadonlyArray<GivenFieldValidationRule>,
+  data: Readonly<Record<string, unknown>>,
+  consumeWork?: () => void,
+): Promise<void> {
+  for (const rule of rules) {
+    consumeWork?.();
+    const input = Object.getOwnPropertyDescriptor(data, rule.field);
+    const invalid = (): StateError => new StateError('validation', `Invalid field ${JSON.stringify(rule.field)}: generated field validation failed.`);
+    if (input === undefined || !('value' in input) || typeof input.value !== 'string') throw invalid();
+    let result: unknown;
+    try { result = await rule.evaluate(input.value); }
+    catch { throw invalid(); }
+    if (result !== true) throw invalid();
+  }
+}
+
 /** BGI-08 State-owned claim namespace for one computed-key rule. */
 export function givenUniqueKeyName(rule: string): string {
   return `given:${rule}`;
@@ -524,7 +552,7 @@ export async function diffGivenUniqueKeys(
 }
 
 /** BGI-08 one installed row for installation/activation planning. */
-export interface GivenUniqueKeyInstallRow {
+export interface GivenUniqueKeyInstallRow extends Pick<StoredRow, 'parent'> {
   readonly model: ModelName;
   readonly id: RecordId;
   readonly data: Readonly<Record<string, unknown>>;
@@ -542,10 +570,13 @@ export interface GivenUniqueKeyInstallRow {
  * schema/claims trivially. Callers planning changed code pass the NEW
  * saved export as the rules' evaluator; a fingerprint mismatch between the
  * checked binding and the resolved module must refuse before planning.
+ * Contained rows require the checked model table and actual stored parent;
+ * the pure saved export never selects its uniqueness scope.
  */
 export async function planGivenUniqueKeyInstall(
   rulesByModel: ReadonlyMap<ModelName, ReadonlyArray<GivenUniqueKeyRule>>,
   rows: ReadonlyArray<GivenUniqueKeyInstallRow>,
+  models?: ModelTable,
 ): Promise<{ readonly claims: UniqueClaim[] }> {
   const scope = createGivenUniqueKeyScope();
   try {
@@ -554,7 +585,12 @@ export async function planGivenUniqueKeyInstall(
     for (const row of rows) {
       const rules = rulesByModel.get(row.model) ?? [];
       for (const rule of rules) {
-        const key = await scope.evaluate(rule, row.data[rule.field]);
+        const definition = models?.get(row.model);
+        if (models !== undefined && definition === undefined || models === undefined && row.parent != null) {
+          throw new StateError('validation', 'Computed-key installation needs its checked model ownership table.');
+        }
+        const evaluated = await scope.evaluate(rule, row.data[rule.field]);
+        const key = definition === undefined ? evaluated : canonicalUniqueScopeValue(row, evaluated, definition);
         if (key === null) continue;
         const identity = JSON.stringify([row.model, givenUniqueKeyName(rule.rule), key]);
         const first = seen.get(identity);

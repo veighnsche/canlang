@@ -501,6 +501,9 @@ function buildMemoryStorage(state: MemoryState, authority?: FileRetirementAuthor
     async readRevision(): Promise<Revision> {
       return state.revision as Revision;
     },
+    async uniqueOwner(model, keyName, keyValue): Promise<RecordId | null> {
+      return (state.uniqueClaims.get(claimKey(model, keyName, keyValue)) as RecordId | undefined) ?? null;
+    },
 
     async cohortIdentityPage(request) {
       const input = captureCohortRequest(request, 'identity');

@@ -39,9 +39,7 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
   if (group === undefined) {
     if (key.includes(',')) throw new StateError('validation', 'Composite unique lacks its checked table profile.');
     const value = canonicalUniqueFieldValue(row.data[key], key, def.model, def.fields[key]);
-    if (value === null || def.containment?.parent === undefined) return value;
-    const parent = uniqueParentScope(row, def);
-    return JSON.stringify(['field', parent, value]);
+    return canonicalUniqueScopeValue(row, value, def);
   }
   const invalid = (): never => {throw new StateError('validation', `Invalid composite unique ${key} on ${def.model}.`);};
   const read = (name: string): unknown => {
@@ -73,8 +71,15 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
   return JSON.stringify(['ref-enum', parent, group.refModel, id, role]);
 }
 
+/** Shared scalar/computed claim scope; root namespaces retain their exact keys. */
+export function canonicalUniqueScopeValue(row: Pick<StoredRow, 'parent'>, value: string | null,
+  def: Pick<InterimModelDef, 'model' | 'containment'>): string | null {
+  if (value === null || def.containment?.parent === undefined) return value;
+  return JSON.stringify(['field', uniqueParentScope(row, def), value]);
+}
+
 /** Scope comes only from the declared containment and actual stored metadata. */
-function uniqueParentScope(row: Pick<StoredRow, 'parent'>, def: InterimModelDef): readonly string[] {
+function uniqueParentScope(row: Pick<StoredRow, 'parent'>, def: Pick<InterimModelDef, 'model' | 'containment'>): readonly string[] {
   if (row.parent == null || row.parent.model !== def.containment?.parent ||
       typeof row.parent.id !== 'string' || row.parent.id === '') {
     throw new StateError('validation', `Unique key on ${def.model} requires its actual declared parent.`);

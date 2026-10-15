@@ -74,9 +74,10 @@ import type { ModelTable } from '../mutation/models.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { noteUnexpectedFailure } from './recover.js';
 import type { RetainedSet } from './retain.js';
-import { assertMigrationUniqueSupported, canonicalUniqueRowValue } from '../internal/unique-value.js';
+import { assertMigrationUniqueSupported, canonicalUniqueRowValue, canonicalUniqueScopeValue } from '../internal/unique-value.js';
 import {
   createGivenUniqueKeyScope,
+  validateGivenFields,
   givenUniqueKeyName,
   type GivenUniqueKeyScope,
 } from '../effects/staging.js';
@@ -446,6 +447,18 @@ export async function publishStagedAndDrops(
     let retainedGiven: RetainedGivenTouches | null = null;
     const entry = await store.readMigrationProgress(plan.migrationId);
     if (entry !== null && entry.phase === 'staged') {
+      // Validate the complete staged set before the first publish chunk. The
+      // desired table comes from the same frozen implementation/schema load.
+      if ([...desiredModels.values()].some(def => (def.givenFieldValidations ?? []).length !== 0)) {
+        let cursor: Parameters<StoragePort['readStagedRows']>[1] = null;
+        for (;;) {
+          const rows = await store.readStagedRows(plan.migrationId, cursor, chunkSize);
+          if (rows.length === 0) break;
+          for (const row of rows) await validateGivenFields(desiredModels.get(row.targetModel)?.givenFieldValidations ?? [], row.data);
+          const last = rows[rows.length - 1]!;
+          cursor = { model: last.targetModel as string, recordId: last.recordId as string };
+        }
+      }
       retainedGiven = await diffRetainedGivenKeys(store, plan, oldModels, desiredModels, givenScope);
     }
     for (;;) {
@@ -652,11 +665,11 @@ async function appendStagedPublish(
   if (oldRules.length > 0 || newRules.length > 0) {
     const oldKeys = new Map<string, string | null>();
     for (const rule of oldRules) {
-      oldKeys.set(rule.rule, await givenScope.evaluate(rule, liveData[rule.field]));
+      oldKeys.set(rule.rule, canonicalUniqueScopeValue(live, await givenScope.evaluate(rule, liveData[rule.field]), oldDef));
     }
     const newKeys = new Map<string, string | null>();
     for (const rule of newRules) {
-      newKeys.set(rule.rule, await givenScope.evaluate(rule, stagedData[rule.field]));
+      newKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, stagedData[rule.field]), desiredDef));
     }
     for (const rule of oldRules) {
       const oldValue = oldKeys.get(rule.rule) ?? null;
@@ -727,7 +740,7 @@ async function appendDropPublish(
     }
   }
   for (const rule of oldDef.givenUniqueKeys ?? []) {
-    const value = await givenScope.evaluate(rule, liveData[rule.field]);
+    const value = canonicalUniqueScopeValue(drop.row, await givenScope.evaluate(rule, liveData[rule.field]), oldDef);
     if (value !== null) {
       uniqueReleases.push({
         model: drop.model as ModelName,
@@ -782,7 +795,8 @@ async function diffRetainedGivenKeys(
     }
     const oldRules = oldDef.givenUniqueKeys ?? [];
     const newRules = desiredDef.givenUniqueKeys ?? [];
-    if (oldRules.length === 0 && newRules.length === 0) {
+    const validations = desiredDef.givenFieldValidations ?? [];
+    if (oldRules.length === 0 && newRules.length === 0 && validations.length === 0) {
       continue;
     }
     let after: string | null = null;
@@ -800,13 +814,14 @@ async function diffRetainedGivenKeys(
       }
       for (const row of chunk) {
         const data = row.data as Readonly<Record<string, unknown>>;
+        await validateGivenFields(validations, data);
         const oldKeys = new Map<string, string | null>();
         for (const rule of oldRules) {
-          oldKeys.set(rule.rule, await givenScope.evaluate(rule, data[rule.field]));
+          oldKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, data[rule.field]), oldDef));
         }
         const newKeys = new Map<string, string | null>();
         for (const rule of newRules) {
-          newKeys.set(rule.rule, await givenScope.evaluate(rule, data[rule.field]));
+          newKeys.set(rule.rule, canonicalUniqueScopeValue(row, await givenScope.evaluate(rule, data[rule.field]), desiredDef));
         }
         for (const rule of oldRules) {
           const oldValue = oldKeys.get(rule.rule) ?? null;
