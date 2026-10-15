@@ -8273,6 +8273,11 @@ pub(super) fn match_stored_contract_field(
             db,
         );
     }
+    if super::scenario_create_sources::checked_stored_field_trait_modifiers(
+        ir, original, modifiers, db,
+    )? {
+        return match_stored_contract_source(ir, &original.source, member.span, db);
+    }
     for (actual, expected) in [
         (&modifiers.min, original.min.as_ref()),
         (&modifiers.max, original.max.as_ref()),
@@ -9903,7 +9908,9 @@ fn checked_created_pair<'a>(
                     .find(|field| Some(field.field) == input.field)?;
                 let actual = ir.items.get(field.field.0 as usize)?;
                 if field.name != *name
-                    || field.ty != input.ty
+                    || (field.ty != input.ty
+                        && field.ty.nullable_inner() != Some(&input.ty)
+                        && !(input.ty == ResolvedType::Null && field.ty.nullable_inner().is_some()))
                     || actual.id != field.field
                     || actual.canonical != field.canonical
                     || actual.name != field.name

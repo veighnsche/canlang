@@ -16958,3 +16958,18 @@ Four focused structural/reuse/source/refusal checks pass, with changed helper,
 occurrence, first field, return vector and supplied plan refusals. Formatting/diff
 checks pass. This is a source component acceptance; original24 and genuine mixed
 native invocation remain unqualified. No language syntax or permissions changed.
+
+
+### 2026-10-15 — match checked Given bounds and nullable create assignments
+
+Reuse the exact actually-created owning field's checked Given provenance when
+matching the same stored schema field; malformed applicable provenance refuses
+without falling back to authored bounds. Preserve ordinary stored-field matching.
+Accept the checker's existing nullable assignment forms in root-pair correspondence
+while retaining exact original field, input and IR/source types. These implement
+settled typing/default rules, not new language decisions. Three focused Given/
+reuse/default/source/nullable controls pass; the unchanged selected original CRM
+closure and saved Given emit zero diagnostics through authentic intake (1.46s).
+Probe removed. Noncreated Given carriers and actual native invocation remain
+unqualified. The preceding isolated6ef5d02c original24 run remains656 findings,
+complete/omitted0 with unchanged26 source records/catalog and no multiset change.
