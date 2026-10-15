@@ -1325,7 +1325,15 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
       bound.resultModel !== undefined && !selections.has(query.id))) return invalid('intermediate DATA query requires its checked selected-message recipe.');
   const anyQueries = new Map<string, ScenarioQueryAnyProfile>();
   for (const metadata of list(dataCopy(producer.any ?? []))) {
-    const profile = bindScenarioQueryAny(bound, metadata as ScenarioQueryAnyMetadata);
+    const any = metadata as ScenarioQueryAnyMetadata;
+    const owner = membershipProducers.get(def);
+    if ('kind' in any && any.kind === 'predicate' && any.sourceCall !== undefined &&
+        (owner === undefined || owner.app !== producer.app || stableStringify(owner.source) !== stableStringify(membershipSource(def, bound)))) {
+      return invalid('imported predicate query requires this definition actual bound owner source producer.');
+    }
+    const profile = bindScenarioQueryAny(bound, any, owner === undefined ? undefined : {
+      owner: def.name, source: membershipSource(def, bound), sites: owner.sites,
+    });
     if (bound.resultModel === undefined || selections.has(profile.queryId) || anyQueries.has(profile.queryId) ||
         readPolicies === undefined || !('grants' in readPolicies.get(profile.model)!)) return invalid('ANY requires its contained created-model consumer and original source grants.');
     anyQueries.set(profile.queryId, profile);

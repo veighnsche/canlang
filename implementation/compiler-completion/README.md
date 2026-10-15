@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 State helper-source association (2026-10-15, implemented/tested).**
+A predicate query selects its exact call in the actual private owner-membership
+census; logical helper bytes retain their path/hash while module identifies the
+physical caller emission. Missing/forged associations refuse. Normal State build
+and70 focused checks pass, including actual candidate membership and revocation.
+Compiler/CF must still attest Query/Lambda→queryId and issue the original callback
+for its actual c; neither a copied source field nor metadata activates execution.
+
 **C02 PaymentState identity (2026-10-15, implemented/tested).**
 The declared catalog owner survives the existing StdNominal path, closing the
 structural-object identity gap behind ProviderReceipt. Two CLI/installed-codec

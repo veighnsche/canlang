@@ -6,9 +6,11 @@ import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { copyScenarioFileData } from './scenario-file-assignment.js';
 import { stableStringify } from './replay.js';
+import { checkScenarioReceiptMembershipSites, type ScenarioReceiptMembershipSite } from './scenario-membership-plan.js';
 
 export type ScenarioQueryAnyMetadata = { readonly queryId: string; readonly dependencyId: string } |
-  { readonly kind: 'predicate'; readonly queryId: string; readonly dependencyIds: readonly string[] };
+  { readonly kind: 'predicate'; readonly queryId: string; readonly dependencyIds: readonly string[];
+    readonly sourceCall?: { readonly siteIndex: number; readonly callIndex: number } };
 interface StoredBoolAnyProfile {
   readonly kind?: never;
   readonly queryId: string; readonly dependencyId: string;
@@ -25,6 +27,12 @@ export type ScenarioQueryAnyProfile = StoredBoolAnyProfile | PredicateAnyProfile
 type Bound = { readonly valueSchema?: NormalizedSchema | undefined; readonly plan: ScenarioResultDisclosurePlan;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonicalModels: readonly CanonicalModelDescriptor[] };
+/** Data-only validation input. Actual query installation obtains these facts
+ * only from State's already-bound private owner membership producer. */
+export interface ScenarioPredicateAnySources {
+  readonly owner: string; readonly source: ScenarioReceiptQueryPlan['source'];
+  readonly sites: readonly ScenarioReceiptMembershipSite[];
+}
 const profiles = new WeakSet<ScenarioQueryAnyProfile>();
 const fail = (message: string): never => { throw new StateError('validation', `Scenario query ANY: ${message}`); };
 const same = (a: unknown, b: unknown) => stableStringify(a) === stableStringify(b);
@@ -36,13 +44,13 @@ function closed(value: unknown, keys: readonly string[]): Record<string, unknown
 
 /** Root additionally checks the admitted parameter's required versioned input.
  * Compiler/Dev owns exact builtin/lambda/getter source correspondence. */
-export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { dependencyId: string }>): StoredBoolAnyProfile;
-export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>): PredicateAnyProfile;
-export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMetadata): ScenarioQueryAnyProfile;
-export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMetadata): ScenarioQueryAnyProfile {
+export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { dependencyId: string }>, sources?: ScenarioPredicateAnySources): StoredBoolAnyProfile;
+export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>, sources?: ScenarioPredicateAnySources): PredicateAnyProfile;
+export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMetadata, sources?: ScenarioPredicateAnySources): ScenarioQueryAnyProfile;
+export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMetadata, sources?: ScenarioPredicateAnySources): ScenarioQueryAnyProfile {
   try {
     const copied = copyScenarioFileData(metadata) as ScenarioQueryAnyMetadata;
-    if ('kind' in copied && copied.kind === 'predicate') return bindPredicateAny(bound, copied);
+    if ('kind' in copied && copied.kind === 'predicate') return bindPredicateAny(bound, copied, sources);
     const input = closed(copied, ['queryId', 'dependencyId']);
     if (typeof input.queryId !== 'string' || !input.queryId || typeof input.dependencyId !== 'string' || !input.dependencyId) return fail('owning occurrence identities required.');
     const plan = copyScenarioFileData(bound.plan) as ScenarioResultDisclosurePlan;
@@ -80,16 +88,20 @@ export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMet
 }
 
 /** The installed producer, not this transport profile, authenticates the
- * executable source/capture. The finite profile is a same-source root query;
- * imported helper chains need their own checked producer association. */
-function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>): PredicateAnyProfile {
-  const input = closed(copyScenarioFileData(metadata), ['kind', 'queryId', 'dependencyIds']);
+ * executable source/capture. Imported helper chains additionally require the actual private owner
+ * census; executable Query/Lambda correspondence remains with that producer. */
+function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>,
+  sources?: ScenarioPredicateAnySources): PredicateAnyProfile {
+  const input = closed(copyScenarioFileData(metadata), ['kind', 'queryId', 'dependencyIds',
+    ...(Object.hasOwn(metadata, 'sourceCall') ? ['sourceCall'] : [])]);
   if (input.kind !== 'predicate' || typeof input.queryId !== 'string' || !input.queryId ||
       !Array.isArray(input.dependencyIds) || input.dependencyIds.length === 0) return fail('exact predicate CONTROL census required.');
   const query = bound.plan.queries?.find(query => query.id === input.queryId);
   if (query === undefined || query.parent !== undefined || query.order.length !== 0 || query.limit !== null ||
-      query.archived !== 'exclude' || !same(query.source, bound.plan.source) ||
-      !same(input.dependencyIds, query.dependencies.map(dependency => dependency.id))) return fail('exact same-source root predicate query required.');
+      query.archived !== 'exclude' ||
+      !same(input.dependencyIds, query.dependencies.map(dependency => dependency.id))) return fail('exact root predicate query and ordered CONTROL census required.');
+  if (Object.hasOwn(input, 'sourceCall')) checkPredicateSourceCall(bound, query, input.sourceCall, sources);
+  else if (!same(query.source, bound.plan.source)) return fail('imported predicate requires its actual owner source-call association.');
   const model = bound.artifactModels.get(query.model), canonical = bound.canonicalModels.find(model => model.name === query.model);
   if (model === undefined || canonical === undefined || model.parent !== undefined) return fail('declared root query model required.');
   for (const dependency of query.dependencies) {
@@ -113,6 +125,34 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   const profile = deepFreeze({ kind: 'predicate' as const, queryId: query.id, dependencyIds: [...metadata.dependencyIds],
     model: query.model, source: query.source, query: copyScenarioFileData(query) as ScenarioReceiptQueryPlan });
   profiles.add(profile); return profile;
+}
+
+/** Source grammar is checked against the already authenticated owner census.
+ * Query/Lambda node -> queryId correspondence remains Compiler/CF's private
+ * callback attestation; the query plan has no source-node intervals. */
+function checkPredicateSourceCall(bound: Bound, query: ScenarioReceiptQueryPlan, selector: unknown,
+  sources: ScenarioPredicateAnySources | undefined): void {
+  const selected = closed(selector, ['siteIndex', 'callIndex']);
+  if (!Number.isSafeInteger(selected.siteIndex) || (selected.siteIndex as number) < 0 ||
+      !Number.isSafeInteger(selected.callIndex) || (selected.callIndex as number) < 0 || sources === undefined) return fail('actual owner source-call indices required.');
+  const actual = closed(copyScenarioFileData(sources), ['owner', 'source', 'sites']) as unknown as ScenarioPredicateAnySources;
+  const sites = checkScenarioReceiptMembershipSites(actual.sites), site = sites[selected.siteIndex as number];
+  const call = site?.calls[selected.callIndex as number];
+  if (site === undefined || call === undefined || site.owner !== actual.owner ||
+      !same(site.source, actual.source) || !['leading-require', 'body-require'].includes(site.stage) ||
+      actual.source.path !== bound.plan.source.path || actual.source.sha256 !== bound.plan.source.sha256 ||
+      call.target.kind !== 'builtin' || call.target.id !== 'any' || call.target.overload !== 0 ||
+      call.source.path !== query.source.path || call.source.sha256 !== query.source.sha256 ||
+      query.source.module !== bound.plan.source.module || call.arguments.length !== 2 || call.slots.length !== 2 ||
+      call.slots[0] === null || call.slots[1] === null || call.defaults.length !== 0) return fail('exact owning Require collection call and helper source required.');
+  const domain = call.arguments[call.slots[0]!], predicate = call.arguments[call.slots[1]!];
+  const inside = (node: { readonly start: number; readonly end: number }) => node.start >= call.node.start && node.end <= call.node.end;
+  if (domain?.type !== `${query.model}[]` || predicate?.type !== 'bool' || !inside(domain.node) || !inside(predicate.node) ||
+      call.chain.length === 0 || !same(call.chain[0]!.source, site.source)) return fail('original Model domain, predicate slots and outer helper chain required.');
+  for (const [index, frame] of call.chain.entries()) {
+    if (!site.calls.some(parent => parent.target.kind === 'derive' && parent.target.name === frame.derive &&
+        same(parent.source, frame.source) && same(parent.node, frame.node) && same(parent.chain, call.chain.slice(0, index)))) return fail('helper chain must retain each actual caller derive occurrence.');
+  }
 }
 
 /** Validate the retained lazy prefix; suffix rows were not predicate reads.
