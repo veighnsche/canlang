@@ -10,6 +10,17 @@ previous resolver. Fresh CLI/captured-module checks preserve sibling input types
 and release defaults. Original24-source capture is pending; the 37 candidate
 occurrences are not yet credited as removed or as ingress workflow acceptance.
 
+**Original24 qualification after these compiler prerequisites (2026-10-15).**
+Frozen exact original24 sources finish in390.31s, exit10, complete=true, omitted=0:
+666 diagnostics (640 E6008,26 E6007), no usable artifact. Full diagnostic comparison
+against the prior701 removes exactly35 declared-event input-carrier refusals and
+adds none; original24 source hashes are identical. Eleven event-carrier refusals
+remain; the earlier37 faulty-owner candidates were not37 accepted removals.
+Source-seal/inventory and State slices remain prerequisites, not imported can_work
+execution acceptance. Cloudflare type checking against the new State API passes.
+Continue the exact helper query census/source consumer/native join and remaining
+ready root causes; this qualification is a checkpoint, not completion.
+
 **C02 State predicate ANY receiving (2026-10-15, implemented/tested prerequisite).**
 Exact installed once-captured callbacks now run through the existing lazy receipt
 query path with same-source root profiles, mandatory first CONTROL proof and
@@ -125,8 +136,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **701 errors**:
-**675 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **666 errors**:
+**640 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -153,7 +164,7 @@ are not independent feature tasks:
 | Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
 | Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
-| Declared event input carriers | 46 | Remaining owning operation-input correspondence; 22 dependent refusals close after the complete source-associated standard inventory becomes available. |
+| Declared event input carriers | 11 | Exact capability-event owner paths close 35 of the prior 46 occurrences. Remaining field/type/source correspondence stays required; URL/inline enum inventory and standard PaymentState identity are ready defining gaps. |
 | Hook query/context/derive/effects | 76 | Original event snapshots, clock, query context and atomic effects. |
 | Installed producer contracts | 26 E6007 | 25 missing catalog checks across 17 bound capabilities; one external active_member entry in the supplied Values catalog. No invented bindings. |
 
