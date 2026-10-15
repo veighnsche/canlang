@@ -17244,3 +17244,10 @@ Normal isolated State and Cloudflare builds pass. All36 affected State source-po
 ## 2026-10-15 — canonical role arrays in table callers
 
 Accepted mechanical correction: table `as` role arrays use the same canonical declared role identities as single-role callers, including imported aliases. Decode these static references only in the checked example caller position; ordinary executable role-value semantics do not change. Existing checker refusals remain for self/public/authenticated, strings and nested arrays in role lists. Owning actual CLI→emitted example→installed Testkit check passes1/.94s: distinct same-named foreign roles stay distinct and roles select the same self/current team. Native original CRM six-case validation is the separate next consumer.
+
+
+## 2026-10-15 — table role arrays reach the existing membership caller
+
+Accepted mechanical adapter: real Testkit table loading copies dense own role-string array cells into the existing membership caller, preserving order, self identity and current team. Empty checked role arrays select ordinary self membership; existing resolveCaller empty-membership API refusal remains unchanged. Cross-realm arrays work; sparse, accessor, extra-key, nested, nonstring and account-selector members fail setup. Role declaration identity remains the existing compiler responsibility, as for single-role cells.
+
+The existing runtime membership representation supported multiple roles, but the table-cell adapter was missing; the earlier JEV context overstated that receiving implementation. The source choice remains supported by the established checked table role-array form and does not add a production grant. Actual suite-loader/resolveCaller controls plus existing accounts controls pass6/.404s; normal Testkit build passes. Original CRM six-case runtime qualification remains the next consumer.
