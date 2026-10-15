@@ -1090,9 +1090,9 @@ test('policy claim, module and nested metadata accessors refuse without executio
 });
 
 
-test('checked email/timezone metadata retains owning codecs in artifact and canonical admission', async () => {
+test('checked email/timezone/URL metadata retains owning codecs in artifact and canonical admission', async () => {
   for (const [base, valid, invalid] of [['email', 'a@example.test', 'not-email'],
-    ['timezone', 'Europe/Brussels', 'Not/A_Zone']] as const) {
+    ['timezone', 'Europe/Brussels', 'Not/A_Zone'], ['url', 'https://example.test/path', 'not-a-url']] as const) {
     for (const array of [false, true]) for (const nullable of [false, true]) {
       const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
       const markers = { nullable, ...(array ? { array: { required: false } } : {}) };
@@ -1142,6 +1142,14 @@ test('checked email/timezone metadata retains owning codecs in artifact and cano
       incompatible(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [
         { ...raw.operations![0]!.inputs.fields[0]!, nullable: !nullable },
       ] } }] }, opts));
+      if (base === 'url') {
+        for (const altered of [
+          { field: { kind: 'integer' } }, { nullable: !nullable },
+          { array: array ? undefined : { required: false } }, { valueType: 'url[][]' },
+        ]) incompatible(() => loadArtifactDescriptors({ ...raw, models: [{ ...raw.models![0]!, fields: [
+          { ...raw.models![0]!.fields[0]!, ...altered },
+        ] }] } as ArtifactDescriptorSlice, opts));
+      }
     }
   }
 });

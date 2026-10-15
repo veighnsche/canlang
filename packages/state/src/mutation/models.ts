@@ -382,7 +382,7 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
   if (typeof field.valueType === 'string') {
     try {
       const parsed = parseTypeId(field.valueType);
-      const scalar = field.valueType === 'file[]!' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|email|timezone|user|file)(\[\])?\??$/.test(field.valueType);
+      const scalar = field.valueType === 'file[]!' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|email|timezone|url|user|file)(\[\])?\??$/.test(field.valueType);
       const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
         (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
           schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));

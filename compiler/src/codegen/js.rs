@@ -4108,6 +4108,7 @@ impl<'a> Emitter<'a> {
             fn context_scalar_type(ty: &ResolvedType) -> Option<String> {
                 match ty {
                     ResolvedType::Scalar(Scalar::Email) => Some("email".to_string()),
+                    ResolvedType::Scalar(Scalar::Url) => Some("url".to_string()),
                     ResolvedType::Scalar(Scalar::Timezone) => Some("timezone".to_string()),
                     ResolvedType::Nullable(inner) => {
                         context_scalar_type(inner).map(|name| format!("{name}?"))
