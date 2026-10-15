@@ -5637,6 +5637,7 @@ async function createContainmentNavigation(input: {
     projectSource?: typeof import('@canlang/state/query').projectCurrentRecordForViewerSourcePolicies;
     observe?: typeof import('@canlang/state/query/engine').queryRecordsObserved;
     by: typeof import('@canlang/state/policy/roles').evaluateBy;
+    presence: typeof import('@canlang/state/query/engine').queryRecordSourcePresence;
   }> | undefined;
   const viewer = () => viewerProducers ??= (async () => {
     const query = await loadProducerModule('@canlang/state/query/engine', 'containment viewer projection');
@@ -5644,6 +5645,8 @@ async function createContainmentNavigation(input: {
     const source = sourceReads === undefined ? undefined :
       await loadProducerModule(STATE_QUERY_SPECIFIER, 'containment installed source projection');
     return {
+      presence: requireProducerFn(query, 'queryRecordSourcePresence', 'native viewer field presence') as
+        typeof import('@canlang/state/query/engine').queryRecordSourcePresence,
       ...(input.sourceOwnerRows === undefined ? {} : { observe:
         requireProducerFn(query, 'queryRecordsObserved', 'containment owner-stage source projection') as
           typeof import('@canlang/state/query/engine').queryRecordsObserved }),
@@ -5857,6 +5860,15 @@ async function createContainmentNavigation(input: {
     }
   };
   const reject = (error: unknown): never => { input.failure?.(error); throw error; };
+  // Retain the issuing query's original snapshot; a second load could
+  // disagree with this exact served projection or grant observation.
+  const captureQuerySource = async (model: string, row: ProjectedRecord): Promise<void> => {
+    const presence = (await viewer()).presence(row, model as ModelName, input.revision);
+    if (presence === undefined) {
+      throw new StateError('validation', 'Native query record lacks its original field-presence association.');
+    }
+    sourcePresence.set(row, new Set(presence));
+  };
   const isWithheld = (row: StoredRow | ProjectedRecord, field: string): boolean => {
     const present = sourcePresence.get(row);
     if (present !== undefined) return present.has(field) && !Object.hasOwn(row.data, field);
@@ -5885,7 +5897,7 @@ async function createContainmentNavigation(input: {
       return { model: entry.model, id: entry.row.id, version: entry.row.version };
     } catch (error) { return reject(error); }
   };
-  return { prepare, attach, revalidate, reject, isWithheld, authorizeReference, resolveRecord };
+  return { prepare, attach, revalidate, reject, isWithheld, captureQuerySource, authorizeReference, resolveRecord };
 }
 
 function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, unknown> {
@@ -7178,7 +7190,10 @@ async function runScenarioExecution(
     ...(callable?.inputStyle !== "parameters" && !trustedOwnerReads ? {} : {
       readRecords: async (model: string, query: CanonicalReadQuery) => {
         const rows = await scope.readModel(model, query);
-        for (const row of rows) await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
+        for (const row of rows) {
+          if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
+          await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
+        }
         return rows.map(row => trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
       },
     }),
@@ -7488,6 +7503,7 @@ async function runScenarioExecution(
               // retain viewer projections; verified private handlers read
               // their owning scope through its existing owner navigation.
               dependencies.push(structuredClone(row));
+              if (!trustedOwnerReads) await viewerNavigation.captureQuerySource(model, row);
               await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
               const matched = await where(trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
               if (typeof matched !== 'boolean') throw new StateError('validation', 'Mutation query predicates must return bool.');
@@ -12023,6 +12039,7 @@ async function runReadScenarioSeam(
         // Retain every granted observation before source runs, including false
         // candidates. Nested source reads retain their own domains below.
         dependencies?.push(structuredClone(row));
+        await navigation.captureQuerySource(model, row);
         await navigation.prepare(model, row);
         const matched = nativePredicate !== undefined ? await nativePredicate(row)
           : typeof where === 'function' ? await where(recordView(model, row)) : true;
@@ -12106,7 +12123,10 @@ async function runReadScenarioSeam(
     },
     readRecords: async (model, query) => {
       const rows = await scope.readModel(model, query);
-      for (const row of rows) await navigation.prepare(model, row);
+      for (const row of rows) {
+        await navigation.captureQuerySource(model, row);
+        await navigation.prepare(model, row);
+      }
       return rows.map(row => recordView(model, row));
     },
   };
@@ -12543,6 +12563,7 @@ async function queryPageRowsInScope(
   const sourceFilter: import('@canlang/state/receipt').InstalledSourceQueryPredicate | undefined =
     typeof sourceWhere !== 'function' ? undefined : original === undefined
     ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
+      await navigation!.captureQuerySource(opts.model, record);
       await navigation!.prepare(opts.model, record);
       const matched: unknown = await sourceWhere(recordView(opts.model, record));
       if (typeof matched !== 'boolean') throw new StateError('validation', 'Collection source filter must return bool.');
@@ -12925,6 +12946,7 @@ export function createPageReadScopeCanonical(
       // The unpaginated owning reader has no implicit collection limit.
       const served = await read(selection), result: Record<string, unknown>[] = [];
       for (const row of served.records) {
+        await navigation.captureQuerySource(model, row);
         await navigation.prepare(model, row);
         result.push(recordView(model, row));
       }

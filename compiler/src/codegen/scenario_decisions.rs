@@ -516,6 +516,9 @@ impl Consumer<'_> {
                 if let IrQueryDomain::Value { base, .. } = &query.domain {
                     self.expression(base, chain, stack, site, matched, depth + 1)?;
                 }
+                if let Some(order) = &query.value_order {
+                    self.expression(&order.key, chain, stack, site, matched, depth + 1)?;
+                }
                 for expression in [
                     &query.parent,
                     &query.where_pred,
@@ -1024,6 +1027,13 @@ impl SemanticJoin<'_> {
             if x.field != y.field || x.descending != y.descending {
                 return None;
             }
+        }
+        match (&a.value_order, &b.value_order) {
+            (None, None) => {}
+            (Some(x), Some(y)) if x.descending == y.descending => {
+                self.expression(&x.key, &y.key, d)?;
+            }
+            _ => return None,
         }
         match (&a.domain, &b.domain) {
             (IrQueryDomain::Model(x), IrQueryDomain::Model(y)) if x == y => {}
@@ -2427,6 +2437,7 @@ fn checked_contained_query(
         || query.contract_collection_call.is_some()
         || query.where_pred.is_some()
         || query.where_async
+        || query.value_order.is_some()
         || !query.order.is_empty()
         || query.limit.is_some()
         || query.archived.is_some()
@@ -2514,6 +2525,14 @@ fn checked_contained_query(
 
 fn checked_query(program: &CheckedProgram, query: &IrQuery) -> Option<()> {
     let source = query.source.as_deref()?;
+    if query.value_order.is_some()
+        && (matches!(query.domain, IrQueryDomain::Model(_))
+            || !query.order.is_empty()
+            || query.collection_call.is_some()
+            || query.contract_collection_call.is_some())
+    {
+        return None;
+    }
     if program.types.checked_queries.get(&source.node) != Some(source) {
         return None;
     }

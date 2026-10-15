@@ -1817,6 +1817,7 @@ pub(super) fn complete_read_query_child<'a>(
         || !query.order.is_empty()
         || scan.limit.is_some()
         || scan.archived.is_some()
+        || scan.value_order.is_some()
         || !scan.order.is_empty()
         || scan.parent.is_some()
         || scan.select.is_some()
@@ -1826,6 +1827,7 @@ pub(super) fn complete_read_query_child<'a>(
         || select.parent.is_some()
         || select.where_pred.is_some()
         || select.where_async
+        || select.value_order.is_some()
         || !select.order.is_empty()
         || select.limit.is_some()
         || select.archived.is_some()

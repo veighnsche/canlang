@@ -884,6 +884,7 @@ impl SourceExpressions<'_> {
             || query.archived.is_some()
             || query.collection_call.is_some()
             || query.contract_collection_call.is_some()
+            || query.value_order.is_some()
             || query.order.len() != 1
             || query.order[0].field != "position"
             || query.order[0].descending
@@ -967,6 +968,7 @@ impl SourceExpressions<'_> {
             || query.archived.is_some()
             || query.collection_call.is_some()
             || query.contract_collection_call.is_some()
+            || query.value_order.is_some()
             || query.order.len() != 1
             || query.order[0].field != "position"
             || query.order[0].descending
@@ -2677,6 +2679,9 @@ impl SourceExpressions<'_> {
                 let IrExpr::Query(scan) = &domain.expr else {
                     return None;
                 };
+                if scan.value_order.is_some() {
+                    return None;
+                }
                 self.expression(scan.where_pred.as_ref()?, query.predicate?, depth + 1)?;
                 true
             }

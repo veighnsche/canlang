@@ -6,6 +6,7 @@
 
 export {
   queryRecords,
+  queryRecordSourcePresence,
   queryRecordsPage,
   queryAggregate,
   type AggregateQueryResult,

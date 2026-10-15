@@ -504,6 +504,7 @@ fn serialize_query_any_prepared(
             || query.where_async
             || query.select.is_some()
             || query.select_param.is_some()
+            || query.value_order.is_some()
             || !query.order.is_empty()
             || query.limit.is_some()
             || query.archived.is_some()
@@ -849,6 +850,7 @@ fn checked_query_plan_full(
         || q.limit.is_some()
         || q.archived
         || !q.order.is_empty()
+        || scan.value_order.is_some()
         || !scan.order.is_empty()
         || scan.limit.is_some()
         || scan.archived.is_some()
@@ -860,6 +862,7 @@ fn checked_query_plan_full(
         || select.parent.is_some()
         || select.where_pred.is_some()
         || select.where_async
+        || select.value_order.is_some()
         || !select.order.is_empty()
         || select.limit.is_some()
         || select.archived.is_some()
@@ -1800,6 +1803,7 @@ fn checked_first_query_plan(
             !same_span(predicate_node, predicate.span)
                 || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
         })
+        || query.value_order.is_some()
         || query.order.len() != 1
         || query.order[0].field != "id"
         || query.order[0].descending

@@ -1717,6 +1717,9 @@ pub(super) fn checked_any_query_ir<'a>(
     let IrExpr::Query(scan) = &domain.expr else {
         return None;
     };
+    if scan.value_order.is_some() {
+        return None;
+    }
     let IrExpr::Lambda { param, body } = &predicate.expr else {
         return None;
     };
@@ -2424,6 +2427,7 @@ fn checked_inline_selection_ir<'a>(
         || query.where_pred.as_deref()?.span != node_span(fact.query.predicate?)
         || query.parent.as_deref()?.span != node_span(fact.parent.node)
         || query.select.as_deref()?.span != node_span(fact.select)
+        || query.value_order.is_some()
         || query.order.len() != 1
         || query.order[0].field != fact.order_dependency.field_name
         || query.order[0].descending
@@ -3185,6 +3189,9 @@ pub(super) fn checked_count_query_ir<'a>(
     let IrExpr::Query(scan) = &domain.expr else {
         return None;
     };
+    if scan.value_order.is_some() {
+        return None;
+    }
     let parent = scan.parent.as_deref()?;
     let parameter = checked_count_query_parent(ir, owner, query, db)?;
     let IrItemKind::Param {
@@ -3374,6 +3381,9 @@ fn checked_ancestor_count_query_operands<'a>(
     let IrExpr::Query(scan) = &domain.expr else {
         return None;
     };
+    if scan.value_order.is_some() {
+        return None;
+    }
     let predicate = scan.where_pred.as_deref()?;
     let IrExpr::Binary {
         op: IrBinOp::And,
@@ -3891,6 +3901,9 @@ pub(super) fn checked_first_query_ir<'a>(
     let IrExpr::Query(scan) = &domain.expr else {
         return None;
     };
+    if scan.value_order.is_some() {
+        return None;
+    }
     let source = scan.source.as_deref()?;
     let collection = scan.collection_call.as_deref()?;
     let record = ResolvedType::Record {
@@ -4770,6 +4783,9 @@ fn checked_candidate_parent_association<'a>(
     let IrExpr::Query(scan) = &domain.expr else {
         return None;
     };
+    if scan.value_order.is_some() {
+        return None;
+    }
     let original = scan.source.as_deref()?;
     let collection = scan.collection_call.as_deref()?;
     let [alias, clause] = original.clauses.as_slice() else {
@@ -9329,6 +9345,7 @@ fn retained_contract_predicate<'a>(
         || query.parent.is_some()
         || query.where_pred.is_some()
         || query.where_async
+        || query.value_order.is_some()
         || !query.order.is_empty()
         || query.limit.is_some()
         || query.archived.is_some()

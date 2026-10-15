@@ -949,9 +949,33 @@ interface AuthorizedSet {
   };
 }
 
+/** Same-snapshot field names stay private to exact issued viewer records. */
+const querySourcePresence = new WeakMap<object, Readonly<{
+  model: ModelName; revision: Revision; id: RecordId; version: number; fields: readonly string[];
+}>>();
+
+function retainQuerySourcePresence(record: ProjectedRecord | StoredRow, model: ModelName,
+  revision: Revision, fields: readonly string[]): void {
+  querySourcePresence.set(record, Object.freeze({ model, revision, id: record.id,
+    version: record.version, fields: Object.freeze([...fields]) }));
+}
+
+/** Copies and edited identity tuples cannot borrow an original query's presence. */
+export function queryRecordSourcePresence(record: unknown, model: ModelName,
+  revision: Revision): readonly string[] | undefined {
+  if (typeof record !== 'object' || record === null) return undefined;
+  const captured = querySourcePresence.get(record);
+  if (captured === undefined || captured.model !== model || captured.revision !== revision) return undefined;
+  const id = Object.getOwnPropertyDescriptor(record, 'id');
+  const version = Object.getOwnPropertyDescriptor(record, 'version');
+  if (id === undefined || !('value' in id) || id.value !== captured.id ||
+      version === undefined || !('value' in version) || version.value !== captured.version) return undefined;
+  return captured.fields;
+}
+
 /** Reinterpret a projected-shaped row as its viewer record. */
 function toProjectedRecord(row: StoredRow): ProjectedRecord {
-  return {
+  const record: ProjectedRecord = {
     id: row.id,
     version: row.version,
     created: row.created,
@@ -963,6 +987,11 @@ function toProjectedRecord(row: StoredRow): ProjectedRecord {
     parent: row.parent ?? null,
     data: row.data,
   };
+  const presence = querySourcePresence.get(row);
+  if (presence !== undefined && queryRecordSourcePresence(row, presence.model, presence.revision) !== undefined) {
+    retainQuerySourcePresence(record, presence.model, presence.revision, presence.fields);
+  }
+  return record;
 }
 
 /** Reject host callbacks outside the finite viewer-record route. */
@@ -1224,6 +1253,7 @@ async function runAuthorizedQuery(
           matches.push(false); continue;
         }
         const detached = cleanCopy(projected) as ProjectedRecord;
+        retainQuerySourcePresence(detached, input.model, revision, Object.keys(row.data));
         // The source predicate sees only projected fields. Its membership
         // reads join this complete domain's coherent authority observation.
         matches.push(await evaluateInstalledReadPredicate(predicate!, detached, {
@@ -1271,11 +1301,15 @@ async function runAuthorizedQuery(
       if (projected === null) {
         continue;
       }
+      const presence = Object.freeze(Object.keys(row.data));
       const candidateIndex = observation?.candidates.length;
       const candidate = observation === undefined ? undefined : {
         row, record: cleanCopy(projected) as ProjectedRecord, matched: false,
       };
-      if (candidate !== undefined) observation!.candidates.push(candidate);
+      if (candidate !== undefined) {
+        retainQuerySourcePresence(candidate.record, input.model, revision, presence);
+        observation!.candidates.push(candidate);
+      }
       if (input.where !== undefined && !evalPredicateForRow(input.where, projected)) {
         continue;
       }
@@ -1283,6 +1317,7 @@ async function runAuthorizedQuery(
         // Copy metadata (including parent) and nested projected data again:
         // callback mutation must never alter the matched or output rows.
         const detached = cleanCopy(projected) as ProjectedRecord;
+        retainQuerySourcePresence(detached, input.model, revision, presence);
         const accepted = observation === undefined
           ? coherentPredicate ? predicateMatches![index]! : await executeUnboundReadPredicate(predicate!, detached)
           : await observation.predicate(detached, row);
@@ -1292,6 +1327,7 @@ async function runAuthorizedQuery(
         if (!accepted) continue;
       }
       const selected = { ...row, data: projected.data };
+      retainQuerySourcePresence(selected, input.model, revision, presence);
       matched.push(selected);
       if (candidate !== undefined) {
         candidate.matched = true;
