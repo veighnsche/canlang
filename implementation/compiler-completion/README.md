@@ -759,6 +759,22 @@ Assertions remain. No new source spelling, global type-name registry or complete
 application claim. Next ready local leaves are complete validated-email offer
 schema publication and the original query-backed can_work source proof.
 
+**C02/C03 validated-email Contract inventory (implemented; original capture pending).**
+The existing email codec now survives ordinary Contract publication in scalar,
+nullable and array forms. Five affected compiler checks and captured native
+D1/Identity1/1 (68.33s) pass, retaining original permission/order/failure/recovery
+assertions and adding invalid nested-email refusals. Genuine unsupported closure
+controls use timezone instead of the newly supported email leaf. No new language
+rule or JEV decision is required. Commit this small checked unit before the
+original24-source run; its latest retained report remains703 until that run ends.
+
+C02 ready receiving regression: e4c4eaab moved malformed nominal CRUD validation
+before execution, losing the original rejected receipt asserted by the ordinary
+Contract runtime check. Preserve that independent assertion and repair the owning
+phase; do not treat it as an external gate. The wider schedule check still stops
+at declared-event input-carrier refusals, the existing46-occurrence group. Both
+remain explicit local work alongside query-backed can_work.
+
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:
 

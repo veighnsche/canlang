@@ -212,7 +212,7 @@ console.log('ordinary contracts: canonical schemas, native nested/enum reads, fi
 #[test]
 fn unsupported_contract_closures_remain_unpublished_without_new_diagnostics() {
     let scratch = tempfile::tempdir().unwrap();
-    let source = SOURCE.replace("  contract Flat {different:bool}", "  contract Flat {different:bool}\n  Record {title:text}\n  contract Container {record:Record}\n  contract Wrapper {container:Container}\n  contract Private {email:email}");
+    let source = SOURCE.replace("  contract Flat {different:bool}", "  contract Flat {different:bool}\n  Record {title:text}\n  contract Container {record:Record}\n  contract Wrapper {container:Container}\n  contract Private {zone:timezone}");
     let artifact = compile(&source, scratch.path(), "unsupported");
     let contracts = artifact["valueTypes"]["contracts"].as_array().unwrap();
     for supported in ["Other.Container", "Other.Wrapper"] {
@@ -491,7 +491,7 @@ Then
     for (name, refused_source) in [
         (
             "incomplete-file-union",
-            source.replace("optional:file?", "optional:email?"),
+            source.replace("optional:file?", "optional:timezone?"),
         ),
         (
             "mixed-model-union",

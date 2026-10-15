@@ -3648,6 +3648,7 @@ impl<'a> Emitter<'a> {
                     | Scalar::Datetime
                     | Scalar::Duration
                     | Scalar::Currency
+                    | Scalar::Email
                     | Scalar::User
                     | Scalar::File,
                 ) => checked_value_profile(ty).is_some(),
@@ -15731,6 +15732,10 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::Duration), false, true) => Some("duration?"),
         (ResolvedType::Scalar(Scalar::Duration), true, false) => Some("duration[]"),
         (ResolvedType::Scalar(Scalar::Duration), true, true) => Some("duration[]?"),
+        (ResolvedType::Scalar(Scalar::Email), false, false) => Some("email"),
+        (ResolvedType::Scalar(Scalar::Email), false, true) => Some("email?"),
+        (ResolvedType::Scalar(Scalar::Email), true, false) => Some("email[]"),
+        (ResolvedType::Scalar(Scalar::Email), true, true) => Some("email[]?"),
         (ResolvedType::Scalar(Scalar::Currency), false, false) => Some("currency"),
         (ResolvedType::Scalar(Scalar::Currency), false, true) => Some("currency?"),
         (ResolvedType::Scalar(Scalar::Currency), true, false) => Some("currency[]"),
