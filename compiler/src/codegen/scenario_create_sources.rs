@@ -248,7 +248,26 @@ pub(super) fn checked_created_schema(
             }
         }
         match (default, data.default) {
-            (None, None) => {}
+            (None, None)
+                if original_field.modifier_sources.first().is_none_or(
+                    |(_, _, _, _, values)| values.iter().all(|value| value.default.is_none()),
+                ) => {}
+            (Some(IrDefault::Literal(actual)), None) => {
+                let value = original_field
+                    .modifier_sources
+                    .first()?
+                    .4
+                    .iter()
+                    .find_map(|value| value.default.as_deref())?;
+                let expected = super::ir::given_constant_expr(value, ty, field.span);
+                if actual.ty != expected.ty
+                    || actual.span != expected.span
+                    || literal_json(actual)? != literal_json(&expected)?
+                    || js_field_default(default.as_ref(), None).is_none()
+                {
+                    return None;
+                }
+            }
             (Some(IrDefault::Literal(actual)), Some(node)) => {
                 matcher.expression(actual, node, 0)?;
                 if literal_json(actual).is_none()
@@ -305,11 +324,23 @@ pub(super) fn checked_created_schema(
                 _ => return None,
             }
         }
-        if modifiers.trim != trim || modifiers.unique != unique || modifiers.machine != machine {
-            return None;
+        if original_field
+            .modifier_sources
+            .iter()
+            .any(|(_, _, _, _, given)| !given.is_empty())
+        {
+            checked_field_trait_modifiers(ir, original, original_field, modifiers, db)?;
+            if modifiers.unique != unique || modifiers.machine != machine {
+                return None;
+            }
+        } else {
+            if modifiers.trim != trim || modifiers.unique != unique || modifiers.machine != machine
+            {
+                return None;
+            }
+            matcher.optional(modifiers.min.as_ref(), minimum)?;
+            matcher.optional(modifiers.max.as_ref(), maximum)?;
         }
-        matcher.optional(modifiers.min.as_ref(), minimum)?;
-        matcher.optional(modifiers.max.as_ref(), maximum)?;
     }
     for original_field in &definition.contributed {
         checked_contributed_field(ir, model, original_field, db)?;
@@ -864,6 +895,222 @@ pub(super) fn checked_create_prefix_if(
         query_alias: None,
     };
     expressions.prefix_statement(actual, nodes.get(&node)?, 0)
+}
+
+/// Match source-owned field-trait constraints through the original reuse chain.
+/// The shared lowering helper owns Given intersection; this join only supplies
+/// authenticated declarations/constants and checks its exact emitted result.
+fn checked_field_trait_modifiers(
+    ir: &IrProgram,
+    original: &CheckedScenarioCreate,
+    field: &crate::analysis::scenario_disclosure::CheckedScenarioCreatedField,
+    actual: &super::ir::IrModifiers,
+    db: &SourceDb,
+) -> Option<()> {
+    fn bound(
+        matcher: &SourceExpressions<'_>,
+        node: NodeKey,
+        ty: &ResolvedType,
+        candidates: &[Option<&TypedExpr>],
+    ) -> Option<TypedExpr> {
+        for candidate in candidates.iter().flatten() {
+            if matcher.expression(candidate, node, 0).is_some() {
+                return Some((*candidate).clone());
+            }
+        }
+        fn literal(
+            matcher: &SourceExpressions<'_>,
+            node: &SyntaxNode,
+            ty: &ResolvedType,
+        ) -> Option<TypedExpr> {
+            let value = match node.kind {
+                SyntaxKind::Group => return literal(matcher, expressions(node).first()?, ty),
+                SyntaxKind::Literal => {
+                    let token = node
+                        .children
+                        .iter()
+                        .find_map(|part| part.token().map(|token| (part.kind, token)))?;
+                    match token.0 {
+                        SyntaxKind::Integer => {
+                            IrExpr::Int(token.1.text(matcher.text).parse().ok()?)
+                        }
+                        SyntaxKind::Decimal => IrExpr::Decimal(token.1.text(matcher.text).into()),
+                        _ => return None,
+                    }
+                }
+                SyntaxKind::Unary => {
+                    if !node.children.iter().any(|part| {
+                        part.token()
+                            .is_some_and(|token| token.text(matcher.text) == "-")
+                    }) {
+                        return None;
+                    }
+                    IrExpr::Unary {
+                        op: IrUnOp::Neg,
+                        operand: Box::new(literal(matcher, expressions(node).first()?, ty)?),
+                    }
+                }
+                _ => return None,
+            };
+            Some(TypedExpr::new(value, ty.clone(), node.span))
+        }
+        let value = literal(matcher, matcher.nodes.get(&node)?, ty)?;
+        matcher.expression(&value, node, 0)?;
+        Some(value)
+    }
+    let sources = &field.modifier_sources;
+    if sources.is_empty()
+        || sources.len() > 128
+        || sources[0].0.field != field.field
+        || sources[0].3 != field.reuse
+    {
+        return None;
+    }
+    let mut seen = HashSet::new();
+    let mut expected = super::ir::IrModifiers::default();
+    for (index, (data, origin, ty, reuse, given)) in sources.iter().enumerate().rev() {
+        if !seen.insert(data.field) || *reuse != sources.get(index + 1).map(|value| value.0.field) {
+            return None;
+        }
+        let item = ir.items.get(data.field.0 as usize)?;
+        let IrItemKind::Field {
+            owner,
+            ty: IrType::Known(actual_ty),
+            modifiers,
+            ..
+        } = &item.kind
+        else {
+            return None;
+        };
+        let owner = ir.items.get(owner.0 as usize)?;
+        if item.id != data.field
+            || item.module != owner.module
+            || item.canonical != format!("{}.{}", owner.canonical, item.name)
+            || actual_ty != ty
+        {
+            return None;
+        }
+        source(ir, origin, item.span, db)?;
+        source(ir, origin, span(data.node), db)?;
+        let (tree, diagnostics) = crate::syntax::parse(db, data.node.file);
+        if !diagnostics.is_empty() {
+            return None;
+        }
+        let mut nodes = HashMap::new();
+        let mut pending = vec![&tree];
+        while let Some(node) = pending.pop() {
+            nodes.insert(NodeKey::of(node), node);
+            pending.extend(&node.children);
+        }
+        let text = &db.get(data.node.file)?.text;
+        let authored = nodes.get(&data.node)?;
+        if authored.kind != SyntaxKind::Field
+            || authored
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Name)?
+                .span
+                != item.span
+        {
+            return None;
+        }
+        let matcher = SourceExpressions {
+            ir,
+            db,
+            original,
+            nodes: &nodes,
+            text,
+            operands: false,
+            membership_call: None,
+            query_alias: None,
+        };
+        if let Some(target) = reuse {
+            let target = ir.items.get(target.0 as usize)?;
+            let IrItemKind::Field {
+                owner: target_owner,
+                ..
+            } = target.kind
+            else {
+                return None;
+            };
+            let path = nodes
+                .get(&data.type_node)?
+                .children
+                .iter()
+                .find(|node| node.kind == SyntaxKind::Path)?;
+            let spelling = path
+                .children
+                .iter()
+                .filter(|part| part.kind == SyntaxKind::Name)
+                .map(|part| Some(part.token()?.text(text)))
+                .collect::<Option<Vec<_>>>()?
+                .join(".");
+            let (provider, name) = spelling.rsplit_once('.')?;
+            if name != target.name {
+                return None;
+            }
+            let scenario = ir
+                .items
+                .get(matcher.transcript_source()?.scenario.0 as usize)?;
+            nominal_identity(ir, scenario, target_owner, db)?;
+            reference_name(ir, owner, target_owner, provider, db)?;
+        }
+        let bound_ty = super::ir::given_bound_type(ty);
+        for modifier in &data.modifiers {
+            match (modifier.name.as_str(), modifier.value) {
+                ("trim", None) => expected.trim = true,
+                ("min" | "max", Some(node)) => {
+                    let minimum = modifier.name == "min";
+                    let candidates = if minimum {
+                        [actual.min.as_ref(), modifiers.min.as_ref()]
+                    } else {
+                        [actual.max.as_ref(), modifiers.max.as_ref()]
+                    };
+                    let value = bound(&matcher, node, &bound_ty, &candidates)?;
+                    let slot = if minimum {
+                        &mut expected.min
+                    } else {
+                        &mut expected.max
+                    };
+                    if let Some(old) = slot.as_ref() {
+                        let order = super::ir::compare_literal_bounds(&value, old)?;
+                        if (minimum && order == std::cmp::Ordering::Less)
+                            || (!minimum && order == std::cmp::Ordering::Greater)
+                        {
+                            return None;
+                        }
+                    }
+                    *slot = Some(value);
+                }
+                ("unique" | "machine", None) => {}
+                _ => return None,
+            }
+        }
+        if given.iter().any(|value| value.name != item.name) {
+            return None;
+        }
+        super::ir::apply_given_field_constraints_to(&mut expected, &bound_ty, item.span, given);
+    }
+    if actual.trim != expected.trim {
+        return None;
+    }
+    for (actual, expected) in [(&actual.min, &expected.min), (&actual.max, &expected.max)] {
+        match (actual, expected) {
+            (None, None) => {}
+            (Some(actual), Some(expected))
+                if actual.ty == expected.ty && actual.span == expected.span =>
+            {
+                match (literal_json(actual), literal_json(expected)) {
+                    (Some(actual), Some(expected)) if actual == expected => {}
+                    (None, None)
+                        if format!("{:?}", actual.expr) == format!("{:?}", expected.expr) => {}
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        }
+    }
+    Some(())
 }
 
 /// Match the same original Given field for construction and stored disclosure.
@@ -4364,6 +4611,197 @@ mod tests {
             pending.extend(node.children.iter());
         }
         panic!("guard source node")
+    }
+
+    #[test]
+    fn field_trait_defaults_and_reused_constraints_match_checked_sources() {
+        use crate::analysis::generation::{GenerationKind, discover_program};
+        use crate::analysis::generation_intake::{AssociationKey, UnitKind};
+        use crate::analysis::types::{GivenSavedUnit, check_given_contract_tables};
+        for (reused, authored_default) in [(false, false), (false, true), (true, true)] {
+            let source = if reused {
+                "package Limits\n Given\n  trait floor $\"Default two with bounds one through ten.\"\n  export Bounded {quantity:int floor}\n When\n Then\napp GivenField\nuse Limits {Bounded as Alias}\nGiven\n Item {quantity:Alias.quantity=7 min=3 max=9}\n Other {quantity:int}\nWhen\n scenario pick() -> Item by=members\n  require true\n  do\n   create Item {} as item\n   return item\nThen\n"
+            } else {
+                "app GivenField\nGiven\n trait floor $\"Default two with bounds one through ten.\"\n Item {quantity:int floor}\n Other {quantity:int}\nWhen\n scenario pick() -> Item by=members\n  require true\n  do\n   create Item {} as item\n   return item\nThen\n"
+            };
+            let source = if authored_default && !reused {
+                source.replace("quantity:int floor", "quantity:int=2 min=0 max=99 floor")
+            } else {
+                source.into()
+            };
+            let mut db = SourceDb::new();
+            let file = db.add("field-trait.can".into(), source.into());
+            let (initial, _) = crate::analysis::check_program(&db, &[file], None);
+            let found = discover_program(&db, initial.checked_files());
+            let mut saved = HashMap::new();
+            for descriptor in found
+                .descriptors
+                .iter()
+                .filter(|value| value.kind == GenerationKind::NamedTrait)
+            {
+                let label = descriptor.label.as_deref().unwrap();
+                let (default, min, max) = if label == "floor" {
+                    (2, 1, 10)
+                } else {
+                    (5, 4, 8)
+                };
+                let carrier = db.add(
+                    format!("saved/{label}.can"),
+                    format!(
+                        "app {}\nGiven\n {label} {{value:int={default} min={min} max={max}}}\n",
+                        descriptor.owner
+                    ),
+                );
+                saved.insert(
+                    AssociationKey {
+                        owner: descriptor.owner.clone(),
+                        kind: UnitKind::NamedTrait,
+                        label: descriptor.label.clone(),
+                        anchor: descriptor.anchor.clone(),
+                    },
+                    GivenSavedUnit {
+                        unit_id: label.into(),
+                        contributions: Some(carrier),
+                        implementation_js: None,
+                        implementation_imports: Vec::new(),
+                        declaration: None,
+                    },
+                );
+            }
+            let (given, diagnostics) = check_given_contract_tables(&db, &initial, &saved);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let (checked, diagnostics) =
+                crate::analysis::check_program_with_given(&db, &[file], None, Some(&given));
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let (ir, diagnostics) = super::super::ir::build(&checked, &db, None);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "GivenField.pick")
+                .unwrap();
+            let original = ir.scenario_disclosures[&owner.id]
+                .source_facts()
+                .unwrap()
+                .creates
+                .as_ref()
+                .unwrap()[0]
+                .clone();
+            let field = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "GivenField.Item.quantity")
+                .unwrap()
+                .id;
+            let other = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "GivenField.Other")
+                .unwrap()
+                .id;
+            let accepts = |candidate: &IrProgram| {
+                let models = Emitter::source_models(candidate, &db)?;
+                checked_created_schema(
+                    candidate,
+                    &candidate.items[owner.id.0 as usize],
+                    &models,
+                    &original,
+                    &db,
+                )
+            };
+            let IrItemKind::Field {
+                modifiers: original_modifiers,
+                ..
+            } = &ir.items[field.0 as usize].kind
+            else {
+                unreachable!()
+            };
+            assert!(
+                checked_field_trait_modifiers(
+                    &ir,
+                    &original,
+                    &original.definition.fields[0],
+                    original_modifiers,
+                    &db
+                )
+                .is_some(),
+                "field-trait modifier gate reused={reused} authored={authored_default}"
+            );
+            assert!(
+                accepts(&ir).is_some(),
+                "checked field trait default/bounds, including aliased reusable source field reused={reused} authored={authored_default}"
+            );
+            let IrItemKind::Field {
+                default: Some(IrDefault::Literal(value)),
+                modifiers,
+                ..
+            } = &ir.items[field.0 as usize].kind
+            else {
+                panic!("effective field");
+            };
+            assert!(
+                matches!(value.expr, IrExpr::Int(actual) if actual == if reused {7} else {2}),
+                "authored receiving default wins and inherited defaults do not replace it"
+            );
+            assert!(
+                matches!(modifiers.min.as_ref().unwrap().expr, IrExpr::Int(actual) if actual == if reused {3} else {1})
+            );
+            assert!(
+                matches!(modifiers.max.as_ref().unwrap().expr, IrExpr::Int(actual) if actual == if reused {9} else {10})
+            );
+            assert_eq!(
+                value.span,
+                original.definition.declaration.fields[0]
+                    .default
+                    .map(span)
+                    .unwrap_or(ir.items[field.0 as usize].span),
+                "authored default source wins when present; Given defaults retain the receiving field attachment"
+            );
+            for mutation in 0..6 {
+                let mut changed = ir.clone();
+                let IrItemKind::Field {
+                    default,
+                    modifiers,
+                    owner: field_owner,
+                    ..
+                } = &mut changed.items[field.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                match mutation {
+                    0 => {
+                        let Some(IrDefault::Literal(value)) = default else {
+                            unreachable!()
+                        };
+                        value.expr = IrExpr::Int(99);
+                    }
+                    1 => modifiers.min.as_mut().unwrap().expr = IrExpr::Int(0),
+                    2 => modifiers.max.as_mut().unwrap().expr = IrExpr::Int(99),
+                    3 => *field_owner = other,
+                    4 => changed.items[field.0 as usize].span.start += 1,
+                    _ if reused => {
+                        changed
+                            .modules
+                            .iter_mut()
+                            .find(|module| module.name == "GivenField")
+                            .unwrap()
+                            .imports[0]
+                            .members[0]
+                            .1 = "Forged".into();
+                    }
+                    _ => {
+                        let Some(IrDefault::Literal(value)) = default else {
+                            unreachable!()
+                        };
+                        value.span.start += 1;
+                    }
+                }
+                assert!(
+                    accepts(&changed).is_none(),
+                    "checked field trait mutation {mutation} refuses"
+                );
+            }
+        }
     }
 
     #[test]

@@ -10395,28 +10395,7 @@ impl<'a> Cx<'a> {
             .get(&field)
             .map(given_bound_type)
             .unwrap_or(ResolvedType::Scalar(crate::analysis::types::Scalar::Int));
-        for constraint in constraints {
-            modifiers.trim |= constraint.trim;
-            for (slot, value, minimum) in [
-                (&mut modifiers.min, &constraint.min, true),
-                (&mut modifiers.max, &constraint.max, false),
-            ] {
-                if let Some(value) = value {
-                    let bound = given_constant_expr(value, &ty, symbol.span);
-                    if slot.as_ref().is_none_or(|old| {
-                        compare_literal_bounds(&bound, old).is_some_and(|order| {
-                            if minimum {
-                                order == std::cmp::Ordering::Greater
-                            } else {
-                                order == std::cmp::Ordering::Less
-                            }
-                        })
-                    }) {
-                        *slot = Some(bound);
-                    }
-                }
-            }
-        }
+        apply_given_field_constraints_to(modifiers, &ty, symbol.span, constraints);
     }
 
     /// Fold only representation normalization and value bounds through the
@@ -10796,10 +10775,43 @@ impl<'a> Cx<'a> {
     }
 }
 
-/// Whether a default expression stays a literal `default` value.
+/// Apply the original checked Given normalization/bounds intersection.
+pub(super) fn apply_given_field_constraints_to(
+    modifiers: &mut IrModifiers,
+    ty: &ResolvedType,
+    at: Span,
+    constraints: &[crate::analysis::types::GivenContributedField],
+) {
+    for constraint in constraints {
+        modifiers.trim |= constraint.trim;
+        for (slot, value, minimum) in [
+            (&mut modifiers.min, &constraint.min, true),
+            (&mut modifiers.max, &constraint.max, false),
+        ] {
+            if let Some(value) = value {
+                let bound = given_constant_expr(value, ty, at);
+                if slot.as_ref().is_none_or(|old| {
+                    compare_literal_bounds(&bound, old).is_some_and(|order| {
+                        if minimum {
+                            order == std::cmp::Ordering::Greater
+                        } else {
+                            order == std::cmp::Ordering::Less
+                        }
+                    })
+                }) {
+                    *slot = Some(bound);
+                }
+            }
+        }
+    }
+}
+
 /// Exact bounded literal comparison; no floating point rounding or symbolic
 /// evaluation can establish that an override narrows inherited constraints.
-fn compare_literal_bounds(left: &TypedExpr, right: &TypedExpr) -> Option<std::cmp::Ordering> {
+pub(super) fn compare_literal_bounds(
+    left: &TypedExpr,
+    right: &TypedExpr,
+) -> Option<std::cmp::Ordering> {
     fn numeric(mut value: &TypedExpr) -> Option<String> {
         let mut negative = false;
         for _ in 0..64 {
@@ -10886,6 +10898,7 @@ fn compare_literal_bounds(left: &TypedExpr, right: &TypedExpr) -> Option<std::cm
     Some(if ln { order.reverse() } else { order })
 }
 
+/// Whether a default expression stays a literal `default` value.
 fn is_literal_default(expr: &TypedExpr) -> bool {
     if super::defaults::money_default_wire(expr).is_some() {
         return true;

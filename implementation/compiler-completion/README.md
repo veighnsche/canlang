@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 native checked Given field traits (2026-10-15, source component qualified).**
+The native create-schema matcher now consumes the checked receiving field's Given
+default and exact receiver/ancestor constraint provenance. Authored receiver
+defaults retain their own source; defaults do not inherit through field reuse.
+Constraint intersection uses the existing lowering helper, with exact field/type/
+source/import-alias matching. One focused test passes for direct traits, authored
+default source and aliased Model-field reuse plus six tamper controls per case;
+eight adjacent source/seal controls pass. Formatting/diff checks pass. No checker
+syntax or permission change. Original mixed native execution still needs its
+query/guard joins; this source component does not establish full CanCRM readiness.
+
 **C02 Require-only predicate ANY consumer (2026-10-15, component qualified).**
 An exact private owning Require source-call proof may consume a predicate query
 without adding it to independent Model-result disclosure. Existing private query
