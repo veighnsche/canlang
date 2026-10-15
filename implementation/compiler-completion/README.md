@@ -2,6 +2,25 @@
 
 ## Current remainder and finite completion
 
+**C02 declared PaymentState event owner (2026-10-15, implemented/tested).**
+The provider catalog explicitly identifies the whole `Payments.changed` payload
+as PaymentState; the checker retains that owner rather than constructing an
+anonymous object. Its unchanged flattened field list equals the declared nominal
+schema. Payment identity checks pass3/3, including the original event-to-Contract
+pattern, installed codecs and source/schema refusals. No structural-to-nominal
+conversion or provider ingress admission is added. Original24 codegen recapture
+is next; the early E3001 capture below establishes the repaired regression only.
+
+**Original24 follow-up qualification (2026-10-15, type regression found).**
+The isolated3322570f CLI consumes the same26 source records (24 authored operands
+plus retained contributions) as the666-diagnostic capture, but stops before
+codegen in6.05s: exit10, complete=true, omitted=0, one E3001 at
+`CanInvoice.result` (`Payments.changed` anonymous payload into `PaymentState`).
+This is not665 diagnostic removals or a new backend baseline. Preserve the last
+666 backend census until a complete comparable codegen capture. The declared
+provider event must retain its PaymentState owner; anonymous shape conversion
+and permission changes are not repairs.
+
 **C02 leading helper source consumption (2026-10-15, implemented/tested).**
 Exact leading caller arguments/formals/Query/Lambda and ordered CONTROL source
 now join without eager predicate or membership execution. Required Contract Model

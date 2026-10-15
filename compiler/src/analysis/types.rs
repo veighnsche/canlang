@@ -5364,15 +5364,17 @@ impl<'a> Typer<'a> {
                         capability: cap.name.to_string(),
                         event: event.name.to_string(),
                         source: format!("{owner}.{}", segments.join(".")),
-                        payload: ResolvedType::Object(
-                            event
-                                .fields
-                                .iter()
-                                .map(|(name, declared)| {
-                                    (name.to_string(), std_nominal_leaf_type(declared))
-                                })
-                                .collect(),
-                        ),
+                        payload: event.payload.map(std_nominal_leaf_type).unwrap_or_else(|| {
+                            ResolvedType::Object(
+                                event
+                                    .fields
+                                    .iter()
+                                    .map(|(name, declared)| {
+                                        (name.to_string(), std_nominal_leaf_type(declared))
+                                    })
+                                    .collect(),
+                            )
+                        }),
                     },
                 );
                 return None;

@@ -16615,3 +16615,16 @@ other reusable-array bounds remain unchanged, and this grants no read or write.
 Temporary diagnostics are removed. Native query plan/emission and actual callback
 issuance remain unfinished, as does the later BodyRequire/first-query reference
 consumer. No original can_work execution or diagnostic reduction is claimed.
+
+
+### 2026-10-15 — retain the declared payment event payload owner
+
+Accepted implementation correction: the standard capability catalog names
+PaymentState as the whole Payments.changed payload. The provider contract already
+defines its flattened fields as that same value; retain its declared identity in
+the checker, as for operation results. Anonymous objects gain no nominal identity.
+The original24 follow-up exposed E3001 before codegen, so its single diagnostic
+cannot replace the retained666 backend census. Three payment identity checks
+pass, including event-to-Contract typing, schema equality and unchanged codec/
+source refusals. Provider ingress execution remains a separate gate. This is a
+settled declared-schema repair; no new language choice or JEV call is required.

@@ -1246,6 +1246,8 @@ pub struct StdOperation {
 /// type name (`CapabilityEventDecl.fields`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StdEventDecl {
+    /// Declared whole-payload owner, when the provider event carries a nominal value.
+    pub payload: Option<&'static str>,
     /// Event name, e.g. `changed`.
     pub name: &'static str,
     /// Field name to declared type name, in contract order.
@@ -1366,6 +1368,7 @@ pub const STD_PAYMENTS_V1: StdCapability = StdCapability {
         },
     ],
     events: &[StdEventDecl {
+        payload: Some("PaymentState"),
         name: "changed",
         fields: &[
             ("reference", "text"),
@@ -1622,6 +1625,7 @@ pub const STD_MAILBOX_V1: StdCapability = StdCapability {
         },
     ],
     events: &[StdEventDecl {
+        payload: None,
         name: "received",
         fields: &[("value", "IncomingEmail")],
     }],
