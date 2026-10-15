@@ -16656,3 +16656,16 @@ Employee artifact/source verification pass. Native journey remains unqualified:
 real D1 setup exposes the existing nullable-Date invariant publication gap, which
 must be repaired without dropping Employee's rule. Reuse the earlier JEV advice
 and CF component tests; this adds no language primitive or permission grant.
+
+
+### 2026-10-15 — publish checked owning Date comparison rules
+
+Accepted mechanical profile repair: direct owning Date comparisons and nullable
+Date presence reuse the existing local model-policy descriptor and original
+comparison/lazy emission. The source checker owns typing/refinement and existing
+runtime semantics own failures; introduce neither a new null-flow carrier nor
+stricter source prerequisites. Date stays outside generic arithmetic. The actual
+Employee invariant exposed this gap during native setup; original and renamed
+field rules plus six source-owner/type/operator corruptions pass in one focused
+check. Native invariant rollback/helper execution remain pending. No unsettled
+language choice or new permission primitive requires further JEV consultation.

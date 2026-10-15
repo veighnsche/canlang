@@ -469,3 +469,107 @@ fn duration_literals_fields_and_receivers_require_exact_types_without_arithmetic
         );
     }
 }
+
+#[test]
+fn owning_nullable_date_comparison_retains_checked_rule_and_field_identity() {
+    for (start, end) in [("start", "end"), ("began", "finished")] {
+        let (program, model) = rule_with_fields(
+            "Other {day:date}\n policy Other read=members",
+            &format!("row.{end}==null or row.{end}>=row.{start}"),
+            &format!(",{start}:date,{end}:date?"),
+        );
+        let predicate = &program.invariants[0].pred;
+        let fields = local_rule_fields(&program, model, predicate).unwrap();
+        assert_eq!(
+            fields
+                .iter()
+                .map(|id| program.item(*id).name.as_str())
+                .collect::<Vec<_>>(),
+            [end, start],
+            "owning first-observed dependencies retain the nullable guard before ordering"
+        );
+        let emitted = js::emit_program(&program);
+        assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+        assert!(
+            emitted.model_policies.is_some(),
+            "original Date invariant activation profile"
+        );
+        assert!(emitted.entry.js.contains("compareDate("));
+        assert!(
+            emitted.entry.js.contains("||"),
+            "existing lazy OR lowering is retained"
+        );
+        let IrExpr::Binary {
+            right: comparison, ..
+        } = &predicate.expr
+        else {
+            panic!("original OR");
+        };
+        assert!(
+            local_rule_fields(&program, model, comparison).is_some(),
+            "classification adds no nullable failure rule beyond checked source and the existing comparator"
+        );
+        let other = program
+            .items
+            .iter()
+            .find(|item| item.canonical == "LocalRule.Other")
+            .unwrap()
+            .id;
+        let end_id = fields[0];
+        for mutation in 0..6 {
+            let mut changed = program.clone();
+            match mutation {
+                0 => {
+                    let IrItemKind::Field { owner, .. } =
+                        &mut changed.items[end_id.0 as usize].kind
+                    else {
+                        unreachable!()
+                    };
+                    *owner = other;
+                }
+                1 => changed.items[end_id.0 as usize].canonical = format!("LocalRule.Other.{end}"),
+                2 => {
+                    let IrItemKind::Field { ty, .. } = &mut changed.items[end_id.0 as usize].kind
+                    else {
+                        unreachable!()
+                    };
+                    *ty = IrType::Known(ResolvedType::Scalar(Scalar::Date));
+                }
+                _ => {
+                    let IrExpr::Binary { right, .. } = &mut changed.invariants[0].pred.expr else {
+                        unreachable!()
+                    };
+                    let IrExpr::Binary { op, left, .. } = &mut right.expr else {
+                        panic!("ordering");
+                    };
+                    match mutation {
+                        3 => *op = IrBinOp::Add,
+                        4 => {
+                            let IrExpr::Member { base, .. } = &mut left.expr else {
+                                panic!("Date field");
+                            };
+                            base.ty = ResolvedType::Record {
+                                symbol: other,
+                                stored: true,
+                            };
+                        }
+                        _ => {
+                            left.expr = IrExpr::Unary {
+                                op: IrUnOp::Neg,
+                                operand: Box::new(left.as_ref().clone()),
+                            }
+                        }
+                    }
+                }
+            }
+            assert!(
+                local_rule_fields(&changed, model, &changed.invariants[0].pred).is_none(),
+                "Date source/owner/type/operator mutation {mutation} refuses"
+            );
+            assert!(
+                js::emit_program(&changed).model_policies.is_none(),
+                "Date mutation {mutation} cannot publish a local policy"
+            );
+        }
+    }
+}

@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 owning Date model rules (2026-10-15, implemented/tested prerequisite).**
+The existing local model-policy classifier accepts direct owning Date comparisons
+and nullable Date presence, retaining checked occurrence/declaration types and
+original lazy emission. Date does not enter generic arithmetic; no additional
+flow carrier or source null prerequisite is added. The focused original/renamed
+rule check passes1/1, with exact dependency order and six owner/type/path/operator
+corruptions. CLI build passes. This repairs the defining profile behind Employee's
+unchanged `end==null or end>=start` invariant; actual native rollback remains the
+next helper-fixture assertion, with installed CF output rebuilt after its pending
+exact membership occurrence selector.
+
 **C02 emitted predicate issuance (2026-10-15, implemented; native journey pending).**
 The original helper call captures its actual arguments once, then issues the lazy
 ANY callback through a module-private WeakMap with its genuine context and exact

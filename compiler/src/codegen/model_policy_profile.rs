@@ -1236,6 +1236,37 @@ pub(crate) fn checked_required_record_lock_target(
         )
 }
 
+/// Direct owning Date operands use the checked declaration/occurrence types.
+/// The existing emitter retains nullable comparison and lazy guard semantics.
+fn date_operand(
+    program: &IrProgram,
+    model: SymbolId,
+    value: &TypedExpr,
+    fields: &mut Vec<SymbolId>,
+) -> Option<()> {
+    let date = ResolvedType::Scalar(Scalar::Date);
+    if matches!(value.expr, IrExpr::Date(_)) && value.ty == date {
+        return Some(());
+    }
+    let IrExpr::Member { field, .. } = &value.expr else {
+        return None;
+    };
+    policy_row_member(value, model, field, &value.ty)?;
+    let nullable = ResolvedType::Nullable(Box::new(date.clone()));
+    let id = if value.ty == date {
+        policy_field(program, model, field, &date)
+            .or_else(|| policy_field(program, model, field, &nullable))?
+    } else if value.ty == nullable {
+        policy_field(program, model, field, &nullable)?
+    } else {
+        return None;
+    };
+    if !fields.contains(&id) {
+        fields.push(id);
+    }
+    Some(())
+}
+
 fn visit(
     program: &IrProgram,
     model: SymbolId,
@@ -1263,7 +1294,7 @@ fn visit(
         };
         if null.ty != ResolvedType::Null
             || !matches!(&read.ty, ResolvedType::Nullable(inner)
-                if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User | Scalar::Datetime)))
+                if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User | Scalar::Datetime | Scalar::Date)))
         {
             return None;
         }
@@ -1276,6 +1307,30 @@ fn visit(
             fields.push(id);
         }
         return Some(());
+    }
+    if let IrExpr::Binary { op, left, right } = &expr.expr {
+        let date = |ty: &ResolvedType| {
+            matches!(ty, ResolvedType::Scalar(Scalar::Date))
+                || matches!(ty, ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::Date))
+        };
+        if date(&left.ty) || date(&right.ty) {
+            if duration_operand
+                || expr.ty != ResolvedType::Scalar(Scalar::Bool)
+                || !matches!(
+                    op,
+                    IrBinOp::Eq
+                        | IrBinOp::Ne
+                        | IrBinOp::Lt
+                        | IrBinOp::Le
+                        | IrBinOp::Gt
+                        | IrBinOp::Ge
+                )
+            {
+                return None;
+            }
+            date_operand(program, model, left, fields)?;
+            return date_operand(program, model, right, fields);
+        }
     }
     if duration_operand {
         if expr.ty != ResolvedType::Scalar(Scalar::Duration)
