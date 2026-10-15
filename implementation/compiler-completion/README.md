@@ -139,6 +139,19 @@ disposition; nested container gates and render-gate inventory remain ready
 local implementation gaps, not new language restrictions; native/imported-
 helper/order/denial/revocation conformance still required at recorded scope.
 
+Review-3 disposition applied (2026-10-15): the repair worker found no
+missing authority fact in the UnsafePage case (person/team supplied via the
+null-short-circuiting helper, no row read, no stored-row grant implicated;
+DESIGN §0 bounded read, §9 page-denial on false), so admission from
+`9e794037` stands and the old refusal expectation is revised with the
+accepted rule — corroborated by twin admissions
+`unbound_page_guards_admit_bounded_reads` (outcome 3) and UNBOUND_PAGE
+(outcome 4) for the identical shape. Outcomes 3 (`d1c9ab1b`, 7/7
+contextual equivalence) and 4 (`9e794037`, 8/8 inventory) are implemented;
+`membership_calls` 7/7 with the twin admit blocks; all six focused suites
+(33 tests) pass in the integrated parent. Genuine defaults/server-
+initializer restrictions and independent refusals preserved.
+
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
 demanding a lane-02 catalog entry (25 E6007s); unversioned declarations and

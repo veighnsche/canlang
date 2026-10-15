@@ -154,9 +154,7 @@ fn membership_cannot_enter_direct_or_transitive_defaults() {
         "app UnsafeDefault\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\n Entry {allowed:bool=member(actor)}\nWhen\nThen\n",
         "app UnsafeDefault\nGiven\n Entry {allowed:bool=actor!=null and active_member(actor,team)}\nWhen\nThen\n",
         "app UnsafeDefault\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\n Entry {allowed:bool server=member(actor)}\nWhen\nThen\n",
-        "app UnsafeField\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:text = first([\"yes\"] as value where member(actor))??\"no\"\nWhen\nThen\n",
         "app UnsafeFieldDefault\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:bool = member(actor)\nWhen\n scenario enter(entry:Entry,allowed:bool=entry.visible) by=members\n  do let accepted=true\nThen\n",
-        "app UnsafePage\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\nWhen\nThen\n page /private title=\"Private\"\n  require member(actor)\n",
     ] {
         let (_, diagnostics) = check(source, &catalog);
         assert!(
@@ -168,6 +166,24 @@ fn membership_cannot_enter_direct_or_transitive_defaults() {
             "{source}\n{diagnostics:?}"
         );
     }
+    // A non-Boolean spelling of the same derived field admits the same bounded
+    // helper read (DESIGN §3/C03: Boolean return type does not define permission
+    // to read; outcome 4 preserves the read through the accepted bounded
+    // observer with identical order/failure rules). Twin of the bool-typed case
+    // in record_page_and_boolean_field_admit_bounded_reads_... below.
+    let text_field = "app UnsafeField\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:text = first([\"yes\"] as value where member(actor))??\"no\"\nWhen\nThen\n";
+    let (_, diagnostics) = check(text_field, &catalog);
+    assert!(diagnostics.is_empty(), "{text_field}\n{diagnostics:?}");
+    // A record-less page guard admits the same bounded helper read (DESIGN
+    // §3: pages may consume the current-membership read where the owning
+    // context supplies the required team facts, including through checked
+    // helpers; a route record never defines permission to read, per row 3 /
+    // outcome 4). Twin of unbound_page_guards_admit_bounded_reads in
+    // contextual_state_read_composition.rs and UNBOUND_PAGE in
+    // owning_source_inventory.rs.
+    let page_guard = "app UnsafePage\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\nWhen\nThen\n page /private title=\"Private\"\n  require member(actor)\n";
+    let (_, diagnostics) = check(page_guard, &catalog);
+    assert!(diagnostics.is_empty(), "{page_guard}\n{diagnostics:?}");
     let pure = "app PurePage\nGiven\n derive allowed():bool = true\nWhen\nThen\n page /public title=\"Public\"\n  require members\n  require allowed()\n  text \"Accepted\"\n";
     let (_, diagnostics) = check(pure, &catalog);
     assert!(diagnostics.is_empty(), "{pure}\n{diagnostics:?}");
