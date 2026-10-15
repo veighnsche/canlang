@@ -19060,7 +19060,11 @@ impl<'a> Cx<'a> {
                 scope.bindings.insert(name.clone(), id);
                 binding_fixtures.push(id);
             }
-            input_entries.push((name, self.decode_expr(&scope, value)));
+            let decoded = self.decode_expr(&scope, value);
+            // Nested common values need their actual checked fixtures just as
+            // direct fixture bindings do; these inputs execute for every row.
+            binding_fixtures.extend(self.s_refs(module, &decoded));
+            input_entries.push((name, decoded));
         }
         let inputs = TypedExpr::new(
             IrExpr::Object(input_entries),
@@ -19237,7 +19241,17 @@ impl<'a> Cx<'a> {
         names.dedup();
         names
             .iter()
-            .filter_map(|name| self.fixture_in_scope(module, name))
+            .filter_map(|name| {
+                // Decoding has already resolved source visibility and writes
+                // canonical s-slot keys, including imported aliases. Rejoin
+                // that exact declaration instead of resolving the key as a
+                // second source-level spelling in the consumer module.
+                self.program.symbols.iter().find_map(|symbol| {
+                    (matches!(symbol.kind, SymbolKind::Fixture { .. })
+                        && self.canonical(symbol.id) == *name)
+                        .then_some(symbol.id)
+                }).or_else(|| self.fixture_in_scope(module, name))
+            })
             .collect()
     }
 }

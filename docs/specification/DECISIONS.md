@@ -17143,3 +17143,18 @@ atomic parent-change rejection and an unrelated parent update (1/4.44s). The
 original six CRM rows pass this gate but expose four nested-selector setup errors
 and two invocation validation errors. Full-composition source correspondence is
 separately traced to global IR-diagnostic refusal and remains unfinished.
+
+
+## 2026-10-15 — retain nested common example fixture dependencies
+
+A fixture reference inside a common Contract/array input requires the same
+canonical recipe provisioning as a direct common fixture binding. Collect these
+checked reads recursively and rejoin generated canonical fixture keys to their
+actual declarations; do not resolve a canonical key again as a consumer alias.
+Keep source visibility checking at decoding and row-only dependencies isolated.
+
+The actual generated-module check passes imported aliases, nested inputs and
+exact recipe identity, with the later-row fixture excluded from common seeding
+(1/.22s). This fixes the original first4 promotion rows' missing-dependency
+producer; original six-row execution and last2 validation failures remain open.
+No Testkit fallback, replacement fixture or permission change is introduced.
