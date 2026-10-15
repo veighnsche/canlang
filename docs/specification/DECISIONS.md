@@ -15812,3 +15812,30 @@ there is no usable artifact. Original can_work body-argument authorization, requ
 pairing and whole-cohort hook preparation remain local work. Whole Contract
 equality reuses its existing machinery and still needs the actual workflow
 consumer. This component does not qualify full CanCRM or training-data authoring.
+
+
+2026-10-15 — C02/C10: admit declared model references inside root Contract inputs.
+
+Root generated calls now use the same checked nominal normalization and nested
+reference discovery already used by owner-stage calls. The exact loader-created
+definition retains its normalized input declarations privately; copied definitions
+do not gain schema provenance. Discover genuine decoded references in declared
+input/field order and load them through the existing scoped, versioned admission
+path. Repeated row identities in separate input slots retain separate paths.
+Original submitted nested versions obey the direct-reference canonical grammar.
+Root encoding follows declared Contract containers, avoiding ordinary kind/id
+field collisions, while genuine protected Values leaves retain their receiving
+pipeline. Owner-stage protected-value restrictions and finite budget remain.
+No public descriptor, permission primitive or new language rule is introduced;
+settled Contract/reference semantics apply, so no new JEV choice is needed.
+
+Normal State build and83 admission/owned-admission/owner-call checks pass. The
+new cases cover normalization and unchanged inputs, duplicate occurrences,
+protected File and ordinary kind/id siblings, malformed/missing/stale/archive
+first failure and exact storage errors, copied provenance, scoped storage and
+membership revocation/restoration. Two initial failures exposed schema-free
+encoding and noncanonical nested versions; both corrected with assertions kept.
+Compiler source correspondence, native hydrated consumers and receipt intrinsics
+remain the next explicit joins. Reuse the preceding original24-source701-error
+capture for unchanged static emission; no full composition/native acceptance
+is claimed by this State admission prerequisite.

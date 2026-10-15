@@ -137,6 +137,14 @@ export interface GeneratedOperationDef {
   readonly preparedInputs?: PreparedOperationPlan;
 }
 
+/** Same-load nominal input declarations are private admission provenance. */
+const generatedInputDeclarations = new WeakMap<GeneratedOperationDef, {
+  readonly valueSchema: NormalizedSchema; readonly modelNames: ReadonlySet<string>;
+}>();
+export function generatedCallInputDeclarations(def: GeneratedOperationDef) {
+  return generatedInputDeclarations.get(def);
+}
+
 /** True for loader-produced generated defs (never for interim defs). */
 export function isGeneratedOperationDef(
   def: InterimOperationDef | GeneratedOperationDef,
@@ -1630,6 +1638,9 @@ function loadCheckedDescriptorSet(
       // partial plan behind (the def is only registered on success).
       preparedInputs: deepFreezeLoaded(prepareDescriptorInputs(descriptor, arrayMarkers, nullableRefs)),
     };
+    if (valueSchema !== undefined) generatedInputDeclarations.set(def, {
+      valueSchema, modelNames: new Set(modelNames),
+    });
     registry.set(opName, Object.freeze(def));
   }
   if (inputArrayHints !== undefined) {

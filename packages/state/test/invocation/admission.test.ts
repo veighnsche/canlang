@@ -11,9 +11,11 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { admit, receiptIdentityFor } from '../../src/invocation/admission.js';
+import { admit, receiptIdentityFor, revalidateCommitForFence } from '../../src/invocation/admission.js';
 import { buildContext } from '../../src/invocation/context.js';
-import type { InvocationContext } from '@canlang/contracts';
+import type { CanTypeId, InvocationContext } from '@canlang/contracts';
+import { loadExecutionDescriptorSet, isGeneratedOperationDef } from '../../src/invocation/registry.js';
+import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import {
   FIXED_NOW,
@@ -553,3 +555,153 @@ function receiptIdentityParts(ctx: InvocationContext): {
     operationId: identity.operationId as string,
   };
 }
+
+/** Nominal root inputs use the same checked values schema and pending-ref
+ * paths as owner CALLs; no stored Contract field is involved. */
+function contractInputDef(prefix = 'RootContract') {
+  const customer = asModel(`${prefix}.Customer`), location = asModel(`${prefix}.Location`), contract = `${prefix}.Input`;
+  const loaded = loadExecutionDescriptorSet({ contractVersion: 1,
+    models: [customer, location].map(name => ({ name, deleteMode: 'archive' as const, fields: {} })),
+    valueTypes: { contracts: [{ name: contract, fields: [
+      { name: 'customer', type: customer }, { name: 'sameCustomer', type: customer },
+      { name: 'location', type: location }, { name: 'label', type: 'text' as CanTypeId, trim: true },
+    ] }] },
+    operations: [{ name: asOperation(OPERATION), kind: 'scenario', inputs: [
+      { name: 'before', kind: 'ref', model: location, versioned: true, required: true },
+      { name: 'input', kind: 'nominal', valueType: contract as CanTypeId, required: true },
+      { name: 'after', kind: 'ref', model: location, versioned: true, required: true },
+    ] }],
+  }, { by: 'members' });
+  const def = loaded.registry.get(OPERATION); assert.ok(def && isGeneratedOperationDef(def));
+  return { def, customer, location };
+}
+function contractInputs() {
+  const customer = { id: 'customer', version: '2' };
+  // Deliberately reverse submitted field order. The owning declaration
+  // determines the reference observation order and the canonical output.
+  return { before: { id: 'location', version: '1' }, input: {
+    label: '  Named input  ', location: { id: 'location', version: '1' },
+    sameCustomer: customer, customer,
+  }, after: { id: 'location', version: '1' } };
+}
+
+describe('root nominal Contract reference admission', () => {
+  it('normalizes once from the exact loaded declaration and admits ordered duplicate reference occurrences without changing submitted values', async () => {
+    for (const prefix of ['RootContract', 'Renamed.Declarations']) {
+      const { store, memberships, team, alice } = await setup(), { def, customer, location } = contractInputDef(prefix);
+      await seedRow(store, customer, { id: 'customer', version: 2 });
+      await seedRow(store, location, { id: 'location' });
+      const submitted = contractInputs(), retained = structuredClone(submitted), loads: string[] = [];
+      assert.equal(submitted.input.customer, submitted.input.sameCustomer, 'the original wire object is shared across distinct declared slots');
+      Object.freeze(submitted.input.customer); Object.freeze(submitted.input.sameCustomer);
+      Object.freeze(submitted.input.location); Object.freeze(submitted.input); Object.freeze(submitted);
+      const admission = await admit({ def, inputs: submitted, memberships,
+        context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW)),
+        store: { ...store, load: async (model, id) => { loads.push(`${model}/${id}`); return store.load(model, id); } },
+      });
+      assert.deepEqual(admission.recordRefs.map(ref => [ref.param, ref.model, ref.id, ref.expectedVersion, ref.row.version]), [
+        ['before', location, 'location', 1, 1], ['input/customer', customer, 'customer', 2, 2],
+        ['input/sameCustomer', customer, 'customer', 2, 2], ['input/location', location, 'location', 1, 1],
+        ['after', location, 'location', 1, 1],
+      ]);
+      assert.deepEqual(loads, [location, customer, customer, location, location].map(model => `${model}/${model === customer ? 'customer' : 'location'}`));
+      assert.deepEqual(admission.inputs.input, { customer: { id: 'customer', version: '2' },
+        sameCustomer: { id: 'customer', version: '2' }, location: { id: 'location', version: '1' }, label: 'Named input' });
+      assert.notEqual(admission.inputs.input, submitted.input); assert.deepEqual(submitted, retained);
+      assert.deepEqual(admission.checkpoint?.dependencies.filter(dep => dep.kind === 'record').map(dep => [dep.model, dep.id, dep.version]),
+        [[location, 'location', 1], [customer, 'customer', 2]]);
+      assert.equal(admission.checkpoint?.owner, team.team_id);
+    }
+  });
+
+  it('retains root nominal File leaves for their receiving pipeline while discovering ordinary model siblings', async () => {
+    const { store, memberships, team, alice } = await setup(), model = asModel('RootFiles.Customer');
+    const loaded = loadExecutionDescriptorSet({ contractVersion: 1,
+      models: [{ name: model, fields: {}, deleteMode: 'archive' }],
+      valueTypes: { contracts: [{ name: 'RootFiles.Ordinary', fields: [
+        { name: 'kind', type: 'text' as CanTypeId }, { name: 'id', type: model },
+      ] }, { name: 'RootFiles.Packet', fields: [
+        { name: 'kind', type: 'text' as CanTypeId }, { name: 'attachment', type: 'file' as CanTypeId },
+        { name: 'ordinary', type: 'RootFiles.Ordinary' as CanTypeId }, { name: 'related', type: model },
+      ] }] }, operations: [{ name: asOperation(OPERATION), kind: 'scenario', inputs: [
+        { name: 'input', kind: 'nominal', valueType: 'RootFiles.Packet' as CanTypeId, required: true },
+      ] }],
+    }, { by: 'members' });
+    const def = loaded.registry.get(OPERATION); assert.ok(def && isGeneratedOperationDef(def));
+    await seedRow(store, model, { id: 'customer', version: 2 });
+    const inputs = { input: { kind: 'file', attachment: { id: 'original-file' },
+      ordinary: { kind: 'file', id: { id: 'customer', version: '2' } }, related: { id: 'customer', version: '2' } } };
+    const admission = await admit({ def, inputs, store, memberships,
+      context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW)) });
+    assert.deepEqual(admission.inputs, inputs);
+    assert.deepEqual(admission.recordRefs.map(ref => [ref.param, ref.model, ref.id, ref.expectedVersion]),
+      [['input/ordinary/id', model, 'customer', 2], ['input/related', model, 'customer', 2]]);
+    assert.deepEqual(inputs.input.attachment, { id: 'original-file' });
+    inputs.input.ordinary.id.version = '1';
+    const stale = await captureStateError(admit({ def, inputs, store, memberships,
+      context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW)) }));
+    assert.equal(stale.code, 'conflict'); assert.match(stale.conflict!.message, /\/input\/ordinary\/id/);
+  });
+
+  it('rejects missing, malformed or unversioned nested references before loading any rows and refuses copied schema provenance', async () => {
+    for (const replacement of [undefined, null, 'customer', { id: '' }, { id: 'customer' },
+      { id: 'customer', version: '01' }, { id: 'customer', version: 2 },
+      { id: 'customer', version: '2', model: 'Foreign.Customer' }]) {
+      const { store, memberships, team, alice } = await setup(), { def } = contractInputDef();
+      const inputs: Record<string, unknown> = contractInputs();
+      const nested = inputs.input as Record<string, unknown>;
+      if (replacement === undefined) delete nested.customer; else nested.customer = replacement;
+      const error = await captureStateError(admit({ def, inputs, memberships,
+        context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW)),
+        store: { ...store, load: async () => { assert.fail('invalid nominal input must fail before row loading'); } },
+      }));
+      assert.equal(error.code, 'validation');
+    }
+    const { store, memberships, team, alice } = await setup(), { def } = contractInputDef();
+    const error = await captureStateError(admit({ def: { ...def }, inputs: contractInputs(), store, memberships,
+      context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW)) }));
+    assert.equal(error.code, 'validation');
+  });
+
+  it('keeps not-found, stale-before-archive and original storage errors at the first nested occurrence, stopping later loads', async () => {
+    for (const mode of ['missing', 'stale-archived', 'archived', 'storage-error'] as const) {
+      const { store, memberships, team, alice } = await setup(), { def, customer, location } = contractInputDef();
+      await seedRow(store, location, { id: 'location' });
+      if (mode !== 'missing') await seedRow(store, customer, { id: 'customer',
+        version: mode === 'stale-archived' ? 3 : 2, archivedAt: mode === 'storage-error' ? null : FIXED_NOW });
+      const loads: string[] = [], original = new StateError('forbidden', 'Original scoped storage refusal');
+      const error = await captureStateError(admit({ def, inputs: contractInputs(), memberships,
+        context: ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW)), store: { ...store,
+          load: async (model, id) => { loads.push(`${model}/${id}`);
+            if (mode === 'storage-error' && model === customer) throw original;
+            return store.load(model, id);
+          },
+        },
+      }));
+      assert.equal(error.code, mode === 'missing' ? 'not_found' : mode === 'stale-archived' ? 'conflict' : mode === 'archived' ? 'validation' : 'forbidden');
+      if (mode === 'storage-error') assert.equal(error, original);
+      if (mode === 'stale-archived') assert.match(error.conflict!.message, /\/input\/customer/);
+      assert.deepEqual(loads, [`${location}/location`, `${customer}/customer`]);
+    }
+  });
+
+  it('uses the current principal/team authority and scoped store, then rechecks revocation against the original checkpoint', async () => {
+    const { store, memberships, team, alice, outsider } = await setup(), { def, customer, location } = contractInputDef();
+    await seedRow(store, customer, { id: 'customer', version: 2 }); await seedRow(store, location, { id: 'location' });
+    const context = ctxFor(alice.user.user_id, team.team_id, uuidv7(FIXED_NOW));
+    const foreign = await captureStateError(admit({ def, inputs: contractInputs(), store, memberships,
+      context: ctxFor(alice.user.user_id, outsider.team.team_id, uuidv7(FIXED_NOW)) }));
+    assert.equal(foreign.code, 'forbidden');
+    const isolated = createMemoryStorage(); await seedRow(isolated, location, { id: 'location' });
+    assert.equal((await captureStateError(admit({ def, inputs: contractInputs(), store: isolated, memberships, context }))).code, 'not_found');
+    const admission = await admit({ def, inputs: contractInputs(), store, memberships, context });
+    await memberships.removeMembership(alice.membership.membership_id);
+    assert.equal((await captureStateError(admit({ def, inputs: contractInputs(), store, memberships, context }))).code, 'forbidden');
+    assert.ok(admission.checkpoint);
+    assert.equal((await captureStateError(revalidateCommitForFence({ checkpoint: admission.checkpoint, by: def.by,
+      guards: [], actorUserId: alice.user.user_id, teamId: team.team_id, kind: 'user', store, memberships }))).code, 'forbidden');
+    await memberships.createMembership({ team_id: team.team_id, user_id: alice.user.user_id, roles: [], is_owner: false });
+    const restored = await admit({ def, inputs: contractInputs(), store, memberships, context });
+    assert.equal(restored.recordRefs.length, 5); assert.equal(restored.checkpoint?.owner, team.team_id);
+  });
+});
