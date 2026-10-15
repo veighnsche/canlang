@@ -2,6 +2,16 @@
 
 ## Current remainder and finite completion
 
+**2026-10-15 cleanup reconciliation — current state.** All pending source batches
+are reviewed and committed; [the reconciliation record](cleanup-2026-10-15.md)
+lists validation, preservation and unfinished work. The latest original24 compile
+is terminal8.72s, exit10, complete=true/omitted0, with one E3001: original
+`crm.Activity.link:url?` is supplied to a link that currently requires text/url/
+File/File?. This earlier checked-source gate masks the remaining backend errors;
+it is not a reduction of the retained573 backend baseline. Source bytes and all26
+source records remain unchanged. No whole-app artifact is emitted. Null URL
+presentation needs a separate language/source decision; cleanup does not invent it.
+
 **C02 role-Boolean admission receiver (2026-10-15, component qualified).**
 Strict own-data transcription reuses State's ordered ByPredicate AST, legacy
 conjunctive top-level strings and scenario/CRUD guard separation. Current roles,
@@ -15,7 +25,8 @@ Compiler existing valueType metadata now retains url wrappers/source field reuse
 and saved Given parity; State descriptor/model/input intake reuses the exact URL
 codec, preserving tag/wrapper/source association refusal. Compiler1/.01s and
 State2/.189s pass, including actual invalid-wire rollback; normal State/CF builds
-and strict noEmit pass. Fresh CLI/original Partner native remains next.
+and strict noEmit pass. Fresh CLI/original Partner page and final fixture invariant consumers pass2;
+original production lock edits remain explicitly pending (one skipped subtest).
 
 **C02 unsupported selected-field safety (2026-10-15, qualified).**
 Nullable text/enum/text-array Requires reproduced the same missing execution
@@ -31,10 +42,11 @@ All6 original invariant profiles already matched; checked lock fields Email/
 Money/Datetime/nullable Model blocked all-or-none publication. Reuse exact owning
 field/canonical value and existing nominal lock proof, preserving all3 locks,
 State comparison and raw-profile refusal. Full retained original source plus
-corruptions passes1/.21s; affected pureleaf1/.42s. Fresh CLI and actual original
-default-owner transactions/page are next; prior2 failures were before setup.
+corruptions passes1/.21s; affected pureleaf1/.42s. Fresh CLI/original page and default fixture invariant transactions now pass2;
+production lock-edit qualification remains pending because fixture setup bypasses
+entry locks and the selected source declares no update operation for those Models.
 
-**C02 original24 qualification (2026-10-15, terminal).**
+**C02 original24 retained backend qualification (2026-10-15, terminal).**
 Frozen CLI29d70739af20 (scalar/helper + query invariants + card) finishes536.29s:
 exit10, complete=true/omitted0,573 diagnostics (547E6008+26E6007), no artifact.
 Captured inputs stay unchanged; all26 source records equal the preceding582
@@ -49,10 +61,10 @@ checks remain. Scalar/void receipts gain no invented result/query influence.
 Whole Contract schema identity stays valid. Compiler14/1.51s and prior unchanged
 State20/noEmit/builds pass; complete inline native47.77s and equivalent same-owner
 Bool helper79.24s pass original plus hidden-field/revocation/independent replay
-assertions. The demonstrated helper permission bypass is closed. Current helper
-profile is one required Model formal/no inner calls; unsupported nested/multiple/
-default forms retain the census and refuse. General bounded existing call-chain
-join remains next ready work, rather than a semantic restriction.
+assertions. The demonstrated helper permission bypass is closed. Same-owner nested/named/grouped/multiple/default pure helper chains are now
+qualified by17 compiler checks and the native chain consumer58.55s, including
+eager unused operand authority. Imported helper and catalog-call joins remain
+unsupported and fail closed.
 
 **C02 checked query-invariant producer (2026-10-15, component qualified).**
 Original Program/Advocate rules and renamed/named/grouped equivalents retain
@@ -60,17 +72,18 @@ checked selected slots/query/lambda/field/parent proofs and original awaited
 predicates. Complete dependency selection covers every owning row after any read
 Model change, preserving failures from unrelated filtered candidates under the
 existing final-view bounds. Prior selectors/rawIR stay unchanged. Owning source/
-selector/tamper check passes1/.45s; affected pureleaf1/.30s. Actual State
-transaction/Partner native receiving remains open; current frozen CLI original24
-capture is terminal573 as recorded above.
+selector/tamper check passes1/.45s; affected pureleaf1/.30s. Original default fixture transaction and Partner page receiving now pass2;
+production lock edits remain pending separately. The latest original24 compile
+is blocked at the nullable URL source gate recorded above.
 
 **C02 checked owner-query receiver (2026-10-15, component qualified).**
 Verified invariant query domains reuse existing owner transaction views/bounds,
 issued/cached rows and reference lifetime. Complete ordered source filtering
 precedes lazy ANY/ALL predicates; domain/shape/nonbool/closed/sticky failures stay.
 NormalCFbuild and both existing reference/new query components pass2/.470s.
-Compiler original-source qualifier and original Partner native consumer remain
-unfinished; this receiving check supplies no whole-workflow acceptance.
+Compiler original-source qualifier and original Partner page/final fixture
+invariant checks now pass. This does not qualify production lock edits or
+the entire CanCRM composition.
 
 **C02/C10 heading-free card (2026-10-15, component qualified).**
 The existing parser form now lowers through optional title in the actual UI
@@ -862,7 +875,7 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The latest terminal frozen original **24-source** qualification (CLI29d70739af20,
+The retained backend frozen original **24-source** qualification (CLI29d70739af20,
 536.29s) exits **10**, with **573 errors**: **547 E6008**, **26 E6007**,
 `complete=true`, `omitted=0`, and no usable artifact. All26 source records equal
 the preceding582 report and captured input bytes stayed unchanged. Exactly9
@@ -878,8 +891,10 @@ with no added diagnostics. The CanBook operation-context batch removes exactly
 the two poisoned-type/equality diagnostics from the 896-error capture, with no
 added diagnostics.
 
-Remaining report families are grouped by their defining mechanism; occurrences
-are not independent feature tasks:
+The following retained573 backend report families are grouped by defining
+mechanism; occurrences are not independent feature tasks. The newer compile
+stops at the nullable-URL source gate above, so these are historical backend
+counts, not a fresh backend census:
 
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
@@ -887,8 +902,8 @@ are not independent feature tasks:
 | Query and predicate lowering | 110 | 90 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 188 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
-| Dynamic route normalization | 0 | Checked typed record routes now normalize; actual native Partner workflow remains separately gated by its complete invariant closure. |
-| Authorized route-row rendering | 0 | Admitted current row now reaches rendering/action bindings. Six producer controls pass; full native Partner acceptance remains open. |
+| Dynamic route normalization | 0 | Checked typed record routes now normalize; actual Partner page/final fixture invariants pass; production lock edits remain pending. |
+| Authorized route-row rendering | 0 | Admitted current row now reaches rendering/action bindings. Six producer controls and the original Partner page pass; full workflow acceptance remains open. |
 | Value/type/arithmetic lowering | 0 | The original named OperationOutcome field-schema dependency is closed. Owner retention and source-associated inventory now resolve all recorded occurrences in this group. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
 | Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |

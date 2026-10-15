@@ -16879,54 +16879,63 @@ qualification remains open; no new language decision or authority primitive.
 
 ### 2026-10-15 — ship a complete production-only standalone Can installation
 
-Accepted implementation for the user's one-command/no-manual-dependencies request:
-assemble a platform archive and checksum from existing owning compiler/runtime
-outputs, with a private Node 24.22.0 and Bun 1.4.2, matching catalog/WASM/browser
-assets, production dependency closure/host native packages, Testkit, headless
-Chromium/ffmpeg and Wrangler 4.116.0. The latter shares the current
-workerd/Miniflare versions. Contributor compilers/build tools, emitted Can tests,
-most declarations/maps, full headed browsers, editor payload and unused native
-preparation helper are excluded. Keep Values integrity declarations, executable
-Interfaces docs, Playwright's runtime test directory, Wrangler TS templates and
-linked construct-help/catalog source metadata. Remove the redundant workerd bin
-copy (114,566,712 bytes saved here). Preserve supplied notices; reconcile the
-compiler's previously stale notice inputs against actual locked target closures.
+Accepted: checksum-verified, atomic one-command installation of existing compiler,
+catalog and production runtime closure, private Node 24.22.0, local workerd,
+inline-example Testkit and Wrangler 4.116.0. Preserve required file-based assets,
+help metadata and notices; exclude contributor build/test tools.
 
-The installer verifies before unpacking, stages owned versions, activates through
-an atomic symlink, preserves the preceding version on failure and configures PATH.
-`sh output/install/install-local.sh` is the generated one-command local entry.
-Explicit source/compiler/adapter overrides and app-local Testkit/Playwright owners
-retain precedence; only exact package absence permits bundled fallback. Prebuilt
-captures use installed output identities plus shipped authoring metadata; external
-dependency copies have distinct names. Installed generation acceptance stays below
-the app's canonical root, with narrow ESM/CJS Playwright resolution and unchanged
-checkout behavior. Actual Worker staging also exposed/repaired two missing pinned
-runtime members (native-read-boolean and native-value-schema); no language or
-permission behavior was redesigned.
+Accepted follow-up size reduction: remove Bun from production by porting all four
+dynamic bundle paths (MCP, HTTP, browser assets, saved views) to Node + esbuild
+0.28.1, exactly sharing Wrangler's existing bundler version. Retain stage process
+limits, lifetime/failure/cleanup behavior, deterministic output and required exports;
+reject external imports. Remove local symbols from owned Node/workerd copies while
+preserving dynamic exports; re-sign macOS copies ad hoc and verify execution.
+Linux conservatively strips debug tables only and still needs qualification.
+Remove unexported CSV UMD/IIFE distributions. No required upstream image transform,
+Worker execution, deployment or authored application capability is silently dropped.
 
-Measured macOS arm64 archive: 221,628,061 compressed bytes; 615,758,803 installed
-file bytes; 667,217,920 nominal allocated bytes here. All 14 direct clean external
-installation checks passed, including four real inline rows, protected preview
-navigation in Chromium and credential-free deploy bundling. Installer 7/7, module
-resolver 3/3 (including real external worker/browser), and focused owner tests pass.
-Evidence, shipped closure and limitations: `implementation/lean-install/README.md`,
-`output/install/{size-report,verification}.json`. The first complete source build
-passed; subsequent unrelated parallel State/Cloudflare changes invalidated a later
-source build. Local qualification uses frozen coherent production outputs plus
-only the install-owned emitted modules. The archive records this input mode; it
-does not claim current moving checkout or clean CI qualification. Existing foreign
-compiler/State edits and outputs were preserved.
+The user's explicit correction excludes Chrome and Playwright from production.
+The selected separate opt-in installer uses private Node only to fetch the three
+locked Playwright 1.63.0 packages, verify SHA-512 before safe extraction, then install
+headless Chromium/ffmpeg outside the core. It executes neither Bun nor npm and runs
+no package scripts. Required browser acceptance fails closed when the add-on is
+absent, even if an ancestor checkout has Playwright. Core preview/examples require
+no browser. Narrow ESM/CJS resolution supports external app config/workers.
 
-Three equivalent independent Choice consultations in `implementation/lean-install/`
-prefer preserving the proven Node/Bun engines for this bounded delivery (each
-returns probability/confidence 1.0). Advice is retained without treating it as
-proof of global size optimality. Proposed separately: consolidate JS engines or
-replace dynamic bundling only after compatibility/output evidence; Homebrew tap;
-public release publication; Linux OS-baseline qualification and any needed browser
-shared-library packaging. Ubuntu 24.04/macOS CI assembly is prepared, not recorded
-as passing. External credentials/authored browser tests and explicitly requested
-Git-revision rollback remain integrations. Public hosting retains the existing
-release authorization gate; no release was published.
+Enforce dependency ownership: Playwright is development-only, production imports
+cannot rely on devDependencies, and packaging rejects contributor/browser tools.
+Dependency audit: 13 packages, 1,244 JS/TS files, zero violations. Installed package
+metadata omits scripts/devDependencies. Optional type-only browser peers do not
+ship their implementations.
+
+Current macOS arm64 core: 89,999,179 compressed bytes; 259,824,610 file bytes;
+276,402,176 allocated bytes (263.6 MiB), down from 423,755,776 allocated bytes
+(404.1 MiB), saving 34.8%. Separate optional browser tools: 225,846,579 file bytes,
+226,373,632 allocated bytes. Workerd and Node remain the largest payloads; Sharp
+image transforms and Wrangler deployment remain complete rather than specialized
+away. Detailed audit: `implementation/lean-install/README.md`.
+
+Actual four-family bundles, workerd MCP dispatch/auth, HTTP body/permission handling,
+stylesheet bytes and saved-view mount with empty PATH pass; 30 lifecycle/preparation
+and seven cumulative lifetime tests pass. A real esbuild service exits after Node
+SIGKILL. Optional Node-only browser install/page and three resolver checks under
+stripped Node pass. Twenty-five capture/input checks pass with Node/esbuild
+producer paths, empty PATH and binary overrides. All 16 final-archive checks pass, covering compiler/build/examples/preview,
+credential-free deployment, native image addon execution and strict dependency
+absence; results are recorded in `output/install/verification.json`.
+
+Installed captures use shipped outputs and metadata; candidate acceptance stays
+below the application's canonical root. The initial full build passed, but later
+parallel State/Cloudflare edits blocked a subsequent build. The local archive uses
+frozen coherent outputs plus owned install/bundler modules, explicitly recorded;
+no foreign source/build outputs were reset. Clean integrated CI and Linux remain
+pending; public curl/Homebrew release remains unpublished. No merge/publication.
+
+Fresh JEV Choice advice in `jev-reduction-{1,2,3}.json` favors Node + esbuild,
+probabilities 0.99/1.00/0.99, confidence 0.98/1.00/0.98. This supersedes earlier
+preserve-both advice for the initial scope, following the user's explicit request
+to reduce it. Advice is not execution proof. Node-to-Bun host migration remains a
+separate proposal requiring runtime compatibility evidence.
 
 
 ### 2026-10-15 — connect native Require field observations through verified source
@@ -17065,6 +17074,39 @@ the runtime prerequisite, not typed-route compiler emission or original Partner.
 Original5 route diagnostics and66 related row renders remain the shared defining
 producer/consumer group; whole-composition counts are unchanged.
 
+### 2026-10-15 — source-owned local bindings and durable resource delivery
+
+Accepted implementation direction for the expanded local-runtime request: derive
+binding inventory and selected composition owners from the compiler's checked IR,
+emit the same inventory in the artifact and original app definition, and validate
+correspondence before provisioning or staging effects. New DO/queue/KV/analytics
+semantics require exactly `cloudflare.runtime-bindings@1`, so older hosts cannot
+silently serve a different storage model. No new third-party runtime dependency.
+
+Queue publish and analytics writes use the existing atomic State/Work outbox.
+Persist queue intake and actual handler occurrences before enqueue; revalidate the
+original retained intent, payload, scope and handler census on consume/recovery.
+The emulator broker is memory-only, so durable receipts own restart recovery.
+Local Analytics Engine uses a private observable persisted sink because the pinned
+emulator implementation is empty. Analytics remains asynchronous telemetry.
+KV is the declared optional public reconstructible cache, never business authority.
+
+DO-backed roots execute the whole existing canonical invocation beside their own
+SQLite store. Root and child IDs derive from complete receipt identity; direct
+references route without consulting the eventual D1 discovery directory. Keep
+business rows in the actor, authenticate original credentials again inside it,
+and reject mixed D1/root or cross-root business decisions. Root/queue composition
+and final installed workflows are still under qualification; component success is
+not a claim that all runtime integration is complete.
+
+Three equivalent binding-inventory JEV requests disagree (module-only .79;
+artifact .58/.69, confidence .58/.16/.38). Existing pre-import artifact activation
+and same-IR correspondence justify the artifact inventory choice. Three root
+requests favor whole-invocation actor execution (.90/.99/.94, confidence
+.80/.98/.88). Advice and uncertainty are retained in
+`implementation/lean-install/jev-{bindings,root-authority}-{1,2,3}.json`; acceptance
+comes from the finite controls in `implementation/lean-install/local-bindings.md`.
+
 
 ### 2026-10-15 — emit canonical fixture recipe providers
 
@@ -17127,6 +17169,33 @@ passing helper-native invariant coverage is evidence to locate the difference,
 not acceptance of this default runner path. No new language rule or workflow
 qualification is claimed; executable receiving and full-cohort joins remain open.
 
+### 2026-10-15 — complete local File routes with existing D1/R2
+
+Accepted implementation: reuse the owning synchronous Files producers over a
+bounded private per-journey snapshot. Publish immutable R2 objects, then commit
+metadata/blob pointers/retry uniqueness with one D1 compare-and-swap batch.
+Interrupted unpublished objects are reclaimed by a bounded journal; accepted
+metadata replays the original reference after restart. The D1 allocation and R2
+marker must agree on a persisted random physical file-store identity.
+The existing Identity, CSRF, attachment and field-grant checks remain authoritative.
+No extra package, service or hidden DO namespace is needed. Local HTTP grants
+require an explicit trusted loopback-only option; normal HTTPS behavior remains.
+
+The user explicitly selected keeping attached files until deleted. Add only the
+literal optional `retainAttached: true` policy; preserve the existing finite
+behavior when absent. Timely attachment retains its original deadline evidence.
+Local upload intents last one hour and unattached files have a 24-hour lifetime.
+Keep abandoned publication-object cleanup separate from finalized-byte retirement:
+physical published-file deletion still requires its complete authoritative State
+reference census; one root cannot authorize deletion of another root's reference.
+
+Three equivalent JEV comparisons favor the bounded D1/R2 adapter (.96/.95/.97,
+confidence .95/.93/.96), with no directional disagreement. Real D1/R2 controls,
+including competing offsets, interrupted publication/restart, lost commit reply,
+authored rollback, current file policy and protected downloads, provide the
+implementation evidence. The native root/File and protected queue composition
+checks remain separately tracked in the current local-binding execution view.
+
 
 ## 2026-10-15 — execute source-owned parent enum invariants
 
@@ -17178,6 +17247,25 @@ has no setup failures but four query-domain runtime refusals; no complete native
 workflow acceptance is claimed. No language rule, grant or error identity changes.
 
 
+### 2026-10-15 — reuse original opaque declaration inventory for resources
+
+A guarded resource SEND requires the same original typed declaration inventory
+as existing framework effects, including an explicitly File-free payload. Keep
+its complete void receipt and ordinary State/Work authority. Extract the existing
+native inventory installer into a Worker-safe runtime helper and reuse it from
+both development and the actual D1/DO hosts. Physical State/Files identities stay
+separate from declaration owner packages, so an imported feature can own a queue
+without claiming the physical app database. Preserve non-function metadata on
+D1 storage wrappers rather than wrapping it as an asynchronous method.
+
+Three equivalent JEV requests favor reusing that inventory (0.99/1.00/0.99),
+retained under `implementation/lean-install/jev-void-framework/`. Advice only:
+the actual compiled imported-feature queue/analytics journey passes rollback,
+exact Values encoding, replay, handler failure and restart recovery against
+real D1, Identity and the local broker. File-bearing queue payload and final root
+composition acceptance remain in the current local-binding execution view.
+
+
 ## 2026-10-15 — retain checked record-route identity and authorized row
 
 Use the existing resolved RouteRecord Model association in TypeTable and private
@@ -17196,6 +17284,34 @@ or full-composition route qualification is claimed. The prior query-association
 binary's original24 run is terminal419.34s/656 unchanged, with stable26sources;
 inspect the next owner gate rather than rerunning unchanged full emission.
 
+### 2026-10-15 — retain typed queue publications on the existing dispatch
+
+Accepted implementation direction: add an exact optional `queuePayload` and
+`queuePayloadOrigin` pair to the existing Work dispatch row. The original
+admitted SEND prepares its typed event-input header before the atomic State
+commit, with actual Files observations; queue intake borrows that retained
+source. The target queue owns its payload declaration inventory, while a guard
+keeps its source callable's separate inventory. Ordinary transition readers and
+replay preserve both headers. Never synthesize a guard for an unguarded send.
+
+Three equivalent JEV comparisons disagree and have low confidence in two cases:
+separate publication row 0.55 (confidence 0.33), dispatch pair 0.93 (0.89), and
+0.49/0.49 (0.23). Inspection resolves the implementation choice: existing Work
+transitions preserve the central dispatch reader, while a separate row also
+expands four State dispatch-only staging gates and adds another lifetime/model.
+Responses remain in `implementation/lean-install/jev-queue-files/`; actual
+File-queue integration remains the acceptance gate.
+
+Postcommit retention uses the real authenticated caller, original committed
+receipt, atomic outbox publication and original typed physical header. An
+authenticated replay can repair an interrupted attachment while Files still
+accepts it. Do not backdate markers, fabricate an actor-null upload identity or
+revive a file that expired before repair. As with the existing business-field
+attachment path, a crash between State commit and the Files marker followed by
+recovery only after the unattached horizon remains a finite recovery limitation.
+This decision does not authorize automatic physical deletion without the complete
+State reference census.
+
 
 ## 2026-10-15 — emit the existing compact footer contract
 
@@ -17210,6 +17326,18 @@ The next authentic full-cohort query gap is mechanical: decision indexing scans
 all365,625 CST nodes against a global200,000-node bound. Preserve the bound and
 full source checks while indexing actual consumed subtrees. No language or
 permission decision changes; the retained full-original report remains656.
+
+### 2026-10-15 — select State ownership for model-free local effects
+
+Model absence does not imply app-owned work: a queue-only operation guarded by
+`members`, `owner` or a declared caller role uses its team's existing State
+route. Reuse the original compiled policy in the existing static local binding
+planner; no imports execute and no separate author manifest is added. Model
+containment remains authoritative when models exist. Mixed app/team and complex
+model-free selectors require their owning storage-selection API and fail before
+preview allocation. The actual compiled member queue selects team routing;
+eight planner controls and strict Cloudflare TypeScript checking pass. Installed
+preview qualification remains part of the final archive check.
 
 
 ## 2026-10-15 — index consumed decision syntax within existing bounds
@@ -17228,6 +17356,18 @@ sideEffectsAbsent=false is not a measured write leak. Partner's complete selecte
 source/style intake reaches a missing existing Values format reexport in CF; no
 new formatting semantics are proposed. Neither full native workflow is accepted.
 
+### 2026-10-15 — qualify model-free team effects and hold global owner selection
+
+The real model-free member control also passes authenticated HTTP invocation,
+team-owned queue intake and handler completion, original replay, and separation
+from Identity storage. Remove only the owning boundary's empty-model blanket
+when real declared resources and the configured team route supply the original
+owner; nonempty app-scoped models remain refused by that boundary. A public
+control demonstrated that default global inventory disagrees with the authenticated
+team receipt owner. Therefore model-free public/authenticated resource operations
+are explicitly refused before preview allocation until their global State owner
+selection exists; do not change receipt identity or silently narrow public access.
+
 
 ## 2026-10-15 — canonical format runtime export
 
@@ -17245,12 +17385,43 @@ Normal isolated State and Cloudflare builds pass. All36 affected State source-po
 
 Accepted mechanical correction: table `as` role arrays use the same canonical declared role identities as single-role callers, including imported aliases. Decode these static references only in the checked example caller position; ordinary executable role-value semantics do not change. Existing checker refusals remain for self/public/authenticated, strings and nested arrays in role lists. Owning actual CLI→emitted example→installed Testkit check passes1/.94s: distinct same-named foreign roles stay distinct and roles select the same self/current team. Native original CRM six-case validation is the separate next consumer.
 
+### 2026-10-15 — admit protected API-only local previews
+
+A checked operation is sufficient to preview an API-only app; a page is optional.
+Keep the actual D1, seeded login/team, authenticated business MCP, anonymous
+refusal, packaged assets and binding probes. Probe a declared page when one
+exists; an empty app with neither page nor operation still refuses. Do not invent
+a landing page in source to hide an admission restriction. The focused planner
+and preview controls pass 32 cases. Session check responses also expose a bounded
+`preview_error` for actual build failures, so callers cannot mistake a successful
+control request for a ready runtime. Final archive checks assert actual readiness.
+
 
 ## 2026-10-15 — table role arrays reach the existing membership caller
 
 Accepted mechanical adapter: real Testkit table loading copies dense own role-string array cells into the existing membership caller, preserving order, self identity and current team. Empty checked role arrays select ordinary self membership; existing resolveCaller empty-membership API refusal remains unchanged. Cross-realm arrays work; sparse, accessor, extra-key, nested, nonstring and account-selector members fail setup. Role declaration identity remains the existing compiler responsibility, as for single-role cells.
 
 The existing runtime membership representation supported multiple roles, but the table-cell adapter was missing; the earlier JEV context overstated that receiving implementation. The source choice remains supported by the established checked table role-array form and does not add a production grant. Actual suite-loader/resolveCaller controls plus existing accounts controls pass6/.404s; normal Testkit build passes. Original CRM six-case runtime qualification remains the next consumer.
+
+### 2026-10-15 — qualify the complete standalone resource install
+
+The final macOS arm64 archive uses integrated source-built packages
+(`inputMode: built-checkout`), one private Node runtime and the real local engine.
+All 13 package builds, the production dependency audit (1,276 files, zero
+violations) and 18 installed checks pass. Installed root/File and root/queue
+journeys pass with private tools outside checkout and clean PATH. Matching the
+current compiler fixes its older caller-fixture import omission; all four
+original Office examples pass. Complete generated artifacts for the File queue
+and three root cases are unchanged, so their accepted results are reused.
+
+Measured final archive: 90,087,787 download bytes, 260,139,952 file bytes and
+277,823,488 allocated bytes here (85.9/248.1/265.0 MiB). The core has 3,698 files
+and 156 package identities, with no Bun, Chrome or Playwright. This is 34.4%
+smaller on disk than the original measured core. Optional browser tooling remains
+separate. The verified local entry is `sh output/install/install-local.sh`;
+public curl assets, Homebrew, Linux qualification and authenticated deployment
+remain explicit external release/account gates. Finite supported cases and held
+profiles are maintained once in `implementation/lean-install/local-bindings.md`.
 
 
 ## 2026-10-15 — checked local invariant call leaves
@@ -17300,6 +17471,33 @@ their actual limits instead of assuming one shared constant. The owning session
 check passes at bounds 7 and 1000, distinguishes entry locks from final
 invariants and confirms no publication before commit; normal State build passes.
 Partner query qualification and receiving remain unfinished.
+
+
+## 2026-10-15 — SodaOS bootstrap with GitHub standalone releases
+
+Accepted: `https://sodaos.dev/CanLang/install.sh` is the static, case-sensitive
+bootstrap entry point, maintained by the separate website owner. Can owns the
+canonical `scripts/install.sh`; binary archives and SHA-256 sidecars come from
+GitHub Releases, with platform selection and private runtime dependencies handled
+by the installer. The installer parses its complete function before executing
+when piped into Bash/sh, so a truncated bootstrap cannot begin installation.
+Release publication follows successful standalone qualification for both hosts;
+no registry or browser dependency is added. The website agent receives the
+[concrete handoff](../../implementation/lean-install/website-handoff.md).
+
+Verified locally: all 12 installer checks pass, including stdin delivery,
+truncation, latest-release resolution and existing safety/upgrade controls;
+Bash/sh syntax checks pass. A clean-PATH install from the existing macOS archive
+through Bash succeeds and its installed `can --version` runs. Website deployment and the first matching standalone
+GitHub Release remain external gates; the current older v0.1.0 release lacks
+these assets.
+
+The publication helper's six checks and release workflow actionlint pass. Tag
+pushes publish exactly five assets after both standalone hosts qualify; manual
+runs assemble only. An existing draft/published release is preserved, and an
+upload failure cannot publish a partial new release. No remote publication was
+performed. The next release needs a new matching package version/tag because
+v0.1.0 already exists.
 
 
 ## 2026-10-15 — lower the existing heading-free card form
@@ -17485,3 +17683,46 @@ controls pass/.269s, including two new ordered/current-role controls and three
 unchanged cases. Compiler metadata transcription and genuine generated native
 scenario/CRUD qualification remain pending; this component closes neither all43
 source diagnostics nor enclosing application workflows.
+
+
+## 2026-10-15 — reconcile and preserve all pending integration work
+
+Accepted cleanup: review every pending primary source change and unique CRM
+integration-checkout file; validate defining behavior and commit focused batches.
+All agent changes belong to the coordinating agent. The managed integration
+checkout is archived recoverably; required ignored outputs and failed captures
+are retained in `output/resource-runtime-check/cleanup-preserved/`. No source is
+reset or discarded, and no merge/filetree checkpoint advance is claimed.
+
+Mechanical review corrections retain exact selected composition owners for
+implicit Files R2 declarations, infer roots from actual event-reference mutation
+models, and validate exact Durable Object binding placement. Existing ownership,
+current identity, source correspondence, rollback/replay and typed File provenance
+remain. Integrated package26, resource33, runtime-binding8, native-query17 and
+artifact/descriptors/generation48 controls pass. UI14 pass after reconciling the
+obsolete negative bare-card expectation with already accepted heading-free cards.
+Same-owner pure helper chains qualify named/grouped/default/multiple arguments
+and eager unused operand authority through the existing call recipe; imported
+helper/catalog graphs and unsupported field profiles remain refused.
+
+Accepted packaging correction: ship the optional browser installer and its exact
+manifest/lock as a separate platform-independent archive plus checksum, validated
+against tagged source on both release hosts. The release has seven assets; the
+production core still excludes browsers. Owning publisher7, original scripts44,
+host79 and generation5 checks pass. One optional real-browser generic check is
+skipped; retained18 archive checks describe their original archive inputs. Linux,
+public hosting, Homebrew and authenticated deployment are not newly qualified.
+
+Original Partner page and final fixture invariant checks pass2. Their form harness
+now supplies the real host's derived input metadata. Fixture staging deliberately
+bypasses production entry locks: preserve both lock assertions as one explicitly
+skipped subtest until a production mutation carrier uses original checked policies
+without invented source grants. Page rendering does not qualify capture submission.
+
+The original24 compile now stops on one E3001 for nullable `crm.Activity.link`
+at original CanCRM line385 (8.72s, complete=true, omitted0, unchanged26 source
+records). This masks the previous573 backend census; it does not close it.
+Nullable URL presentation is a separately proposed language/source decision,
+requiring JEV consultation before implementation. No such semantics or permission
+change is introduced by cleanup. The exact unfinished scope and evidence are in
+[the reconciliation record](../../implementation/compiler-completion/cleanup-2026-10-15.md).
