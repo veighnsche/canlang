@@ -432,6 +432,7 @@ export interface PageHttpDeps {
   readonly clock: InterfacesClock;
   readonly identity: { readonly store: unknown };
   readonly query: RowQueryRunner;
+  readonly bindSourceReadContext?: (identity: ResolvedIdentity, source: PageSourceContext) => void | Promise<void>;
   readonly createReadScope?: (identity: ResolvedIdentity, source: PageSourceContext,
     resolveCaller: () => Promise<ResolvedIdentity>) => PageReadScope | Promise<PageReadScope>;
 }
@@ -1975,6 +1976,12 @@ export async function assembleWorker(
     const forwardQueryBinder = await loadSiblingFn<
       typeof import("../runtime/native-ui-query.js").forwardNativeUiQueryBinder
     >("../runtime/native-ui-query.js", "runtime/native-ui-query.ts", "forwardNativeUiQueryBinder");
+    const bindSourceBoolean = await loadSiblingFn<
+      typeof import('../runtime/invoke.js').bindPageReadBooleanContextCanonical
+    >('../runtime/invoke.js', 'runtime/invoke.ts', 'bindPageReadBooleanContextCanonical');
+    const forwardBooleanReader = await loadSiblingFn<
+      typeof import('../runtime/native-read-boolean.js').forwardNativeReadBooleanReader
+    >('../runtime/native-read-boolean.js', 'runtime/native-read-boolean.ts', 'forwardNativeReadBooleanReader');
     const assertPageBinding = (identity: ResolvedIdentity, binding: PageReadsBinding | undefined): void => {
       if (deps.ownerStorage !== undefined && binding !== undefined &&
           (binding.scope.app !== appInfo.appId || binding.scope.owner !== identity.team?.team_id)) {
@@ -2021,6 +2028,14 @@ export async function assembleWorker(
       catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,
       clock: { nowMs: now }, identity: { store: deps.identityStore },
+      bindSourceReadContext: (identity, source) => {
+        bindSourceBoolean(source, async () => {
+          assertStaticPageBinding(identity);
+          const store = deps.ownerStorage === undefined ? deps.store : await deps.ownerStorage.forIdentity(identity);
+          return { asm, artifact, identity, store, pageSource: source,
+            memberships: deps.identityStore as CanonicalMembershipReader, now };
+        });
+      },
       createReadScope: (identity, source, resolveCaller) => {
         if (deps.files?.readOptions !== undefined && typeof resolveCaller !== 'function') throw new Error('assembly: original page credentials are unavailable.');
         const boundary = deps.ownerStorage;
@@ -2052,6 +2067,16 @@ export async function assembleWorker(
         };
         const query: RowQueryRunner = async (_invocation, model, args) =>
           inScope(current => current.query(identity, model, args));
+        const readRecords: NonNullable<PageReadScope['readRecords']> = async (model, query) => {
+          const read = (await selected()).readRecords;
+          if (read === undefined) throw new Error('assembly: canonical page source reader is unavailable.');
+          const result = await read(model, query); assertOpen(); return result;
+        };
+        forwardBooleanReader(readRecords, async () => {
+          const read = (await selected()).readRecords;
+          if (read === undefined) throw new Error('assembly: canonical page source reader is unavailable.');
+          return read;
+        });
         // The facade binds before UI delegates: resolve the same physical
         // owner scope that this exact wrapper will use for the actual query.
         forwardQueryBinder(query, async () => { const current = await selected(); assertOpen(); return current.query; });
@@ -2083,11 +2108,7 @@ export async function assembleWorker(
             } catch (failure) { if (closed) return null; throw failure; }
           },
           onQueryBound: (bound: RowQueryRunner) => { assertOpen(); return forwardQueryBinder(bound, async () => query); },
-          readRecords: async (model: string, query: Parameters<NonNullable<PageReadScope['readRecords']>>[1]) => {
-            const read = (await selected()).readRecords;
-            if (read === undefined) throw new Error('assembly: canonical page source reader is unavailable.');
-            const result = await read(model, query); assertOpen(); return result;
-          },
+          readRecords,
           query,
           readHistory: async (locator: Parameters<NonNullable<PageReadScope['readHistory']>>[0]) => {
             const read = (await selected()).readHistory;

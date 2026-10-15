@@ -39,7 +39,7 @@ use crate::source::Span;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 /// Follow nominal field references using the consumed owner schema only.
 fn collect_std_nominal_contracts(
@@ -2279,6 +2279,23 @@ fn emit_program_with_sources(
             .cloned()
             .unwrap_or_default();
     }
+    if native_receipts {
+        emitter.boolean_sources = decisions
+            .read_predicates
+            .and_then(|source| source.booleans(ir))
+            .cloned()
+            .unwrap_or_default();
+        emitter.boolean_derives = decisions
+            .read_predicates
+            .and_then(|source| source.boolean_derives(ir))
+            .cloned()
+            .unwrap_or_default();
+        emitter.boolean_rules = decisions
+            .read_predicates
+            .and_then(|source| source.boolean_rules(ir))
+            .cloned()
+            .unwrap_or_default();
+    }
     if native_receipts && let Some(guards) = decisions.send_guards {
         emitter.send_guards = guards.guards(ir);
         emitter.send_guard_owners = guards.by_owner(ir);
@@ -2477,6 +2494,24 @@ fn emit_program_with_sources(
     if native_receipts && !emitter.membership_predicates.is_empty() {
         body.push(entry_span, Some("canReadPredicateSource".into()),
             "const $can$read$predicates=new WeakMap();function $can$read$issue(source,predicate){$can$read$predicates.set(predicate,source);return predicate;}export function canReadPredicateSource(predicate){const source=$can$read$predicates.get(predicate);return source===undefined?null:JSON.parse(source);}");
+    }
+    if native_receipts && !emitter.boolean_sources.is_empty() {
+        body.push(entry_span, Some("canReadBooleanSource".into()),
+            "const $can$boolean$sources=new WeakMap();function $can$boolean$issue(source,predicate){const marker=JSON.parse(source);$can$boolean$sources.set(predicate,source);$can$read$issue(JSON.stringify({source:marker.source,owner:marker.owner,node:marker.node,statement:marker.statement}),predicate);return predicate;}export function canReadBooleanSource(predicate){const source=$can$boolean$sources.get(predicate);return source===undefined?null:JSON.parse(source);}");
+        emitter.stdlib.insert("nativeReadBoolean".into());
+        for item in &ir.items {
+            if let IrItemKind::DeriveField {
+                expr: Some(expr), ..
+            } = &item.kind
+                && let Some(source) = emitter.boolean_sources.get(&expr.span).cloned()
+            {
+                emitter.boolean_body = true;
+                let expression = emitter.lower_business_expr(expr, "Boolean derived field");
+                emitter.boolean_body = false;
+                body.push(item.span,None,&format!("const $can$boolean${}=$can$boolean$issue({},async(c,row)=>({expression}));",
+                    item.id.0,descriptor_json(&descriptor_json(&source))));
+            }
+        }
     }
     if let Some(membership) = decisions
         .membership
@@ -3334,6 +3369,12 @@ pub struct Emitter<'a> {
     query_capture: Option<NativeQuerySource>,
     membership_calls: HashMap<Span, serde_json::Value>,
     membership_predicates: HashMap<Span, serde_json::Value>,
+    boolean_sources: HashMap<Span, serde_json::Value>,
+    boolean_derives: HashSet<String>,
+    boolean_rules: HashSet<String>,
+    boolean_body: bool,
+    boolean_helper: bool,
+    record_page_render: bool,
     native_source_predicates: bool,
     send_guards: Option<&'a HashMap<Span, super::send_guards::PreparedSendGuard>>,
     send_guard_owners: Option<&'a BTreeMap<String, serde_json::Value>>,
@@ -3462,6 +3503,12 @@ impl<'a> Emitter<'a> {
             query_capture: None,
             membership_calls: HashMap::new(),
             membership_predicates: HashMap::new(),
+            boolean_sources: HashMap::new(),
+            boolean_derives: HashSet::new(),
+            boolean_rules: HashSet::new(),
+            boolean_body: false,
+            boolean_helper: false,
+            record_page_render: false,
             native_source_predicates: false,
             send_guards: None,
             send_guard_owners: None,
@@ -4169,6 +4216,14 @@ impl<'a> Emitter<'a> {
         self.throw_expr("localized formatting has no lowering at this consumer")
     }
 
+    /// Resolve only a reached business-reference receiver. Source reference
+    /// equality and argument values retain their original identity.
+    fn lower_boolean_record(&mut self, value: &TypedExpr) -> String {
+        self.stdlib.insert("nativeReadReference".into());
+        let value = self.lower_expr(value);
+        format!("(await nativeReadReference(c,{value}))")
+    }
+
     fn lower_business_expr(&mut self, expr: &TypedExpr, sink: &str) -> String {
         if self.expr_formatted(expr) {
             self.formatted_refusal(sink, expr.span)
@@ -4314,6 +4369,9 @@ impl<'a> Emitter<'a> {
         args: &[TypedExpr],
         span: Span,
     ) -> Option<String> {
+        if self.boolean_body || self.boolean_helper {
+            return None;
+        }
         let IrCallTarget::Builtin { id, .. } = target else {
             return None;
         };
@@ -5361,7 +5419,21 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("datetime".to_string());
                 format!("datetime({})", js_string(value))
             }
-            IrExpr::Name(name) => self.reference(name),
+            IrExpr::Name(name) => {
+                if name == "row"
+                    && self.record_page_render
+                    && !self.bindings.iter().any(|scope| scope.contains_key(name))
+                {
+                    self.unsupported(
+                        "record-route render",
+                        "authorized route row render binding is unavailable",
+                        span,
+                    );
+                    self.throw_expr("unsupported route row render binding")
+                } else {
+                    self.reference(name)
+                }
+            }
             IrExpr::JudgmentSpecification { judgment, options } => {
                 if self.in_hook() {
                     return self.hook_gap(
@@ -5384,6 +5456,13 @@ impl<'a> Emitter<'a> {
                     && matches!(field.as_str(), "actor" | "now" | "team" | "operation");
                 let base_text = if ambient {
                     "c".to_string()
+                } else if self.boolean_body
+                    && matches!(
+                        base.ty.nullable_inner().unwrap_or(&base.ty),
+                        ResolvedType::Record { stored: true, .. }
+                    )
+                {
+                    self.lower_boolean_record(base)
                 } else {
                     self.lower_expr(base)
                 };
@@ -5642,7 +5721,7 @@ impl<'a> Emitter<'a> {
                 let param = self.bind(param);
                 let body_text = self.lower_expr(body);
                 self.exit_scope();
-                if expr_uses_async(body) {
+                if expr_uses_async(body) || self.boolean_body {
                     format!("async({param})=>{body_text}")
                 } else {
                     format!("({param})=>{body_text}")
@@ -5752,6 +5831,7 @@ impl<'a> Emitter<'a> {
         span: Span,
     ) -> Option<String> {
         if self.native_source_predicates
+            && !self.boolean_body
             && matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
             && args
                 .iter()
@@ -6087,6 +6167,8 @@ impl<'a> Emitter<'a> {
         };
         let awaited = native_first
             || native_count
+            || ((self.boolean_body || self.boolean_helper)
+                && matches!(target,IrCallTarget::Builtin{id,..} if id=="any"||id=="all"))
             || matches!(
                 target,
                 IrCallTarget::Builtin { awaited: true, .. }
@@ -6176,6 +6258,19 @@ impl<'a> Emitter<'a> {
     ) -> String {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
+                if (self.boolean_body || self.boolean_helper)
+                    && matches!(id.as_str(), "any" | "all")
+                    && parts.len() == 2
+                {
+                    let stop = if id == "any" { "true" } else { "false" };
+                    let end = if id == "any" { "false" } else { "true" };
+                    return format!(
+                        "{}(async($domain,$predicate)=>{{for(const $item of $domain){{const $verdict=await $predicate($item);if(typeof $verdict!==\"boolean\")throw new TypeError(\"predicate must return Boolean\");if($verdict==={stop})return {stop};}}return {end};}})({},{})",
+                        if await_result { "await " } else { "" },
+                        parts[0],
+                        parts[1]
+                    );
+                }
                 let mut parts = parts.to_vec();
                 if id == "active_member" {
                     let Some(source) = self.membership_calls.get(&span) else {
@@ -6237,6 +6332,29 @@ impl<'a> Emitter<'a> {
                 }
             }
             IrCallTarget::DeriveFn(canonical) => {
+                if let Some(index) = self.by_canonical.get(canonical) {
+                    let item = &self.ir.items[*index];
+                    if let IrItemKind::DeriveField {
+                        expr: Some(expr), ..
+                    } = &item.kind
+                    {
+                        if parts.len() == 1 && self.boolean_sources.contains_key(&expr.span) {
+                            self.stdlib.insert("nativeReadBoolean".into());
+                            return format!(
+                                "{}nativeReadBoolean(c,$can$boolean${},{})",
+                                if await_result { "await " } else { "" },
+                                item.id.0,
+                                parts[0]
+                            );
+                        }
+                        self.unsupported(
+                            "derived Boolean read",
+                            "original checked observer unavailable",
+                            span,
+                        );
+                        return self.throw_expr("unsupported Boolean observer");
+                    }
+                }
                 if let Some(specialized) =
                     self.lower_receipt_derive(canonical, parts, span, await_result)
                 {
@@ -6250,7 +6368,14 @@ impl<'a> Emitter<'a> {
                     );
                 }
                 let name = match self.by_canonical.get(canonical) {
-                    Some(index) => binding_ident("s", &self.ir.items[*index].canonical),
+                    Some(index) => binding_ident(
+                        if self.boolean_body && self.boolean_derives.contains(canonical) {
+                            "b"
+                        } else {
+                            "s"
+                        },
+                        &self.ir.items[*index].canonical,
+                    ),
                     None => {
                         self.unsupported(
                             "derive call",
@@ -7144,7 +7269,11 @@ impl<'a> Emitter<'a> {
                     let body = self.lower_expr(pred);
                     self.exit_scope();
                     if self.native_source_predicates {
-                        let prefix = if query.where_async { "async" } else { "" };
+                        let prefix = if query.where_async || self.boolean_body {
+                            "async"
+                        } else {
+                            ""
+                        };
                         let predicate = format!(
                             "{prefix}({row},$can$read$c)=>{{const c=$can$read$c;return {body};}}"
                         );
@@ -7205,7 +7334,13 @@ impl<'a> Emitter<'a> {
                     let alias = self.bind(alias);
                     let body = self.lower_expr(pred);
                     self.exit_scope();
-                    out = format!("{out}.filter(({alias})=>{body})");
+                    out = if self.boolean_body {
+                        format!(
+                            "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
+                        )
+                    } else {
+                        format!("{out}.filter(({alias})=>{body})")
+                    };
                 }
                 self.append_select(&out, false, query)
             }
@@ -7235,6 +7370,11 @@ impl<'a> Emitter<'a> {
         } else {
             body
         };
+        if self.boolean_body {
+            return format!(
+                "(await (async($items)=>{{const $result=[];for(const {param} of $items){{$result.push(await ({body}));}}return $result;}})({fetched}))"
+            );
+        }
         let map = format!(".map(({param})=>{body})");
         if awaited {
             format!("({fetched}){map}")
@@ -10078,7 +10218,19 @@ impl<'a> Emitter<'a> {
                 .admit
                 .iter()
                 .map(|guard| {
-                    let condition = self.lower_guard_bool(guard);
+                    let condition = if let IrGuard::Expr(expr) = guard
+                        && let Some(source) = self.boolean_sources.get(&expr.span).cloned() {
+                        self.stdlib.insert("nativeReadBoolean".into());
+                        self.boolean_body = true;
+                        let expression = self.lower_business_expr(expr,"Boolean page requirement");
+                        self.boolean_body = false;
+                        let binding = page.path.split('{').nth(1).and_then(|value|value.split('}').next()).unwrap_or("");
+                        format!("await nativeReadBoolean(c,$can$boolean$issue({},async(c,row)=>({expression})),routeBindings[{}])",
+                            descriptor_json(&descriptor_json(&source)),js_string(binding))
+                    } else if let IrGuard::Expr(expr)=guard && self.membership_predicates.contains_key(&expr.span) {
+                        self.unsupported("Boolean page requirement","native Boolean observation backend required",expr.span);
+                        self.throw_expr("unsupported Boolean observation backend")
+                    } else { self.lower_guard_bool(guard) };
                     format!("if(!({condition}))throw {{code:\"forbidden\",message:\"forbidden\"}};")
                 })
                 .collect::<Vec<_>>()
@@ -10105,12 +10257,14 @@ impl<'a> Emitter<'a> {
             export: page_binding(page, "descriptor"),
         });
         let sequence_children = page.render.iter().any(ui_immediate_uses_async);
+        self.record_page_render = page.path.contains('{');
         let children = page
             .render
             .iter()
             .map(|n| sequence_ui_child(self.lower_ui(n), sequence_children))
             .collect::<Vec<_>>()
             .join(",");
+        self.record_page_render = false;
         // Pages reading `preferences` bind the admit() record first: the
         // checkpoint returns per-app prefs inside `bindings` (never pctx).
         let preamble = if page_uses_preferences(page) {
@@ -11615,6 +11769,9 @@ impl<'a> Emitter<'a> {
                 Some(modifiers.clone()),
                 label.clone(),
             ),
+            IrItemKind::DeriveField { ty, label, .. } => {
+                (Some(ty.clone()), false, None, None, None, label.clone())
+            }
             _ => (None, false, None, None, None, None),
         };
         let inventory_leaf = match &field.kind {
@@ -14354,7 +14511,7 @@ impl<'a> Emitter<'a> {
             )
         }) {
             format!("async(c,row,$readCurrent)=>{body_text}")
-        } else if expr_uses_async(body) {
+        } else if expr_uses_async(body) || self.boolean_body {
             format!("async(c,row)=>{body_text}")
         } else {
             format!("(c,row)=>{body_text}")
@@ -14373,7 +14530,13 @@ impl<'a> Emitter<'a> {
         }
         let entries: Vec<String> = rules
             .iter()
-            .map(|rule| format!("{}:{}", js_string(&rule.id), self.lower_rule_fn(&rule.pred)))
+            .map(|rule| {
+                self.boolean_body = matches!(member, "read" | "callbackRead")
+                    && self.boolean_rules.contains(&rule.id);
+                let body = self.lower_rule_fn(&rule.pred);
+                self.boolean_body = false;
+                format!("{}:{}", js_string(&rule.id), body)
+            })
             .collect();
         out.push(
             span,
@@ -14475,8 +14638,19 @@ impl<'a> Emitter<'a> {
             });
             match expr {
                 Some(expr) => {
-                    let body_text =
-                        self.lower_business_expr(expr, "formatted ordinary derived field");
+                    let body_text = if self.boolean_sources.contains_key(&expr.span) {
+                        self.stdlib.insert("nativeReadBoolean".into());
+                        format!("await nativeReadBoolean(c,$can$boolean${},row)", item.id.0)
+                    } else if self.membership_predicates.contains_key(&expr.span) {
+                        self.unsupported(
+                            "Boolean derived field",
+                            "native Boolean observation backend required",
+                            expr.span,
+                        );
+                        self.throw_expr("unsupported Boolean observation backend")
+                    } else {
+                        self.lower_business_expr(expr, "formatted ordinary derived field")
+                    };
                     derives.push(format!("{}:async(c,row)=>{body_text}", js_string(&key)));
                 }
                 None => {
@@ -14604,35 +14778,49 @@ impl<'a> Emitter<'a> {
             let IrItemKind::DeriveFn { params, expr, .. } = &item.kind else {
                 continue;
             };
-            let name = binding_ident("s", &item.canonical);
-            self.enter_scope();
-            let mut signature = vec!["c".to_string()];
-            for id in params {
-                signature.push(self.bind(&self.ir.items[id.0 as usize].name.clone()));
-            }
-            let export = if item.exported { "export " } else { "" };
-            match expr {
-                Some(expr) => {
-                    let mut defaults = String::new();
-                    for (id, name) in params.iter().zip(signature.iter().skip(1)) {
-                        if let IrItemKind::Param {
-                            default: Some(default),
-                            ..
-                        } = &self.ir.items[id.0 as usize].kind.clone()
-                        {
-                            let value = match default {
-                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => self
-                                    .lower_business_expr(
-                                        expr,
-                                        "formatted derive parameter default",
-                                    ),
-                            };
-                            defaults
-                                .push_str(&format!("if({name}===undefined){{{name}={value};}}"));
+            let modes = if self.boolean_derives.contains(&item.canonical) {
+                vec![false, true]
+            } else {
+                vec![false]
+            };
+            for boolean_body in modes {
+                self.boolean_body = boolean_body;
+                self.boolean_helper = self.boolean_derives.contains(&item.canonical);
+                let name = binding_ident(if boolean_body { "b" } else { "s" }, &item.canonical);
+                self.enter_scope();
+                let mut signature = vec!["c".to_string()];
+                for id in params {
+                    signature.push(self.bind(&self.ir.items[id.0 as usize].name.clone()));
+                }
+                let export = if item.exported && !boolean_body {
+                    "export "
+                } else {
+                    ""
+                };
+                match expr {
+                    Some(expr) => {
+                        let mut defaults = String::new();
+                        for (id, name) in params.iter().zip(signature.iter().skip(1)) {
+                            if let IrItemKind::Param {
+                                default: Some(default),
+                                ..
+                            } = &self.ir.items[id.0 as usize].kind.clone()
+                            {
+                                let value = match default {
+                                    IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
+                                        self.lower_business_expr(
+                                            expr,
+                                            "formatted derive parameter default",
+                                        )
+                                    }
+                                };
+                                defaults.push_str(&format!(
+                                    "if({name}===undefined){{{name}={value};}}"
+                                ));
+                            }
                         }
-                    }
-                    let body_text = self.lower_expr(expr);
-                    out.push(
+                        let body_text = self.lower_expr(expr);
+                        out.push(
                         item.span,
                         Some(item.canonical.clone()),
                         &format!(
@@ -14640,20 +14828,23 @@ impl<'a> Emitter<'a> {
                             signature.join(",")
                         ),
                     );
+                    }
+                    None => {
+                        out.push(
+                            item.span,
+                            Some(item.canonical.clone()),
+                            &format!(
+                                "{export}async function {name}({}){{throw new Error({});}}",
+                                signature.join(","),
+                                js_string(&format!("unchecked derive: {}", item.canonical))
+                            ),
+                        );
+                    }
                 }
-                None => {
-                    out.push(
-                        item.span,
-                        Some(item.canonical.clone()),
-                        &format!(
-                            "{export}async function {name}({}){{throw new Error({});}}",
-                            signature.join(","),
-                            js_string(&format!("unchecked derive: {}", item.canonical))
-                        ),
-                    );
-                }
+                self.exit_scope();
+                self.boolean_body = false;
+                self.boolean_helper = false;
             }
-            self.exit_scope();
         }
     }
 

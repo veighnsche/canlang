@@ -154,7 +154,8 @@ fn membership_cannot_enter_direct_or_transitive_defaults() {
         "app UnsafeDefault\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\n Entry {allowed:bool=member(actor)}\nWhen\nThen\n",
         "app UnsafeDefault\nGiven\n Entry {allowed:bool=actor!=null and active_member(actor,team)}\nWhen\nThen\n",
         "app UnsafeDefault\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\n Entry {allowed:bool server=member(actor)}\nWhen\nThen\n",
-        "app UnsafeField\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:bool = member(actor)\nWhen\nThen\n",
+        "app UnsafeField\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:text = first([\"yes\"] as value where member(actor))??\"no\"\nWhen\nThen\n",
+        "app UnsafeFieldDefault\nGiven\n Entry {label:text}\n derive member(person:user?):bool = person!=null and active_member(person,team)\n derive Entry.visible:bool = member(actor)\nWhen\n scenario enter(entry:Entry,allowed:bool=entry.visible) by=members\n  do let accepted=true\nThen\n",
         "app UnsafePage\nGiven\n derive member(person:user?):bool = person!=null and active_member(person,team)\nWhen\nThen\n page /private title=\"Private\"\n  require member(actor)\n",
     ] {
         let (_, diagnostics) = check(source, &catalog);
@@ -220,6 +221,22 @@ fn a_different_selected_membership_signature_is_not_admitted() {
             .iter()
             .any(|diagnostic| diagnostic.code == "E3010"
                 && diagnostic.message.contains("active_member")),
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn record_page_and_boolean_field_admit_bounded_reads_without_relaxing_other_values() {
+    let source = "app ContextualMembership\nGiven\n Entry {account:user}\n policy Entry read=members\n derive current(person:user):bool = active_member(person,team)\n derive Entry.visible:bool = current(row.account)\nWhen\nThen\n page /entries/{Entry.id}/access title=\"Access\"\n  require actor!=null and current(actor)\n  text row.visible\n";
+    let (_, diagnostics) = check(source, &catalog());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let nonbool = source.replace("derive Entry.visible:bool = current(row.account)", "derive Entry.visible:text = first([\"yes\"] as value where current(row.account))??\"no\"")
+        .replace(" and row.visible", "");
+    let (_, diagnostics) = check(&nonbool, &catalog());
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.code == "E3010" && d.message.contains("current")),
         "{diagnostics:?}"
     );
 }

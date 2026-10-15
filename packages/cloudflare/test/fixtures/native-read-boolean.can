@@ -1,0 +1,17 @@
+app NativeBoolean
+Given
+ Item {author:user,enabled:bool,hidden:bool}
+ derive can_use(person:user?,allowed:bool=true):bool = allowed and person!=null and active_member(person,team)
+ derive Item.met:bool = row.enabled and can_use(row.author)
+ policy Item read=members fields=author,enabled,met
+When
+Then
+ page /items/{Item.id}/access title="Item access"
+  require actor!=null and can_use(row.author)
+  text "Allowed"
+ page /items/{Item.id}/hidden title="Hidden access"
+  require actor!=null and row.hidden and can_use(row.author)
+  text "Hidden"
+ page /items title="Items"
+  list Item as item
+   text row.met

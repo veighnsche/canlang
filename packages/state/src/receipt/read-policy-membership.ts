@@ -127,15 +127,37 @@ function healthyLifetime(lifetime: ReadLifetime): void {
 }
 
 /** Internal State navigation lease; no caller can issue or replace its observation. */
-export async function withinInstalledReadObservation<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
+export function withinInstalledReadObservation<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
   input: { readonly store: StoragePort; readonly model: ModelName; readonly id: RecordId },
   execute: (checkpoint: () => Promise<void>,
     loadRow: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
     ownerRows: InstalledSourceOwnerRows | undefined) => Promise<Result>): Promise<Result> {
+  return withinInstalledSourceReadLease(observation, input, false, execute);
+}
+
+/** Private collection/ref consumer. Control authority comes from the actual
+ * installed read-policy lifetime, never a caller-selected query option. */
+export function withinInstalledSourceReadQuery<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
+  input: { readonly store: StoragePort; readonly model: ModelName },
+  execute: (checkpoint: () => Promise<void>,
+    loadRow: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
+    ownerRows: InstalledSourceOwnerRows | undefined, control: boolean) => Promise<Result>): Promise<Result> {
+  return withinInstalledSourceReadLease(observation, input, true, execute);
+}
+
+async function withinInstalledSourceReadLease<Result>(observation: Readonly<ViewerGenerationCallbackReadObservation>,
+  input: { readonly store: StoragePort; readonly model: ModelName; readonly id?: RecordId }, collection: boolean,
+  execute: (checkpoint: () => Promise<void>,
+    loadRow: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
+    ownerRows: InstalledSourceOwnerRows | undefined, control: boolean) => Promise<Result>): Promise<Result> {
   const lifetime = observationLifetime(observation); let navigation: ReadNavigation | undefined;
   try {
-    object(input, ['store', 'model', 'id']);
-    const model = text(input.model), id = text(input.id), key = `${model}\0${id}`;
+    object(input, collection ? ['store', 'model'] : ['store', 'model', 'id']);
+    const model = text(input.model), id = collection ? '' : text(input.id);
+    // A data query may enter that model's original policy, whose decision
+    // inspects the same model without recursively projecting its own policy.
+    // Distinguish only the actual installed control lifetime, never an option.
+    const key = collection ? `${lifetime?.stage === 'read-policy' ? 'control-query' : 'query'}\0${model}` : `record\0${model}\0${id}`;
     if (model.includes('\0') || id.includes('\0') || typeof execute !== 'function' ||
         lifetime === undefined || lifetime.observation !== observation || lifetime.store !== input.store ||
         lifetime.pending || lifetime.navigation !== null) return fail('exact live nonconcurrent owning read required for navigation.');
@@ -177,7 +199,7 @@ export async function withinInstalledReadObservation<Result>(observation: Readon
       } catch (error) { poison(lifetime); throw error; }
       finally { if (acquired) loading = false; }
     };
-    const result = await execute(checkpoint, loadRow, lifetime.ownerRows);
+    const result = await execute(checkpoint, loadRow, lifetime.ownerRows, lifetime.stage === 'read-policy');
     if (loading) return fail('navigation cannot return with an unfinished row load.');
     if (lease.child !== null) return fail('navigation cannot return with an unfinished child source read.');
     await checkpoint();

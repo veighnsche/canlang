@@ -14938,6 +14938,40 @@ is not yet ready for unrestricted training-data authoring; no dataset or trainin
 work is started and the future 12 GB inference requirement remains unchanged.
 
 
+2026-10-15 — Resolve the three remaining Member/Shift language blockers.
+
+Accept current-membership evaluation for record-bound top-level page `require`
+and model bool derived fields through privately installed, compiler-authenticated
+boolean read consumers. Reuse the existing fenced State read observation, exact
+original function/source/call/slot/default census and protected navigation rather
+than a global membership callback. Page admission grants no records. A computed
+false remains a value; it must not filter away its owning row. Derived field and
+data dependency read grants remain required. Ordinary strict pure defaults and
+other value contexts retain their refusals; nonbool membership-derived values
+and unbound page/container gates are outside this finite change.
+
+Three equivalent [page/derived consultations](../../design/jev/page-derived-membership-20261015/1.json)
+and companions 2/3 selected the shared boolean read path. Page probabilities were
+1/.99/1 (confidence 1/.98/1); derived probabilities/confidence were all 1. These
+are advice, now accepted as the design choice; native implementation acceptance
+still requires the original expressions and their actual dependencies.
+
+Investigation found those original dependencies include model queries and
+business references, which the existing native read adapter refuses. Extend its
+actual State observation with private borrowed collection reads and lazy
+reference loads using the same store/revision/current membership/fence. Keep
+viewer permissions before data filtering/counting/navigation; original installed
+read-policy controls may observe same-owner decision data only to determine their
+existing grant. Selecting that control purpose is private to the actual installed
+policy lifetime, never a public option or metadata grant. This avoids recursively
+requiring `Employee.read=staff(actor)` in the query used to decide `staff(actor)`.
+No owner-data escape into the computed bool is accepted. Three equivalent
+[query/reference consultations](../../design/jev/boolean-read-query-closure-20261015/1.json)
+and companions 2/3 selected this existing-observation extension (probability
+1/.97/.99, confidence 1/.95/.98). This dependency is necessary for the original
+CanMember role/work-location guard and Shift coverage calculation, not a request
+for a repository-wide query subsystem or a new effect language.
+
 Accept additive `std.EmailV1.send_user(to:user,subject:text,body:text,
 attachments:file[]=[]) -> EmailAccepted` beside unchanged address `send`.
 The configured mail effect privately resolves the intended current same-team
@@ -14964,3 +14998,34 @@ when the corresponding implementation and original-source checks pass. Broader
 reference counts and unrelated external holds remain unchanged.
 
 User-mail implementation acceptance: Contracts/Services/State/Work/Cloudflare emits pass; thirteen contract checks, seven affected Work registry/pin checks and the eight-check target universe pass at their retained scopes. The new durable recipient component and existing ordinary-mail component pass. The actual compiler-to-native user-mail profile passes 1/1, covering source skip, fresh membership, one ACK fence and exact replay. No source directory fields are exposed.
+
+Boolean-read implementation acceptance: the exact original `staff`, `can_work`,
+`has_role`, `eligible` and `coverage_met` bodies compile and execute in the finite
+native cohort (1/1). Administrator admission skips work queries; manager admission
+uses real viewer queries and the self-dependent Employee read policy. Coverage
+uses the original nested Duty/Availability queries and lazy business references;
+a removed subject produces false without hiding the granted row, and mid-read
+caller/subject revocation refuses release. Private fields stay withheld and all
+stored rows/history remain unchanged. The related State/Interfaces/simple-native
+checks pass 81/81; final affected lease checks pass 2/2 and recipe validation 1/1,
+reusing unchanged results rather than adding their overlapping scopes. State,
+Interfaces and Cloudflare emits pass. Compiler membership typing passes 7/7,
+code generation 7/7 and final source-predicate/census checks 7/7, including
+source/IR/type substitution refusals; the final CLI build passes.
+
+The original coverage closure requires existing Values `flatten`, `overlaps` and
+`subtractDuration` exports in the native facade. Its actual argument expressions
+also require bounded nested-array and literal Null recipe types; defining defaults
+retain the declared parameter type, and `active_member` still requires exact
+`user`/`Team` arguments. Borrowed DATA and installed policy CONTROL queries have
+separate private lifetime keys so a data read can decide its own source policy;
+same-stage recursion remains refused. These are concrete dependencies of the
+original expressions, not new declaration syntax or public authority options.
+
+This closes the three language-contract blockers at their checked consumer scopes.
+Record-page admission still supplies no render-row binding: emission explicitly
+refuses a free route `row` rather than producing unbound JavaScript. Collection-row
+bindings remain supported. The original complete CanCRM composition is separately
+refused by its remaining native emission/catalog/example requirements, grouped in
+the existing compiler-completion record. No complete CanCRM artifact or browser
+acceptance, broader reference release, or training-data readiness follows.

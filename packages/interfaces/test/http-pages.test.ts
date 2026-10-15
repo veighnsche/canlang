@@ -688,6 +688,7 @@ function queryingPage(): PageDescriptor {
 test('native record reads use the exact admitted request scope for full and partial pages without collection truncation', async () => {
   for (const partial of [false, true]) {
     const admissions: PageSourceContext[] = [];
+    let boundSource: PageSourceContext | undefined;
     const events: string[] = [];
     const rows = Array.from({ length: 130 }, (_, index) => ({ id: `native-${index}`, version: BigInt(index + 1) }));
     const authored: PageRecordsQuery = { authority: 'viewer' };
@@ -704,6 +705,7 @@ test('native record reads use the exact admitted request scope for full and part
     const page = helloPage({
       admit: async context => {
         const source = context as PageSourceContext;
+        assert.equal(source, boundSource, 'host binds the exact frozen source before authored admission');
         admissions.push(source); events.push('admit');
         assert.equal(source.canonical.readRecords, undefined);
         return {};
@@ -721,6 +723,10 @@ test('native record reads use the exact admitted request scope for full and part
     const { deps, identity } = await createTestDeps({ descriptors: [page] });
     let scopes = 0;
     const res = await handlePageRequest({ ...deps,
+      bindSourceReadContext: (current, source) => {
+        assert.equal(current.actor?.user_id, identity.userId);
+        assert.ok(Object.isFrozen(source)); boundSource = source; events.push('bind');
+      },
       query: async () => { assert.fail('native records must not fall back to collection queries'); },
       createReadScope: current => {
         events.push('scope'); scopes += 1; scopeIdentity = current;
@@ -734,6 +740,7 @@ test('native record reads use the exact admitted request scope for full and part
     assert.equal(res.status, 200);
     assert.match(await res.text(), /<p>native:130<\/p>/);
     assert.equal(scopes, 1); assert.equal(reads, 1);
+    assert.ok(events.indexOf('bind') < events.indexOf('admit'));
     assert.ok(events.indexOf('admit') < events.indexOf('scope'));
     assert.ok(events.indexOf('scope') < events.indexOf('read'));
   }

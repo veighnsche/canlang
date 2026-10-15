@@ -78,8 +78,23 @@ function source(value: unknown): void {
   const item = object(value, ['path', 'sha256', 'module']); text(item.path); text(item.module);
   if (typeof item.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(item.sha256)) fail('exact source digest required.');
 }
-function type(value: unknown): void {
+function type(value: unknown, argument = false): void {
   text(value);
+  // Compiler serializes arguments from actual expression types, but defaults
+  // from their owning Param.ty (scenario_decisions::serialize_sites).
+  if (value === 'null') {
+    if (argument) return;
+    return fail('declared defining default type required.');
+  }
+  // Collection projections such as flatten([[instant]]) have nested array
+  // expression types even though stored/declaration type ids are one-layer.
+  if (argument && /(?:\[\]){2,}$/.test(value as string)) {
+    let element = value as string, dimensions = 0;
+    while (element.endsWith('[]')) { element = element.slice(0, -2); dimensions++; }
+    if (dimensions > 16) return fail('bounded actual collection argument type required.');
+    type(element);
+    return;
+  }
   try { if (printTypeId(parseTypeId(value as string)) !== value || value === 'void') fail('canonical owning type required.'); }
   catch (error) { if (error instanceof StateError) throw error; fail('canonical owning type required.'); }
 }
@@ -117,7 +132,7 @@ export function checkScenarioReceiptMembershipSites(value: unknown): readonly Sc
       if (kind === 'builtin') { text(target.id); index(target.overload); }
       else if (kind === 'derive') text(target.name); else fail('checked builtin or canonical derive required.');
       const args = list(call.arguments);
-      for (const value of args) { const argument = object(value, ['node', 'type']); node(argument.node); type(argument.type); }
+      for (const value of args) { const argument = object(value, ['node', 'type']); node(argument.node); type(argument.type, true); }
       const slots = list(call.slots), used = new Set<number>();
       for (const slot of slots) {
         if (slot === null) continue;

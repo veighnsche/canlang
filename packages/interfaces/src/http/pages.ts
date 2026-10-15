@@ -169,7 +169,10 @@ async function preferenceSource(
 ): Promise<PageSourceContext> {
   const source = buildPageSourceContext(identity);
   const fields = checkedPreferenceFields(descriptor);
-  if (fields.length === 0) return source;
+  if (fields.length === 0) {
+    await deps.bindSourceReadContext?.(identity, source);
+    return source;
+  }
   if (identity.actor === null || identity.team === null || identity.membership === null ||
       identity.membership.status !== 'active' ||
       identity.membership.user_id !== identity.actor.user_id ||
@@ -191,11 +194,13 @@ async function preferenceSource(
     values[field.name] = saved?.value ?? field.defaultValue;
     versions[field.name] = saved?.version ?? '0';
   }
-  return Object.freeze({
+  const result = Object.freeze({
     ...source,
     preferences: Object.freeze({ [descriptor.owner]: Object.freeze(values) }),
     preferenceVersions: Object.freeze({ [descriptor.owner]: Object.freeze(versions) }),
   });
+  await deps.bindSourceReadContext?.(identity, result);
+  return result;
 }
 
 /** Bound tabs save through their actual page route and return to that view. */

@@ -72,12 +72,13 @@ export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, sele
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  ValueError, int64, datetime, compareInstant, addDuration, abs, all, any, at, sum, join, trim, compareScalar, choose, concat,
+  ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, join, trim, compareScalar, choose, concat, flatten,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate, encodeValue,
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { active_member } from './native-membership.js';
+export { nativeReadBoolean, nativeReadReference } from './native-read-boolean.js';
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Whole historical callback observation through the installed current viewer scope. */

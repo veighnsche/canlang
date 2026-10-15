@@ -211,6 +211,8 @@ export interface PageHttpDeps {
   readonly identity: Pick<IdentityDeps, 'store'>;
   /** Absent joins refuse queries; non-query pages need no collection backend. */
   readonly query?: RowQueryRunner;
+  /** Host-only binding of the exact frozen source before authored admission. */
+  readonly bindSourceReadContext?: (identity: ResolvedIdentity, source: PageSourceContext) => void | Promise<void>;
   /**
    * Construct once after verified page admission. The owner binds collection,
    * native source-expression and receipt reads to the same current authority,

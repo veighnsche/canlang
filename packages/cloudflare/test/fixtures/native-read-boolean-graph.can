@@ -1,0 +1,41 @@
+## Original role/work and coverage decision bodies; finite native read witness.
+app NativeBooleanGraph
+Given
+ role member_manager
+ role scheduler
+ role hr
+ Location {active:bool=true}
+ Employee {user:user,active:bool=true,operator_wide:bool=false,home:Location,locations:Location[],role:text,skills:text[],private_notes:text?}
+ Customer {locations:Location[]}
+ CompanyRole in Customer {account:user,role:enum(administrator,booker,billing),active:bool=true}
+ Roster {label:text}
+ Availability in Roster {employee:Employee,available:bool,from:datetime,until:datetime}
+ Commitment in Roster {employee:Employee,location:Location,active:bool=true,kind:enum(duty,absence),skill:text,from:datetime,until:datetime,before:duration=0m,after:duration=0m,conflict:bool=false}
+ Duty in Commitment {role:text,published:bool=false}
+ Coverage in Roster {location:Location,role:text,from:datetime,until:datetime,minimum:int=1}
+ derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))
+ derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+ derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+ derive eligible(commitment:Commitment):bool = commitment.active and commitment.location.active and commitment.employee.active and can_work(commitment.employee.user,commitment.location) and (commitment.kind==absence or commitment.skill in commitment.employee.skills) and (commitment.kind==absence or (any(commitment.parent.Availability as window,window.employee==commitment.employee and window.available and window.from<=commitment.from-commitment.before and commitment.until+commitment.after<=window.until) and not any(commitment.parent.Availability as window,window.employee==commitment.employee and not window.available and overlaps(commitment.from-commitment.before,commitment.until+commitment.after,window.from,window.until))))
+ derive coverage_met(roster:Roster,window:Coverage,publishing:Duty?):bool = all([window.from]+flatten(roster.Commitment as item where item.kind==duty and item.location==window.location select [item.from,item.until]) as instant,instant<window.from or instant>=window.until or count(Duty as duty where duty.parent.parent==roster and duty.role==window.role and duty.parent.location==window.location and duty.parent.employee.role==duty.role and (duty.published or duty==publishing) and not duty.parent.conflict and eligible(duty.parent) and duty.parent.from<=instant and instant<duty.parent.until)>=window.minimum)
+ derive Coverage.met:bool = coverage_met(row.parent,row,null)
+ policy Location read=members
+ policy Customer read=members
+ policy CompanyRole read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)
+ policy Employee read=hr
+ policy Employee read=members and staff(actor) fields=user,home,locations,operator_wide,active,role,skills
+ policy Employee read=authenticated where=row.user==actor fields=user,home,locations,operator_wide,active,role,skills
+ policy Roster read=scheduler
+ policy Availability read=scheduler
+ policy Commitment read=scheduler and can_work(actor,row.location)
+ policy Duty read=scheduler and can_work(actor,row.parent.location)
+ policy Coverage read=scheduler and can_work(actor,row.location)
+When
+Then
+ page /companies/{Customer.id}/membership-access title="Membership access"
+  require actor!=null and (has_role(actor,row,administrator) or (member_manager and any(row.locations as location,can_work(actor,location))))
+  text "Allowed"
+ page /coverage title="Coverage"
+  require scheduler
+  list Coverage as window
+   status row.met

@@ -147,6 +147,7 @@ import { isConsistentCompletion } from '@canlang/work/receipt';
 import type { ViewerGenerationCallbackReadObservation } from '@canlang/state/receipt';
 import { bindInstalledSourceQueryPredicate } from '@canlang/state/receipt';
 import { registerNativeUiQueryBinder, forwardNativeUiQueryBinder } from './native-ui-query.js';
+import { bindNativeReadBooleanContext, bindNativeReadBooleanReader, bindNativeSourceReferenceReader } from './native-read-boolean.js';
 import { createSystemRegistry, enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
 import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerModelPolicyViews, OwnerModelChange, OwnerRuleContext, OwnerMutationSession, OwnerMutationSourceStager, ModelTable } from '@canlang/state/mutation';
@@ -5364,6 +5365,7 @@ function createSourceReadPolicyAdapter(input: {
   readonly app?: string;
   readonly owner?: string;
   readonly preferences?: HandlerContext['preferences'];
+  readonly observeGrant?: (model: string, row: StoredRow, fields: readonly string[], allowed: boolean, rule: string) => void;
 }) {
   const { loaded } = input, StateError = loaded.producers.errors;
   const evaluate = async (sourceModel: string,
@@ -5396,29 +5398,146 @@ function createSourceReadPolicyAdapter(input: {
       sourceReadOpts: input.opts, sourceObservation: observation,
       ...(input.preferences === undefined ? {} : { sourcePreferences: input.preferences }),
       ...(currentFence === undefined ? {} : { fence: currentFence }), failure: error => { failure = error; } });
-    const recordView = (name: string, source: StoredRow | ProjectedRecord): Record<string, unknown> =>
-      nativeProjectedRecord(loaded, name, source, navigation, recordView);
+    const sourceViews = new WeakMap<object, { readonly model: string; readonly row: StoredRow | ProjectedRecord }>();
+    const sourceReferences = new WeakSet<object>();
+    const rememberReferences = (value: unknown, depth = 0): void => {
+      if (typeof value !== 'object' || value === null || depth > 32) return;
+      if (isRecordRef(value)) { sourceReferences.add(value); return; }
+      for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))) {
+        if ('value' in descriptor) rememberReferences(descriptor.value, depth + 1);
+      }
+    };
+    const recordView = (name: string, source: StoredRow | ProjectedRecord, presence?: readonly string[]): Record<string, unknown> => {
+      const view = nativeProjectedRecord(loaded, name, source, navigation, recordView, presence);
+      sourceViews.set(view, { model: name, row: source });
+      rememberReferences(view);
+      return view;
+    };
     await navigation.prepare(sourceModel, row);
     const actualReadTeam = team === null ? null : Object.freeze({ teamId: context.teamId!, timezone: team.timezone });
-    const nativeRow = recordView(sourceModel, row);
+    const nativeRow = recordView(sourceModel, row, observation.sourcePresence);
     let allowed = false;
     for (const { predicate, owner } of predicates) {
+      let active = true;
+      const checkpoint = async () => {
+        if (!active || failure !== undefined) throw failure ?? new StateError('validation', 'Source decision is closed.');
+        if (await input.opts.store.readRevision() !== currentRevision) throw new StateError('conflict', 'Source read changed its original revision.');
+      };
+      const readSource = async (model: string, id?: string, parent?: { model: string; id: string }) => {
+        await checkpoint();
+        if (!loaded.models.some(candidate => candidate.name === model)) throw new StateError('validation', 'Source query requires its declared model.');
+        const source = await loadProducerModule(STATE_QUERY_SPECIFIER, 'installed source expression query');
+        const read = requireProducerFn(source, 'readRecordsAtSourceObservation', 'installed source expression query') as
+          typeof import('@canlang/state/query').readRecordsAtSourceObservation;
+        const records = await read({ observation, store: input.opts.store, model: model as ModelName,
+          ...(id === undefined ? {} : { id: id as RecordId }),
+          ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }),
+          readPolicies: policies(model), policy: loaded.policy as import('@canlang/state/query').SourceObservationRecordsInput['policy'] });
+        const values: { readonly record: ProjectedRecord; readonly view: Record<string, unknown> }[] = [];
+        for (const entry of records) {
+          await navigation.prepare(model, entry.record);
+          values.push({ record: entry.record, view: recordView(model, entry.record, entry.sourcePresence) });
+        }
+        await checkpoint();
+        return values;
+      };
+      const readRecords = async (model: string, query: CanonicalReadQuery) => {
+        try {
+          if (!isUnknownRecord(query) || Reflect.ownKeys(query).some(key => typeof key !== 'string' ||
+              !['parent', 'where', 'whereSource', 'order', 'limit', 'archived', 'authority'].includes(key) ||
+              !Object.hasOwn(Object.getOwnPropertyDescriptor(query, key)!, 'value')) ||
+              query.authority !== undefined && query.authority !== 'viewer' || query.archived !== undefined && query.archived !== 'exclude') {
+            throw new StateError('validation', 'Source queries require current declared viewer inputs.');
+          }
+          const parentRef = query.parent === undefined ? undefined : nativeRecordReference(query.parent) ??
+            (isRecordRef(query.parent) ? query.parent : undefined);
+          if (query.parent !== undefined && parentRef === undefined) throw new StateError('validation', 'Source containment needs its genuine declared parent.');
+          const selected = await readSource(model, undefined, parentRef);
+          const matched: typeof selected = [];
+          for (const candidate of selected) {
+            let matches: unknown = true;
+            if (typeof query.where === 'function') matches = await query.where(candidate.view, ctx);
+            else if (query.where !== undefined) throw new StateError('validation', 'Source query predicate requires its original generated function.');
+            if (typeof matches !== 'boolean') throw new StateError('validation', 'Source query predicate must return bool.');
+            if (matches) matched.push(candidate);
+          }
+          const order = query.order === undefined ? [{ field: 'id', direction: 'asc' as const }] :
+            Array.isArray(query.order) ? query.order.map(term => {
+              if (typeof term !== 'string' || term === '' || term === '-') throw new StateError('validation', 'Source order needs checked field spellings.');
+              return { field: term.startsWith('-') ? term.slice(1) : term, direction: term.startsWith('-') ? 'desc' as const : 'asc' as const };
+            }) : (() => { throw new StateError('validation', 'Source order needs its checked array.'); })();
+          // Trigger the same lazy protected access before engine ordering;
+          // absent optional fields remain absent while denied fields throw.
+          for (const candidate of matched) for (const term of order) {
+            let value: unknown = candidate.view;
+            for (const field of term.field.split('.')) value = value == null ? null : Reflect.get(Object(value), field);
+          }
+          const engine = await loadProducerModule('@canlang/state/query/engine', 'source exact ordering');
+          const sort = requireProducerFn(engine, 'orderSourceReadRecords', 'source exact ordering') as
+            typeof import('@canlang/state/query/engine').orderSourceReadRecords;
+          const ordered = sort(matched.map(candidate => candidate.record), loaded.models.find(candidate => candidate.name === model)!, order);
+          const limit = query.limit;
+          if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0 || ordered.length > limit)) {
+            throw new StateError('validation', 'Source query exceeded its declared limit.');
+          }
+          await checkpoint();
+          return Object.freeze(ordered.map(record => matched.find(candidate => candidate.record === record)!.view));
+        } catch (error) { failure ??= error; throw error; }
+      };
       const ctx = createContext({ caller: { userId: context.actorUserId ?? 'anonymous', roles },
       memberships: roles, store: readonlyStore, clock: input.now,
       ...(input.preferences === undefined ? {} : { preferences: input.preferences }),
       canonical: { operation: `${sourceModel}.read`, builtinRoles: Object.freeze(builtinRoles),
         stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
-        readModel: refuse, readRecords: refuse, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
+        readModel: refuse, readRecords, observeDelivery: refuse, observeGenerationCallbackDiagnostics: refuse },
       sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
       qualified: { actor: actor === null ? null : { userId: context.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
         team: team === null ? null : { teamId: context.teamId!, timezone: team.timezone }, now: input.now(), source: input.opts.source ?? 'worker' },
     });
+      bindNativeSourceReferenceReader(ctx, async (record, field) => {
+        try {
+          await checkpoint();
+          let source = typeof record === 'object' && record !== null ? sourceViews.get(record) : undefined;
+          const parent = typeof record === 'object' && record !== null ? navigation.resolveRecord(record) : undefined;
+          if (source === undefined && parent !== undefined) {
+            const resolved = await readSource(parent.model, parent.id);
+            if (resolved.length !== 1 || resolved[0]!.record.version !== parent.version) throw new StateError('forbidden', 'Parent reference is not currently readable.');
+            record = resolved[0]!.view; source = sourceViews.get(record as object);
+          }
+          if (field === undefined && source !== undefined) return record;
+          let target: string | undefined, value: unknown;
+          if (field === undefined) {
+            if (typeof record !== 'object' || record === null || !sourceReferences.has(record)) {
+              throw new StateError('validation', 'Source reference requires its original projected value.');
+            }
+            value = record;
+          } else {
+            if (source === undefined || typeof field !== 'string') throw new StateError('validation', 'Source reference requires its original model view and field.');
+            const type = loaded.models.find(candidate => candidate.name === source.model)?.fields[field]?.valueType;
+            const ownership = loaded.containment.get(source.model as ModelName);
+            target = field === 'parent' ? isUnknownRecord(ownership) && typeof ownership.parent === 'string' ? ownership.parent : undefined :
+              loaded.refs.get(source.model)?.find(reference => reference.field === field)?.model ??
+              (type === undefined ? undefined : loaded.models.find(model => type === model.name || type === `${model.name}?`)?.name);
+            if (target === undefined) throw new StateError('validation', 'Source reference needs its checked singular model declaration.');
+            value = Reflect.get(record as object, field);
+          }
+          if (value == null) return null;
+          const reference = nativeRecordReference(value) ?? (isRecordRef(value) ? value : undefined);
+          if (reference === undefined || target !== undefined && reference.model !== target) throw new StateError('validation', 'Source reference differs from its declared target.');
+          target ??= reference.model;
+          const records = await readSource(target, reference.id);
+          if (records.length !== 1) throw new StateError('forbidden', 'Referenced record is not readable.');
+          if (reference.version !== undefined && reference.version !== BigInt(records[0]!.record.version)) throw new StateError('conflict', 'Source reference changed its admitted version.');
+          await checkpoint();
+          return records[0]!.view;
+        } catch (error) { failure ??= error; throw error; }
+      });
       Object.freeze(ctx.memberships); Object.freeze(ctx.caller); Object.freeze(ctx.preferences); Object.freeze(ctx);
       const membershipFrame = openNativeReadMembershipFrame(ctx, installed, observation, owner,
         actualReadTeam, error => { failure ??= error; });
       let verdict: unknown;
       try { verdict = await predicate(ctx, nativeRow); membershipFrame.assertCompleted(); }
-      finally { membershipFrame.close(); }
+      finally { active = false; membershipFrame.close(); }
       if (failure !== undefined) throw failure;
       if (typeof verdict !== 'boolean') throw new StateError('validation', 'Source read predicates must return bool.');
       if (verdict) { allowed = true; break; }
@@ -5450,8 +5569,11 @@ function createSourceReadPolicyAdapter(input: {
         const sourceModel = model;
         reads.set(model, Object.freeze({ fields: source.fields, secretFields: source.secretFields,
           grants: Object.freeze(source.grants.map(grant => {
-            const read: import('@canlang/state/receipt').InstalledSourceReadPredicate = observation =>
-              evaluate(sourceModel, [{ predicate: grant.predicate, owner }], observation, read);
+            const read: import('@canlang/state/receipt').InstalledSourceReadPredicate = async observation => {
+              const allowed = await evaluate(sourceModel, [{ predicate: grant.predicate, owner }], observation, read);
+              input.observeGrant?.(sourceModel, observation.row, grant.fields, allowed, grant.rule);
+              return allowed;
+            };
             const owner = bindSourceReadMembership(loaded, read, source.app, grant.rule);
             return Object.freeze({ fields: grant.fields, read });
           })), ...(parent === undefined ? {} : { parent }) }));
@@ -5542,6 +5664,17 @@ async function createContainmentNavigation(input: {
     if (sourceReads !== undefined) {
       let policies = sourcePolicies.get(model);
       if (policies === undefined) { policies = sourceReads.policies(model); sourcePolicies.set(model, policies); }
+      if (input.sourceObservation !== undefined) {
+        const source = await loadProducerModule(STATE_QUERY_SPECIFIER, 'borrowed source parent projection');
+        const read = requireProducerFn(source, 'readRecordsAtSourceObservation', 'borrowed source parent projection') as
+          typeof import('@canlang/state/query').readRecordsAtSourceObservation;
+        const result = await read({ observation: input.sourceObservation, store, model: model as ModelName, id: id as RecordId,
+          readPolicies: policies, policy: loaded.policy as import('@canlang/state/query').SourceObservationRecordsInput['policy'] });
+        if (result.length !== 1) throw new StateError('not_found', 'Parent record not found.');
+        const selected = result[0]!;
+        sourcePresence.set(selected.record, new Set(selected.sourcePresence));
+        return selected.record;
+      }
       // State loads this committed target and the complete actual ancestor chain.
       // Neither an earlier projection nor an owner overlay is an input row.
       await verifyCheckedAssembly(input.sourceReadOpts!.asm, input.sourceReadOpts!.artifact);
@@ -5780,7 +5913,8 @@ function nativeRecordField(loaded: NativeRecordScope, modelName: string, field: 
 /** Only actual projected fields enter a native read view. */
 function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row: StoredRow | ProjectedRecord,
   navigation?: Awaited<ReturnType<typeof createContainmentNavigation>>,
-  parentView?: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>): Record<string, unknown> {
+  parentView?: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>,
+  sourcePresence?: readonly string[]): Record<string, unknown> {
   const record: Record<string, unknown> = Object.create(null);
   for (const [field, wire] of Object.entries(row.data)) {
     record[field] = nativeRecordField(loaded, modelName, field, wire);
@@ -5792,7 +5926,7 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
     // Only an actual omission by State projection is a denied field. A
     // legitimately absent optional stored value keeps its existing carrier.
     for (const field of Object.keys(loaded.models.find(model => model.name === modelName)?.fields ?? {})) {
-      if (navigation.isWithheld(row, field)) Object.defineProperty(record, field, { get: () => {
+      if (navigation.isWithheld(row, field) || sourcePresence?.includes(field) && !Object.hasOwn(row.data, field)) Object.defineProperty(record, field, { get: () => {
         return navigation.reject(new loaded.producers.errors('forbidden', 'Record field is not readable.'));
       } });
     }
@@ -12263,6 +12397,111 @@ function installPagePredicate(loaded: LoadedCanonicalDescriptors, original: Nati
     bindInstalledSourceQueryPredicate(predicate, { source: original.source, rule: original.owner });
 }
 
+/** The exact frozen dispatcher source is associated before admission. Store
+ * selection stays private and lazy, preserving owner routing for static pages. */
+export function bindPageReadBooleanContextCanonical(source: PageSourceContext,
+  options: () => Promise<CanonicalPageReadOpts>): void {
+  bindNativeReadBooleanContext(source, async (fn, subject) =>
+    evaluateNativeReadBoolean(await options(), fn, subject));
+}
+
+interface NativeBooleanSource extends NativePageWhere {
+  readonly model: string;
+  readonly kind: 'page-require' | 'derived-field';
+  readonly field?: string;
+}
+
+/** Only verified emitted code can attest its own actual boolean function.
+ * The existing predicate getter must independently identify the same function. */
+async function originalReadBoolean(opts: CanonicalPageReadOpts, fn: Function): Promise<NativeBooleanSource> {
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  let selected: NativeBooleanSource | undefined;
+  for (const module of Object.keys(opts.asm.moduleUrls)) {
+    const imported = await importVerifiedAssemblyModule(opts.asm, module, opts.artifact);
+    const getter = privateSourceMember(imported, 'canReadBooleanSource');
+    if (getter === undefined) continue;
+    if (typeof getter !== 'function') throw new AssemblyCorrespondenceError('Native boolean source getter must be original.');
+    const raw: unknown = getter(fn);
+    if (raw === null) continue;
+    const value = localPolicyObject(raw, ['source', 'owner', 'node', 'statement', 'model', 'kind', 'field']);
+    if (selected !== undefined || typeof value.model !== 'string' || value.model.length === 0 ||
+        !['page-require', 'derived-field'].includes(String(value.kind)) ||
+        Reflect.ownKeys(value).length !== (value.kind === 'derived-field' ? 7 : 6) ||
+        (value.kind === 'derived-field' && (typeof value.field !== 'string' || value.field.length === 0))) {
+      throw new AssemblyCorrespondenceError('Native boolean source differs from its original consumer.');
+    }
+    selected = freezeScenarioSnapshot(structuredClone(raw)) as NativeBooleanSource;
+  }
+  if (selected === undefined) throw new AssemblyCorrespondenceError('Native boolean read requires its original function.');
+  const scope: NativePagePredicateScope = { originals: new WeakMap(), preferences: capturePagePreferences(opts) };
+  await bindOriginalPageWhere(opts, scope, fn);
+  const original = scope.originals.get(fn)!;
+  const { model: _model, kind: _kind, field: _field, ...marker } = selected;
+  if (stableStringify(marker) !== stableStringify(original)) {
+    throw new AssemblyCorrespondenceError('Native boolean and predicate source identities disagree.');
+  }
+  return selected;
+}
+
+/** Execute one checked bool on one granted row. The private answer is withheld
+ * until State has completed its complete row/Identity/revision revalidation;
+ * false remains a value and never acts as row visibility. */
+async function evaluateNativeReadBoolean(opts: CanonicalPageReadOpts, fn: Function, subject: unknown): Promise<boolean> {
+  const original = await originalReadBoolean(opts, fn);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
+  const StateError = loaded.producers.errors;
+  const reference = nativeRecordReference(subject);
+  const id = original.kind === 'page-require' && typeof subject === 'string' ? subject : reference?.id;
+  if (typeof id !== 'string' || id.length === 0 || id.length > 4096 ||
+      (original.kind === 'derived-field' && (reference === undefined || reference.model !== original.model || reference.version === undefined))) {
+    throw new StateError('validation', 'Native boolean read requires its exact route or admitted model record.');
+  }
+  const model = loaded.models.find(model => model.name === original.model);
+  const declared = opts.artifact.models?.find(model => model.name === original.model)?.fields.find(field => field.name === original.field);
+  if (model === undefined || original.kind === 'derived-field' &&
+      (declared?.default?.kind !== 'derived' || declared.field.kind !== 'boolean')) {
+    throw new AssemblyCorrespondenceError('Native boolean source requires its original model and derived bool declaration.');
+  }
+  assertCanonicalStore(opts.store, `${original.model}.read`);
+  assertCanonicalMemberships(opts.memberships, `${original.model}.read`);
+  const expectedRevision = await opts.store.readRevision();
+  const permitted = new Map<string, boolean>();
+  const sourceReads = createSourceReadPolicyAdapter({ loaded, opts, revision: expectedRevision,
+    preferences: capturePagePreferences(opts), now: opts.now ?? Date.now,
+    observeGrant: (name, row, fields, allowed, rule) => {
+      if (name === original.model && row.id === id && fields.includes(original.field!)) permitted.set(rule, allowed);
+    } });
+  let captured: boolean | undefined;
+  const predicate: import('@canlang/state/receipt').InstalledSourceQueryPredicate = async (record, observation) => {
+    if (observation === undefined || record.id !== id ||
+        reference?.version !== undefined && reference.version !== BigInt(record.version)) {
+      throw new StateError('validation', 'Native boolean read requires its one exact current record observation.');
+    }
+    if (original.kind === 'derived-field' && ![...permitted.values()].some(Boolean)) {
+      throw new StateError('forbidden', 'Derived field is not readable.');
+    }
+    const answer = await sourceReads.evaluate(original.model, [{ owner: original.owner,
+      predicate: (context, row) => Reflect.apply(fn, undefined, [context, row]) }], observation, predicate);
+    if (captured !== undefined && captured !== answer) {
+      throw new StateError('forbidden', 'Boolean source changed during its coherent observation.');
+    }
+    captured = answer;
+    return true;
+  };
+  installPagePredicate(loaded, original, predicate);
+  const reader = loaded.producers.transact.createReadInvoker({ registry: loaded.registry, models: loaded.models,
+    policy: loaded.policy, store: opts.store, memberships: opts.memberships,
+    sourceReadPolicies: sourceReads.policies(original.model) });
+  const served = await reader({ envelope: { operation: `${original.model}.read`, inputs: {} }, identity: opts.identity,
+    selection: { where: { op: 'eq', field: 'id', value: id }, predicate } });
+  if (served.revision !== expectedRevision || await opts.store.readRevision() !== expectedRevision) {
+    throw new StateError('conflict', 'Boolean source changed during its current read.');
+  }
+  if (served.records.length !== 1 || captured === undefined) throw new StateError('forbidden', 'Boolean source record is not readable.');
+  await verifyCheckedAssembly(opts.asm, opts.artifact);
+  return captured;
+}
+
 export async function queryPageRowsCanonical(
   opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
 ): Promise<ListQueryResult> {
@@ -12956,6 +13195,12 @@ export function createPageReadScopeCanonical(
       return sourceReceiptProjection(observed.projection, selected,
         declaration?.kind === 'delivery' ? declaration.result : undefined);
     },
+  });
+  if (scope.readRecords !== undefined) bindNativeReadBooleanReader(scope.readRecords, async (fn, subject) => {
+    await checkpoint();
+    const answer = await evaluateNativeReadBoolean(opts, fn, subject);
+    await checkpoint();
+    return answer;
   });
   registerNativeUiQueryBinder(scope.query, async (where, marker) => {
     await checkpoint();

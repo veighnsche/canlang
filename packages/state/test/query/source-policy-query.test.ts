@@ -4,7 +4,9 @@ import { test } from 'node:test';
 import type { ModelName, StoredRow } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { queryRecords, queryRecordsPage } from '../../src/query/engine.js';
-import type { ViewerGenerationCallbackSourceReadPolicy, ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
+import { readRecordsAtSourceObservation, type ViewerGenerationCallbackReadObservation,
+  type ViewerGenerationCallbackSourceReadPolicy, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
+import { bindInstalledSourceQueryPredicate, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
 import { StateError } from '../../src/errors.js';
 import { FenceConflictError } from '../../src/storage/port.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
@@ -149,4 +151,45 @@ test('source query retains existing filter call order, stable sorting and limit 
   assert.deepEqual((await queryRecords(input)).records.map(row => row.id), ['b', 'a']);
   assert.deepEqual(calls, ['b', 'a']); calls.length = 0;
   await assert.rejects(queryRecords({ ...input, limit: 1 }), refuses); assert.deepEqual(calls, ['b', 'a']);
+});
+
+test('actual policy-control queries decide their own source grant without recursion or raw output', async () => {
+  const s = await setup(); let decisions = 0;
+  s.reads.set(MODEL, { fields: s.current.fields, secretFields: ['settings.token'], grants: [{ fields: ['title'], read: async observation => {
+    decisions++;
+    const records = await readRecordsAtSourceObservation({ observation, store: s.store, model: MODEL,
+      readPolicies: s.reads, policy: s.input.policy });
+    assert.equal(records.length, 2, 'control reads use original owner inputs while deciding this grant');
+    assert.equal(records[0]!.record.data.private_prompt, 'PRIVATE');
+    assert.equal(Object.hasOwn(records[0]!.record.data.settings as object, 'token'), false);
+    return records.some(value => value.record.data.title === observation.row.data.title);
+  } }] });
+  const result = await queryRecords(s.input);
+  assert.equal(decisions, 2);
+  assert.deepEqual(result.records.map(row => row.data), [{ title: 'Alpha' }, { title: 'Beta' }], 'control values never become read output');
+});
+
+test('actual data source collection lease projects before source use and expires with its owning decision', async () => {
+  const s = await setup(); let original: ViewerGenerationCallbackReadObservation | undefined;
+  s.reads.set(MODEL, { fields: s.current.fields, secretFields: ['settings.token'], grants: [{ fields: ['title'], read: async observation => {
+    const inputs = await readRecordsAtSourceObservation({ observation, store: s.store, model: MODEL,
+      readPolicies: s.reads, policy: s.input.policy });
+    assert.equal(inputs.length, 2, 'data projection may enter its own genuine policy-control query');
+    return observation.row.id === 'a';
+  } }] });
+  const predicate: InstalledSourceQueryPredicate = async (_record, observation) => {
+    assert.ok(observation); original = observation;
+    const records = await readRecordsAtSourceObservation({ observation, store: s.store, model: MODEL,
+      readPolicies: s.reads, policy: s.input.policy });
+    assert.deepEqual(records.map(value => value.record.id), ['a'], 'denied candidates never reach source filtering/counting');
+    assert.deepEqual(records[0]!.record.data, { title: 'Alpha' });
+    assert.ok(records[0]!.sourcePresence.includes('private_prompt'), 'private same-load names support lazy withheld access');
+    return true;
+  };
+  bindInstalledSourceQueryPredicate(predicate, { source: { path: 'query.can', sha256: 'a'.repeat(64), module: 'Source' }, rule: 'Source.Query' });
+  const result = await queryRecords({ ...s.input, predicate });
+  assert.deepEqual(result.records.map(row => row.id), ['a']);
+  assert.ok(original);
+  await assert.rejects(readRecordsAtSourceObservation({ observation: original, store: s.store, model: MODEL,
+    readPolicies: s.reads, policy: s.input.policy }), refuses);
 });

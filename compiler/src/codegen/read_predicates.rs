@@ -1,5 +1,5 @@
 //! Private original named-page WHERE identities; no execution authority.
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -19,10 +19,23 @@ use super::ir::{IrExpr, IrProgram};
 /// is sealed before a consumer receives the immutable predicate map.
 pub(super) struct PreparedReadPredicates {
     predicates: HashMap<Span, serde_json::Value>,
+    booleans: HashMap<Span, serde_json::Value>,
+    boolean_derives: HashSet<String>,
+    boolean_rules: HashSet<String>,
     closure: String,
 }
 
 impl PreparedReadPredicates {
+    pub fn boolean_rules(&self, ir: &IrProgram) -> Option<&HashSet<String>> {
+        (self.closure == format!("{ir:?}")).then_some(&self.boolean_rules)
+    }
+    pub fn boolean_derives(&self, ir: &IrProgram) -> Option<&HashSet<String>> {
+        (self.closure == format!("{ir:?}")).then_some(&self.boolean_derives)
+    }
+    pub fn booleans(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
+        (self.closure == format!("{ir:?}")).then_some(&self.booleans)
+    }
+
     pub fn predicates(&self, ir: &IrProgram) -> Option<&HashMap<Span, serde_json::Value>> {
         (self.closure == format!("{ir:?}")).then_some(&self.predicates)
     }
@@ -246,8 +259,44 @@ pub(super) fn prepare_with_context(
             }
         }
     }
+    let mut booleans = HashMap::new();
+    let mut boolean_derives = HashSet::new();
+    for (span, identity, sites) in super::scenario_decisions::serialize_read_booleans(context)? {
+        for site in sites {
+            for call in site.calls {
+                if let super::scenario_decisions::SerialDecisionTarget::Derive { name } =
+                    call.target
+                {
+                    boolean_derives.insert(name);
+                }
+            }
+        }
+        let mut predicate = identity.clone();
+        let object = predicate.as_object_mut()?;
+        object.remove("model");
+        object.remove("kind");
+        object.remove("field");
+        if predicates.insert(span, predicate).is_some() || booleans.insert(span, identity).is_some()
+        {
+            return None;
+        }
+    }
+    let mut boolean_rules = HashSet::new();
+    for rule in ir.read_rules.iter().chain(&ir.callback_read_rules) {
+        if let Some(sites)=context.serialize_rule(rule)
+            && sites.iter().any(|site|site.calls.iter().any(|call|
+                matches!(&call.target,super::scenario_decisions::SerialDecisionTarget::Builtin{id,..} if id=="active_member"))) {
+            boolean_rules.insert(rule.id.clone());
+            for site in sites { for call in site.calls {
+                if let super::scenario_decisions::SerialDecisionTarget::Derive {name}=call.target {boolean_derives.insert(name);}
+            }}
+        }
+    }
     Some(PreparedReadPredicates {
         predicates,
+        booleans,
+        boolean_derives,
+        boolean_rules,
         closure: format!("{ir:?}"),
     })
 }
@@ -296,6 +345,109 @@ mod tests {
         let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         (db, catalog, program, ir)
+    }
+
+    const BOOLEAN_SOURCE: &str =
+        include_str!("../../../packages/cloudflare/test/fixtures/native-read-boolean.can");
+
+    #[test]
+    fn original_query_reference_boolean_graph_keeps_complete_source_census() {
+        let source = include_str!(
+            "../../../packages/cloudflare/test/fixtures/native-read-boolean-graph.can"
+        );
+        let (db, catalog, program, ir) = checked_source(source);
+        let context = super::super::scenario_decisions::FreshSourceContext::prepare(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+        )
+        .unwrap();
+        let sources = super::super::scenario_decisions::serialize_read_booleans(&context)
+            .expect("original graph Boolean call census");
+        assert_eq!(sources.len(), 2);
+        let prepared = prepare(&program, &ir, &db, Some(&catalog))
+            .expect("whole original source and execution seal");
+        assert_eq!(prepared.booleans(&ir).unwrap().len(), 2);
+        assert!(
+            prepared
+                .boolean_derives(&ir)
+                .unwrap()
+                .iter()
+                .any(|name| name.ends_with("coverage_met"))
+        );
+        assert!(prepared.boolean_rules(&ir).unwrap().len() >= 4);
+    }
+
+    #[test]
+    fn boolean_originals_keep_full_census_and_reject_source_ir_and_type_edits() {
+        let (db, catalog, mut program, mut ir) = checked_source(BOOLEAN_SOURCE);
+        let prepared =
+            prepare(&program, &ir, &db, Some(&catalog)).expect("original Boolean observers");
+        let observers = prepared.booleans(&ir).unwrap();
+        assert_eq!(observers.len(), 3);
+        assert!(
+            observers
+                .values()
+                .any(|value| value["kind"] == "page-require")
+        );
+        assert!(observers.values().any(|value| value["field"] == "met"));
+        for (span, identity) in observers {
+            assert_eq!(identity["model"], "NativeBoolean.Item");
+            assert_eq!(
+                prepared.predicates(&ir).unwrap()[span]
+                    .as_object()
+                    .unwrap()
+                    .len(),
+                4
+            );
+        }
+        let context = super::super::scenario_decisions::FreshSourceContext::prepare(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+        )
+        .unwrap();
+        let sites = super::super::scenario_decisions::serialize_read_booleans(&context).unwrap();
+        assert_eq!(sites.len(), 3);
+        for (_, _, sites) in sites {
+            assert_eq!(sites[0].stage, "read-predicate");
+            assert_eq!(sites[0].calls.len(), 2);
+            assert_eq!(sites[0].calls[0].defaults.len(), 1);
+            assert_eq!(sites[0].calls[1].chain.len(), 1);
+        }
+        let original = ir.clone();
+        let field = ir
+            .items
+            .iter_mut()
+            .find(|item| item.canonical == "NativeBoolean.Item.met")
+            .unwrap();
+        let crate::codegen::ir::IrItemKind::DeriveField {
+            expr: Some(expr), ..
+        } = &mut field.kind
+        else {
+            panic!()
+        };
+        expr.expr = IrExpr::Bool(true);
+        assert!(prepared.booleans(&ir).is_none());
+        assert!(prepare(&program, &ir, &db, Some(&catalog)).is_none());
+        ir = original.clone();
+        ir.modules[0].pages[0].path = "/foreign/{Item.id}".into();
+        assert!(prepare(&program, &ir, &db, Some(&catalog)).is_none());
+        ir = original;
+        let key = *program.types.selected_calls.keys().next().unwrap();
+        program
+            .types
+            .selected_calls
+            .get_mut(&key)
+            .unwrap()
+            .slots
+            .reverse();
+        assert!(prepare(&program, &ir, &db, Some(&catalog)).is_none());
+        let mut foreign = SourceDb::new();
+        foreign.add("read-predicates.can".into(), BOOLEAN_SOURCE.into());
+        assert!(prepare(&program, &ir, &foreign, Some(&catalog)).is_none());
     }
 
     #[test]

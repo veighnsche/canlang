@@ -6697,10 +6697,31 @@ impl<'a> Cx<'a> {
                     } else {
                         ResolvedType::Unknown
                     };
+                    let derived = if let ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    } = &expr.ty
+                    {
+                        self.fields.get(&(*symbol, field.clone())).copied().filter(|id| {
+                            self.program.effects.derives.get(id).is_some_and(|data| data.model.is_some()
+                                && data.expr.is_some_and(|key| crate::analysis::scenario_disclosure::expression_reads_membership(
+                                    &self.program.types, &self.program.effects, key)))
+                                && field_ty == ResolvedType::Scalar(Scalar::Bool)
+                        })
+                    } else {
+                        None
+                    };
                     expr = TypedExpr::new(
-                        IrExpr::Member {
-                            base: Box::new(expr),
-                            field: field.clone(),
+                        if let Some(id) = derived {
+                            IrExpr::Call {
+                                target: IrCallTarget::DeriveFn(self.canonical(id)),
+                                args: vec![expr],
+                            }
+                        } else {
+                            IrExpr::Member {
+                                base: Box::new(expr),
+                                field: field.clone(),
+                            }
                         },
                         field_ty,
                         *field_span,
@@ -11879,7 +11900,10 @@ impl<'a> Cx<'a> {
                         if let Some(pred) =
                             kids(child).iter().find(|n| is_expression(n.kind)).copied()
                         {
-                            admit.push(self.decode_guard_node(&scope, pred));
+                            admit.push(if crate::analysis::scenario_disclosure::expression_reads_membership(
+                                &self.program.types, &self.program.effects, NodeKey::of(pred)) {
+                                IrGuard::Expr(self.decode_expr(&scope, pred))
+                            } else { self.decode_guard_node(&scope, pred) });
                         }
                     }
                     // A2b: page-level `require` parses as a `UiLeaf`
@@ -11890,7 +11914,10 @@ impl<'a> Cx<'a> {
                         if let Some(pred) =
                             kids(child).iter().find(|n| is_expression(n.kind)).copied()
                         {
-                            admit.push(self.decode_guard_node(&scope, pred));
+                            admit.push(if crate::analysis::scenario_disclosure::expression_reads_membership(
+                                &self.program.types, &self.program.effects, NodeKey::of(pred)) {
+                                IrGuard::Expr(self.decode_expr(&scope, pred))
+                            } else { self.decode_guard_node(&scope, pred) });
                         }
                     }
                     _ => {
@@ -11959,7 +11986,23 @@ impl<'a> Cx<'a> {
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::Route => {
-                    path = self.decode_route(child, node.span);
+                    let membership_page = kids(node).iter().any(|candidate| {
+                        matches!(candidate.kind, SyntaxKind::Require | SyntaxKind::UiLeaf)
+                            && crate::analysis::scenario_disclosure::expression_reads_membership(
+                                &self.program.types,
+                                &self.program.effects,
+                                NodeKey::of(candidate),
+                            )
+                    });
+                    let record_only = kids(child)
+                        .iter()
+                        .filter(|n| n.kind == SyntaxKind::RouteRecord)
+                        .count()
+                        == 1
+                        && !kids(child)
+                            .iter()
+                            .any(|n| n.kind == SyntaxKind::RouteScalar);
+                    path = self.decode_route(child, node.span, membership_page && record_only);
                 }
                 SyntaxKind::Attribute => {
                     let parts = kids(child);
@@ -12067,7 +12110,7 @@ impl<'a> Cx<'a> {
     /// Normalize a route pattern. Static segments concatenate; dynamic
     /// (record/scalar) segments have no normalized lowering, so the
     /// source spelling is kept loudly (`E6008`).
-    fn decode_route(&mut self, route: &SyntaxNode, span: Span) -> String {
+    fn decode_route(&mut self, route: &SyntaxNode, span: Span, membership_record: bool) -> String {
         let mut out = String::new();
         let mut dynamic = false;
         for child in kids(route) {
@@ -12089,7 +12132,7 @@ impl<'a> Cx<'a> {
         if out.is_empty() {
             out.push('/');
         }
-        if dynamic {
+        if dynamic && !membership_record {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!("cannot lower route {out}: dynamic segments have no normalized §13 lowering; keeping the source spelling"),
