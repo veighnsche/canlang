@@ -161,6 +161,17 @@ order. Focused `compiler/tests/native_dispatch_email_inputs.rs` passes 3/3
 in the integrated parent; owning/inventory, admission, link, producer and
 hook suites unchanged per worker report. Codex review pending.
 
+Outcome 12 slice implemented in `a052ced3` (Lane C commit `4b64015f`):
+native hook runners bind ($candidate,$hookCtx,c) via HookState enter_hook,
+gating only the legacy derive-call E6008 gap; new
+`t31_hook_derive_call_native_context` probe passes. The commit also repairs
+three IrModule fixture initializers missing `runtime_bindings` without which
+the codegen test target does not compile at all — verified at base
+(`E0063`, pre-existing). Residual codegen failures (7, e.g. golden
+structures, e2e hook drivers) sit in that previously uncompilable suite and
+are not regressions of this slice; the broader 76-occurrence scope and
+native consumer remain open. Codex review pending.
+
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
 demanding a lane-02 catalog entry (25 E6007s); unversioned declarations and
