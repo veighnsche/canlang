@@ -26,7 +26,7 @@ Given
  role contact_reader
  Location {title:text,currency:currency}
  Result {location:Location,title:text trim min=1,value:money,notes:text}
- contract Selection {location:Location,kind:text,model:text,id:text,version:int}
+ contract Selection {location:Location,kind:text,model:text,id:text,version:int,recipient:email}
  contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text,kind:text,model:text,id:text,version:int}
  Snapshot {input:Lead}
  Assignment {title:text,owner:user=actor}
@@ -187,7 +187,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       const ref = (row:typeof customer)=>({id:row.id,version:String(row.version)});
       const contact = await seed(CONTACT,{parent:ref(customer),name:'original contact'});
       const otherContact = await seed(CONTACT,{parent:ref(other),name:'other contact'});
-      const payload = {customer:ref(customer),alternate:ref(customer),contact:ref(contact),selection:{location:ref(location),kind:'ref',model:'business-selection',id:'selection-id',version:'3'},
+      const payload = {customer:ref(customer),alternate:ref(customer),contact:ref(contact),selection:{location:ref(location),kind:'ref',model:'business-selection',id:'selection-id',version:'3',recipient:'selection@example.test'},
         kind:'ref',model:'business-lead',id:'lead-id',version:'7',title:'  reviewed  ',value:{minor:'500',currency:'EUR'},notes:'original evidence'};
       const records = ()=>store.query({model:RESULT,authority:'owner'});
       const createdBefore = await records();
@@ -455,6 +455,8 @@ test('native Contract input slots retain normalized values, distinct reference v
         assert.equal(batches.length,count+1);
       }
       for (const [invalid,code] of [
+        [{...payload,selection:{...payload.selection,recipient:'not-an-email'}},'validation'],
+        [{...payload,selection:{...payload.selection,recipient:42}},'validation'],
         [{...payload,customer:{id:customer.id}},'validation'],
         [{...payload,customer:{id:customer.id,version:String(customer.version+1)}},'conflict'],
         [{...payload,contact:{id:contact.id,version:String(contact.version+1)}},'conflict'],

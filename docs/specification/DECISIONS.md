@@ -16327,3 +16327,28 @@ so no disclosure/association is emitted and replay refuses before changed codecs
 Its missing option, unchanged capture gates and exact HEAD invoke refusal were
 verified; no complete Judgment durable pass is claimed and its assertion remains.
 Complete CanCRM/native/reference and training-data readiness remain open.
+
+
+2026-10-15 — C02/C03: retain validated email in ordinary Contract schemas.
+
+Publish email and its existing nullable/array forms through the checked ordinary
+Contract inventory, preserving the email codec rather than weakening it to text.
+This corrects a backend omission in QuoteDocument/AcceptedOffer; existing language
+semantics settle the choice, so no new JEV consultation is needed.
+
+Five affected compiler checks pass, including exact source-owned/imported/reused
+schemas, literals, normal/hook equality, all four email wrappers and canonical
+format refusals. Old unsupported-email fixtures now use the still unsupported
+timezone profile, retaining their complete-closure refusal criterion. Actual
+captured CLI/verified assembly/D1/Identity passes1/1 in68.33s: valid nested email
+survives storage/replay, malformed or nontext input refuses without effects, and
+existing permissions/order/rollback/recovery assertions remain unchanged.
+
+Two wider checks remain failing with independent assertions preserved. Ordinary
+Contract CRUD expects a rejected receipt for malformed fields, but e4c4eaab moved
+nominal validation ahead of execution and now leaves no receipt. Its pre-change
+admission skipped nonreference nominal fields; this demonstrated failure-phase
+regression is ready local work, not a stale assertion to relax. The schedule
+fixture stops at the existing declared-event input-carrier refusals, before its
+schedule assertions. Original24-source qualification follows this small tested
+commit; the retained703-diagnostic capture is not relabelled as a new result.
