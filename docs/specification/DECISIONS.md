@@ -16400,3 +16400,29 @@ proofs per predicate kind refuse. The actual Employee-domain inventory, helper
 argument/stage origins and lazy receipt-ANY execution join remain unfinished.
 Reuse the last original24-source701-diagnostic capture at its unchanged scope;
 this prerequisite does not claim a newly admitted CanCRM workflow.
+
+2026-10-15 — C02: bind lazy predicate ANY to its actual captured callback.
+
+Accepted implementation direction: retain the existing receipt query callback,
+and authenticate its exact pointer against a synchronous once-consumed capture
+from the installed producer for that admitted call/query occurrence. State still
+issues the genuine projected candidate and active slot; the native frame retains
+the actual once-evaluated lexical helper arguments. Neither public metadata nor
+a callable check grants execution authority. Original source factory and checked
+caller→helper query-chain correspondence must be verified before installing an
+imported helper. Current stored-bool ANY retains its independent verdict check.
+
+The credible alternative installs an evaluator that looks up the same active
+closure. Both require the same per-invocation activation and lexical capture;
+call.inputs alone cannot recover existing.deal.location. Captured callback makes
+that authority handoff explicit at the existing execute boundary, with fewer
+places to choose the executable. Authoring cost and Can semantics are identical.
+No new syntax, global callback registry, argument reevaluation or effect system.
+
+Three independently worded equivalent JEV Choice calls advise captured callback
+with probabilities .54/.75/.70 and confidence .31/.62/.55. Requests/responses are
+in implementation/compiler-completion/predicate-any-source-binding/. Advice is
+uncertain (first call assigns .34 to investigate). Required implementation checks
+remain exact source/pointer/call/lifetime refusal, lazy executed-field authority,
+first-true/failure order, membership revocation and final domain/grant validation.
+This records the direction, not implemented runtime or original CanCRM acceptance.

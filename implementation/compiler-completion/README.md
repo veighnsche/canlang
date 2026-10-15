@@ -2,6 +2,15 @@
 
 ## Current remainder and finite completion
 
+**C02 lazy ANY binding (2026-10-15, accepted direction; implementation pending).**
+Use the installed producer's once-consumed exact active callback capture at the
+existing State receipt query boundary. Three equivalent JEV requests/responses
+in `predicate-any-source-binding/` prefer this over an installed active-closure
+evaluator (.54/.75/.70; confidence .31/.62/.55). Both require the same genuine
+lexical captures and source-chain verification. First State slice retains
+same-source refusal; imported helper admission remains dependent on actual
+compiler/verified-factory correspondence, never copied source metadata alone.
+
 **C02 query-source prerequisite (2026-10-15, implemented/tested).** Stored-query
 derive bodies now retain their original query/alias/predicate/schema source seal,
 including bodies without membership. Six source and six existing authorization
