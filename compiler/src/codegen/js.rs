@@ -3515,6 +3515,9 @@ struct NativeQuerySource {
 struct HookState {
     /// Trigger model symbol (same-model backstop inside lowering).
     trigger: SymbolId,
+    /// Native hooks receive the ambient operation context (`c`) from the
+    /// owning engine frame; legacy hooks bind no `c`.
+    native: bool,
 }
 
 impl<'a> Emitter<'a> {
@@ -4389,8 +4392,8 @@ impl<'a> Emitter<'a> {
 
     /// Enter hook lowering for one trigger model: statements stage through
     /// `$hookCtx` and ambient-context expressions report `E6008`.
-    pub fn enter_hook(&mut self, trigger: SymbolId) {
-        self.hook = Some(HookState { trigger });
+    pub fn enter_hook(&mut self, trigger: SymbolId, native: bool) {
+        self.hook = Some(HookState { trigger, native });
     }
 
     /// Leave hook lowering, restoring scenario lowering.
@@ -4508,6 +4511,12 @@ impl<'a> Emitter<'a> {
     /// Whether hook lowering is active.
     fn in_hook(&self) -> bool {
         self.hook.is_some()
+    }
+
+    /// Whether hook lowering may consume the ambient operation context.
+    /// Only native hooks receive `c`; legacy hooks fail these reads closed.
+    fn hook_native(&self) -> bool {
+        self.hook.as_ref().is_some_and(|hook| hook.native)
     }
 
     /// Hook-context gap: `what` needs the ambient operation context, which
@@ -6710,10 +6719,10 @@ impl<'a> Emitter<'a> {
                 {
                     return specialized;
                 }
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook derive call",
-                        "derive calls need the ambient context (c), which hooks do not receive",
+                        "derive calls need the ambient context (c), which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -15514,7 +15523,8 @@ impl<'a> Emitter<'a> {
     /// functions with their decoded bodies.
     /// Emit the `hooks` map: one engine-shaped `{name, ops, run}`
     /// descriptor per pre-commit hook, keyed by source trigger. The run
-    /// function binds `($candidate, $hookCtx)`, builds the live `event`
+    /// function binds `($candidate, $hookCtx)` (native also binds `c`),
+    /// builds the live `event`
     /// Checked native hooks receive State's original projected snapshots and
     /// owning context; their policy binding reuses this exact callback. Legacy
     /// profiles retain the existing engine convention until their owner joins.
@@ -15574,7 +15584,7 @@ impl<'a> Emitter<'a> {
             );
             out.push(item.span, Some(item.canonical.clone()), "let $pending;");
             self.enter_scope();
-            self.enter_hook(hook.model);
+            self.enter_hook(hook.model, native);
             for guard in guards {
                 for (line, span) in self.lower_stmt(guard, 0) {
                     out.push(span, Some(item.canonical.clone()), &line);

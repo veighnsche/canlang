@@ -164,6 +164,7 @@ fn fixture_ir() -> IrProgram {
             app_default_locale: None,
             pages: Vec::new(),
             description: None,
+            runtime_bindings: Vec::new(),
         }],
         items: vec![
             IrItem {
@@ -5435,6 +5436,7 @@ fn t15a_model_field_tags() {
             app_default_locale: None,
             pages: Vec::new(),
             description: None,
+            runtime_bindings: Vec::new(),
         }],
         items,
         catalog_version: String::new(),
@@ -6339,6 +6341,7 @@ fn t15b_std_delivery_model_tags() {
             app_default_locale: None,
             pages: Vec::new(),
             description: None,
+            runtime_bindings: Vec::new(),
         }],
         items,
         catalog_version: String::new(),
@@ -7409,7 +7412,7 @@ fn t31_hook_structural_eq_supported() {
 fn t31_hook_stmt_backstops() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
-    emitter.enter_hook(SymbolId(0));
+    emitter.enter_hook(SymbolId(0), false);
     let delete = IrStmt::Delete {
         record: typed(
             IrExpr::Name("row".to_string()),
@@ -7477,7 +7480,7 @@ fn t31_hook_stmt_backstops() {
 fn t31_hook_expr_gaps() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
-    emitter.enter_hook(SymbolId(0));
+    emitter.enter_hook(SymbolId(0), false);
     let query = typed(
         IrExpr::Query(IrQuery {
             source: None,
@@ -7546,6 +7549,59 @@ fn t31_hook_expr_gaps() {
         hook_diags.iter().all(|d| d.message.contains("hook")),
         "hook attribution: {diags:?}"
     );
+}
+
+/// (T31/outcome 12) Derive calls inside hooks: native runners bind
+/// `($candidate,$hookCtx,c)` (see `emit_hooks_map`), so a derive call —
+/// which lowers to `name(c,...)` — must lower in native hooks instead of
+/// reporting `E6008`. Legacy runners bind no `c`, so the gap stays.
+#[test]
+fn t31_hook_derive_call_native_context() {
+    let mut ir = fixture_ir();
+    ir.items.push(IrItem {
+        id: SymbolId(5),
+        canonical: "demo.double".to_string(),
+        name: "double".to_string(),
+        module: ModuleId(0),
+        span: sp(0, 1),
+        exported: false,
+        kind: IrItemKind::DeriveFn {
+            params: Vec::new(),
+            result: IrType::Known(ResolvedType::Scalar(Scalar::Int)),
+            expr: None,
+        },
+    });
+    let call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::DeriveFn("demo.double".to_string()),
+            args: vec![int_lit(1)],
+        },
+        ResolvedType::Scalar(Scalar::Int),
+    );
+    // Legacy hook: still a gap.
+    let mut legacy = Emitter::new(&ir);
+    legacy.enter_hook(SymbolId(0), false);
+    assert!(
+        legacy.lower_expr(&call).contains("throw"),
+        "legacy hook placeholder"
+    );
+    let (diags, _, _, _) = legacy.finish();
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains("hook derive call")),
+        "legacy hook gap: {diags:?}"
+    );
+    // Native hook: lowers to `name(c,1n)` with no gap.
+    let mut native = Emitter::new(&ir);
+    native.enter_hook(SymbolId(0), true);
+    let text = native.lower_expr(&call);
+    let (diags, _, _, _) = native.finish();
+    assert!(
+        diags.iter().all(|d| d.code != "E6008"),
+        "native hook lowers: {diags:?}"
+    );
+    assert!(text.contains("(c,1n)"), "ambient context call: {text}");
 }
 
 /// Fresh unique stage directory under the system temp dir for T31
