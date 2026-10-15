@@ -434,8 +434,8 @@ test("MCP contract names server-issued targets only", () => {
     allowedOutputsFor("keyword").map(([role]) => role),
     ["server"],
   );
-  assert.deepEqual(allowedOutputsFor("named-trait").map(([role]) => role), ["contributions"]);
-  assert.deepEqual(allowedOutputsFor("inline-trait").map(([role]) => role), ["contributions"]);
+  assert.deepEqual(allowedOutputsFor("named-trait").map(([role]) => role), ["contributions", "server"]);
+  assert.deepEqual(allowedOutputsFor("inline-trait").map(([role]) => role), ["contributions", "server"]);
 });
 
 

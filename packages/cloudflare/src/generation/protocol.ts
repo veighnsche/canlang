@@ -1309,8 +1309,8 @@ export type McpUnitKind =
  * Admitted (role, logical filename) outputs per identity-carrying
  * unit kind, derived from checked descriptors. Views admit server,
  * browser, style, and asset outputs; styles (including view-root
- * inline styles) admit style and asset. Traits admit only checked
- * contributions; pure keywords admit only a server implementation.
+ * inline styles) admit style and asset. Traits require checked contributions
+ * and may submit a text-field check; pure keywords admit a server implementation.
  */
 export function allowedOutputsFor(kind: McpUnitKind): ReadonlyArray<readonly [McpRole, string]> {
   switch (kind) {
@@ -1330,7 +1330,7 @@ export function allowedOutputsFor(kind: McpUnitKind): ReadonlyArray<readonly [Mc
       ];
     case "named-trait":
     case "inline-trait":
-      return [["contributions", "contributions.can"]];
+      return [["contributions", "contributions.can"], ["server", "server.js"]];
     case "keyword":
       return [["server", "server.js"]];
   }

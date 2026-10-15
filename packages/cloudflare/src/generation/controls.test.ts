@@ -429,6 +429,11 @@ class FakeCompiler {
     }
     const files = (request["files"] as string[]) ?? [];
     for (const file of files) {
+      // Match native split_saved_path: saved scopes are rooted by the request,
+      // unlike the absolute source operands accepted by status/inspect/bind.
+      if (!/^can\.generated\/[^/]+\/.+/.test(file) || file.split("/").includes("..")) {
+        return { code: 4, stdout: errorEnvelope(request_id, "validate", "validation-failure", `fake: scope file \`${file}\` is not a saved output file`) };
+      }
       if (!existsSync(resolve(root, file))) {
         return { code: 4, stdout: errorEnvelope(request_id, "validate", "validation-failure", `fake: scope file \`${file}\` is missing`) };
       }
@@ -1258,6 +1263,8 @@ test("keyword units reconcile declaration.json through adopt", async () => {
   );
   assert.equal(adopted.code, 0, adopted.envelope);
   assert.equal(bodyOf(adopted.envelope)["state"], "adopted");
+  assert.deepEqual(h.fake.calls.find(call => call.request["request_id"] === "r-kw3.validate")?.request["files"],
+    ["can.generated/u1/declaration.json"]);
   // The preserved candidate now validates against the declared interface.
   const accepted = await dispatchControl(req("r-kw4", "accept", { root: h.root, attempt }), ctxFor(h));
   assert.equal(accepted.code, 0, accepted.envelope);
@@ -1277,7 +1284,7 @@ test("adopt reconciles repaired source with adopted provenance", async () => {
   await writeFile(join(h.root, "app.can"), `${APP}## repaired\n`);
   await writeFile(join(h.root, "can.generated", "u1", "style.css"), "/* repaired */\n.fixed{color:green}\n");
   const adopted = await dispatchControl(
-    req("r-ad1", "adopt", { root: h.root, unit_id: "u1", files: ["can.generated/u1/style.css"] }),
+    req("r-ad1", "adopt", { root: h.root, unit_id: "u1", files: [join(h.root, "can.generated/u1/style.css")] }),
     ctxFor(h, {
       preflight: () => { throw new Error("adopt must not launch"); },
       resolveExecutable: async () => { throw new Error("adopt must not launch"); },
@@ -1285,18 +1292,26 @@ test("adopt reconciles repaired source with adopted provenance", async () => {
   );
   assert.equal(adopted.code, 0, adopted.envelope);
   assert.equal(bodyOf(adopted.envelope)["state"], "adopted");
+  assert.deepEqual(h.fake.calls.find(call => call.request["request_id"] === "r-ad1.validate")?.request["files"],
+    ["can.generated/u1/style.css"], "explicit-root absolute input reaches native validation as a canonical saved scope");
   const record = parseUnitRecord(await readFile(join(h.root, "can.generated", "u1", "unit.json"), "utf8"), "u1");
   assert.equal(record.provenance.origin, "adopted");
   assert.equal(record.provenance.runner, null);
   assert.equal(record.source.revision, sha256HexText(`${APP}## repaired\n`));
   // The historical generation fingerprints stay: the repair is marked modified.
   assert.notEqual(record.original.files["style.css"], sha256HexText("/* repaired */\n.fixed{color:green}\n"));
-  // Adopt outside the unit's group refuses.
-  const outside = await dispatchControl(
-    req("r-ad2", "adopt", { root: h.root, unit_id: "u1", files: ["app.can"] }),
-    ctxFor(h),
-  );
-  assert.equal(outside.code, 2);
+  // Normalization cannot cross either the selected unit or explicit root,
+  // and refusal must precede validation/publication.
+  const recordText = await readFile(join(h.root, "can.generated/u1/unit.json"), "utf8");
+  const validationCalls = h.fake.calls.filter(call => call.operation === "validate").length;
+  for (const [index, file] of ["app.can", "can.generated/u1/../u2/style.css", join(h.root, "../foreign.css")].entries()) {
+    const outside = await dispatchControl(
+      req(`r-ad2-${index}`, "adopt", { root: h.root, unit_id: "u1", files: [file] }), ctxFor(h),
+    );
+    assert.equal(outside.code, 2, outside.envelope);
+  }
+  assert.equal(h.fake.calls.filter(call => call.operation === "validate").length, validationCalls);
+  assert.equal(await readFile(join(h.root, "can.generated/u1/unit.json"), "utf8"), recordText);
 });
 
 test("compatible direct edits build with no adoption ceremony", async () => {
@@ -1310,14 +1325,22 @@ test("compatible direct edits build with no adoption ceremony", async () => {
   // A compatible direct edit validates through the files scope; no adopt call exists.
   await writeFile(join(h.root, "can.generated", "u1", "style.css"), "/* tweaked */\n.root{color:red}\n");
   const validated = await dispatchControl(
-    req("r-de1", "validate", { root: h.root, files: ["can.generated/u1/style.css"] }),
+    req("r-de1", "validate", { root: h.root, files: [join(h.root, "can.generated/u1/style.css")] }),
     ctxFor(h),
   );
   assert.equal(validated.code, 0, validated.envelope);
   assert.equal(bodyOf(validated.envelope)["state"], "validated");
+  assert.deepEqual(h.fake.calls.find(call => call.request["request_id"] === "r-de1")?.request["files"],
+    ["can.generated/u1/style.css"]);
   const record = parseUnitRecord(await readFile(join(h.root, "can.generated", "u1", "unit.json"), "utf8"), "u1");
   assert.equal(record.provenance.origin, "generated");
   assert.equal(await readFile(join(h.root, "can.generated", "u1", "style.css"), "utf8"), "/* tweaked */\n.root{color:red}\n");
+  const outside = await dispatchControl(
+    req("r-de2", "validate", { root: h.root, files: [join(h.root, "../foreign.css")] }), ctxFor(h),
+  );
+  assert.equal(outside.code, 4, outside.envelope);
+  assert.match((bodyOf(outside.envelope)["error"] as { message: string }).message, /not a saved output file/);
+  assert.deepEqual(parseUnitRecord(await readFile(join(h.root, "can.generated/u1/unit.json"), "utf8"), "u1"), record);
 });
 
 test("rollback previous restores with compatibility checking", async () => {
@@ -2062,6 +2085,8 @@ process.stdin.on("end", async () => {
   assert.ok(givenPrompt.includes("Add done:bool=false."), givenPrompt);
   assert.ok(givenPrompt.includes(APP), "the complete frozen source supplies structural context");
   assert.ok(givenPrompt.includes('"role":"contributions","required":true'), givenPrompt);
+  assert.ok(givenPrompt.includes('"role":"server","required":false'), givenPrompt);
+  assert.ok(givenPrompt.includes("state.field-validation@1"), givenPrompt);
   const frontendPrompt = await readFile(join(h.root, ".can/gen/attempts", "r-mx1.j1", "prompt.txt"), "utf8");
   assert.ok(frontendPrompt.includes("Readable task surfaces."), frontendPrompt);
   assert.ok(frontendPrompt.includes("A compact entry area."), frontendPrompt);
