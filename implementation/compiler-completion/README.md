@@ -119,9 +119,25 @@ required/unrelated defaults clean, named explicit default rejects E3011,
 eager unused helper actual rejects E3011, two reversed-named explicit-default
 arguments reject two E3011). Evidence at
 `/Users/vince/.codex/muse-runs/can-conformance-20261015/evidence/codex-boundary-probes/outcome.json`
-plus source/result siblings;
+plus source/result siblings; Codex LINK-ACCEPT-1 acceptance (2026-10-15):
+independent package runtime checks 6/6 PASS against the built integration UI
+dist (absent URL disabled/no-href/EN caption, present URL escaping with zero
+File presenter calls, escaped authored caption, NL label, File presenter
+error identity, missing-presenter failure), evidence
+`/Users/vince/.codex/muse-runs/can-conformance-20261015/evidence/codex-link-probe.mjs`.
+Scope for both is the recorded probe set, not whole-app/order proof;
 scope is static admission availability. No further outcome-1 finding; the
 reserved cargo slot is released and compiler/package work resumed.
+
+Codex REVIEW-3 disposition (2026-10-15, takes precedence): no blanket
+page-require purity rollback. The UnsafePage `require member(actor)` case is
+not closed by the old base refusal alone; the repair direction is to name
+the exact normative authority fact it lacks (if any) and enforce that fact
+consistently, else retain admission and revise the expectation with the
+accepted DESIGN 0/3/9 + row-3 rule. Outcomes 3/4 stay OPEN pending that
+disposition; nested container gates and render-gate inventory remain ready
+local implementation gaps, not new language restrictions; native/imported-
+helper/order/denial/revocation conformance still required at recorded scope.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
