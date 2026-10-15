@@ -16861,3 +16861,17 @@ and normal State build pass, including independent Model/scalar/void replay,
 late field/membership rollback and source/pointer/stage/schema refusals. This
 accepts the State receiving component; compiler/loader/full native joins remain
 unqualified. No new language syntax or admitted-Model viewer-read prerequisite.
+
+
+### 2026-10-15 — retain source-proved Require field consumption separately
+
+Keep existing whole-Contract guard dependencies in a private complete-scenario
+census, without joining them into returned data/control. Issue selected-field
+associations only through the existing checked-program/fresh-IR seal and exact
+Require, Member, first-binding and stored-schema correspondence. Reuse existing
+native observation sites; admitted Model/write guards and output dependencies
+remain on their existing paths. Two focused source checks and four affected
+feasibility checks pass, with equality/lazy/grouped reuse and altered source/IR/
+field/type/site/census refusals. The feasibility scope alone was retried after a
+transient missing catalog during package rebuild. Emitter/loader/full native
+qualification remains open; no new language decision or authority primitive.

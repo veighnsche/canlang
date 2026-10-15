@@ -2,6 +2,19 @@
 
 ## Current remainder and finite completion
 
+**C02 checked Require field census (2026-10-15, source component qualified).**
+Retain existing whole-Contract Require reads on the complete checked scenario,
+separate from returns. Reuse the prepared checked-program/fresh-IR lifetime seal
+and actual Require/Member/first-binding/schema matcher to issue private site/query/
+node/dependency associations plus existing native observation sites. Only actual
+first-selected fields absent from output consumers use this path; admitted Model
+write guards and existing output observations keep their current authority.
+Two focused checks pass across four equality/lazy/grouped forms and source/IR/
+field/type/site/ID/census/receiver refusals. Four affected feasibility checks pass;
+one missing-catalog run during package rebuild was invalidated and only that
+scope retried after catalog release. Formatting/scoped diff checks pass. Emitter,
+loader and full mixed native execution remain required; original24 remains656.
+
 **C02 lazy selected Contract guard receiving (2026-10-15, State component qualified).**
 The existing private reference producer accepts a checked Require-site/first-query/
 Member association independently of result disclosure or active_member calls.

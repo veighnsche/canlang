@@ -805,6 +805,329 @@ pub(super) fn checked_created_model_result(
     visit(ir, item, 0)
 }
 
+/// Private source association for an executed whole-Contract Require read.
+/// The query owns the selected receiver, not a candidate dependency slot.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ReceiptRequireConsumption {
+    pub site_index: usize,
+    pub query_id: String,
+    pub node: ReceiptRequireNode,
+    pub dependency: ReceiptDependency,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptRequireNode {
+    pub start: u32,
+    pub end: u32,
+}
+
+pub(super) struct NativeRequireConsumption {
+    pub association: ReceiptRequireConsumption,
+    pub site: NativeSite,
+    pub observation: NativeDependency,
+}
+
+/// Reuse the exact checked-program/fresh-IR seal already prepared for Require
+/// feasibility. Nothing here changes return dependencies or evaluates a guard.
+pub(super) fn checked_require_consumptions(
+    ir: &IrProgram,
+    owner: &IrItem,
+    db: &SourceDb,
+    prepared: &super::scenario_feasibility::PreparedRequireReturns<'_>,
+) -> Option<Vec<NativeRequireConsumption>> {
+    use crate::analysis::scenario_disclosure::{
+        CheckedDecisionPosition as Position, CheckedDecisionStage as Stage,
+    };
+    let checked = prepared.checked_scenario(ir, owner.id)?;
+    if !std::ptr::eq(ir.items.get(owner.id.0 as usize)?, owner) {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario {
+        guards, effects, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let sites: Vec<_> = facts
+        .decision_sites
+        .as_deref()?
+        .iter()
+        .filter(|site| {
+            site.owner == owner.id
+                && !matches!(
+                    site.stage,
+                    Stage::ReadPolicy | Stage::ReadPredicate | Stage::SendDispatch
+                )
+        })
+        .collect();
+    let mut out = Vec::new();
+    let mut ids = HashSet::new();
+    for consumption in &checked.require_consumptions {
+        let mut selected = sites.iter().enumerate().filter(|(_, site)| {
+            site.statement == consumption.statement
+                && site.node == consumption.condition
+                && matches!(site.stage, Stage::LeadingRequire | Stage::BodyRequire)
+        });
+        let (site_index, site) = selected.next()?;
+        if selected.next().is_some() || site.source != checked.source {
+            return None;
+        }
+        let (head, tail) = site.position.split_first()?;
+        let mut statement = match head {
+            Position::Guard(index) if site.stage == Stage::LeadingRequire => guards.get(*index)?,
+            Position::Body(index) if site.stage == Stage::BodyRequire => effects.get(*index)?,
+            _ => return None,
+        };
+        for position in tail {
+            statement = match (position, statement) {
+                (Position::Then(index), IrStmt::If { then_branch, .. }) => {
+                    then_branch.get(*index)?
+                }
+                (Position::Else(index), IrStmt::If { else_branch, .. }) => {
+                    else_branch.get(*index)?
+                }
+                _ => return None,
+            };
+        }
+        let IrStmt::Require { cond, span } = statement else {
+            return None;
+        };
+        if *span != node_span(consumption.statement)
+            || cond.span != node_span(consumption.condition)
+            || cond.ty != ResolvedType::Scalar(Scalar::Bool)
+            || consumption.dependencies.is_empty()
+        {
+            return None;
+        }
+        for read in &consumption.dependencies {
+            if out.len() >= 200
+                || !ids.insert(read.id.clone())
+                || read.id.is_empty()
+                || !read.calls.is_empty()
+                || read.query_id.is_some()
+                || read.source != site.source
+                || read.role != DependencyRole::Control
+                || read.node.kind != SyntaxKind::Member as u8
+                || read.node.file != consumption.condition.file
+                || read.node.start < consumption.condition.start
+                || read.node.end > consumption.condition.end
+            {
+                return None;
+            }
+            // Existing result observations and admitted Model guards keep their
+            // defining authority path. Applicability comes from the sealed
+            // original source receiver, never an editable actual-IR name.
+            if checked.returns.iter().any(|returned| {
+                returned
+                    .dependencies
+                    .iter()
+                    .any(|dependency| dependency.id == read.id)
+            }) {
+                continue;
+            }
+            let text = &db.get(read.node.file)?.text;
+            let original_member = checked_effect_node(ir, owner, read.node, db)?;
+            let field = original_member
+                .children
+                .iter()
+                .rev()
+                .find(|node| node.kind == SyntaxKind::Name)?;
+            if field.token()?.text(text) != read.field_name {
+                return None;
+            }
+            let mut base = original_member.children.iter().find(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::NameRef | SyntaxKind::Group | SyntaxKind::Member | SyntaxKind::Call
+                )
+            })?;
+            let mut depth = 0;
+            while base.kind == SyntaxKind::Group {
+                depth += 1;
+                if depth > 16 {
+                    return None;
+                }
+                base = base.children.iter().find(|node| {
+                    matches!(
+                        node.kind,
+                        SyntaxKind::NameRef
+                            | SyntaxKind::Group
+                            | SyntaxKind::Member
+                            | SyntaxKind::Call
+                    )
+                })?;
+            }
+            if base.kind != SyntaxKind::NameRef {
+                continue;
+            }
+            let names: Vec<_> = base
+                .children
+                .iter()
+                .filter(|node| !matches!(node.kind, SyntaxKind::Trivia | SyntaxKind::Comment))
+                .collect();
+            let [name] = names.as_slice() else {
+                return None;
+            };
+            if name.kind != SyntaxKind::Name {
+                return None;
+            }
+            let receiver = name.token()?.text(text);
+            let mut origins = Vec::new();
+            for query in facts
+                .queries
+                .as_deref()?
+                .iter()
+                .filter(|query| query.first.is_some() && query.model == read.model)
+            {
+                let first = query.first.as_ref()?;
+                let original = checked_effect_node(ir, owner, first.binding, db)?;
+                let names: Vec<_> = original
+                    .children
+                    .iter()
+                    .filter(|node| node.kind == SyntaxKind::Name)
+                    .collect();
+                let [keyword, name] = names.as_slice() else {
+                    return None;
+                };
+                if keyword.token()?.text(text) != "let" {
+                    return None;
+                }
+                if name.token()?.text(text) == receiver && first.binding.end <= read.node.start {
+                    origins.push(query);
+                }
+            }
+            let query = match origins.as_slice() {
+                [] => continue,
+                [query] => *query,
+                _ => return None,
+            };
+            // Select the actual expression inside this Require, retaining its
+            // original lazy evaluation position instead of hoisting a read.
+            let mut pending = vec![cond];
+            let mut found = None;
+            let mut steps = 0;
+            while let Some(value) = pending.pop() {
+                steps += 1;
+                if steps > 16384 {
+                    return None;
+                }
+                if value.span == node_span(read.node) {
+                    if found.replace(value).is_some() {
+                        return None;
+                    }
+                }
+                match &value.expr {
+                    IrExpr::Binary { left, right, .. } => {
+                        pending.push(right);
+                        pending.push(left);
+                    }
+                    IrExpr::Unary { operand, .. } => pending.push(operand),
+                    IrExpr::Member { base, .. } => pending.push(base),
+                    IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+                        pending.extend(args.iter().rev())
+                    }
+                    _ => {}
+                }
+            }
+            let value = found?;
+            let IrExpr::Member { base, field } = &value.expr else {
+                return None;
+            };
+            let IrExpr::Name(binding) = &base.expr else {
+                return None;
+            };
+            if value.ty != read.ty
+                || field != &read.field_name
+                || base.ty
+                    != (ResolvedType::Record {
+                        symbol: read.model,
+                        stored: true,
+                    })
+            {
+                return None;
+            }
+            if query.model_name != read.model_name {
+                return None;
+            }
+            let first = query.first.as_ref()?;
+            let mut lets = effects.iter().filter_map(|statement| match statement {
+                IrStmt::Let { name, value, span } if *span == node_span(first.binding) => {
+                    Some((name, value))
+                }
+                _ => None,
+            });
+            let (name, initializer) = lets.next()?;
+            if lets.next().is_some()
+                || name != binding
+                || first.binding.end > read.node.start
+                || checked_owner_first_query_ir(ir, owner, initializer, first.call, db)? != query
+            {
+                return None;
+            }
+            created_record_name_matches(base, &base.ty, name, base.span, db)?;
+            let schemas = facts.stored_contracts.as_deref()?;
+            let schema = schemas
+                .iter()
+                .find(|schema| schema.model && schema.id == read.model)?;
+            match_stored_contract_schema(ir, schema, db)?;
+            let field = schema.fields.iter().find(|field| field.id == read.field)?;
+            match_stored_contract_field(ir, field, db)?;
+            let ResolvedType::Record {
+                symbol: contract, ..
+            } = &read.ty
+            else {
+                return None;
+            };
+            let contract = schemas
+                .iter()
+                .find(|schema| !schema.model && schema.id == *contract)?;
+            match_stored_contract_schema(ir, contract, db)?;
+            for field in &contract.fields {
+                match_stored_contract_field(ir, field, db)?;
+            }
+            if field.ty != read.ty
+                || field.name != read.field_name
+                || field.source != read.source
+                || field.owner != schema.id
+                || field.required_array
+                || schema.canonical != read.model_name
+                || contract.canonical != read.type_id
+            {
+                return None;
+            }
+            out.push(NativeRequireConsumption {
+                association: ReceiptRequireConsumption {
+                    site_index,
+                    query_id: query.id.clone(),
+                    node: ReceiptRequireNode {
+                        start: read.node.start,
+                        end: read.node.end,
+                    },
+                    dependency: ReceiptDependency {
+                        id: read.id.clone(),
+                        source: transport_source(&read.source, &read.source.module)?,
+                        role: ReceiptRole::Control,
+                        model: read.model_name.clone(),
+                        field: read.field_name.clone(),
+                        type_id: read.type_id.clone(),
+                        query_id: None,
+                    },
+                },
+                site: checked_site(read.node, &read.calls)?,
+                observation: NativeDependency {
+                    id: read.id.clone(),
+                    model: read.model_name.clone(),
+                    field: read.field_name.clone(),
+                    source_dependency_id: None,
+                },
+            });
+        }
+    }
+    Some(out)
+}
+
 /// `models` must be the actual descriptors emitted by the owning emitter.
 /// `entry_module` is the actual artifact callable module, not an inferred
 /// package path: native scenario implementations currently execute in entry.
@@ -4604,6 +4927,16 @@ pub(super) fn checked_first_query_ir<'a>(
     if owners.next().is_some() {
         return None;
     }
+    checked_owner_first_query_ir(ir, owner, actual, node, db)
+}
+
+fn checked_owner_first_query_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    actual: &TypedExpr,
+    node: crate::analysis::NodeKey,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
     let facts = super::scenario_calls::checked_source(ir, owner, db)?;
     let queries = facts.queries.as_deref()?;
     let mut selected = queries
@@ -4656,7 +4989,7 @@ pub(super) fn checked_first_query_ir<'a>(
         || actual.span != node_span(node)
         || actual.ty != ResolvedType::Nullable(Box::new(record))
         || domain.ty != array
-        || query.source != original.source
+        || query.source != facts.source
         || query.count.is_some()
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
@@ -10849,6 +11182,307 @@ mod root_pair_schema_tests {
                 checked_created_statements(&actual, owner, checked, first, &db).is_some(),
                 corruption != 2
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod require_consumption_tests {
+    use super::*;
+    use crate::analysis::{
+        catalog::{CatalogRequest, load_catalog},
+        check_program,
+    };
+
+    #[test]
+    fn admitted_model_contract_guard_keeps_its_existing_authority_path() {
+        let text = r#"app Admitted
+Given
+ contract Input {title:text}
+ Evidence {input:Input}
+ Deal {value:int}
+When
+ scenario inspect(evidence:Evidence,input:Input,result:Deal) -> Deal by=members
+  require evidence.input==input
+  do return result
+Then
+"#;
+        let mut db = SourceDb::new();
+        let file = db.add("admitted-contract.can".into(), text.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = ir.items.iter().find(|item| item.name == "inspect").unwrap();
+        let ScenarioDisclosure::Complete(checked) = ir.scenario_disclosures.get(&owner.id).unwrap()
+        else {
+            panic!("complete admitted Model return")
+        };
+        assert_eq!(checked.require_consumptions.len(), 1);
+        assert_eq!(
+            checked.require_consumptions[0].dependencies[0].field_name,
+            "input"
+        );
+        let prepared =
+            super::super::scenario_feasibility::prepare(&program, &ir, &db, catalog.as_ref())
+                .unwrap();
+        assert!(
+            checked_require_consumptions(&ir, owner, &db, &prepared)
+                .expect("existing admitted authority")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn whole_contract_require_consumption_keeps_independent_returns_and_lazy_sites_sealed() {
+        for condition in [
+            "existing.input==input",
+            "gate and existing.input==input",
+            "existing.input==input and gate",
+            "gate and (existing).input==input",
+        ] {
+            let text = format!(
+                r#"app Intake
+Given
+ contract Input {{title:text}}
+ Deal {{value:int}}
+ Evidence {{source:text unique,input:Input,deal:Deal}}
+ policy Deal read=members
+ policy Evidence read=members
+When
+ scenario promote(source:text,input:Input,gate:bool) -> Deal by=members
+  do
+   let existing=first(Evidence as evidence where evidence.source==source)
+   if existing!=null
+    require {condition}
+    return existing.deal
+   create Deal {{value=1}} as deal
+   create Evidence {{source,input,deal}} as evidence
+   return deal
+Then
+"#
+            );
+            let mut db = SourceDb::new();
+            let file = db.add("require-contract.can".into(), text.clone());
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap();
+            let path = root.join("packages/values/dist/catalog.json");
+            let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+                flag: Some(&path),
+                env: None,
+                cwd: root,
+                primary: Span::new(file, 0, 0),
+            });
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let (ir, diagnostics) = super::super::ir::build(&program, &db, catalog.as_ref());
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let owner = ir.items.iter().find(|item| item.name == "promote").unwrap();
+            let ScenarioDisclosure::Complete(checked) =
+                ir.scenario_disclosures.get(&owner.id).unwrap()
+            else {
+                panic!("complete: {:?}", ir.scenario_disclosures.get(&owner.id));
+            };
+            assert_eq!(checked.require_consumptions.len(), 1);
+            let consumption = &checked.require_consumptions[0];
+            assert_eq!(consumption.dependencies.len(), 1);
+            let read = &consumption.dependencies[0];
+            assert_eq!(read.role, DependencyRole::Control);
+            assert_eq!(read.model_name, "Intake.Evidence");
+            assert_eq!(read.field_name, "input");
+            assert_eq!(read.type_id, "Intake.Input");
+            assert!(read.query_id.is_none());
+            assert_eq!(
+                text[read.node.start as usize..read.node.end as usize].trim(),
+                if condition.contains("(existing)") {
+                    "(existing).input"
+                } else {
+                    "existing.input"
+                }
+            );
+            assert_eq!(
+                text[consumption.condition.start as usize..consumption.condition.end as usize]
+                    .trim(),
+                condition
+            );
+            assert!(checked.returns.iter().all(|returned| {
+                !returned
+                    .dependencies
+                    .iter()
+                    .any(|dependency| dependency.id == read.id)
+            }));
+            let prepared =
+                super::super::scenario_feasibility::prepare(&program, &ir, &db, catalog.as_ref())
+                    .unwrap();
+            assert!(
+                prepared.checked_scenario(&ir, owner.id).is_some(),
+                "sealed owner {condition}"
+            );
+            let captured = checked_require_consumptions(&ir, owner, &db, &prepared)
+                .expect("exact source receiver");
+            assert_eq!(captured.len(), 1);
+            let association = &captured[0].association;
+            assert_eq!(association.dependency.id, read.id);
+            assert_eq!(association.node.start, read.node.start);
+            assert_eq!(association.node.end, read.node.end);
+            assert!(association.dependency.query_id.is_none());
+            assert_eq!(captured[0].site.span, node_span(read.node));
+            assert_eq!(captured[0].observation.id, read.id);
+            let facts = checked.source_facts.as_ref().unwrap();
+            let first = facts
+                .queries
+                .as_ref()
+                .unwrap()
+                .iter()
+                .find(|query| query.first.is_some())
+                .unwrap();
+            assert_eq!(association.query_id, first.id);
+            let sites: Vec<_> = facts
+                .decision_sites
+                .as_ref()
+                .unwrap()
+                .iter()
+                .filter(|site| {
+                    site.owner == owner.id
+                        && !matches!(site.stage,
+                crate::analysis::scenario_disclosure::CheckedDecisionStage::ReadPolicy |
+                crate::analysis::scenario_disclosure::CheckedDecisionStage::ReadPredicate |
+                crate::analysis::scenario_disclosure::CheckedDecisionStage::SendDispatch)
+                })
+                .collect();
+            assert_eq!(sites[association.site_index].node, consumption.condition);
+            if condition.starts_with("gate") {
+                let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+                    panic!("scenario")
+                };
+                let IrStmt::If { then_branch, .. } = &effects[1] else {
+                    panic!("original branch")
+                };
+                let IrStmt::Require { cond, .. } = &then_branch[0] else {
+                    panic!("require")
+                };
+                let IrExpr::Binary {
+                    op: IrBinOp::And,
+                    right,
+                    ..
+                } = &cond.expr
+                else {
+                    panic!("lazy and")
+                };
+                assert!(right.span.start <= read.node.start && read.node.end <= right.span.end);
+            }
+            let copy = ir.clone();
+            assert!(
+                checked_require_consumptions(
+                    &copy,
+                    copy.items.get(owner.id.0 as usize).unwrap(),
+                    &db,
+                    &prepared
+                )
+                .is_none()
+            );
+            for mode in [
+                "id",
+                "source",
+                "field",
+                "type",
+                "site",
+                "removed",
+                "receiver",
+                "ir-condition",
+                "ir-field",
+                "ir-type",
+            ] {
+                let mut changed = ir.clone();
+                match mode {
+                    "ir-field" => changed.items[read.field.0 as usize].name = "foreign".into(),
+                    "ir-type" => {
+                        let IrItemKind::Field { ty, .. } =
+                            &mut changed.items[read.field.0 as usize].kind
+                        else {
+                            panic!("stored field")
+                        };
+                        *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                    }
+                    "receiver" => {
+                        let IrItemKind::Scenario { effects, .. } =
+                            &mut changed.items[owner.id.0 as usize].kind
+                        else {
+                            panic!("scenario")
+                        };
+                        let IrStmt::Let { name, .. } = &mut effects[0] else {
+                            panic!("let")
+                        };
+                        *name = "foreign".into();
+                    }
+                    "ir-condition" => {
+                        let IrItemKind::Scenario { effects, .. } =
+                            &mut changed.items[owner.id.0 as usize].kind
+                        else {
+                            panic!("scenario")
+                        };
+                        let IrStmt::If { then_branch, .. } = &mut effects[1] else {
+                            panic!("if")
+                        };
+                        let IrStmt::Require { cond, .. } = &mut then_branch[0] else {
+                            panic!("require")
+                        };
+                        cond.expr = IrExpr::Bool(true);
+                    }
+                    _ => {
+                        let ScenarioDisclosure::Complete(proof) =
+                            changed.scenario_disclosures.get_mut(&owner.id).unwrap()
+                        else {
+                            panic!("complete")
+                        };
+                        if mode == "removed" {
+                            proof.require_consumptions.clear();
+                        } else {
+                            let entry = &mut proof.require_consumptions[0];
+                            match mode {
+                                "id" => entry.dependencies[0].id.push('x'),
+                                "source" => entry.dependencies[0].source.sha256 = "0".repeat(64),
+                                "field" => entry.dependencies[0].field_name = "source".into(),
+                                "type" => {
+                                    entry.dependencies[0].ty = ResolvedType::Scalar(Scalar::Text)
+                                }
+                                "site" => entry.condition.start += 1,
+                                _ => unreachable!(),
+                            }
+                        }
+                    }
+                }
+                let prepared = super::super::scenario_feasibility::prepare(
+                    &program,
+                    &changed,
+                    &db,
+                    catalog.as_ref(),
+                )
+                .unwrap();
+                assert!(
+                    checked_require_consumptions(
+                        &changed,
+                        &changed.items[owner.id.0 as usize],
+                        &db,
+                        &prepared
+                    )
+                    .is_none(),
+                    "{condition}: {mode}"
+                );
+            }
         }
     }
 }
