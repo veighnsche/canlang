@@ -1103,15 +1103,16 @@ fn policy_field(
     name: &str,
     ty: &ResolvedType,
 ) -> Option<SymbolId> {
-    policy_field_with_required_array(program, model, name, ty, false)
+    policy_field_with_flags(program, model, name, ty, false, false)
 }
 
-fn policy_field_with_required_array(
+fn policy_field_with_flags(
     program: &IrProgram,
     model: SymbolId,
     name: &str,
     ty: &ResolvedType,
     allow_required_array: bool,
+    allow_server: bool,
 ) -> Option<SymbolId> {
     let owner = policy_model(program, model)?;
     let IrItemKind::Model { fields, .. } = &owner.kind else {
@@ -1131,7 +1132,8 @@ fn policy_field_with_required_array(
         || !contains_span(module.span, field.span)
         || field.canonical != format!("{}.{}", owner.canonical, name)
         || !matches!(&field.kind, IrItemKind::Field { owner: own, ty: IrType::Known(actual), required_array,
-            server: None, modifiers, .. } if *own == model && actual == ty && !modifiers.machine
+            server, modifiers, .. } if *own == model && actual == ty && !modifiers.machine
+                && (server.is_none() || allow_server)
                 && (!*required_array || allow_required_array && matches!(actual, ResolvedType::Array { .. })))
     {
         return None;
@@ -1241,7 +1243,7 @@ pub(crate) fn checked_required_record_lock_target(
     let ResolvedType::Record {
         symbol,
         stored: true,
-    } = ty
+    } = ty.nullable_inner().unwrap_or(ty)
     else {
         return false;
     };
@@ -1260,6 +1262,27 @@ pub(crate) fn checked_required_record_lock_target(
             target.kind,
             IrItemKind::Model { .. } | IrItemKind::Contract { .. }
         )
+}
+
+/// Canonical scalar lock values use the existing stored-wire comparator;
+/// source-sealed nullable Model references use its existing typed identity path.
+/// File/receipt/container equality does not enter this scalar-only extension.
+pub(crate) fn checked_stored_lock_target(
+    program: &IrProgram,
+    model: SymbolId,
+    field: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+) -> bool {
+    let base = ty.nullable_inner().unwrap_or(ty);
+    if matches!(base, ResolvedType::Scalar(scalar) if *scalar != Scalar::File)
+        && super::js::checked_value_profile(ty).is_some()
+    {
+        // A server-populated scalar is still the exact persisted owning field;
+        // this never evaluates its default/server expression or changes writes.
+        return policy_field_with_flags(program, model, name, ty, false, true) == Some(field);
+    }
+    checked_required_record_lock_target(program, model, field, name, ty)
 }
 
 /// Direct owning Date operands use the checked declaration/occurrence types.
@@ -1853,12 +1876,13 @@ pub(crate) fn checked_local_rule_fields(
             return None;
         };
         policy_row_member(value, model, field, &value.ty)?;
-        let id = policy_field_with_required_array(
+        let id = policy_field_with_flags(
             program,
             model,
             field,
             &value.ty,
             matches!(value.ty, ResolvedType::Array { .. }),
+            false,
         )?;
         if !fields.contains(&id) {
             fields.push(id);
@@ -2287,6 +2311,94 @@ Then
         let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         (db, program, ir, catalog)
+    }
+    #[test]
+    fn original_partner_policy_closure_retains_all_invariants_and_locks() {
+        let source = include_str!("../../tests/fixtures/original-partner-policy-closure.can");
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("original-partner.can".into(), source.into());
+        let path = root.join("packages/cloudflare/dist/native-catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(ir.invariants.len(), 6);
+        assert_eq!(ir.locks.len(), 3);
+        assert!(
+            model_policies::collect_local_policies(&ir, &js::module_path("CanAffiliate")).is_none()
+        );
+        let policies = model_policies::collect_checked_policies(
+            &program,
+            &ir,
+            &db,
+            Some(&catalog),
+            &js::module_path("CanAffiliate"),
+        )
+        .expect("complete original six invariants and three locks");
+        assert_eq!(
+            policies
+                .bindings
+                .iter()
+                .filter(|binding| binding.kind == IrModelRuleKind::Invariant)
+                .count(),
+            6
+        );
+        assert_eq!(
+            policies
+                .bindings
+                .iter()
+                .filter(|binding| binding.kind == IrModelRuleKind::Lock)
+                .count(),
+            3
+        );
+        for mode in ["owner", "type", "source", "lock"] {
+            let mut changed = ir.clone();
+            let item = changed
+                .items
+                .iter_mut()
+                .find(|item| item.canonical == "refer.Advocate.email")
+                .unwrap();
+            match mode {
+                "owner" => {
+                    let IrItemKind::Field { owner, .. } = &mut item.kind else {
+                        panic!()
+                    };
+                    *owner = SymbolId(u32::MAX);
+                }
+                "type" => {
+                    let IrItemKind::Field { ty, .. } = &mut item.kind else {
+                        panic!()
+                    };
+                    *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                }
+                "source" => {
+                    item.span.start += 1;
+                }
+                _ => {
+                    changed.locks[0].fields.pop();
+                }
+            }
+            assert!(
+                model_policies::collect_checked_policies(
+                    &program,
+                    &changed,
+                    &db,
+                    Some(&catalog),
+                    &js::module_path("CanAffiliate")
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
     }
     #[test]
     fn original_query_invariants_keep_checked_domains_and_complete_selectors() {

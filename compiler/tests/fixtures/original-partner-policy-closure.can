@@ -1,0 +1,172 @@
+app CanAffiliate uses=[affiliate]
+package rent_catalog label="Workspace locations"@{nl="Werkpleklocaties"}
+ Given
+  export Location { name:text trim min=1, address:text, timezone:timezone, currency:currency, hours:text label="Opening hours summary"@{nl="Samenvatting openingsuren"}, arrival:text label="Arrival instructions"@{nl="Aankomstinstructies"}, active:bool=true } label="Location"@{nl="Locatie"}
+  policy Location read=public fields=name,address,timezone,currency,hours,arrival,active
+  export fixture test_site=Location {name="Main",address="1 Example Road",timezone="Europe/Brussels",currency="EUR",hours="09:00–18:00",arrival="Report to reception"}
+ When
+ Then
+package employee label="Employees"@{nl="Medewerkers"}
+ use rent_catalog {Location,test_site}
+ Given
+  export role hr label="Human resources"@{nl="Personeelszaken"}
+  export Employee { user:user unique, name:text? trim min=1 label="Work name"@{nl="Werknaam"}, home:Location label="Home location"@{nl="Standplaats"}, locations:Location[] label="Locations"@{nl="Locaties"}, operator_wide:bool=false label="All operator locations"@{nl="Alle locaties van de exploitant"}, active:bool=true, start:date label="Employment start"@{nl="Start dienstverband"}, end:date? label="Employment end"@{nl="Einde dienstverband"}, manager:user? label="Line manager"@{nl="Leidinggevende"}, role:text label="Work role"@{nl="Werkrol"}, skills:text[] label="Skills"@{nl="Vaardigheden"}, private_notes:text? label="Private HR notes"@{nl="Privénotities personeelszaken"}, document:file? label="HR document"@{nl="Personeelsdocument"} } label="Employee"@{nl="Medewerker"}
+  export derive staff(person:user):bool = any(Employee as e,e.user==person and e.active and active_member(person,team))
+  export derive can_work(person:user,location:Location):bool = any(Employee as e,e.user==person and e.active and active_member(person,team) and (e.operator_wide or e.home==location or location in e.locations))
+  policy Employee read=hr
+  policy Employee read=members and staff(actor) fields=user,name,home,locations,operator_wide,active,role,skills
+  policy Employee read=authenticated where=row.user==actor
+  invariant Employee: row.end==null or row.end>=row.start
+  export fixture test_worker=Employee {user=self,home=test_site,locations=[test_site],start=date("2026-10-01"),role="operator"}
+ When
+ Then
+package invoice label="Invoices"@{nl="Facturen"}
+ Given
+  export role finance label="Finance staff"@{nl="Financieel medewerker"}
+ When
+ Then
+package customer
+ use rent_catalog {Location,test_site}
+ use employee {can_work}
+ use invoice {finance}
+ Given
+  role customer_manager label="Customer manager"@{nl="Klantbeheerder"}
+  export role customer_reader label="Customer directory reader"@{nl="Lezer klantendirectory"}
+  role billing_reader label="Billing reader"@{nl="Lezer factuurgegevens"}
+  export Customer { name:text trim min=1, kind:enum(individual,company) label={text="Customer kind"@{nl="Klantsoort"},values={individual="Individual"@{nl="Particulier"},company=label_Customer_kind_company}}, locations:Location[] label=label_Customer_locations, active:bool=true } label="Customer"@{nl="Klant"}
+  export Contact in Customer { name:text trim min=1, email:email, account:user? label=label_Contact_account, verified:bool=false label="Verified"@{nl="Geverifieerd"}, phone:text?, external_id:text? label="External identity"@{nl="Externe identiteit"} } label=label_Contact
+  export CompanyRole in Customer { account:user label=label_Contact_account, role:enum(administrator,booker,billing) label={text=label_CompanyRole_role,values={administrator="Administrator"@{nl="Beheerder"},booker="Booker"@{nl="Boeker"},billing="Billing"@{nl="Facturatie"}}}, locations:Location[] label=label_Customer_locations, active:bool=true } label="Company role"@{nl="Bedrijfsrol"}
+  export derive has_role(person:user,org:Customer,role:CompanyRole.role):bool = any(org.CompanyRole as grant,grant.account==person and grant.role==role and grant.active)
+  export derive owns(person:user,org:Customer):bool = org.kind==individual and any(org.Contact as contact,contact.account==person and contact.verified)
+  derive customer_staff(person:user,org:Customer):bool = any(org.locations as location,can_work(person,location))
+  policy Customer read=customer_reader or billing_reader where=customer_staff(actor,row) fields=name,kind,locations,active
+  policy Customer read=customer_manager and customer_staff(actor,row)
+  policy Customer read=authenticated where=owns(actor,row) or has_role(actor,row,administrator) or has_role(actor,row,booker) or has_role(actor,row,billing)
+  policy Customer read=finance where=customer_staff(actor,row) fields=name,kind,locations,active
+  policy Contact read=authenticated where=actor.email_verified and row.email==actor.email fields=name,email,account,verified
+  policy Contact read=customer_reader or billing_reader where=customer_staff(actor,row.parent) fields=name,email,phone,verified
+  policy Contact read=customer_manager and customer_staff(actor,row.parent)
+  policy Contact read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)
+  policy Contact read=finance where=customer_staff(actor,row.parent) fields=name,email,phone,verified
+  policy CompanyRole read=authenticated where=row.account==actor or has_role(actor,row.parent,administrator)
+  policy CompanyRole read=customer_manager and customer_staff(actor,row.parent)
+  invariant CompanyRole: row.parent.kind==company
+  unique CompanyRole fields=account,role
+  export fixture test_company=Customer {name="Example company",kind=company,locations=[test_site]}
+  export fixture test_contact=Contact {parent=test_company,name="Example contact",email="customer@example.test",account=self,verified=true}
+  export fixture test_admin=CompanyRole {parent=test_company,account=self,role=administrator,locations=[test_site]}
+  message label_Customer_kind_company = "Company"@{nl="Bedrijf"}
+  message label_Customer_locations = "Locations"@{nl="Locaties"}
+  message label_Contact = "Contact"@{nl="Contactpersoon"}
+  message label_Contact_account = "Account"@{nl="Account"}
+  message label_CompanyRole_role = "Role"@{nl="Rol"}
+ When
+ Then
+package refer
+ use rent_catalog {Location,test_site}
+ use employee {can_work}
+ Given
+  message balances_title = "Earned and paid rewards"@{nl="Verdiende en uitbetaalde beloningen"}
+  message label_Program = "Referral program"@{nl="Verwijzingsprogramma"}
+  message label_Credit = "Reward credit"@{nl="Beloningstegoed"}
+  message label_Credit_source = "Source reference"@{nl="Bronreferentie"}
+  message label_Settlement_paid = "Payment date"@{nl="Betaaldatum"}
+  message label_Settlement_method = "Payment method"@{nl="Betaalmethode"}
+  role program_manager label="Program manager"@{nl="Programmabeheerder"}
+  role finance label="Finance"@{nl="Financiën"}
+  export Program { name:text, locations:Location[] label="Locations"@{nl="Locaties"}, products:text[]! label="Products"@{nl="Producten"}, reward:money label="Cash reward"@{nl="Geldbeloning"}, destination:url label="Referral destination"@{nl="Verwijzingsbestemming"}, window:duration=30d label="Attribution window"@{nl="Toewijzingstermijn"}, active:bool=true } label=label_Program
+  export Advocate in Program { account:user server=actor label="User account"@{nl="Gebruikersaccount"}, email:email, code:text unique label="Referral code"@{nl="Verwijzingscode"} } label="Advocate"@{nl="Ambassadeur"}
+  Credit in Advocate { source:text unique label=label_Credit_source, customer:text label="Customer reference"@{nl="Klantreferentie"}, amount:money, reversal:Credit? label="Reversal reference"@{nl="Terugboekingsreferentie"}, qualification:text label="Qualification evidence"@{nl="Kwalificatiebewijs"} } label=label_Credit
+  lock Advocate fields=account,email,code
+  lock Credit fields=source,customer,amount,reversal,qualification
+  policy Program read=public fields=name,reward,destination,active
+  policy Program read=program_manager or finance where=all(row.locations as location,can_work(actor,location))
+  policy Advocate read=public fields=code,parent
+  policy Advocate read=authenticated where=actor.email_verified and row.account==actor
+  policy Advocate read=program_manager or finance where=all(row.parent.locations as location,can_work(actor,location))
+  policy Credit read=authenticated where=actor.email_verified and row.parent.account==actor
+  policy Credit read=program_manager or finance where=all(row.parent.parent.locations as location,can_work(actor,location))
+  invariant Program: row.reward.minor>0 and starts_with(row.destination,"https://") and row.window>0m and count(row.locations)>0 and count(row.products)>0 and all(Credit as credit where credit.parent.parent==row,credit.amount.currency==row.reward.currency)
+  invariant Advocate: not any(Advocate as advocate,advocate.id!=row.id and advocate.code==row.code)
+  export fixture campaign=Program {name="Advocates",locations=[test_site],products=["meeting","membership"],reward=money(100,"EUR"),destination="https://example.test/"}
+  export fixture advocate=Advocate {parent=campaign,account=other,email="advocate@example.test",code="share"}
+ When
+ Then
+package affiliate
+ use rent_catalog {Location,test_site}
+ use employee {can_work}
+ use sales_attribution {capture}
+ Given
+  export contract AccountState { partner:text, account:text, revision:int min=1, state:enum(pending,action_required,ready,disabled), link:url?, expires:datetime? }
+  message label_CommissionResult_source = "Source reference"@{nl="Bronreferentie"}
+  message label_CommissionResult_account = "Account"@{nl="Account"}
+  message label_CommissionResult_allocation = "Allocation state"@{nl="Toewijzingsstatus"}
+  message label_CommissionResult_allocation_pending = "Pending"@{nl="In behandeling"}
+  message label_CommissionResult_allocation_unknown = "Unknown"@{nl="Onbekend"}
+  message label_CommissionResult_allocation_allocated = "Allocated"@{nl="Toegewezen"}
+  message label_CommissionResult_allocation_failed = "Failed"@{nl="Mislukt"}
+  message label_CommissionResult_allocation_reversed = "Reversed"@{nl="Teruggedraaid"}
+  message label_CommissionResult_bank = "Bank delivery"@{nl="Bankuitbetaling"}
+  message label_CommissionResult_bank_not_started = "Not started"@{nl="Niet gestart"}
+  message label_CommissionResult_bank_in_transit = "In transit"@{nl="Onderweg"}
+  message label_CommissionResult_bank_succeeded = "Succeeded"@{nl="Geslaagd"}
+  message label_CommissionResult_bank_returned = "Returned"@{nl="Teruggestort"}
+  message label_CommissionResult_transfer = "Transfer reference"@{nl="Overboekingsreferentie"}
+  message label_CommissionResult_payout = "Payout reference"@{nl="Uitbetalingsreferentie"}
+  message label_Partner_rate = "Rate"@{nl="Tarief"}
+  message label_Partner_agreement = "Agreement"@{nl="Overeenkomst"}
+  role partner_manager label="Partner manager"@{nl="Partnerbeheerder"}
+  role finance label="Finance"@{nl="Financiën"}
+  export Partner { window:duration=30d label="Attribution window"@{nl="Toewijzingstermijn"}, provider_revision:int=0, onboarding_delivery:text?, account_delivery:text?, onboarding_url:url?, onboarding_expires:datetime?, provider_state:AccountState.state=pending label={text="Provider eligibility"@{nl="Providergeschiktheid"},values={pending="Pending"@{nl="In afwachting"},action_required="Action required"@{nl="Actie vereist"},ready="Ready"@{nl="Gereed"},disabled="Disabled"@{nl="Uitgeschakeld"}}}, name:text, account:user label=label_CommissionResult_account, email:email, locations:Location[] label="Locations"@{nl="Locaties"}, products:text[]! label="Products"@{nl="Producten"}, rate:decimal min=0 max=1 label=label_Partner_rate, agreement:text label=label_Partner_agreement, milestone:enum(paid,completed,cancellation_passed) label={text="Qualification milestone"@{nl="Kwalificatiemijlpaal"},values={paid="Paid"@{nl="Betaald"},completed="Completed"@{nl="Voltooid"},cancellation_passed="Cancellation window passed"@{nl="Annuleringsperiode verstreken"}}}, provider_account:text? label="Provider account"@{nl="Provideraccount"}, onboarded:bool=false label="Provider onboarding complete"@{nl="Providerregistratie voltooid"}, active:bool=true } label="Partner"@{nl="Partner"}
+  policy Partner read=public fields=name,active
+  policy Partner read=partner_manager or finance where=all(row.locations as location,can_work(actor,location))
+  policy Partner read=authenticated where=actor.email_verified and row.account==actor fields=name,account,locations,products,rate,agreement,milestone,onboarded,active,provider_state,onboarding_url,onboarding_expires
+  invariant Partner: row.window>0m and count(row.locations)>0 and count(row.products)>0 and trim(row.agreement)!=""
+  export fixture broker=Partner {name="Broker",account=other,email="broker@example.test",locations=[test_site],products=["office"],rate=0.1,agreement="v1",milestone=completed,provider_account="connected",onboarded=true,provider_state=ready}
+ When
+ Then
+  style AffiliateWorkspace $"Use compact partner rows and readable commission ledgers. Align currency amounts and frozen rates; clearly separate qualification, allocation, bank delivery, and review states. Keep own terms and introduction pages visually restrained. Keep daisyUI theme and shared shell defaults, canonical permissions/actions, localized labels, complete forms/errors, visible keyboard focus, and responsive stacking. Apply consistently to each styled page content scope; keep page admission and the shared shell unchanged."
+  page /partners/share/{Partner.id} title="Partner introduction"@{nl="Partnerintroductie"} nav=none $AffiliateWorkspace
+   require row.active
+   breadcrumbs
+   ## Captionless hero avoids duplicating the page title (hero: optional caption).
+   hero
+    card "Attribution code"@{nl="Toewijzingscode"}
+     text row.name
+     primary "Use attribution code"@{nl="Toewijzingscode gebruiken"} action=capture arguments={partner=row} fields=customer
+package sales_attribution
+ use customer {Customer,owns,has_role,test_company,test_contact,test_admin}
+ use rent_catalog {Location}
+ use refer {Advocate,advocate as test_advocate}
+ use affiliate {Partner,broker as test_broker}
+ Given
+  export Capture in Customer { advocate:Advocate?, partner:Partner?, code:text label="Attribution code"@{nl="Toewijzingscode"}, program:text label="Exclusive program"@{nl="Exclusief programma"}, account:user server=actor, captured:datetime server=now label="Capture time"@{nl="Vastleggingstijd"}, window:duration label="Attribution window"@{nl="Toewijzingstermijn"}, source:text unique label="Capture reference"@{nl="Vastleggingsreferentie"} } label="Captured attribution"@{nl="Vastgelegde toewijzing"}
+  invariant Capture: (row.advocate!=null and row.partner==null) or (row.advocate==null and row.partner!=null)
+  lock Capture fields=advocate,partner,code,program,account,captured,window,source
+  policy Capture read=authenticated where=row.account==actor and (owns(actor,row.parent) or has_role(actor,row.parent,administrator) or has_role(actor,row.parent,booker))
+ When
+  export scenario capture(customer:Customer,advocate:Advocate?,partner:Partner?) by=authenticated -> Capture label="Use attribution code"@{nl="Toewijzingscode gebruiken"}
+   require actor.email_verified and customer.active
+   require owns(actor,customer) or has_role(actor,customer,administrator) or has_role(actor,customer,booker)
+   require (advocate!=null and partner==null) or (advocate==null and partner!=null)
+   do
+    if advocate!=null
+     require advocate.parent.active and advocate.account!=actor
+     create Capture {parent=customer,advocate,code=advocate.code,program=format("refer.Program:{id}",{id=advocate.parent.id}),window=advocate.parent.window,source=operation.id} as captured
+     return captured
+    require partner!=null
+    require partner.active and partner.account!=actor
+    create Capture {parent=customer,partner,code=partner.id,program=format("affiliate.Partner:{id}",{id=partner.id}),window=partner.window,source=operation.id} as captured
+    return captured
+   examples seed=[test_contact,test_admin] advocate=test_advocate customer=test_company
+    as,advocate.account,advocate.parent.active -> count(customer.Capture)
+    members,other,true -> 1
+    members,self,true -> error(rule_failed)
+    members,other,false -> error(rule_failed)
+    public,other,true -> error(forbidden)
+   examples seed=[test_contact,test_admin] partner=test_broker customer=test_company
+    as,partner.account,partner.active -> count(customer.Capture)
+    members,other,true -> 1
+    members,self,true -> error(rule_failed)
+    members,other,false -> error(rule_failed)
+ Then

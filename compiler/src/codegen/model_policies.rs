@@ -6,9 +6,9 @@ use crate::codegen::ir::{self, IrItemKind, IrModelRuleKind, IrProgram, IrType, T
 use crate::codegen::model_policy_profile::{
     CurrentRevisionRuleKind, CurrentRevisionRuleProfile, checked_chat_invariant_fields,
     checked_chat_lock_target, checked_local_rule_fields, checked_query_rule_fields,
-    checked_required_record_lock_target, current_revision_lock_target,
-    current_revision_rule_profile, local_hook_supported, local_rule_fields,
-    local_stored_field_type, required_model_rule_dependencies, required_model_rule_fields,
+    checked_stored_lock_target, current_revision_lock_target, current_revision_rule_profile,
+    local_hook_supported, local_rule_fields, local_stored_field_type,
+    required_model_rule_dependencies, required_model_rule_fields,
 };
 use crate::diagnostic::Severity;
 use crate::source::SourceDb;
@@ -352,7 +352,7 @@ fn collect_policies(
                     item.name == *field
                         && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model.id &&
                             (local_stored_field_type(ir, model.id, ty) || checked_profiles.is_some_and(|profiles|
-                                checked_required_record_lock_target(ir, model.id, item.id, field, ty)
+                                checked_stored_lock_target(ir, model.id, item.id, field, ty)
                                     || (checked_chat_fields.is_some_and(|checked| checked.contains(&item.id))
                                     && checked_chat_lock_target(ir, model.id, item.id, field, ty))
                                     || profiles.iter().any(|profile| profile.origin.model == model.id

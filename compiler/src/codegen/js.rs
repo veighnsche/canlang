@@ -16060,7 +16060,7 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
     })
 }
 
-fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
+pub(super) fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
     let (value, nullable) = match result {
         ResolvedType::Nullable(value) => (value.as_ref(), true),
         value => (value, false),
