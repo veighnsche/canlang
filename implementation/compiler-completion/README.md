@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **706 errors**:
-**680 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **705 errors**:
+**679 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -99,7 +99,7 @@ are not independent feature tasks:
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
 | Checked source/inventory publication | 3 | Membership and collection-call correspondence; standard inventory/completions publication is closed at its metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
-| Query and predicate lowering | 116 | 85 stored first-query correspondence, 15 model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| Query and predicate lowering | 115 | 87 stored first-query correspondence, 12 model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
@@ -263,7 +263,7 @@ supplied-array ordering (12 occurrences); settle nullable-key placement against
 the existing model contract with JEV before implementing its typed key lowering.
 Keep source correspondence, model recipes, order and failures unchanged.
 
-**Current C02/C10 batch — typed supplied-array ordering (2026-10-15).**
+**Completed C02/C10 batch — typed supplied-array ordering (2026-10-15).**
 Retain one checked alias-scoped key and direction, evaluate keys once after the
 whole filter and before projection, preserve input identities and stable ties,
 and use existing Values scalar comparisons. Nullable/legitimately absent keys
@@ -294,12 +294,26 @@ with **706** errors (**680 E6008**, **26 E6007**), complete=true, omitted=0 and
 no usable artifact. Against the retained 718-error inventory capture, exactly
 **12** value-order refusals disappear and **none** are added. Formatting/diff
 checks pass; no original source or Values catalog is changed.
-The next finite defining leaf is explicit own-row `created` ordering (three
-occurrences), already served by State's default `created,id` contract: compiler
-metadata admission plus chronological/native ID-tie checks. Eight direct temporal
-field keys need their typed receiver validation; four computed/reference keys
-remain a separate observation-owned evaluator dependency. No app-specific
-exception, broader observer profile or native CanCRM completion is claimed.
+
+**Current C02/C10 batch — explicit own-row created ordering (2026-10-15).**
+The compiler now recognizes checked `created:datetime` metadata on the owning
+query alias, matching State's existing `created,id` contract. The actual native
+D1/Identity check passes chronological ASC/DESC ordering, ascending ID ties in
+both directions, anonymous empty results and unchanged rows/revision. The three
+other model/UI ordering checks pass. Foreign-row/computed keys still refuse;
+ordinary created-first emission passes while native-receipt mode still requires
+its exact original first-query source recipe. CLI build, formatting and diff
+checks pass. Frozen original 24-source validation exits **10** with **705** errors
+(**679 E6008**, **26 E6007**), complete=true, omitted=0 and no usable artifact.
+Against the retained 706-error capture, exactly three expression-order refusals
+disappear and two CanPurchase stored-first correspondence refusals are exposed.
+The CanRefer metadata-order occurrence clears; the CanPurchase native source
+recipes remain a local dependency. Original sources and catalog are unchanged.
+
+Eight direct temporal field keys need their typed receiver validation; four
+computed/reference keys remain a separate observation-owned evaluator dependency.
+These are local implementation dependencies. No app-specific exception, broader
+observer profile or native CanCRM completion is claimed.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
