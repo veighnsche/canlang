@@ -301,6 +301,38 @@ test('removal keeps the last owner and revokes team-bound grants', async () => {
   assert.equal(revoked?.grant_id, grant.grant_id);
 });
 
+test('Can NAME role identities retain owner-authorized grants and invitation ceilings', async () => {
+  for (const role of ['prompt_lab.curator', '_prompt_lab._curator_2', 'A1._role', '_.__']) {
+    assert.deepEqual(parseRoleValue(role), { action: 'grant', role });
+    assert.deepEqual(parseRoleValue(`-${role}`), { action: 'revoke', role });
+  }
+  for (const role of ['curator', 'A..B', 'A.B.C', '1App.Role', 'App.1Role', 'A-B.Role', 'App.rôle', 'App.Role\n', 'owner\n', ' owner']) {
+    assert.throws(() => parseRoleValue(role), error => error instanceof IdentityError && error.code === 'validation', role);
+  }
+  const { clock, store, mail, owner, team } = await ownerWithTeam();
+  const member = await store.createUser({ email: 'curator@x.co', password_hash: 'opaque', email_verified: true });
+  await store.createMembership({ team_id: team.team_id, user_id: member.user_id, is_owner: false, roles: [] });
+  const granted = await setMemberRole(store,
+    { team_id: team.team_id, member_user_id: member.user_id, role: 'prompt_lab.curator' },
+    { granted_by: owner.user_id, clock });
+  assert.equal(granted.is_owner, false);
+  assert.deepEqual(granted.roles.map(grant => [grant.role, grant.granted_by]), [['prompt_lab.curator', owner.user_id]]);
+  await assertIdentityError(() => setMemberRole(store,
+    { team_id: team.team_id, member_user_id: member.user_id, role: '_prompt_lab._curator_2' },
+    { granted_by: member.user_id, clock }), 'forbidden');
+  const revoked = await setMemberRole(store,
+    { team_id: team.team_id, member_user_id: member.user_id, role: '-prompt_lab.curator' },
+    { granted_by: owner.user_id, clock });
+  assert.deepEqual(revoked.roles, []);
+  const invited = await store.createUser({ email: 'invited@x.co', password_hash: 'opaque', email_verified: true });
+  const invitation = await inviteMember(store, mail,
+    { team_id: team.team_id, email: invited.email, role: '_prompt_lab._curator_2' },
+    { invited_by: owner.user_id, clock, inviteBaseUrl: 'https://app.example.com' });
+  const accepted = await acceptInvitation(store, { invitation_id: invitation.invitation_id, user_id: invited.user_id }, { clock });
+  assert.equal(accepted.is_owner, false);
+  assert.deepEqual(accepted.roles.map(grant => [grant.role, grant.granted_by]), [['_prompt_lab._curator_2', owner.user_id]]);
+});
+
 test('role grammar grants and revokes with the last-owner guard', async () => {
   assert.deepEqual(parseRoleValue('TeamTasks.reviewer'), { action: 'grant', role: 'TeamTasks.reviewer' });
   assert.deepEqual(parseRoleValue('-TeamTasks.reviewer'), { action: 'revoke', role: 'TeamTasks.reviewer' });

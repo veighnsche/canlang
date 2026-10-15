@@ -22,7 +22,8 @@ import type { Membership } from '@canlang/contracts';
 import { normalizeEmail } from '../accounts/registration.js';
 
 export const INVITE_EXPIRES_MS = 7 * 24 * 60 * 60 * 1000;
-export const ROLE_NAME_PATTERN = /^(owner|[A-Za-z][A-Za-z0-9]*\.[A-Za-z][A-Za-z0-9]*)$/;
+// Can NAME in each segment; the end assertion also rejects a final newline.
+export const ROLE_NAME_PATTERN = /^(?:owner|[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)(?![\s\S])/;
 
 export function checkRoleName(role: string): void {
   if (!ROLE_NAME_PATTERN.test(role)) {

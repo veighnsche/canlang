@@ -11,15 +11,15 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordVersion, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
+import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordParent, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
-import { decodeValue, encodeValue } from "@canlang/values";
+import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime } from "@canlang/values";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
-import { invokeReadCanonical, loadCanonicalDescriptors } from "../runtime/invoke.js";
+import { invokeReadCanonical, loadCanonicalDescriptors, materializeCanonicalExampleSnapshots } from "../runtime/invoke.js";
 import type { CanonicalEffectsScope, CanonicalReadQuery } from "../runtime/context.js";
 import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from "../worker/assembly.js";
 
@@ -130,7 +130,7 @@ export interface CompiledExampleInput {
   /** Optional override; the default commits fixtures and uses buildInvoker. */
   readonly hooks?: ExampleRuntimeHooks;
   /** Emitter factory bindings; the default is the authored self/other names. */
-  readonly bindings?: { readonly self: unknown; readonly other: unknown; readonly imported: unknown };
+  readonly bindings?: { readonly self: unknown; readonly other: unknown; readonly outsider?: unknown; readonly imported: unknown };
   /** Execute one authored table row, used by the isolated rerun coordinator. */
   readonly selectedRow?: { readonly operation: string; readonly rowIndex: number };
   /** Correlates a fresh row scope with its attempt; never reused as D1 state. */
@@ -201,6 +201,8 @@ export interface ExampleRowScope extends LocalRowScope {
   readonly d1Id: string;
   readonly currentTeamId: string | null;
   readonly fixtureActorId: string | null;
+  /** One clock shared by fixture expressions, invocation and observations. */
+  readonly nowMs: number;
   /** Resolve verified current Identity facts, including a public caller. */
   identityFor(by: unknown, rowCaller: ResolvedCaller, fixtures: ReadonlyMap<string, unknown>): Promise<ResolvedIdentity>;
   provisionActors(accounts: RowAccounts, selection: CallerSelection, users: readonly UserFixture[]): Promise<void>;
@@ -303,10 +305,12 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
     let ownerStorage: TeamOwnerStorageBoundary | undefined;
     const identities = createD1IdentityStore(db);
     const tokens = new Map<string, string>();
+    const actorAccounts = new Map<string, string>();
     let currentTeamId: string | null = null;
     let otherTeamId: string | null = null;
     let accountsOfRow: RowAccounts | null = null;
     let ownerUserId: string | null = null;
+    let nowMs = Date.now();
 
     async function addActor(account: string, teamId: string, roles: readonly string[], isOwner = false): Promise<void> {
       const user = await identities.createUser({
@@ -314,6 +318,7 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
         password_hash: "example-only-unusable",
         email_verified: true,
       });
+      actorAccounts.set(user.user_id, account);
       if (isOwner) ownerUserId = user.user_id;
       await identities.createMembership({
         team_id: teamId,
@@ -346,6 +351,7 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
       d1Id,
       get currentTeamId() { return currentTeamId; },
       get fixtureActorId() { return ownerUserId; },
+      get nowMs() { return nowMs; },
       async provisionActors(accounts, selection, users) {
         if (accountsOfRow !== null) throw new Error("example runner: row actors already provisioned");
         const current = await identities.createTeam({});
@@ -383,6 +389,7 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
           const self = await resolveIdentity(identities, { session_token: selfToken, team_id: current.team_id });
           store = await ownerStorage.forIdentity(self);
         }
+        nowMs = Date.now();
       },
       async identityFor(by, rowCaller, fixtures) {
         if (accountsOfRow === null || currentTeamId === null || otherTeamId === null) {
@@ -392,11 +399,13 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
         let account: string | null = null;
         if (by === "self" || (input.bindings !== undefined && by === input.bindings.self)) account = accountsOfRow.self;
         else if (by === "other" || (input.bindings !== undefined && by === input.bindings.other)) account = accountsOfRow.other;
-        else if (by === "outsider") account = accountsOfRow.outsider;
+        else if (by === "outsider" || (input.bindings !== undefined && by === input.bindings.outsider && by !== undefined)) account = accountsOfRow.outsider;
         else if (typeof by === "string" && Object.hasOwn(accountsOfRow.users, by)) {
           account = accountsOfRow.users[by]!.account;
         } else if (typeof by === "string" && (by === "members" || rowCaller.roles.includes(by))) {
           account = rowCaller.account === "public" ? null : rowCaller.account;
+        } else if (isUserRef(by) && actorAccounts.has(by.id)) {
+          account = actorAccounts.get(by.id)!;
         } else if (typeof by === "object" && by !== null) {
           for (const [name, value] of fixtures) {
             if (value === by && accountsOfRow.users[name] !== undefined) {
@@ -440,25 +449,35 @@ interface StoredFixtureBinding {
   readonly version: number;
 }
 
+function fixtureFieldType(field: ArtifactModelField): string {
+  if (field.valueType !== undefined) return field.valueType;
+  const type = field.field.kind === "ref" ? field.field.model
+    : ({ string: "text", integer: "int", boolean: "bool", decimal: "decimal", money: "money",
+      datetime: "datetime", date: "date", duration: "duration", user: "user" } as Record<string, string>)[field.field.kind];
+  if (type === undefined) throw new Error(`example runner: fixture field ${field.name} needs a supported value type`);
+  return `${type}${field.array === undefined ? "" : "[]"}${field.nullable === true ? "?" : ""}`;
+}
+
 function fieldWire(field: ArtifactModelField, value: unknown): unknown {
   if (value === null) return null;
   if (field.field.kind === "enum") {
-    if (typeof value !== "string" || !field.field.values.includes(value)) {
-      throw new Error(`example runner: invalid enum fixture field ${field.name}`);
+    const values = field.field.values;
+    const encode = (item: unknown): string => {
+      if (typeof item !== "string" || !values.includes(item)) throw new Error(`example runner: invalid enum fixture field ${field.name}`);
+      return item;
+    };
+    if (field.array !== undefined) {
+      if (!Array.isArray(value)) throw new Error(`example runner: fixture field ${field.name} requires an array`);
+      return value.map(encode);
     }
-    return value;
+    return encode(value);
   }
-  const type = field.valueType ?? ({ string: "text", integer: "int", boolean: "bool", decimal: "decimal", money: "money", datetime: "datetime", duration: "duration" } as Record<string, string>)[field.field.kind];
-  if (type === undefined) throw new Error(`example runner: fixture field ${field.name} needs a supported value type`);
-  return encodeValue(type, value as never);
+  return encodeValue(fixtureFieldType(field), value as never);
 }
 
 function nativeFixtureField(field: ArtifactModelField, wire: unknown): unknown {
-  if (wire === null) return null;
-  if (field.field.kind === "enum") return wire;
-  const type = field.valueType ?? ({ string: "text", integer: "int", boolean: "bool", decimal: "decimal", money: "money", datetime: "datetime", duration: "duration" } as Record<string, string>)[field.field.kind];
-  if (type === undefined) throw new Error(`example runner: fixture field ${field.name} needs a supported value type`);
-  return decodeValue(type, wire);
+  if (wire === null || field.field.kind === "enum") return wire;
+  return decodeValue(fixtureFieldType(field), wire);
 }
 
 function fixtureView(artifact: CompileArtifact, modelName: string, row: StoredRow): Record<string, unknown> {
@@ -473,6 +492,8 @@ function fixtureView(artifact: CompileArtifact, modelName: string, row: StoredRo
 
 function wireInputs(value: unknown, references: ReadonlyMap<object, StoredFixtureBinding>, seen = new Set<object>()): unknown {
   if (typeof value === "bigint") return value.toString();
+  if (isUserRef(value)) return encodeValue("user", value);
+  if (isDatetime(value)) return encodeValue("datetime", value);
   if (value === null || typeof value !== "object") return value;
   const reference = references.get(value);
   if (reference !== undefined) return { id: reference.id, version: String(reference.version) };
@@ -533,93 +554,86 @@ function freshOperationId(): OperationId {
 function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules): ExampleRuntimeHooks {
   const models = artifact.models ?? [];
   const operations = artifact.operations ?? [];
+  const results = new WeakMap<ExampleRowScope, { readonly type: string; readonly wire: unknown; readonly identity: ResolvedIdentity }>();
+  const invoked = new WeakSet<ExampleRowScope>();
   const rows = new WeakMap<ExampleRowScope, Map<string, StoredFixtureBinding>>();
   const references = new WeakMap<ExampleRowScope, Map<object, StoredFixtureBinding>>();
   return {
     async materializeFixtures({ scope, fixtures, required }) {
-      if (required.length > 0) await loadCanonicalDescriptors(asm, artifact);
+      if (rows.has(scope) || invoked.has(scope)) throw new Error("example runner: fixture setup is already complete");
       const values = new Map(fixtures);
       const rowBindings = new Map<string, StoredFixtureBinding>();
       const objectBindings = new Map<object, StoredFixtureBinding>();
-      const materialized: string[] = [];
+      const rawBindings = new Map<object, StoredFixtureBinding>();
+      const users = new Map<object, unknown>();
+      const modelNames = new Set(required.map(recipe => recipe.name));
+      const caller: ResolvedCaller = { account: "self", team: "current", roles: [], authenticated: true };
+      const identity = await scope.identityFor("self", caller, fixtures);
+      // A user recipe is an Identity account, not the {roles} declaration.
+      for (const [name, value] of fixtures) {
+        if (modelNames.has(name) || !isRecord(value)) continue;
+        const user = await scope.identityFor(name, caller, fixtures);
+        if (user.actor === null) throw new Error(`example runner: user fixture ${name} has no account`);
+        const native = decodeValue("user", { id: user.actor.user_id });
+        users.set(value, native);
+        values.set(name, native);
+      }
       for (const recipe of required) {
-        if (recipe.kind !== "model" || recipe.label === undefined) {
-          throw new Error(`example runner: ${recipe.name} needs a local ${recipe.kind} fixture producer`);
-        }
+        if (recipe.kind !== "model" || recipe.label === undefined) throw new Error(`example runner: ${recipe.name} needs a local ${recipe.kind} fixture producer`);
         const model = models.find(candidate => candidate.name === recipe.label);
-        if (model === undefined) throw new Error(`example runner: fixture ${recipe.name} names unknown model ${recipe.label}`);
-        if (model.parent !== undefined || model.uniqueKeys?.length) {
-          throw new Error(`example runner: fixture ${recipe.name} needs parent or unique-key materialization`);
-        }
         const fields = fixtures.get(recipe.name);
-        if (!isRecord(fields)) throw new Error(`example runner: model fixture ${recipe.name} has no field record`);
-        const declared = new Set(model.fields.map(field => field.name));
-        for (const name of Object.keys(fields)) {
-          if (!declared.has(name)) throw new Error(`example runner: fixture ${recipe.name} has unknown field ${name}`);
-        }
-        const data: Record<string, unknown> = {};
-        for (const field of model.fields) {
-          if (Object.hasOwn(fields, field.name)) data[field.name] = fieldWire(field, fields[field.name]);
-          else if (field.default?.kind === "literal") data[field.name] = field.default.value;
-          else if (field.required && !field.serverOnly) throw new Error(`example runner: fixture ${recipe.name} lacks required ${field.name}`);
-          else if (field.serverOnly && field.default?.kind !== "derived") {
-            throw new Error(`example runner: fixture ${recipe.name} needs a server-field initializer`);
-          }
-        }
-        const actor = scope.fixtureActorId;
-        if (actor === null || scope.currentTeamId === null) throw new Error("example runner: fixture owner was not provisioned");
-        const now = Date.now();
-        const row: StoredRow = {
-          id: randomUUID() as RecordId,
-          version: 1 as RecordVersion,
-          created: now, updated: now, createdBy: actor, updatedBy: actor,
-          archivedAt: null, parent: null, data,
-        };
-        let stored: StoredRow | null;
-        if (artifact.givenContracts?.keywords.some(binding => binding.producer === "state.unique-key@1" && binding.targetModel === model.name)) {
-          // Computed keys live on the canonical model table, not artifact field
-          // metadata. Seed through the same create admission and fenced claims
-          // as the operation under test rather than inserting an unclaimed row.
-          const creation = operations.find(operation => operation.name === `${model.name}.create` && operation.kind === "create");
-          const acceptedFields = new Set(creation?.inputs.fields.map(field => field.name));
-          if (creation === undefined || Object.keys(fields).some(name => !acceptedFields.has(name))) {
-            throw new Error(`example runner: fixture ${recipe.name} cannot be represented by its canonical create operation`);
-          }
-          const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
-          const outcome = await buildInvoker(artifact, asm, scope.store, {
-            memberships: scope.identities, source: "example",
-            ...(scope.ownerStorage === undefined ? {} : { ownerStorage: scope.ownerStorage }),
-          }).invokeMutation({ operation: `${model.name}.create` as FqOperationName,
-            operation_id: freshOperationId(),
-            inputs: Object.fromEntries(Object.keys(fields).map(name => [name, data[name]])) as ClosedInputs,
-          }, identity);
-          if ("error" in outcome) throw new Error(`example runner: fixture ${recipe.name} canonical create failed: ${outcome.error.code}`);
-          const served = isRecord(outcome.result) ? outcome.result : undefined;
-          const changed = Array.isArray(served?.["records"]) && served["records"].length === 1 ? served["records"][0] : undefined;
-          const result = isRecord(served?.["result"]) ? served["result"] : changed;
-          if (!isRecord(result) || typeof result["id"] !== "string") {
-            throw new Error(`example runner: fixture ${recipe.name} canonical create returned no stored row`);
-          }
-          stored = await scope.store.load(model.name as ModelName, result["id"] as RecordId);
-        } else {
-          await scope.store.commit({
-            expectedRevision: await scope.store.readRevision(),
-            writes: [{ kind: "insert", model: model.name as ModelName, row }],
-            history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
-          });
-          stored = await scope.store.load(model.name as ModelName, row.id);
-        }
-        if (stored === null) throw new Error(`example runner: fixture ${recipe.name} was not stored`);
-        const view = fixtureView(artifact, model.name, stored);
-        const binding = { model: model.name, id: stored.id as string, version: stored.version as number };
-        values.set(recipe.name, view);
+        if (model === undefined || !isRecord(fields)) throw new Error(`example runner: fixture ${recipe.name} has no declared model fields`);
+        const binding = { model: model.name, id: randomUUID(), version: 1 };
         rowBindings.set(recipe.name, binding);
+        rawBindings.set(fields, binding);
+      }
+      const translate = (field: ArtifactModelField, value: unknown): unknown => {
+        if (isRecord(value) && users.has(value)) return users.get(value);
+        if (field.field.kind === "ref" && value !== null) {
+          const target = field.field.model;
+          const ref = (item: unknown) => {
+            const binding = isRecord(item) ? rawBindings.get(item) : undefined;
+            if (binding === undefined || binding.model !== target) throw new Error(`example runner: fixture reference ${field.name} has no matching stored recipe`);
+            return decodeValue(target, { id: binding.id });
+          };
+          return field.array === undefined ? ref(value)
+            : Array.isArray(value) ? value.map(ref) : value;
+        }
+        if (Array.isArray(value)) return value.map(item => isRecord(item) && users.has(item) ? users.get(item) : item);
+        return value;
+      };
+      const snapshots = required.map(recipe => {
+        const binding = rowBindings.get(recipe.name)!;
+        const model = models.find(candidate => candidate.name === binding.model)!;
+        const fields = fixtures.get(recipe.name) as Record<string, unknown>;
+        const declared = new Map(model.fields.filter(field => field.default?.kind !== "derived").map(field => [field.name, field]));
+        for (const name of Object.keys(fields)) {
+          if (!declared.has(name) && !(name === "parent" && model.parent !== undefined)) throw new Error(`example runner: fixture ${recipe.name} has unknown or reserved field ${name}`);
+        }
+        let parent: RecordParent | undefined;
+        if (model.parent !== undefined) {
+          const raw = fields["parent"];
+          const target = isRecord(raw) ? rawBindings.get(raw) : undefined;
+          if (target === undefined || target.model !== model.parent) throw new Error(`example runner: fixture ${recipe.name} has no matching parent recipe`);
+          parent = { model: target.model as ModelName, id: target.id as RecordId };
+        }
+        const data = Object.fromEntries([...declared].filter(([name]) => Object.hasOwn(fields, name))
+          .map(([name, field]) => [name, fieldWire(field, translate(field, fields[name]))]));
+        return { model: binding.model as ModelName, id: binding.id as RecordId, data, ...(parent === undefined ? {} : { parent }) };
+      });
+      const stored = snapshots.length === 0 ? new Map<string, StoredRow>()
+        : await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
+          now: scope.nowMs, operationId: freshOperationId(), snapshots });
+      for (const [name, binding] of rowBindings) {
+        const row = stored.get(`${binding.model}\0${binding.id}`);
+        if (row === undefined) throw new Error(`example runner: fixture ${name} was not stored`);
+        const view = fixtureView(artifact, binding.model, row);
+        values.set(name, view);
         objectBindings.set(view, binding);
-        materialized.push(recipe.name);
       }
       rows.set(scope, rowBindings);
       references.set(scope, objectBindings);
-      return { materialized, values };
+      return { materialized: required.map(recipe => recipe.name), values };
     },
     async prepareRowCells({ scope, fixtures, baselineInputs, inputs, selectors, selectorChannels, cells }) {
       const rowBindings = rows.get(scope);
@@ -644,47 +658,46 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
         overrides.set(fixtureName, selected);
       }
       if (overrides.size === 0) return { fixtures, inputs };
+      if (invoked.has(scope)) throw new Error("example runner: fixture state is sealed after invocation");
       const updatedFixtures = new Map(fixtures);
       const updatedInputs = { ...inputs };
+      const snapshots = [];
       for (const [name, fields] of overrides) {
         const binding = rowBindings.get(name)!;
         const model = models.find(candidate => candidate.name === binding.model)!;
-        if (artifact.givenContracts?.keywords.some(rule => rule.producer === "state.unique-key@1" && rule.targetModel === model.name)) {
-          throw new Error(`example runner: fixture ${name} computed-key row cells need canonical update materialization`);
-        }
         const stored = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
         if (stored === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
         const data = { ...stored.data };
         for (const [fieldName, value] of Object.entries(fields)) {
           const field = model.fields.find(candidate => candidate.name === fieldName)!;
+          if (field.default?.kind === "derived") throw new Error(`example runner: fixture ${name} cannot initialize derived field ${fieldName}`);
           data[fieldName] = fieldWire(field, value);
         }
-        const actor = scope.fixtureActorId;
-        if (actor === null) throw new Error("example runner: fixture owner was not provisioned");
-        const next: StoredRow = { ...stored, version: (stored.version + 1) as RecordVersion,
-          updated: Date.now(), updatedBy: actor, data };
-        await scope.store.commit({
-          expectedRevision: await scope.store.readRevision(),
-          writes: [{ kind: "update", model: binding.model as ModelName, id: stored.id,
-            expectedVersion: stored.version, row: next }],
-          history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
-        });
-        const saved = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
-        if (saved === null) throw new Error(`example runner: fixture ${name} row-cell update was not stored`);
+        snapshots.push({ model: binding.model as ModelName, id: stored.id, data,
+          ...(stored.parent === null || stored.parent === undefined ? {} : { parent: stored.parent }) });
+      }
+      const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
+      const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
+        now: scope.nowMs, operationId: freshOperationId(), snapshots });
+      // Publish every new view only after the whole initial override batch validates.
+      for (const name of overrides.keys()) {
+        const binding = rowBindings.get(name)!;
+        const stored = saved.get(`${binding.model}\0${binding.id}`);
+        if (stored === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
         const oldValue = fixtures.get(name);
         if (isRecord(oldValue)) objectBindings.delete(oldValue);
-        const view = fixtureView(artifact, binding.model, saved);
-        const savedBinding = { model: binding.model, id: saved.id as string, version: saved.version as number };
+        const view = fixtureView(artifact, binding.model, stored);
+        const savedBinding = { ...binding, version: stored.version as number };
         updatedFixtures.set(name, view);
         rowBindings.set(name, savedBinding);
         objectBindings.set(view, savedBinding);
-        for (const [root, value] of Object.entries(baselineInputs)) {
-          if (value === oldValue) updatedInputs[root] = view;
-        }
+        for (const [root, value] of Object.entries(baselineInputs)) if (value === oldValue) updatedInputs[root] = view;
       }
       return { fixtures: updatedFixtures, inputs: updatedInputs };
     },
     async invoke({ call, identity }) {
+      invoked.add(call.scope);
+      results.delete(call.scope);
       const operation = operations.find(candidate => candidate.name === call.operation);
       if (operation === undefined) throw new Error(`example runner: unknown operation ${call.operation}`);
       // Loader/source failures are infrastructure failures, rather than an
@@ -700,7 +713,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
       }
       const invoker = buildInvoker(artifact, asm, call.scope.store, {
         memberships: call.scope.identities,
-        source: "example",
+        source: "example", now: () => call.scope.nowMs,
         ...(ownerStorage === undefined ? {} : { ownerStorage }),
       });
       const outcome = operation.kind === "read"
@@ -710,13 +723,60 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
           operation_id: (request.operationId ?? freshOperationId()) as OperationId,
           inputs: request.inputs as ClosedInputs,
         }, identity);
-      return "error" in outcome ? { ok: false, error: outcome.error.code } : { ok: true };
+      if ("error" in outcome) return { ok: false, error: outcome.error.code };
+      if (operation.result !== undefined) {
+        const served = outcome.result;
+        if (!isRecord(served) || !Object.hasOwn(served, "result")) {
+          throw new Error("example runner: declared operation result is absent from its canonical response");
+        }
+        results.set(call.scope, { type: operation.result.type, wire: served["result"], identity });
+      }
+      return { ok: true };
     },
     async observeLive({ scope, fixtures }) {
       const values = new Map(fixtures);
       for (const [name, binding] of rows.get(scope) ?? []) {
         const stored = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
         values.set(name, stored === null ? null : fixtureView(artifact, binding.model, stored));
+      }
+      const returned = results.get(scope);
+      if (returned !== undefined) {
+        const loaded = await loadCanonicalDescriptors(asm, artifact);
+        const store = scope.ownerStorage === undefined ? scope.store : await scope.ownerStorage.forIdentity(returned.identity);
+        const revision = await store.readRevision();
+        const records = new Map<string, Awaited<ReturnType<typeof invokeReadCanonical>>>();
+        const observeResult = async (type: string, wire: unknown): Promise<unknown> => {
+          // Canonical disclosure may withhold even a nonnullable source result.
+          // Absence never grants permission to recover it from owner storage.
+          if (wire === null || type === "void") return null;
+          const parsed = parseTypeId(type);
+          if (parsed.array) {
+            if (!Array.isArray(wire)) throw new Error("example runner: declared array result is not an array");
+            const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+            const values: unknown[] = [];
+            for (const value of wire) values.push(await observeResult(element, value));
+            return values;
+          }
+          const modelName = parsed.base.kind === "nominal" ? parsed.base.path : undefined;
+          const model = models.find(model => model.name === modelName);
+          if (model === undefined) return loaded.valueSchema === undefined
+            ? decodeValue(type, wire) : validateValue(loaded.valueSchema, type, wire, "create");
+          decodeValue(type, wire);
+          if (!isRecord(wire) || typeof wire["id"] !== "string") throw new Error("example runner: declared model result has no identity");
+          const key = `${model.name}\0${wire["id"]}`;
+          let served = records.get(key);
+          if (served === undefined) {
+            served = await invokeReadCanonical({ asm, artifact, operation: `${model.name}.read`, inputs: {} as ClosedInputs,
+              selection: { where: { op: "eq", field: "id", value: wire["id"] }, limit: 1 },
+              identity: returned.identity, store, memberships: scope.identities, source: "example" });
+            records.set(key, served);
+          }
+          if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: result observation returned no authorized records");
+          const row = served.records.find(record => record.id === wire["id"]);
+          return row === undefined ? null : fixtureView(artifact, model.name, row);
+        };
+        values.set("result", await observeResult(returned.type, returned.wire));
+        if (await store.readRevision() !== revision) throw new Error("example runner: result observation state changed");
       }
       return values;
     },
@@ -792,7 +852,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm);
     const loadSuite = input.testkit.loadExampleSuite as (
       moduleUrl: string,
-      bindings: { self: unknown; other: unknown; imported: unknown },
+      bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
       hooks: RunnerHooks,
     ) => Promise<unknown>;
     const runTable = input.testkit.runTable as (spec: unknown) => Promise<TableCaseResult>;
@@ -803,7 +863,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     };
     const reportBuilder = createReport({ digest, sourceRevision: input.sourceRevision });
     let expectedRows = 0;
-    const authoredBindings = input.bindings ?? { self: "self", other: "other", imported: {} };
+    const authoredBindings = input.bindings ?? { self: "self", other: "other", outsider: "outsider", imported: {} };
     for (const [moduleIndex, test] of artifact.tests.entries()) {
       if (input.signal?.aborted) throw cancellationError();
       if (input.selectedRow !== undefined && test.scope !== input.selectedRow.operation) continue;
@@ -812,9 +872,14 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       const rowCallers = new WeakMap<object, ResolvedCaller>();
       const rowIdentities = new WeakMap<object, ResolvedIdentity>();
       let observationScope: CanonicalEffectsScope | undefined;
+      let evaluationScope: ExampleRowScope | undefined;
+      const rowUserRefs = new WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>();
       const bindings = new Proxy(authoredBindings, {
-        get: (target, property, receiver) => property === "canonical"
-          ? observationScope : Reflect.get(target, property, receiver),
+        get: (target, property, receiver) => property === "canonical" ? observationScope
+          : input.bindings === undefined && evaluationScope !== undefined && typeof property === "string" &&
+              ["self", "other", "outsider"].includes(property) ? rowUserRefs.get(evaluationScope)?.[property]
+          : property === "now" && evaluationScope !== undefined ? decodeValue("datetime", new Date(evaluationScope.nowMs).toISOString())
+          : Reflect.get(target, property, receiver),
       });
       const activeScopes = new Set<ExampleRowScope>();
       const disposals = new WeakMap<ExampleRowScope, Promise<void>>();
@@ -902,14 +967,32 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
         get expected() { return row.expected; },
         setup: async (scope: ExampleRowScope, accounts: RowAccounts): Promise<void> => {
           await withCancellation(input.signal, () => scope.provisionActors(accounts, row.caller, suite.userFixtures));
-          await withCancellation(input.signal, () => row.setup(scope, accounts));
+          if (input.bindings === undefined) {
+            const refs: Record<string, unknown> = Object.create(null);
+            for (const account of ["self", "other", "outsider"] as const) {
+              const identity = await withCancellation(input.signal, () => scope.identityFor(account,
+                { account, team: account === "outsider" ? "other" : "current", roles: [], authenticated: true }, new Map()));
+              if (identity.actor === null) throw new Error(`example runner: ${account} has no provisioned user identity`);
+              refs[account] = decodeValue("user", { id: identity.actor.user_id });
+            }
+            rowUserRefs.set(scope, Object.freeze(refs));
+          }
+          evaluationScope = scope;
+          try { await withCancellation(input.signal, () => row.setup(scope, accounts)); }
+          finally { evaluationScope = undefined; }
         },
         invoke: async (scope: ExampleRowScope, caller: ResolvedCaller): Promise<ExampleCallOutcome> => {
           rowCallers.set(scope, caller);
-          return withCancellation(input.signal, () => row.invoke(scope, caller));
+          evaluationScope = scope;
+          try { return await withCancellation(input.signal, () => row.invoke(scope, caller)); }
+          finally { evaluationScope = undefined; }
         },
         observe: async (scope: ExampleRowScope): Promise<ReportValue[]> => {
-          if (input.hooks !== undefined) return withCancellation(input.signal, () => row.observe(scope));
+          if (input.hooks !== undefined) {
+            evaluationScope = scope;
+            try { return await withCancellation(input.signal, () => row.observe(scope)); }
+            finally { evaluationScope = undefined; }
+          }
           const caller = rowCallers.get(scope);
           if (caller === undefined) throw new Error("example runner: observation caller was not resolved");
           const identity = rowIdentities.get(scope);
@@ -944,8 +1027,9 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
               return selected;
             },
           };
+          evaluationScope = scope;
           try { return await withCancellation(input.signal, () => row.observe(scope)); }
-          finally { observationScope = undefined; }
+          finally { observationScope = undefined; evaluationScope = undefined; }
         },
       }));
       let result: TableCaseResult;
