@@ -17466,3 +17466,22 @@ State's two affected owner tests pass/.189s, including wrong tag/wrapper/malform
 type refusal and actual invalid-wire mutation rollback. Strict noEmit and normal
 State/CF builds pass. Actual original Partner transactions/page still await the
 fresh compiler snapshot; earlier setup failed before rule execution.
+
+
+## 2026-10-15 — receive ordered Boolean role admission predicates
+
+Accepted receiving component for the43 original role-only OR admissions: the
+existing operation policy mapper now reads the existing State ByPredicate tree
+with ordered role/and/or/not nodes. Legacy top-level role strings retain their
+conjunctive list meaning; scenario leading requires remain handler-enforced and
+CRUD candidate when remains separately sealed. Dense own-data shape, finite
+node/depth bounds and copied immutable meaning prevent getters, cycles, sparse
+arrays, extra keys or arbitrary executable/data predicates from entering this
+channel. Actual State evaluation retains short circuit, current membership,
+explicit declared roles and original membership-reader failure identity.
+
+Strict CF noEmit and normal build pass. Five affected policy-transcription
+controls pass/.269s, including two new ordered/current-role controls and three
+unchanged cases. Compiler metadata transcription and genuine generated native
+scenario/CRUD qualification remain pending; this component closes neither all43
+source diagnostics nor enclosing application workflows.

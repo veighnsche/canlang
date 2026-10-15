@@ -48,6 +48,7 @@ import type {
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
 import { createTestMemoryStorage } from "@canlang/state/storage/memory";
+import { evaluateBy, type ByPredicate } from "@canlang/state/policy/roles";
 import { assembleWorker, buildInvoker } from "../worker/assembly.js";
 import type { AssembledModules, AssemblyDeps } from "../worker/assembly.js";
 import {
@@ -452,6 +453,59 @@ describe("T16b router (generated vs interim)", () => {
 });
 
 describe("T16b policy transcription (CRUD gates)", () => {
+  it("copies ordered role Boolean trees and rejects malformed or executable metadata without getters", () => {
+    const tree = { or: ["authenticated", { and: [{ role: "acme.Clerk" }, { not: { role: "acme.Blocked" } }] }] };
+    const mapped = mapCrudPolicyToBy("op", { by: [tree] });
+    assert.deepEqual(mapped, tree);
+    assert.deepEqual(mapScenarioPolicyToBy("op", { by: [tree], requires: 3 }), tree);
+    tree.or[0] = "public";
+    assert.equal((mapped as { or: unknown[] }).or[0], "authenticated", "the admitted tree does not retain mutable manifest nodes");
+    const cycle: { not?: unknown } = {}; cycle.not = cycle;
+    const sparse = new Array(1);
+    let getters = 0;
+    const getter = Object.defineProperty({}, "or", { enumerable: true, get() { getters++; return ["public"]; } });
+    const getterArray = Object.defineProperty([], "0", { enumerable: true, get() { getters++; return "public"; } });
+    const hidden = Object.defineProperty({ role: "acme.Clerk" }, "hidden", { value: true });
+    let deep: unknown = "public"; for (let index = 0; index < 66; index++) deep = { not: deep };
+    for (const by of [[{ or: [] }], [{ and: [] }], [{ not: true }], [{ role: "" }], [{ roleSubject: { role: "acme.Clerk", person: "actor" } }],
+      [{ or: ["acme.Clerk"] }], [{ expr: true }], [{ role: "acme.Clerk", not: "public" }], [cycle], [getter], [hidden], [deep],
+      [{ or: sparse }], [{ or: getterArray }], Array.from({ length: 4097 }, () => "public")]) {
+      assert.throws(() => mapCrudPolicyToBy("op", { by }), /T04b/);
+    }
+    const entry = Object.defineProperty({}, "by", { enumerable: true, get() { getters++; return ["public"]; } });
+    assert.throws(() => mapScenarioPolicyToBy("op", entry), /T04b/);
+    assert.equal(getters, 0);
+  });
+
+  it("uses State's current role evaluation with lazy order, explicit owner grants and original resolver failures", async () => {
+    const seed = await seedIdentity();
+    const clerk = await identityFor(seed, seed.clerkToken), owner = await identityFor(seed, seed.ownerToken);
+    let reads = 0;
+    const context = (identity: ResolvedIdentity) => ({ actorUserId: identity.actor?.user_id ?? null,
+      teamId: identity.team?.team_id ?? null, membership: identity.membership, memberships: {
+        findMembership: async (team: string, user: string) => { reads++; return seed.store.findMembership(team, user); },
+      } });
+    const mapped = (tree: unknown) => mapCrudPolicyToBy("op", { by: [tree] }) as ByPredicate;
+    const authenticated = mapped({ or: ["authenticated", { role: "acme.Clerk" }] });
+    assert.equal(await evaluateBy(authenticated, { ...context(clerk), membership: null }), true);
+    assert.equal(reads, 0, "authenticated short-circuits the declared-role read");
+    const either = mapped({ or: [{ role: "acme.Clerk" }, { role: "acme.Alternate" }] });
+    assert.equal(await evaluateBy(either, context(clerk)), true); assert.equal(reads, 1);
+    assert.equal(await evaluateBy(either, context(owner)), false, "owner does not imply declared roles");
+    const guarded = mapped({ and: [{ role: "acme.Clerk" }, { not: { role: "acme.Blocked" } }] });
+    assert.equal(await evaluateBy(guarded, context(clerk)), true);
+    await seed.store.setMembershipRoles(seed.clerkMembershipId, [
+      { role: "acme.Clerk", granted_at: new Date(seed.now).toISOString(), granted_by: seed.ownerId },
+      { role: "acme.Blocked", granted_at: new Date(seed.now).toISOString(), granted_by: seed.ownerId },
+    ]);
+    assert.equal(await evaluateBy(guarded, context(clerk)), false);
+    await seed.store.removeMembership(seed.clerkMembershipId);
+    assert.equal(await evaluateBy(either, context(clerk)), false, "removed membership cannot use retained caller claims");
+    const failure = new Error("original role lookup failed");
+    await assert.rejects(evaluateBy(either, { ...context(owner), memberships: { findMembership: async () => { throw failure; } } }),
+      error => error === failure);
+  });
+
   it("maps the established subset; refuses the rest LOUD naming T04b", () => {
     // B7 fail-closed (joint decision overturns the interim-exact
     // `public` default): absent entry denies via {not: "public"} —
