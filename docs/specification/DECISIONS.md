@@ -16426,3 +16426,20 @@ uncertain (first call assigns .34 to investigate). Required implementation check
 remain exact source/pointer/call/lifetime refusal, lazy executed-field authority,
 first-true/failure order, membership revocation and final domain/grant validation.
 This records the direction, not implemented runtime or original CanCRM acceptance.
+
+2026-10-15 — C02: retain imported query-helper owning source inventory.
+
+Use the original checked decision calls to retain reachable derive declarations
+and their stored-query Model schemas for leading and body Require occurrences.
+The actual Employee query now retains its declared user/Location fields and
+helper expression types; caller Contract input and prior first-query reference
+origins remain distinct. Cross-file expression ordering includes file identity.
+The query/collection/alias/domain/type/overload/source proof is required before
+adding the Model owner. This changes source inventory, not execution authority.
+
+The unchanged full Employees.can helper and an aliased import both pass the new
+source check, including the two original argument origins and four altered-query
+refusals. Existing optional imported authorization, six derive-source and six
+authorization source/CLI/verified-factory/State checks also pass (14 total).
+Actual source argument consumption, query admission and native runtime join
+remain unfinished; reuse the last original24-source capture at its prior scope.
