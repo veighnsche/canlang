@@ -2654,6 +2654,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     const memberships = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
       teamId = call.context.team?.teamId ?? null;
     const membership = actorUserId === null || teamId === null ? null : await memberships.findMembership(teamId, actorUserId); healthy();
+    const policyDomains = ownerPolicyDomains(owner, healthy);
     const authority = await observeRowGrantAuthority({ actorUserId, teamId, membership, memberships }, async context => {
       for (const entry of [{ model: source.model, row: currentSource, field: reference.dependency.field },
         ...(target === null ? [] : [{ model: scalar.model, row: target, field: scalar.field }])]) {
@@ -2666,7 +2667,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
           projected = await projectInstalledSourceRowAndAncestors({ model: entry.model, row: entry.row,
             readPolicies: producer.readPolicies, policy: producer.policy, context, revision: call.revision,
             fence: undefined, store, rows: new Map([[`${entry.model}\0${entry.row.id}`, entry.row]]), ownerRows: {
-              assertHealthy: healthy, read: async (model, id) => {
+              assertHealthy: healthy, policyQuery: policyDomains.capture, read: async (model, id) => {
                 healthy(); const row = await owner.session!.views.final.get(model, id); healthy(); return row;
               },
             } });
@@ -3599,12 +3600,14 @@ async function observeRowIdAuthority(call: AdmittedCall, store: StoragePort, own
     teamId = call.context.team?.teamId ?? null;
   const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
   const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
+  const policyDomains = owner === undefined ? undefined : ownerPolicyDomains(owner, healthy);
   const project = async (current: StoredRow, observed: ByContext,
-    read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void) => {
+    read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void,
+    policyQuery = policyDomains?.capture) => {
     try {
       const value = await projectInstalledSourceRowAndAncestors({ model, row: current,
         readPolicies: producer.readPolicies!, policy: producer.policy, context: observed, revision: call.revision,
-        fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]), ownerRows: { read, assertHealthy } });
+        fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]), ownerRows: { read, assertHealthy, ...(policyQuery === undefined ? {} : { policyQuery }) } });
       assertHealthy(); return value;
     } catch (error) {
       if (error instanceof FenceConflictError) throw new StateError('conflict', 'Row id source authority moved beyond its checkpoint.');
@@ -3634,7 +3637,7 @@ async function observeRowIdAuthority(call: AdmittedCall, store: StoragePort, own
     };
     const current = await read(model, row.id);
     if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'Row id lifetime is unavailable at commit.');
-    const projected = await observeRowGrantAuthority(context, observed => project(current, observed, read, finalHealthy)); finalHealthy();
+    const projected = await observeRowGrantAuthority(context, observed => project(current, observed, read, finalHealthy, policyDomains?.retained(finalHealthy, writes))); finalHealthy();
     if (projected.value.record?.id !== row.id) throw new StateError('forbidden', 'Row id source grant no longer holds at commit.');
     await projected.revalidate(); await authority.revalidate(); finalHealthy();
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Row id commit authority moved beyond its checkpoint.');

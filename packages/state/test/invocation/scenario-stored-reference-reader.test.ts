@@ -8,7 +8,7 @@ import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
 import { buildPolicyTable } from '../../src/policy/grants.js';
-import type { ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
+import { readRecordsAtSourceObservation, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { invoke } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
@@ -62,7 +62,7 @@ function artifact(shape: Shape = 'singular', leafShape?: Shape): ArtifactDescrip
       ] } } }],
   };
 }
-async function world(shape: Shape = 'singular', targetOnlyMember = false, leafShape?: Shape) {
+async function world(shape: Shape = 'singular', targetOnlyMember = false, leafShape?: Shape, policyCollections = false) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const team = await memberships.createTeam({ timezone: 'UTC' });
   const user = await memberships.createUser({ email: 'reference-reader@example.test', password_hash: 'test-only', email_verified: true });
@@ -94,8 +94,9 @@ async function world(shape: Shape = 'singular', targetOnlyMember = false, leafSh
       return related?.status === 'active';
     } }] }],
   ]);
+  const collections = policyCollections ? installCollectionPolicies({ store, policy, readPolicies }) : () => 0;
   bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy, readPolicies });
-  return { store, memberships, caller, reader, targetReader, table, access, policy, readPolicies, targetControl, shape, registry: loaded.registry,
+  return { collections, store, memberships, caller, reader, targetReader, table, access, policy, readPolicies, targetControl, shape, registry: loaded.registry,
     app: APP, source: 'test', identity: makeIdentity({ userId: user.user_id, team, membership: caller }),
     clock: { nowMs: () => FIXED_NOW }, envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), {}) };
 }
@@ -296,8 +297,8 @@ test('source-only related Identity revoked during the late target snapshot refus
 
 /** The existing ID dependency supplies model-result lifetime evidence. There is
  * no authored id field or id field grant, and the source is not an input slot. */
-async function identityWorld(role: 'data' | 'control' = 'data', shape: Shape = 'singular') {
-  const w = await world(shape, true), original = artifact(shape);
+async function identityWorld(role: 'data' | 'control' = 'data', shape: Shape = 'singular', policyCollections = false) {
+  const w = await world(shape, true, undefined, policyCollections), original = artifact(shape);
   const descriptors: ArtifactDescriptorSlice = { ...original, operations: original.operations!.map(operation => ({
     ...operation, result: { type: PROFILE as CanTypeId, disclosure: { version: 1, source, returns: [{
       id: 'identity-return', source, influences: [], dependencies: [
@@ -597,4 +598,68 @@ test('reference leaf refuses its original revision drift before receiver exposur
   assert.equal(outcome.status, 'committed'); assert.equal(execution.executions(), 2,
     'Invoke retries the failed fence with fresh admission after the one concurrent write');
   await referenceLeafUnchanged(w);
+});
+
+
+/** Installed Boolean policies borrow only their exact owner-stage collections;
+ * the source/target conjunction and reserved ID must retain that same port. */
+function installCollectionPolicies(w: { store: ReturnType<typeof createMemoryStorage>; policy: ReturnType<typeof buildPolicyTable>; readPolicies: Map<ModelName, ViewerSourceReadPolicy> }) {
+  let collections = 0;
+  for (const model of [BRANCH, PROFILE]) {
+    const read = w.readPolicies.get(model)!; assert.ok('grants' in read);
+    w.readPolicies.set(model, { ...read, grants: read.grants.map(grant => ({ ...grant, read: async observation => {
+      if (!await grant.read(observation)) return false;
+      const roots = await readRecordsAtSourceObservation({ observation, store: w.store, model: CONVERSATION,
+        readPolicies: w.readPolicies, policy: w.policy });
+      const parent = roots.find(value => value.record.id === 'conversation');
+      if (parent?.record.data.title !== 'Owning conversation') return false;
+      const children = await readRecordsAtSourceObservation({ observation, store: w.store, model: BRANCH,
+        parent: { model: CONVERSATION, id: asId('conversation') }, readPolicies: w.readPolicies, policy: w.policy });
+      collections++;
+      return children.some(value => value.record.id === 'branch');
+    } })) });
+  }
+  return () => collections;
+}
+
+test('stored scalar conjunction retains policy collections and rejects final parent or membership loss atomically', async () => {
+  for (const loss of ['none', 'parent', 'membership'] as const) {
+    const w = await world('singular', false, undefined, true);
+    const execution = input(w, 'normal', async session => {
+      if (loss === 'parent') await session.stage({ op: 'update', model: CONVERSATION, id: asId('conversation'), data: { title: 'Denied' } }, cause);
+      if (loss === 'membership') await w.memberships.removeMembership(w.reader.membership_id);
+    });
+    if (loss === 'none') {
+      assert.equal((await invoke(execution.request)).status, 'committed');
+      const receipt = execution.receipt(); assert.ok(receipt);
+      assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, true);
+      assert.equal((await invoke(execution.request)).status, 'replayed');
+    } else {
+      await assert.rejects(invoke(execution.request), error => error instanceof StateError && error.code === 'forbidden');
+      await unchanged(w);
+    }
+    assert.ok(w.collections() > 0);
+  }
+});
+
+test('existing Model reserved ID retains policy collections through final overlay and current recovery', async () => {
+  for (const loss of ['none', 'parent', 'membership'] as const) {
+    const w = await identityWorld('data', 'singular', true);
+    const execution = identityInput(w, 'normal', async session => {
+      if (loss === 'parent') await session.stage({ op: 'update', model: CONVERSATION, id: asId('conversation'), data: { title: 'Denied' } }, cause);
+      if (loss === 'membership') await w.memberships.removeMembership(w.reader.membership_id);
+    });
+    if (loss === 'none') {
+      assert.equal((await invoke(execution.request)).status, 'committed');
+      const receipt = execution.receipt(); assert.ok(receipt);
+      assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, { id: 'profile' });
+      w.access.ancestor = false;
+      assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+      assert.equal((await invoke(execution.request)).status, 'replayed');
+    } else {
+      await assert.rejects(invoke(execution.request), error => error instanceof StateError && error.code === 'forbidden');
+      await existingRowsUnchanged(w);
+    }
+    assert.ok(w.collections() > 0);
+  }
 });

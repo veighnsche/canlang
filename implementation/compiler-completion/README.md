@@ -2,6 +2,18 @@
 
 ## Current remainder and finite completion
 
+**C02 stored policy-domain readers (2026-10-15, engine component qualified).**
+The original existing-deal branch lost installed-policy collection domains in
+the stored source/target conjunction and row-id return authority. Both now reuse
+the existing private stage/retained-final owner domains; no extra grant or data
+query capability. State/CF normal builds pass; all44 affected source/reference
+controls pass/.46s, including late-authority rollback. Original6 now matches all
+operation outcomes; existing retry alone fails its unchanged `result==prospect`
+Then with noncanonical input to `same`. Fix that observation boundary next,
+preserving reference identity and all assertions before draft acceptance.
+Full24 capture with frozen d4eb297b CLI is live18272; original draft/catalog
+bytes stay frozen. Runtime/next compiler edits do not alter its input closure.
+
 **C02 result-independent first prerequisite (2026-10-15, native component qualified).**
 Existing unscoped single primitive-equality first retains query/alias/field/order
 source proof independently of newly created result shape. Existing private query
