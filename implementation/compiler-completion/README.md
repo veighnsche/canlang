@@ -579,8 +579,12 @@ now has a demand-driven private reference-leaf join:46 Values checks and two
 native ABI controls pass after normal builds, retaining null/length/key/union/
 earlier-field short circuits and original errors. Catalog bytes are unchanged;
 reuse the preceding original24-source capture for this runtime prerequisite.
-Whole Contract storage and the actual selected-row reuse/source-receipt consumer
-remain to qualify; no alternate equality rule is accepted. Direct parameter aliases,
+The corresponding existing encoder now has the same demand-driven reference
+leaf join and canonical readonly path; normal Values build and63 wire checks
+pass with unchanged catalog bytes. Whole Contract storage still requires the
+Cloudflare owning schema/type check before private Model identity is erased;
+the actual selected-row reuse/source-receipt consumer remains to qualify. No
+alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
 keys remain their recorded local dependencies. Other hook-context IR failures
 still close whole-cohort fresh preparation;

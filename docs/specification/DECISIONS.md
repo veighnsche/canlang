@@ -15915,3 +15915,27 @@ identical to its preceding capture. Reuse the unchanged original24-source
 396.29s/701-diagnostic static result for this runtime prerequisite. This does not
 qualify whole hydrated-Contract storage or the original selected-row CRM reuse
 workflow; their canonical snapshot and source/receipt joins remain local work.
+
+
+2026-10-15 — C02/C10: preserve canonical serialization traversal for native references.
+
+The existing Values encoder now accepts an optional framework record-reference
+resolver at its existing nominal/dynamic dispatch sites. Thread it through the
+same array, union, Contract and invocation recursion; keep the two-argument API,
+JavaScript arity2, wire shapes, Model/id/version checks and original error order.
+The resolver receives the existing readonly field/index path so the owning
+schema adapter can reject a native view of the wrong Model before wire encoding
+would erase its model tag. It reads private identity metadata, never business
+fields or grants. This extends the existing codec, not the source language or a
+second serialization primitive. It follows the same settled reference semantics
+as equality; no further JEV language choice is needed.
+
+Normal Values build and all63 wire checks pass. Controls include genuine private
+views without getter reads, copied identity refusal, exact target Model and
+expected-version encoding, nested/repeated/array/union/invocation paths, first
+failure and undemanded values, canonical brands, arity and exact original errors.
+Catalog bytes remain identical. Reuse the unchanged original24-source static
+capture for this pure runtime prerequisite. Cloudflare still needs to pass its
+private identity resolver with the actual owning Contract field/type checks,
+and the original stored snapshot/equality workflow still needs its native
+consumer. No storage authorization or full CRM completion is inferred here.

@@ -938,3 +938,95 @@ describe("wire output shape", () => {
     }
   });
 });
+
+describe('encodeValue optional host record-reference resolver', () => {
+  it('encodes genuine nominal, Contract and array references with original identity and version, without business reads', () => {
+    const identities = new WeakMap<object, ReturnType<typeof makeRecordRef>>();
+    const native = (id = 'customer', version: bigint | undefined = 2n, model = 'Input.Customer') => {
+      const view = Object.freeze(Object.defineProperty({}, 'kind', { enumerable: true,
+        get: () => assert.fail('genuine reference serialization must not inspect business fields') }));
+      identities.set(view, makeRecordRef(model, id, version)); return view as CanValue;
+    };
+    const resolve = (value: CanValue) => typeof value === 'object' && value !== null ? identities.get(value) : undefined;
+    const customer = native(), input = { customer, repeated: [customer, native('customer', 7n)] };
+    assert.deepEqual(encodeValue('Input.Customer', customer, resolve), { id: 'customer', version: '2' });
+    assert.deepEqual(encodeValue('Input', input, resolve), { customer: { id: 'customer', version: '2' },
+      repeated: [{ id: 'customer', version: '2' }, { id: 'customer', version: '7' }] });
+    assert.deepEqual(encodeValue('Input.Customer[]', [customer], resolve), [{ id: 'customer', version: '2' }]);
+    assert.equal(input.customer, customer); assert.equal(identities.get(customer as object)?.version, 2n);
+    const unversioned = Object.freeze({}); identities.set(unversioned, makeRecordRef('Input.Customer', 'read-only'));
+    assert.deepEqual(encodeValue('Input.Customer', unversioned, resolve), { id: 'read-only' });
+    const wrongModel = assertValueError(() => encodeValue('Other.Customer', customer, resolve));
+    assert.match(wrongModel.message, /expected a ref to Other.Customer, got a ref to Input.Customer/);
+    const copy = Object.create(Object.getPrototypeOf(customer), Object.getOwnPropertyDescriptors(customer as object)) as CanValue;
+    assert.equal(resolve(copy), undefined);
+    let reads = 0; const original = new Error('Original copied getter failure');
+    const copiedAccessor = Object.defineProperty({}, 'kind', { get: () => { reads++; throw original; } }) as CanValue;
+    assert.throws(() => encodeValue('Input.Customer', copiedAccessor, resolve), error => error === original);
+    assert.equal(reads, 1);
+  });
+
+  it('threads the same resolver through existing union and invocation recursion without changing their envelopes', () => {
+    const view = Object.freeze({}), reference = makeRecordRef('Input.Customer', 'customer', 3n);
+    const paths: Array<ReadonlyArray<string | number>> = [];
+    const resolve = (value: CanValue, path: ReadonlyArray<string | number>) => {
+      if (value !== view) return undefined; paths.push([...path]); return reference;
+    };
+    assert.deepEqual(encodeValue('Input.Customer|Other.Customer', { kind: 'union', type: 'Input.Customer', value: view } as CanValue, resolve),
+      { type: 'Input.Customer', value: { id: 'customer', version: '3' } });
+    assert.deepEqual(paths, [['value']]); paths.length = 0;
+    assert.deepEqual(encodeValue('Input', { choice: { kind: 'union', type: 'Input.Customer', value: view } } as CanValue, resolve),
+      { choice: { type: 'Input.Customer', value: { id: 'customer', version: '3' } } });
+    assert.deepEqual(paths, [['choice', 'value']]); paths.length = 0;
+    assert.deepEqual(encodeValue('invocation', { kind: 'invocation', target: 'Input.run', args: { customer: view } } as CanValue, resolve),
+      { target: 'Input.run', arguments: { customer: { type: 'Input.Customer', value: { id: 'customer', version: '3' } } } });
+    assert.deepEqual(paths, [['arguments', 'customer', 'value'], ['arguments', 'customer', 'value']],
+      'the existing invocation type-inference and encoding stages use the same original path');
+    paths.length = 0;
+    encodeValue('Input', { children: [{ customer: view }, { links: [view] }] }, resolve);
+    assert.deepEqual(paths, [['children', 0, 'customer'], ['children', 1, 'links', 0]]);
+    paths.length = 0; encodeValue('Input.Customer[]', [view], resolve); assert.deepEqual(paths, [[0]]);
+    paths.length = 0; encodeValue('Input.Customer', view, resolve); assert.deepEqual(paths, [[]]);
+    const wrongModel = new Error('Original owning-type refusal before wire erasure');
+    assert.throws(() => encodeValue('Input', { customer: view }, (value, path) => {
+      if (value !== view) return undefined;
+      assert.deepEqual(path, ['customer']); throw wrongModel;
+    }), error => error === wrongModel);
+  });
+
+  it('preserves arity, parsing/null/array/union validation order and stops resolving after the original first encoding failure', () => {
+    assert.equal(encodeValue.length, 2);
+    const forbidden = Object.freeze({ unused: true }), visited: CanValue[] = [];
+    const resolve = (value: CanValue) => { visited.push(value); assert.notEqual(value, forbidden); return undefined; };
+    const forbiddenWasVisited = () => visited.includes(forbidden);
+    assertValueError(() => encodeValue('bad type', forbidden, resolve)); assert.deepEqual(visited, []);
+    assert.deepEqual(encodeValue('Input?', null, resolve), null); assert.deepEqual(visited, []);
+    assertValueError(() => encodeValue('Input', null, resolve)); assert.deepEqual(visited, []);
+    assertValueError(() => encodeValue('Input[]', forbidden, resolve)); assert.deepEqual(visited, []);
+    assertValueError(() => encodeValue('Input.Customer|Other.Customer', { kind: 'union', type: 'Foreign.Customer', value: forbidden } as CanValue, resolve));
+    assert.deepEqual(visited, []);
+    assertValueError(() => encodeValue('Input[]', [undefined as unknown as CanValue, forbidden], resolve)); assert.deepEqual(visited, []);
+    assertValueError(() => encodeValue('Input', { first: undefined as unknown as CanValue, later: forbidden }, resolve));
+    assert.equal(forbiddenWasVisited(), false);
+    const failure = new Error('Original resolver failure');
+    assert.throws(() => encodeValue('Input', {}, () => { throw failure; }), error => error === failure);
+  });
+
+  it('keeps canonical brand encodings, ordinary errors and original getter exceptions with a nonmatching resolver', () => {
+    const resolve = () => undefined;
+    for (const [type, value] of [
+      ['decimal', new Decimal(125n, 2)], ['money', makeMoney(125n, 'EUR')], ['date', makeDate(2026, 10, 15)],
+      ['datetime', makeDatetime(1n)], ['file', makeFileValue('file')], ['user', makeUserRef('person')],
+      ['Input.Customer', makeRecordRef('Input.Customer', 'customer', 2n)],
+    ] as [string, CanValue][]) assert.deepEqual(encodeValue(type, value, resolve), encodeValue(type, value));
+    for (const [type, value] of [['Input', { kind: 'file' }], ['secret', { kind: 'secret' }],
+      ['Input', undefined], ['int', 'wrong']] as unknown as [string, CanValue][]) {
+      const original = assertValueError(() => encodeValue(type, value));
+      assert.throws(() => encodeValue(type, value, resolve), error => error instanceof ValueError &&
+        error.constructor === original.constructor && error.code === original.code && error.message === original.message);
+    }
+    let reads = 0; const original = new Error('Original Contract getter failure');
+    const input = Object.defineProperty({}, 'field', { enumerable: true, get: () => { reads++; throw original; } }) as CanValue;
+    assert.throws(() => encodeValue('Input', input, resolve), error => error === original); assert.equal(reads, 1);
+  });
+});
