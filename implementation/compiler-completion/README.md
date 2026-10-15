@@ -492,10 +492,47 @@ Frozen original 24-source validation exits **10** after **382.85s**, retaining
 none added/removed and identical source inventory. Original sources and catalog
 bytes are unchanged. There is still no usable native CanCRM artifact.
 
+**Completed C02/C10 prerequisite — required reference-valued receiver leaves (2026-10-15).**
+The same State required-reference reader now admits a declaration-bound required
+singular Model-reference leaf, alongside its existing scalar and reserved-ID
+leaves. It retains distinct original source/target occurrences and complete
+source/target/ancestor/Identity/stage/revision/final authority. Nullable/array or
+nominal-Contract leaves cannot acquire this path. Cloudflare checks the actual
+artifact field, canonical field and installed reference association, then reuses
+its original getter, owner navigation and strict post-navigation refresh.
+Compiler provenance follows only authored required Member edges from a genuine
+first binding or required parameter; each edge keeps its own read/marker and
+schema correspondence. Emission promotes each original reference immediately
+before its receiving getter, then uses the existing target-ID result binding.
+No app/field spelling, new carrier or public API is introduced. These are
+implementation joins for settled required-reference semantics, not a new JEV
+language decision.
+
+The **21** State reader checks pass (20 unchanged outcomes plus the repaired
+revision-recovery check), including provisional/existing chains, substitutions,
+source/target/ancestor and distinct related Identity loss/restoration, lifetime,
+late error identity and rollback. Revision drift refuses before receiver
+exposure; canonical invocation then succeeds only through fresh admission on
+its second execution. **24** affected compiler checks pass; the installed-module
+control was rerun after its prerequisite rebuild completed. Cloudflare's **16**
+component controls pass. The actual captured CLI/verified-assembly/D1/Identity
+chain consumer passes **1/1** in **20.29s**: real Intake.deal, Deal.location and
+Location.id witnesses, zero-write existing result, fresh insertion, both late
+failures, no-execution replay, membership withholding/restoration and frozen
+source/artifact/module bytes. Normal owning State/Cloudflare builds, CLI build,
+changed Rust formatting and diff checks pass. Root TypeScript retains the same
+**16** untouched-file errors and none in the new consumer.
+
+Frozen original 24-source validation exits **10** after **384.45s**, retaining
+**701** diagnostics (**675 E6008**, **26 E6007**), complete=true, omitted=0,
+none added/removed and identical source inventory against the preceding capture.
+Original .can/catalog bytes are unchanged and no usable native artifact exists.
+
 **Current C02/C10 leaf — original reference guards and root-model create pair.**
-The original CRM `promote_research` remains dependent on required reference
-navigation in `can_work(actor,existing.deal.location)`, reference-bearing Contract
-input members in its leading guards, and its adjacent root Deal/ResearchIntake
+The required reference chain now has an executable data-consumption join. The
+original CRM `promote_research` still needs that genuine reference to join the
+original `can_work` body authorization, reference-bearing Contract input members
+in its leading guards, and its adjacent root Deal/ResearchIntake
 creates. Preserve its canonical Contract equality guard; existing whole-field
 Contract equality machinery is available, with its actual selected-row join
 still needing qualification. The existing
@@ -504,9 +541,12 @@ backend gap, not a language requirement for a count or containment. Preserve
 both original constructors, reference identity, early guard failure and shared
 rollback. Acceptance is the original guarded existing/fresh workflow through
 checked source, generated invocation and executable authority/recovery checks.
-Direct parameter aliases, nonboolean observer/unbound page-entry support and
-four computed/reference order keys remain their recorded local dependencies.
-Unrelated hook-context IR failures still close whole-cohort fresh preparation;
+Contract-input admission already has owner-stage nested reference paths such as
+`input/customer`; root admission, native nested hydration and compiler path
+provenance must join that existing carrier. Direct parameter aliases,
+nonboolean observer/unbound page-entry support and four computed/reference order
+keys remain their recorded local dependencies. Other hook-context IR failures
+still close whole-cohort fresh preparation;
 that local gate must release before complete original native execution. No full
 CanCRM qualification is inferred from the completed prerequisite above.
 

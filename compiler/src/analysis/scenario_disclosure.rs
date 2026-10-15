@@ -4932,6 +4932,18 @@ impl<'a> Closure<'a> {
         key: NodeKey,
         module: ModuleId,
     ) -> Option<(SymbolId, SymbolId, SymbolId)> {
+        self.checked_required_model_reference_inner(key, module, 0)
+    }
+
+    fn checked_required_model_reference_inner(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        depth: usize,
+    ) -> Option<(SymbolId, SymbolId, SymbolId)> {
+        if depth >= 16 {
+            return None;
+        }
         let key = self.query_group(key)?;
         let node = self.nodes.get(&key)?;
         if node.kind != SyntaxKind::Member {
@@ -4958,11 +4970,11 @@ impl<'a> Closure<'a> {
         if scenario.read || scenario.on.is_some() {
             return None;
         }
-        let original = match self.query_binding(base)? {
-            Binding::Symbol(parameter) => {
+        let original = match self.query_binding(base) {
+            Some(Binding::Symbol(parameter)) => {
                 self.checked_call_parent_path(base, *parameter, 0) == Some((*model, 0))
             }
-            Binding::Let { node } => scenario
+            Some(Binding::Let { node }) => scenario
                 .effects
                 .iter()
                 .find(|binding| binding.node == *node)
@@ -4970,7 +4982,9 @@ impl<'a> Closure<'a> {
                 .is_some_and(|query| {
                     query.model == *model && query.first.is_some_and(|first| first.binding == *node)
                 }),
-            _ => false,
+            _ => self
+                .checked_required_model_reference_inner(base, module, depth + 1)
+                .is_some_and(|(_, _, target)| target == *model),
         };
         if !original {
             return None;
@@ -8290,10 +8304,15 @@ impl<'a> Closure<'a> {
             if matches!(
                 value.model_result,
                 Some(DisclosureModelResult::Reference { .. })
-            ) && self
-                .checked_profile_scalar(key, module)
-                .or_else(|| self.checked_run_unfinished(key, module))
-                .is_none()
+            ) && !matches!(value.model_result,
+                Some(DisclosureModelResult::Reference {model, node, ..})
+                    if Some(node) == self.query_group(base_key)
+                        && self.checked_required_model_reference(key, module)
+                            .is_some_and(|(source, _, _)| source == model))
+                && self
+                    .checked_profile_scalar(key, module)
+                    .or_else(|| self.checked_run_unfinished(key, module))
+                    .is_none()
             {
                 return Err(self.fail(
                     key,
@@ -8606,7 +8625,16 @@ impl<'a> Closure<'a> {
                         if matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if *actual == parameter))
                         || value.first_query.is_some_and(|(_, binding)| {
                             matches!(self.query_binding(base_key), Some(Binding::Let {node}) if *node == binding)
-                        })))
+                        })
+                        || matches!(value.model_result,
+                            Some(DisclosureModelResult::Reference {model: target, node, source_model, field})
+                                if target == model && Some(node) == self.query_group(base_key)
+                                    && self.checked_required_model_reference(node, module)
+                                        == Some((source_model, field, target))
+                                    && value.reads.iter().any(|read| read.node == node
+                                        && read.model == source_model && read.field == field
+                                        && read.ty == ResolvedType::Record {symbol: target, stored: true}
+                                        && read.calls.is_empty() && read.query_id.is_none()))))
                 .map(|(_, _, target)| target);
             if matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
                 && self

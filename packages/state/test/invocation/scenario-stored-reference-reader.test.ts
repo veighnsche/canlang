@@ -23,7 +23,7 @@ const OP = 'ReferenceReader.active', APP = 'stored-reference-reader', cause = { 
 const source = { path: 'stored-reference-reader.can', module: 'stored-reference-reader.mjs', sha256: 'd'.repeat(64) };
 let sequence = 120_000;
 type Shape = 'singular' | 'nullable' | 'array';
-function artifact(shape: Shape = 'singular'): ArtifactDescriptorSlice {
+function artifact(shape: Shape = 'singular', leafShape?: Shape): ArtifactDescriptorSlice {
   const type = `${PROFILE}${shape === 'array' ? '[]!' : shape === 'nullable' ? '?' : ''}` as CanTypeId;
   return { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: `export const identity="${OP}";`, map: { version: 3, file: source.module,
@@ -36,12 +36,25 @@ function artifact(shape: Shape = 'singular'): ArtifactDescriptorSlice {
         { name: 'profile', field: { kind: 'ref', model: PROFILE }, valueType: type, required: shape !== 'nullable', serverOnly: false,
           ...(shape === 'array' ? { array: { required: true }, min: 1 } : {}), ...(shape === 'nullable' ? { nullable: true } : {}) },
       ] },
-      { name: PROFILE, deleteMode: 'remove', fields: [{ name: 'active', field: { kind: 'boolean' }, valueType: 'bool' as CanTypeId, required: true, serverOnly: false }] },
+      { name: PROFILE, deleteMode: 'remove', fields: [
+        { name: 'active', field: { kind: 'boolean' }, valueType: 'bool' as CanTypeId, required: true, serverOnly: false },
+        ...(leafShape === undefined ? [] : [{ name: 'next', field: { kind: 'ref' as const, model: PROFILE },
+          valueType: `${PROFILE}${leafShape === 'array' ? '[]!' : leafShape === 'nullable' ? '?' : ''}` as CanTypeId,
+          required: leafShape !== 'nullable', serverOnly: false,
+          ...(leafShape === 'array' ? { array: { required: true }, min: 1 } : {}),
+          ...(leafShape === 'nullable' ? { nullable: true } : {}) }]),
+      ] },
     ], operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [] }, result: { type: 'bool' as CanTypeId,
       disclosure: { version: 1, source, returns: [
         { id: 'active-return', source, influences: [], dependencies: [
           { id: 'branch-profile', source, role: 'control', model: BRANCH, field: 'profile', type },
-          { id: 'profile-active', source, role: 'data', model: PROFILE, field: 'active', type: 'bool' as CanTypeId },
+          ...(leafShape === undefined ? [
+            { id: 'profile-active', source, role: 'data' as const, model: PROFILE, field: 'active', type: 'bool' as CanTypeId },
+          ] : [
+            { id: 'profile-next', source, role: 'control' as const, model: PROFILE, field: 'next',
+              type: `${PROFILE}${leafShape === 'array' ? '[]!' : leafShape === 'nullable' ? '?' : ''}` as CanTypeId },
+            { id: 'next-active', source, role: 'data' as const, model: PROFILE, field: 'active', type: 'bool' as CanTypeId },
+          ]),
         ] },
         { id: 'foreign-return', source, influences: [], dependencies: [
           { id: 'branch-title', source, role: 'data', model: BRANCH, field: 'title', type: 'text' as CanTypeId },
@@ -49,7 +62,7 @@ function artifact(shape: Shape = 'singular'): ArtifactDescriptorSlice {
       ] } } }],
   };
 }
-async function world(shape: Shape = 'singular', targetOnlyMember = false) {
+async function world(shape: Shape = 'singular', targetOnlyMember = false, leafShape?: Shape) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const team = await memberships.createTeam({ timezone: 'UTC' });
   const user = await memberships.createUser({ email: 'reference-reader@example.test', password_hash: 'test-only', email_verified: true });
@@ -61,7 +74,7 @@ async function world(shape: Shape = 'singular', targetOnlyMember = false) {
     const targetUser = await memberships.createUser({ email: 'reference-target-only@example.test', password_hash: 'test-only', email_verified: true });
     targetReader = await memberships.createMembership({ team_id: team.team_id, user_id: targetUser.user_id, roles: [], is_owner: false });
   }
-  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(artifact(shape), { by: 'members' });
+  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(artifact(shape, leafShape), { by: 'members' });
   const def = loaded.registry.get(OP); assert.ok(def && isGeneratedOperationDef(def));
   const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs, serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields, containment: loaded.containment });
@@ -74,7 +87,7 @@ async function world(shape: Shape = 'singular', targetOnlyMember = false) {
     [BRANCH, { parent: CONVERSATION, fields: ['title', 'profile'], secretFields: [], grants: [{ fields: ['id', 'title', 'profile'], read: async ({ context, row }) =>
       access.branch && row.createdBy === context.actorUserId && context.membership?.status === 'active' &&
       (await context.memberships.findMembership(team.team_id, readerUser.user_id))?.status === 'active' }] }],
-    [PROFILE, { fields: ['active'], secretFields: [], grants: [{ fields: ['id', 'active'], read: async ({ context, row }) => {
+    [PROFILE, { fields: leafShape === undefined ? ['active'] : ['active', 'next'], secretFields: [], grants: [{ fields: leafShape === undefined ? ['id', 'active'] : ['id', 'active', 'next'], read: async ({ context, row }) => {
       if (!(access.target && row.data.active === true && row.createdBy === context.actorUserId && context.membership?.status === 'active')) return false;
       const related = await context.memberships.findMembership(team.team_id, targetReader.user_id);
       const duringRead = targetControl.duringRead; if (duringRead !== undefined) await duringRead();
@@ -421,4 +434,167 @@ test('promoted model identity cannot survive target removal/recreation and late 
     }).request), mode === 'reject' ? error => error === rejection : refuses);
     await existingRowsUnchanged(w);
   }
+});
+
+/** Reuse the original owner/source/authority fixture. The self-reference uses
+ * distinct source and target occurrences and each actual getter has its own
+ * observation; promotion itself does not manufacture leaf evidence. */
+async function referenceLeafWorld(existing = false, leafShape: Shape = 'singular') {
+  const w = await world('singular', true, leafShape);
+  const rows = [
+    { model: CONVERSATION, row: makeRow({ id: 'conversation', createdBy: w.caller.user_id, data: { title: 'Conversation' } }) },
+    { model: PROFILE, row: makeRow({ id: 'profile', createdBy: w.caller.user_id,
+      data: { active: true, next: leafShape === 'array' ? [{ id: 'next' }] : { id: 'next' } } }) },
+    { model: PROFILE, row: makeRow({ id: 'next', createdBy: w.caller.user_id,
+      data: { active: true, next: leafShape === 'array' ? [{ id: 'next' }] : { id: 'next' } } }) },
+    { model: BRANCH, row: { ...makeRow({ id: 'branch', createdBy: w.caller.user_id,
+      data: { title: 'Branch', profile: { id: 'profile' } } }), parent: { model: CONVERSATION, id: asId('conversation') } } },
+  ];
+  if (existing) await w.store.commit(makeBatch(await w.store.readRevision(), {
+    writes: rows.map(value => ({ kind: 'insert', ...value })),
+  }));
+  const stored = existing ? await Promise.all(rows.map(async ({ model, row }) => {
+    const current = await w.store.load(model, row.id); assert.ok(current); return { model, row: current };
+  })) : rows;
+  return { ...w, rows: stored, existing };
+}
+type ReferenceLeafWorld = Awaited<ReturnType<typeof referenceLeafWorld>>;
+type LeafMode = 'normal' | 'unobserved' | 'copied-source' | 'wrong-source' | 'wrong-leaf' | 'same-occurrence' |
+  'stale-stage' | 'missing-leaf' | 'copied-target' | 'pending';
+function referenceLeafInput(w: ReferenceLeafWorld, mode: LeafMode = 'normal', after?: (session: Session) => Promise<void>) {
+  let receipt: Receipt | undefined, executions = 0, promoted = false;
+  return { request: { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
+    executions++;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+    if (!w.existing) for (const { model, row } of w.rows) await session.stage({ op: 'create', model, id: row.id,
+      data: row.data, ...(row.parent === null ? {} : { parent: row.parent }) }, cause);
+    const branch = await session.read(BRANCH, asId('branch')); assert.ok(branch);
+    const sourceWire = branch.data.profile; assert.deepEqual(sourceWire, { id: 'profile' });
+    if (mode !== 'unobserved') await observeScenarioReceiptDependency(call, w.store,
+      { dependencyId: 'branch-profile', model: BRANCH, row: branch, field: 'profile' });
+    if (mode === 'stale-stage') await session.stage({ op: 'update', model: BRANCH, id: branch.id, data: { title: 'Later' } }, cause);
+    const promote = () => readScenarioReceiptStoredReferenceRow(call, w.store, {
+      sourceDependencyId: mode === 'wrong-source' ? 'profile-next' : 'branch-profile',
+      scalarLeafDependencyId: mode === 'wrong-leaf' ? 'branch-title' : mode === 'same-occurrence' ? 'branch-profile' : 'profile-next',
+      sourceRow: mode === 'copied-source' ? { ...branch } : branch,
+    });
+    if (mode === 'pending') {
+      const results = await Promise.allSettled([promote(), promote()]);
+      assert.ok(results.some(result => result.status === 'rejected' && refuses(result.reason)));
+    }
+    const profile = await promote(); promoted = true;
+    assert.equal(profile.id, 'profile');
+    const leafWire = profile.data.next; assert.deepEqual(leafWire, { id: 'next' });
+    if (mode !== 'missing-leaf') await observeScenarioReceiptDependency(call, w.store,
+      { dependencyId: 'profile-next', model: PROFILE, row: mode === 'copied-target' ? { ...profile } : profile, field: 'next' });
+    // The required reference leaf is itself the observed source of the next
+    // original read. Its genuine receiver is issued by the existing bridge.
+    const next = await readScenarioReceiptStoredReferenceRow(call, w.store,
+      { sourceDependencyId: 'profile-next', scalarLeafDependencyId: 'next-active', sourceRow: profile });
+    assert.equal(next.id, 'next'); const active = next.data.active;
+    await observeScenarioReceiptDependency(call, w.store,
+      { dependencyId: 'next-active', model: PROFILE, row: next, field: 'active' });
+    await after?.(session); selectScenarioReceiptReturn(call, w.store, 'active-return');
+    return { ...await session.finalize(), result: active, outbox: [] };
+  } }, receipt: () => receipt, executions: () => executions, promoted: () => promoted };
+}
+async function referenceLeafUnchanged(w: ReferenceLeafWorld) {
+  for (const { model, row } of w.rows) {
+    assert.deepEqual(await w.store.load(model, row.id), w.existing ? row : null);
+    assert.deepEqual(await w.store.historyFor(model, row.id), []);
+  }
+  assert.deepEqual(await w.store.outboxPending(), []);
+}
+
+test('required Model-reference leaf issues genuine provisional and existing receivers and preserves separate chained observations', async () => {
+  for (const existing of [false, true]) {
+    const w = await referenceLeafWorld(existing), execution = referenceLeafInput(w);
+    assert.equal((await invoke(execution.request)).status, 'committed');
+    const receipt = execution.receipt(); assert.ok(receipt);
+    assert.deepEqual(readScenarioReceiptAssociation(receipt)!.observations.map(value =>
+      [value.dependencyId, value.model, value.row.id]), [
+      ['branch-profile', BRANCH, 'branch'], ['profile-next', PROFILE, 'profile'], ['next-active', PROFILE, 'next'],
+    ]);
+    assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, true);
+    const revision = await w.store.readRevision();
+    assert.equal((await invoke(execution.request)).status, 'replayed'); assert.equal(execution.executions(), 1);
+    assert.equal(await w.store.readRevision(), revision);
+    if (existing) await referenceLeafUnchanged(w);
+  }
+});
+
+test('reference leaf refuses substituted source/leaf/model occurrences, missing observations, stage or pending misuse and nullable/array leaves', async () => {
+  for (const mode of ['unobserved', 'copied-source', 'wrong-source', 'wrong-leaf', 'same-occurrence',
+    'stale-stage', 'missing-leaf', 'copied-target', 'pending'] as const) {
+    const w = await referenceLeafWorld(true);
+    await assert.rejects(invoke(referenceLeafInput(w, mode).request), refuses); await referenceLeafUnchanged(w);
+  }
+  for (const shape of ['nullable', 'array'] as const) {
+    const w = await referenceLeafWorld(true, shape), execution = referenceLeafInput(w);
+    await assert.rejects(invoke(execution.request), refuses); assert.equal(execution.promoted(), false);
+    await referenceLeafUnchanged(w);
+  }
+});
+
+test('reference leaf retains source/target/ancestor and both related Identity grants at final effects and saved replay, with restoration', async () => {
+  for (const loss of ['source', 'target', 'ancestor', 'source-member', 'target-member'] as const) {
+    const lose = async (w: ReferenceLeafWorld) => {
+      if (loss === 'source') w.access.branch = false;
+      else if (loss === 'target') w.access.target = false;
+      else if (loss === 'ancestor') w.access.ancestor = false;
+      else await w.memberships.removeMembership((loss === 'source-member' ? w.reader : w.targetReader).membership_id);
+    };
+    const w = await referenceLeafWorld(true);
+    await assert.rejects(invoke(referenceLeafInput(w, 'normal', () => lose(w)).request), refuses);
+    await referenceLeafUnchanged(w);
+    const saved = await referenceLeafWorld(true), execution = referenceLeafInput(saved);
+    await invoke(execution.request); const receipt = execution.receipt(); assert.ok(receipt);
+    await lose(saved); const revision = await saved.store.readRevision();
+    assert.deepEqual(await projectScenarioReceipt({ ...saved, receipt }), { result: null, records: [] });
+    assert.equal((await invoke(execution.request)).status, 'replayed'); assert.equal(execution.executions(), 1);
+    assert.equal(await saved.store.readRevision(), revision); await referenceLeafUnchanged(saved);
+    saved.access.branch = true; saved.access.target = true; saved.access.ancestor = true;
+    if (loss === 'source-member' || loss === 'target-member') await saved.memberships.reactivateMembership(
+      (loss === 'source-member' ? saved.reader : saved.targetReader).membership_id, { is_owner: false, roles: [] });
+    assert.equal((await projectScenarioReceipt({ ...saved, receipt })).result, true);
+  }
+});
+
+test('required reference leaf lifetime drift and original late business errors preserve rollback and error identity', async () => {
+  for (const mode of ['remove', 'recreate', 'reject'] as const) {
+    const w = await referenceLeafWorld(true), rejection = new StateError('rule_failed', 'Original business rejection after reference leaf');
+    await assert.rejects(invoke(referenceLeafInput(w, 'normal', async session => {
+      if (mode === 'reject') {
+        await session.stage({ op: 'update', model: BRANCH, id: asId('branch'), data: { title: 'Rollback' } }, cause);
+        throw rejection;
+      }
+      await session.stage({ op: 'remove', model: PROFILE, id: asId('profile') }, cause);
+      if (mode === 'recreate') await session.stage({ op: 'create', model: PROFILE, id: asId('profile'),
+        data: { active: true, next: { id: 'next' } } }, cause);
+    }).request), mode === 'reject' ? error => error === rejection : refuses);
+    await referenceLeafUnchanged(w);
+  }
+});
+
+test('reference leaf refuses its original revision drift before receiver exposure and succeeds only after fresh admission', async () => {
+  const w = await referenceLeafWorld(true); let moved = false;
+  w.targetControl.duringRead = async () => {
+    delete w.targetControl.duringRead; moved = true;
+    await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [{ kind: 'insert', model: CONVERSATION,
+      row: makeRow({ id: 'foreign-revision', createdBy: w.caller.user_id, data: { title: 'Concurrent write' } }) }] }));
+  };
+  const execution = referenceLeafInput(w); let originalConflict: StateError | undefined;
+  const outcome = await invoke({ ...execution.request, execute: async call => {
+    try { return await execution.request.execute(call); }
+    catch (error) {
+      assert.ok(error instanceof StateError); assert.equal(error.code, 'conflict');
+      assert.equal(execution.executions(), 1); assert.equal(execution.promoted(), false,
+        'the original admitted attempt must refuse before exposing its receiver');
+      originalConflict = error; throw error;
+    }
+  } });
+  assert.ok(originalConflict); assert.equal(moved, true);
+  assert.equal(outcome.status, 'committed'); assert.equal(execution.executions(), 2,
+    'Invoke retries the failed fence with fresh admission after the one concurrent write');
+  await referenceLeafUnchanged(w);
 });

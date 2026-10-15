@@ -1,0 +1,22 @@
+app ReferenceChain
+Given
+ Location {title:text}
+ Deal {title:text,location:Location}
+ Intake {source:text,deal:Deal}
+ policy Location read=members
+ policy Deal read=members
+ policy Intake read=members
+When
+ crud Location by=members fields=title
+ crud Deal by=members fields=title,location
+ crud Intake by=members fields=source,deal
+ scenario promote(source:text,accept:bool) -> Location by=members
+  do
+   let existing=first(Intake as candidate where candidate.source==source)
+   if existing!=null
+    require accept
+    return existing.deal.location
+   create Location {title=source} as location
+   require accept
+   return location
+Then

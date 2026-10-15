@@ -15764,3 +15764,51 @@ reference-bearing Contract input members, root-model constructor pairing and
 whole-cohort hook preparation remain locally unfinished. Preserve and qualify
 the existing canonical Contract equality rather than adding a new mechanism. The coherent reference-return
 prerequisite does not qualify full CanCRM or training-data authoring.
+
+
+2026-10-15 — C02/C10: preserve original required-reference chains through one receiver.
+
+Extend the existing State required-reference receiver for an exact declaration-
+bound required singular Model-reference leaf. The old scalar inventory is
+intentionally scalar-only; the new leaf uses its existing bound reference
+profile and dual canonical/artifact field validation. Keep distinct source/leaf
+occurrences, genuine source observation, owner/stage, current lifetime, source/
+target/ancestor grants, complete related Identity conjunction, revision and final/
+saved checks. Nullable/array and nominal-Contract leaves remain outside this
+path. Public signatures, descriptors and carriers are unchanged.
+
+Cloudflare joins the actual declared reference leaf to its canonical field and
+installed reference association, retaining private getter/source binding, owner
+navigation and strict post-navigation authority refresh. Compiler source facts
+follow original required Member edges rooted in a genuine first binding or
+required parameter, retaining each declared edge and only its consumed schemas.
+The native emitter pairs each original source observation with the receiving
+reference getter; the final reserved-ID observation remains a separate result
+step at the real final Member. No app/field name exception, invented id member,
+new read authority or language primitive is added. Reuse settled reference and
+failure/recovery semantics; no unresolved language choice requires JEV.
+
+All21 State reader checks pass, reusing20 unchanged outcomes after the final
+recovery-test-only correction. The genuine revision conflict refuses before
+receiver exposure; the canonical invoker's normal retry then succeeds only
+with fresh admission on its second execution. Other new checks retain exact
+source/leaf/model/stage/pending/nullable/array refusals, provisional and existing
+chains, lifetime/removal/recreation, source/target/ancestor and both related
+Identity loss/restoration, original late error identity and rollback.
+All24 affected compiler checks and16 Cloudflare component controls pass. One
+installed-module check overlapped a prerequisite rebuild and was rerun after
+release; no result from the invalidated scope is credited. The actual captured
+CLI/verified assembly/D1/Identity chain case passes1/1 in20.29s with separate
+Intake.deal/Deal.location/Location.id witnesses, zero business writes/history on
+reuse, one fresh insert, both late failures, no-execution replay, membership
+withholding/restoration and frozen source/artifact/module bytes. Owning normal
+State/Cloudflare builds, CLI build, changed formatting/diff pass. Root TypeScript
+retains16 diagnostics in four untouched files, none in the new case.
+
+Frozen original24-source validation exits10 after384.45s with the same701
+diagnostics (675 E6008,26 E6007), complete=true, omitted=0, none added/removed
+and identical source inventory. Original .can/catalog bytes are unchanged;
+there is no usable artifact. Original can_work body-argument authorization, required reference members of Contract inputs, root-model create
+pairing and whole-cohort hook preparation remain local work. Whole Contract
+equality reuses its existing machinery and still needs the actual workflow
+consumer. This component does not qualify full CanCRM or training-data authoring.

@@ -8236,10 +8236,21 @@ async function runScenarioExecution(
         const targetId = leaf.role === 'data' && leaf.field === 'id' && leaf.type === 'text' &&
           target !== undefined && !Object.hasOwn(target.fields, 'id');
         const type = parseTypeId(leaf.type);
-        if (declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model || !declaration.required ||
+        const leafDeclaration = opts.artifact.models?.find(model => model.name === leaf.model)?.fields.find(field => field.name === leaf.field);
+        const leafModel = type.base.kind === 'nominal' ? type.base.path : undefined;
+        const targetReference = leafModel !== undefined && leafDeclaration?.field.kind === 'ref' &&
+          leafDeclaration.field.model === leafModel && leafDeclaration.required &&
+          leafDeclaration.array === undefined && leafDeclaration.nullable !== true && scalar?.required === true &&
+          scalar.array === undefined && scalar.nullable !== true &&
+          (scalar.valueType === undefined || scalar.valueType === leaf.type) &&
+          loaded.models.some(model => model.name === leafModel) &&
+          loaded.refs.get(leaf.model)?.some(ref => ref.field === leaf.field && ref.model === leafModel) === true;
+        if (sourceDependencyId === scalarLeafDependencyId ||
+            declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model || !declaration.required ||
             declaration.array !== undefined || declaration.nullable === true ||
-            !targetId && scalar?.valueType !== leaf.type || type.array || type.nullable || type.requiredArray || type.base.kind === 'nominal') {
-          return refuseRecordBinding('Stored reference promotion differs from its required singular declaration and scalar leaf.');
+            !targetId && !targetReference && scalar?.valueType !== leaf.type || type.array || type.nullable || type.requiredArray ||
+            type.base.kind === 'nominal' && !targetReference) {
+          return refuseRecordBinding('Stored reference promotion differs from its required singular source and declared target leaf.');
         }
         const sourceRow = captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
         const read = loaded.producers.invoke.readScenarioReceiptStoredReferenceRow;
@@ -8260,7 +8271,7 @@ async function runScenarioExecution(
         }
         captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);
         // Navigation awaited after issuance: refresh the complete strict
-        // authority before exposing any scalar. State issues a fresh frozen
+        // authority before exposing the target receiver. State issues a fresh frozen
         // row per read; retain the genuine prepared row only if every fact
         // matches and its original host binding is still current.
         const current = await read(actualCall, receiptStore, { sourceDependencyId, scalarLeafDependencyId, sourceRow });
