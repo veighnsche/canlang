@@ -15213,3 +15213,37 @@ contains 22 structural standard-result schema occurrences; other groups and
 catalog holds are unchanged. The finite CanBook operation-context batch is
 closed. Complete CanCRM native/browser acceptance and unrestricted
 training-data authoring remain gated. No push or training was performed.
+
+2026-10-15 — C02/C10: retain the declared standard outcome owner.
+
+OperationOutcome already has one closed producer-owned schema and is imported
+through ordinary std use. Preserve that declared identity in the existing
+StdNominal representation instead of erasing it to an anonymous object. This
+reuses the standard value pipeline for capability results, event fields and
+typed structural literals; no app wrapper, duplicate outcome declaration,
+special app identity or new authoring syntax is needed. Identity comes from
+the imported owner and exact schema, never from guessing an anonymous shape.
+The established closed literal/default/nullability checks remain. This is
+implementation of the existing standard contract, not a new language choice
+requiring another JEV consultation.
+
+The focused alias/result/event/derive check passes through emitted code and
+installed Values: all six states round-trip with exact integer revisions;
+unknown states/fields and missing required fields fail. Erasing the private
+source census still refuses publication. Existing standard construct checking
+passes 1/1; five unchanged inventory checks pass. The existing inspection
+refusal assertion fails identically against the pre-change compiler and is
+preserved; no all-green inventory-suite claim follows. CLI build, formatting
+and diff checks pass.
+
+Original 24-source validation: exit 10, 846 errors (820 E6008, 26 E6007),
+complete=true, omitted=0, no usable artifact. Relative to the 894-error capture,
+19 anonymous type-id and three anonymous field-schema refusals disappear;
+the retained owner also admits 29 existing native terminal handlers through
+their existing exact-schema mechanism. Three event fields instead report
+OperationOutcome's unavailable field-schema inventory. These are an explicit
+dependency on the original composition's still-refused standard value census,
+not permission to bypass it or a claim that all standard-result consumers are
+accepted. Their focused complete-owner cohort works, while the composition
+continues to fail closed. Native handler execution/grants remain under their
+existing source/receipt checks; counts alone do not qualify those workflows.

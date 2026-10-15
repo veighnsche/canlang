@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **894 errors**:
-**868 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **846 errors**:
+**820 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -104,9 +104,9 @@ are not independent feature tasks:
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
 | Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
-| Value/type/arithmetic lowering | 22 | Structural standard-result schemas: 19 type-id refusals and three event field-schema consumers. Duration, actor-predicate and CanBook operation-context batches are closed. |
+| Value/type/arithmetic lowering | 3 | Named OperationOutcome event fields await the original composition’s standard-value inventory. Owner retention closes the 19 anonymous type-id refusals; the three current field refusals remain explicit. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
-| Scenario/handler/authority emission | 93 | Original trigger/authority profiles and owning execution context. |
+| Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
 | Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
 | Declared event input carriers | 68 | Complete owning operation-input correspondence. |
@@ -152,7 +152,7 @@ gate remain distinct; a protected page still rejects anonymous callers.
 The CLI build, formatting and diff checks pass. Original source permissions and
 workflow bodies are unchanged.
 
-**Current C02/C10 batch — CanBook example operation context (2026-10-15).**
+**C02/C10 CanBook example operation context (2026-10-15).**
 Keep the original assertion correlated with the actual completed mutation id.
 The resolver publishes a checked operation context only for table observation
 expressions; the canonical example runner retains the genuine request id/source
@@ -170,6 +170,33 @@ evaluation fails setup, and header setup keeps its unresolved-name refusal.
 Existing example checks pass **29/29** and the existing native example-runner
 check passes **1/1**. Native package emit, CLI build, formatting
 and diff checks pass. This is not full CanBook resource-workflow acceptance.
+
+**Current C02/C10 continuation — standard outcome ownership and bounded
+decision review (2026-10-15).** Preserve OperationOutcome's declared standard
+owner in the existing named-value representation. The original source uses one
+shared schema; no app-specific wrapper or duplicate declaration is introduced.
+The focused alias/result/event/derive and installed Values check passes **1/1**,
+covering six states, exact revisions, closed fields and source-census refusal.
+Existing standard constructs pass **1/1**, and five unchanged inventory checks
+pass. The inspection-refusal assertion fails identically before this patch and
+is preserved. CLI build, formatting and diff checks pass.
+
+The original composition now reports **846** diagnostics: **51 removed, three
+added** versus 894. Those removals are 19 anonymous type-id refusals, three
+anonymous field-schema refusals and 29 native terminal-handler refusals whose
+existing exact standard-schema join now succeeds. The added diagnostics are
+three named outcome fields still denied without the original composition's
+standard-value inventory. Do not bypass that dependency or infer complete
+workflow acceptance from its handler count.
+
+The persistent goal is active: review actual semantic/source-facing decisions
+from 49add7fe through 14a805cd and continuation changes, prioritizing contextual
+reads/boolean helper modes, private user mail, example context and enum reuse
+against REQUIREMENTS. Close each with justified reusable semantics or a named
+held decision; then continue the ready root-cause table above and its concrete
+dependencies. Missing local implementations are ready work, not external holds.
+Retain accepted component results; no broader historical-reference reopening,
+push, deployment, training or dataset generation is authorized.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
