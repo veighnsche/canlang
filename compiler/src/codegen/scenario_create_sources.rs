@@ -897,6 +897,60 @@ pub(super) fn checked_create_prefix_if(
     expressions.prefix_statement(actual, nodes.get(&node)?, 0)
 }
 
+/// Reuse the owning construction field's checked Given provenance when the
+/// same declared field also participates in a stored-reference source census.
+/// No mutable IR bound or receiver spelling supplies the missing provenance.
+pub(super) fn checked_stored_field_trait_modifiers(
+    ir: &IrProgram,
+    field: &crate::analysis::scenario_disclosure::CheckedStoredContractField,
+    actual: &super::ir::IrModifiers,
+    db: &SourceDb,
+) -> Option<bool> {
+    let mut matched = false;
+    for owner in &ir.items {
+        let Some(facts) = ir
+            .scenario_disclosures
+            .get(&owner.id)
+            .and_then(|value| value.source_facts())
+        else {
+            continue;
+        };
+        for original in facts.creates.as_deref().unwrap_or_default() {
+            if original.model != field.owner {
+                continue;
+            }
+            let Some(created) = original
+                .definition
+                .fields
+                .iter()
+                .find(|created| created.field == field.id)
+            else {
+                continue;
+            };
+            if !created
+                .modifier_sources
+                .iter()
+                .any(|source| !source.4.is_empty())
+            {
+                continue;
+            }
+            super::scenario_calls::checked_source(ir, owner, db)?;
+            if created.canonical != field.canonical
+                || created.name != field.name
+                || created.ty != field.ty
+                || created.source != field.source
+                || created.reuse != field.reuse
+                || created.constraints != field.constraints
+            {
+                return None;
+            }
+            checked_field_trait_modifiers(ir, original, created, actual, db)?;
+            matched = true;
+        }
+    }
+    Some(matched)
+}
+
 /// Match source-owned field-trait constraints through the original reuse chain.
 /// The shared lowering helper owns Given intersection; this join only supplies
 /// authenticated declarations/constants and checks its exact emitted result.
@@ -4629,6 +4683,7 @@ mod tests {
             } else {
                 source.into()
             };
+            let source = source.replace("   return item\nThen\n", "   return item\n scenario inspect(item:Item) -> Item by=members\n  do return item\nThen\n");
             let mut db = SourceDb::new();
             let file = db.add("field-trait.can".into(), source.into());
             let (initial, _) = crate::analysis::check_program(&db, &[file], None);
@@ -4731,6 +4786,62 @@ mod tests {
                 accepts(&ir).is_some(),
                 "checked field trait default/bounds, including aliased reusable source field reused={reused} authored={authored_default}"
             );
+            let stored_owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "GivenField.inspect")
+                .unwrap();
+            let stored = ir.scenario_disclosures[&stored_owner.id]
+                .source_facts()
+                .unwrap()
+                .stored_contracts
+                .as_ref()
+                .unwrap()
+                .iter()
+                .find(|schema| schema.canonical == "GivenField.Item")
+                .unwrap()
+                .fields
+                .iter()
+                .find(|candidate| candidate.id == field)
+                .unwrap();
+            assert!(
+                super::super::scenario_receipts::match_stored_contract_field(&ir, stored, &db)
+                    .is_some(),
+                "the same checked Given constraints seal the stored Model field, including alias reuse"
+            );
+            let mut changed = ir.clone();
+            let crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(facts) =
+                changed.scenario_disclosures.get_mut(&owner.id).unwrap()
+            else {
+                panic!("complete")
+            };
+            facts
+                .source_facts
+                .as_mut()
+                .unwrap()
+                .creates
+                .as_mut()
+                .unwrap()[0]
+                .definition
+                .fields[0]
+                .modifier_sources[0]
+                .1
+                .path
+                .push_str(".foreign");
+            assert!(
+                super::super::scenario_receipts::match_stored_contract_field(&changed, stored, &db)
+                    .is_none(),
+                "a forged Given field origin cannot fall back to ordinary authored bounds"
+            );
+            if reused {
+                let mut forged = stored.clone();
+                forged.reuse = None;
+                assert!(
+                    super::super::scenario_receipts::match_stored_contract_field(&ir, &forged, &db)
+                        .is_none(),
+                    "ordinary authored receiving bounds cannot hide a changed reuse source"
+                );
+            }
             let IrItemKind::Field {
                 default: Some(IrDefault::Literal(value)),
                 modifiers,

@@ -2635,6 +2635,13 @@ mod helper_any_plan_tests {
         let source = source.replace("location:Location,title:text", &format!("location:Location,title:text,{fields}"))
             .replace("title=input.title}", &format!("title=input.title,{entries}}}"))
             .replace("allowed(actor,input.location)\n", "allowed(actor,input.location) and input.v1>=0 and input.v2>=0 and input.v3>=0 and input.v4>=0\n");
+        let source = source
+            .replace(
+                "contract Input {location:Location,title:text,",
+                "contract Input {location:Location,title:Run.title,notes:text,",
+            )
+            .replace("title:text,", "title:text trim min=1,notes:text?,")
+            .replace("title=input.title,", "title=input.title,notes=input.notes,");
         for renamed in [false, true] {
             let source = if renamed {
                 source
