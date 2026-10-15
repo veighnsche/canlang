@@ -25,7 +25,7 @@ export const SERVICES_CATALOG: ServiceCatalog = {
     {
       capability: 'std.EmailV1',
       capabilityVersion: 1,
-      operations: ['send'],
+      operations: ['send', 'send_user'],
     },
     {
       capability: 'ai.ChatV1',

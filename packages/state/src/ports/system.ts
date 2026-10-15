@@ -81,7 +81,7 @@ const MAX_SYSTEM_COMMIT_CHECKS = 128;
 // This is the released composed Work admission profile, not a global quota
 // for operator commands or the public JSON helpers.
 const BOUNDED_WORK_COMMANDS = new Set([
-  'work.dispatch.claim', 'work.dispatch.stop-pending', 'work.dispatch.pin-image-control',
+  'work.dispatch.claim', 'work.dispatch.stop-pending', 'work.dispatch.pin-image-control', 'work.dispatch.pin-mail-recipient',
   'work.dispatch.record-attempt', 'work.dispatch.requeue', 'work.dispatch.release',
   'work.dispatch.supersede', 'work.dispatch.stage', 'work.dispatch.recover',
   'work.occurrence.put-receipt', 'work.schedule.put', 'work.schedule.cancel',

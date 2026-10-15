@@ -7620,7 +7620,7 @@ async function runScenarioExecution(
         if (when !== undefined) {
           const actual = call as AdmittedCall;
           const selected = nativeSourceSendGuards.get(actual.def as GeneratedOperationDef)?.get(when.rule);
-          if (!['std.EmailV1.send', 'std.TextGenerationV1.generate'].includes(source) ||
+          if (!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(source) ||
               ownerSession === undefined || selected === undefined ||
               selected.guard.binding !== bindingKey || selected.guard.target !== source || selected.guard.owner !== scope.operation ||
               selected.guard.inputs.some(input => !nativeEmailLexicalType(input.type) && !sendSnapshots?.has(input.type))) {
@@ -7896,7 +7896,7 @@ async function runScenarioExecution(
         const tables = await import('@canlang/state/receipt/tables');
         const generation = (await import('@canlang/work/kernel/tables')).dispatchGenerationTargetProfile(send.target);
         currentSend();
-        if (send.target !== 'std.EmailV1.send' && generation?.role !== 'original') {
+        if (!['std.EmailV1.send', 'std.EmailV1.send_user'].includes(send.target) && generation?.role !== 'original') {
           return refuseRecordBinding('Receipt origin requires its original Email or original Generation result context.');
         }
         if (generation?.role === 'original' && declaration.kind !== 'generation') {
@@ -14441,7 +14441,7 @@ export async function bindNativeEmailDispatchGuards(input: {
     const def = generatedScenarioDef({ def: value });
     if (def === undefined) continue;
     for (const selected of nativeSourceSendGuards.get(def)?.values() ?? []) {
-      if (!['std.EmailV1.send', 'std.TextGenerationV1.generate'].includes(selected.guard.target) || selected.ownerPackage !== scope.ownerPackage ||
+      if (!['std.EmailV1.send', 'std.EmailV1.send_user', 'std.TextGenerationV1.generate'].includes(selected.guard.target) || selected.ownerPackage !== scope.ownerPackage ||
           selected.guard.inputs.some(slot => !nativeEmailLexicalType(slot.type) && !sendSnapshots?.has(slot.type))) continue;
       const sites = (loaded.membershipSources.get(def.name) ?? []).filter(site => site.stage === 'send-dispatch' &&
         stableStringify(site.node) === stableStringify(selected.guard.node));

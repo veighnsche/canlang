@@ -547,7 +547,8 @@ export const STD_PAYMENTS_V1_VERSION = 1;
 /**
  * Canonical `std.EmailV1` contract (DESIGN section 8: `send(to:email,
  * subject:text, body:text, attachments:file[]=[]) -> EmailAccepted`).
- * Adapter-backed (`EmailV1Adapter`; `SERVICES_CATALOG` advertises `send`).
+ * Address and private user sends share the installed address-only provider adapter.
+ * `send_user` resolves/pins the selected active member privately after its guard.
  * `reconcile` is a port op (`MailSender.reconcile`), deliberately NOT a
  * contract op here: it reuses the original delivery id and is never sent
  * from source. No declared events.
@@ -564,6 +565,11 @@ export const STD_EMAIL_V1_CONTRACT: CapabilityContract = {
         body: 'text',
         attachments: 'file[]',
       },
+      result: 'EmailAccepted',
+    },
+    {
+      name: 'send_user',
+      inputs: { to: 'user', subject: 'text', body: 'text', attachments: 'file[]' },
       result: 'EmailAccepted',
     },
   ],

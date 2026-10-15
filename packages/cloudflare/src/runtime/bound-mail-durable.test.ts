@@ -502,3 +502,90 @@ test('actual installed Email dispatch preserves durable identity and reconciles 
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('user mail privately pins the selected active recipient after guard and keeps it across durable retry/reconcile', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'can-user-mail-'));
+  let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+  try {
+    d1 = await openD1(join(dir, 'd1'));
+    const store = d1.store, identities = createMemoryIdentityStore();
+    const owner = await seedMember(identities, { isOwner: true });
+    const selected = await seedMember(identities, { teamId: owner.team.team_id, isOwner: false });
+    const target = 'std.EmailV1.send_user';
+    const binding: ProviderBinding = { deployment: 'deployment.mail', capability: 'std.EmailV1', capabilityVersion: 1, account: 'private-mail' };
+    const definition = { bindings: { [`${APP}.Mail`]: { capability: binding.capability, from: binding.deployment } },
+      capabilities: { 'std.EmailV1': { version: 1, operations: { send_user: { inputs: {
+        to: { type: 'user' }, subject: { type: 'text' }, body: { type: 'text' }, attachments: { type: 'file[]' } },
+        result: { type: 'EmailAccepted' } } } } } };
+    let email = 'original@example.test', verified = true, accountExists = true, active = true;
+    let directoryReads = 0, membershipReads = 0, sends = 0, reconciles = 0, guardRan = false;
+    const installed: InstalledMailSender = { binding, mail: {
+      send: async (request, options) => {
+        sends++; assert.equal(request.to, 'original@example.test');
+        const row = await store.load(asModel(WORK_DISPATCH_MODEL), asId(options.deliveryId)); assert.ok(row);
+        assert.equal(row.data['mailRecipientEmail'], 'original@example.test');
+        assert.equal(row.data['mailRecipientUser'], selected.user.user_id);
+        return { delivery_id: options.deliveryId, status: 'unknown', result: null,
+          error: { code: 'unknown_delivery', message: 'Mail outcome unknown.' } };
+      }, reconcile: async deliveryId => { reconciles++;
+        return { delivery_id: deliveryId, status: 'succeeded', result: { reference: 'original-provider-id' }, error: null }; },
+    } };
+    const makeAdapter = () => createBoundMailAdapter({ appDefinition: definition, binding, resolveInstalledMailSender: () => installed,
+      userRecipients: { teamId: owner.team.team_id,
+        findMembership: async (team, user) => { membershipReads++; assert.ok(guardRan);
+          const member = await identities.findMembership(team, user); return active ? member : null; },
+        findUserById: async user => { directoryReads++; assert.ok(guardRan); assert.equal(user, selected.user.user_id);
+          return accountExists ? { user_id: user, email, email_verified: verified } : null; },
+      } });
+    const dispatcher = async () => createBoundMailDispatcher({ store, adapter: makeAdapter(), workCommands: WORK_SYSTEM_COMMANDS,
+      stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand });
+    const producers = await loadDispatchSystemProducers();
+    const registry = await createWorkerDispatchRegistry(assembleDispatchCommands({ l3Commands: producers.l3Commands,
+      workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS }));
+    const joined = withDispatchJoinPort(store, await createWorkerDispatchJoinPort(store));
+    const stage = async (id: string) => stageDispatchBatch({ registry, store: joined, actor: owner.user.user_id,
+      operation: 'component.user-mail', now: FIXED_NOW, runKey: operationId(), intents: [{ intentId: id,
+        operation: `${APP}.deliver`, originOperationId: operationId(), source: target, occurrenceIndex: 0,
+        originOccurrence: null, guard: 'allowed', guardVerdict: true, request: { binding: `${APP}.Mail`, from: binding.deployment,
+          arguments: { to: { id: selected.user.user_id }, subject: 'Notice', body: 'Selected account only', attachments: [] } } }] });
+    const drive = async (id: string, allowed: boolean) => (await dispatcher()).drive({ intentId: id, actor: owner.user.user_id,
+      operation: 'component.drive', nowMs: () => FIXED_NOW + 1000, nextClaimId: () => `claim-${operationId()}`,
+      maxClaimAgeMs: 60000, claimOperationId: operationId(), recordOperationId: operationId(), classifyFailure,
+      evaluateGuard: () => { throw Error('Must use original preclaim guard.'); }, readStateSnapshot: () => null,
+      fence: { owner: owner.team.team_id, revalidateAuthority: () => true,
+        asyncGuard: { attemptDispatch: attemptDispatchAsync, frozenInputs: {},
+          evaluateGuard: async (_predicate, _inputs, _snapshot, handle) => {
+            assertDispatchGuardExecution(handle); guardRan = true;
+            registerDispatchGuardRevalidation(handle, () => true); return allowed;
+          } } } });
+    await stage('user-mail-skipped');
+    const skippedIntent = (await store.outboxGet('user-mail-skipped'))!.intent;
+    assert.equal(makeAdapter().available(skippedIntent), true);
+    assert.equal(directoryReads, 0); assert.equal(membershipReads, 0);
+    assert.equal((await drive('user-mail-skipped', false)).status, 'not-claimed');
+    assert.equal(directoryReads, 0); assert.equal(membershipReads, 0); assert.equal(sends, 0);
+    await stage('user-mail-original');
+    assert.equal((await drive('user-mail-original', true)).status, 'recorded');
+    assert.equal(directoryReads, 1); assert.equal(sends, 1);
+    email = 'changed@example.test';
+    // Provider evidence is the explicit prerequisite for the existing uncertain retry command.
+    await registry.run('work.dispatch.requeue', { intentId: 'user-mail-original', maxAttempts: 3, horizonMs: 60000, notFound: true },
+      { actor: owner.user.user_id, now: FIXED_NOW + 1000, operation: 'component.retry', operationId: operationId() }, { store: joined });
+    assert.equal((await drive('user-mail-original', true)).status, 'recorded');
+    assert.equal(sends, 2); assert.equal(directoryReads, 1);
+    const original = (await store.outboxGet('user-mail-original'))!.intent;
+    const beforeReads = directoryReads + membershipReads;
+    assert.deepEqual(await makeAdapter().reconcile(original), { kind: 'delivered', result: { reference: 'original-provider-id' } });
+    assert.equal(directoryReads + membershipReads, beforeReads); assert.equal(reconciles, 1);
+    for (const mode of ['inactive', 'missing', 'unverified'] as const) {
+      active = mode !== 'inactive'; accountExists = mode !== 'missing'; verified = mode !== 'unverified';
+      const id = `user-mail-${mode}`; await stage(id);
+      const beforeSends: number = sends;
+      const result = await drive(id, true);
+      assert.equal(result.status, 'recorded'); assert.equal(sends, beforeSends);
+      const row = await store.load(asModel(WORK_DISPATCH_MODEL), asId(id)); assert.ok(row);
+      assert.equal(row.data['state'], 'failed'); assert.equal(row.data['mailRecipientEmail'], undefined);
+      assert.equal(row.data['errorMessage'], 'Mail recipient unavailable.');
+    }
+  } finally { if (d1 !== undefined) await d1.worker.dispose(); await rm(dir, { recursive: true, force: true }); }
+});

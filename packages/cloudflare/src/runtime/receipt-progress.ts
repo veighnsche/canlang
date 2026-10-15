@@ -32,7 +32,7 @@ export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: Sys
   const generation = skipping && context?.source === intent.target && context.request !== undefined &&
     (intent.target === 'std.TextGenerationV1.generate' && isTextRunReceiptContext(context) ||
       intent.target === 'std.ImagesV1.submit' && isImageRunReceiptContext(context));
-  if ((intent.target !== 'std.EmailV1.send' && !judgment && !generation) ||
+  if ((!['std.EmailV1.send', 'std.EmailV1.send_user'].includes(intent.target) && !judgment && !generation) ||
       (context !== undefined && !judgment && !generation) || typeof intent.intentId !== 'string' || intent.intentId === '') {
     throw new Error('Receipt progress requires the verified original Email, Judgment or empty generation intent.');
   }

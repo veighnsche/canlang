@@ -49,13 +49,15 @@ function gate() {
 }
 
 test.each([
+  { profile: 'private selected user Email', modelSnapshot: false, textGeneration: false, userMail: true, fixture: 'native-guarded-user-email.can' },
   { profile: 'scalar/nullable/array Email', modelSnapshot: false, textGeneration: false, fixture: 'native-guarded-email.can' },
   { profile: 'historical model snapshot Email', modelSnapshot: true, textGeneration: false, fixture: 'native-model-guarded-email.can' },
   { profile: 'current parent/reference behind historical Email snapshot', modelSnapshot: true, textGeneration: false,
     references: true, fixture: 'native-parent-model-guarded-email.can' },
   { profile: 'scalar/nullable/array TextGeneration', modelSnapshot: false, textGeneration: true, fixture: 'native-guarded-text-generation.can' },
 ])('original $profile SEND has source skip, fresh membership, one ACK fence and exact replay',
-  { timeout: 120000 }, async ({modelSnapshot, textGeneration, fixture, references = false}) => {
+  { timeout: 120000 }, async ({modelSnapshot, textGeneration, fixture, references = false, userMail = false}) => {
+    const mailTarget = userMail ? 'std.EmailV1.send_user' : 'std.EmailV1.send';
     const source = join(root, 'packages/cloudflare/test/fixtures', fixture);
     const {distribution: nativeDistribution} = await nodeImport(installedModule('distribution.js')) as typeof import('../src/distribution.js');
     const compiler = join(root, 'compiler/target/debug/can'), catalog = fileURLToPath(nativeDistribution.nativeCatalog);
@@ -159,6 +161,12 @@ test.each([
       const binding: ProviderBinding = {deployment: textGeneration ? 'deployment.llm' : 'deployment.mail',
         capability: textGeneration ? 'std.TextGenerationV1' : 'std.EmailV1', capabilityVersion: 1, account: 'local-control'};
       const installed: InstalledMailSender = {binding, mail: {send: async (_request, options) => {
+        if (userMail) {
+          assert.equal(_request.to, subject.email);
+          const pinned = await native.store.load(asModel(WORK_DISPATCH_MODEL), asId(options.deliveryId)); assert.ok(pinned);
+          assert.equal(pinned.data['mailRecipientEmail'], subject.email);
+          assert.equal(pinned.data['mailRecipientUser'], subject.user_id);
+        }
         sends++; return {delivery_id: options.deliveryId, status: 'succeeded', result: {reference: 'accepted'}, error: null};
       }, reconcile: async () => { throw new Error('No recovery transport is part of this control.'); }}};
       // This synthetic installation exercises the genuine bound Text adapter and
@@ -193,7 +201,9 @@ test.each([
             assert.equal(deployment, binding.deployment); return installedText;
           }})})
         : await createBoundMailDispatcher({...dispatchOptions,
-          adapter: createBoundMailAdapter({appDefinition: definition, binding, resolveInstalledMailSender: () => installed})});
+          adapter: createBoundMailAdapter({appDefinition: definition, binding, resolveInstalledMailSender: () => installed,
+            ...(userMail ? {userRecipients: {teamId: team.team_id,
+              findMembership: identities.findMembership.bind(identities), findUserById: identities.findUserById.bind(identities)}} : {})})});
       const drive = async (intentId: string) => {
         const retained = await native.store.outboxGet(intentId); assert.ok(retained);
         return dispatcher.drive({intentId, actor: owner.user_id, operation: 'native.Email.drive', nowMs: clock.nowMs,
@@ -210,7 +220,7 @@ test.each([
       };
       const original = await queue(), dispatchBefore = await native.store.load(asModel(WORK_DISPATCH_MODEL), asId(original.retained.intent.intentId));
       assert.ok(dispatchBefore); const dispatch = readDispatchRow(dispatchBefore); assert.ok(dispatch.sourceGuard); assert.ok(dispatch.filePayloadOrigin);
-      assert.equal(original.retained.intent.target, textGeneration ? 'std.TextGenerationV1.generate' : 'std.EmailV1.send');
+      assert.equal(original.retained.intent.target, textGeneration ? 'std.TextGenerationV1.generate' : mailTarget);
       for (const target of textGeneration ? ['std.EmailV1.send', 'std.TextGenerationV1.cancel'] : ['std.TextGenerationV1.generate'])
         assert.throws(() => fenceFor({...original.retained.intent, target}), /original installed guard\/owner\/binding/);
       if (modelSnapshot) {

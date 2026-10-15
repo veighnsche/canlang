@@ -1,6 +1,6 @@
 /** Exact installed Email boundary for already committed canonical bound sends. */
 import { STD_EMAIL_V1_VERSION } from "@canlang/contracts";
-import type { CanValue, EmailSendInput, OutboxIntent, ProviderBinding } from "@canlang/contracts";
+import type { CanValue, EmailSendInput, OutboxIntent, ProviderBinding, Membership } from "@canlang/contracts";
 import { encodeValue, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { InstalledMailSender, ResolveInstalledMailSender } from "@canlang/services";
@@ -8,6 +8,7 @@ import type { DispatchProviderOutcome, DispatchReconcileEvidence } from "./invok
 
 const CAPABILITY = "std.EmailV1";
 const TARGET = `${CAPABILITY}.send`;
+const USER_TARGET = `${CAPABILITY}.send_user`;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -25,12 +26,21 @@ export interface BoundMailAdapterOptions {
   /** Explicit host installation expectation, including the account absent from source. */
   readonly binding: ProviderBinding;
   readonly resolveInstalledMailSender: ResolveInstalledMailSender;
+  /** Private host-only Identity access; never a source directory or result. */
+  readonly userRecipients?: {
+    readonly teamId: string;
+    findMembership(team: string, user: string): Promise<Membership | null>;
+    findUserById(user: string): Promise<{ readonly user_id: string; readonly email: string; readonly email_verified: boolean } | null>;
+  };
 }
 
 export interface BoundMailAdapter {
   /** The driver must check this before evaluating a guard or winning a claim. */
   available(intent: OutboxIntent): boolean;
-  callProvider(intent: OutboxIntent): Promise<DispatchProviderOutcome>;
+  userRecipient(intent: OutboxIntent): { readonly user: string; readonly team: string } | null;
+  recipientActive(intent: OutboxIntent): Promise<boolean>;
+  resolveRecipient(intent: OutboxIntent): Promise<string | null>;
+  callProvider(intent: OutboxIntent, pinnedEmail?: string): Promise<DispatchProviderOutcome>;
   /** Unknown evidence stays null; a 404 is never proof of not-found. */
   reconcile(intent: OutboxIntent): Promise<DispatchReconcileEvidence | null>;
 }
@@ -38,6 +48,7 @@ export interface BoundMailAdapter {
 interface ResolvedMail {
   readonly installed: InstalledMailSender;
   readonly input: EmailSendInput;
+  readonly recipientUser?: string;
 }
 
 type MailEvidence =
@@ -66,7 +77,7 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
   const expected = { ...options.binding };
   const resolve = (intent: OutboxIntent): ResolvedMail | null => {
     try {
-      if (typeof intent.intentId !== "string" || intent.intentId === "" || intent.target !== TARGET ||
+      if (typeof intent.intentId !== "string" || intent.intentId === "" || ![TARGET, USER_TARGET].includes(intent.target) ||
           !closed(intent.arguments, ["binding", "from", "arguments"])) return null;
       const request = intent.arguments;
       if (typeof request["binding"] !== "string" || typeof request["from"] !== "string" ||
@@ -79,7 +90,7 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
       const capability = member(member(definition, "capabilities"), CAPABILITY);
       const version = member(capability, "version");
       if (version !== STD_EMAIL_V1_VERSION && version !== BigInt(STD_EMAIL_V1_VERSION)) return null;
-      const operation = member(member(capability, "operations"), "send");
+      const operation = member(member(capability, "operations"), intent.target === USER_TARGET ? "send_user" : "send");
       if (member(member(operation, "result"), "type") !== "EmailAccepted") return null;
       const inputs = member(operation, "inputs");
       if (!record(inputs)) return null;
@@ -90,26 +101,55 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
       // Values owns normalization and wire admission against the exact emitted
       // operation declaration. Only its nested encoded arguments reach Services.
       const schema = normalizeSchema({
-        operations: { [TARGET]: { inputs } },
+        operations: { [intent.target]: { inputs } },
       } as SchemaDescriptor);
-      const checked = validateOperationInput(schema, TARGET, request["arguments"]);
+      const checked = validateOperationInput(schema, intent.target, request["arguments"]);
       const args: Record<string, unknown> = Object.create(null);
       for (const [name, value] of Object.entries(checked)) {
         args[name] = encodeValue((inputs[name] as FieldDescriptor).type, value as CanValue);
       }
-      if (!closed(args, ["to", "subject", "body", "attachments"]) || typeof args["to"] !== "string" ||
+      const recipient = intent.target === USER_TARGET ? args["to"] : undefined;
+      const recipientUser = closed(recipient, ['id']) && typeof recipient['id'] === 'string' && recipient['id'] !== '' ? recipient['id'] : undefined;
+      if (intent.target === USER_TARGET && (recipientUser === undefined || options.userRecipients === undefined)) return null;
+      if (!closed(args, ["to", "subject", "body", "attachments"]) || (intent.target === TARGET && typeof args["to"] !== "string") ||
           typeof args["subject"] !== "string" || typeof args["body"] !== "string" || !Array.isArray(args["attachments"]) ||
           !args["attachments"].every(value => typeof value === "string")) return null;
-      return { installed, input: args as unknown as EmailSendInput };
+      return { installed, input: args as unknown as EmailSendInput, ...(recipientUser === undefined ? {} : { recipientUser }) };
     } catch { return null; }
   };
+  const userRecipient = (intent: OutboxIntent) => {
+    const resolved = resolve(intent);
+    return resolved?.recipientUser === undefined || options.userRecipients === undefined ? null
+      : { user: resolved.recipientUser, team: options.userRecipients.teamId };
+  };
+  const recipientActive = async (intent: OutboxIntent): Promise<boolean> => {
+    const recipient = userRecipient(intent);
+    if (recipient === null) return false;
+    try {
+      const membership = await options.userRecipients!.findMembership(recipient.team, recipient.user);
+      return membership?.status === 'active' && membership.user_id === recipient.user && membership.team_id === recipient.team;
+    } catch { throw new Error('Private mail recipient lookup unavailable.'); }
+  };
   return {
+    userRecipient, recipientActive,
+    async resolveRecipient(intent) {
+      const recipient = userRecipient(intent);
+      if (recipient === null || !await recipientActive(intent)) return null;
+      let user: Awaited<ReturnType<NonNullable<BoundMailAdapterOptions['userRecipients']>['findUserById']>>;
+      try { user = await options.userRecipients!.findUserById(recipient.user); }
+      catch { throw new Error('Private mail recipient lookup unavailable.'); }
+      if (user?.user_id !== recipient.user || !user.email_verified) return null;
+      try { return encodeValue('email', user.email) as string; } catch { return null; }
+    },
     available: intent => resolve(intent) !== null,
-    async callProvider(intent) {
+    async callProvider(intent, pinnedEmail) {
       const resolved = resolve(intent);
       if (resolved === null) return { kind: "uncertain" };
+      if (resolved.recipientUser !== undefined && (typeof pinnedEmail !== 'string' || pinnedEmail === '' || !await recipientActive(intent))) {
+        return { kind: 'failed', cause: { kind: 'permanent', code: 'recipient_unavailable', message: 'Mail recipient unavailable.' } };
+      }
       try {
-        const completion = await resolved.installed.mail.send(resolved.input, { deliveryId: intent.intentId });
+        const completion = await resolved.installed.mail.send(resolved.recipientUser === undefined ? resolved.input : { ...resolved.input, to: pinnedEmail! }, { deliveryId: intent.intentId });
         const evidence = decisiveCompletion(completion, intent.intentId);
         if (evidence?.kind === "delivered") return evidence;
         if (evidence?.kind === "failed") return { kind: "failed", cause: { kind: "permanent", code: evidence.code, message: evidence.message } };

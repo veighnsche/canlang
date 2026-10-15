@@ -230,7 +230,7 @@ describe("T19b frozen T13 join surface", () => {
     ]);
   });
 
-  it("declares sixteen send targets with their result nominals", () => {
+  it("declares seventeen send targets with their result nominals", () => {
     const targets = new Map<string, string>();
     for (const contract of CONTRACTS) {
       for (const op of contract.operations) targets.set(`${contract.name}.${op.name}`, op.result);
@@ -238,6 +238,7 @@ describe("T19b frozen T13 join surface", () => {
     expect([...targets.entries()].sort()).toEqual(
       [
         ["std.EmailV1.send", "EmailAccepted"],
+        ["std.EmailV1.send_user", "EmailAccepted"],
         ["std.ErrorsV1.report", "ErrorAccepted"],
         ["std.ImagesV1.cancel", "ImageRun"],
         ["std.ImagesV1.inspect", "WorkflowInspection"],

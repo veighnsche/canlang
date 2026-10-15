@@ -160,6 +160,26 @@ export function readDispatchImageControlPin(value: object): DispatchImageControl
   return Object.freeze({ originalIntentId, observationStartedAtMs: startedAt, observationDeadlineMs: deadline });
 }
 
+/** Private immutable provider recipient. Never part of delivery results or source values. */
+export interface DispatchMailRecipientPin {
+  readonly mailRecipientUser: string;
+  readonly mailRecipientTeam: string;
+  readonly mailRecipientEmail: string;
+}
+export function readDispatchMailRecipientPin(value: object): DispatchMailRecipientPin | null {
+  const data = value as Readonly<Record<string, unknown>>;
+  const keys = ['mailRecipientUser', 'mailRecipientTeam', 'mailRecipientEmail'] as const;
+  if (!keys.some(key => Object.hasOwn(data, key))) return null;
+  if (keys.some(key => {
+    const entry = Object.getOwnPropertyDescriptor(data, key);
+    return entry === undefined || !('value' in entry) || typeof entry.value !== 'string' || entry.value === '';
+  })) throw new KernelTableError('Invalid private mail recipient pin.');
+  try { decodeValue('email', data['mailRecipientEmail']); }
+  catch { throw new KernelTableError('Invalid private mail recipient pin.'); }
+  return Object.freeze({ mailRecipientUser: data['mailRecipientUser'] as string,
+    mailRecipientTeam: data['mailRecipientTeam'] as string, mailRecipientEmail: data['mailRecipientEmail'] as string });
+}
+
 /** Source correspondence retained as data; shape never grants execution authority. */
 export interface DispatchSourceGuard {
   readonly rule: string;
@@ -198,7 +218,7 @@ export function readDispatchSourceGuard(data: Readonly<Record<string, unknown>>)
 }
 
 /** Claim lifecycle per staged intent. Flat for store querying. */
-export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin> {
+export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin>, Partial<DispatchMailRecipientPin> {
   readonly sourceGuard?: DispatchSourceGuard;
   readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly intentId: OutboxId;
@@ -562,6 +582,8 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     }
   }
   const correlation = readDispatchImageCorrelation(data);
+  const mailPin = readDispatchMailRecipientPin(data);
+  if (mailPin !== null && data['source'] !== 'std.EmailV1.send_user') throw new KernelTableError('Private mail pin requires its original user send.');
   const controlPin = readDispatchImageControlPin(data);
   if (controlPin !== null && (correlation === null ||
       (typeof data['source'] !== 'string' || dispatchGenerationTargetProfile(data['source'])?.role !== 'control') ||
@@ -571,6 +593,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
   return {
     ...(correlation ?? {}),
     ...(controlPin ?? {}),
+    ...(mailPin ?? {}),
     ...(sourceGuard === null ? {} : { sourceGuard }),
     ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
     intentId: checkString(data, 'intentId', 'work.dispatch'),
