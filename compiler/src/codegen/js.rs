@@ -3649,6 +3649,7 @@ impl<'a> Emitter<'a> {
                     | Scalar::Duration
                     | Scalar::Currency
                     | Scalar::Email
+                    | Scalar::Url
                     | Scalar::User
                     | Scalar::File,
                 ) => checked_value_profile(ty).is_some(),
@@ -3675,6 +3676,9 @@ impl<'a> Emitter<'a> {
                                 })
                         })
                 }
+                // Standard field reuse keeps the original checked inline cases;
+                // it has no authored enum owner to publish or fabricate.
+                ResolvedType::Enum { owner: None, cases } => !cases.is_empty(),
                 ResolvedType::Enum {
                     owner: Some(owner),
                     cases,
@@ -15708,6 +15712,10 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::Datetime), true, false) => Some("datetime[]"),
         (ResolvedType::Scalar(Scalar::Int), true, true) => Some("int[]?"),
         (ResolvedType::Scalar(Scalar::Datetime), true, true) => Some("datetime[]?"),
+        (ResolvedType::Scalar(Scalar::Url), false, false) => Some("url"),
+        (ResolvedType::Scalar(Scalar::Url), false, true) => Some("url?"),
+        (ResolvedType::Scalar(Scalar::Url), true, false) => Some("url[]"),
+        (ResolvedType::Scalar(Scalar::Url), true, true) => Some("url[]?"),
         (ResolvedType::Scalar(Scalar::Text), false, false) => Some("text"),
         (ResolvedType::Scalar(Scalar::Text), false, true) => Some("text?"),
         (ResolvedType::Scalar(Scalar::Text), true, false) => Some("text[]"),

@@ -16499,3 +16499,22 @@ were not37 closed occurrences; eleven event-carrier refusals remain. Report:
 State/doc commits do not change that captured source closure. Cloudflare type
 checking against the new State producer API also passes. No usable artifact,
 original imported can_work execution or full CanCRM readiness is claimed.
+
+2026-10-15 — C02: retain URL and reused inline enum Contract fields.
+
+Publish URL through the existing ordinary Contract scalar/nullable/array profiles
+and accept nonempty checked ownerless inline enum cases in the same inventory.
+A reused OperationOutcome.state keeps its exact existing cases; it gains no
+synthetic nominal owner. Named enums retain their owner checks. Existing URL and
+enum codecs, equality and source-owned standard field reuse settle these rules;
+this corrects backend inventory omissions without a new language decision.
+
+The emitted-code/installed Values check passes1/1: imported/reused/literal URL and
+inline-enum equality, all four URL wrappers, required-array omission, malformed
+URL validation/encoding and invalid enum rejection. The source-census check
+passes1/1, retaining exact cases/url? and refusing altered cases, invented owners
+and changed reused-field source. Tests isolate the committed analysis closure
+from the in-progress query producer. No receiving permission or phase changes.
+This addresses the URL/inline-enum field gaps behind ten of the eleven retained
+event-carrier candidates; removal counts await original24 qualification. The
+separate PaymentState standard nominal-identity gap remains unimplemented.

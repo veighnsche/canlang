@@ -2,13 +2,21 @@
 
 ## Current remainder and finite completion
 
+**C02 URL/inline-enum Contract inventory (2026-10-15, implemented/tested).**
+Ordinary Contracts now publish the existing URL profiles and source-checked
+ownerless inline enum cases, including reused OperationOutcome.state. No invented
+enum owner or URL-to-text conversion. Emitted-code/installed-codec and owning
+source-census checks each pass1/1, including malformed input and changed-source
+refusals. Ten retained event-carrier candidates share these gaps; diagnostic
+removals await original24 validation. PaymentState identity remains separate.
+
 **C02 capability-event ownership (2026-10-15, implemented/tested).**
 Nested event fields now include the event in their defining canonical path;
 strict emitter correspondence remains unchanged. New resolver regression plus
 ten existing checks pass; one judgment-specification E2013 reproduces with the
 previous resolver. Fresh CLI/captured-module checks preserve sibling input types
-and release defaults. Original24-source capture is pending; the 37 candidate
-occurrences are not yet credited as removed or as ingress workflow acceptance.
+and release defaults. The qualification below removes35 of the prior37 candidate
+occurrences; it does not qualify event ingress execution.
 
 **Original24 qualification after these compiler prerequisites (2026-10-15).**
 Frozen exact original24 sources finish in390.31s, exit10, complete=true, omitted=0:
@@ -53,9 +61,9 @@ derive bodies now retain their original query/alias/predicate/schema source seal
 including bodies without membership. Six source and six existing authorization
 source/CLI/verified-factory/installed-State checks pass; altered proofs refuse
 and sealed queries still cannot enter ordinary fallback or execute. Remaining
-`can_work` work is the actual Employee inventory, once-evaluated helper argument
-and statement origins, and lazy receipt-ANY source/runtime join. Reuse the last
-original24-source701-diagnostic capture until that integrated behavior changes.
+`can_work` work after the inventory slice above is once-evaluated helper argument
+and statement consumption, and the lazy receipt-ANY source/runtime join. The
+original24-source666-diagnostic qualification above supersedes the prior capture.
 
 Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. The human requested all remaining work be reevaluated and each existing worker receive its own prioritized list. This section replaces historical next/pending/source-lease instructions. [status.json](status.json) retains **58/67 references accepted at scope; nine remaining**. C01–C24 below are shared work labels, not additional canonical tasks. No active/unmerged release is accepted by this planning edit. Apply [finite execution](../../AGENTS.md#finite-execution).
 
