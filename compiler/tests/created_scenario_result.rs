@@ -158,6 +158,172 @@ fn returned(handler: &IrItem) -> &canlang_compiler::codegen::ir::TypedExpr {
     value
 }
 
+const REQUIRED_RESULT: &str = r#"app RequiredResult
+Given
+ Item {title:text}
+ Other {title:text}
+ policy Item read=members
+ policy Other read=members
+When
+ scenario retain(item:Item,other:Item) -> Item by=members
+  do return item
+Then
+"#;
+
+#[test]
+fn required_parameter_model_result_reuses_original_reserved_identity_and_return_binding() {
+    for source in [
+        REQUIRED_RESULT.to_string(),
+        REQUIRED_RESULT
+            .replace("RequiredResult", "RenamedResult")
+            .replace("Item", "Entry")
+            .replace("item", "selected")
+            .replace("retain", "keep"),
+    ] {
+        let (db, ir, _) = checked(&source);
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| matches!(&item.kind, IrItemKind::Scenario { .. }))
+            .unwrap();
+        let ScenarioDisclosure::Complete(disclosure) = &ir.scenario_disclosures[&owner.id] else {
+            panic!(
+                "required original model return must be complete: {:?}",
+                ir.scenario_disclosures[&owner.id]
+            );
+        };
+        let returned = &disclosure.returns[0];
+        assert_eq!(returned.dependencies.len(), 1);
+        let identity = &returned.dependencies[0];
+        assert_eq!(identity.field_name, "id");
+        assert_eq!(identity.type_id, "text");
+        assert_eq!(
+            identity.role,
+            canlang_compiler::analysis::scenario_disclosure::DependencyRole::Data
+        );
+        assert!(identity.calls.is_empty() && identity.query_id.is_none());
+        assert_eq!(
+            identity.node.kind,
+            canlang_compiler::syntax::SyntaxKind::NameRef as u8
+        );
+        let emitted = js::emit_program_with_native_source_receipts(&ir, true, &db);
+        assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+        let operation = emitted
+            .operations
+            .iter()
+            .find(|operation| operation.name == owner.canonical)
+            .unwrap();
+        let plan =
+            serde_json::to_value(operation.disclosure.as_ref().expect("original result plan"))
+                .unwrap();
+        assert_eq!(plan["returns"][0]["dependencies"][0]["field"], "id");
+        let body = &emitted.entry.js;
+        let observation = format!(
+            "await observeScenarioReceiptDependency(c,\"{}\",$receiptValue,\"id\",\"{}\");",
+            identity.model_name, identity.id
+        );
+        let at = body
+            .find(&observation)
+            .expect("observe the same once-evaluated native return view");
+        assert_eq!(body.matches(&observation).count(), 1);
+        assert!(
+            body[at..].contains(
+                "await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptValue)"
+            )
+        );
+        assert!(
+            !body.contains("$receiptValue[\"id\"]"),
+            "no fake source member or substituted result"
+        );
+    }
+}
+
+#[test]
+fn required_parameter_result_rejects_changed_body_owner_model_and_source() {
+    let (db, ir, _) = checked(REQUIRED_RESULT);
+    let owner = item(&ir, "RequiredResult.retain").id;
+    let other_type = result(&ir, "RequiredResult.Other");
+    for mode in [
+        "return-name",
+        "return-type",
+        "return-span",
+        "owner-name",
+        "parameter-name",
+        "parameter-model",
+        "model-fields",
+    ] {
+        let mut changed = ir.clone();
+        match mode {
+            "return-name" | "return-type" | "return-span" => {
+                let IrItemKind::Scenario { effects, .. } =
+                    &mut changed.items[owner.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                let IrStmt::Return {
+                    value: Some(value), ..
+                } = effects.last_mut().unwrap()
+                else {
+                    unreachable!()
+                };
+                match mode {
+                    "return-name" => value.expr = IrExpr::Name("other".into()),
+                    "return-type" => value.ty = other_type.clone(),
+                    _ => value.span.start += 1,
+                }
+            }
+            "owner-name" => changed.items[owner.0 as usize].name = "different".into(),
+            "parameter-name" | "parameter-model" => {
+                let IrItemKind::Scenario { params, .. } = &changed.items[owner.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                let parameter = params[0];
+                if mode == "parameter-name" {
+                    changed.items[parameter.0 as usize].name = "other".into();
+                } else {
+                    let IrItemKind::Param { ty, .. } =
+                        &mut changed.items[parameter.0 as usize].kind
+                    else {
+                        unreachable!()
+                    };
+                    *ty = ir::IrType::Known(other_type.clone());
+                }
+            }
+            _ => {
+                let model = item(&changed, "RequiredResult.Item").id;
+                let IrItemKind::Model { fields, .. } = &mut changed.items[model.0 as usize].kind
+                else {
+                    unreachable!()
+                };
+                fields.clear();
+            }
+        }
+        let emitted = js::emit_program_with_native_source_receipts(&changed, true, &db);
+        assert!(
+            emitted
+                .operations
+                .iter()
+                .find(|operation| operation.name == "RequiredResult.retain")
+                .is_none_or(|operation| operation.disclosure.is_none()),
+            "{mode}"
+        );
+    }
+    let mut foreign = SourceDb::new();
+    foreign.add(
+        "created-scenario-result.can".into(),
+        REQUIRED_RESULT.replace("return item", "return other"),
+    );
+    let emitted = js::emit_program_with_native_source_receipts(&ir, true, &foreign);
+    assert!(
+        emitted
+            .operations
+            .iter()
+            .find(|operation| operation.name == "RequiredResult.retain")
+            .is_none_or(|operation| operation.disclosure.is_none())
+    );
+}
+
 #[test]
 fn original_named_chat_and_creative_source_forms_preserve_singular_result_and_input_order() {
     for (source, parent, target, model, names, parameters) in [
@@ -446,9 +612,14 @@ fn source_owner_type_result_binding_and_input_order_mutants_never_qualify_create
 }
 
 #[test]
-fn existing_intermediate_only_nullable_array_and_composite_results_stay_outside_created_leaf() {
+fn indirect_intermediate_nullable_array_and_composite_results_stay_outside_model_leaf() {
     for (mode, signature, parameters, body) in [
-        ("existing", "Run", "run:Run", "   return run"),
+        (
+            "indirect-existing",
+            "Run",
+            "run:Run",
+            "   let copied=run\n   return copied",
+        ),
         (
             "intermediate-only",
             "Run",

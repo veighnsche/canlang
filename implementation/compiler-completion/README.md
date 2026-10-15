@@ -379,6 +379,27 @@ Compiler admission and emitted observation/binding correspondence remain open;
 this State prerequisite does not qualify the original CanCRM native consumer.
 
 **Current C02/C10 leaf — canonical first correspondence.**
+The existing-result capture join is now implemented for a direct original
+required model parameter. Analysis records its reserved-ID data dependency at
+the original return operand; source/IR/schema matching validates that operand
+without fabricating an authored member. Emission evaluates it once, observes
+the same genuine native view, then binds and selects the return. Seven affected
+compiler checks pass, including renamed model/parameter and changed body,
+parameter, type, source and schema refusals; existing Create/Call checks remain.
+The actual captured CLI/verified-factory/D1 fixture passes **1/1** in **18.19s**,
+retaining created/child results and adding zero business writes/history,
+original ID witness, normal/dedicated replay, current revocation withholding and
+restoration. This is a bounded backend prerequisite, not a new language rule
+restricting stored results to parameter spelling. Lexical aliases, selected-row
+and reference-field result provenance remain local work. The root TypeScript
+check reports 16 diagnostics in four untouched test files, none in this changed
+native test; no all-green root check is claimed.
+
+Frozen original 24-source validation exits **10** after **382.50s**, with the
+same **701** diagnostics (**675 E6008**, **26 E6007**), complete=true, omitted=0,
+no added/removed diagnostics and identical source inventory. Original sources
+and catalog are unchanged; there is still no usable native CanCRM artifact.
+
 The next defining query dependency is canonical checked query→first composition
 correspondence, preserving its exact ordered output and selected-row/null use.
 Existing private runtime query handles already support first selection; source
@@ -391,7 +412,11 @@ and seal checks. An independent source inspection confirms all 87 prior first
 occurrences also miss that narrow pattern. Unrelated hook-context IR failures
 additionally close the global fresh-source preparation gate; that local join
 must release before full original native execution can pass. Analysis/source
-matching can progress independently. Four computed/reference model order keys
+matching can progress independently. The next finite source batch reuses the
+original required scalar parameter/field facts for the text lookup and preserves
+empty order metadata when no order clause is authored. State already supplies
+created ASC with ID ties; no source node or second first primitive is needed.
+Four computed/reference model order keys
 need an observation-owned evaluator. These remain local implementation work;
 no native CanCRM completion is claimed.
 

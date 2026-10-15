@@ -216,13 +216,18 @@ pub struct DisclosureReturn {
     pub dependencies: Vec<DisclosureDependency>,
     pub intrinsics: Vec<DisclosureIntrinsic>,
     pub influences: Vec<DisclosureInfluence>,
-    /// Checked lexical producer of a newly-created singular stored result.
+    /// Checked lexical producer of a singular stored result.
     /// This is source provenance; the native owner must bind its current row.
     pub(crate) model_result: Option<DisclosureModelResult>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DisclosureModelResult {
+    Parameter {
+        model: SymbolId,
+        parameter: SymbolId,
+        node: NodeKey,
+    },
     Create {
         model: SymbolId,
         node: NodeKey,
@@ -237,7 +242,9 @@ pub(crate) enum DisclosureModelResult {
 impl DisclosureModelResult {
     pub(crate) fn model(self) -> SymbolId {
         match self {
-            Self::Create { model, .. } | Self::Call { model, .. } => model,
+            Self::Parameter { model, .. }
+            | Self::Create { model, .. }
+            | Self::Call { model, .. } => model,
         }
     }
 }
@@ -13162,10 +13169,112 @@ impl<'a> Closure<'a> {
                             Some(key) => self.expr(key, module, &flow.env, calls)?,
                             None => vec![ValuePath::default()],
                         };
-                        for value in values {
+                        for mut value in values {
                             if let Some(model) = self.result_model {
                                 let direct = effect.value.and_then(|key| self.query_binding(key));
+                                if let (
+                                    Some(Binding::Symbol(parameter)),
+                                    Some(ReferenceOrigin::Parameter(origin)),
+                                ) = (direct, value.reference_origin)
+                                    && *parameter == origin
+                                    && value.record == Some(model)
+                                    && calls.is_empty()
+                                    && self.loop_node.is_none()
+                                {
+                                    let operand = self
+                                        .query_group(effect.value.unwrap())
+                                        .ok_or_else(|| {
+                                            self.fail(effect.node, "missing model return operand")
+                                        })?;
+                                    let scenario = self
+                                        .effects
+                                        .scenarios
+                                        .values()
+                                        .find(|scenario| {
+                                            scenario.module == module
+                                                && scenario.node.file == effect.node.file
+                                                && scenario.node.start <= effect.node.start
+                                                && effect.node.end <= scenario.node.end
+                                        })
+                                        .ok_or_else(|| {
+                                            self.fail(effect.node, "missing model return owner")
+                                        })?;
+                                    let param = scenario
+                                        .params
+                                        .iter()
+                                        .find(|param| param.param == origin)
+                                        .ok_or_else(|| {
+                                            self.fail(operand, "missing model return parameter")
+                                        })?;
+                                    let owner = self
+                                        .resolve
+                                        .symbols
+                                        .get(model.0 as usize)
+                                        .ok_or_else(|| {
+                                            self.fail(operand, "missing model return declaration")
+                                        })?;
+                                    let SymbolKind::Model { fields, .. } = &owner.kind else {
+                                        return Err(self.fail(
+                                            operand,
+                                            "model return needs a stored declaration",
+                                        ));
+                                    };
+                                    if scenario.read
+                                        || scenario.on.is_some()
+                                        || owner.module != module
+                                        || param.default.is_some()
+                                        || self
+                                            .nodes
+                                            .get(&operand)
+                                            .is_none_or(|node| node.kind != SyntaxKind::NameRef)
+                                        || self.checked_call_parent_path(operand, origin, 0)
+                                            != Some((model, 0))
+                                        || fields.iter().any(|field| {
+                                            self.resolve
+                                                .symbols
+                                                .get(field.0 as usize)
+                                                .is_none_or(|field| field.name == "id")
+                                        })
+                                    {
+                                        return Err(self.fail(
+                                            operand,
+                                            "model return parameter source correspondence",
+                                        ));
+                                    }
+                                    value.reads.push(DisclosureDependency {
+                                        query_id: None,
+                                        id: self.opaque(
+                                            "read-data",
+                                            operand,
+                                            &self.call_stamp(calls)?,
+                                        )?,
+                                        source: self.source(module, operand)?,
+                                        node: operand,
+                                        calls: calls.to_vec(),
+                                        role: DependencyRole::Data,
+                                        model,
+                                        field: model,
+                                        model_name: owner.canonical.clone(),
+                                        field_name: "id".into(),
+                                        ty: ResolvedType::Scalar(Scalar::Text),
+                                        type_id: "text".into(),
+                                    });
+                                    value.observed.push((operand, calls.to_vec()));
+                                    value.model_result = Some(DisclosureModelResult::Parameter {
+                                        model,
+                                        parameter: origin,
+                                        node: operand,
+                                    });
+                                }
                                 let matches = match (direct, value.model_result) {
+                                    (
+                                        Some(Binding::Symbol(parameter)),
+                                        Some(DisclosureModelResult::Parameter {
+                                            model: actual,
+                                            parameter: original,
+                                            ..
+                                        }),
+                                    ) => *parameter == original && model == actual,
                                     (
                                         Some(Binding::CreateAs { node }),
                                         Some(DisclosureModelResult::Create {

@@ -16,4 +16,7 @@ When
   do
    call ask {note="first",value} as run
    return run
+ scenario retain(run:Run) -> Run by=members
+  do
+   return run
 Then

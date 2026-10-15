@@ -15591,7 +15591,7 @@ row, entry lifetime, original source/ancestor policies, current Identity and fin
 commit/replay authority remain required. Created results retain the original
 surviving insert requirement; an existing result may have no write or an update
 preserving its lifetime. Child recovery uses that child's own return/observation
-scope. No new descriptor, carrier, flag or language primitive is introduced.
+scope. No new public descriptor, carrier or language primitive is introduced.
 This is an implementation prerequisite for canonical first's existing-result
 branch, under the settled reference and authority contract; no unresolved
 language choice requires another JEV consultation.
@@ -15604,3 +15604,30 @@ Reuse the original 701-diagnostic 24-source capture because its compiler/source/
 catalog inputs are unchanged. Compiler reference-result admission, emitted
 observation/binding and general first source correspondence remain locally open;
 no full original CanCRM execution or training readiness is claimed.
+
+2026-10-15 — C02: bind the original required model parameter at its actual return.
+
+Extend existing stored-result provenance with the original required parameter,
+and reuse reserved-ID data observation at its original return operand. The source
+matcher checks the actual parameter/type/model schema and original NameRef;
+there is no fabricated authored member or runtime DTO. Evaluate the returned
+native view once, observe that same view, then use the existing model binder and
+return selector. Preserve Create/Call result provenance and runtime permission,
+failure, lifetime and recovery behavior. This implements the settled model
+reference contract; no new language decision requires JEV. Direct-parameter
+support is a backend prerequisite; lexical aliases and query/reference result
+provenance remain local implementation gaps, not language restrictions.
+
+Seven affected compiler checks pass, including equivalent model/parameter names
+and source/body/parameter/type/schema mutation refusals. The actual CLI/verified
+factory/D1 fixture passes 1/1 in18.19s, retaining prior created/child assertions
+and adding zero business writes/history, genuine ID observation, exact replay,
+current revocation withholding and restoration. CLI build, changed-file rustfmt
+and diff checks pass; repository-wide rustfmt reports untouched-file differences.
+Root TypeScript checking reports16 diagnostics in four untouched test files,
+none in the modified native test; those unrelated failures are not repaired or
+represented as a passing root check. Frozen original24-source validation exits10
+after382.50s with701 diagnostics (675 E6008,26 E6007), complete=true, omitted=0,
+none added/removed and identical source inventory. Original sources/catalog are
+unchanged and no usable native CanCRM artifact exists. The first field/input
+source join and selected-reference/branch provenance remain locally unfinished.
