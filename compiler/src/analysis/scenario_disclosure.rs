@@ -6313,7 +6313,7 @@ impl<'a> Closure<'a> {
         }])
     }
 
-    /// Preserve a leading helper's exact root ANY source census.
+    /// Preserve a helper Require's exact root ANY source census.
     /// This records its lazy candidate reads; it admits no query execution.
     fn checked_helper_any_query_sources(
         &self,
@@ -6324,7 +6324,10 @@ impl<'a> Closure<'a> {
         }
         let mut queries = Vec::new();
         for site in self.checked_decision_sites(scenario)? {
-            if site.stage != CheckedDecisionStage::LeadingRequire {
+            if !matches!(
+                site.stage,
+                CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+            ) {
                 continue;
             }
             for call in site.calls.iter().filter(|call| call.chain.is_empty()) {
@@ -6351,6 +6354,18 @@ impl<'a> Closure<'a> {
                     .and_then(|slot| call.arguments.get(slot))
                     .and_then(|(argument, _)| {
                         self.checked_contract_input_reference(*argument, scenario.module)
+                            .map(|(_, model, _)| model)
+                            .or_else(|| {
+                                (site.stage == CheckedDecisionStage::BodyRequire)
+                                    .then(|| {
+                                        self.checked_required_model_reference(
+                                            *argument,
+                                            scenario.module,
+                                        )
+                                    })
+                                    .flatten()
+                                    .map(|(_, _, model)| model)
+                            })
                     })
                     .is_none()
                 {
@@ -6395,8 +6410,18 @@ impl<'a> Closure<'a> {
         }
         let actor = outer.arguments.get(*actor_slot)?;
         let argument = outer.arguments.get(*location_slot)?;
-        let (parameter, actual_model, _) =
-            self.checked_contract_input_reference(argument.0, scenario.module)?;
+        let (parameter, actual_model) = if let Some((parameter, model, _)) =
+            self.checked_contract_input_reference(argument.0, scenario.module)
+        {
+            (Some(parameter), model)
+        } else {
+            if site.stage != CheckedDecisionStage::BodyRequire {
+                return None;
+            }
+            let (_, _, model) =
+                self.checked_required_model_reference(argument.0, scenario.module)?;
+            (None, model)
+        };
         let location_path = self
             .nodes
             .get(&location.type_node)?
@@ -6645,7 +6670,9 @@ impl<'a> Closure<'a> {
             model_name: model.canonical.clone(),
             alias: Some(alias.node),
             predicate: Some(*predicate),
-            inputs: vec![(argument.0, parameter)],
+            inputs: parameter
+                .map(|parameter| vec![(argument.0, parameter)])
+                .unwrap_or_default(),
             dependencies,
             order: Vec::new(),
             limit: None,
@@ -10466,7 +10493,7 @@ impl<'a> Closure<'a> {
             .clone();
         if calls.is_empty()
             && self.authorization
-            && self.statement_depth == 1
+            && self.statement_depth >= 1
             && self.loop_node.is_none()
             && matches!(&selected.target, SelectedCallTarget::DeriveFn(_))
         {
@@ -10488,19 +10515,32 @@ impl<'a> Closure<'a> {
                     })
             });
             if let Some(query) = query {
-                let [(argument, parameter)] = query.inputs.as_slice() else {
-                    return Err(
-                        self.fail(key, "helper query needs its exact Contract input reference")
-                    );
+                let argument = selected
+                    .slots
+                    .get(1)
+                    .copied()
+                    .flatten()
+                    .and_then(|slot| selected.arguments.get(slot))
+                    .copied()
+                    .ok_or_else(|| self.fail(key, "helper query selected reference argument"))?;
+                let input = self.checked_contract_input_reference(argument, module);
+                let required = self.checked_required_model_reference(argument, module);
+                let model = match (&input, &required, query.inputs.as_slice()) {
+                    (Some((parameter, model, _)), _, [(original, root)])
+                        if *original == argument && root == parameter =>
+                    {
+                        *model
+                    }
+                    (None, Some((_, _, model)), []) => *model,
+                    _ => {
+                        return Err(
+                            self.fail(key, "helper query original reference source mismatch")
+                        );
+                    }
                 };
-                let (_, model, _) = self
-                    .checked_contract_input_reference(*argument, module)
-                    .ok_or_else(|| {
-                        self.fail(*argument, "helper query Contract reference source mismatch")
-                    })?;
                 let argument_node = self
-                    .query_group(*argument)
-                    .ok_or_else(|| self.fail(*argument, "helper query reference group"))?;
+                    .query_group(argument)
+                    .ok_or_else(|| self.fail(argument, "helper query reference group"))?;
                 let mut result = ValuePath::default();
                 // Traverse explicit arguments in their authored order. The
                 // callback's candidate reads and membership stay query-owned.
@@ -10512,26 +10552,58 @@ impl<'a> Closure<'a> {
                             "helper query argument must have one original value",
                         ));
                     };
-                    if *supplied == *argument {
-                        if value.record != Some(model)
-                            || value.reference_origin
+                    if *supplied == argument {
+                        if value.record != Some(model) || !value.intrinsics.is_empty() {
+                            return Err(self.fail(*supplied, "helper query original Model slot"));
+                        }
+                        if let Some((parameter, _, _)) = input.as_ref() {
+                            if value.reference_origin
                                 != Some(ReferenceOrigin::ParameterMember {
                                     parameter: *parameter,
                                     node: argument_node,
                                 })
-                            || !env.contains_key(&Local::Symbol(*parameter))
-                            || !value.reads.is_empty()
-                            || !value.intrinsics.is_empty()
-                            || !value.influences.is_empty()
-                        {
-                            return Err(self.fail(
-                                *supplied,
-                                "helper query needs its original admitted Model slot",
-                            ));
+                                || !env.contains_key(&Local::Symbol(*parameter))
+                                || !value.reads.is_empty()
+                                || !value.influences.is_empty()
+                            {
+                                return Err(self
+                                    .fail(*supplied, "helper query original admitted Model slot"));
+                            }
+                        } else {
+                            let (source_model, field, target) =
+                                required.expect("checked required reference");
+                            if value.reference_origin.is_some()
+                                || value.model_result
+                                    != Some(DisclosureModelResult::Reference {
+                                        model: target,
+                                        node: argument_node,
+                                        source_model,
+                                        field,
+                                    })
+                                || value.reads.last().is_none_or(|read| {
+                                    read.node != argument_node
+                                        || read.model != source_model
+                                        || read.field != field
+                                        || read.ty
+                                            != ResolvedType::Record {
+                                                symbol: target,
+                                                stored: true,
+                                            }
+                                })
+                                || value.reads.iter().any(|read| {
+                                    !read.calls.is_empty()
+                                        || read.query_id.is_some()
+                                        || read.role != DependencyRole::Data
+                                })
+                            {
+                                return Err(self
+                                    .fail(*supplied, "helper query original required Model edge"));
+                            }
                         }
                         value.record = None;
                         value.reference_origin = None;
                         value.reference = None;
+                        value.model_result = None;
                     } else if value.record.is_some()
                         || value.reference_origin.is_some()
                         || !value.reads.is_empty()
@@ -10542,7 +10614,7 @@ impl<'a> Closure<'a> {
                     }
                     result.join(value);
                 }
-                result.influences = query.influences;
+                result.influences.extend(query.influences);
                 return Ok(vec![result]);
             }
         }
@@ -16415,7 +16487,7 @@ package crm
    do
     let existing=first(Intake as prior where prior.source==source)
     if existing!=null
-     require can_work(actor,existing.deal.location)
+     require existing.input==input and can_work(actor,existing.deal.location)
      return existing.deal
     create Deal {location=input.location} as deal
     create Intake {source,input,deal} as intake
@@ -16436,7 +16508,7 @@ package crm
                         "use employee {can_work}",
                         "use employee {can_work as allowed}",
                     )
-                    .replace("require can_work(", "require allowed(");
+                    .replace("can_work(", "allowed(");
             }
             if variant == 2 {
                 let local = original_employee
@@ -16579,9 +16651,11 @@ package crm
             let helper_queries = cx
                 .checked_helper_any_query_sources(scenario)
                 .expect("exact leading helper query census");
-            let [helper_query] = helper_queries.as_slice() else {
-                panic!("one leading helper query, body stage deferred")
+            let [helper_query, body_query] = helper_queries.as_slice() else {
+                panic!("distinct leading and body helper query calls")
             };
+            assert_ne!(helper_query.id, body_query.id);
+            assert!(body_query.inputs.is_empty());
             assert_eq!(helper_query.model, employee_model);
             assert_eq!(helper_query.source.module, helper_module);
             assert_eq!(
@@ -16700,6 +16774,63 @@ package crm
                         Some(location)
                     );
                 } else {
+                    let binding = scenario
+                        .effects
+                        .iter()
+                        .find(|binding| binding.verb == EffectVerb::Let)
+                        .unwrap();
+                    let first_query = cx.checked_first_query_source(scenario, binding).unwrap();
+                    let first = first_query.first.as_ref().unwrap();
+                    let mut env = Env::new();
+                    env.insert(
+                        Local::Let(first.binding),
+                        ValuePath {
+                            record: Some(first_query.model),
+                            first_query: Some((first.call, first.binding)),
+                            influences: first_query.influences.clone(),
+                            ..ValuePath::default()
+                        },
+                    );
+                    cx.statement_depth = 2;
+                    let closure = cx.authorization_expr(outer.node, scenario.module, &env, &[])
+                        .expect("exact body helper consumes the original first-query required reference");
+                    let [value] = closure.as_slice() else {
+                        panic!("one body verdict source");
+                    };
+                    assert_eq!(
+                        value
+                            .reads
+                            .iter()
+                            .map(|read| read.field_name.as_str())
+                            .collect::<Vec<_>>(),
+                        ["deal", "location"]
+                    );
+                    assert!(
+                        value
+                            .reads
+                            .iter()
+                            .all(|read| read.role == DependencyRole::Data
+                                && read.calls.is_empty()
+                                && read.query_id.is_none())
+                    );
+                    assert!(
+                        value.record.is_none()
+                            && value.model_result.is_none()
+                            && value.reference_origin.is_none()
+                    );
+                    assert!(
+                        first_query
+                            .influences
+                            .iter()
+                            .chain(&body_query.influences)
+                            .all(|influence| value.influences.contains(influence))
+                    );
+                    assert!(
+                        body_query
+                            .dependencies
+                            .iter()
+                            .all(|read| read.calls == [outer.node])
+                    );
                     assert_eq!(
                         cx.checked_required_model_reference(argument, scenario.module)
                             .map(|(_, _, model)| model),

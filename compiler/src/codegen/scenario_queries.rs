@@ -372,6 +372,53 @@ fn serialize_query_any_prepared(
     };
     same_scenario_semantics(program, ir, &fresh, owner)?;
     same_scenario_semantics(program, ir, &fresh, ir.items.get(owner.id.0 as usize)?)?;
+    if let Some(plan) =
+        super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)
+    {
+        if let Some(prepared) = prepared {
+            prepared.decisions(owner)?;
+        } else {
+            super::scenario_decisions::serialize_decision_sources(program, ir, owner, db, catalog)?;
+        }
+        use crate::analysis::scenario_disclosure::{
+            CheckedDecisionCallTarget, CheckedDecisionStage,
+        };
+        let [query] = source.queries.as_deref()? else {
+            return None;
+        };
+        let outer = *query.dependencies.first()?.calls.first()?;
+        let sites: Vec<_> = source
+            .decision_sites
+            .as_deref()?
+            .iter()
+            .filter(|site| {
+                !matches!(
+                    site.stage,
+                    CheckedDecisionStage::ReadPolicy
+                        | CheckedDecisionStage::ReadPredicate
+                        | CheckedDecisionStage::SendDispatch
+                )
+            })
+            .collect();
+        let mut selected = sites.iter().enumerate().flat_map(|(site_index,site)|
+            site.calls.iter().enumerate().filter_map(move |(call_index,call)|
+                (site.owner == owner.id && site.stage == CheckedDecisionStage::LeadingRequire
+                    && site.node == outer && call.chain.len() == 1 && call.chain[0].node == outer
+                    && matches!(&call.target,CheckedDecisionCallTarget::Builtin{id,overload} if id=="any" && *overload==0)
+                    && call.arguments.first().is_some_and(|value| value.0==query.node)
+                    && call.arguments.get(1).is_some_and(|value| Some(value.0)==query.predicate))
+                    .then_some((site_index,call_index))));
+        let (site_index, call_index) = selected.next()?;
+        if selected.next().is_some() {
+            return None;
+        }
+        if plan.queries.len() != 1 {
+            return None;
+        }
+        return Some(serde_json::json!([{"kind":"predicate","queryId":query.id,
+            "dependencyIds":query.dependencies.iter().map(|read|&read.id).collect::<Vec<_>>(),
+            "sourceCall":{"siteIndex":site_index,"callIndex":call_index}}]));
+    }
     let IrItemKind::Scenario {
         guards,
         read: false,
@@ -602,12 +649,22 @@ fn collect_complete_query_receipt_prepared(
     let original = program.scenario_disclosures().get(&owner.id)?;
     let queries = original.source_facts()?.queries.as_ref()?;
     let query = queries.first()?;
-    if queries
-        .iter()
-        .any(|query| query.first.is_some() || query.count.is_some())
+    let helper_plan = super::scenario_receipts::checked_native_helper_any_query_plan(
+        ir,
+        owner,
+        prepared.db,
+        &plan.source.module,
+    );
+    if helper_plan.is_some()
+        || queries
+            .iter()
+            .any(|query| query.first.is_some() || query.count.is_some())
     {
-        let expected_influences =
-            super::scenario_receipts::checked_native_query_influences(queries)?;
+        let expected_influences = if helper_plan.is_some() {
+            query.influences.clone()
+        } else {
+            super::scenario_receipts::checked_native_query_influences(queries)?
+        };
         if prepared.has_diagnostics {
             return None;
         }
@@ -627,7 +684,7 @@ fn collect_complete_query_receipt_prepared(
             };
             if checked.scenario != owner.id
                 || checked.node != original.source_facts()?.node
-                || checked.source != query.source
+                || checked.source != original.source_facts()?.source
                 || !super::scenario_feasibility::same_disclosure(original_checked, checked)
                 || checked.returns.is_empty()
                 || selected_returns.len() != plan.returns.len()
@@ -637,7 +694,7 @@ fn collect_complete_query_receipt_prepared(
             for (returned, emitted) in selected_returns.iter().zip(&plan.returns) {
                 if super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
                     || returned.id != emitted.id
-                    || returned.source != query.source
+                    || returned.source != original.source_facts()?.source
                     || returned.model_result.is_none()
                     || returned.influences != expected_influences
                     || emitted.projection.is_some()
@@ -796,6 +853,12 @@ fn checked_query_plan_full(
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
+    if let Some(plan) =
+        super::scenario_receipts::checked_native_helper_any_query_plan(ir, owner, db, entry_module)
+    {
+        prepared.decisions(owner)?;
+        return Some(plan);
+    }
     if queries
         .iter()
         .any(|query| query.first.is_some() || query.count.is_some())
@@ -2503,6 +2566,193 @@ mod inline_selection_tests {
                     .any(|read| read.id == fact.bound_dependency.id
                         && read.query_id.as_deref() == Some(fact.query.id.as_str()))
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod helper_any_plan_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::{check_program, scenario_disclosure::CheckedDecisionCallTarget};
+    use std::path::Path;
+
+    #[test]
+    fn leading_helper_any_native_plan_metadata_preserve_original_source_and_refuse_mutants() {
+        let places = "package Places\n Given\n  export Location {name:text}\n When\n Then\n";
+        let declarations = "  export Worker {account:user,enabled:bool,all_sites:bool,home:Site,sites:Site[]}\n  export derive allowed(person:user,location:Site):bool = any(Worker as worker,worker.account==person and worker.enabled and active_member(person,team) and (worker.all_sites or worker.home==location or location in worker.sites))\n";
+        for variant in 0..3 {
+            let source = if variant == 1 {
+                format!(
+                    "{places}app QueryConsumer\n use Places {{Location as Site}}\n Given\n{declarations}  contract Input {{location:Site}}\n  Run {{location:Site}}\n When\n  scenario pick(input:Input) -> Run by=members\n   require allowed(actor,input.location)\n   do\n    create Run {{location=input.location}} as run\n    return run\n Then\n"
+                )
+            } else {
+                format!(
+                    "{places}package People\n use Places {{Location as Site}}\n Given\n{declarations} When\n Then\napp QueryConsumer\n use People {{allowed}}\n use Places {{Location}}\n Given\n  contract Input {{location:Location}}\n  Run {{location:Location}}\n When\n  scenario pick(input:Input) -> Run by=members\n   require allowed(actor,input.location)\n   do\n    create Run {{location=input.location}} as run\n    return run\n Then\n"
+                )
+            };
+            // A bare app header is followed by top-level use/Given/When
+            // declarations; package suites above retain their own indentation.
+            let (packages, app) = source.split_once("app QueryConsumer\n").unwrap();
+            let source = format!(
+                "{packages}app QueryConsumer\n{}",
+                app.lines()
+                    .map(|line| line.strip_prefix(' ').unwrap_or(line))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+            let source = if variant == 2 {
+                source.replace(
+                    "allowed(actor,input.location)",
+                    "allowed(location=input.location,person=actor)",
+                )
+            } else {
+                source
+            };
+            let mut db = SourceDb::new();
+            let file = db.add("helper-plan.can".into(), source);
+            let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+            let catalog_path = root
+                .parent()
+                .unwrap()
+                .join("packages/cloudflare/dist/native-catalog.json");
+            let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+                flag: Some(&catalog_path),
+                env: None,
+                cwd: root,
+                primary: Span::new(file, 0, 0),
+            });
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let catalog = catalog.unwrap();
+            let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "QueryConsumer.pick")
+                .unwrap();
+            let module = super::super::js::module_path("QueryConsumer");
+            let facts = ir.scenario_disclosures[&owner.id].source_facts().unwrap();
+            let query = &facts.queries.as_ref().unwrap()[0];
+            let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+                panic!("scenario")
+            };
+            let IrStmt::Require { cond, .. } = &guards[0] else {
+                panic!("guard")
+            };
+            assert!(
+                super::super::scenario_receipts::checked_helper_any_query_ir(&ir, owner, cond, &db)
+                    .is_some(),
+                "actual helper source proof"
+            );
+            assert!(
+                super::super::scenario_receipts::checked_native_helper_any_query_plan(
+                    &ir, owner, &db, &module
+                )
+                .is_some(),
+                "helper native plan"
+            );
+            let plan = checked_query_plan(&program, &ir, owner, &db, Some(&catalog), &module)
+                .expect("exact helper plan");
+            assert_eq!(plan.queries.len(), 1);
+            assert!(plan.queries[0].parent.is_none());
+            assert_eq!(plan.queries[0].source.path, query.source.path);
+            assert_eq!(plan.queries[0].source.sha256, query.source.sha256);
+            assert_eq!(plan.queries[0].source.module, module);
+            assert_eq!(plan.queries[0].dependencies.len(), query.dependencies.len());
+            assert!(
+                plan.returns
+                    .iter()
+                    .all(|returned| returned.influences.len() == 4
+                        && returned.source.path == facts.source.path)
+            );
+            let metadata = serialize_query_any(&program, &ir, owner, &db, Some(&catalog), &module)
+                .expect("exact helper metadata");
+            assert_eq!(metadata[0]["kind"], "predicate");
+            assert_eq!(metadata[0]["queryId"], query.id);
+            assert_eq!(
+                metadata[0]["dependencyIds"],
+                serde_json::json!(
+                    query
+                        .dependencies
+                        .iter()
+                        .map(|read| &read.id)
+                        .collect::<Vec<_>>()
+                )
+            );
+            let site = &facts.decision_sites.as_ref().unwrap()
+                [metadata[0]["sourceCall"]["siteIndex"].as_u64().unwrap() as usize];
+            let call =
+                &site.calls[metadata[0]["sourceCall"]["callIndex"].as_u64().unwrap() as usize];
+            assert!(matches!(&call.target,CheckedDecisionCallTarget::Builtin{id,..} if id=="any"));
+            assert_eq!(call.arguments[0].0, query.node);
+            assert_eq!(call.chain[0].node, query.dependencies[0].calls[0]);
+            assert!(
+                collect_complete_query_receipt(&program, &ir, owner, &db, Some(&catalog), &module)
+                    .is_some()
+            );
+            let models = super::super::js::Emitter::source_models(&ir, &db).unwrap();
+            let mut emitter = super::super::js::Emitter::new(&ir);
+            let values = if ir.committed_sources.has_standard_value_inventory_fact() {
+                Some(
+                    emitter
+                        .collect_standard_value_inventory(&db)
+                        .expect("owning standard inventory"),
+                )
+            } else {
+                None
+            };
+            let receipt = super::super::scenario_receipts::collect_native_scenario_receipt_with_feasibility(
+                &ir,owner,&models,&module,values.as_ref(),super::super::scenario_receipts::NativeReceiptSources {
+                    db:Some(&db),send_guards:None,query_plan:Some(&plan),
+                },None).expect("created-model effect collector joins helper query without parent candidate reads");
+            assert_eq!(receipt.plan.queries.len(), 1);
+            assert!(receipt.dependencies.values().flatten().all(|read| {
+                !query
+                    .dependencies
+                    .iter()
+                    .any(|dependency| dependency.id == read.id)
+            }));
+            for mutation in 0..3 {
+                let mut changed = ir.clone();
+                let facts = match changed.scenario_disclosures.get_mut(&owner.id).unwrap() {
+                    ScenarioDisclosure::Complete(value) => value.source_facts.as_mut().unwrap(),
+                    _ => panic!("complete original"),
+                };
+                let query = &mut facts.queries.as_mut().unwrap()[0];
+                match mutation {
+                    0 => query.source.path.push_str(".foreign"),
+                    1 => query.dependencies[0].calls.clear(),
+                    _ => query.dependencies.pop().map(|_| ()).unwrap(),
+                }
+                let changed_owner = &changed.items[owner.id.0 as usize];
+                assert!(
+                    checked_query_plan(
+                        &program,
+                        &changed,
+                        changed_owner,
+                        &db,
+                        Some(&catalog),
+                        &module
+                    )
+                    .is_none(),
+                    "mutant {mutation}"
+                );
+                assert!(
+                    serialize_query_any(
+                        &program,
+                        &changed,
+                        changed_owner,
+                        &db,
+                        Some(&catalog),
+                        &module
+                    )
+                    .is_none(),
+                    "mutant {mutation}"
+                );
+            }
         }
     }
 }

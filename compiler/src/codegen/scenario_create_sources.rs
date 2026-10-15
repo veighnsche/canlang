@@ -2211,7 +2211,222 @@ impl SourceExpressions<'_> {
             .unwrap_or(true)
     }
 
-    /// Consume only the exact leading helper query already described by the
+    /// Keep the original boolean path to a helper call and authenticate every
+    /// preceding/sibling expression without evaluating the query a second time.
+    fn query_require_call(
+        &self,
+        actual: &TypedExpr,
+        node: &SyntaxNode,
+        call: NodeKey,
+        depth: usize,
+    ) -> Option<()> {
+        if depth > 64 {
+            return None;
+        }
+        let mut node = node;
+        while node.kind == SyntaxKind::Group {
+            node = expressions(node).first()?;
+        }
+        if actual.span != node.span {
+            return None;
+        }
+        if NodeKey::of(node) == call {
+            return Some(());
+        }
+        let IrExpr::Binary { op, left, right } = &actual.expr else {
+            return None;
+        };
+        if node.kind != SyntaxKind::Binary || !matches!(op, IrBinOp::And | IrBinOp::Or) {
+            return None;
+        }
+        let operator = node
+            .children
+            .iter()
+            .find(|part| part.kind == SyntaxKind::Name)?;
+        if operator.token()?.text(self.text) != if *op == IrBinOp::And { "and" } else { "or" } {
+            return None;
+        }
+        let children = expressions(node);
+        let [source_left, source_right] = children.as_slice() else {
+            return None;
+        };
+        let contains = |node: &SyntaxNode| {
+            node.span.file == call.file
+                && node.span.start <= call.start
+                && call.end <= node.span.end
+        };
+        if contains(source_left) {
+            self.query_require_call(left, source_left, call, depth + 1)?;
+            self.expression(right, NodeKey::of(source_right), depth + 1)
+        } else if contains(source_right) {
+            self.expression(left, NodeKey::of(source_left), depth + 1)?;
+            self.query_require_call(right, source_right, call, depth + 1)
+        } else {
+            None
+        }
+    }
+
+    /// A body helper may consume the original first-query row only under its
+    /// actual successful non-null branch, through required declared Model edges.
+    fn query_required_argument(
+        &self,
+        owner: &IrItem,
+        argument: &TypedExpr,
+        statement: NodeKey,
+        depth: usize,
+    ) -> Option<()> {
+        let facts = self.transcript_source()?;
+        let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+            return None;
+        };
+        let mut root = argument;
+        let mut edges = 0;
+        while let IrExpr::Member { base, field } = &root.expr {
+            edges += 1;
+            if edges > 16 {
+                return None;
+            }
+            let ResolvedType::Record {
+                symbol,
+                stored: true,
+            } = base.ty
+            else {
+                return None;
+            };
+            let schema = facts
+                .stored_contracts
+                .as_deref()?
+                .iter()
+                .find(|schema| schema.model && schema.id == symbol)?;
+            super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
+            let field = schema
+                .fields
+                .iter()
+                .find(|declared| declared.name == *field)?;
+            super::scenario_receipts::match_stored_contract_field(self.ir, field, self.db)?;
+            if field.required_array
+                || field.ty != root.ty
+                || !matches!(field.ty, ResolvedType::Record { stored: true, .. })
+            {
+                return None;
+            }
+            root = base;
+        }
+        let IrExpr::Name(name) = &root.expr else {
+            return None;
+        };
+        if edges == 0 {
+            return None;
+        }
+        let mut bindings = effects
+            .iter()
+            .enumerate()
+            .filter_map(|(index, value)| match value {
+                IrStmt::Let {
+                    name: actual,
+                    value,
+                    span,
+                } if actual == name => Some((index, value, span)),
+                _ => None,
+            });
+        let (binding_index, initializer, binding_span) = bindings.next()?;
+        if bindings.next().is_some() {
+            return None;
+        }
+        let call = NodeKey::of(
+            self.nodes
+                .values()
+                .find(|node| node.kind == SyntaxKind::Call && node.span == initializer.span)?,
+        );
+        let first = super::scenario_receipts::checked_first_query_ir(
+            self.ir,
+            self.original,
+            initializer,
+            call,
+            self.db,
+        )?;
+        if first.first.as_ref()?.binding
+            != NodeKey::of(
+                self.nodes
+                    .values()
+                    .find(|node| node.kind == SyntaxKind::Let && node.span == *binding_span)?,
+            )
+            || root.ty
+                != (ResolvedType::Record {
+                    symbol: first.model,
+                    stored: true,
+                })
+        {
+            return None;
+        }
+        let mut branches = effects.iter().enumerate().filter_map(|(index, value)| {
+            let IrStmt::If {
+                cond,
+                then_branch,
+                span: branch_at,
+                ..
+            } = value
+            else {
+                return None;
+            };
+            let mut pending = then_branch.iter().collect::<Vec<_>>();
+            while let Some(value) = pending.pop() {
+                match value {
+                    IrStmt::Require { span: at, .. } if *at == span(statement) => {
+                        return Some((index, cond, branch_at));
+                    }
+                    IrStmt::If {
+                        then_branch,
+                        else_branch,
+                        ..
+                    } => {
+                        pending.extend(then_branch);
+                        pending.extend(else_branch);
+                    }
+                    IrStmt::Let { name: actual, .. } if actual == name => return None,
+                    _ => {}
+                }
+            }
+            None
+        });
+        let (branch_index, cond, branch_span) = branches.next()?;
+        if branches.next().is_some()
+            || binding_index >= branch_index
+            || binding_span.end > branch_span.start
+        {
+            return None;
+        }
+        let IrExpr::Binary {
+            op: IrBinOp::Ne,
+            left,
+            right,
+        } = &cond.expr
+        else {
+            return None;
+        };
+        let (value, null) = if matches!(left.expr, IrExpr::Null) {
+            (right, left)
+        } else {
+            (left, right)
+        };
+        if !matches!(&value.expr, IrExpr::Name(actual) if actual == name)
+            || !matches!(null.expr, IrExpr::Null)
+            || value.ty != ResolvedType::Nullable(Box::new(root.ty.clone()))
+        {
+            return None;
+        }
+        let branch = self
+            .nodes
+            .values()
+            .find(|node| node.kind == SyntaxKind::If && node.span == *branch_span)?;
+        if branch.kind != SyntaxKind::If {
+            return None;
+        }
+        let source_cond = expressions(branch).into_iter().next()?;
+        self.expression(cond, NodeKey::of(source_cond), depth + 1)
+    }
+
+    /// Consume only the exact helper Require query already described by the
     /// checked source census. Its predicate remains a query-owned callback.
     fn query_authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
         use crate::analysis::scenario_disclosure::{
@@ -2231,12 +2446,18 @@ impl SourceExpressions<'_> {
         };
         let facts = self.transcript_source()?;
         let owner = self.ir.items.get(facts.scenario.0 as usize)?;
-        let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+        let IrItemKind::Scenario {
+            guards, effects, ..
+        } = &owner.kind
+        else {
             return None;
         };
         let mut sites = facts.decision_sites.as_deref()?.iter().filter(|site| {
             site.owner == owner.id
-                && site.stage == CheckedDecisionStage::LeadingRequire
+                && matches!(
+                    site.stage,
+                    CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+                )
                 && site.source == facts.source
                 && site
                     .calls
@@ -2278,15 +2499,64 @@ impl SourceExpressions<'_> {
         let [Some(person_slot), Some(location_slot)] = slots.as_slice() else {
             return None;
         };
-        if person_slot == location_slot || args.len() != 2 || outer.arguments.len() != 2 || sites.next().is_some() || calls.next().is_some()
-            || outer.module != owner.module || outer.source != facts.source || outer.slots != slots || !outer.defaults.is_empty()
-            || target != &item.canonical || actual.ty != ResolvedType::Scalar(Scalar::Bool) || result != &actual.ty || body.ty != actual.ty
-            || !matches!(&self.ir.items.get(person.0 as usize)?.kind, IrItemKind::Param { ty: IrType::Known(ResolvedType::Scalar(Scalar::User)), default: None, .. })
-            || args.get(*person_slot)?.ty != ResolvedType::Scalar(Scalar::User) || &args.get(*location_slot)?.ty != location_type
+        if person_slot == location_slot
+            || args.len() != 2
+            || outer.arguments.len() != 2
+            || sites.next().is_some()
+            || calls.next().is_some()
+            || outer.module != owner.module
+            || outer.source != facts.source
+            || outer.slots != slots
+            || !outer.defaults.is_empty()
+            || target != &item.canonical
+            || actual.ty != ResolvedType::Scalar(Scalar::Bool)
+            || result != &actual.ty
+            || body.ty != actual.ty
+            || !matches!(
+                &self.ir.items.get(person.0 as usize)?.kind,
+                IrItemKind::Param {
+                    ty: IrType::Known(ResolvedType::Scalar(Scalar::User)),
+                    default: None,
+                    ..
+                }
+            )
+            || args.get(*person_slot)?.ty != ResolvedType::Scalar(Scalar::User)
+            || &args.get(*location_slot)?.ty != location_type
             || !matches!(&args[*person_slot].expr, IrExpr::Member { base, field } if field == "actor" && matches!(&base.expr, IrExpr::Name(name) if name == "c"))
-            || !guards.iter().any(|guard| matches!(guard, IrStmt::Require { span: at, .. } if *at == span(site.statement)))
             || self.authenticated_derive(target, 0, &mut HashSet::new()) != Some(true)
-        { return None; }
+        {
+            return None;
+        }
+        let mut statements = if site.stage == CheckedDecisionStage::LeadingRequire {
+            guards.iter().collect::<Vec<_>>()
+        } else {
+            effects.iter().collect::<Vec<_>>()
+        };
+        let mut require = None;
+        while let Some(statement) = statements.pop() {
+            match statement {
+                IrStmt::Require { cond, span: at } if *at == span(site.statement) => {
+                    if require.replace(cond).is_some() {
+                        return None;
+                    }
+                }
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    statements.extend(then_branch);
+                    statements.extend(else_branch);
+                }
+                _ => {}
+            }
+        }
+        let require_node = self.nodes.get(&site.statement)?;
+        if require_node.kind != SyntaxKind::Require {
+            return None;
+        }
+        let source_cond = expressions(require_node).into_iter().next()?;
+        self.query_require_call(require?, source_cond, key, depth + 1)?;
         let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
             query
                 .dependencies
@@ -2294,19 +2564,31 @@ impl SourceExpressions<'_> {
                 .is_some_and(|read| read.calls.as_slice() == [key])
         });
         let query = queries.next()?;
-        let [(argument, parameter)] = query.inputs.as_slice() else {
-            return None;
-        };
-        let (actual_parameter, _) =
-            super::scenario_receipts::checked_contract_parameter_source_path(
-                self.ir,
-                owner,
-                &args[*location_slot],
-                Some(self.db),
-            )?;
+        match query.inputs.as_slice() {
+            [(argument, parameter)] => {
+                let (actual_parameter, _) =
+                    super::scenario_receipts::checked_contract_parameter_source_path(
+                        self.ir,
+                        owner,
+                        &args[*location_slot],
+                        Some(self.db),
+                    )?;
+                if actual_parameter != *parameter || *argument != outer.arguments[*location_slot].0
+                {
+                    return None;
+                }
+            }
+            [] if site.stage == CheckedDecisionStage::BodyRequire => {
+                self.query_required_argument(
+                    owner,
+                    &args[*location_slot],
+                    site.statement,
+                    depth + 1,
+                )?;
+            }
+            _ => return None,
+        }
         if queries.next().is_some()
-            || actual_parameter != *parameter
-            || *argument != outer.arguments[*location_slot].0
             || query.first.is_some()
             || query.count.is_some()
             || query.projection.is_some()
@@ -4511,9 +4793,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn leading_query_authorization_matches_original_call_and_control_census() {
-        let source = r#"package Places
+    const QUERY_HELPER_SOURCE: &str = r#"package Places
  Given
   export Location {name:text}
  When
@@ -4539,6 +4819,10 @@ When
    return run
 Then
 "#;
+
+    #[test]
+    fn leading_query_authorization_matches_original_call_and_control_census() {
+        let source = QUERY_HELPER_SOURCE;
         for named in [false, true] {
             let source = if named {
                 source.replace(
@@ -4709,6 +4993,152 @@ Then
                     checked_create_expression(&changed, &original, &cond, node_at(&db, at), &db)
                         .is_none(),
                     "source/body/field/ordered census mutation {mutation} must not take ordinary fallback"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn body_query_authorization_keeps_first_row_branch_and_required_edges() {
+        fn body_call(ir: &IrProgram) -> TypedExpr {
+            let owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "QueryConsumer.pick")
+                .unwrap();
+            let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+                panic!("scenario");
+            };
+            let IrStmt::If { then_branch, .. } = effects
+                .iter()
+                .find(|value| matches!(value, IrStmt::If { .. }))
+                .unwrap()
+            else {
+                unreachable!()
+            };
+            let IrStmt::Require { cond, .. } = &then_branch[0] else {
+                panic!("require");
+            };
+            let IrExpr::Binary {
+                op: IrBinOp::And,
+                right,
+                ..
+            } = &cond.expr
+            else {
+                panic!("ordered compound guard");
+            };
+            right.as_ref().clone()
+        }
+        let source = QUERY_HELPER_SOURCE
+            .replace(" Run {location:Location}", " Run {location:Location}\n Intake {source:text unique,input:Input,deal:Run}")
+            .replace("scenario pick(input:Input)", "scenario pick(source:text,input:Input)")
+            .replace("  do\n   create Run", "  do\n   let existing=first(Intake as prior where prior.source==source)\n   if existing!=null\n    require existing.input==input and allowed(actor,existing.deal.location)\n    return existing.deal\n   create Run")
+            .replace("   return run", "   create Intake {source,input,deal=run} as intake\n   return run");
+        for named in [false, true] {
+            let source = if named {
+                source
+                    .replace(
+                        "allowed(actor,input.location)",
+                        "allowed(location=input.location,person=actor)",
+                    )
+                    .replace(
+                        "allowed(actor,existing.deal.location)",
+                        "allowed(location=existing.deal.location,person=actor)",
+                    )
+            } else {
+                source.clone()
+            };
+            let (db, ir) = fixture_for(&source, "body-query.can");
+            let (_, _, original) = guard_and_fact(&ir, "QueryConsumer.pick");
+            let actual = body_call(&ir);
+            let at = node_at(&db, actual.span);
+            assert!(
+                checked_create_expression(&ir, &original, &actual, at, &db).is_some(),
+                "first-row body helper source, including earlier compound guard and original Model edges"
+            );
+            for mutation in 0..6 {
+                let mut changed = ir.clone();
+                let owner = changed
+                    .items
+                    .iter_mut()
+                    .find(|item| item.canonical == "QueryConsumer.pick")
+                    .unwrap();
+                let IrItemKind::Scenario { effects, .. } = &mut owner.kind else {
+                    unreachable!()
+                };
+                match mutation {
+                    0 => {
+                        let IrStmt::Let { value, .. } = &mut effects[0] else {
+                            panic!("first let");
+                        };
+                        value.expr = IrExpr::Bool(true);
+                    }
+                    1 => {
+                        let IrStmt::If { cond, .. } = &mut effects[1] else {
+                            panic!("if");
+                        };
+                        let IrExpr::Binary { op, .. } = &mut cond.expr else {
+                            panic!("nonnull");
+                        };
+                        *op = IrBinOp::Eq;
+                    }
+                    2 => {
+                        let IrStmt::If { then_branch, .. } = &mut effects[1] else {
+                            panic!("if");
+                        };
+                        let IrStmt::Require { cond, .. } = &mut then_branch[0] else {
+                            panic!("require");
+                        };
+                        let IrExpr::Binary { left, .. } = &mut cond.expr else {
+                            panic!("and");
+                        };
+                        left.expr = IrExpr::Bool(true);
+                    }
+                    3 => effects.swap(0, 1),
+                    4 => {
+                        let field = changed
+                            .items
+                            .iter_mut()
+                            .find(|item| item.canonical == "QueryConsumer.Intake.deal")
+                            .unwrap();
+                        let IrItemKind::Field {
+                            ty: IrType::Known(ty),
+                            ..
+                        } = &mut field.kind
+                        else {
+                            panic!("reference field");
+                        };
+                        *ty = ResolvedType::Nullable(Box::new(ty.clone()));
+                    }
+                    _ => {
+                        let IrStmt::If { then_branch, .. } = &mut effects[1] else {
+                            panic!("if");
+                        };
+                        let IrStmt::Require { cond, .. } = &mut then_branch[0] else {
+                            panic!("require");
+                        };
+                        let IrExpr::Binary { right, .. } = &mut cond.expr else {
+                            panic!("and");
+                        };
+                        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) =
+                            &mut right.expr
+                        else {
+                            panic!("helper");
+                        };
+                        let reference = args.iter_mut().find(|arg| matches!(arg.expr, IrExpr::Member {ref field, ..} if field == "location")).unwrap();
+                        let IrExpr::Member { base, .. } = &mut reference.expr else {
+                            unreachable!()
+                        };
+                        let IrExpr::Member { base, .. } = &mut base.expr else {
+                            panic!("deal");
+                        };
+                        base.ty = ResolvedType::Nullable(Box::new(base.ty.clone()));
+                    }
+                }
+                let actual = body_call(&changed);
+                assert!(
+                    checked_create_expression(&changed, &original, &actual, at, &db).is_none(),
+                    "body source tamper {mutation} must refuse without ordinary fallback"
                 );
             }
         }
