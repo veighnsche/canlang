@@ -15166,3 +15166,50 @@ occurrences and two diagnostics at the one example operation-context expression)
 Other root-cause groups and catalog holds remain unchanged. This closes the
 finite actor-predicate batch; full CanCRM/native/browser acceptance and
 unrestricted training-data authoring remain gated. No push or training occurred.
+
+2026-10-15 — C02/C10: correlate table observations with the completed mutation.
+
+Accept read-only `operation.id` and `operation.source` facts in successful
+mutation table observations. CanBook's original assertion counts Appointments
+whose source is the actual invocation id; its scenario deliberately returns no
+business value. Replacing that observation with an unqualified row count would
+lose source correlation, while adding a business result would change the public
+scenario contract. Retain the original source, assertion, guards and workflow.
+
+The resolver previously excluded operation from all example scopes, poisoning
+the observed member type; the native runner also discarded the genuine request
+id. Publish the checked context only in the table observation scope. The
+canonical runner retains the actual submitted mutation id and its existing
+`example` source in a frozen private per-row snapshot after success. Its
+existing bindings proxy exposes that snapshot only during read-only observation.
+Setup and expected evaluation cannot see a future invocation; reads and custom
+hook contexts cannot invent one. Sequence expressions do not gain this table
+context. Clear any prior snapshot before invocation; rejected rows keep their
+existing exact-error and no-side-effect path. No new production API, carrier,
+permission, observer authority or evaluation-order rewrite is introduced.
+Existing declared lexical bindings retain ownership.
+
+JEV: all three independently worded equivalent Choice requests prefer retaining
+the completed context (probability/confidence 1.0), over rewriting the example.
+Requests, responses and uncertainty are retained in
+`implementation/compiler-completion/example-operation-context/`. This is advice
+on the bounded language choice; it does not prove implementation correctness.
+
+Both focused checks pass. Original emitted callbacks execute through the
+installed Testkit/native D1/Identity runner: two isolated successful rows match
+the stored id/source, and exact rule_failed/forbidden rows verify absent side
+effects. A variant reading operation during expected-value setup fails setup
+explicitly instead of borrowing another row's request. Header setup retains its
+unresolved-name refusal. Existing example checks pass 29/29; native package emit,
+CLI build, formatting and diff checks pass. This validates the correlation and
+permission/failure boundary, not the complete CanBook resource workflow.
+
+The existing native example-runner check passes 1/1. Final original 24-source
+CanCRM validation: exit 10, 894 errors (868 E6008, 26 E6007), complete=true,
+omitted=0, no usable artifact. Complete diagnostic comparison to the retained
+actor-predicate capture removes exactly CanBook's poisoned-type and equality
+refusals, with no added diagnostics. The remaining value/type/arithmetic group
+contains 22 structural standard-result schema occurrences; other groups and
+catalog holds are unchanged. The finite CanBook operation-context batch is
+closed. Complete CanCRM native/browser acceptance and unrestricted
+training-data authoring remain gated. No push or training was performed.
