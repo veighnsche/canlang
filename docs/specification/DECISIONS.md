@@ -16553,3 +16553,23 @@ values, exact int64 revisions/money and malformed codec refusals; original sourc
 census and four schema mutations refuse. Required/nullability/default receiving
 semantics remain unchanged. Original24 diagnostic removal awaits the next
 integrated capture; no provider-ingress or complete payment workflow is claimed.
+
+2026-10-15 — C02: bind helper query sources to the actual owner census.
+
+Predicate ANY may select its original collection call by sourceCall site/call
+indices into State's already-bound private owner-membership census. Actual query
+installation obtains that census from the genuine definition, never a caller's
+copied source list. Validate owner, Require stage, selected overload/argument
+slots/types, full helper chain and original source path/hash. Query/dependency
+module remains the exact physical emitted caller module, matching the existing
+logical-source/transport representation; no global source-equality relaxation.
+The existing same-source profile and stored-bool path remain unchanged.
+
+Normal State build and70 focused execution/plan/predicate/owner-membership checks
+pass. Imported tests use genuine private owner/capture producers and membership
+inside the active candidate; forged selector/source/hash/module/chain/slot/domain,
+absent owner/capture and accessor cases refuse. Lazy suffix, callback lifetime,
+first read, exact failure and late field/caller/subject loss remain checked.
+Exact Query/Lambda-node→queryId and original executable attestation remain the
+compiler/CF boundary: the query DTO has no AST intervals, so State does not claim
+that independent proof. Native integration and original can_work remain open.
