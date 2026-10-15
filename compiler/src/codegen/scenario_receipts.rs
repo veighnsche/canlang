@@ -505,6 +505,53 @@ pub(super) fn checked_created_model_result(
                 return None;
             }
             let (node, binding) = match origin {
+                DisclosureModelResult::Parameter {
+                    model: actual,
+                    parameter,
+                    node,
+                } => {
+                    let param = ir.items.get(parameter.0 as usize)?;
+                    let IrItemKind::Param {
+                        owner: parameter_owner,
+                        index,
+                        ty: IrType::Known(ty),
+                        default: None,
+                        default_node: None,
+                        default_copy_source: None,
+                        array_bounds: None,
+                        ..
+                    } = &param.kind
+                    else {
+                        return None;
+                    };
+                    let fact = facts.parameters.get(*index)?;
+                    if actual != *model
+                        || *parameter_owner != item.id
+                        || fact.parameter != parameter
+                        || fact.default.is_some()
+                        || fact.constraints.is_some()
+                        || *ty
+                            != (ResolvedType::Record {
+                                symbol: actual,
+                                stored: true,
+                            })
+                        || !returned.dependencies.iter().any(|dependency| {
+                            dependency.node == node
+                                && dependency.calls.is_empty()
+                                && dependency.query_id.is_none()
+                                && dependency.role == DependencyRole::Data
+                                && dependency.model == actual
+                                && dependency.field == actual
+                                && dependency.field_name == "id"
+                                && dependency.type_id == "text"
+                                && dependency.ty == ResolvedType::Scalar(Scalar::Text)
+                        })
+                    {
+                        return None;
+                    }
+                    // The parameter declaration precedes its original direct return.
+                    (fact.node, &param.name)
+                }
                 DisclosureModelResult::Create {
                     model: actual,
                     node,
@@ -922,8 +969,30 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             native_return.decisions.push((key, decision.choice.clone()));
         }
         for dependency in &returned.dependencies {
+            let result_identity = match returned.model_result {
+                Some(DisclosureModelResult::Parameter { model, node, .. })
+                    if dependency.node == node
+                        && dependency.model == model
+                        && dependency.field == model
+                        && dependency.field_name == "id"
+                        && dependency.role == DependencyRole::Data
+                        && dependency.calls.is_empty()
+                        && dependency.query_id.is_none() =>
+                {
+                    let IrStmt::Return { value: Some(value), .. } = effects.iter().find(|effect|
+                        matches!(effect, IrStmt::Return { span, .. } if *span == node_span(returned.node)))?
+                    else { return None; };
+                    if value.span != node_span(node) {
+                        return None;
+                    }
+                    Some(value)
+                }
+                _ => None,
+            };
             let is_transition = dependency.node.kind == SyntaxKind::Transition as u8;
-            if (!is_transition && dependency.node.kind != SyntaxKind::Member as u8)
+            if (result_identity.is_none()
+                && !is_transition
+                && dependency.node.kind != SyntaxKind::Member as u8)
                 || dependency.id.is_empty()
                 || intrinsic_ids.contains_key(&dependency.id)
                 || !source_matches(ir, &dependency.source, node_span(dependency.node))
@@ -987,7 +1056,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             let current_digest_data = current_sites
                 .as_ref()
                 .is_some_and(|current| current.digest_data.dependency == dependency);
-            let (base, field, transition) = if is_transition {
+            let result_id_field = "id".to_string();
+            let (base, field, transition) = if let Some(value) = result_identity {
+                (value, &result_id_field, None)
+            } else if is_transition {
                 if !dependency.calls.is_empty() || dependency.role != DependencyRole::Control {
                     return None;
                 }
@@ -1089,7 +1161,10 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                 {
                     return None;
                 }
-                let expression = sites.members.get(&site)?.first()?;
+                let expression = match result_identity {
+                    Some(value) => value,
+                    None => *sites.members.get(&site)?.first()?,
+                };
                 let original = checked_parameter_row_id(ir, item, expression, models, db?)?;
                 if original.id != dependency.model || original.canonical != dependency.model_name {
                     return None;
@@ -4572,15 +4647,20 @@ fn checked_parameter_row_id<'a>(
     let IrItemKind::Scenario { params, .. } = &owner.kind else {
         return None;
     };
-    let IrExpr::Member { base, field } = &value.expr else {
-        return None;
+    let (base, model_return) = match &value.expr {
+        IrExpr::Member { base, field }
+            if field == "id" && value.ty == ResolvedType::Scalar(Scalar::Text) =>
+        {
+            (base.as_ref(), false)
+        }
+        IrExpr::Name(_) if matches!(value.ty, ResolvedType::Record { stored: true, .. }) => {
+            (value, true)
+        }
+        _ => return None,
     };
     let IrExpr::Name(name) = &base.expr else {
         return None;
     };
-    if field != "id" || value.ty != ResolvedType::Scalar(Scalar::Text) {
-        return None;
-    }
     let mut parameters = params
         .iter()
         .enumerate()
@@ -4618,7 +4698,7 @@ fn checked_parameter_row_id<'a>(
         || base.ty != fact.ty
         || fact.default.is_some()
         || fact.constraints.is_some()
-        || !reference_read_matches(ir, owner, value, *symbol, *symbol, "text")
+        || !model_return && !reference_read_matches(ir, owner, value, *symbol, *symbol, "text")
     {
         return None;
     }
@@ -4629,7 +4709,11 @@ fn checked_parameter_row_id<'a>(
             file: value.span.file,
             start: value.span.start,
             end: value.span.end,
-            kind: SyntaxKind::Member as u8,
+            kind: if model_return {
+                SyntaxKind::NameRef as u8
+            } else {
+                SyntaxKind::Member as u8
+            },
         },
         db,
     )?;
@@ -4638,9 +4722,21 @@ fn checked_parameter_row_id<'a>(
         .iter()
         .filter(|part| part.kind != SyntaxKind::Trivia)
         .collect();
-    let [receiver, dot, member] = parts.as_slice() else {
+    if !model_return {
+        let [receiver, dot, member] = parts.as_slice() else {
+            return None;
+        };
+        if receiver.kind != SyntaxKind::NameRef
+            || receiver.span != base.span
+            || dot.token()?.text(text) != "."
+            || member.kind != SyntaxKind::Name
+            || member.token()?.text(text) != "id"
+        {
+            return None;
+        }
+    } else if authored.kind != SyntaxKind::NameRef || authored.span != base.span {
         return None;
-    };
+    }
     let declaration = checked_effect_node(ir, owner, fact.node, db)?;
     let parameter_name = declaration
         .children
@@ -4655,12 +4751,10 @@ fn checked_parameter_row_id<'a>(
         .iter()
         .filter(|part| part.kind == SyntaxKind::Path);
     let type_path = paths.next()?;
-    if receiver.kind != SyntaxKind::NameRef
-        || receiver.span != base.span
-        || text.get(base.span.start as usize..base.span.end as usize) != Some(name.as_str())
-        || dot.token()?.text(text) != "."
-        || member.kind != SyntaxKind::Name
-        || member.token()?.text(text) != "id"
+    if text
+        .get(base.span.start as usize..base.span.end as usize)
+        .map(|value| if model_return { value.trim() } else { value })
+        != Some(name.as_str())
         || declaration.kind != SyntaxKind::Parameter
         || parameter_name.span != parameter.span
         || parameter_name.token()?.text(text) != name

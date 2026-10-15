@@ -8132,6 +8132,33 @@ impl<'a> Emitter<'a> {
                     && let Some(selection) =
                         self.receipt_return_selection(*span, false, model_result)
                 {
+                    let identity_observations = value
+                        .as_ref()
+                        .and_then(|value| {
+                            matches!(value.expr, IrExpr::Name(_))
+                                .then(|| {
+                                    self.receipt_capture
+                                        .as_ref()?
+                                        .dependencies
+                                        .get(&self.receipt_site(value.span))
+                                        .cloned()
+                                })
+                                .flatten()
+                        })
+                        .unwrap_or_default();
+                    let identity_observations = identity_observations
+                        .iter()
+                        .map(|dependency| {
+                            self.stdlib
+                                .insert("observeScenarioReceiptDependency".into());
+                            format!(
+                                "await observeScenarioReceiptDependency(c,{},$receiptValue,{},{});",
+                                js_string(&dependency.model),
+                                js_string(&dependency.field),
+                                js_string(&dependency.id)
+                            )
+                        })
+                        .collect::<String>();
                     let value = value.as_ref().map(|value| self.lower_expr(value));
                     let result = if model_result {
                         "$receiptModelResult"
@@ -8141,7 +8168,7 @@ impl<'a> Emitter<'a> {
                     return vec![(
                         match value {
                             Some(value) => format!(
-                                "{pad}{{const $receiptValue={value};{selection}return {result};}}"
+                                "{pad}{{const $receiptValue={value};{identity_observations}{selection}return {result};}}"
                             ),
                             None => format!("{pad}{{{selection}return;}}"),
                         },

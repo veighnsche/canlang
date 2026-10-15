@@ -80,7 +80,7 @@ test('captured native default Create and direct child model returns retain one D
       const run = artifact.models?.find(model => model.name === MODEL); assert.ok(run);
       assert.equal(run.parent, undefined); assert.equal(run.deleteMode, 'remove');
       assert.deepEqual(run.fields.map(field => field.name), ['count']);
-      const operations = ['ask', 'regenerate'].map(name => {
+      const operations = ['ask', 'regenerate', 'retain'].map(name => {
         const operation = artifact.operations?.find(operation => operation.name === `${APP}.${name}`); assert.ok(operation);
         assert.equal(operation.kind, 'scenario'); assert.equal(operation.result?.type, MODEL);
         assert.ok(operation.result?.disclosure); return operation;
@@ -197,6 +197,36 @@ test('captured native default Create and direct child model returns retain one D
       }
       assert.equal((await store.query({ model: MODEL, authority: 'owner' })).length, 2);
       assert.deepEqual(await store.query({ model: OTHER, authority: 'owner' }), []);
+      const existing = retained[0]!, referenceInput = envelope('retain', { run: { id: existing.id, version: '1' } });
+      const referenceBefore = await resources(), referenceRevision = await store.readRevision(), referenceBatches = batches.length;
+      const referenceResult = committed(await invoker.invokeMutation(referenceInput, member.identity));
+      assert.equal(referenceResult.id, existing.id); assert.deepEqual(referenceResult.outcome.records, []);
+      assert.equal(batches.length, referenceBatches + 1);
+      const referenceBatch = batches.at(-1)!;
+      assert.deepEqual(referenceBatch.writes, []); assert.deepEqual(referenceBatch.history, []);
+      assert.deepEqual(referenceBatch.outbox, []); assert.deepEqual(referenceBatch.schedules, []);
+      const referenceReceipt = await store.readReceipt(receiptIdentity(referenceInput)); assert.ok(referenceReceipt);
+      const referenceAssociation = readScenarioReceiptAssociation(referenceReceipt); assert.ok(referenceAssociation);
+      assert.equal(referenceAssociation.resultType, MODEL); assert.deepEqual(referenceAssociation.changed, []);
+      assert.equal(referenceAssociation.observations.length, 1);
+      const witness = referenceAssociation.observations[0]!;
+      assert.equal(witness.model, MODEL); assert.equal(witness.row.id, existing.id);
+      assert.ok(referenceAssociation.plan.returns.some(returned => returned.dependencies.some(dependency =>
+        dependency.id === witness.dependencyId && dependency.role === 'data' && dependency.model === MODEL &&
+        dependency.field === 'id' && dependency.type === 'text')));
+      const referenceAfter = await resources();
+      assert.deepEqual(referenceAfter.identity, referenceBefore.identity); assert.deepEqual(referenceAfter.foreign, referenceBefore.foreign);
+      for (const table of ['records', 'history', 'outbox', 'schedules']) {
+        assert.deepEqual(referenceAfter.owner[table], referenceBefore.owner[table], table);
+      }
+      assert.equal(await store.readRevision(), referenceRevision + 1);
+      for (const dedicated of [false, true]) {
+        const replay = committed(await (dedicated ? invoker.invokeRetainedMutation(referenceInput, member.identity) :
+          invoker.invokeMutation(referenceInput, member.identity)), 'replayed');
+        assert.equal(replay.id, existing.id); assert.deepEqual(replay.outcome.records, []);
+        assert.deepEqual(await resources(), referenceAfter); assert.equal(batches.length, referenceBatches + 1);
+        assert.deepEqual(await store.readReceipt(receiptIdentity(referenceInput)), referenceReceipt);
+      }
       const saved = retained[1]!, stable = await resources();
       for (const [selected, identity] of [[invoker, colleague.identity], [foreignInvoker, foreign.identity]] as const) {
         const denied = await selected.invokeRetainedMutation(saved.envelope, identity);
@@ -208,6 +238,10 @@ test('captured native default Create and direct child model returns retain one D
       const withheld = await invoker.invokeMutation(saved.envelope, member.identity);
       assert.ok('result' in withheld, JSON.stringify(withheld)); assert.equal(withheld.result.status, 'replayed');
       assert.equal(withheld.result.result, null); assert.deepEqual(withheld.result.records, []);
+      const referenceWithheld = await invoker.invokeMutation(referenceInput, member.identity);
+      assert.ok('result' in referenceWithheld, JSON.stringify(referenceWithheld));
+      assert.equal(referenceWithheld.result.status, 'replayed');
+      assert.equal(referenceWithheld.result.result, null); assert.deepEqual(referenceWithheld.result.records, []);
       const currentRead = await invoker.invokeRead({ operation: `${MODEL}.read`, inputs: {} }, member.identity);
       assert.ok('result' in currentRead, JSON.stringify(currentRead)); assert.deepEqual(object(currentRead.result).records, []);
       const refused = await invoker.invokeRetainedMutation(saved.envelope, member.identity);
@@ -216,9 +250,10 @@ test('captured native default Create and direct child model returns retain one D
       await identities.reactivateMembership(member.membership.membership_id, { is_owner: false, roles: [] });
       const restored = await member.current(), restoredResources = await resources();
       assert.equal(committed(await invoker.invokeRetainedMutation(saved.envelope, restored), 'replayed').id, saved.id);
+      assert.equal(committed(await invoker.invokeRetainedMutation(referenceInput, restored), 'replayed').id, existing.id);
       assert.deepEqual(await resources(), restoredResources);
-      // The original source has no model input or exported c/native view. Raw,
-      // copied, foreign-frame and closed-frame binder attacks remain State's
+      // The source exports no c/native view. Raw, copied, foreign-frame and
+      // closed-frame binder attacks remain State's
       // defining controls; this native case does not fabricate those handles.
       assert.deepEqual(await readFile(sourcePath), originalSource);
       assert.equal(JSON.stringify(artifact), originalArtifact);
