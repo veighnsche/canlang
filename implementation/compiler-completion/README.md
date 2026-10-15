@@ -192,7 +192,15 @@ parent. UI `list`/`board` kinds closed by the TS remainder commit (shared
 source-filter factory extended to list/board with table/gallery pipeline,
 `BoardProps.occurrence`, labelless copy with its own value): `leaves`
 69/69, `collections` 124/124, `panels` 35/35 pass against owned rebuilt
-dists. Outcome 6 is implemented (checker + render, Codex review pending).
+dists. Outcome 6 is implemented at checker/render scope (Codex review pending)
+EXCEPT one exact criterion kept OPEN per Codex REVIEW-7: bare styled cards
+must parse — probe `card $Shared` still fails E1215 expected value
+expression (evidence `/tmp/can18-style-probe-result.json`; no parser file
+changed since base, so parser-attributed, not formatter/output). Completed
+decoder/list-board/metrics slices retained. Owner: Lane B parser repair
+(heading-free card with named/inline style parses per GRAMMAR; headed
+cards stay valid; nonvisual/priority-action restrictions stay); closure on
+the probe parsing + one focused parser/check test.
 
 Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
 refusal surface incl. E3005 recursion): all 7 original calls die at
