@@ -2,6 +2,21 @@
 
 ## Current remainder and finite completion
 
+**C02 required-guard query retention (2026-10-15, accepted direction; implementation pending).**
+Keep guard/write authority distinct from independent result disclosure for Model
+results as well as scalar results. Do not join guard facts into result controls
+solely to fit the present query consumer API. Three equivalent independent JEV
+Choice responses in `model-result-guard-consumption/` prefer bounded source-proved
+execution-guard consumption/retention (.98/.91/.93; confidence .97/.86/.89), with
+.02/.06/.06 remaining investigation probability. The specification's separate
+write/read/disclosure rules justify the direction; advice is not execution proof.
+Reuse existing Require source calls/private query execution and ledger where
+sufficient; add only a demonstrated minimal internal association if required.
+No public syntax/guard flag, broad effect system, extra viewer-read write prerequisite
+or change to lazy argument/failure/recovery behavior. Original mixed workflow
+still needs this consumer/retention join plus feasible Require projection and
+native checked Given field defaults; no implementation/API acceptance is claimed.
+
 **C02 leading helper native journey (2026-10-15, implemented/tested).**
 The complete owning receipt now survives source-only query preparation, retaining
 the original derive-call capture and lazy issued callback. The existing private

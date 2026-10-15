@@ -16748,3 +16748,26 @@ field privacy, invariant/guard rollback, replay, inactive/current membership los
 The fixture's stored edge expectation was corrected to id-only without altering
 input admission versions. Full original mixed CRM and cross-file native source
 association remain unqualified; no permission or invocation primitive changed.
+
+
+### 2026-10-15 — preserve guard authority independently of result disclosure
+
+Accepted direction, implementation pending: source-authenticated required guard
+queries need execution consumption/retention without inventing result data/control
+dependencies because the result happens to be a Model. Keep accepted independent
+scalar pruning and apply the specification's separate guard/write/result authority
+consistently. Joining filtered effect guards into singular Model results would
+fit existing carriers but could withhold an independently readable result and
+introduce unwanted viewer-read write prerequisites; small patch size is not a
+semantic justification. Compare bounded guard consumption/retention through the
+existing source-call/private query ledger first; only a demonstrated gap justifies
+a minimal internal association. No public mode or broad effect system.
+
+Three equivalent independently worded Choice calls saved in
+`implementation/compiler-completion/model-result-guard-consumption/` prefer this
+direction with probabilities .98/.91/.93 and confidence .97/.86/.89. Remaining
+investigation probabilities .02/.06/.06 are retained; JEV is advice. Actual source
+has Complete3queries/192 conservative paths, but no body guard return consumer;
+private effect_guards already retain the facts. Feasible Require projection,
+execution consumer/recovery and native checked Given defaults remain required.
+No source permissions, ordering, failures or replay behavior are weakened.

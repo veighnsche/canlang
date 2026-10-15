@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "direction": {
+      "type": "choice",
+      "choice": "execution_guard_consumption",
+      "confidence": 0.97,
+      "probabilities": {
+        "model_result_controls": 0.0,
+        "execution_guard_consumption": 0.98,
+        "investigate": 0.02
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1291,
+    "output_tokens": 53
+  }
+}
