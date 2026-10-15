@@ -152,6 +152,17 @@ gate remain distinct; a protected page still rejects anonymous callers.
 The CLI build, formatting and diff checks pass. Original source permissions and
 workflow bodies are unchanged.
 
+**C02/C10 root Contract input admission prerequisite (2026-10-15).**
+Checked loader-owned nominal inputs now discover required model reference slots
+through the existing scoped/versioned admission path in declaration order.
+Distinct occurrences retain their paths; copied schema provenance, noncanonical
+versions and stale/archived/missing rows refuse. Root protected Values leaves
+retain their own pipeline; ordinary kind/id fields cannot impersonate them.
+The normal State build and83 admission/owner controls pass. Compiler source,
+receipt intrinsic and genuine native hydration joins remain local in progress;
+the preceding original24-source701-error capture is retained for this runtime-only
+prerequisite. No full workflow or training readiness claim follows.
+
 **C02/C10 CanBook example operation context (2026-10-15).**
 Keep the original assertion correlated with the actual completed mutation id.
 The resolver publishes a checked operation context only for table observation
