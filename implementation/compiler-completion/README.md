@@ -2,6 +2,16 @@
 
 ## Current remainder and finite completion
 
+**C02 checked query-invariant producer (2026-10-15, component qualified).**
+Original Program/Advocate rules and renamed/named/grouped equivalents retain
+checked selected slots/query/lambda/field/parent proofs and original awaited
+predicates. Complete dependency selection covers every owning row after any read
+Model change, preserving failures from unrelated filtered candidates under the
+existing final-view bounds. Prior selectors/rawIR stay unchanged. Owning source/
+selector/tamper check passes1/.45s; affected pureleaf1/.30s. Actual State
+transaction/Partner native receiving remains open; current frozen CLI original24
+capture is live93802 at `/tmp/cancrm-helper-invariants-card-20261015-*`.
+
 **C02 checked owner-query receiver (2026-10-15, component qualified).**
 Verified invariant query domains reuse existing owner transaction views/bounds,
 issued/cached rows and reference lifetime. Complete ordered source filtering

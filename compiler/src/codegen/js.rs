@@ -7796,7 +7796,7 @@ impl<'a> Emitter<'a> {
                         } else {
                             opts.push(format!("where:{predicate}"));
                         }
-                    } else if query.where_async {
+                    } else if query.where_async || self.boolean_body {
                         opts.push(format!("where:async({row})=>{body}"));
                     } else {
                         opts.push(format!("where:({row})=>{body}"));
@@ -15090,14 +15090,15 @@ impl<'a> Emitter<'a> {
             let previous_rule = self.current_policy_rule.take();
             self.current_policy_rule = binding.current_revision.clone();
             self.boolean_body = binding.kind == crate::codegen::ir::IrModelRuleKind::Invariant
-                && binding.predicate.as_ref().is_some_and(|predicate| {
-                    super::model_policy_profile::required_model_rule_fields(
-                        self.ir,
-                        binding.model,
-                        predicate,
-                    )
-                    .is_some()
-                });
+                && (!binding.query_models.is_empty()
+                    || binding.predicate.as_ref().is_some_and(|predicate| {
+                        super::model_policy_profile::required_model_rule_fields(
+                            self.ir,
+                            binding.model,
+                            predicate,
+                        )
+                        .is_some()
+                    }));
             let predicate = binding
                 .predicate
                 .as_ref()
@@ -15109,8 +15110,21 @@ impl<'a> Emitter<'a> {
                 crate::codegen::ir::IrModelRuleKind::Invariant => "invariant",
                 crate::codegen::ir::IrModelRuleKind::Lock => "lock",
             };
+            let query_models = if binding.query_models.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    ",queryModels:[{}]",
+                    binding
+                        .query_models
+                        .iter()
+                        .map(|model| js_string(&self.ir.item(*model).canonical))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+            };
             entries.push(format!(
-                "{{id:{},module:{},ownerPackage:{},model:{},kind:{},evaluate:{predicate}}}",
+                "{{id:{},module:{},ownerPackage:{},model:{},kind:{},evaluate:{predicate}{query_models}}}",
                 js_string(&binding.id),
                 js_string(module),
                 js_string(&binding.owner_package),
@@ -15121,6 +15135,19 @@ impl<'a> Emitter<'a> {
         for binding in &plan.dependency_bindings {
             let model = &self.ir.item(binding.model).canonical;
             let changed = &self.ir.item(binding.changed_model).canonical;
+            if binding.all_owners {
+                let select = format!(
+                    "async(views,change)=>{{if(change.model!=={}||typeof change.id!==\"string\"||change.id===\"\"||change.before===null&&change.after===null||change.before!==null&&change.before.id!==change.id||change.after!==null&&change.after.id!==change.id)throw new Error('Query rule dependency changed identity differs');const $rows=await views.final.query({{model:{},authority:\"owner\",archived:\"include\",limit:views.maxRows,order:[{{field:\"id\",direction:\"asc\"}}]}});return $rows.map(row=>{{if(typeof row.id!==\"string\"||row.id===\"\")throw new Error('Query rule dependency lost its row identity');return{{model:{},id:row.id}};}});}}",
+                    js_string(changed),
+                    js_string(model),
+                    js_string(model)
+                );
+                entries.push(format!(
+                    "{{id:{},module:{},ownerPackage:{},model:{},kind:\"dependency\",select:{select}}}",
+                    js_string(&binding.id), js_string(module), js_string(&binding.owner_package), js_string(model)
+                ));
+                continue;
+            }
             if !binding.path.is_empty() {
                 let mut joins = String::new();
                 for (source, field, target) in binding.path.iter().rev() {

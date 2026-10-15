@@ -5,10 +5,10 @@ use crate::analysis::{CheckedProgram, catalog::Catalog};
 use crate::codegen::ir::{self, IrItemKind, IrModelRuleKind, IrProgram, IrType, TypedExpr};
 use crate::codegen::model_policy_profile::{
     CurrentRevisionRuleKind, CurrentRevisionRuleProfile, checked_chat_invariant_fields,
-    checked_chat_lock_target, checked_local_rule_fields, checked_required_record_lock_target,
-    current_revision_lock_target, current_revision_rule_profile, local_hook_supported,
-    local_rule_fields, local_stored_field_type, required_model_rule_dependencies,
-    required_model_rule_fields,
+    checked_chat_lock_target, checked_local_rule_fields, checked_query_rule_fields,
+    checked_required_record_lock_target, current_revision_lock_target,
+    current_revision_rule_profile, local_hook_supported, local_rule_fields,
+    local_stored_field_type, required_model_rule_dependencies, required_model_rule_fields,
 };
 use crate::diagnostic::Severity;
 use crate::source::SourceDb;
@@ -66,6 +66,8 @@ pub(crate) struct PredicateBinding {
     pub predicate: Option<TypedExpr>,
     /// Only the source-sealed original nullable current rule owns this path.
     pub current_revision: Option<CurrentRevisionRuleProfile>,
+    /// Original checked Model query roots; empty on all other bindings.
+    pub query_models: Vec<SymbolId>,
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +89,9 @@ pub(crate) struct DependencyBinding {
     /// Checked required-reference path for bounded reverse final-view joins.
     /// Empty only for the existing original current-Revision selector.
     pub path: Vec<(SymbolId, String, SymbolId)>,
+    /// Checked root-query/filter reads invalidate every bounded owning row.
+    /// Kept distinct from the original empty current-Revision path.
+    pub all_owners: bool,
 }
 
 /// Link the descriptor to the original emitted hooks[operation].run function.
@@ -224,7 +229,10 @@ fn collect_policies(
             let current_revision = checked_profiles
                 .and_then(|profiles| profiles.iter().find(|profile| &profile.origin == origin))
                 .cloned();
-            if current_revision.is_none() {
+            let query_profile = checked_context.and_then(|(program, db, catalog)| {
+                checked_query_rule_fields(program, ir, model.id, &rule.pred, db, catalog)
+            });
+            if current_revision.is_none() && query_profile.is_none() {
                 local_rule_fields(ir, model.id, &rule.pred)
                     .or_else(|| {
                         checked_context.and_then(|(program, db, catalog)| {
@@ -267,9 +275,11 @@ fn collect_policies(
                     owner_package: owner_package.clone(),
                     changed_model: *revision,
                     path: Vec::new(),
+                    all_owners: false,
                 });
             }
             if current_revision.is_none()
+                && query_profile.is_none()
                 && checked_profiles.is_some()
                 && let Some(reads) = required_model_rule_dependencies(ir, model.id, &rule.pred)
             {
@@ -286,6 +296,26 @@ fn collect_policies(
                         owner_package: owner_package.clone(),
                         changed_model,
                         path,
+                        all_owners: false,
+                    });
+                }
+            }
+            if let Some(profile) = &query_profile {
+                for (index, changed_model) in profile.dependencies.iter().copied().enumerate() {
+                    let dependency_id = format!("{id}.query.{}", index + 1);
+                    dependencies.push(ModelDependency {
+                        id: dependency_id.clone(),
+                        model: ir.items.get(changed_model.0 as usize)?.canonical.clone(),
+                        // The existing transaction bound remains authoritative.
+                        max_targets: u32::MAX,
+                    });
+                    dependency_bindings.push(DependencyBinding {
+                        id: dependency_id,
+                        model: model.id,
+                        owner_package: owner_package.clone(),
+                        changed_model,
+                        path: Vec::new(),
+                        all_owners: true,
                     });
                 }
             }
@@ -303,6 +333,9 @@ fn collect_policies(
                 kind: origin.kind,
                 predicate: Some(rule.pred.clone()),
                 current_revision,
+                query_models: query_profile
+                    .map(|profile| profile.query_models)
+                    .unwrap_or_default(),
             });
         }
         for rule in ir.locks.iter().filter(|rule| rule.origin.model == model.id) {
@@ -347,6 +380,7 @@ fn collect_policies(
                 kind: origin.kind,
                 predicate: rule.when.clone(),
                 current_revision: None,
+                query_models: Vec::new(),
             });
         }
         if rules.len() != invariants.len() + locks.len() {

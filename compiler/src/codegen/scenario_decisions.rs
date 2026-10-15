@@ -2677,6 +2677,48 @@ fn collection_lambda(
     lambda: &TypedExpr,
     call: Span,
 ) -> Option<()> {
+    collection_lambda_arguments(program, args, lambda, call, None)
+}
+
+/// Checked owning rules have the original source database available, so
+/// equivalent Group arguments retain the same exact selected call proof.
+pub(super) fn checked_collection_lambda(
+    program: &CheckedProgram,
+    args: &[TypedExpr],
+    lambda: &TypedExpr,
+    call: Span,
+    db: &SourceDb,
+) -> Option<()> {
+    collection_lambda_arguments(program, args, lambda, call, Some(db))
+}
+
+fn collection_lambda_arguments(
+    program: &CheckedProgram,
+    args: &[TypedExpr],
+    lambda: &TypedExpr,
+    call: Span,
+    db: Option<&SourceDb>,
+) -> Option<()> {
+    let normalized = |key: NodeKey| -> Option<NodeKey> {
+        let Some(db) = db else {
+            return Some(key);
+        };
+        let (tree, diagnostics) = crate::syntax::parse_source(key.file, &db.get(key.file)?.text);
+        if !diagnostics.is_empty() {
+            return None;
+        }
+        let mut node = tree.descendants().find(|node| NodeKey::of(node) == key)?;
+        for _ in 0..65 {
+            if node.kind != SyntaxKind::Group {
+                return Some(NodeKey::of(node));
+            }
+            node = node.children.iter().find(|child| {
+                child.token().is_none()
+                    && !matches!(child.kind, SyntaxKind::Trivia | SyntaxKind::Comment)
+            })?;
+        }
+        None
+    };
     let IrExpr::Lambda { param, body } = &lambda.expr else {
         return None;
     };
@@ -2703,14 +2745,15 @@ fn collection_lambda(
     };
     checked_query(program, query)?;
     let source = query.source.as_deref()?;
-    if selected.arguments.get(domain_slot) != Some(&source.node) {
+    if normalized(*selected.arguments.get(domain_slot)?)? != source.node {
         return None;
     }
-    let predicate = selected.arguments.get(predicate_slot)?;
+    let predicate_key = selected.arguments.get(predicate_slot)?;
+    let predicate = normalized(*predicate_key)?;
     if predicate.file != lambda.span.file
         || predicate.start != lambda.span.start
         || predicate.end != lambda.span.end
-        || program.types.node_types.get(predicate) != Some(&lambda.ty)
+        || program.types.node_types.get(predicate_key) != Some(&lambda.ty)
         || body.ty != lambda.ty
     {
         return None;

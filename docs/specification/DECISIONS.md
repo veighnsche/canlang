@@ -17330,3 +17330,25 @@ public storage port is added. Normal Cloudflare build and both owning reference/
 query components pass2/.470s, covering domain/shape/nonbool refusal, exact
 authored predicate failure, order/short circuit and no extra writes. Compiler
 source qualification and original full Partner native acceptance remain pending.
+
+
+## 2026-10-15 — bind original query invariants and complete invalidation
+
+Accepted compiler component: checked root-Model ANY/ALL invariants reuse the
+original selected call, ordered supplied slots, query/lambda bindings, declared
+fields and required parent edges. Raw IR remains unbound. Query predicates use
+the existing awaited Boolean/reference reader and original lazy evaluation;
+grouped/named arguments retain the same source proof. Private bindings name
+only the checked root query Models for the existing owner-query receiver.
+
+Dependency selection rechecks every owning row after a read Model changes. An
+ancestry-only selector would miss existing failure behavior: the original where
+examines unrelated candidates and may fail while reading their parent before
+determining membership. The existing final-view query, maxRows and maxWork bound
+this selection; the static dependency ceiling is u32::MAX only for this profile
+so it introduces no narrower arbitrary limit. Prior selectors stay unchanged.
+Original and renamed/named/grouped source rules, tamper refusals, emitted create/
+archive/remove/unrelated-owner selectors and owner-bound refusal pass1/.45s; the
+affected pure-leaf control passes1/.30s. Original Partner native and actual
+transactional query-rule acceptance remain pending. No new language primitive,
+policy grant or broad effect system is introduced.
