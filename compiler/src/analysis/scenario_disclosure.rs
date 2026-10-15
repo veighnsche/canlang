@@ -14153,6 +14153,7 @@ fn primitive_type(ty: &ResolvedType) -> bool {
                 | Scalar::Date
                 | Scalar::Datetime
                 | Scalar::Duration
+                | Scalar::Currency
                 | Scalar::User
         )
     )

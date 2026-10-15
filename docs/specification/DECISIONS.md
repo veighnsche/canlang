@@ -16012,3 +16012,34 @@ TypeScript retains16 diagnostics in four unchanged files. The original24-source
 static capture is unchanged for this runtime-only prerequisite. Compiler source
 qualification of whole Contract construction and original selected-row reuse
 remain separate ready work; full CanCRM execution is not accepted here.
+
+
+2026-10-15 — C02/C10: retain the existing Currency scalar across native receipts.
+
+Currency already has compiler scalar identity and Values' pinned ISO validation.
+Carry that exact type through the existing scalar input/result, stored CONTROL,
+query-plan and receipt profiles. A collapsed artifact string field must explicitly
+claim currency and agree with canonical declarations and array/nullable markers.
+The model-table loader retains the same checked type. Unknown, lowercase and
+nonstring currencies continue to fail Values admission; no coercion, arbitrary
+string-profile widening, arithmetic operation or new language rule is introduced.
+Original authored Currency guards keep their source stage and lazy observations.
+This repairs implementation omissions under settled semantics; no new JEV choice.
+
+All13 affected compiler checks pass, including renamed stored Currency fields,
+exact type metadata and direct/Contract input results. State Currency checks3/3
+and model-table checks5/5 pass, retaining malformed metadata/value refusals,
+current-policy withholding/restoration and no-write recovery/replay. The first
+generated native run exposed the missing model-table loader profile; the corrected
+actual CLI/verified assembly/D1/Identity workflow passes1/1 (25.95s). It retains
+Money.currency versus Location.currency CONTROL evidence, valid-but-mismatched
+currency rule failure, malformed CRUD and scenario rejection, original parent
+and version checks, late rollback, replay and independent role/membership
+revocation/restoration. Normal CLI, State and Cloudflare builds pass; changed
+Rust formatting and diff checks pass. Root TypeScript retains16 errors in four
+unchanged files. Frozen original24-source validation exits10 after391.49s with
+701 diagnostics (675 E6008,26 E6007), complete=true, omitted=0, identical source
+inventory and no usable artifact. Exact full diagnostic comparison with the
+preceding contained-parent capture adds/removes none. Existing query-backed
+can_work, whole Contract source/snapshot reuse, adjacent root creates and cohort
+hooks remain ready local work. No full CanCRM or training readiness is inferred.

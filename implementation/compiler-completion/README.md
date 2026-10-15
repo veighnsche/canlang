@@ -578,7 +578,16 @@ stale Contacts, rollback/replay and independent Contact read-role revocation/
 restoration. Source/IR/copy/nullable/array refusals remain; root TypeScript has
 16 unchanged diagnostics. Original24-source validation exits10 in388.62s with
 the same701 diagnostics (675 E6008,26 E6007), complete=true, omitted=0,
-identical source inventory, none added/removed and no usable artifact. `Scalar::Currency` stored reads need a separate inventory join. The second root constructor's whole hydrated
+identical source inventory, none added/removed and no usable artifact. The existing Currency scalar now retains its exact type through compiler/native
+input/result/CONTROL metadata, State intake/model tables and receipt/query plans.
+All13 affected compiler, three Currency State and five model-table checks pass;
+the generated CLI/verified assembly/D1/Identity case1/1 (25.95s) retains invalid
+currency refusal, mismatch rule failure, original observation/order/rollback,
+replay and current role/membership revocation/restoration. Normal builds and
+changed formatting/diff pass; root TypeScript retains16 unchanged errors. The
+frozen original24-source validation exits10 after391.49s with the same701 errors
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory,
+none added/removed and no usable artifact. The second root constructor's whole hydrated
 Contract snapshot must also rejoin canonical RecordRefs for storage/equality:
 Values cannot infer Cloudflare's private native-view identity. Canonical equality
 now has a demand-driven private reference-leaf join:46 Values checks and two
@@ -598,8 +607,12 @@ before State clones writes; its full schema/default/constraint/hook phases stay
 in place. No fabricated compiler plan is supplied; unsupported committed recovery
 still refuses without execution. Normal Cloudflare build passes; root TypeScript
 retains16 unchanged diagnostics. The actual compiler/selected-row reuse and
-source-receipt consumer remains to qualify. No
-alternate equality or serialization rule is accepted. Direct parameter aliases,
+source-receipt consumer remains to qualify. Its first concrete source decline is
+`checked_created_schema` routing the named Lead Contract through Model-only
+identity: both declarations share the internal stored Record type. Reuse the
+existing checked Contract schema/field/source matchers, retaining exact original
+required parameter binding and Model identity checks; copied locals and altered
+source/IR must refuse. No alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
 keys remain their recorded local dependencies. Other hook-context IR failures
 still close whole-cohort fresh preparation;

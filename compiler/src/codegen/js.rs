@@ -3627,6 +3627,7 @@ impl<'a> Emitter<'a> {
                     | Scalar::Date
                     | Scalar::Datetime
                     | Scalar::Duration
+                    | Scalar::Currency
                     | Scalar::User
                     | Scalar::File,
                 ) => checked_value_profile(ty).is_some(),
@@ -13421,6 +13422,7 @@ impl<'a> Emitter<'a> {
                                                 | Scalar::Decimal
                                                 | Scalar::Money
                                                 | Scalar::Duration
+                                                | Scalar::Currency
                                                 | Scalar::User
                                         )
                                         .then(|| scalar.as_str().to_string())
@@ -13853,6 +13855,7 @@ impl<'a> Emitter<'a> {
                                 | Scalar::Money
                                 | Scalar::Datetime
                                 | Scalar::Duration
+                                | Scalar::Currency
                                 | Scalar::User
                                 | Scalar::Bool
                                 | Scalar::File
@@ -15391,6 +15394,7 @@ fn scenario_default_omission_supported(ty: &IrType) -> bool {
                 | Scalar::Datetime
                 | Scalar::Duration
                 | Scalar::Money
+                | Scalar::Currency
                 | Scalar::User
         )
     )
@@ -15465,6 +15469,10 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
                 | "date?"
                 | "date[]"
                 | "date[]?"
+                | "currency"
+                | "currency?"
+                | "currency[]"
+                | "currency[]?"
                 | "file"
                 | "file?"
                 | "file[]"
@@ -15515,6 +15523,10 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::Duration), false, true) => Some("duration?"),
         (ResolvedType::Scalar(Scalar::Duration), true, false) => Some("duration[]"),
         (ResolvedType::Scalar(Scalar::Duration), true, true) => Some("duration[]?"),
+        (ResolvedType::Scalar(Scalar::Currency), false, false) => Some("currency"),
+        (ResolvedType::Scalar(Scalar::Currency), false, true) => Some("currency?"),
+        (ResolvedType::Scalar(Scalar::Currency), true, false) => Some("currency[]"),
+        (ResolvedType::Scalar(Scalar::Currency), true, true) => Some("currency[]?"),
         (ResolvedType::Scalar(Scalar::User), false, false) => Some("user"),
         (ResolvedType::Scalar(Scalar::User), false, true) => Some("user?"),
         (ResolvedType::Scalar(Scalar::User), true, false) => Some("user[]"),

@@ -544,3 +544,81 @@ fn contained_reference_equality_keeps_equivalent_independently_admitted_roots() 
         );
     }
 }
+
+#[test]
+fn currency_stored_controls_keep_their_declared_type_across_renaming() {
+    for field in ["currency", "settlement"] {
+        let source = SOURCE
+            .replace(
+                "Location {title:text}",
+                &format!("Location {{title:text,{field}:currency}}"),
+            )
+            .replace(
+                "input.value.currency==input.value.currency",
+                &format!("input.value.currency==input.selection.location.{field}"),
+            );
+        let (_, program) = checked(&source);
+        let ScenarioDisclosure::Complete(complete) = disclosure(&program) else {
+            panic!("{:?}", disclosure(&program));
+        };
+        assert!(
+            complete
+                .returns
+                .iter()
+                .any(
+                    |returned| returned.dependencies.iter().any(|read| read.model_name
+                        == "InputMembers.Location"
+                        && read.field_name == field
+                        && read.type_id == "currency"
+                        && read.role == DependencyRole::Control)
+                )
+        );
+        let artifact = native_artifact(&source);
+        let location = artifact["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|model| model["name"] == "InputMembers.Location")
+            .unwrap();
+        let declared = location["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|declared| declared["name"] == field)
+            .unwrap();
+        assert_eq!(declared["field"]["kind"], "string");
+        assert_eq!(declared["valueType"], "currency");
+    }
+}
+
+#[test]
+fn currency_parameters_and_contract_members_keep_native_result_and_input_profiles() {
+    for (parameter, expression) in [
+        ("input:currency", "input"),
+        ("input:Requested", "input.currency"),
+    ] {
+        let source = format!(
+            "app CurrencyInput\nGiven\n contract Requested {{currency:currency}}\nWhen\n scenario echo({parameter}) -> currency by=members\n  do\n   return {expression}\nThen\n"
+        );
+        let artifact = native_artifact(&source);
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == "CurrencyInput.echo")
+            .unwrap();
+        assert_eq!(operation["result"]["type"], "currency");
+        assert!(
+            operation["result"]["disclosure"]["returns"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|returned| returned["intrinsics"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|intrinsic| intrinsic["kind"] == "admitted-input"
+                        && intrinsic["type"] == "currency"))
+        );
+    }
+}

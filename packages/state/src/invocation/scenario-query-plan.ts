@@ -71,7 +71,7 @@ function checkedType(value: unknown, nominal = false, files = false): CanTypeId 
   try {
     const type = parseTypeId(value);
     if (printTypeId(type) !== value || type.requiredArray ||
-        !(files && value === 'file[]' || type.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(value) ||
+        !(files && value === 'file[]' || type.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(value) ||
           nominal && type.base.kind === 'nominal' && !type.array && value !== 'void')) return fail('unsupported query type.');
   } catch (error) { if (error instanceof StateError) throw error; return fail('invalid canonical type.'); }
   return value as CanTypeId;
@@ -207,7 +207,8 @@ export function disclosureType(type: unknown, plan: ScenarioResultDisclosurePlan
 
 function artifactType(field: ArtifactModelField, models: readonly ArtifactModel[], schema?: NormalizedSchema): CanTypeId {
   const tag = field.field;
-  const primitive = ({ string: 'text', integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
+  const primitive = tag.kind === 'string' && field.valueType?.replace(/\[\]|\?/g, '') === 'currency' ? 'currency' :
+    ({ string: 'text', integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
     boolean: 'bool', date: 'date', duration: 'duration', user: 'user' } as Record<string, string>)[tag.kind];
   const base = primitive ?? (tag.kind === 'ref' ? tag.model : tag.kind === 'enum' ? `enum(${tag.values.join(',')})`
     : tag.kind === 'nominal' ? tag.name : tag.kind === 'file' ? 'file' : undefined);
