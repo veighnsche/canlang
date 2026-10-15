@@ -81,15 +81,17 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **896 errors**:
-**870 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **894 errors**:
+**868 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
 remainder and one int-times-duration. No diagnostics are added. Error counts
 alone are not workflow acceptance. The actor-predicate batch then removes exactly
 two original `authenticated` expression refusals from the 898-error capture,
-with no added diagnostics.
+with no added diagnostics. The CanBook operation-context batch removes exactly
+the two poisoned-type/equality diagnostics from the 896-error capture, with no
+added diagnostics.
 
 Remaining report families are grouped by their defining mechanism; occurrences
 are not independent feature tasks:
@@ -102,7 +104,7 @@ are not independent feature tasks:
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
 | Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
-| Value/type/arithmetic lowering | 24 | Structural standard-result schemas (22) and one poisoned example operation-context expression (2); grouped below. Duration and actor-predicate batches are closed. |
+| Value/type/arithmetic lowering | 22 | Structural standard-result schemas: 19 type-id refusals and three event field-schema consumers. Duration, actor-predicate and CanBook operation-context batches are closed. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
 | Scenario/handler/authority emission | 93 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
@@ -127,13 +129,13 @@ differences. Existing arithmetic helper checks pass **7/7**; native package emit
 CLI build, formatting and diff checks pass. Original source permissions and
 workflow bodies are unchanged. Other numeric forms remain separately gated.
 
-**Current C02/C10 batch — built-in actor predicates (2026-10-15).** The
+**C02/C10 built-in actor predicates (2026-10-15).** The
 26 value/type/arithmetic diagnostics after duration lowering group as follows:
 
 | Defining mechanism | Occurrences before this batch | Finite acceptance / status |
 | --- | ---: | --- |
 | Structural standard-result schemas | 22 (19 type-id + 3 event field-schema) | Preserve the existing OperationOutcome schema and owner identity in capability results/events; remaining. The three field refusals are consumers of the same type-id gap. |
-| CanBook example operation context | 2 | Retain a checked operation identity for the original `visit.source==operation.id` observation; remaining. Poisoned-type and equality refusals are one source expression, not two features. |
+| CanBook example operation context | 2 | Original `visit.source==operation.id` observation now uses the genuine completed mutation context; implemented below. Poisoned-type and equality refusals were one source expression, not two features. |
 | Built-in actor predicate expressions | 2 | Original Rent read predicate and Event nested ticket gate lower through canonical caller snapshots, preserving lazy evaluation and failures; implemented in this batch. |
 
 The smallest complete batch reuses existing HasRole IR for checked boolean
@@ -150,7 +152,26 @@ gate remain distinct; a protected page still rejects anonymous callers.
 The CLI build, formatting and diff checks pass. Original source permissions and
 workflow bodies are unchanged.
 
-These results close the declared module-lookup, duration and actor-predicate batches at their tested scopes,
+**Current C02/C10 batch — CanBook example operation context (2026-10-15).**
+Keep the original assertion correlated with the actual completed mutation id.
+The resolver publishes a checked operation context only for table observation
+expressions; the canonical example runner retains the genuine request id/source
+in a frozen private per-row snapshot after success. Setup, expected-value
+evaluation, read invocations, custom hooks and sequence expressions cannot borrow
+that context. Canonical authorized read inspection and its revision fence remain
+unchanged. No original permissions, guards, workflows or assertions are weakened.
+
+Three equivalent independent JEV Choice requests unanimously favor this bounded
+context over rewriting the example; requests/responses and uncertainty are in
+`example-operation-context/`. Both focused checks pass: actual emitted
+callbacks run through installed Testkit/native D1/Identity with two successful
+correlated rows and exact rule_failed/forbidden rollback rows. Premature expected
+evaluation fails setup, and header setup keeps its unresolved-name refusal.
+Existing example checks pass **29/29** and the existing native example-runner
+check passes **1/1**. Native package emit, CLI build, formatting
+and diff checks pass. This is not full CanBook resource-workflow acceptance.
+
+These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
 is **not ready for unrestricted training-data authoring**. Existing broader
 reference and external release holds remain unchanged. No training, dataset

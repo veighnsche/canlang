@@ -1,0 +1,7 @@
+{
+  "decision": "retain_context",
+  "agreement": "Three independently worded equivalent Choice requests selected retain_context, each with probability and confidence 1.0.",
+  "interpretation": "Advice supports the bounded choice; confidence does not establish compiler or runtime correctness.",
+  "remaining_uncertainty": "Native execution must prove actual request correlation and preserve caller-authorized read observations, rejection rollback and row isolation. Read-only operations and sequences do not gain a completed mutation context in this batch.",
+  "docs": ["https://docs.typesafe.ai/api", "https://docs.typesafe.ai/primitives/choice"]
+}

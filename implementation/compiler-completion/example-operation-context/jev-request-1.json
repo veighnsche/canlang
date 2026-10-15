@@ -1,0 +1,25 @@
+{
+  "state": {
+    "goal": "Fix a supported workflow example without weakening its correlation assertion or production permissions.",
+    "verified": {
+      "source": "A mutation creates Appointment.source=operation.id and has no business return. Its table observation is count(Appointment as visit where visit.source==operation.id), expected 1; other rows require exact rule_failed/forbidden and no writes.",
+      "language": "operation.id/source are production request context facts. Examples have separate row scopes, normal canonical invocation, read-only authorized observations. Documentation mentions deterministic operation identities but only explicitly names result and fixture observations, not operation in observations.",
+      "implementation": "Resolver intentionally omits operation from example context; type pass records Error on this member; emission yields two refusals. Native example runtime generates canonical operation_id but discards it after call. A per-row WeakMap and existing bindings proxy can retain a frozen context only for post-success table observation. Existing caller-authorized query/readonly snapshot fence remains unchanged. No new carrier or testkit API needed if canonical hooks share a private map with runner.",
+      "limits": "Table rows make one call. Sequence steps and failed rows must not inherit previous operation metadata; expected cells and fixture setup must not see a future operation. For successful read-only invocations there is no mutation operation id and observation access should fail explicitly."
+    },
+    "alternatives": {
+      "retain_context": "Specify operation in successful mutation table observations as the actual completed request id and source, read-only, row-isolated and available only after success. Preserve source assertion unchanged. Implement checked resolver scope + private canonical-request snapshot; no grants or writable inspection, no user binding overrides. Expected values/setup cannot access it. Reads and sequences without this defined scope fail rather than inventing identity.",
+      "rewrite_example": "Keep operation unavailable in example observations. Change this example to inspect count(Appointment) under its fresh isolated row with no Appointment seeds, or add an authored source marker/result so correlation is observable without new context. Preserve success/rejection checks, but plain count would no longer check actual source=request-id assignment; adding a result changes public operation API."
+    }
+  },
+  "questions": {
+    "repair": {
+      "type": "choice",
+      "instructions": "Which complete repair best preserves the original correlation assertion, simple authoring, explicit contexts and permission boundaries: retaining the completed mutation request context only in successful table observations, or rewriting the example within its current observation vocabulary?",
+      "criteria": {
+        "retain_context": "Specify operation in successful mutation table observations as the actual completed request id and source, read-only, row-isolated and available only after success. Preserve source assertion unchanged. Implement checked resolver scope + private canonical-request snapshot; no grants or writable inspection, no user binding overrides. Expected values/setup cannot access it. Reads and sequences without this defined scope fail rather than inventing identity.",
+        "rewrite_example": "Keep operation unavailable in example observations. Change this example to inspect count(Appointment) under its fresh isolated row with no Appointment seeds, or add an authored source marker/result so correlation is observable without new context. Preserve success/rejection checks, but plain count would no longer check actual source=request-id assignment; adding a result changes public operation API."
+      }
+    }
+  }
+}

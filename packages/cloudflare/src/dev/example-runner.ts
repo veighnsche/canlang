@@ -551,7 +551,9 @@ function freshOperationId(): OperationId {
 }
 
 /** The first local profile's real D1 fixture and canonical invocation ports. */
-function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules): ExampleRuntimeHooks {
+function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
+  tableOperations: WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>,
+): ExampleRuntimeHooks {
   const models = artifact.models ?? [];
   const operations = artifact.operations ?? [];
   const results = new WeakMap<ExampleRowScope, { readonly type: string; readonly wire: unknown; readonly identity: ResolvedIdentity }>();
@@ -698,6 +700,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
     async invoke({ call, identity }) {
       invoked.add(call.scope);
       results.delete(call.scope);
+      tableOperations.delete(call.scope);
       const operation = operations.find(candidate => candidate.name === call.operation);
       if (operation === undefined) throw new Error(`example runner: unknown operation ${call.operation}`);
       // Loader/source failures are infrastructure failures, rather than an
@@ -716,11 +719,12 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
         source: "example", now: () => call.scope.nowMs,
         ...(ownerStorage === undefined ? {} : { ownerStorage }),
       });
+      const operationId = operation.kind === "read" ? undefined : request.operationId ?? freshOperationId();
       const outcome = operation.kind === "read"
         ? await invoker.invokeRead({ operation: call.operation as FqOperationName, inputs: request.inputs as ClosedInputs }, identity)
         : await invoker.invokeMutation({
           operation: call.operation as FqOperationName,
-          operation_id: (request.operationId ?? freshOperationId()) as OperationId,
+          operation_id: operationId as OperationId,
           inputs: request.inputs as ClosedInputs,
         }, identity);
       if ("error" in outcome) return { ok: false, error: outcome.error.code };
@@ -730,6 +734,9 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
           throw new Error("example runner: declared operation result is absent from its canonical response");
         }
         results.set(call.scope, { type: operation.result.type, wire: served["result"], identity });
+      }
+      if (operationId !== undefined) {
+        tableOperations.set(call.scope, Object.freeze({ id: operationId, source: "example" }));
       }
       return { ok: true };
     },
@@ -849,7 +856,8 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     // Canonical source verification consumes the same complete artifact that
     // issued this assembly, including the actual compiled test modules. The
     // original compiler bytes still own the report digest and row inventory.
-    const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm);
+    const tableOperations = new WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>();
+    const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm, tableOperations);
     const loadSuite = input.testkit.loadExampleSuite as (
       moduleUrl: string,
       bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
@@ -875,11 +883,19 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       let evaluationScope: ExampleRowScope | undefined;
       const rowUserRefs = new WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>();
       const bindings = new Proxy(authoredBindings, {
-        get: (target, property, receiver) => property === "canonical" ? observationScope
+        get: (target, property, receiver) => {
+          if (property === "operation") {
+            const operation = observationScope === undefined || evaluationScope === undefined
+              ? undefined : tableOperations.get(evaluationScope);
+            if (operation === undefined) throw new Error("example runner: no completed mutation operation context in this phase");
+            return operation;
+          }
+          return property === "canonical" ? observationScope
           : input.bindings === undefined && evaluationScope !== undefined && typeof property === "string" &&
               ["self", "other", "outsider"].includes(property) ? rowUserRefs.get(evaluationScope)?.[property]
           : property === "now" && evaluationScope !== undefined ? decodeValue("datetime", new Date(evaluationScope.nowMs).toISOString())
-          : Reflect.get(target, property, receiver),
+          : Reflect.get(target, property, receiver);
+        },
       });
       const activeScopes = new Set<ExampleRowScope>();
       const disposals = new WeakMap<ExampleRowScope, Promise<void>>();

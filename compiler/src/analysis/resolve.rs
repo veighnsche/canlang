@@ -5378,6 +5378,21 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
+        // Only table observations inspect the completed mutation request.
+        // Setup, expected cells and sequence expressions have no such context.
+        let observation_scope = self.new_scope(Some(scope), node.span)?;
+        if self
+            .tables
+            .resolve_name(scope, "operation", self.catalog)
+            .is_none()
+        {
+            self.tables.scopes[observation_scope.0 as usize]
+                .bindings
+                .insert(
+                    "operation".to_string(),
+                    Binding::Context(ContextVar::Operation),
+                );
+        }
         // General row/sequence expressions retain their existing runner/E5
         // unresolved-name ownership. The common walker still publishes every
         // known lexical binding, query alias and expression scope.
@@ -5440,7 +5455,19 @@ impl<'a> Resolver<'a> {
                                 })
                         });
                     if !caller_column {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
+                        let expression_scope = if index == 0 && expected {
+                            observation_scope
+                        } else {
+                            scope
+                        };
+                        self.walk_expr(
+                            module,
+                            expression_scope,
+                            part,
+                            text,
+                            ExprCtx::bare(),
+                            diags,
+                        )?;
                     }
                 }
             }
