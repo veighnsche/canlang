@@ -843,6 +843,14 @@ export function createDOStorage(storage: DurableObjectStorage, authority?: FileR
       assertBinding();
       return readRevisionInner(storage);
     },
+    async uniqueOwner(model, keyName, keyValue): Promise<RecordId | null> {
+      assertBinding();
+      const claim = storage.sql.exec<{ record_id: string }>(
+        'SELECT record_id FROM unique_claims WHERE model = ? AND key_name = ? AND key_value = ?',
+        model, keyName, keyValue,
+      ).toArray()[0];
+      return claim === undefined ? null : claim.record_id as RecordId;
+    },
 
     async cohortIdentityPage(input: CohortIdentityPageRequest): Promise<ReadonlyArray<RecordId>> {
       assertBinding();

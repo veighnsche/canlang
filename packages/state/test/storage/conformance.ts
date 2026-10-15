@@ -971,6 +971,39 @@ export function storageConformance(
       assert.deepEqual(ids(await store.query(query('t.Doc'))), []);
     });
 
+    it('uniqueOwner reads exact persisted claim identity without changing state', async () => {
+      const { store, reset, probe } = await setup();
+      await reset();
+      assert.ok(store.uniqueOwner, 'real storage exposes trusted owner claim reads');
+      assert.equal(await store.uniqueOwner(asModel('t.User'), 'code', 'Alpha'), null);
+      await store.commit(makeBatch(0, {
+        writes: [
+          { kind: 'insert', model: asModel('t.User'), row: makeRow({ id: 'claim-a' }) },
+          { kind: 'insert', model: asModel('t.User'), row: makeRow({ id: 'claim-b' }) },
+          { kind: 'insert', model: asModel('t.Other'), row: makeRow({ id: 'claim-other' }) },
+        ],
+        uniqueClaims: [
+          uniqueClaim('t.User', 'claim-a', 'code', 'Alpha'),
+          uniqueClaim('t.User', 'claim-b', 'other-code', 'Alpha'),
+          uniqueClaim('t.Other', 'claim-other', 'code', 'Alpha'),
+        ],
+      }));
+      assert.equal(await store.uniqueOwner(asModel('t.User'), 'code', 'Alpha'), asId('claim-a'));
+      assert.equal(await store.uniqueOwner(asModel('t.User'), 'other-code', 'Alpha'), asId('claim-b'));
+      assert.equal(await store.uniqueOwner(asModel('t.Other'), 'code', 'Alpha'), asId('claim-other'));
+      for (const [model, key, value] of [['t.Missing', 'code', 'Alpha'], ['t.User', 'missing', 'Alpha'], ['t.User', 'code', 'alpha']] as const)
+        assert.equal(await store.uniqueOwner(asModel(model), key, value), null);
+      assert.equal(await store.readRevision(), 1);
+      assert.deepEqual(await store.historyFor(asModel('t.User'), asId('claim-a')), []);
+      await store.commit(makeBatch(1, {
+        uniqueReleases: [uniqueRelease('t.User', 'code', 'Alpha')],
+        uniqueClaims: [uniqueClaim('t.User', 'claim-b', 'code', 'Alpha')],
+      }));
+      assert.equal(await store.uniqueOwner(asModel('t.User'), 'code', 'Alpha'), asId('claim-b'));
+      await store.commit(makeBatch(2, { uniqueReleases: [uniqueRelease('t.User', 'code', 'Alpha')] }));
+      assert.equal(await store.uniqueOwner(asModel('t.User'), 'code', 'Alpha'), null);
+    });
+
     it('a second unique claim for a different record fails and persists nothing', async () => {
       const { store, reset, probe } = await setup();
       await reset();

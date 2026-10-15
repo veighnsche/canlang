@@ -25,6 +25,47 @@ async function stageAll(store: StoragePort, plan: ValidatedMigrationPlan, oldMod
   }
 }
 
+test('desired field checks refuse invalid staged and retained rows before activation', async () => {
+  for (const renamed of [false, true]) {
+    const { store } = setupMigrationWorld();
+    const oldField = renamed ? 'login' : 'handle';
+    const oldModels = buildModelTable([modelDef(MODEL, { fields: { [oldField]: handleField() } })]);
+    const desiredModels = buildModelTable([{ ...modelDef(MODEL, { fields: { handle: handleField() } }),
+      givenFieldValidations: [{ rule: 'budget', field: 'handle', evaluate: (value: string) => new TextEncoder().encode(value).byteLength <= 128 }],
+    }]);
+    const installed = makeInstalled();
+    await installSnapshot(store, installed);
+    await seedLive(store, MODEL, [{ id: 'a', data: { [oldField]: 'é'.repeat(65) } }]);
+    const plan = validateTransition(installed, makeTransition({ directives: renamed ? [{ kind: 'renameField', model: MODEL, from: 'login', to: 'handle' }] : [] }), oldModels, desiredModels);
+    await stageAll(store, plan, oldModels, desiredModels);
+    const before = await store.load(asModel(MODEL), asId('a'));
+    await assert.rejects(validateStaged({ store, plan, desiredModels, oldModels, oldLocks: oldLocks([]) }), refusesValidation);
+    assert.equal((await store.readMigrationProgress(plan.migrationId))?.phase, 'staging');
+    assert.deepEqual(await store.load(asModel(MODEL), asId('a')), before);
+    assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, installed.snapshotId);
+  }
+});
+
+test('field checks admit a valid desired schema and recheck before any publish chunk', async () => {
+  const { store } = setupMigrationWorld();
+  const oldModels = buildModelTable([modelDef(MODEL, { fields: { handle: handleField() } })]);
+  let allow = true;
+  const desiredModels = buildModelTable([{ ...modelDef(MODEL, { fields: { handle: handleField() } }),
+    givenFieldValidations: [{ rule: 'budget', field: 'handle', evaluate: () => allow }],
+  }]);
+  const installed = makeInstalled();
+  await installSnapshot(store, installed);
+  await seedLive(store, MODEL, [{ id: 'a', data: { handle: 'Valid' } }]);
+  const plan = validateTransition(installed, makeTransition(), oldModels, desiredModels);
+  await stageAll(store, plan, oldModels, desiredModels);
+  assert.equal((await validateStaged({ store, plan, desiredModels, oldModels, oldLocks: oldLocks([]) })).phase, 'staged');
+  allow = false;
+  await assert.rejects(activate({ store, plan, inventory: [], oldModels, desiredModels, chunkSize: 1, clock: fixedClock() }), refusesValidation);
+  assert.equal((await store.readInstalledSnapshot('acme'))?.snapshotId, installed.snapshotId);
+  allow = true;
+  assert.equal((await activate({ store, plan, inventory: [], oldModels, desiredModels, chunkSize: 1, clock: fixedClock() })).flipped, true);
+});
+
 test('colliding computed keys refuse before activation without changing claims or snapshot', async () => {
   const { store } = setupMigrationWorld();
   const oldModels = buildModelTable([modelDef(MODEL, { fields: { handle: handleField() } })]);

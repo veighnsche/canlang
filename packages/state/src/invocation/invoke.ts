@@ -472,6 +472,8 @@ export interface InvokeMutationInput {
   admissionMode?: MutationAdmissionMode;
   /** Synchronous observation after durability; failures never retry execution. */
   observeCommittedReceipt?: (receipt: Receipt & { readonly outcome: CommittedReceiptOutcome }) => void;
+  /** Trusted synchronous observation only after a rejected receipt is durable or exactly replayed. */
+  observeRejectedReceipt?: (receipt: Receipt) => void;
   /**
    * B2 (Q3): serverOnly exclusions for denial currents, forwarded to
    * `admit` (see `ConflictServerOnly`). The holder (seam/assembly)
@@ -536,6 +538,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
     if (call.replay !== null) {
       const outcome = call.replay.outcome;
       if (outcome.status === 'rejected') {
+        input.observeRejectedReceipt?.(call.replay);
         throw new StateError(outcome.code, outcome.message);
       }
       input.observeCommittedReceipt?.({ ...call.replay, outcome });
@@ -659,6 +662,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
         }
         throw storageToStateError(commitError);
       }
+      input.observeRejectedReceipt?.(rejected);
       throw error;
     }
     // T32b-wire: commit-time fence revalidation between execute and commit

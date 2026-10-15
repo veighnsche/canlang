@@ -988,3 +988,25 @@ describe('generated CRUD: checked owner policies and actual session frames', () 
     assert.deepEqual(await snapshotRows(setup.store, GADGET), []);
   });
 });
+
+describe('generated CRUD installed candidate admission frame', () => {
+  it('captures its own callback once, enforces refusal, and closes the original frame', async () => {
+    const setup = await setupCrud();
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    let calls = 0, closed = 0;
+    const execute = generatedCrudExecuteOwnerSession({ table: setup.table, store: setup.store,
+      ownerBounds: { maxWork: 1000, maxRows: 100 }, createOwnerFrame: async () => ({
+        close: () => { closed++; },
+        admitCandidate: async (candidate, views) => {
+          calls++;
+          assert.equal(candidate.data.stock, '0', 'omitted native defaults precede admission');
+          assert.equal(await views.final.get(asModel(GADGET), candidate.id), null);
+          return false;
+        },
+      }) });
+    const error = await captureStateError(invoke({ ...callArgs(setup, execute), registry: loaded.registry,
+      envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq), baseGadgetInputs('ADMISSION')) }));
+    assert.equal(error.code, 'rule_failed'); assert.equal(calls, 1); assert.equal(closed, 1);
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), []);
+  });
+});

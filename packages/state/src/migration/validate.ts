@@ -44,7 +44,7 @@
  */
 
 import { getDataPath } from '../internal/own-data.js';
-import { assertMigrationUniqueSupported, canonicalUniqueRowValue, canonicalUniqueFieldValue } from '../internal/unique-value.js';
+import { assertMigrationUniqueSupported, canonicalUniqueRowValue, canonicalUniqueScopeValue, canonicalUniqueFieldValue } from '../internal/unique-value.js';
 import type {
   MigrationProgress,
   ModelName,
@@ -59,7 +59,7 @@ import type {
 import type { InterimFieldDef, InterimLock, InterimModelDef, ModelTable } from '../mutation/models.js';
 import { collectPredicateFields, evalPredicateForRow } from '../policy/grants.js';
 import { StateError, storageToStateError } from '../errors.js';
-import { createGivenUniqueKeyScope, type GivenUniqueKeyScope } from '../effects/staging.js';
+import { validateGivenFields, createGivenUniqueKeyScope, type GivenUniqueKeyScope } from '../effects/staging.js';
 import { validateMappedRow } from './mapper.js';
 import type { ValidatedMigrationPlan } from './transition.js';
 
@@ -243,6 +243,7 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       );
     }
     validateMappedRow(row.data, desiredDef);
+    await validateGivenFields(desiredDef.givenFieldValidations ?? [], row.data);
     let bucket = stagedByTarget.get(target);
     if (bucket === undefined) {
       bucket = [];
@@ -322,11 +323,13 @@ export async function validateStaged(input: ValidateStagedInput): Promise<Migrat
       if (
         desiredDef === undefined ||
         (desiredDef.uniqueKeys.length === 0 &&
-          (desiredDef.givenUniqueKeys ?? []).length === 0)
+          (desiredDef.givenUniqueKeys ?? []).length === 0 &&
+          (desiredDef.givenFieldValidations ?? []).length === 0)
       ) {
         continue;
       }
       const live = await scanAllLive(store, source);
+      for (const row of live) await validateGivenFields(desiredDef.givenFieldValidations ?? [], row.data);
       checkUniqueSet(
         live,
         desiredDef,
@@ -816,7 +819,7 @@ async function checkGivenUniqueSet(
   for (const rule of rules) {
     const seen = new Set<string>();
     for (const row of rows) {
-      const value = await scope.evaluate(rule, row.data[rule.field]);
+      const value = canonicalUniqueScopeValue(row, await scope.evaluate(rule, row.data[rule.field]), def);
       if (value === null) {
         continue;
       }

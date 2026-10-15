@@ -1,7 +1,11 @@
 import { StateError } from '../errors.js';
 import { checkOwnerModelPolicyDescriptors } from '../mutation/model-policies.js';
 import { checkFieldMachine } from '../internal/machine.js';
-import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
+import {
+  normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, decodeValue, encodeValue,
+  compareDecimal, compareDate, compareInstant, compareMoney, isDecimal, isDateValue, isDatetime, isMoney, datetime,
+  type NormalizedSchema,
+} from '@canlang/values';
 import { bindScenarioReceiptPlan, checkScenarioResultDisclosurePlan } from './scenario-receipt.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
@@ -62,6 +66,7 @@ import {
   type OperationName,
   type QueryPredicate,
   type StateUniqueKeyProducerBinding,
+  type StateFieldValidationProducerBinding,
 } from '@canlang/contracts';
 import type {
   ArtifactGivenKeyword,
@@ -225,7 +230,7 @@ export interface LoadedDescriptorSet {
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
-> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules' | 'callables' | 'givenContracts'>>;
+> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules' | 'callables' | 'givenContracts' | 'requires'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -271,6 +276,7 @@ export interface ConvertedArtifactDescriptors {
    * artifact carries no keyword rules — never inferred, never partial.
    */
   readonly givenUniqueKeys: ReadonlyArray<StateUniqueKeyProducerBinding>;
+  readonly givenFieldValidations: ReadonlyArray<StateFieldValidationProducerBinding>;
 }
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
@@ -293,6 +299,7 @@ export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
    * member: generated behavior never loads without its checked contract.
    */
   readonly givenUniqueKeys: ReadonlyArray<StateUniqueKeyProducerBinding>;
+  readonly givenFieldValidations?: ReadonlyArray<StateFieldValidationProducerBinding>;
 }
 
 const KNOWN_OPERATION_KINDS: ReadonlySet<string> = new Set([
@@ -1668,54 +1675,145 @@ function loadCheckedDescriptorSet(
  * contribution rejects the WHOLE set.
  */
 
-/** BGI-08 v1 runtime-supported contributed leaf types (compiler spellings). */
-function givenRuntimeFieldKind(typeText: unknown): 'boolean' | 'string' | 'integer' | undefined {
-  if (typeText === 'bool' || typeText === 'boolean') return 'boolean';
-  if (typeText === 'text') return 'string';
-  if (typeText === 'int' || typeText === 'integer') return 'integer';
-  return undefined;
+/** Contributed leaves use the same native associations and codecs as authored fields. */
+function givenRuntimeShape(typeText: unknown): { type: string; base: string; field: Record<string, unknown>; array: boolean; nullable: boolean } {
+  try {
+    if (typeof typeText !== 'string') throw new Error('missing type');
+    const parsed = parseTypeId(typeText.replace(/\s/g, '').replace(/^boolean(?=\[|\?|$)/, 'bool').replace(/^integer(?=\[|\?|$)/, 'int'));
+    const base = parsed.base;
+    const tags: Readonly<Record<string, string>> = { bool: 'boolean', int: 'integer', decimal: 'decimal', text: 'string',
+      email: 'string', timezone: 'string', date: 'date', datetime: 'datetime', duration: 'duration', money: 'money', user: 'user', file: 'file' };
+    const name = base.kind === 'scalar' || base.kind === 'stringlike' ? base.name : base.kind;
+    if (parsed.requiredArray || base.kind !== 'enum' && tags[name] === undefined) throw new Error('unsupported leaf');
+    return { type: printTypeId(parsed), base: name, field: base.kind === 'enum' ? { kind: 'enum', values: [...base.cases] } : { kind: tags[name] },
+      array: parsed.array, nullable: parsed.nullable };
+  } catch {
+    fail('unsupported_given_contribution', `Invalid contributed type ${JSON.stringify(typeText)}; this contribution needs explicit owner integration.`);
+  }
 }
 
-/**
- * BGI-08 parse one contributed literal default into its artifact wire
- * value (mirroring the compiler's inhabitance rule: bool literals,
- * i64 decimal text kept as wire text per integer fixtures, JSON text).
- */
+/** Split source arrays without rounding numeric literals or splitting quoted commas. */
+function givenArrayConstants(source: string): string[] {
+  if (!source.startsWith('[') || !source.endsWith(']')) throw new Error('expected array');
+  const body = source.slice(1, -1);
+  if (body.trim() === '') return [];
+  const values: string[] = [];
+  let quoted = false;
+  let escaped = false;
+  let start = 0;
+  for (let index = 0; index < body.length; index++) {
+    const char = body[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') quoted = false;
+    } else if (char === '"') quoted = true;
+    else if (char === ',') { values.push(body.slice(start, index).trim()); start = index + 1; }
+  }
+  if (quoted) throw new Error('unterminated string');
+  const last = body.slice(start).trim();
+  if (last !== '') values.push(last);
+  return values;
+}
+
 function givenRuntimeLiteral(typeText: string, defaultText: string, what: string): unknown {
-  const kind = givenRuntimeFieldKind(typeText);
-  if (kind === 'boolean') {
-    if (defaultText === 'true') return true;
-    if (defaultText === 'false') return false;
-  } else if (kind === 'integer') {
-    const value = defaultText.trim();
-    try {
-      const parsed = BigInt(value);
-      if (parsed >= -(1n << 63n) && parsed <= ((1n << 63n) - 1n)) return value;
-    } catch { /* Fall through to the precise refusal below. */ }
-  } else if (kind === 'string') {
-    try {
-      const parsed: unknown = JSON.parse(defaultText);
-      if (typeof parsed === 'string') return parsed;
-    } catch { /* Fall through to the precise refusal below. */ }
+  try {
+    const shape = givenRuntimeShape(typeText);
+    const source = defaultText.trim();
+    if (source === 'null' && shape.nullable) return null;
+    if (shape.array) {
+      const elementType = shape.type.replace(/\[\]\??$/, '');
+      return givenArrayConstants(source).map(item => givenRuntimeLiteral(elementType, item, what));
+    }
+    if (shape.base === 'text' && !source.startsWith('"')) throw new Error('expected quoted text');
+    if (['int', 'decimal', 'enum'].includes(shape.base) && source.startsWith('"')) throw new Error('expected source literal');
+    let wire: unknown = source.startsWith('"') ? JSON.parse(source) : source;
+    if (shape.base === 'bool') {
+      if (source !== 'true' && source !== 'false') throw new Error('expected bool');
+      wire = source === 'true';
+    }
+    if (shape.base === 'duration' && typeof wire === 'string') {
+      const units: Readonly<Record<string, bigint>> = { ms: 1n, s: 1000n, m: 60000n, h: 3600000n, d: 86400000n };
+      const duration = /^(-?[0-9]+)(ms|s|m|h|d)$/.exec(wire);
+      if (duration !== null) wire = (BigInt(duration[1]!) * units[duration[2]!]!).toString();
+    }
+    if (shape.base === 'datetime' && typeof wire === 'string') wire = encodeValue('datetime', datetime(wire));
+    // The wire owner enforces ranges, exact datetime syntax, enum cases and validated strings.
+    return encodeValue(shape.type, decodeValue(shape.type, wire));
+  } catch {
+    fail('malformed_descriptor', `Invalid ${what}: default ${JSON.stringify(defaultText)} does not inhabit ${JSON.stringify(typeText)}.`);
   }
-  fail(
-    'malformed_descriptor',
-    `Invalid ${what}: default ${JSON.stringify(defaultText)} does not inhabit ${JSON.stringify(typeText)}.`,
-  );
 }
 
-/** BGI-08 parse one contributed bound into its wire number (v1: safe ints). */
-function givenRuntimeBound(bound: string, what: string): number {
-  const value = bound.trim();
-  if (/^-?[0-9]+$/.test(value)) {
-    const parsed = Number(value);
-    if (Number.isSafeInteger(parsed)) return parsed;
+function givenLengthBound(shape: ReturnType<typeof givenRuntimeShape>): boolean {
+  return shape.array || ['text', 'email', 'timezone'].includes(shape.base);
+}
+
+function givenRuntimeBound(typeText: string, bound: string, what: string): unknown {
+  const shape = givenRuntimeShape(typeText);
+  if (givenLengthBound(shape)) {
+    const parsed = Number(bound);
+    if (/^[0-9]+$/.test(bound.trim()) && Number.isSafeInteger(parsed)) return parsed;
+    fail('unsupported_given_contribution', `Invalid ${what}: bound ${JSON.stringify(bound)} must be a safe nonnegative length.`);
   }
-  fail(
-    'unsupported_given_contribution',
-    `Invalid ${what}: bound ${JSON.stringify(bound)} is outside the v1 runtime set ` +
-      '(integer bounds on bool/text/int leaves); this contribution needs explicit owner integration.',
-  );
+  if (!['int', 'decimal', 'duration', 'money', 'date', 'datetime'].includes(shape.base)) {
+    fail('malformed_descriptor', `Invalid ${what}: ${shape.base} fields take no bounds.`);
+  }
+  return givenRuntimeLiteral(shape.type.replace(/\?$/, ''), bound, what);
+}
+
+function compareGivenBounds(typeText: string, left: unknown, right: unknown, what: string): number {
+  try {
+    const shape = givenRuntimeShape(typeText);
+    if (givenLengthBound(shape)) {
+      if (typeof left !== 'number' || typeof right !== 'number' || !Number.isSafeInteger(left) || !Number.isSafeInteger(right)) throw new Error('invalid length');
+      return left < right ? -1 : left > right ? 1 : 0;
+    }
+    const type = shape.type.replace(/\?$/, '');
+    const a = decodeValue(type, left);
+    const b = decodeValue(type, right);
+    if (typeof a === 'bigint' && typeof b === 'bigint') return a < b ? -1 : a > b ? 1 : 0;
+    if (isDecimal(a) && isDecimal(b)) return compareDecimal(a, b);
+    if (isDateValue(a) && isDateValue(b)) return compareDate(a, b);
+    if (isDatetime(a) && isDatetime(b)) return compareInstant(a, b);
+    if (isMoney(a) && isMoney(b)) return compareMoney(a, b);
+    throw new Error('unordered bound');
+  } catch {
+    fail('malformed_descriptor', `Invalid ${what}: cannot compare declared native bounds.`);
+  }
+}
+
+function sameGivenValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function sameGivenTypedValue(type: string, left: unknown, right: unknown): boolean {
+  try {
+    return sameGivenValue(encodeValue(type, decodeValue(type, left)), encodeValue(type, decodeValue(type, right)));
+  } catch { return false; }
+}
+
+function sameGivenBound(type: string, left: unknown, right: unknown, what: string): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  return compareGivenBounds(type, left, right, what) === 0;
+}
+
+function givenConstraints(entry: Record<string, unknown>, typeText: string, what: string): Record<string, unknown> {
+  const shape = givenRuntimeShape(typeText);
+  const trim = entry['trim'] ?? false;
+  if (typeof trim !== 'boolean' || trim && (shape.base !== 'text' || shape.array)) {
+    fail('malformed_descriptor', `Invalid ${what}: trim needs a text field.`);
+  }
+  const result: Record<string, unknown> = trim ? { trim: true } : {};
+  for (const bound of ['min', 'max'] as const) {
+    if (entry[bound] === undefined) continue;
+    if (typeof entry[bound] !== 'string') fail('malformed_descriptor', `Invalid ${what}: bounds are source-text constants.`);
+    result[bound] = givenRuntimeBound(typeText, entry[bound], what);
+  }
+  if (result['min'] !== undefined && result['max'] !== undefined && compareGivenBounds(typeText, result['min'], result['max'], what) > 0) {
+    fail('malformed_descriptor', `Invalid ${what}: bounds contradict.`);
+  }
+  return result;
 }
 
 interface GivenContractsShape {
@@ -1848,60 +1946,13 @@ function foldGivenModelAttachment(
     if (typeof name !== 'string' || name === '' || typeof typeText !== 'string') {
       fail('malformed_descriptor', `Invalid ${what}: contributed fields need a name and a type.`);
     }
-    const kind = givenRuntimeFieldKind(typeText);
-    if (kind === undefined) {
-      fail(
-        'unsupported_given_contribution',
-        `Invalid ${what}: contributed field ${JSON.stringify(name)} has type ` +
-          `${JSON.stringify(typeText)}; v1 runtime folds bool/text/int leaves — ` +
-          'this contribution needs explicit owner integration.',
-      );
-    }
+    const shape = givenRuntimeShape(typeText);
     const fieldWhat = `${what} contributes \`${name}\``;
     const rawDefault = entry['default'];
-    if (rawDefault === undefined) {
-      fail(
-        'malformed_descriptor',
-        `Invalid ${fieldWhat} with no default; existing creates and fixtures stay valid only with one.`,
-      );
-    }
-    if (typeof rawDefault !== 'string') {
-      fail('malformed_descriptor', `Invalid ${fieldWhat}: defaults are source-text constants.`);
-    }
+    if (rawDefault === undefined) fail('malformed_descriptor', `Invalid ${fieldWhat} with no default; existing creates and fixtures stay valid only with one.`);
+    if (typeof rawDefault !== 'string') fail('malformed_descriptor', `Invalid ${fieldWhat}: defaults are source-text constants.`);
     const literal = givenRuntimeLiteral(typeText, rawDefault, fieldWhat);
-    const trim = entry['trim'] === undefined ? false : entry['trim'];
-    if (trim !== true && trim !== false) {
-      fail('malformed_descriptor', `Invalid ${fieldWhat}: trim must be a boolean.`);
-    }
-    if (trim === true && kind !== 'string') {
-      fail('malformed_descriptor', `Invalid ${fieldWhat}: trim needs a text field.`);
-    }
-    let min: number | undefined;
-    let max: number | undefined;
-    if (entry['min'] !== undefined) {
-      if (typeof entry['min'] !== 'string') {
-        fail('malformed_descriptor', `Invalid ${fieldWhat}: bounds are source-text constants.`);
-      }
-      if (kind === 'boolean') {
-        fail('malformed_descriptor', `Invalid ${fieldWhat}: boolean fields take no bounds.`);
-      }
-      min = givenRuntimeBound(entry['min'], fieldWhat);
-    }
-    if (entry['max'] !== undefined) {
-      if (typeof entry['max'] !== 'string') {
-        fail('malformed_descriptor', `Invalid ${fieldWhat}: bounds are source-text constants.`);
-      }
-      if (kind === 'boolean') {
-        fail('malformed_descriptor', `Invalid ${fieldWhat}: boolean fields take no bounds.`);
-      }
-      max = givenRuntimeBound(entry['max'], fieldWhat);
-    }
-    if (min !== undefined && max !== undefined && min > max) {
-      fail(
-        'malformed_descriptor',
-        `Invalid ${fieldWhat}: bounds contradict: min=${min} exceeds max=${max}.`,
-      );
-    }
+    const constraints = givenConstraints(entry, typeText, fieldWhat);
     const first = contributedBy.get(name);
     if (first !== undefined) {
       fail(
@@ -1917,20 +1968,20 @@ function foldGivenModelAttachment(
       // still fold missing fields below, and sibling contributions refuse.
       const field = authored['field'];
       const value = authored['default'];
-      const valueType = kind === 'boolean' ? 'bool' : kind === 'string' ? 'text' : 'int';
       const allowed = new Set(['name', 'field', 'required', 'serverOnly', 'valueType',
         'nullable', 'array', 'default', 'trim', 'min', 'max', 'machine', 'description']);
       const matches = Object.keys(authored).every(key => allowed.has(key)) &&
         !(Array.isArray(uniqueKeys) && uniqueKeys.includes(name)) &&
-        isRecord(field) && Object.keys(field).length === 1 && field['kind'] === kind &&
+        sameGivenValue(field, shape.field) &&
         authored['required'] === false && authored['serverOnly'] === false &&
-        (authored['nullable'] === undefined || authored['nullable'] === false) &&
-        authored['array'] === undefined && authored['machine'] === undefined &&
-        (authored['valueType'] === undefined || authored['valueType'] === valueType) &&
-        (authored['trim'] === undefined ? false : authored['trim']) === trim &&
-        authored['min'] === min && authored['max'] === max &&
+        (authored['nullable'] === true) === shape.nullable &&
+        (shape.array ? sameGivenValue(authored['array'], { required: false }) : authored['array'] === undefined) &&
+        authored['machine'] === undefined &&
+        (authored['valueType'] === undefined || authored['valueType'] === shape.type) &&
+        (authored['trim'] ?? false) === (constraints['trim'] ?? false) &&
+        sameGivenBound(shape.type, authored['min'], constraints['min'], what) && sameGivenBound(shape.type, authored['max'], constraints['max'], what) &&
         isRecord(value) && Object.keys(value).length === 2 &&
-        value['kind'] === 'literal' && Object.is(value['value'], literal);
+        value['kind'] === 'literal' && sameGivenTypedValue(shape.type, value['value'], literal);
       if (!matches) {
         fail('duplicate_name', `Invalid ${what}: contributes \`${name}\`, already declared on model ${JSON.stringify(modelName)} with a conflicting runtime schema.`);
       }
@@ -1940,14 +1991,14 @@ function foldGivenModelAttachment(
     contributedBy.set(name, what);
     target.push({
       name,
-      field: { kind },
+      field: shape.field,
       required: false,
       serverOnly: false,
-      ...(kind === 'string' ? { valueType: 'text' } : {}),
+      valueType: shape.type,
+      ...(shape.nullable ? { nullable: true } : {}),
+      ...(shape.array ? { array: { required: false } } : {}),
       default: { kind: 'literal', value: literal },
-      ...(trim === true ? { trim: true } : {}),
-      ...(min !== undefined ? { min } : {}),
-      ...(max !== undefined ? { max } : {}),
+      ...constraints,
     });
   }
 }
@@ -1971,14 +2022,7 @@ function foldGivenFieldAttachment(
     fail('malformed_descriptor', `Invalid ${what}: contributed fields must be objects.`);
   }
   const typeText = entry['type'];
-  const kind = givenRuntimeFieldKind(typeText);
-  if (kind === undefined) {
-    fail(
-      'unsupported_given_contribution',
-      `Invalid ${what}: constraint type ${JSON.stringify(typeText)} is outside the v1 runtime set ` +
-        '(bool/text/int leaves); this contribution needs explicit owner integration.',
-    );
-  }
+  const shape = givenRuntimeShape(typeText);
   const index = target.findIndex((candidate) => candidate['name'] === fieldName);
   if (index < 0) {
     fail(
@@ -1987,23 +2031,9 @@ function foldGivenFieldAttachment(
     );
   }
   const authored = target[index] as Record<string, unknown>;
-  // A well-shaped authored tag must agree with the template kind; an
-  // ill-shaped tag stays the uniform loop's refusal, not the fold's.
-  const tag = authored['field'];
-  if (isRecord(tag) && typeof tag['kind'] === 'string' && tag['kind'] !== kind) {
-    fail(
-      'malformed_descriptor',
-      `Invalid ${what}: has type ${JSON.stringify(typeText)}, cannot change ` +
-        `\`${fieldName}\` from kind ${JSON.stringify(tag['kind'])}.`,
-    );
-  }
-  if (authored['array'] !== undefined || authored['nullable'] === true ||
-      (typeof authored['valueType'] === 'string' && authored['valueType'].endsWith('?'))) {
-    fail(
-      'malformed_descriptor',
-      `Invalid ${what}: has type ${JSON.stringify(typeText)}, cannot change ` +
-        `\`${fieldName}\` from an array or nullable field.`,
-    );
+  const association = artifactValueType(authored, what) ?? (isRecord(authored['field']) && authored['field']['kind'] === 'string' ? 'text' : undefined);
+  if (association !== shape.type) {
+    fail('malformed_descriptor', `Invalid ${what}: has type ${JSON.stringify(typeText)}, cannot change \`${fieldName}\` from its declared type.`);
   }
   const merged: Record<string, unknown> = { ...authored };
   const rawDefault = entry['default'];
@@ -2011,12 +2041,12 @@ function foldGivenFieldAttachment(
     if (typeof rawDefault !== 'string') {
       fail('malformed_descriptor', `Invalid ${what}: defaults are source-text constants.`);
     }
-    const literal = givenRuntimeLiteral(typeText as string, rawDefault, what);
+    const literal = givenRuntimeLiteral(shape.type, rawDefault, what);
     const declared = authored['default'];
     if (declared === undefined) {
       merged['default'] = { kind: 'literal', value: literal };
       merged['required'] = false;
-    } else if (isRecord(declared) && declared['kind'] === 'literal' && declared['value'] === literal) {
+    } else if (isRecord(declared) && declared['kind'] === 'literal' && sameGivenTypedValue(shape.type, declared['value'], literal)) {
       // Agreement: the authored default already carries the constraint.
     } else {
       fail(
@@ -2025,37 +2055,19 @@ function foldGivenFieldAttachment(
       );
     }
   }
-  const trim = entry['trim'] === undefined ? false : entry['trim'];
-  if (trim !== true && trim !== false) {
-    fail('malformed_descriptor', `Invalid ${what}: trim must be a boolean.`);
-  }
-  if (trim === true && kind !== 'string') {
-    fail('malformed_descriptor', `Invalid ${what}: trim needs a text field.`);
-  }
-  if (trim === true || authored['trim'] === true) merged['trim'] = true;
-  else delete merged['trim'];
+  const constraints = givenConstraints(entry, shape.type, what);
+  if (constraints['trim'] === true || authored['trim'] === true) merged['trim'] = true;
   for (const bound of ['min', 'max'] as const) {
-    const contributed = entry[bound];
-    if (contributed === undefined) continue;
-    if (typeof contributed !== 'string') {
-      fail('malformed_descriptor', `Invalid ${what}: bounds are source-text constants.`);
-    }
-    if (kind === 'boolean') {
-      fail('malformed_descriptor', `Invalid ${what}: boolean fields take no bounds.`);
-    }
-    const parsed = givenRuntimeBound(contributed, what);
+    const parsed = constraints[bound];
+    if (parsed === undefined) continue;
     const declared = authored[bound];
-    if (declared === undefined) {
-      merged[bound] = parsed;
-    } else if (typeof declared !== 'number' || !Number.isSafeInteger(declared)) {
-      fail('malformed_descriptor', `Invalid ${what}: cannot merge bound ${bound} onto its declared bound.`);
-    } else {
-      merged[bound] = bound === 'min' ? Math.max(declared, parsed) : Math.min(declared, parsed);
+    if (declared === undefined) merged[bound] = parsed;
+    else {
+      const comparison = compareGivenBounds(shape.type, declared, parsed, what);
+      merged[bound] = (bound === 'min' ? comparison < 0 : comparison > 0) ? parsed : declared;
     }
   }
-  const mergedMin = merged['min'];
-  const mergedMax = merged['max'];
-  if (typeof mergedMin === 'number' && typeof mergedMax === 'number' && mergedMin > mergedMax) {
+  if (merged['min'] !== undefined && merged['max'] !== undefined && compareGivenBounds(shape.type, merged['min'], merged['max'], what) > 0) {
     fail('malformed_descriptor', `Invalid ${what}: bounds contradict the declared bounds.`);
   }
   target[index] = merged;
@@ -2210,6 +2222,59 @@ function checkGivenKeywordBindings(
       implementation: { unit, export: exportName, fingerprint },
     });
   });
+  return bindings;
+}
+
+/** Admit the source-derived fixed field-validation contract without executing metadata. */
+function checkGivenFieldBindings(traits: ArtifactGivenTrait[], models: CanonicalModelDescriptor[]): StateFieldValidationProducerBinding[] {
+  const byName = new Map(models.map(model => [model.name as string, model]));
+  const seen = new Set<string>();
+  const bindings: StateFieldValidationProducerBinding[] = [];
+  const exact = (value: unknown, keys: string[]): Record<string, unknown> => {
+    if (!isRecord(value) || Reflect.ownKeys(value).length !== keys.length || keys.some(key => {
+      const property = Object.getOwnPropertyDescriptor(value, key);
+      return property === undefined || !property.enumerable || !('value' in property);
+    })) fail('malformed_descriptor', 'Invalid field validation: expected exact own data fields.');
+    return value;
+  };
+  for (const trait of traits) {
+    const claim = Object.getOwnPropertyDescriptor(trait, 'validation');
+    if (claim === undefined) {
+      if ('validation' in trait) fail('malformed_descriptor', 'Field validation must be an own data claim.');
+      continue;
+    }
+    if (!('value' in claim)) fail('malformed_descriptor', 'Field validation must be an own data claim.');
+    const validation = exact(claim.value, ['producer', 'export', 'lifecycle', 'input', 'result', 'reads', 'effects', 'authority', 'fingerprint']);
+    const input = exact(validation['input'], ['name', 'type']);
+    const result = exact(validation['result'], ['type']);
+    if (validation['producer'] !== 'state.field-validation@1' || validation['export'] !== 'check' ||
+        validation['lifecycle'] !== 'validate-fields' || input['name'] !== 'value' || input['type'] !== 'text' || result['type'] !== 'bool' ||
+        ['reads', 'effects', 'authority'].some(key => !Array.isArray(validation[key]) || (validation[key] as unknown[]).length !== 0 || Reflect.ownKeys(validation[key] as unknown[]).length !== 1) ||
+        typeof validation['fingerprint'] !== 'string' || !/^[0-9a-f]{64}$/.test(validation['fingerprint'])) {
+      fail('malformed_descriptor', 'Invalid field validation: only the fixed pure text-to-bool producer is supported.');
+    }
+    // Identity and target remain compiler-owned; model traits cannot acquire checks.
+    for (const key of ['id', 'owner', 'unitId', 'target'] as const) {
+      const property = Object.getOwnPropertyDescriptor(trait, key);
+      if (property === undefined || !('value' in property) || typeof property.value !== 'string' || property.value === '') {
+        fail('malformed_descriptor', 'Invalid field validation identity.');
+      }
+    }
+    const dot = trait.target.lastIndexOf('.');
+    const modelName = trait.target.slice(0, dot);
+    const fieldName = trait.target.slice(dot + 1);
+    const model = byName.get(modelName);
+    const field = model?.fields[fieldName];
+    if (!modelName.startsWith(`${trait.owner}.`) || field === undefined || field.valueType !== 'text' || field.array !== undefined || field.nullable === true ||
+        trait.fields.length !== 1 || trait.fields[0]?.type !== 'text' || !/^[A-Za-z0-9_-]+$/.test(trait.unitId)) {
+      fail('malformed_descriptor', 'Field validation requires one nonnullable native text field template on its owning model.');
+    }
+    if (seen.has(trait.id)) fail('duplicate_name', 'Duplicate field validation rule.');
+    seen.add(trait.id);
+    bindings.push({ abi: 'state.field-validation@1', rule: trait.id, model: modelName as ModelName, field: fieldName,
+      lifecycle: 'validate-fields', input: { name: 'value', type: 'text' }, result: { type: 'bool' },
+      implementation: { unit: trait.unitId, export: 'check', fingerprint: validation['fingerprint'] } });
+  }
   return bindings;
 }
 
@@ -2678,6 +2743,11 @@ export function artifactToDescriptorSet(
   // BGI-08: keyword rules bind against the folded models (a rule may
   // target a trait-contributed text field; builtin-unique clashes refuse).
   const givenUniqueKeys = checkGivenKeywordBindings(givenContracts.keywords, models);
+  const givenFieldValidations = checkGivenFieldBindings(givenContracts.traits, models);
+  if (givenFieldValidations.length !== 0 && (!Array.isArray(artifact['requires']) || !artifact['requires'].some(requirement =>
+    isRecord(requirement) && requirement['capability'] === 'state.field-validation' && requirement['min_version'] === 1))) {
+    fail('version_mismatch', 'Field validation requires the state.field-validation v1 capability claim.');
+  }
   // uniqueKeys/composite checks and CRUD executability run in the shared
   // intake loader; conversion folds shapes only. Reuse it via a synthetic
   // set so the rules live in exactly one place.
@@ -2706,6 +2776,7 @@ export function artifactToDescriptorSet(
     ...(valueSchema !== undefined ? { valueSchema } : {}),
     set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields,
     givenUniqueKeys,
+    givenFieldValidations,
     ...(modelPolicies !== undefined ? { modelPolicies } : {}),
     ...(sources !== undefined ? { sources } : {}),
   };
@@ -2780,5 +2851,6 @@ export function loadArtifactDescriptors(
     containment,
     deliveryFields,
     givenUniqueKeys: deepFreezeLoaded([...converted.givenUniqueKeys]),
+    givenFieldValidations: deepFreezeLoaded([...converted.givenFieldValidations]),
   };
 }

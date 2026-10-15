@@ -123,6 +123,7 @@ function doProxy(): StoragePort {
     cohortRowPage: async (input) => call('cohortRowPage', captureCohortRequest(input, 'rows')),
     cohortAnchorFact: async (input) => call('cohortAnchorFact', captureCohortRequest(input, 'anchor')),
     load: (model: ModelName, id: RecordId) => call('load', model, id),
+    uniqueOwner: (model, keyName, keyValue) => call('uniqueOwner', model, keyName, keyValue),
     query: (spec) => call('query', spec),
     commit: (batch) => call('commit', batch),
     readReceipt: (identity) => call('readReceipt', identity),

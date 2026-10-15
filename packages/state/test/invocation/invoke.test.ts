@@ -16,7 +16,7 @@ import { admit, receiptIdentityFor } from '../../src/invocation/admission.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import type { InterimOperationDef, OperationRegistry } from '../../src/invocation/registry.js';
 import { buildContext } from '../../src/invocation/context.js';
-import type { StoragePort } from '@canlang/contracts';
+import type { Receipt, StoragePort } from '@canlang/contracts';
 import { createTestMemoryStorage } from '../../src/storage/memory.js';
 import { FenceConflictError, StorageConstraintError } from '../../src/storage/port.js';
 import { StateError, storageToStateError, toBusinessError } from '../../src/errors.js';
@@ -506,6 +506,7 @@ describe('invoke', () => {
     );
 
     let calls = 0;
+    const observed: Receipt[] = [];
     const execute: ExecuteHandler = async () => {
       calls += 1;
       throw new Error('execute must not run on replay');
@@ -521,11 +522,23 @@ describe('invoke', () => {
         memberships,
         clock: { nowMs: () => FIXED_NOW },
         execute,
+        observeRejectedReceipt: receipt => { observed.push(receipt); },
+        observeCommittedReceipt: () => { assert.fail('rejection is not a committed outcome'); },
       }),
     );
     assert.equal(error.code, 'rule_failed');
     assert.equal(error.message, 'Nope.');
     assert.equal(calls, 0);
+    assert.equal(observed.length, 1);
+    assert.deepEqual(observed[0]?.outcome, { status: 'rejected', code: 'rule_failed', message: 'Nope.' });
+    const mismatch = await captureStateError(invoke({
+      app: 'acme-app', registry: registryFor(def),
+      envelope: { ...envelope, inputs: { ...recordInputs(), title: 'changed' } }, identity, source: 'test',
+      store, memberships, clock: { nowMs: () => FIXED_NOW }, execute,
+      observeRejectedReceipt: receipt => { observed.push(receipt); },
+    }));
+    assert.equal(mismatch.code, 'conflict');
+    assert.equal(observed.length, 1, 'hash mismatch must not observe the old rejected receipt');
   });
 
   it('propagates execute business rejections unmapped and unretried, with a rejected receipt', async () => {
@@ -535,6 +548,12 @@ describe('invoke', () => {
     const operationId = uuidv7(FIXED_NOW);
     const revision = await store.readRevision();
     let calls = 0;
+    const observed: Receipt[] = [];
+    let durable = false;
+    const observedStore: StoragePort = { ...store, commit: async batch => {
+      const result = await store.commit(batch); durable = true;
+      return result;
+    } };
     const rejection = new StateError('rule_failed', 'Business says no.');
     const error = await captureStateError(
       invoke({
@@ -543,7 +562,11 @@ describe('invoke', () => {
         envelope: makeEnvelope(OPERATION, operationId, recordInputs()),
         identity: identityFor(alice),
         source: 'test',
-        store,
+        store: observedStore,
+        observeRejectedReceipt: receipt => {
+          assert.equal(durable, true);
+          observed.push(receipt);
+        },
         memberships,
         clock: { nowMs: () => FIXED_NOW },
         execute: async () => {
@@ -569,8 +592,23 @@ describe('invoke', () => {
       code: 'rule_failed',
       message: 'Business says no.',
     });
+    assert.deepEqual(observed, [receipt]);
     assert.deepEqual(receipt.resolvedDefaults, {});
     assert.equal(receipt.committedRevision, (revision as number) + 1);
+  });
+
+  it('does not observe a rejection when its receipt commit has an unknown outcome', async () => {
+    const { store, memberships, alice } = await setup();
+    const failure = new Error('storage acknowledgement unavailable');
+    const uncertain: StoragePort = { ...store, commit: async () => { throw failure; } };
+    const error = await captureFailure(invoke({
+      app: 'acme-app', registry: registryFor(makeDef()),
+      envelope: makeEnvelope(OPERATION, uuidv7(FIXED_NOW)), identity: identityFor(alice),
+      source: 'test', store: uncertain, memberships, clock: { nowMs: () => FIXED_NOW },
+      execute: async () => { throw new StateError('rule_failed', 'No.'); },
+      observeRejectedReceipt: () => { assert.fail('unacknowledged receipt must not be observed'); },
+    }));
+    assert.strictEqual(error, failure);
   });
 
   it('maps a duplicate unique claim from execute to conflict without retry', async () => {
@@ -623,6 +661,7 @@ describe('invoke', () => {
         memberships,
         clock: { nowMs: () => FIXED_NOW },
         execute,
+        observeRejectedReceipt: () => { assert.fail('unknown storage is not a durable rejection'); },
       }),
     );
     assert.ok(error instanceof StorageConstraintError);

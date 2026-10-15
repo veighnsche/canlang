@@ -26,7 +26,7 @@ import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
 import { StateError } from '../errors.js';
 import { beginOwnerMutation, runMutationWrites, type MutationWrite, type MutationWritesInput,
-  type OwnerMutationInput, type OwnerMutationSession } from './pipeline.js';
+  type OwnerMutationInput, type OwnerMutationSession, type OwnerMutationCandidateAdmission } from './pipeline.js';
 import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies } from './model-policies.js';
 import { ownerMutationBusinessWrites } from './source-finalization.js';
 import type { ModelTable } from './models.js';
@@ -336,6 +336,7 @@ export interface GeneratedCrudExecuteInput {
 
 export interface GeneratedCrudOwnerFrame {
   readonly close: () => void | Promise<void>;
+  readonly admitCandidate?: OwnerMutationCandidateAdmission;
 }
 
 /** Positive installed owner-session support; a native frame and bounds are explicit. */
@@ -506,6 +507,7 @@ function buildGeneratedCrudExecutor(
         ...(stageSources !== undefined ? { stageSources } : {}) });
       let close: GeneratedCrudOwnerFrame['close'] | undefined;
       let closeReceiver: GeneratedCrudOwnerFrame | undefined;
+      let admitCandidate: OwnerMutationCandidateAdmission | undefined;
       try {
         if (createOwnerFrame !== undefined) {
           const frame = await createOwnerFrame(Object.freeze({ call, session, context: session.views.context }));
@@ -517,14 +519,25 @@ function buildGeneratedCrudExecutor(
           }
           if (typeof frame !== 'object' || frame === null ||
               (Object.getPrototypeOf(frame) !== Object.prototype && Object.getPrototypeOf(frame) !== null) ||
-              Reflect.ownKeys(frame).length !== 1) {
-            throw new StateError('validation', 'Generated CRUD native frame must supply only its cleanup function.');
+              Reflect.ownKeys(frame).some(key => key !== 'close' && key !== 'admitCandidate')) {
+            throw new StateError('validation', 'Generated CRUD native frame must supply only its cleanup function and optional candidate admission.');
           }
           if (close === undefined) {
             throw new StateError('validation', 'Generated CRUD native frame needs an own cleanup function.');
           }
+          const admission = Object.getOwnPropertyDescriptor(frame, 'admitCandidate');
+          if (admission !== undefined) {
+            if (!('value' in admission) || admission.enumerable !== true || typeof admission.value !== 'function') {
+              throw new StateError('validation', 'Generated CRUD candidate admission needs an own callback.');
+            }
+            const original = admission.value as OwnerMutationCandidateAdmission;
+            admitCandidate = (candidate, views) => original.call(frame, candidate, views);
+          } else if ('admitCandidate' in frame) {
+            throw new StateError('validation', 'Generated CRUD candidate admission cannot be inherited.');
+          }
         }
-        await session.stage(write, { cause: 'crud', input: call.inputs });
+        await session.stage(write, { cause: 'crud', input: call.inputs,
+          ...(admitCandidate === undefined ? {} : { admitCandidate }) });
         return await session.finalize();
       } finally {
         if (close !== undefined) await close.call(closeReceiver);

@@ -12,11 +12,12 @@
  */
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import { canonicalUniqueRowValue } from '../internal/unique-value.js';
+import { canonicalUniqueRowValue, canonicalUniqueScopeValue } from '../internal/unique-value.js';
 import { encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
   CanonicalFieldDef,
+  CommitResult,
   DomainWrite,
   HistoryEntry,
   InvocationContext,
@@ -41,7 +42,9 @@ import { openTransitiveScope, type FenceScope } from '../invocation/admission.js
 import {
   STAGING_MAX_ID_LENGTH,
   createGivenUniqueKeyScope,
-  diffGivenUniqueKeys,
+  validateGivenFields,
+  givenUniqueKeyName,
+  type GivenUniqueKeyRule,
 } from '../effects/staging.js';
 import { checkJsonSafe as checkJsonEncoding, jsonClone } from '../internal/json.js';
 import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
@@ -144,6 +147,10 @@ export interface MutationWritesResult {
 export type OwnerMutationChange = OwnerModelChange;
 export type OwnerMutationReadView = OwnerModelReadView;
 export type OwnerMutationViews = OwnerModelPolicyViews;
+/** Installed CRUD admission over the normalized candidate and pre-write owner view. */
+export type OwnerMutationCandidateAdmission = (
+  candidate: StoredRow, views: OwnerMutationViews,
+) => boolean | Promise<boolean>;
 export type OwnerMutationQuery = QuerySpec & { readonly limit: number; readonly authority: 'owner' };
 
 export interface OwnerMutationInput extends Omit<MutationWritesInput, 'writes'> {
@@ -154,7 +161,10 @@ export interface OwnerMutationInput extends Omit<MutationWritesInput, 'writes'> 
 }
 
 export interface OwnerMutationStageOptions {
-  readonly cause: 'crud' | 'scenario';
+  /** Fixture is internal isolated test setup; it cannot share an effect session. */
+  readonly cause: 'crud' | 'scenario' | 'fixture';
+  /** Only the installed top-level CRUD frame may supply this precondition. */
+  readonly admitCandidate?: OwnerMutationCandidateAdmission;
   /** Verified admitted CRUD inputs, not the defaults/hooks-adjusted candidate. */
   readonly input?: Readonly<Record<string, unknown>>;
   /** Root State's admitted child context; only operation/source may differ.
@@ -199,6 +209,83 @@ export async function beginOwnerMutation(input: OwnerMutationInput): Promise<Own
   const frozen = { ...input, context: deepFreeze(structuredClone(input.context)),
     bounds: Object.freeze({ ...input.bounds }), ...(secretFields === undefined ? {} : { secretFields }) };
   return createMutationPipeline(frozen, frozen, await input.store.readRevision());
+}
+
+/** Internal owner maintenance: rebuild only derived contained computed claims.
+ * Source schema, stored rows, versions, history and business sources are untouched.
+ * Every affected row must fit the explicit owner bounds before one fenced commit.
+ */
+export async function repairGivenUniqueKeyScopes(
+  input: Pick<OwnerMutationInput, 'table' | 'store' | 'context' | 'bounds'>,
+): Promise<CommitResult> {
+  const {table, store} = input;
+  if (typeof store.uniqueOwner !== 'function') throw new StateError('validation', 'Computed-key repair requires native unique ownership reads.');
+  const revision = await store.readRevision();
+  const reader = await beginOwnerMutation(input);
+  const scope = createGivenUniqueKeyScope();
+  const releases = new Map<string, UniqueRelease>();
+  const claims: UniqueClaim[] = [];
+  const checkRevision = async (): Promise<void> => {
+    if (await store.readRevision() !== revision) throw new StateError('conflict', 'State changed during computed-key index repair.');
+  };
+  try {
+    for (const [model, def] of table) {
+      if (def.containment?.parent === undefined || (def.givenUniqueKeys ?? []).length === 0) continue;
+      const rows = await reader.views.final.query({model, authority: 'owner', archived: 'include', limit: input.bounds.maxRows});
+      const byId = new Map(rows.map(row => [row.id, row]));
+      for (const row of rows) {
+        canonicalUniqueScopeValue(row, '', def);
+        if (await reader.views.final.get(def.containment.parent, row.parent!.id) === null) {
+          throw new StateError('validation', 'Computed-key index repair found a missing declared parent.');
+        }
+      }
+      for (const rule of def.givenUniqueKeys!) {
+        const keyName = givenUniqueKeyName(rule.rule);
+        const evaluated = new Map<RecordId, {raw: string | null; scoped: string | null}>();
+        const finalOwners = new Map<string, RecordId>();
+        const pendingClaims = new Map<string, UniqueClaim>();
+        for (const row of rows) {
+          reader.views.consumeWork();
+          const raw = await scope.evaluate(rule, row.data[rule.field]);
+          const scoped = canonicalUniqueScopeValue(row, raw, def);
+          evaluated.set(row.id, {raw, scoped});
+          if (scoped === null) continue;
+          const first = finalOwners.get(scoped);
+          if (first !== undefined && first !== row.id) throw new StateError('conflict', 'Computed-key index repair found a final parent-scoped collision.');
+          finalOwners.set(scoped, row.id);
+          pendingClaims.set(scoped, {model, keyName, keyValue: scoped, recordId: row.id});
+        }
+        const keys = new Set<string>();
+        for (const value of evaluated.values()) {
+          if (value.raw !== null) keys.add(value.raw);
+          if (value.scoped !== null) keys.add(value.scoped);
+        }
+        for (const keyValue of keys) {
+          reader.views.consumeWork();
+          await checkRevision();
+          const owner = await store.uniqueOwner(model, keyName, keyValue);
+          await checkRevision();
+          if (owner === null) continue;
+          const row = byId.get(owner), value = evaluated.get(owner);
+          if (row === undefined || value === undefined || keyValue !== value.raw && keyValue !== value.scoped) {
+            throw new StateError('validation', 'Computed-key index repair found a claim inconsistent with its actual owning row.');
+          }
+          if (keyValue === value.scoped) {
+            // Preserve a genuine current claim even when another raw output has
+            // these exact bytes. It is neither released nor claimed twice.
+            pendingClaims.delete(keyValue);
+          } else {
+            releases.set(JSON.stringify([model, keyName, keyValue]), {model, keyName, keyValue});
+          }
+        }
+        claims.push(...pendingClaims.values());
+      }
+    }
+    await reader.finalize();
+    await checkRevision();
+    return await store.commit({expectedRevision: revision, writes: [], history: [], receipt: null,
+      outbox: [], schedules: [], uniqueClaims: claims, uniqueReleases: [...releases.values()]});
+  } finally { scope.close(); }
 }
 
 /** Legacy batch behavior stays on the same machinery with its original checks. */
@@ -394,6 +481,8 @@ function fieldDataEqual(left: unknown, right: unknown, seen = new WeakMap<object
 function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owner?: OwnerMutationInput, revision?: Revision): OwnerMutationSession {
   const { table, context, store } = input;
   let stageContext = context;
+  // An isolated fixture session constructs stored initial state, never production effects.
+  let fixtureSession: boolean | undefined;
   const now = context.now;
   const actor = actorFor(context);
   // T32b-wire: the transitive facility's trigger point. Revision + owner
@@ -420,14 +509,46 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     def: InterimModelDef,
     model: ModelName,
     id: RecordId,
-    before: Readonly<Record<string, unknown>> | null,
-    after: Readonly<Record<string, unknown>> | null,
+    before: StoredRow | null,
+    after: StoredRow | null,
   ): Promise<void> => {
     const rules = def.givenUniqueKeys;
     if (rules === undefined || rules.length === 0) return;
-    const diff = await diffGivenUniqueKeys(givenScope, rules, model, id, before, after);
-    outReleases.push(...diff.releases);
-    outClaims.push(...diff.claims);
+    for (const rule of rules) {
+      const oldRaw = before === null ? null : await givenScope.evaluate(rule, before.data[rule.field]);
+      const newRaw = after === null ? null : await givenScope.evaluate(rule, after.data[rule.field]);
+      const oldKey = before === null ? null : canonicalUniqueScopeValue(before, oldRaw, def);
+      const newKey = after === null ? null : canonicalUniqueScopeValue(after, newRaw, def);
+      if (def.containment?.parent !== undefined) {
+        const keys = new Set<string>();
+        for (const value of [oldRaw, newRaw, oldKey, newKey]) if (value !== null) keys.add(value);
+        for (const key of keys) await checkComputedClaim(def, rule, key);
+      }
+      if (oldKey === newKey) continue;
+      const keyName = givenUniqueKeyName(rule.rule);
+      if (oldKey !== null) outReleases.push({model, keyName, keyValue: oldKey});
+      if (newKey !== null) outClaims.push({model, keyName, keyValue: newKey, recordId: id});
+    }
+  };
+  /** Refuse a verified legacy raw index before it can hide a same-parent conflict. */
+  const checkComputedClaim = async (def: InterimModelDef, rule: GivenUniqueKeyRule, key: string): Promise<void> => {
+    if (typeof store.uniqueOwner !== 'function') {
+      throw new StateError('validation', 'Contained computed keys require native unique ownership reads and explicit index repair.');
+    }
+    consumeWork();
+    await checkRevision();
+    const claimed = await store.uniqueOwner(def.model, givenUniqueKeyName(rule.rule), key);
+    await checkRevision();
+    if (claimed === null) return;
+    if (typeof claimed !== 'string' || claimed === '') throw new StateError('validation', 'Invalid computed-key claim owner.');
+    const row = await getEntry(def.model, claimed);
+    if (row === null) throw new StateError('validation', 'Computed-key claim owner is missing; index repair is required.');
+    consumeWork();
+    const raw = await givenScope.evaluate(rule, row.data[rule.field]);
+    const scoped = canonicalUniqueScopeValue(row, raw, def);
+    if (scoped === key) return; // Another current key may itself look like raw text.
+    if (raw === key) throw new StateError('validation', 'Legacy unscoped computed-key claim requires explicit fenced index repair before mutation.');
+    throw new StateError('validation', 'Computed-key claim disagrees with its owning row; index repair is required.');
   };
   /**
    * B1: first-touch before-rows per record (committed state at batch
@@ -620,10 +741,43 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
   });
   let stagePolicyViews = policyViews;
   const beforeStage = async (model: ModelName, id: RecordId, after: StoredRow | null): Promise<void> => {
-    if (owner?.policies === undefined) return;
+    if (fixtureSession === true || owner?.policies === undefined) return;
     consumeWork();
     await owner.policies.beforeStage(deepFreeze(structuredClone({ model, id,
       before: firstBefore.get(keyOf(model, id)) ?? null, after })), stagePolicyViews);
+  };
+
+  const admitCandidate = async (
+    candidate: StoredRow, options: OwnerMutationStageOptions, stagedBy: string | null,
+  ): Promise<void> => {
+    if (stagedBy !== null || options.admitCandidate === undefined) return;
+    consumeWork();
+    let failed = false, firstFailure: unknown;
+    const retainFailure = (error: unknown): void => {
+      if (!failed) { failed = true; firstFailure = error; }
+    };
+    const read = async <T>(execute: () => Promise<T>): Promise<T> => {
+      try { return await execute(); }
+      catch (error) { retainFailure(error); throw error; }
+    };
+    const view = (source: OwnerMutationReadView): OwnerMutationReadView => Object.freeze({
+      get: (model: ModelName, id: RecordId) => read(() => source.get(model, id)),
+      query: (spec: OwnerMutationQuery) => read(() => source.query(spec)),
+    });
+    const candidateViews: OwnerMutationViews = Object.freeze({
+      ...stagePolicyViews, entry: view(stagePolicyViews.entry), final: view(stagePolicyViews.final),
+      consumeWork: (amount?: number) => {
+        try { stagePolicyViews.consumeWork(amount); }
+        catch (error) { retainFailure(error); throw error; }
+      },
+    });
+    let verdict: unknown;
+    try { verdict = await options.admitCandidate(deepFreeze(structuredClone(candidate)), candidateViews); }
+    catch (error) { throw failed ? firstFailure : error; }
+    if (failed) throw firstFailure;
+    healthy();
+    if (typeof verdict !== 'boolean') throw new StateError('validation', 'CRUD candidate admission must return bool.');
+    if (!verdict) throw new StateError('rule_failed', 'CRUD candidate precondition rejected the row.');
   };
 
   /** Required check: missing keys, nulls, and hook-set undefined all fail. */
@@ -656,6 +810,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     target: Record<string, unknown>,
     data: Record<string, unknown>,
     def: InterimModelDef,
+    fixture = false,
   ): Set<string> => {
     const applied = new Set<string>();
     for (const [field, value] of Object.entries(data)) {
@@ -672,14 +827,17 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       if (value === undefined) {
         continue;
       }
-      if (fieldDef.machine !== undefined) {
+      if (fieldDef.machine !== undefined && !fixture) {
         throw new StateError('validation', `Machine field ${JSON.stringify(field)} can only be changed by transition.`);
       }
-      if (fieldDef.serverOnly) {
+      if (fieldDef.serverOnly && !fixture) {
         throw new StateError(
           'validation',
           `Field ${JSON.stringify(field)} is server-only and cannot be supplied.`,
         );
+      }
+      if (fixture && fieldDef.machine !== undefined && !fieldDef.machine.states.includes(value as string)) {
+        throw new StateError('validation', `Snapshot machine field ${JSON.stringify(field)} has no declared state.`);
       }
       safeSet(target, field, jsonClone(value, `Field ${JSON.stringify(field)}`));
       applied.add(field);
@@ -1222,6 +1380,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     readonly before: StoredRow | null;
     readonly after: Readonly<Record<string, unknown>> | null;
   }, attribution: InvocationContext = stageContext): void => {
+    if (fixtureSession === true) return;
     const secretFields = input.secretFields?.get(entry.model);
     const current = provisional.get(keyOf(entry.model, entry.recordId));
     const original = entry.before ?? (current?.status === 'row' ? current.row : null);
@@ -1295,6 +1454,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       }
       consumeWork();
       const write = entry.write;
+      const fixture = options.cause === 'fixture';
       // Null for caller writes (hooks run into `sink`); the staging hook's
       // name for staged writes (hooks skipped, sink stays empty).
       const stagedBy = entry.stagedBy;
@@ -1347,7 +1507,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         firstBefore.set(rowKey, before);
         // Removal also reserves its one history version, even without an
         // after row to carry it. Refuse exhausted metadata before staging.
-        if (owner !== undefined && before !== null) nextVersion(write.model, id, before);
+        if (owner !== undefined && before !== null && !fixture) nextVersion(write.model, id, before);
       }
       // B1: collision-guard tag for this write (monotonic sequence — queue
       // indices shift when staged writes splice in).
@@ -1413,17 +1573,17 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           }
         }
         const candidate: Record<string, unknown> = {};
-        applyCallerData(candidate, asDataObject(write.data, 'Create data'), def);
-        // Supplied parents must exist and be unarchived; resolved once here and
-        // reused for parent-path defaults below.
+        applyCallerData(candidate, asDataObject(write.data, 'Create data'), def, fixture);
+        // Resolve parents once for defaults. Snapshot linkage is checked against
+        // the final setup; production parents must already exist and be live.
         let parent: RecordParent | null = null;
         let parentRow: StoredRow | null = null;
         if (write.parent !== undefined) {
           parentRow = await getRow(write.parent.model, write.parent.id);
-          if (parentRow === null) {
+          if (parentRow === null && !fixture) {
             throw new StateError('validation', 'Parent record not found.');
           }
-          if (parentRow.archivedAt !== null) {
+          if (parentRow !== null && parentRow.archivedAt !== null && !fixture) {
             throw new StateError('validation', 'Parent record is archived.');
           }
           parent = { model: write.parent.model, id: write.parent.id };
@@ -1509,19 +1669,12 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         checkKnownFields(hooked, def);
         checkRequired(hooked, def);
         checkJsonSafe(hooked, def, writeTag);
-        checkWhen(write.when, {
-          id,
-          version: 1 as RecordVersion,
-          created: now,
-          updated: now,
-          createdBy: actor,
-          updatedBy: actor,
-          archivedAt: null,
-          parent,
-          data: hooked,
-        });
-        // Creates skip locks: there is no pre-state to match against.
-        if (owner === undefined) await checkRefs(def, hooked, null);
+        await validateGivenFields(def.givenFieldValidations ?? [], hooked, consumeWork);
+        if (fixture) for (const [name, field] of Object.entries(def.fields)) {
+          if (field.machine !== undefined && !field.machine.states.includes(hooked[name] as string)) {
+            throw new StateError('validation', `Snapshot machine field ${JSON.stringify(name)} has no declared state.`);
+          }
+        }
         const row: StoredRow = {
           id,
           version: 1 as RecordVersion,
@@ -1533,6 +1686,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           parent,
           data: deepFreeze(hooked),
         };
+        checkWhen(write.when, row);
+        await admitCandidate(row, options, stagedBy);
+        // Creates skip locks: there is no pre-state to match against.
+        if (owner === undefined) await checkRefs(def, hooked, null);
+
         for (const key of def.uniqueKeys) {
           const canonical = canonicalUnique(row, key, def);
           if (canonical === null) {
@@ -1541,7 +1699,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
         }
         // BGI-08: computed keys observe the hook-adjusted candidate, like builtins.
-        await stageGivenUniques(def, write.model, id, null, hooked);
+        await stageGivenUniques(def, write.model, id, null, row);
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({ kind: 'insert', model: write.model, row });
@@ -1566,7 +1724,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         // archived targets for every invoke-path write (CRUD via admission,
         // scenarios via `gateArchivedTargets`), while privileged direct
         // callers (migrations/backfill) may legitimately touch archived rows.
-        checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
+        checkGatedArchivedTarget(before, !fixture && input.gateArchivedTargets === true);
         if (write.parent !== undefined) {
           throw new StateError('validation', 'Parent linkage is immutable.');
         }
@@ -1575,7 +1733,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           safeSet(candidate, field, structuredClone(value));
         }
         // Updates apply NO defaults: only the patch lands on before.data.
-        const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
+        const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, fixture);
         if (write.transition !== undefined) {
           const edge = write.transition;
           if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
@@ -1614,31 +1772,29 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           if (!fieldDataEqual(value, beforeHook[field])) changedFields.add(field);
         }
         checkJsonSafe(hooked, def, undefined, changedFields);
-        checkWhen(write.when, {
-          id,
-          version: nextVersion(write.model, id, before),
-          created: before.created,
-          updated: now,
-          createdBy: before.createdBy,
-          updatedBy: actor,
-          archivedAt: before.archivedAt,
-          parent: before.parent ?? null,
-          data: hooked,
-        });
-        const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
-        if (lockBefore != null) checkLocks(def, lockBefore);
-        if (owner === undefined) await checkRefs(def, hooked, before);
+        await validateGivenFields(def.givenFieldValidations ?? [], hooked, consumeWork);
+        if (fixture) for (const [name, field] of Object.entries(def.fields)) {
+          if (field.machine !== undefined && !field.machine.states.includes(hooked[name] as string)) {
+            throw new StateError('validation', `Snapshot machine field ${JSON.stringify(name)} has no declared state.`);
+          }
+        }
         const row: StoredRow = {
           id,
-          version: nextVersion(write.model, id, before),
+          version: fixture ? before.version : nextVersion(write.model, id, before),
           created: before.created,
-          updated: now,
+          updated: fixture ? before.updated : now,
           createdBy: before.createdBy,
-          updatedBy: actor,
+          updatedBy: fixture ? before.updatedBy : actor,
           archivedAt: before.archivedAt,
           parent: before.parent ?? null,
           data: deepFreeze(hooked),
         };
+        checkWhen(write.when, row);
+        await admitCandidate(row, options, stagedBy);
+        const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
+        if (!fixture && lockBefore != null) checkLocks(def, lockBefore);
+        if (owner === undefined) await checkRefs(def, hooked, before);
+
         for (const key of def.uniqueKeys) {
           const oldCanonical = canonicalUnique(before, key, def);
           const newCanonical = canonicalUnique(row, key, def);
@@ -1658,7 +1814,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           }
         }
         // BGI-08: computed keys diff before against the hook-adjusted candidate.
-        await stageGivenUniques(def, write.model, id, before.data, hooked);
+        await stageGivenUniques(def, write.model, id, before, row);
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({
@@ -1701,6 +1857,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       if (mode === 'archive' && before.archivedAt !== null) {
         throw new StateError('validation', 'Record is already archived.');
       }
+      await admitCandidate(before, options, stagedBy);
       // Archive AND hard remove both run hooks filtered to op 'remove' (caller
       // intent); the hard-remove candidate is discarded, but hook rejections
       // still block the delete.
@@ -1789,7 +1946,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
         // BGI-08: archive diffs computed keys like an update (claims stay
         // reserved when the key is unchanged, move when hooks adjusted it).
-        await stageGivenUniques(def, write.model, id, before.data, hooked);
+        await stageGivenUniques(def, write.model, id, before, row);
         await beforeStage(write.model, id, row);
         provisional.set(keyOf(write.model, id), { status: 'row', row });
         outWrites.push({
@@ -1840,7 +1997,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           // BGI-08: release the FIRST-touch committed keys (batch claims for
           // this row were already dropped by the splice above, which matches
           // model/recordId and never keyName, so computed claims net too).
-          await stageGivenUniques(def, write.model, id, committedBefore.data, null);
+          await stageGivenUniques(def, write.model, id, committedBefore, null);
         }
         await beforeStage(write.model, id, null);
         provisional.set(keyOf(write.model, id), { status: 'removed' });
@@ -1872,8 +2029,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         consumeWork();
         const def = table.get(change.model)!;
         if (change.after !== null) {
-          await checkRefs(def, change.after.data, change.before);
-          if (change.before === null && change.after.parent != null) {
+          await checkRefs(def, change.after.data, fixtureSession === true ? null : change.before);
+          if ((fixtureSession === true || change.before === null) && change.after.parent != null) {
             const parent = await getRow(change.after.parent.model, change.after.parent.id);
             if (parent === null || parent.archivedAt !== null) {
               throw new StateError('validation', 'Final parent record is missing or archived.');
@@ -1955,14 +2112,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           for (let ruleIndex = 0; ruleIndex < givenRules.length; ruleIndex += 1) consumeWork();
           await stageGivenUniques(
             def, model, id,
-            before === null ? null : before.data,
-            after === null ? null : after.data,
+            before, after,
           );
         }
       }
     }
     let business: readonly DomainWrite[] | undefined;
-    if (owner?.stageSources !== undefined) {
+    if (fixtureSession !== true && owner?.stageSources !== undefined) {
       if (revision === undefined) throw new StateError('validation', 'Source finalization requires its original owner revision.');
       const finalChanges = changes.flatMap((change): OwnerMutationFinalChange[] => {
         if (change.before === null && change.after === null) return [];
@@ -2007,9 +2163,32 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     views,
     read: views.final.get,
     stage: (writes: MutationWrite | readonly MutationWrite[], options: OwnerMutationStageOptions) => serial(async () => {
-      if (owner !== undefined && (options?.cause !== 'crud' && options?.cause !== 'scenario' ||
+      if (owner !== undefined && (options?.cause !== 'crud' && options?.cause !== 'scenario' && options?.cause !== 'fixture' ||
           options.cause === 'crud' && (typeof options.input !== 'object' || options.input === null || Array.isArray(options.input)))) {
         throw new StateError('validation', 'Owner mutation staging needs an explicit cause and admitted CRUD inputs.');
+      }
+      const fixture = options.cause === 'fixture';
+      const fixtureCause = fixture ? Object.getOwnPropertyDescriptor(options, 'cause') : undefined;
+      if (fixture && (owner === undefined || context.kind !== 'test' ||
+          fixtureCause === undefined || !('value' in fixtureCause) || fixtureCause.enumerable !== true ||
+          Reflect.ownKeys(options).some(key => key !== 'cause'))) {
+        throw new StateError('validation', 'Fixture snapshots require an isolated test owner and only the fixture cause.');
+      }
+      if (fixtureSession !== undefined && fixtureSession !== fixture) {
+        throw new StateError('validation', 'Fixture snapshots cannot mix with ordinary mutation stages.');
+      }
+      fixtureSession = fixture;
+      if (fixture) {
+        for (const write of Array.isArray(writes) ? writes : [writes]) {
+          if (typeof write !== 'object' || write === null || Array.isArray(write) ||
+              ![Object.prototype, null].includes(Object.getPrototypeOf(write)) ||
+              Reflect.ownKeys(write).some(key => typeof key !== 'string' ||
+                !['op', 'model', 'id', 'parent', 'data'].includes(key) ||
+                !('value' in Object.getOwnPropertyDescriptor(write, key)!)) ||
+              (write.op !== 'create' && write.op !== 'update')) {
+            throw new StateError('validation', 'Fixture snapshots accept only declared create/update domain data and parent linkage.');
+          }
+        }
       }
       let childContext = context;
       if (typeof options === 'object' && options !== null && 'context' in options) {
@@ -2045,7 +2224,17 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         childContext = candidate as InvocationContext;
       }
       const frozenWrites = deepFreeze(jsonClone(Array.isArray(writes) ? writes : [writes], 'Owner mutation writes'));
-      const frozenOptions = deepFreeze(jsonClone(options, 'Owner mutation cause'));
+      const { admitCandidate: admission, ...descriptors } = Object.getOwnPropertyDescriptors(options);
+      if (admission !== undefined && (owner === undefined || options.cause !== 'crud' ||
+          !('value' in admission) || admission.enumerable !== true || typeof admission.value !== 'function') ||
+          admission === undefined && 'admitCandidate' in options) {
+        throw new StateError('validation', 'Candidate admission requires an own installed CRUD callback.');
+      }
+      const dataOptions = Object.create(Object.getPrototypeOf(options), descriptors);
+      const frozenOptions: OwnerMutationStageOptions = Object.freeze({
+        ...deepFreeze(jsonClone(dataOptions, 'Owner mutation cause')),
+        ...(admission === undefined ? {} : { admitCandidate: admission.value as OwnerMutationCandidateAdmission }),
+      });
       try {
         stageContext = childContext;
         stagePolicyViews = childContext === context ? policyViews : Object.freeze({ ...policyViews, context: childContext });

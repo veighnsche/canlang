@@ -424,6 +424,7 @@ it('routes fresh pinned owner D1 stores and refuses aliases and unassigned legac
     const aliasRouter = createD1OwnerRouter({ resolveBinding: scope => ({ ...scope, db: alias }) });
     const secondA = await aliasRouter.ownerScopedStoragePort({ app: 'shop', owner: 'team-a' });
     for (const [owner, store] of [['team-a', storeA], ['team-b', storeB]] as const) {
+      assert.equal(await store.uniqueOwner!(asModel('shop.Doc'), 'code', 'same-value'), null);
       const receipt = makeReceipt({ app: 'shop', owner, operationId: 'same-op', committedRevision: 2 });
       await store.commit(makeBatch(1, {
         writes: [
@@ -436,8 +437,14 @@ it('routes fresh pinned owner D1 stores and refuses aliases and unassigned legac
         receipt,
         outbox: [makeIntent({ intentId: 'same-intent', operationId: 'same-op' })],
         schedules: [{ op: 'replace', key: 'same-key', at: 10, event: asOperation('shop.due'), payload: { owner } }],
-        uniqueClaims: [{ model: asModel('shop.Doc'), keyName: 'code', keyValue: 'same-value', recordId: asId('same-id') }],
+        uniqueClaims: [
+          { model: asModel('shop.Doc'), keyName: 'code', keyValue: 'same-value', recordId: asId('same-id') },
+          { model: asModel('shop.Doc'), keyName: 'owner-code', keyValue: owner, recordId: asId('same-id') },
+        ],
       }));
+      assert.equal(await store.uniqueOwner!(asModel('shop.Doc'), 'code', 'same-value'), asId('same-id'));
+      assert.equal(await store.uniqueOwner!(asModel('shop.Doc'), 'owner-code', owner), asId('same-id'));
+      assert.equal(await store.uniqueOwner!(asModel('shop.Doc'), 'owner-code', owner === 'team-a' ? 'team-b' : 'team-a'), null);
       assert.equal((await store.load(asModel('shop.Doc'), asId('same-id')))?.data['owner'], owner);
       assert.deepEqual((await store.query({ model: asModel('shop.Doc'), parent: { model: asModel('shop.Doc'), id: asId('parent') }, authority: 'owner', limit: 1 })).map(row => row.id), ['same-id']);
       assert.deepEqual(await store.readReceipt(receipt.identity), receipt);

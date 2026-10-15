@@ -12,6 +12,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ModelName, RecordId } from '@canlang/contracts';
 import { StateError } from '../errors.js';
+import { buildModelTable } from '../mutation/models.js';
+import { field, modelDef, asModel, asId } from '../../test/mutation/fixtures.js';
 import {
   createGivenUniqueKeyScope,
   diffGivenUniqueKeys,
@@ -244,5 +246,31 @@ describe('BGI-08 installation and changed-code activation planning', () => {
       { model: 'Tasks.Other' as ModelName, id: 'b' as RecordId, data: { handle: 'Alice' } },
     ]);
     assert.deepEqual(claims, []);
+  });
+});
+
+
+describe('BGI-08 parent-scoped computed-key installation', () => {
+  const parent = asModel('Tasks.Catalog');
+  const table = buildModelTable([modelDef(parent), { ...modelDef(MODEL, { fields: { handle: { ...field(), valueType: 'text' } } }),
+    containment: { parent } }]);
+  const rules = new Map([[MODEL, [rule()]]]);
+  const row = (id: string, owner: string, handle: string) => ({ model: MODEL, id: asId(id),
+    parent: { model: parent, id: asId(owner) }, data: { handle } });
+
+  it('uses declared ownership and actual parent identity without exposing scope to the producer', async () => {
+    const { claims } = await planGivenUniqueKeyInstall(rules, [row('a', 'first', 'Ａlice'), row('b', 'second', 'Alice')], table);
+    assert.equal(claims.length, 2);
+    assert.notEqual(claims[0]!.keyValue, claims[1]!.keyValue);
+    assert.equal(claims[0]!.keyName, givenUniqueKeyName(RULE));
+    assert.deepEqual(JSON.parse(claims[0]!.keyValue), ['field', [parent, 'first'], 'alice']);
+    await assert.rejects(planGivenUniqueKeyInstall(rules, [row('a', 'first', 'Ａlice'), row('b', 'first', 'Alice')], table),
+      error => error instanceof StateError && error.code === 'conflict');
+  });
+
+  it('refuses missing scope authority or mismatched actual parent metadata', async () => {
+    await assert.rejects(planGivenUniqueKeyInstall(rules, [row('a', 'first', 'Alice')]), /checked model ownership/);
+    await assert.rejects(planGivenUniqueKeyInstall(rules, [{ ...row('a', 'first', 'Alice'), parent: null }], table), /actual declared parent/);
+    await assert.rejects(planGivenUniqueKeyInstall(rules, [{ ...row('a', 'first', 'Alice'), parent: { model: MODEL, id: asId('first') } }], table), /actual declared parent/);
   });
 });
