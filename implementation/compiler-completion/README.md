@@ -182,8 +182,14 @@ slotted groups, selection headers and original payload shapes lower;
 open (B2's TS edits do not typecheck: unadmitted kinds, exact errors
 recorded for the successor). One `ui_adapter` case now fails: bare
 `metrics 1` publishes while B2's suite admits only row-bound metrics —
-stale expectation vs over-admission is UNDECIDED and routed to the B-lane
-successor with this analysis. Full outcome 6 stays OPEN.
+stale expectation vs over-admission decided by the B-lane successor in
+`[metrics-disposition]` commit: bare page-level `metrics 1`/`copy Value`
+are admitted per DESIGN §9 (no row-scope requirement; constants need no
+grant) — old E6008 expectations stale, with twin page-level coverage;
+empty/suite/multi-header shapes still refuse at boundary codes.
+`ui_adapter` 15/15 and `ui_original_bindings` 31/31 pass in the integrated
+parent. UI `list`/`board` render kinds remain open. Full outcome 6 stays
+OPEN pending those kinds; outcome 7 untouched.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
