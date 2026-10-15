@@ -884,7 +884,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             let [expression] = expressions.as_slice() else {
                 continue;
             };
-            let Some(pairs) = checked_profile_scalar_pairs(ir, item, expression, db) else {
+            let Some(pairs) = checked_profile_scalar_pairs(ir, item, expression, db)
+                .or_else(|| checked_reference_receiver_pairs(ir, item, expression, db))
+            else {
                 continue;
             };
             let IrExpr::Member { base, .. } = &expression.expr else {
@@ -1172,8 +1174,9 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     .copied()
                     .find(|(reference, _)| *reference == dependency)
             });
-            if profile_scalar_pairs.contains_key(&site) && profile_scalar_pair.is_none()
-                || profile_source_pairs.contains_key(&site) && profile_source_pair.is_none()
+            if result_identity.is_none()
+                && (profile_scalar_pairs.contains_key(&site) && profile_scalar_pair.is_none()
+                    || profile_source_pairs.contains_key(&site) && profile_source_pair.is_none())
             {
                 return None;
             }
@@ -6359,12 +6362,97 @@ pub(super) fn checked_profile_scalar_pairs<'a>(
     result
 }
 
+/// Two original required reference fields in one authored Member chain. The
+/// receiving target row stays issued by State; this only pairs the checked
+/// source marker with the subsequent target getter at its original position.
+fn checked_reference_receiver_pairs<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    leaf: &TypedExpr,
+    db: &SourceDb,
+) -> Option<
+    Vec<(
+        &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+        &'a crate::analysis::scenario_disclosure::DisclosureDependency,
+    )>,
+> {
+    let IrExpr::Member { base, .. } = &leaf.expr else {
+        return None;
+    };
+    let source_field = stored_reference_operand(ir, owner, base, db)?;
+    let leaf_field = stored_reference_operand(ir, owner, leaf, db)?;
+    let ResolvedType::Record {
+        symbol: target,
+        stored: true,
+    } = source_field.ty
+    else {
+        return None;
+    };
+    if leaf_field.owner != target
+        || !matches!(leaf_field.ty, ResolvedType::Record { stored: true, .. })
+    {
+        return None;
+    }
+    let ScenarioDisclosure::Complete(proof) = ir.scenario_disclosures.get(&owner.id)? else {
+        return None;
+    };
+    let mut pairs = Vec::new();
+    for returned in &proof.returns {
+        let targets: Vec<_> = returned
+            .dependencies
+            .iter()
+            .filter(|read| {
+                node_span(read.node) == leaf.span
+                    && read.model == target
+                    && read.field == leaf_field.id
+                    && read.ty == leaf.ty
+                    && read.calls.is_empty()
+                    && read.query_id.is_none()
+            })
+            .collect();
+        for read in targets {
+            let mut sources = returned.dependencies.iter().filter(|source| {
+                node_span(source.node) == base.span
+                    && source.model == source_field.owner
+                    && source.field == source_field.id
+                    && source.ty == base.ty
+                    && source.role == read.role
+                    && source.source == read.source
+                    && source.calls.is_empty()
+                    && source.query_id.is_none()
+            });
+            let source = sources.next()?;
+            if sources.next().is_some() || source.id == read.id {
+                return None;
+            }
+            let pair = (source, read);
+            if !pairs.contains(&pair) {
+                pairs.push(pair);
+            }
+        }
+    }
+    (!pairs.is_empty()).then_some(pairs)
+}
+
 pub(super) fn stored_reference_operand<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     value: &TypedExpr,
     db: &SourceDb,
 ) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    stored_reference_operand_inner(ir, owner, value, db, 0)
+}
+
+fn stored_reference_operand_inner<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: &SourceDb,
+    depth: usize,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractField> {
+    if depth >= 16 {
+        return None;
+    }
     let IrExpr::Member { base, field } = &value.expr else {
         return None;
     };
@@ -6372,8 +6460,29 @@ pub(super) fn stored_reference_operand<'a>(
         let models = super::js::Emitter::source_models(ir, db)?;
         checked_parameter_row_id(ir, owner, base, &models, db)
             .or_else(|| checked_first_query_row(ir, owner, base, db))?
+    } else if let Some((_, parent)) = checked_parent_reference(ir, owner, base, db) {
+        parent
     } else {
-        checked_parent_reference(ir, owner, base, db)?.1
+        let previous = stored_reference_operand_inner(ir, owner, base, db, depth + 1)?;
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = previous.ty
+        else {
+            return None;
+        };
+        let source = super::scenario_calls::checked_source(ir, owner, db)?;
+        let mut targets = source
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .filter(|schema| schema.model && schema.id == symbol);
+        let target = targets.next()?;
+        if targets.next().is_some() {
+            return None;
+        }
+        match_stored_contract_schema(ir, target, db)?;
+        target
     };
     // Join the exact original member and receiver, including erased grouping.
     let source = super::scenario_calls::checked_source(ir, owner, db)?;

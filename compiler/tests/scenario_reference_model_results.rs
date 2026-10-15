@@ -272,3 +272,127 @@ fn nullable_or_array_reference_types_do_not_acquire_singular_model_result_proven
         );
     }
 }
+
+const CHAIN_SOURCE: &str = r#"app ReferenceChains
+Given
+ Location {title:text}
+ Unused {title:text}
+ Deal {location:Location,unrelated:Unused}
+ Intake {source:text,deal:Deal}
+ policy Location read=members
+ policy Deal read=members
+ policy Intake read=members
+When
+ scenario promote(source:text) -> Location by=members
+  do
+   let existing=first(Intake as candidate where candidate.source==source)
+   if existing!=null
+    return existing.deal.location
+   create Location {title=source} as location
+   return location
+Then
+"#;
+
+fn assert_chain(source: &str, edge_operands: [&str; 2]) {
+    let (db, program) = checked(source);
+    let ScenarioDisclosure::Complete(complete) = disclosure(&program) else {
+        panic!(
+            "required reference chain declined: {:?}",
+            disclosure(&program)
+        );
+    };
+    let returned = complete
+        .returns
+        .iter()
+        .find(|returned| {
+            returned
+                .dependencies
+                .iter()
+                .any(|read| read.field_name == "id")
+        })
+        .expect("original chain result identity");
+    let data: Vec<_> = returned
+        .dependencies
+        .iter()
+        .filter(|read| read.role == DependencyRole::Data)
+        .collect();
+    assert_eq!(
+        data.len(),
+        3,
+        "two original reference edges and final identity"
+    );
+    for ((read, (model, field, target)), operand) in data[..2]
+        .iter()
+        .zip([
+            ("ReferenceChains.Intake", "deal", "ReferenceChains.Deal"),
+            (
+                "ReferenceChains.Deal",
+                "location",
+                "ReferenceChains.Location",
+            ),
+        ])
+        .zip(edge_operands)
+    {
+        assert_eq!(read.model_name, model);
+        assert_eq!(read.field_name, field);
+        assert_eq!(read.type_id, target);
+        assert_eq!(text(&db, read.node), operand);
+        assert_eq!(read.source, complete.source);
+        assert!(read.calls.is_empty() && read.query_id.is_none());
+    }
+    assert_eq!(data[2].model_name, "ReferenceChains.Location");
+    assert_eq!(data[2].field_name, "id");
+    assert_eq!(data[2].node, data[1].node);
+    assert_ne!(data[2].id, data[1].id);
+    assert_ne!(data[0].id, data[1].id);
+    assert_eq!(data[2].ty, ResolvedType::Scalar(Scalar::Text));
+    assert!(
+        !returned
+            .dependencies
+            .iter()
+            .any(|read| read.model_name == "ReferenceChains.Unused"),
+        "an unconsumed model field supplies no dependency"
+    );
+}
+
+#[test]
+fn original_first_and_parameter_reference_chains_retain_each_consumed_edge() {
+    assert_chain(CHAIN_SOURCE, ["existing.deal", "existing.deal.location"]);
+    let grouped = CHAIN_SOURCE.replace(
+        "return existing.deal.location",
+        "return (((existing).deal).location)",
+    );
+    assert_chain(&grouped, ["(existing).deal", "((existing).deal).location"]);
+    let parameter = CHAIN_SOURCE
+        .replace("scenario promote(source:text)", "scenario promote(existing:Intake,source:text)")
+        .replace("   let existing=first(Intake as candidate where candidate.source==source)\n   if existing!=null\n    return existing.deal.location\n   create Location {title=source} as location\n   return location", "   return existing.deal.location");
+    assert_chain(&parameter, ["existing.deal", "existing.deal.location"]);
+}
+
+#[test]
+fn copied_chain_receivers_and_non_singular_terminal_fields_remain_declined() {
+    for source in [
+        CHAIN_SOURCE.replace(
+            "    return existing.deal.location",
+            "    let copied=existing.deal\n    return copied.location",
+        ),
+        CHAIN_SOURCE.replace(
+            "    return existing.deal.location",
+            "    let copied=existing\n    return copied.deal.location",
+        ),
+        CHAIN_SOURCE
+            .replace("location:Location,", "location:Location?,")
+            .replace("-> Location by", "-> Location? by"),
+        CHAIN_SOURCE
+            .replace("location:Location,", "location:Location[],")
+            .replace("-> Location by", "-> Location[] by")
+            .replace("   return location", "   return [location]"),
+    ] {
+        let (_, program) = checked(&source);
+        assert!(
+            matches!(disclosure(&program), ScenarioDisclosure::Declined(_)),
+            "{:?}",
+            disclosure(&program)
+        );
+    }
+}

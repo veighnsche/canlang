@@ -940,3 +940,78 @@ fn required_reference_result_reuses_the_same_rules_after_renaming_grouping_and_p
         assert!(!modules.contains("$receiptValue[\"id\"]"));
     }
 }
+
+#[test]
+fn required_reference_chain_emits_each_original_bridge_and_refuses_replaced_edges() {
+    let source =
+        include_str!("../../packages/cloudflare/test/fixtures/native-reference-chain-result.can");
+    let (db, program, ir, catalog) = fixture_source("reference-chain.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let modules = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        modules.contains("(await readScenarioReceiptStoredReference(c,"),
+        "{modules}"
+    );
+    assert!(modules.contains("await readScenarioReceiptStoredReference(c,$receiptValue,"));
+    let owner = item(&ir, "ReferenceChain.promote").id;
+    for mode in ["source-field", "leaf-field", "source-type", "branch-guard"] {
+        let mut changed = ir.clone();
+        let other = ResolvedType::Record {
+            symbol: item(&ir, "ReferenceChain.Intake").id,
+            stored: true,
+        };
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+            unreachable!()
+        };
+        let IrStmt::If { then_branch, .. } = &mut effects[1] else {
+            unreachable!()
+        };
+        if mode == "branch-guard" {
+            then_branch.remove(0);
+        } else {
+            let IrStmt::Return {
+                value: Some(value), ..
+            } = &mut then_branch[1]
+            else {
+                unreachable!()
+            };
+            let IrExpr::Member { base, field } = &mut value.expr else {
+                unreachable!()
+            };
+            match mode {
+                "leaf-field" => *field = "copied".into(),
+                "source-type" => base.ty = other,
+                _ => {
+                    let IrExpr::Member { field, .. } = &mut base.expr else {
+                        unreachable!()
+                    };
+                    *field = "copied".into();
+                }
+            }
+        }
+        let emitted = js::emit_program_with_native_source_receipts(&changed, true, &db);
+        assert!(
+            emitted
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: {:?}",
+            emitted.diagnostics
+        );
+        assert!(
+            emitted
+                .operations
+                .iter()
+                .find(|operation| operation.name == "ReferenceChain.promote")
+                .is_none_or(|operation| operation.disclosure.is_none()),
+            "{mode}"
+        );
+    }
+}

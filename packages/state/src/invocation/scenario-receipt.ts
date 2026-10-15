@@ -2384,7 +2384,8 @@ function queryModelDescriptor(bound: BoundPlan, query: ScenarioReceiptQueryPlan)
     })) };
 }
 /** Promote only a checked stored reference whose actual source marker has
- * completed in this owner stage. Native owns the private getter/reference
+ * completed in this owner stage. Its leaf may be a scalar, reserved DATA
+ * identity, or an exact required singular Model-reference field. Native owns the private getter/reference
  * binding; State owns provisional rows and immediate source/leaf authority. */
 export function readScenarioReceiptStoredReferenceRow(call: AdmittedCall, store: StoragePort, input: {
   readonly sourceDependencyId: string; readonly scalarLeafDependencyId: string; readonly sourceRow: StoredRow;
@@ -2418,6 +2419,12 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
     const reference = state.bound.referenceDependencies.get(input.sourceDependencyId);
     const scalar = state.bound.plan.returns.flatMap(returned => returned.dependencies)
       .find(dependency => dependency.id === input.scalarLeafDependencyId);
+    const leafReference = state.bound.referenceDependencies.get(input.scalarLeafDependencyId);
+    const requiredReferenceLeaf = !nullable && scalar !== undefined && leafReference !== undefined &&
+      leafReference.profile.kind === 'field' && !leafReference.profile.array && !leafReference.profile.nullable &&
+      leafReference.profile.field === scalar.field && leafReference.profile.type === scalar.type &&
+      leafReference.dependency.model === scalar.model && leafReference.dependency.field === scalar.field &&
+      leafReference.dependency.type === scalar.type && state.bound.artifactModels.has(leafReference.profile.target);
     const observations = state.observations.filter(observation => observation.dependencyId === input.sourceDependencyId);
     const observation = observations[0], issued = observation === undefined ? undefined : storedParentInputs.get(observation);
     const source = ownerRows.get(input.sourceRow);
@@ -2429,10 +2436,10 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
         owner.executingCall !== call || source?.session !== owner || source.stage !== owner.stage ||
         reference?.profile.kind !== 'field' || reference.profile.array || reference.profile.nullable !== nullable ||
         reference.dependency.queryId !== undefined || scalar === undefined || scalar.queryId !== undefined ||
-        scalar.model !== reference.profile.target || !targetId && (
+        scalar.id === reference.dependency.id || scalar.model !== reference.profile.target || !targetId && !requiredReferenceLeaf && (
           state.bound.models.get(scalar.model)?.fields.get(scalar.field) !==
             (state.bound.narrowedDependencies.get(scalar.id)?.declarationType ?? scalar.type) ||
-          state.bound.idDependencies.has(scalar.id)) || state.bound.referenceDependencies.has(scalar.id) ||
+          state.bound.idDependencies.has(scalar.id)) || leafReference !== undefined && !requiredReferenceLeaf ||
         state.bound.nominalDependencies.has(scalar.id) || state.bound.fileDependencies.has(scalar.id) ||
         source.model !== reference.dependency.model || observations.length !== 1 || issued?.call !== call ||
         issued.owner !== owner || issued.stage !== owner.stage || issued.row !== input.sourceRow ||
@@ -2441,7 +2448,7 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
           returned.dependencies.some(dependency => dependency.id === scalar.id))) {
       return invalid('stored scalar reference requires its exact observed source, scalar pair and current owner stage.');
     }
-    scalarType(scalar.type);
+    if (!requiredReferenceLeaf) scalarType(scalar.type);
     ownerHealthy(owner); owner.busy = true; state.pending++; acquired = true;
     const stage = owner.stage;
     const healthy = () => {
