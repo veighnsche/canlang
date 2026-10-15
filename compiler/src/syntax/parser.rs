@@ -224,6 +224,21 @@ impl<'a> Builder<'a> {
             "leaves must be pushed in document order"
         );
         self.gap(out, node.span.start);
+        if node.kind == SyntaxKind::Description {
+            // A joined description is one leaf spanning its prose lines,
+            // including any intervening comments. Those bytes are already
+            // covered here; do not emit the comments again in the next gap.
+            while self.comment_pos < self.comments.len()
+                && self.comments[self.comment_pos].span.start < node.span.end
+            {
+                let comment = &self.comments[self.comment_pos];
+                debug_assert!(
+                    comment.span.start >= node.span.start && comment.span.end <= node.span.end,
+                    "description must fully cover its intervening comments"
+                );
+                self.comment_pos += 1;
+            }
+        }
         self.last_end = self.last_end.max(node.span.end);
         out.push(node);
     }
@@ -3169,6 +3184,18 @@ impl<'a> Parser<'a> {
                 w,
                 "trim" | "min" | "max" | "unique" | "machine" | "server" | "label" | "desc"
             ) || (is_param && w == "choices")
+                // Stored fields may end a value with a bare trait name.
+                // Keep operators/query clauses inside the expression; the
+                // suffix parser below checks the remaining name's shape.
+                || (!is_param
+                    && w.as_bytes()
+                        .first()
+                        .is_some_and(|c| c.is_ascii_alphabetic() || *c == b'_')
+                    && !matches!(
+                        w,
+                        "and" | "or" | "in" | "is" | "not" | "as" | "where" | "select"
+                            | "order" | "archived"
+                    ))
         };
         let mut initialized = false;
         if cursor.at_p(Punct::Eq) {
@@ -3240,25 +3267,16 @@ impl<'a> Parser<'a> {
                     && !cursor.at_p(Punct::Comma)
                     && !cursor.at_p(Punct::RBrace)
                 {
-                    // Only treat as a trait application when what follows the
-                    // name is a field/schema terminator or another trait slot.
-                    let after = cursor.peek2().cloned();
-                    let is_terminator = after.is_none()
-                        || after
-                            .as_ref()
-                            .is_some_and(|t| t.is_punct(Punct::Comma) || t.is_punct(Punct::RBrace))
-                        || after.as_ref().is_some_and(|t| {
-                            t.kind == TokenKind::Name
-                                && matches!(t.text(cursor.text), "trait" | "label" | "desc")
-                        });
-                    if is_terminator {
-                        let app_name = cursor.next().expect("trait name");
-                        let mut app = Vec::new();
-                        self.builder.leaf(&mut app, &app_name);
-                        let app = SyntaxNode::enclosing(SyntaxKind::TraitApp, app);
-                        self.builder.push_inner(&mut kids, app);
-                        continue;
-                    }
+                    // This is the suffix position, after the type/default and
+                    // native modifiers. Resolve each bare name as a trait in
+                    // source order, just as model attachments do; a lookahead
+                    // for the final name would reject adjacent named traits.
+                    let app_name = cursor.next().expect("trait name");
+                    let mut app = Vec::new();
+                    self.builder.leaf(&mut app, &app_name);
+                    let app = SyntaxNode::enclosing(SyntaxKind::TraitApp, app);
+                    self.builder.push_inner(&mut kids, app);
+                    continue;
                 }
                 break;
             }
@@ -6786,7 +6804,7 @@ impl<'a> Parser<'a> {
                             Fail::new(
                                 "E1200",
                                 format!(
-                                    "prompted view accepts only canonical controls and presentation leaves; `{child_word}` is not admitted"
+                                    "prompted view accepts only canonical cards, controls, text/content/history and require; `{child_word}` is not admitted"
                                 ),
                                 child.tokens[0].span,
                             )

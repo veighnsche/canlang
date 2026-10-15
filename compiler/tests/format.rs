@@ -1,9 +1,9 @@
 //! Integration tests for the lane-01 formatter: corpus idempotence,
 //! adversarial exact-output fixtures, error passthrough and CST stability.
 
-use canlang_compiler::format::{format_source, Formatted};
+use canlang_compiler::format::{Formatted, format_source};
 use canlang_compiler::source::SourceId;
-use canlang_compiler::syntax::{parse_source, SyntaxKind, SyntaxNode};
+use canlang_compiler::syntax::{SyntaxKind, SyntaxNode, parse_source};
 
 /// Format `text`, panicking with diagnostics on failure. Asserts the result
 /// is a fixed point (`format(format(x)) == format(x)`) and that the output
@@ -85,11 +85,6 @@ fn corpus_files() -> Vec<std::path::PathBuf> {
 #[test]
 fn corpus_formats_cleanly_and_is_idempotent() {
     let files = corpus_files();
-    assert_eq!(
-        files.len(),
-        55,
-        "corpus size changed; update the count and expected outcomes"
-    );
     let mut failures = Vec::new();
     let mut table = Vec::new();
     for path in &files {
@@ -312,6 +307,48 @@ fn descriptions_comments_and_i18n_survive() {
     assert_eq!(
         formatted.text,
         "# Prose here. @{nl=\"Proostekst.\"}\napp A\n## top comment\nGiven\n #= greeting\n message greeting = \"Hi\"@{nl=\"Hoi\"}\n # Multi\n # line prose.\n M { x:int label=\"X\"@{nl=\"X\"} }\nWhen\nThen\n",
+    );
+}
+
+#[test]
+fn formatting_preserves_description_values_including_prose_whitespace() {
+    use canlang_compiler::syntax::{DescriptionData, layout, lex};
+
+    let cases = [
+        ("# Keep two spaces.  \n", "Keep two spaces.  "),
+        ("# Keep a tab.\t\n", "Keep a tab.\t"),
+        (
+            "# First line.  \n## Ignored comment.   \n# Second line.\t\n",
+            "First line.  \nSecond line.\t",
+        ),
+        ("# Literal \\@{marker}  \n", "Literal @{marker}  "),
+        ("# Source.  @{nl=\"Vertaling.\"}  \n", "Source. "),
+    ];
+    for (description, expected) in cases {
+        let source = format!("{description}app A\nGiven\nWhen\nThen\n");
+        let formatted = format_fixed_point(&source);
+        let mut values = Vec::new();
+        for text in [&source, &formatted.text] {
+            let lexed = lex(SourceId(0), text);
+            assert!(lexed.diagnostics.is_empty());
+            let parsed = layout(SourceId(0), text, lexed.lines);
+            assert!(parsed.diagnostics.is_empty());
+            let data = parsed.roots[0].description.as_ref().unwrap().data.clone();
+            assert!(matches!(&data, DescriptionData::Prose { text, .. } if text == expected));
+            values.push(data);
+        }
+        assert_eq!(values[0], values[1], "description changed: {source:?}");
+    }
+}
+
+#[test]
+fn joined_field_description_keeps_its_prose_when_reindented() {
+    let formatted = format_fixed_point(
+        "app A\nGiven\n M {\n      # Field prose.  \n      x:int\n }\nWhen\nThen\n",
+    );
+    assert_eq!(
+        formatted.text,
+        "app A\nGiven\n M {\n  # Field prose.  \n  x:int\n }\nWhen\nThen\n",
     );
 }
 

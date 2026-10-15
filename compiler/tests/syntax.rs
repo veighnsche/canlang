@@ -4,8 +4,9 @@
 use canlang_compiler::diagnostic::Diagnostic;
 use canlang_compiler::source::{SourceId, Span};
 use canlang_compiler::syntax::{
-    LayoutResult, Punct, SyntaxKind, SyntaxNode, Token, TokenKind, decode_json_string, layout, lex,
-    lex_bytes, lex_fragment, parse_source,
+    DescriptionData, DescriptionSuffix, DescriptionVariant, LayoutResult, NodeDetail, Punct,
+    SyntaxKind, SyntaxNode, Token, TokenKind, decode_json_string, layout, lex, lex_bytes,
+    lex_fragment, parse_source,
 };
 use std::path::PathBuf;
 
@@ -616,6 +617,78 @@ fn description_reference_and_suffix_attach() {
         "# About tasks. @{en=\"Tasks\"}\napp T\nGiven\nWhen\nThen\n#= docs.tasks\napp U\nGiven\nWhen\nThen\n",
     );
     assert_eq!(count_kind(&tree, SyntaxKind::Description), 2);
+}
+
+#[test]
+fn comments_between_description_lines_preserve_coverage_and_decoding() {
+    let cases = [
+        (
+            "# First line.  \n## Ignored comment.   \n# Second line.\t\napp A\nGiven\nWhen\nThen\n",
+            DescriptionData::Prose {
+                text: "First line.  \nSecond line.\t".to_string(),
+                suffix: None,
+            },
+            0,
+        ),
+        (
+            "## Before.\n# First line.\n## Between.\n\n# Second line. @{nl=\"Twee regels\"}\n## After.\napp A\nGiven\nWhen\nThen\n",
+            DescriptionData::Prose {
+                text: "First line.\nSecond line.".to_string(),
+                suffix: Some(DescriptionSuffix {
+                    variants: vec![DescriptionVariant {
+                        locale: "nl".to_string(),
+                        value: Some("Twee regels".to_string()),
+                    }],
+                }),
+            },
+            2,
+        ),
+        (
+            "app A\nGiven\n Item {\n  # First line.\n  ## Between.\n  # Second line.\n  title:text\n }\nWhen\nThen\n",
+            DescriptionData::Prose {
+                text: "First line.\nSecond line.".to_string(),
+                suffix: None,
+            },
+            0,
+        ),
+        (
+            "## Before.\n#= docs.tasks\n## After.\napp A\nGiven\nWhen\nThen\n",
+            DescriptionData::Reference {
+                path: vec!["docs".to_string(), "tasks".to_string()],
+            },
+            2,
+        ),
+    ];
+    for (source, expected, comments) in cases {
+        let tree = assert_clean(source);
+        let descriptions: Vec<_> = tree
+            .descendants()
+            .filter_map(|node| match &node.detail {
+                NodeDetail::Description { data, .. } => Some(data),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(descriptions, vec![&expected], "{source}");
+        assert_eq!(count_kind(&tree, SyntaxKind::Comment), comments, "{source}");
+    }
+}
+
+#[test]
+fn numeric_field_values_allow_trait_suffixes_only_in_field_context() {
+    let tree = assert_clean(
+        "app T\nGiven\n M { a:int=1 budget, b:int min=0 budget, c:text max=100 key_text_budget label=\"Code\", d:int server=1 budget, e:int=5 m, f:bool=1 < 2 and 2 < 3 budget }\nWhen\nThen\n",
+    );
+    assert_eq!(count_kind(&tree, SyntaxKind::TraitApp), 6);
+    for source in [
+        "app T\nGiven\nWhen\n scenario s(value:int=5 budget) by=members\n  do\n   return value\nThen\n",
+        "app T\nGiven\nWhen\n scenario s(value:int=5 m) by=members\n  do\n   return value\nThen\n",
+        "app T\nGiven\n derive amount():int = 5 budget\nWhen\nThen\n",
+        "app T\nGiven\n derive amount():duration = 5 m\nWhen\nThen\n",
+    ] {
+        assert_codes(source, &["E1005"]);
+    }
+    let combined = assert_clean("app T\nGiven\n M { value:int=5 budget extra }\nWhen\nThen\n");
+    assert_eq!(count_kind(&combined, SyntaxKind::TraitApp), 2);
 }
 
 #[test]
