@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **846 errors**:
-**820 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **751 errors**:
+**725 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -99,7 +99,7 @@ are not independent feature tasks:
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
 | Checked source/inventory publication | 5 | Standard inventory/completions, membership and collection-call correspondence. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
-| Query and predicate lowering | 229 | 95 async any/all, 83 first-query correspondence, ordering/projection/predicate/domain/archive profiles. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| Query and predicate lowering | 134 | 83 first-query correspondence, ordering/projection/predicate/domain/archive profiles; ordinary async any/all helper reuse is closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
@@ -171,8 +171,7 @@ Existing example checks pass **29/29** and the existing native example-runner
 check passes **1/1**. Native package emit, CLI build, formatting
 and diff checks pass. This is not full CanBook resource-workflow acceptance.
 
-**Current C02/C10 continuation — standard outcome ownership and bounded
-decision review (2026-10-15).** Preserve OperationOutcome's declared standard
+**C02/C10 standard outcome ownership and bounded decision review (2026-10-15).** Preserve OperationOutcome's declared standard
 owner in the existing named-value representation. The original source uses one
 shared schema; no app-specific wrapper or duplicate declaration is introduced.
 The focused alias/result/event/derive and installed Values check passes **1/1**,
@@ -203,6 +202,26 @@ bool-only/record-bound observation entry points are now labeled implementation
 limits in DESIGN/GRAMMAR. Next: discriminate ordinary direct/helper async
 any/all behavior and repair any demonstrated general lowering gap; preserve
 private policy versus viewer-read authority.
+
+**Current C02/C10 batch — ordinary predicate reuse (2026-10-15).** The
+discriminating check reproduced an app-independent compositional defect:
+extracting a pure supplied-array predicate into a helper changed compile success
+into E6008 solely because emitted helper functions are async. Select sequential
+awaited any/all execution from the checked body/call binding, retaining installed
+lazy-read contexts and native recipe priority. There is no new language choice
+or read authority. Inline/extracted and nested predicates now agree, with empty
+and mixed domains, once-only sequential reads, short-circuiting, original error
+identity and Values-compatible malformed-input failures. The focused check passes
+**1/1**, and all membership codegen checks pass **8/8**. CLI build, formatting
+and diff checks pass.
+
+Original 24-source validation removes exactly **95** scoped-predicate refusals
+and adds none: **846 → 751** diagnostics (**725 E6008**, **26 E6007**),
+complete=true, omitted=0, exit 10, no usable artifact. Next ready query mechanism:
+async array filters/projections and model-result projections must likewise
+preserve helper equivalence and source-order failure behavior. These are ordinary
+lowering gaps; source publication, row grants and genuine external/policy holds
+remain enforced. The persistent goal stays active beyond this checkpoint.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
