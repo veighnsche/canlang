@@ -12,7 +12,7 @@ import { isGeneratedOperationDef, loadArtifactDescriptors, type ArtifactDescript
 import { invoke, type ExecutionEffects } from '@canlang/state/invocation/invoke';
 import { beginScenarioReceiptMutation, bindScenarioReceiptCallProducer,
   invokeScenarioReceiptCall as invokeStateCall, bindScenarioReceiptQueryProducer, bindScenarioReceiptReferenceProducer,
-  readScenarioReceiptAssociation } from '@canlang/state/invocation';
+  readScenarioReceiptAssociation, type ScenarioReceiptAnyPredicate } from '@canlang/state/invocation';
 import { buildModelTable } from '@canlang/state/mutation';
 import { buildPolicyTable } from '@canlang/state/policy/grants';
 import type { ViewerSourceReadPolicy } from '@canlang/state/query';
@@ -21,9 +21,9 @@ import { field, modelDef } from '@canlang/state/testing/mutation/fixtures';
 import { FIXED_NOW, asId, asModel, createMemoryIdentityStore, makeIdentity, makeEnvelope, makeBatch,
   seedMember, seedRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { createContext, type HandlerContext } from './context.js';
-import { bindNativeRecord } from './native-records.js';
+import { bindNativeRecord, nativeRecordReference } from './native-records.js';
 import { invokeScenarioReceiptCall, openScenarioReceiptFrame, firstQuery, countQuery, bindScenarioReceiptModelResult,
-  executeScenarioReceiptQuery as executeNativeQuery, observeScenarioReceiptQueryDependency as observeNativeQueryDependency } from './scenario-receipt-frame.js';
+  executeScenarioReceiptQuery as executeNativeQuery, executeScenarioReceiptAny as executeNativeAny, observeScenarioReceiptQueryDependency as observeNativeQueryDependency } from './scenario-receipt-frame.js';
 import type { ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn, count as pureCount, int64 } from './stdlib.js';
 
@@ -804,5 +804,119 @@ it('countQuery refuses copied arrays, repeat/mutual first selection, stale stage
     assert.deepEqual(await w.store.historyFor(MODEL, w.selectedRows[0]!.id), []);
     assert.deepEqual(await w.store.outboxPending(), []);
     assert.equal(await w.store.load(MODEL, asId('count-created')), null);
+  }
+});
+
+
+/** Hand-built trusted verifier exercises the native-frame/State handoff only;
+ * Compiler source-factory authentication remains a separate integration gate. */
+it('predicate ANY hands its exact authenticated native closure through State once and preserves lazy viewer reads', async () => {
+  for (const mode of ['positive', 'withheld', 'revoked', 'wrapped', 'forged', 'verifier-throw', 'wrong-query', 'repeat-capture', 'closed-capture'] as const) {
+    const w = await world(slice => {
+      intrinsicFixture(slice); slice.operations![0]!.inputs.fields.shift();
+      slice.models![0]!.fields.push({ name: 'approved', field: { kind: 'boolean' }, valueType: 'bool' as CanTypeId,
+        required: true, serverOnly: false });
+      slice.operations![0]!.result = { type: MODEL as CanTypeId, disclosure: { version: 1, source: origin,
+        queries: [{ id: 'predicate-any', source: origin, model: MODEL, order: [], limit: null, archived: 'exclude',
+          dependencies: [{ id: 'approved-control', source: origin, role: 'control', field: 'approved', type: 'bool' as CanTypeId }] }],
+        returns: [{ id: 'any-result', source: origin, dependencies: [],
+          influences: (['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
+            .map(kind => ({ id: kind, kind, queryId: 'predicate-any' })) }],
+      } };
+    });
+    await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [
+      { kind: 'remove', model: MODEL, id: w.row.id, expectedVersion: w.row.version },
+    ] }));
+    for (const id of ['a', 'b', 'c']) await seedRow(w.store, MODEL, { id, created: FIXED_NOW,
+      data: { visible: id, approved: id === 'b' } });
+    const def = w.registry.get(OP); assert.ok(def && isGeneratedOperationDef(def));
+    const access = { fields: mode !== 'withheld' }, visited: string[] = [], failures: unknown[] = [];
+    const policy = buildPolicyTable([], []);
+    const readPolicies = new Map<import('@canlang/contracts').ModelName, ViewerSourceReadPolicy>([[MODEL, {
+      fields: ['visible', 'approved'], secretFields: [], grants: [
+        { fields: ['id'], read: async ({ context }) => context.membership?.status === 'active' },
+        { fields: ['approved'], read: async ({ context, row }) => access.fields && row.id !== 'c' && context.membership?.status === 'active' },
+      ],
+    }]]);
+    const table = buildModelTable([modelDef(MODEL, { fields: { visible: field({ required: true }), approved: field({ required: true }) } })]);
+    let active: { readonly call: Parameters<typeof beginScenarioReceiptMutation>[0]; readonly frame: ScenarioReceiptFrame } | undefined;
+    let captures = 0, authentications = 0, sourceCalls = 0, receipt: Receipt | undefined;
+    let escaped: ScenarioReceiptFrame | undefined, escapedContext: HandlerContext | undefined;
+    let original: ((row: Readonly<Record<string, unknown>>) => boolean) | undefined, captured: ScenarioReceiptAnyPredicate | undefined;
+    const authoredFailure = new StateError('rule_failed', 'Exact source verifier failure');
+    bindScenarioReceiptReferenceProducer(def, { source: origin, app: APP, policy, readPolicies });
+    bindScenarioReceiptQueryProducer(def, { source: origin, app: APP, policy, readPolicies,
+      any: [{ kind: 'predicate', queryId: 'predicate-any', dependencyIds: ['approved-control'] }],
+      captureAnyPredicate: (call, queryId) => {
+        assert.ok(active && active.call === call); captures++;
+        if (mode === 'closed-capture') active.frame.close();
+        const callback = active.frame.captureAnyPredicate(mode === 'wrong-query' ? 'foreign-query' : queryId);
+        captured = callback;
+        if (mode === 'repeat-capture') active.frame.captureAnyPredicate(queryId);
+        return callback;
+      },
+    });
+    w.batches.length = 0;
+    const baseline = await w.store.readRevision();
+    const request: Parameters<typeof invoke>[0] = { ...w,
+      envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { prompt: 'original prompt' }),
+      observeCommittedReceipt: value => { receipt = value; }, execute: async call => {
+        const session = await beginScenarioReceiptMutation(call, w.store, { table, bounds: { maxRows: 10, maxWork: 1000 } });
+        const c = context(w, call.context);
+        const frame = openScenarioReceiptFrame(c, call, w.store, error => failures.push(error), undefined, {
+          record: queryCandidate, encode: value => value,
+          authenticateAnyPredicate: (queryId, predicate) => {
+            authentications++; assert.equal(queryId, 'predicate-any');
+            if (mode === 'verifier-throw') throw authoredFailure;
+            return predicate === original;
+          },
+        });
+        active = { call, frame }; escaped = frame; escapedContext = c;
+        original = row => {
+          sourceCalls++; const ref = nativeRecordReference(row); assert.ok(ref); visited.push(ref.id);
+          const approved = row['approved'];
+          observeNativeQueryDependency(c, MODEL, row, 'approved', 'approved-control'); return approved === true;
+        };
+        try {
+          const submitted = mode === 'wrapped' ? (row: Readonly<Record<string, unknown>>) => original!(row)
+            : mode === 'forged' ? () => false : original;
+          const allowed = await executeNativeAny(c, 'predicate-any', submitted);
+          assert.equal(allowed, true); assert.notEqual(captured, original, 'State receives the private native candidate adapter');
+          if (mode === 'revoked') access.fields = false;
+          await session.stage({ op: 'create', model: MODEL, id: asId('any-created'),
+            data: { visible: 'allowed', approved: allowed } }, { cause: 'scenario' });
+          const row = await session.read(MODEL, asId('any-created')); assert.ok(row);
+          const view = native(row); frame.bind(view, MODEL, () => row);
+          const result = await bindScenarioReceiptModelResult(c, 'any-result', view);
+          selectScenarioReceiptReturn(c, 'any-result'); frame.assertCompleted();
+          return { ...await session.finalize(), result, outbox: [] };
+        } finally { frame.close(); active = undefined; }
+      },
+    };
+    if (mode === 'positive') {
+      assert.equal((await invoke(request)).status, 'committed'); assert.ok(receipt);
+      const saved = readScenarioReceiptAssociation(receipt)!.queries![0]!;
+      assert.deepEqual(visited, ['a', 'b']); assert.equal(captures, 1); assert.equal(authentications, 1); assert.equal(sourceCalls, 2);
+      assert.deepEqual(saved.selectedIndices, [1]); assert.deepEqual(saved.candidates.map(row => row.dependencies),
+        [['approved-control'], ['approved-control'], []]);
+      assert.deepEqual(failures, []); assert.equal(w.batches.length, 1); assert.equal(w.batches[0]!.writes.length, 1);
+      assert.ok(escaped && escapedContext && original);
+      assert.throws(() => escaped!.captureAnyPredicate('predicate-any'), validation);
+      await assert.rejects(executeNativeAny(escapedContext, 'predicate-any', original), validation);
+    } else {
+      let first: unknown;
+      await assert.rejects(invoke(request), error => { first = error;
+        return mode === 'verifier-throw' ? error === authoredFailure : mode === 'withheld' || mode === 'revoked' ? forbidden(error) : validation(error);
+      });
+      assert.equal(await w.store.load(MODEL, asId('any-created')), null);
+      if (mode === 'revoked') {
+        // Returned query guards revalidate at Invoke's commit fence, after
+        // executor finalization: authority loss records no receipt or effects.
+        assert.equal(w.batches.length, 0); assert.equal(receipt, undefined);
+        assert.equal(await w.store.readRevision(), baseline);
+      } else rejectedFence(w, baseline, first);
+      assert.equal(authentications, 1);
+      if (!['withheld', 'revoked'].includes(mode)) assert.equal(sourceCalls, 0, 'untrusted or invalid captures never enter source predicate');
+    }
   }
 });

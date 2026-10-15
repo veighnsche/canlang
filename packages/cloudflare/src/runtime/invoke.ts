@@ -3286,6 +3286,7 @@ async function collectNativeHookOccurrences(asm: AssembledModules, artifact: Com
 const nativeScenarioCalls = new WeakMap<LoadedCanonicalDescriptors,
   ReadonlyMap<string, ReadonlyMap<string, GeneratedOperationDef>>>();
 interface NativeScenarioExecution {
+  readonly captureAnyPredicate: ScenarioReceiptFrame['captureAnyPredicate'];
   readonly loaded: LoadedCanonicalDescriptors;
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
@@ -3975,6 +3976,28 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
 type NativeQuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
 type NativeQueryAnyMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['any']>[number];
 const nativeScenarioQuerySelections = new WeakMap<GeneratedOperationDef, readonly NativeQuerySelectionMetadata[]>();
+type NativePredicateAnyMetadata = Extract<NativeQueryAnyMetadata, { readonly kind: 'predicate' }>;
+const nativeScenarioAnyPredicates = new WeakMap<GeneratedOperationDef, {
+  readonly queries: ReadonlyMap<string, NativePredicateAnyMetadata>;
+  readonly source: (predicate: Function) => unknown;
+}>();
+
+function authenticateNativeScenarioAnyPredicate(def: GeneratedOperationDef, c: HandlerContext,
+  queryId: string, predicate: Function): boolean {
+  const binding = nativeScenarioAnyPredicates.get(def), expected = binding?.queries.get(queryId);
+  if (binding === undefined || expected === undefined) return false;
+  const source = localPolicyObject(binding.source(predicate), ['marker', 'context']);
+  if (Object.keys(source).length !== 2 || source.context !== c) {
+    throw new AssemblyCorrespondenceError('Predicate ANY requires its original closure and actual native invocation context.');
+  }
+  const marker = localPolicyObject(source.marker, ['queryId', 'siteIndex', 'callIndex']);
+  if (Object.keys(marker).length !== 3 || expected.sourceCall === undefined ||
+      stableStringify(captureDispatchPreclaimData(marker)) !== stableStringify({ queryId,
+        siteIndex: expected.sourceCall.siteIndex, callIndex: expected.sourceCall.callIndex })) {
+    throw new AssemblyCorrespondenceError('Predicate ANY differs from its original checked query and helper call chain.');
+  }
+  return true;
+}
 
 /** Query authority comes from the checked source module and actual same-load
  * viewer policy. A claimed descriptor cannot opt into a provisional host read. */
@@ -3998,6 +4021,31 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
     const rawAny = isUnknownRecord(operation) ? readMetadataMember(operation, 'queryAny', where)?.value : undefined;
     const any = rawAny === undefined ? [] : nativeCallArray(rawAny, plan.queries.length).map(value => {
+      if (isUnknownRecord(value) && readMetadataMember(value, 'kind', where)?.value === 'predicate') {
+        const metadata = localPolicyObject(value, ['kind', 'queryId', 'dependencyIds', 'sourceCall']);
+        const sourceCall = localPolicyObject(metadata.sourceCall, ['siteIndex', 'callIndex']);
+        const dependencyIds = nativeCallArray(metadata.dependencyIds, 200);
+        if (Object.keys(metadata).length !== 4 || metadata.kind !== 'predicate' ||
+            typeof metadata.queryId !== 'string' || metadata.queryId === '' || dependencyIds.length === 0 ||
+            dependencyIds.some(id => typeof id !== 'string' || id === '') ||
+            Object.keys(sourceCall).length !== 2 || !Number.isSafeInteger(sourceCall.siteIndex) ||
+            !Number.isSafeInteger(sourceCall.callIndex) || (sourceCall.siteIndex as number) < 0 || (sourceCall.callIndex as number) < 0) {
+          throw new AssemblyCorrespondenceError('Predicate ANY lacks its exact checked query, CONTROL census and owner call selector.');
+        }
+        const ownerSites = (loaded.membershipSources.get(def.name) ?? [])
+          .filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
+        const site = ownerSites[sourceCall.siteIndex as number], selected = site?.calls[sourceCall.callIndex as number];
+        const query = plan.queries!.find(query => query.id === metadata.queryId);
+        if (site?.owner !== def.name || selected?.target.kind !== 'builtin' || selected.target.id !== 'any' ||
+            query === undefined || selected.source.path !== query.source.path || selected.source.sha256 !== query.source.sha256 ||
+            query.source.module !== plan.source.module) {
+          throw new AssemblyCorrespondenceError('Predicate ANY lacks its original logical helper and emitted callable association.');
+        }
+        return captureDispatchPreclaimData({ kind: 'predicate', queryId: metadata.queryId,
+          dependencyIds: dependencyIds as string[], sourceCall: {
+            siteIndex: sourceCall.siteIndex as number, callIndex: sourceCall.callIndex as number,
+          } }) as NativeQueryAnyMetadata;
+      }
       const metadata = localPolicyObject(value, ['queryId', 'dependencyId']);
       if (Object.keys(metadata).length !== 2 || typeof metadata.queryId !== 'string' || metadata.queryId === '' ||
           typeof metadata.dependencyId !== 'string' || metadata.dependencyId === '') {
@@ -4042,9 +4090,24 @@ async function bindNativeScenarioQueries(asm: AssembledModules, artifact: Compil
     if (readPolicies !== undefined) for (const query of plan.queries) {
       for (const [model, policy] of sourceReads!.policies(query.model)) if (!readPolicies.has(model)) readPolicies.set(model, policy);
     }
+    const predicates = new Map(any.filter((metadata): metadata is NativePredicateAnyMetadata =>
+      'kind' in metadata && metadata.kind === 'predicate').map(metadata => [metadata.queryId, metadata]));
+    const getter = predicates.size === 0 ? undefined : privateSourceMember(module, 'canScenarioQueryPredicateSource');
+    if (predicates.size !== 0 && (typeof getter !== 'function' || predicates.size !== any.filter(metadata => 'kind' in metadata).length)) {
+      throw new AssemblyCorrespondenceError('Predicate ANY requires its original verified module source getter and unique query census.');
+    }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
       ...(readPolicies === undefined ? {} : { readPolicies }), ...(selections.length === 0 ? {} : { selections }),
-      ...(any.length === 0 ? {} : { any }) });
+      ...(any.length === 0 ? {} : { any }), ...(predicates.size === 0 ? {} : {
+        captureAnyPredicate: (call: AdmittedCall, queryId: string) => {
+          const active = nativeScenarioExecutions.get(call);
+          if (call.def !== def || active?.loaded !== loaded || !predicates.has(queryId)) {
+            throw new AssemblyCorrespondenceError('Predicate ANY capture requires its actual loaded owner call and checked occurrence.');
+          }
+          return active.captureAnyPredicate(queryId);
+        },
+      }) });
+    if (predicates.size !== 0) nativeScenarioAnyPredicates.set(def, { queries: predicates, source: getter as (predicate: Function) => unknown });
     if (selections.length !== 0) nativeScenarioQuerySelections.set(def, Object.freeze(selections));
   }
 }
@@ -4605,7 +4668,6 @@ async function loadCanonicalDescriptorsInternal(
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioNominalFiles(canonical, artifact);
-  await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   for (const [owner, sites] of canonical.membershipSources) {
     // Keep each complete original recipe in its defining lifetime. A SEND
@@ -4625,6 +4687,7 @@ async function loadCanonicalDescriptorsInternal(
     }
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
+  await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   if (rowPolicyAssembly !== undefined) await verifyAssemblerModuleCapability(asm, artifact);
@@ -8104,6 +8167,12 @@ async function runScenarioExecution(
     };
     const active: NativeScenarioExecution = Object.freeze({ loaded, asm: opts.asm, artifact: opts.artifact, store: receiptStore, nextCreateId,
       navigationOwner: navigationOwner!, fileAssignments,
+      captureAnyPredicate: (queryId: string) => {
+        if (scenarioReceiptFrame === undefined || nativeScenarioExecutions.get(actualCall) !== active) {
+          return refuseRecordBinding('Predicate ANY requires its original active native receipt frame.');
+        }
+        return scenarioReceiptFrame.captureAnyPredicate(queryId);
+      },
       evaluateSendGuard: async (frame: ScenarioReceiptSendGuardFrame): Promise<boolean> => {
         currentSend();
         const selected = nativeSourceSendGuards.get(actualCall.def as GeneratedOperationDef)?.get(frame.guard.rule);
@@ -8345,6 +8414,7 @@ async function runScenarioExecution(
         // Other nominal query references remain Values carriers.
         return decodeCanonicalValue(loaded.valueSchema, type, wire);
       }, {
+        authenticateAnyPredicate: (queryId, predicate) => authenticateNativeScenarioAnyPredicate(actualCall.def as GeneratedOperationDef, ctx, queryId, predicate),
         // Query candidates stay separate from admitted/current owner rows. Never
         // register a viewer projection as a raw StoredRow or reconstruct one.
         record: (model, row, read, current) => nativeScenarioQueryRecord(loaded, model, row, read, current),
