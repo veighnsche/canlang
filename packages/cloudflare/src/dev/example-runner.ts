@@ -11,11 +11,11 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordParent, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
+import type { ArtifactOperationInput, ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordParent, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
-import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime } from "@canlang/values";
+import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime, isRecordRef, type NormalizedSchema } from "@canlang/values";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
@@ -449,16 +449,32 @@ interface StoredFixtureBinding {
   readonly version: number;
 }
 
-function fixtureFieldType(field: ArtifactModelField): string {
+function fixtureFieldType(field: ArtifactModelField | ArtifactOperationInput): string {
   if (field.valueType !== undefined) return field.valueType;
   const type = field.field.kind === "ref" ? field.field.model
+    : field.field.kind === "nominal" ? field.field.name
     : ({ string: "text", integer: "int", boolean: "bool", decimal: "decimal", money: "money",
       datetime: "datetime", date: "date", duration: "duration", user: "user" } as Record<string, string>)[field.field.kind];
   if (type === undefined) throw new Error(`example runner: fixture field ${field.name} needs a supported value type`);
   return `${type}${field.array === undefined ? "" : "[]"}${field.nullable === true ? "?" : ""}`;
 }
 
-function fieldWire(field: ArtifactModelField, value: unknown): unknown {
+function checkFixtureValue(value: unknown): void {
+  const active = new Set<object>(); let nodes = 0;
+  const visit = (value: unknown, depth: number): void => {
+    if (++nodes > 16384 || depth > 64) throw new Error("example runner: fixture value traversal bound exceeded");
+    if (value === null || typeof value !== "object") return;
+    if (active.has(value)) throw new Error("example runner: cyclic example input");
+    active.add(value);
+    for (const item of Object.values(value)) visit(item, depth + 1);
+    active.delete(value);
+  };
+  visit(value, 0);
+}
+
+function fieldWire(field: ArtifactModelField, value: unknown, schema?: NormalizedSchema,
+  resolver?: Parameters<typeof encodeValue>[2]): unknown {
+  checkFixtureValue(value);
   if (value === null) return null;
   if (field.field.kind === "enum") {
     const values = field.field.values;
@@ -472,20 +488,21 @@ function fieldWire(field: ArtifactModelField, value: unknown): unknown {
     }
     return encode(value);
   }
-  return encodeValue(fixtureFieldType(field), value as never);
+  return encodeValue(fixtureFieldType(field), value as never, resolver, schema);
 }
 
-function nativeFixtureField(field: ArtifactModelField, wire: unknown): unknown {
+function nativeFixtureField(field: ArtifactModelField, wire: unknown, schema?: NormalizedSchema): unknown {
   if (wire === null || field.field.kind === "enum") return wire;
-  return decodeValue(fixtureFieldType(field), wire);
+  return schema === undefined ? decodeValue(fixtureFieldType(field), wire)
+    : validateValue(schema, fixtureFieldType(field), wire, "create");
 }
 
-function fixtureView(artifact: CompileArtifact, modelName: string, row: StoredRow): Record<string, unknown> {
+function fixtureView(artifact: CompileArtifact, modelName: string, row: StoredRow, schema?: NormalizedSchema): Record<string, unknown> {
   const model = artifact.models?.find(candidate => candidate.name === modelName);
   if (model === undefined) throw new Error(`example runner: unknown model ${modelName}`);
   const view: Record<string, unknown> = { id: row.id, version: BigInt(row.version) };
   for (const field of model.fields) {
-    if (Object.hasOwn(row.data, field.name)) view[field.name] = nativeFixtureField(field, row.data[field.name]);
+    if (Object.hasOwn(row.data, field.name)) view[field.name] = nativeFixtureField(field, row.data[field.name], schema);
   }
   return view;
 }
@@ -553,6 +570,7 @@ function freshOperationId(): OperationId {
 /** The first local profile's real D1 fixture and canonical invocation ports. */
 function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
   tableOperations: WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>,
+  operationName: string,
 ): ExampleRuntimeHooks {
   const models = artifact.models ?? [];
   const operations = artifact.operations ?? [];
@@ -560,9 +578,29 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
   const invoked = new WeakSet<ExampleRowScope>();
   const rows = new WeakMap<ExampleRowScope, Map<string, StoredFixtureBinding>>();
   const references = new WeakMap<ExampleRowScope, Map<object, StoredFixtureBinding>>();
+  const bindingFor = (value: unknown, model: string, bindings: ReadonlyMap<object, StoredFixtureBinding>,
+    named: ReadonlyMap<string, StoredFixtureBinding>): StoredFixtureBinding | undefined => {
+    if (!isRecord(value)) return undefined;
+    const original = bindings.get(value);
+    if (original !== undefined) return original.model === model
+      ? [...named.values()].find(binding => binding.model === model && binding.id === original.id) : undefined;
+    // This port is reached only at a declared Model slot; Contract business
+    // id/kind/model fields never select a fixture identity.
+    return isRecordRef(value) && value.model === model
+      ? [...named.values()].find(binding => binding.model === model && binding.id === value.id) : undefined;
+  };
+  const resolverFor = (bindings: ReadonlyMap<object, StoredFixtureBinding>,
+    named?: ReadonlyMap<string, StoredFixtureBinding>, versioned = false): NonNullable<Parameters<typeof encodeValue>[2]> => value => {
+    const original = typeof value === "object" && value !== null ? bindings.get(value) : undefined;
+    const binding = original === undefined || named === undefined ? original
+      : [...named.values()].find(binding => binding.model === original.model && binding.id === original.id);
+    return binding === undefined ? undefined
+      : decodeValue(binding.model, { id: binding.id, ...(versioned ? { version: String(binding.version) } : {}) }) as never;
+  };
   return {
     async materializeFixtures({ scope, fixtures, required }) {
       if (rows.has(scope) || invoked.has(scope)) throw new Error("example runner: fixture setup is already complete");
+      const loaded = await loadCanonicalDescriptors(asm, artifact);
       const values = new Map(fixtures);
       const rowBindings = new Map<string, StoredFixtureBinding>();
       const objectBindings = new Map<object, StoredFixtureBinding>();
@@ -589,21 +627,9 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
         rowBindings.set(recipe.name, binding);
         rawBindings.set(fields, binding);
       }
-      const translate = (field: ArtifactModelField, value: unknown): unknown => {
-        if (isRecord(value) && users.has(value)) return users.get(value);
-        if (field.field.kind === "ref" && value !== null) {
-          const target = field.field.model;
-          const ref = (item: unknown) => {
-            const binding = isRecord(item) ? rawBindings.get(item) : undefined;
-            if (binding === undefined || binding.model !== target) throw new Error(`example runner: fixture reference ${field.name} has no matching stored recipe`);
-            return decodeValue(target, { id: binding.id });
-          };
-          return field.array === undefined ? ref(value)
-            : Array.isArray(value) ? value.map(ref) : value;
-        }
-        if (Array.isArray(value)) return value.map(item => isRecord(item) && users.has(item) ? users.get(item) : item);
-        return value;
-      };
+      const translate = (value: unknown): unknown => isRecord(value) && users.has(value) ? users.get(value)
+        : Array.isArray(value) ? value.map(item => isRecord(item) && users.has(item) ? users.get(item) : item) : value;
+      const resolveFixture = resolverFor(rawBindings);
       const snapshots = required.map(recipe => {
         const binding = rowBindings.get(recipe.name)!;
         const model = models.find(candidate => candidate.name === binding.model)!;
@@ -620,7 +646,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
           parent = { model: target.model as ModelName, id: target.id as RecordId };
         }
         const data = Object.fromEntries([...declared].filter(([name]) => Object.hasOwn(fields, name))
-          .map(([name, field]) => [name, fieldWire(field, translate(field, fields[name]))]));
+          .map(([name, field]) => [name, fieldWire(field, translate(fields[name]), loaded.valueSchema, resolveFixture)]));
         return { model: binding.model as ModelName, id: binding.id as RecordId, data, ...(parent === undefined ? {} : { parent }) };
       });
       const stored = snapshots.length === 0 ? new Map<string, StoredRow>()
@@ -629,7 +655,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
       for (const [name, binding] of rowBindings) {
         const row = stored.get(`${binding.model}\0${binding.id}`);
         if (row === undefined) throw new Error(`example runner: fixture ${name} was not stored`);
-        const view = fixtureView(artifact, binding.model, row);
+        const view = fixtureView(artifact, binding.model, row, loaded.valueSchema);
         values.set(name, view);
         objectBindings.set(view, binding);
       }
@@ -638,63 +664,145 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
       return { materialized: required.map(recipe => recipe.name), values };
     },
     async prepareRowCells({ scope, fixtures, baselineInputs, inputs, selectors, selectorChannels, cells }) {
-      const rowBindings = rows.get(scope);
-      const objectBindings = references.get(scope);
+      const rowBindings = rows.get(scope), objectBindings = references.get(scope);
       if (rowBindings === undefined || objectBindings === undefined ||
           !isRecord(baselineInputs) || !isRecord(inputs)) return { fixtures, inputs };
+      const operation = operations.find(operation => operation.name === operationName);
+      if (operation === undefined) throw new Error(`example runner: unknown row operation ${operationName}`);
+      const loaded = await loadCanonicalDescriptors(asm, artifact), schema = loaded.valueSchema;
+      const resolved = (type: string): ReturnType<typeof parseTypeId> => {
+        const aliases = new Set<string>();
+        let parsed = parseTypeId(type);
+        while (!parsed.array && parsed.base.kind === "nominal" && schema?.aliases?.[parsed.base.path] !== undefined) {
+          if (aliases.has(parsed.base.path) || aliases.size >= 64) throw new Error("example runner: cyclic fixture input type");
+          aliases.add(parsed.base.path);
+          parsed = parseTypeId(schema.aliases[parsed.base.path]!.typeId);
+        }
+        return parsed;
+      };
+      const unsafe = (part: string) => ["__proto__", "constructor", "prototype"].includes(part);
+      // Reapply only the already evaluated cells, retaining their authored order.
+      // Clones of genuine fixture views keep their private setup binding.
+      const setCell = (value: unknown, parts: readonly string[], cell: unknown, depth = 0): unknown => {
+        if (parts.length === 0) return cell;
+        if (depth >= 64 || parts.some(part => part === "" || unsafe(part))) throw new Error("example runner: invalid fixture cell path");
+        const [head, ...tail] = parts;
+        if (Array.isArray(value)) {
+          const index = Number(head);
+          if (!Number.isSafeInteger(index) || index < 0 || index >= value.length) throw new Error("example runner: fixture cell array index is unavailable");
+          const copy = [...value]; copy[index] = setCell(value[index], tail, cell, depth + 1); return copy;
+        }
+        if (!isRecord(value)) throw new Error("example runner: fixture cell requires its original object path");
+        const copy = { ...value, [head!]: setCell(Object.hasOwn(value, head!) ? value[head!] : {}, tail, cell, depth + 1) };
+        const binding = objectBindings.get(value);
+        if (binding !== undefined) objectBindings.set(copy, binding);
+        return copy;
+      };
+      const atPath = (value: unknown, parts: readonly string[]): unknown => {
+        for (const part of parts) value = Array.isArray(value) ? value[Number(part)] : isRecord(value) ? value[part] : undefined;
+        return value;
+      };
+      let effective: unknown = baselineInputs;
       const overrides = new Map<string, Record<string, unknown>>();
       for (const [index, selector] of selectors.entries()) {
-        if (selectorChannels !== undefined && selectorChannels[index] !== "input") continue;
-        const parts = selector.split(".");
-        if (parts.length !== 2) continue;
-        const [root, fieldName] = parts as [string, string];
-        const baselineRoot = baselineInputs[root];
-        if (!isRecord(baselineRoot) || !objectBindings.has(baselineRoot)) continue;
-        const fixtureName = [...fixtures].find(([, value]) => value === baselineRoot)?.[0];
-        if (fixtureName === undefined) continue;
-        const binding = rowBindings.get(fixtureName);
-        const model = models.find(candidate => candidate.name === binding?.model);
-        if (binding === undefined || model?.fields.some(field => field.name === fieldName) !== true) continue;
-        const selected = overrides.get(fixtureName) ?? {};
-        selected[fieldName] = cells[index];
-        overrides.set(fixtureName, selected);
+        const channel = selectorChannels?.[index] ?? (selector === "as" ? "caller" : selector.startsWith("request.") ? "request" : "input");
+        if (channel !== "input") continue;
+        const parts = selector.split("."), root = parts[0]!;
+        const input = operation.inputs.fields.find(input => input.name === root);
+        let type = input === undefined || parts.length === 1 ? undefined : fixtureFieldType(input), value = isRecord(effective) ? effective[root] : undefined;
+        let stored: { name: string; field: string; path: readonly string[] } | undefined;
+        for (let offset = 1; type !== undefined && offset < parts.length; offset++) {
+          const parsed = resolved(type), part = parts[offset]!;
+          if (parsed.array) {
+            const slot = Number(part);
+            if (!Array.isArray(value) || !Number.isSafeInteger(slot) || slot < 0 || slot >= value.length) throw new Error("example runner: fixture reference array index is unavailable");
+            type = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false }); value = value[slot]; continue;
+          }
+          const name = parsed.base.kind === "nominal" ? parsed.base.path : undefined;
+          const model = models.find(model => model.name === name), contract = name === undefined ? undefined : schema?.contracts[name];
+          if (model !== undefined) {
+            const binding = bindingFor(value, model.name, objectBindings, rowBindings);
+            const fixtureName = binding === undefined ? undefined : [...rowBindings].find(([, current]) => current.model === binding.model && current.id === binding.id)?.[0];
+            if (fixtureName === undefined) throw new Error("example runner: row cell has no genuine declared fixture reference");
+            const field = model.fields.find(field => field.name === part);
+            if (field === undefined) throw new Error(`example runner: fixture cell cannot initialize unknown or reserved field ${part}`);
+            if (field.default?.kind === "derived") throw new Error(`example runner: fixture cell cannot initialize derived field ${part}`);
+            stored = { name: fixtureName, field: part, path: parts.slice(0, offset + 1) };
+            type = fixtureFieldType(field);
+          } else if (contract !== undefined) {
+            type = contract.fields[part]?.typeId;
+            if (type === undefined && stored !== undefined) throw new Error(`example runner: unknown stored Contract cell ${part}`);
+          } else if (parsed.base.kind === "union" && part === "value" && isRecord(value) &&
+              typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
+            type = value["type"];
+          } else {
+            if (stored !== undefined) throw new Error(`example runner: fixture cell ${selector} has no declared nested field`);
+            type = undefined;
+          }
+          value = isRecord(value) ? value[part] : undefined;
+        }
+        effective = setCell(effective, parts, cells[index]);
+        if (stored !== undefined) {
+          const fields = overrides.get(stored.name) ?? {};
+          fields[stored.field] = atPath(effective, stored.path); overrides.set(stored.name, fields);
+        }
       }
       if (overrides.size === 0) return { fixtures, inputs };
       if (invoked.has(scope)) throw new Error("example runner: fixture state is sealed after invocation");
-      const updatedFixtures = new Map(fixtures);
-      const updatedInputs = { ...inputs };
-      const snapshots = [];
+      const updatedFixtures = new Map(fixtures), snapshots = [];
+      const resolveFixture = resolverFor(objectBindings, rowBindings);
       for (const [name, fields] of overrides) {
-        const binding = rowBindings.get(name)!;
-        const model = models.find(candidate => candidate.name === binding.model)!;
-        const stored = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
-        if (stored === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
-        const data = { ...stored.data };
-        for (const [fieldName, value] of Object.entries(fields)) {
-          const field = model.fields.find(candidate => candidate.name === fieldName)!;
-          if (field.default?.kind === "derived") throw new Error(`example runner: fixture ${name} cannot initialize derived field ${fieldName}`);
-          data[fieldName] = fieldWire(field, value);
-        }
-        snapshots.push({ model: binding.model as ModelName, id: stored.id, data,
-          ...(stored.parent === null || stored.parent === undefined ? {} : { parent: stored.parent }) });
+        const binding = rowBindings.get(name)!, model = models.find(model => model.name === binding.model)!;
+        const before = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
+        if (before === null) throw new Error(`example runner: fixture ${name} disappeared before row cells`);
+        const data = { ...before.data };
+        for (const [name, value] of Object.entries(fields)) data[name] = fieldWire(model.fields.find(field => field.name === name)!, value, schema, resolveFixture);
+        snapshots.push({ model: binding.model as ModelName, id: before.id, data,
+          ...(before.parent === null || before.parent === undefined ? {} : { parent: before.parent }) });
       }
       const identity = await scope.identityFor("self", { account: "self", team: "current", roles: [], authenticated: true }, fixtures);
       const saved = await materializeCanonicalExampleSnapshots({ asm, artifact, store: scope.store, identity,
         now: scope.nowMs, operationId: freshOperationId(), snapshots });
-      // Publish every new view only after the whole initial override batch validates.
+      // Publish only after the complete override batch passes its owning session.
       for (const name of overrides.keys()) {
-        const binding = rowBindings.get(name)!;
-        const stored = saved.get(`${binding.model}\0${binding.id}`);
-        if (stored === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
-        const oldValue = fixtures.get(name);
-        if (isRecord(oldValue)) objectBindings.delete(oldValue);
-        const view = fixtureView(artifact, binding.model, stored);
-        const savedBinding = { ...binding, version: stored.version as number };
-        updatedFixtures.set(name, view);
-        rowBindings.set(name, savedBinding);
-        objectBindings.set(view, savedBinding);
-        for (const [root, value] of Object.entries(baselineInputs)) if (value === oldValue) updatedInputs[root] = view;
+        const binding = rowBindings.get(name)!, row = saved.get(`${binding.model}\0${binding.id}`);
+        if (row === undefined) throw new Error(`example runner: fixture ${name} row cells were not stored`);
+        const view = fixtureView(artifact, binding.model, row, schema), current = { ...binding, version: row.version as number };
+        updatedFixtures.set(name, view); rowBindings.set(name, current); objectBindings.set(view, current);
       }
+      // A fixture may occur repeatedly through Contract fields/arrays. Refresh
+      // every declared reference slot while retaining ordinary input overrides.
+      const seen = new Set<object>(); let nodes = 0;
+      const refresh = (type: string, value: unknown, depth = 0): unknown => {
+        if (++nodes > 16384 || depth > 64) throw new Error("example runner: fixture input traversal bound exceeded");
+        const parsed = resolved(type);
+        if (value === null || typeof value !== "object") return value;
+        const name = parsed.base.kind === "nominal" ? parsed.base.path : undefined;
+        if (!parsed.array && name !== undefined && models.some(model => model.name === name)) {
+          const binding = bindingFor(value, name, objectBindings, rowBindings);
+          const fixtureName = binding === undefined ? undefined : [...rowBindings].find(([, item]) => item.model === name && item.id === binding.id)?.[0];
+          return fixtureName === undefined ? value : updatedFixtures.get(fixtureName);
+        }
+        const contract = name === undefined ? undefined : schema?.contracts[name];
+        if (!parsed.array && contract === undefined && parsed.base.kind !== "union") return value;
+        if (seen.has(value)) throw new Error("example runner: cyclic example input");
+        seen.add(value);
+        try {
+          if (parsed.array) {
+            if (!Array.isArray(value)) return value;
+            const element = printTypeId({ ...parsed, array: false, requiredArray: false, nullable: false });
+            return value.map(item => refresh(element, item, depth + 1));
+          }
+          if (contract !== undefined && isRecord(value)) return Object.fromEntries(Object.entries(value).map(([field, item]) =>
+            [field, contract.fields[field] === undefined ? item : refresh(contract.fields[field]!.typeId, item, depth + 1)]));
+          if (parsed.base.kind === "union" && isRecord(value) && typeof value["type"] === "string" && parsed.base.arms.includes(value["type"])) {
+            return { ...value, value: refresh(value["type"], value["value"], depth + 1) };
+          }
+          return value;
+        } finally { seen.delete(value); }
+      };
+      const updatedInputs = { ...effective as Record<string, unknown> };
+      for (const input of operation.inputs.fields) if (input.field.kind !== "enum" && Object.hasOwn(updatedInputs, input.name)) updatedInputs[input.name] = refresh(fixtureFieldType(input), updatedInputs[input.name]);
       return { fixtures: updatedFixtures, inputs: updatedInputs };
     },
     async invoke({ call, identity }) {
@@ -705,11 +813,22 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
       if (operation === undefined) throw new Error(`example runner: unknown operation ${call.operation}`);
       // Loader/source failures are infrastructure failures, rather than an
       // authored business rejection that could satisfy an expected error row.
-      await loadCanonicalDescriptors(asm, artifact);
-      const encoded = wireInputs(call.inputs, references.get(call.scope) ?? new Map());
-      if (!isRecord(encoded)) throw new Error("example runner: operation inputs are not an object");
-      const request = applyRequestOverrides(closedOperationInputs(operation.kind, encoded),
-        wireInputs(call.request, new Map()));
+      const loaded = await loadCanonicalDescriptors(asm, artifact);
+      if (!isRecord(call.inputs)) throw new Error("example runner: operation inputs are not an object");
+      checkFixtureValue(call.inputs);
+      const flat = closedOperationInputs(operation.kind, call.inputs), bindings = references.get(call.scope) ?? new Map();
+      const named = rows.get(call.scope) ?? new Map();
+      const resolveInput: NonNullable<Parameters<typeof encodeValue>[2]> = value => {
+        const original = typeof value === "object" && value !== null ? bindings.get(value) : undefined;
+        const binding = original ?? (isRecordRef(value) ? [...named.values()].find(binding => binding.model === value.model && binding.id === value.id) : undefined);
+        return binding === undefined ? undefined : decodeValue(binding.model, { id: binding.id, version: String(binding.version) }) as never;
+      };
+      const encoded = Object.fromEntries(Object.entries(flat).map(([name, value]) => {
+        const input = operation.inputs.fields.find(input => input.name === name);
+        return [name, input === undefined || input.field.kind === "enum" ? wireInputs(value, new Map())
+          : encodeValue(fixtureFieldType(input), value as never, resolveInput, loaded.valueSchema)];
+      }));
+      const request = applyRequestOverrides(encoded, wireInputs(call.request, new Map()));
       const ownerStorage = call.scope.ownerStorage;
       if (ownerStorage === undefined && (artifact.models?.length ?? 0) > 0) {
         throw new Error("example runner: model-backed canonical row has no owner storage boundary");
@@ -741,10 +860,11 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
       return { ok: true };
     },
     async observeLive({ scope, fixtures }) {
+      const loaded = await loadCanonicalDescriptors(asm, artifact);
       const values = new Map(fixtures);
       for (const [name, binding] of rows.get(scope) ?? []) {
         const stored = await scope.store.load(binding.model as ModelName, binding.id as RecordId);
-        values.set(name, stored === null ? null : fixtureView(artifact, binding.model, stored));
+        values.set(name, stored === null ? null : fixtureView(artifact, binding.model, stored, loaded.valueSchema));
       }
       const returned = results.get(scope);
       if (returned !== undefined) {
@@ -780,7 +900,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules,
           }
           if (!("records" in served) || !Array.isArray(served.records)) throw new Error("example runner: result observation returned no authorized records");
           const row = served.records.find(record => record.id === wire["id"]);
-          return row === undefined ? null : fixtureView(artifact, model.name, row);
+          return row === undefined ? null : fixtureView(artifact, model.name, row, loaded.valueSchema);
         };
         values.set("result", await observeResult(returned.type, returned.wire));
         if (await store.readRevision() !== revision) throw new Error("example runner: result observation state changed");
@@ -857,7 +977,6 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     // issued this assembly, including the actual compiled test modules. The
     // original compiler bytes still own the report digest and row inventory.
     const tableOperations = new WeakMap<ExampleRowScope, Readonly<{ id: string; source: string }>>();
-    const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm, tableOperations);
     const loadSuite = input.testkit.loadExampleSuite as (
       moduleUrl: string,
       bindings: { self: unknown; other: unknown; outsider?: unknown; imported: unknown },
@@ -875,6 +994,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     for (const [moduleIndex, test] of artifact.tests.entries()) {
       if (input.signal?.aborted) throw cancellationError();
       if (input.selectedRow !== undefined && test.scope !== input.selectedRow.operation) continue;
+      const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm, tableOperations, test.scope);
       const url = asm.moduleUrls[test.module.path];
       if (url === undefined) throw new Error(`example runner: test module ${test.module.path} was not staged`);
       const rowCallers = new WeakMap<object, ResolvedCaller>();
