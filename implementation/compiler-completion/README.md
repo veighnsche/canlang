@@ -2,6 +2,20 @@
 
 ## Current remainder and finite completion
 
+**C02 mixed helper/first query plan (2026-10-15, source component qualified).**
+Compose the exact leading helper, first initializer and conditional body helper
+query descriptors without the generic uniform-influence merge. Each feasible
+borrowed return retains its original influence vector and order; Require field
+consumption stays separate. Both helpers select their own original owner-site/
+call-chain occurrence. Existing first-row/root-pair/default/effect checks consume
+the same authenticated mixed census. Four focused checks pass: structural
+capacity case plus renamed/named-slot reuse and tamper controls, existing leading
+helper, root-pair lock/prefix and ordinary ANY source controls. Formatting/scoped
+diff checks pass. Actual original24/emitted native qualification remains required.
+The exact original ResearchLead has6 fields; Deal owns the16-field schema. Its
+native fixture must retain original Customer/Contact/CompanyRole policies and
+saved sales_seats, not substitute reduced read=members declarations.
+
 **C02 native selected Contract guard join (2026-10-15, qualified component).**
 Emitter merges the sealed Require occurrence into the existing immediate native
 observation map, outside result dependencies, and publishes its private execution

@@ -16944,3 +16944,17 @@ loss; fresh guarded execution refuses. Identity's last-owner rule remains intact
 with a valid second owner in setup. CLI/State/CF builds and scoped checks pass;
 source/State component checks are reused. Original mixed helper plan and full
 CanCRM readiness remain unqualified; latest original24 checkpoint is656 findings.
+
+
+### 2026-10-15 — compose mixed helper queries without uniform result taint
+
+Authenticate the original leading helper, first initializer and conditional body
+helper through existing source/IR joins. Compose their descriptors while copying
+each borrowed return's own original influence vector; keep execution-only Require
+reads outside result disclosure. Both helper occurrences retain distinct canonical
+source-call selectors. Reuse original first-row/root-pair/schema/default/effect
+checks with that exact mixed census, not a query-count-based influence union.
+Four focused structural/reuse/source/refusal checks pass, with changed helper,
+occurrence, first field, return vector and supplied plan refusals. Formatting/diff
+checks pass. This is a source component acceptance; original24 and genuine mixed
+native invocation remain unqualified. No language syntax or permissions changed.
