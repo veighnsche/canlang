@@ -2,6 +2,32 @@
 
 ## Current remainder and finite completion
 
+**C02 checked Given omission in create census (2026-10-15, implemented/tested).**
+The create-source omission check now recognizes defaults already validated in
+Given field-trait tables, matching checker/default lowering. Existing adjacent
+root-create logic is unchanged. The full-field original/renamed focused check
+passes1/1; removing the checked default refuses omission. Affected authentic
+original24 saved-Given inspection now has26 sources/zero checker diagnostics and
+`crm.promote_research` Complete, with2 creates/3 queries/192 conservative return
+paths. Native authored-field trait default/min source matching remains required.
+The conservative paths do not yet prove the desired mixed native return census:
+body guard inputs/influences are retained in effect guards rather than all result
+paths. Resolve actual feasible model-return/authorization consumption while
+preserving accepted independent scalar-return pruning, before native admission.
+
+**C02 original promotion source status (2026-10-15, authentic inspection).**
+The exact CLI saved-Given intake reports26 sources, zero checker diagnostics,
+but `crm.promote_research` is Declined at its Deal create (`create then set/
+current-field return profile required`). All3 query facts and3 decision sites
+remain; creates and complete return facts are absent. Thus12/8 influences for
+existing/new returns describe desired source behavior, not an implemented API.
+Investigate the existing adjacent-root create pair's prerequisite default census
+(Deal.seats comes from saved Given) before extending mixed native plans. The
+one-time inspector used existing CLI intake and was removed byte-for-byte.
+The leading helper journey separately reaches the nested staff read-policy
+query, which still needs its genuine owning collection domain; no guard/policy
+may be removed to get a green fixture.
+
 **Original24 qualification at0d751ed1 (2026-10-15).**
 Exact original24 operands and all26 consumed source records remain unchanged.
 The isolated CLI finishes in396.54s: exit10, complete=true, omitted=0, no usable

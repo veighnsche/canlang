@@ -4350,6 +4350,10 @@ impl<'a> Closure<'a> {
         for (data, field) in definition.declaration.fields.iter().zip(&definition.fields) {
             if !seen.contains(field.name.as_str())
                 && data.default.is_none()
+                // Checked Given field-trait defaults make omission legal in
+                // the owning type checker and lower to the existing default.
+                && !self.types.given_constraints.get(&field.field).is_some_and(|constraints|
+                    constraints.iter().any(|constraint| constraint.default.is_some()))
                 && data.server.is_none()
                 && !matches!(field.ty, ResolvedType::Nullable(_))
                 && (!matches!(field.ty, ResolvedType::Array { .. }) || data.required_array)
@@ -16470,6 +16474,156 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn checked_given_default_retains_complete_adjacent_root_creates() {
+        use super::super::generation_intake::{AssociationKey, UnitKind};
+        use super::super::types::{GivenSavedUnit, check_given_contract_tables};
+        let source = r#"app RootPair
+Given
+ trait seats_default $"Supply the existing default of one and minimum of one."
+ Customer {active:bool}
+ Contact in Customer {name:text}
+ Location {currency:currency}
+ Deal {customer:Customer,contact:Contact,title:text trim min=1,location:Location,owner:user=actor,value:money,stage:enum(lead,qualified,proposal,won,lost)=lead,seats:int seats_default,desired_start:date?,duration:text?,workspace:text?,source:text?,next_action:datetime?,notes:text?,lost_reason:text?,outcome_reference:text?}
+ contract ResearchLead {customer:Customer,contact:Contact,location:Location,title:Deal.title,value:money,notes:text}
+ ResearchIntake {source:text unique,input:ResearchLead,deal:Deal}
+When
+ scenario promote(source:text,input:ResearchLead) -> Deal by=members
+  require input.customer.active and input.value.minor>=0 and input.value.currency==input.location.currency
+  do
+   let existing=first(ResearchIntake as intake where intake.source==source)
+   if existing!=null
+    require existing.input==input
+    return existing.deal
+   create Deal {customer=input.customer,contact=input.contact,location=input.location,title=input.title,value=input.value,notes=input.notes,source} as deal
+   create ResearchIntake {source,input,deal} as intake
+   return deal
+Then
+"#;
+        for renamed in [false, true] {
+            let source = if renamed {
+                source
+                    .replace("Deal", "Opportunity")
+                    .replace("ResearchIntake", "Evidence")
+            } else {
+                source.into()
+            };
+            let mut db = SourceDb::new();
+            let file = db.add("root-pair-given.can".into(), source);
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            let catalog_path = root
+                .parent()
+                .unwrap()
+                .join("packages/cloudflare/dist/native-catalog.json");
+            let (catalog, errors) =
+                super::super::catalog::load_catalog(&super::super::catalog::CatalogRequest {
+                    flag: Some(&catalog_path),
+                    env: None,
+                    cwd: root,
+                    primary: crate::source::Span::new(file, 0, 0),
+                });
+            assert!(errors.is_empty(), "{errors:?}");
+            let (initial, _) = super::super::check_program(&db, &[file], catalog.as_ref());
+            let found = super::super::generation::discover_program(&db, initial.checked_files());
+            let descriptor = found
+                .descriptors
+                .iter()
+                .find(|value| value.kind == super::super::generation::GenerationKind::NamedTrait)
+                .unwrap();
+            let key = AssociationKey {
+                owner: descriptor.owner.clone(),
+                kind: UnitKind::NamedTrait,
+                label: descriptor.label.clone(),
+                anchor: descriptor.anchor.clone(),
+            };
+            let carrier = db.add(
+                "saved/contributions.can".into(),
+                "app RootPair\nGiven\n seats_default {value:int=1 min=1}\n".into(),
+            );
+            let saved = HashMap::from([(
+                key,
+                GivenSavedUnit {
+                    unit_id: "checked-seats".into(),
+                    contributions: Some(carrier),
+                    implementation_js: None,
+                    implementation_imports: Vec::new(),
+                    declaration: None,
+                },
+            )]);
+            let (tables, errors) = check_given_contract_tables(&db, &initial, &saved);
+            assert!(errors.is_empty(), "{errors:?}");
+            let (program, errors) = super::super::check_program_with_given(
+                &db,
+                &[file],
+                catalog.as_ref(),
+                Some(&tables),
+            );
+            assert!(errors.is_empty(), "{errors:?}");
+            let owner = program
+                .symbols
+                .iter()
+                .find(|value| value.canonical == "RootPair.promote")
+                .unwrap();
+            let ScenarioDisclosure::Complete(checked) = &program.scenario_disclosures()[&owner.id]
+            else {
+                panic!(
+                    "complete checked first-row/create-pair workflow: {:?}",
+                    program.scenario_disclosures()[&owner.id]
+                );
+            };
+            let facts = checked.source_facts.as_deref().unwrap();
+            let creates = facts.creates.as_deref().unwrap();
+            assert_eq!(creates.len(), 2);
+            assert_eq!(creates[0].inputs.len(), 7);
+            assert_eq!(
+                creates[1]
+                    .inputs
+                    .iter()
+                    .map(|input| input.name.as_str())
+                    .collect::<Vec<_>>(),
+                ["source", "input", "deal"]
+            );
+            assert_eq!(
+                creates[0].definition.fields.len(),
+                16,
+                "complete owning Deal field declaration"
+            );
+            let seats = creates[0]
+                .definition
+                .fields
+                .iter()
+                .find(|field| field.name == "seats")
+                .unwrap();
+            assert!(
+                program.types.given_constraints[&seats.field]
+                    .iter()
+                    .any(|value| value.default.as_deref() == Some("1")
+                        && value.min.as_deref() == Some("1"))
+            );
+            assert!(checked.returns.iter().any(|value| matches!(
+                value.model_result,
+                Some(DisclosureModelResult::Reference { .. })
+            )));
+            assert!(checked.returns.iter().any(|value| matches!(value.model_result, Some(DisclosureModelResult::Create {node, ..}) if node == creates[0].node)));
+            let mut no_default = tables;
+            no_default.traits[0].contributed_fields[0].default = None;
+            let (rejected, errors) = super::super::check_program_with_given(
+                &db,
+                &[file],
+                catalog.as_ref(),
+                Some(&no_default),
+            );
+            assert!(
+                !errors.is_empty(),
+                "removing the checked default cannot make omission legal"
+            );
+            assert!(!matches!(
+                rejected.scenario_disclosures().get(&owner.id),
+                Some(ScenarioDisclosure::Complete(_))
+            ));
+        }
+    }
+
     #[test]
     fn imported_query_helper_require_source_closure_retains_original_owners() {
         use super::super::catalog::{CatalogRequest, load_catalog};
