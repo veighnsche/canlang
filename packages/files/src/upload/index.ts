@@ -67,6 +67,8 @@ export interface UploadDeps {
    * endpoint; direct callers must pass a validated base.
    */
   readonly urlBase: string;
+  /** Trusted local host only; permits a validated plaintext loopback origin. */
+  readonly allowInsecureLoopback?: true;
 }
 
 export interface CreateIntentInput {
@@ -306,6 +308,15 @@ function callerOwnsIntent(record: UploadIntentRecord, caller: ReceivingContext):
  * a conflicting receiver fails. Grant destinations are minted from the
  * configured origin only.
  */
+function isLoopbackOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) &&
+      url.username === '' && url.password === '' && url.pathname === '/' && url.search === '' && url.hash === '' &&
+      url.origin === value;
+  } catch { return false; }
+}
+
 export function createUploadIntent(
   deps: UploadDeps,
   input: CreateIntentInput,
@@ -339,7 +350,7 @@ export function createUploadIntent(
   }
   if (
     typeof deps.urlBase !== 'string' ||
-    !deps.urlBase.startsWith('https://') ||
+    (!deps.urlBase.startsWith('https://') && !(deps.allowInsecureLoopback === true && isLoopbackOrigin(deps.urlBase))) ||
     deps.urlBase.endsWith('/')
   ) {
     return { status: 'rejected', reason: 'invalid-request' };
