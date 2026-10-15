@@ -1,0 +1,33 @@
+{
+  "request": {
+    "state": "The user explicitly requires Can dev local bindings plus missing compiler/runtime implementations for queues, Durable Objects, KV and analytics, with no manual runtime installs. Source identity/composition and resource ownership must remain in .can. Existing language: default D1; selected runtime File use implies one R2 store (no repeated R2 declaration); context binding NAME DurableObject key=RootModel, queue NAME type=Type, cache KV ttl=Duration, analytics NAME {field:type}; bound service imports carry checked source boundary. Current compiler parses/checks parts but drops these context resources from IR/artifact; queue/analytics sends lack complete schema checks and lowering. Worker preview has real D1/Identity only. Existing HandlerContext.sendDeferred and Work stageCanonicalSend stage dispatch rows/outbox atomically with State mutation; Work driveDispatchIntent/recovery handles durable claims, outcomes, uncertainty and replay. No eager external effects before commit allowed. Real State DO SQLite adapter exists with fenced atomic commits, but no production root routing/directory in default worker. Miniflare package already ships R2, KV, DO, queue and service support; its AE writeDataPoint is literally no-op, so a real observable local analytics sink is required. Native queue broker is memory-only; persistent Work outbox and ingress event identity/replay must preserve delivery rather than claim native queue durability. New dependencies unnecessary. We compare complete ways to carry checked declaration ownership, not whether to omit runtime behavior. All options require real consumer handlers/storage, correct selected-app/composition merge, typed values, atomic effects and actual end-to-end tests. Option artifact also emits identical resource declarations in appDefinition and verifies correspondence to prevent tampered JSON claims; names remain derived canonical owner.name. Option module-only keeps resource declarations once in compiled appDefinition and discovers before preview by importing verified assembled module (artifact includes no separate inventory). Current artifact otherwise has models/operations/requires for preflight; modules use import.meta and source capture verified installed outputs. A separate manually authored resource list is forbidden by user preference.",
+    "questions": {
+      "boundary": {
+        "type": "choice",
+        "instructions": "Which complete integration boundary better preserves compiler ownership, validation and the simplest local runtime?",
+        "criteria": {
+          "artifact": "Publish additive typed runtimeBindings in compiler artifact plus identical appDefinition declarations from same checked IR, validate correspondence, use finite inventory for early local resource admission and existing atomic Work effects.",
+          "module_only": "Emit resource declarations only in compiled appDefinition, import verified assembled module before local resource admission and derive bindings there, retaining one metadata copy but no static artifact resource inventory."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "boundary": {
+        "type": "choice",
+        "choice": "module_only",
+        "confidence": 0.58,
+        "probabilities": {
+          "artifact": 0.21,
+          "module_only": 0.79
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 836,
+      "output_tokens": 33
+    }
+  }
+}
