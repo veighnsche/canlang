@@ -1222,9 +1222,42 @@ pub fn checked_read_boolean_site(
     predicate: NodeKey,
     statement: NodeKey,
 ) -> Option<CheckedDecisionSite> {
-    if types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
-        return None;
-    }
+    // A Boolean result never defines permission to read (DESIGN §3): the
+    // caller admits every valid derived/page consumer shape, including
+    // non-Boolean derived fields reusing this same observer join. The
+    // predicate type still travels in each serialized call argument.
+    let collected = collect_read_calls(db, trees, resolve, types, effects, module, predicate)?;
+    Some(CheckedDecisionSite {
+        owner,
+        source: collected.source,
+        node: predicate,
+        statement,
+        stage: CheckedDecisionStage::ReadPredicate,
+        position: Vec::new(),
+        calls: collected.calls,
+    })
+}
+
+/// Owning call set behind a checked read observer: the verified source origin
+/// plus every checked decision call under the predicate, in source order.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CollectedReadCalls {
+    pub source: DisclosureSource,
+    pub calls: Vec<CheckedDecisionCall>,
+}
+
+/// Model- or page-scoped callers wrap this with their own owner/stage; a
+/// page without a record owner serializes the same set without inventing one.
+#[allow(clippy::too_many_arguments)]
+pub fn collect_read_calls(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    resolve: &ResolveTables,
+    types: &TypeTable,
+    effects: &EffectTables,
+    module: ModuleId,
+    predicate: NodeKey,
+) -> Option<CollectedReadCalls> {
     let mut nodes = HashMap::new();
     let mut pending = trees
         .iter()
@@ -1270,13 +1303,8 @@ pub fn checked_read_boolean_site(
         &mut 0,
         0,
     )?;
-    Some(CheckedDecisionSite {
-        owner,
+    Some(CollectedReadCalls {
         source: cx.source(module, predicate).ok()?,
-        node: predicate,
-        statement,
-        stage: CheckedDecisionStage::ReadPredicate,
-        position: Vec::new(),
         calls,
     })
 }

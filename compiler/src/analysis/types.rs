@@ -8325,13 +8325,19 @@ impl<'a> Typer<'a> {
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         let actual = self.expr(&cx, value, Some(expected.clone()));
+        // Contextual State reads keep their consuming authority through
+        // helpers whatever the derived result type is: a Boolean result
+        // never defines permission to read (DESIGN §3). Derived fields of
+        // every type admit the same checked bounded membership reads as
+        // derived functions, with identical order/failure rules; bodies
+        // stay registered for transitive strict-site closure.
         let membership_function = matches!(
             self.tables.symbols[id.0 as usize].kind,
             SymbolKind::DeriveFn { .. }
         ) || matches!(
             self.tables.symbols[id.0 as usize].kind,
             SymbolKind::DeriveField { .. }
-        ) && expected == ResolvedType::Scalar(Scalar::Bool);
+        );
         let forbidden_calls = if membership_function {
             self.membership_derive_bodies.insert(id, value.clone());
             self.bounded_membership_effectful_calls(value, text)
@@ -9078,25 +9084,24 @@ impl<'a> Typer<'a> {
                 }
             }
         }
-        // Only record-bound top-level page admission has an actual model read
-        // subject for the checked boolean-read owner. Container gates and
-        // unbound page guards retain their strict pure contract.
-        if node
-            .descendants()
-            .any(|part| part.kind == SyntaxKind::RouteRecord)
-        {
-            for child in kids(node) {
-                if child.kind == SyntaxKind::Require
-                    || child.kind == SyntaxKind::UiLeaf
-                        && kids(child).iter().find_map(|part| name_text(part, text))
-                            == Some("require")
+        // Top-level page admission guards read with the viewer's team
+        // authority wherever the owning context supplies the required
+        // facts: an incidental route record never defines permission to
+        // read (DESIGN §3). Pure guards behave identically under either
+        // purity check, so every top-level guard is registered; nested
+        // container gates keep their strict pure contract until their
+        // render-gate inventory can carry the same owning sources.
+        for child in kids(node) {
+            if child.kind == SyntaxKind::Require
+                || child.kind == SyntaxKind::UiLeaf
+                    && kids(child).iter().find_map(|part| name_text(part, text))
+                        == Some("require")
+            {
+                if let Some(pred) = kids(child)
+                    .into_iter()
+                    .find(|part| is_expression(part.kind))
                 {
-                    if let Some(pred) = kids(child)
-                        .into_iter()
-                        .find(|part| is_expression(part.kind))
-                    {
-                        self.membership_page_guards.insert(NodeKey::of(pred));
-                    }
+                    self.membership_page_guards.insert(NodeKey::of(pred));
                 }
             }
         }
