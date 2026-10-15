@@ -337,6 +337,7 @@ const KNOWN_INPUT_KINDS: ReadonlySet<string> = new Set([
 const KNOWN_DEFAULT_KINDS: ReadonlySet<string> = new Set([
   'literal',
   'parent',
+  'context',
   'server',
   'derived',
 ]);
@@ -735,7 +736,7 @@ function checkDefault(value: unknown, what: string): CanonicalFieldDefault | und
     fail(
       'unknown_default_kind',
       `Unknown default kind ${JSON.stringify(kind)} for ${what}; ` +
-        'supported: literal, parent, server, derived.',
+        'supported: literal, parent, context, server, derived.',
     );
   }
   if (kind === 'literal') {
@@ -759,8 +760,24 @@ function checkDefault(value: unknown, what: string): CanonicalFieldDefault | und
     checkLoadDotPath(value['path'] as string, `parent default for ${what}`);
     return { kind: 'parent', path: value['path'] as string };
   }
+  if (kind === 'context') {
+    const members = Object.getOwnPropertyDescriptors(value);
+    if (![Object.prototype, null].includes(Object.getPrototypeOf(value)) || Reflect.ownKeys(value).length !== 2 ||
+        !['kind', 'value'].every(key => members[key] !== undefined && 'value' in members[key]! && members[key]!.enumerable) ||
+        members['value']!.value !== 'actor') fail('malformed_descriptor', `Invalid context default for ${what}: exact actor recipe required.`);
+    return { kind: 'context', value: 'actor' };
+  }
   if (kind === 'server') return { kind: 'server' };
   return { kind: 'derived' };
+}
+
+/** Ordinary context defaults retain caller overrides and exact User typing. */
+function checkContextDefault(fallback: CanonicalFieldDefault | undefined, type: CanTypeId | undefined,
+  required: unknown, serverOnly: unknown, array: unknown, what: string): void {
+  if (fallback?.kind === 'context' && (type !== 'user' && type !== 'user?' || required !== false ||
+      serverOnly !== false || array !== undefined)) {
+    fail('malformed_descriptor', `Invalid context default for ${what}: ordinary singular User field required.`);
+  }
 }
 
 /** A computed default is an own omission claim, never a wire default value. */
@@ -891,6 +908,10 @@ function checkCanonicalInput(
   const valueType = kind === 'enum'
     ? checkEnumValueType(value, value['enumValues'], what, valueSchema) :
       kind === 'nominal' ? checkNominalValueType(value, what, valueSchema) : checkValueType(value, what);
+  if (fallback?.kind === 'context') {
+    checkContextDefault(fallback, valueType, required, false, value['array'], what);
+    if (kind !== 'user' || operationKind !== 'create') fail('malformed_descriptor', `Invalid ${what}: context defaults belong to model creation inputs.`);
+  }
   const inputBase = valueType === 'file[]!' ? 'file' : valueType?.replace(/\[\]|\?/g, '');
   if (kind !== 'enum' && kind !== 'nominal' && valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
       !(kind === 'string' && (inputBase === 'date' || inputBase === 'email' || inputBase === 'timezone' || inputBase === 'currency'))) {
@@ -1303,6 +1324,7 @@ function checkCanonicalModel(value: unknown, modelNames: ReadonlySet<string>, va
     }
     const valueType = modelReference ? checkStoredModelValueType(fieldValue, what, modelNames, valueSchema)
       : checkValueType(fieldValue, what, valueSchema);
+    checkContextDefault(fallback, valueType, fieldValue['required'], fieldValue['serverOnly'], array, what);
     checkFieldConstraints(fieldValue, valueType, what, valueSchema);
     checkNominalArray(valueType, array, what, valueSchema);
     fields[fieldName] = {
@@ -2409,6 +2431,7 @@ export function artifactToDescriptorSet(
         }
       }
       const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema, modelNames);
+      checkContextDefault(fallback, valueType, field.required, field.serverOnly, array, what);
       checkFieldConstraints(field as unknown as Record<string, unknown>, valueType, what, valueSchema);
       fields[field.name] = {
         ...(valueType !== undefined ? { valueType } : {}),

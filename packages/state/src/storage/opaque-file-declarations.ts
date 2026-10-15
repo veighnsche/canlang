@@ -160,9 +160,10 @@ function type(value: unknown): CanTypeId {
 }
 function defaultShape(value: unknown): void {
   const kind = (value as { kind?: unknown } | null)?.kind;
-  const item = record(value, kind === 'literal' ? ['kind', 'value'] : kind === 'parent' ? ['kind', 'path'] : ['kind']);
-  if (!['literal', 'parent', 'server', 'derived'].includes(String(kind))) return refuse('checked default declaration required.');
+  const item = record(value, kind === 'literal' || kind === 'context' ? ['kind', 'value'] : kind === 'parent' ? ['kind', 'path'] : ['kind']);
+  if (!['literal', 'parent', 'context', 'server', 'derived'].includes(String(kind))) return refuse('checked default declaration required.');
   if (kind === 'parent') string(item.path);
+  if (kind === 'context' && item.value !== 'actor') return refuse('exact actor context default required.');
 }
 const scalarTypes: Readonly<Record<string, string>> = {
   string: 'text', integer: 'int', decimal: 'decimal', money: 'money', datetime: 'datetime',
@@ -231,6 +232,10 @@ function boundInput(values: FileReferenceProfileBound, canonical: CanonicalInput
       if (Object.hasOwn(input, 'enumValues') || !(base === scalarTypes[String(input.kind)] ||
           input.kind === 'string' && ['date', 'email', 'timezone'].includes(base))) return refuse('actual scalar source type required.');
     }
+  }
+  if ((input.default as { kind?: unknown } | undefined)?.kind === 'context' &&
+      (input.kind !== 'user' || input.required !== false || original !== 'user' && original !== 'user?' || input.computedDefault === true)) {
+    return refuse('ordinary singular User context default required.');
   }
   const profile = bindDeclaredFileReferenceProfile(values, original, canonical);
   if ((canonical as { default?: { kind: string; value?: unknown } }).default?.kind === 'literal') {

@@ -263,8 +263,22 @@ pub(super) fn checked_created_schema(
                     return None;
                 }
             }
-            // No original application creates a model with an established
-            // computed default here; retain its refusal instead of dropping it.
+            (
+                Some(
+                    default @ IrDefault::Computed {
+                        expr,
+                        has_parent: false,
+                    },
+                ),
+                Some(node),
+            ) if matches!(
+                js_field_default(Some(default), None),
+                Some(super::js::JsFieldDefault::ContextActor)
+            ) && matcher.word(node)? == "actor"
+                && expr.span == span(node)
+                && (*ty == ResolvedType::Scalar(Scalar::User)
+                    || ty.nullable_inner() == Some(&ResolvedType::Scalar(Scalar::User))) => {}
+            // Other computed defaults require their own checked native join.
             _ => return None,
         }
         match (server, data.server) {

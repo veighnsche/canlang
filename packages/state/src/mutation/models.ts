@@ -108,6 +108,11 @@ export interface InterimFieldDef {
   readonly nullable?: boolean;
 }
 
+/** Only the canonical builder installs closed ordinary actor initialization.
+ * Copies of a field carry data, never this initialization behavior. */
+const contextActorDefaults = new WeakSet<InterimFieldDef>();
+export function hasContextActorDefault(field: InterimFieldDef): boolean { return contextActorDefaults.has(field); }
+
 /**
  * One interim reference: `field` is a dot path into `data` whose value is a
  * plain `{ id }` object (interim; L2 ref codecs land later), targeting
@@ -885,7 +890,8 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         `Invalid model ${JSON.stringify(model)}: descriptors must be serializable data.`,
       );
     }
-    for (const field of Object.values(fields)) {
+    for (const [name, field] of Object.entries(fields)) {
+      if (contextActorDefaults.has(def.fields[name]!)) contextActorDefaults.add(field);
       const constraint = modelFieldConstraintSchema(field, opts.valueSchema);
       if (constraint !== undefined) fieldConstraintSchemas.set(field, constraint);
     }
@@ -1034,7 +1040,8 @@ export interface CanonicalModelTableOptions extends ModelTableOptions {
  * descriptors (the loaded intake's `models`), delegating to `buildModelTable`
  * so enforcement stays in exactly one place.
  *
- * Conversion: `required`/`serverOnly`/array markers map directly; `literal`
+ * Conversion: `required`/`serverOnly`/array markers map directly; `context`
+ * actor defaults install private ordinary User initialization, `literal`
  * defaults map to JSON literals, `parent` defaults to `{ parentPath }`
  * lookups; `server` defaults map to NO pipeline `default` — their values
  * resolve from the `serverInits` channel instead (T18 execution; emission
@@ -1086,6 +1093,17 @@ export function buildModelTableFromCanonical(
         // `server`/`derived`: no pipeline default (T18 execution); the
         // descriptor's `serverOnly` still rejects caller-supplied values.
       }
+      const contextDefault = canonicalDefault?.kind === 'context';
+      const contextMembers: Record<string, PropertyDescriptor> | undefined = contextDefault
+        ? Object.getOwnPropertyDescriptors(canonicalDefault) : undefined;
+      if (contextDefault && (![Object.prototype, null].includes(Object.getPrototypeOf(canonicalDefault)) ||
+          !['kind', 'value'].every(key => contextMembers![key] !== undefined && 'value' in contextMembers![key]! && contextMembers![key]!.enumerable) ||
+          contextMembers!['value']!.value !== 'actor' ||
+          (field.valueType !== 'user' && field.valueType !== 'user?') || field.required || field.serverOnly ||
+          field.array !== undefined || Reflect.ownKeys(canonicalDefault).length !== 2 ||
+          opts.serverInits?.get(model.name)?.has(name))) {
+        throw new Error(`Invalid actor context default for field ${JSON.stringify(name)} on model ${JSON.stringify(model.name)}.`);
+      }
       const serverInit = opts.serverInits?.get(model.name)?.get(name);
       const knownNullable = opts.nullableFields?.get(model.name)?.has(name) === true;
       fields[name] = {
@@ -1103,6 +1121,7 @@ export function buildModelTableFromCanonical(
           field.valueType !== undefined && parseTypeId(field.valueType).base.kind === 'nominal'
           ? { nullable: field.nullable! } : knownNullable ? { nullable: true } : {}),
       };
+      if (contextDefault) contextActorDefaults.add(fields[name]!);
     }
     const uniqueKeys = model.uniqueKeys ?? [];
     for (const key of uniqueKeys) {

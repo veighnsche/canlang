@@ -13,7 +13,7 @@
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { canonicalUniqueRowValue, canonicalUniqueScopeValue } from '../internal/unique-value.js';
-import { encodeValue, trim, validateValue } from '@canlang/values';
+import { decodeValue, encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
   CanonicalFieldDef,
@@ -51,6 +51,7 @@ import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
 import { queryRecords } from '../query/engine.js';
 import {
   isParentPathDefault,
+  hasContextActorDefault,
   getModelFieldConstraint,
   type InterimHookContext,
   type InterimHookSchedule,
@@ -889,6 +890,14 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         }
       }
     }
+    if (input.encodeField === undefined) for (const [field, fieldDef] of Object.entries(def.fields)) {
+      if (!hasContextActorDefault(fieldDef)) continue;
+      try {
+        if (Object.hasOwn(candidate, field)) decodeValue(fieldDef.valueType!, candidate[field]);
+        const key = defaultWriter === undefined ? undefined : defaultKey(field, defaultWriter);
+        if (key !== undefined && defaultWriters.get(key) === defaultWriter) decodeValue(fieldDef.valueType!, resolvedDefaults[key]);
+      } catch { throw new StateError('validation', `Invalid User value for context-defaulted field ${JSON.stringify(field)}.`); }
+    }
     try {
       JSON.stringify(candidate);
     } catch {
@@ -1589,14 +1598,20 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           parent = { model: write.parent.model, id: write.parent.id };
         }
         // T18 creation evaluation order per omitted field: caller data
-        // (above) wins over everything; then literal defaults, parent-path
-        // defaults, required-array rejection, known-nullable null-fill
+        // (above) wins over everything; then ordinary actor, literal and
+        // parent-path defaults, required-array rejection, known-nullable null-fill
         // (L2 parity: nullable arrays yield null, so this precedes the
         // array-empty fill), ordinary-array omit-to-empty, and finally
         // closed-set server initializers — hooks observe all of it.
         for (const [field, fieldDef] of Object.entries(def.fields)) {
           consumeWork();
           if (Object.hasOwn(candidate, field)) {
+            continue;
+          }
+          if (hasContextActorDefault(fieldDef)) {
+            const userId = stageContext.actor?.userId;
+            const resolved = userId === undefined || userId === null ? null : { id: userId };
+            safeSet(candidate, field, resolved); recordDefault(field, resolved, writeTag);
             continue;
           }
           const fallback = fieldDef.default;

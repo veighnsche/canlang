@@ -16092,3 +16092,64 @@ existing shared State staging supplies atomicity. Actor remains an overridable
 creation default, distinct from server=actor; no conversion to a protected
 initializer is authorized. This constructor prerequisite does not claim full
 application or training readiness.
+
+
+2026-10-15 — C02/C10: retain an ordinary actor creation default in native State.
+
+Deal.owner:user=actor is an overridable creation default, distinct from the
+protected server=actor initializer. The compiler already emits a default(c)
+function, but native State builds its model table from canonical descriptors and
+has no model-default callable join. Preserve the authored model default through
+one closed context recipe in the existing field-default vocabulary:
+{kind:'context',value:'actor'}. Qualify only the demonstrated actor case, on a
+singular user/user? field with required:false and serverOnly:false. Other computed
+defaults retain their explicit producer boundaries. No source rewrite, generated
+per-scenario owner assignment or new effect/callback API is introduced.
+
+Three independently worded equivalent JEV Choice requests select the context
+recipe over a checked model-default evaluator channel, with probabilities
+.52/.61/.74 and confidence .04/.22/.48. Raw requests/responses and uncertainty are
+saved in implementation/compiler-completion/model-context-defaults/. Two
+preferences are weak and no rationale is
+returned; this is same-model advice, not proof. The coordinator selects the finite
+recipe because it reuses the existing declarative default phase without function
+binding, context conversion or new effect/lifetime restrictions. Both alternatives
+could preserve semantics if fully implemented; later computed families still
+need their own defining-owner source and runtime joins.
+
+Compiler emission seals the genuine contextual actor expression and exact owning
+field/type/source, and refuses context/parent substitutions. State's loaders keep
+the complete recipe; its model builder associates it privately with the exact
+ordinary field definition rather than interpreting a similar literal object.
+The current creation-stage actor supplies {id} or null at the normal per-field
+omitted-default slot. Never use attribution's public/test/trusted fallback as a
+User. Explicit values bypass default resolution, updates apply no defaults, hooks
+and rules keep their existing phases, and receipts retain the original default
+before hook changes. Required User validation rejects actor-null even if a hook
+repairs the candidate; nullable User keeps null. Ordinary create inputs remain
+writable/optional in MCP/HTTP without a JSON Schema literal default. No Values
+context resolver is needed: its existing User codec validates the filled value.
+Older unknown-kind readers refuse instead of silently dropping the recipe.
+
+All4 affected constructor compiler checks,41 State controls and24 interface
+checks pass. The State set includes actor/null/override/nullable, both intake
+channels, copied marker/literal distinction, hook/invariant order, original default
+receipts, owner stage updates and canonical invoke replay. Normal Contracts,
+State, Interfaces and Cloudflare builds and CLI build pass. Actual captured
+CLI/verified assembly/D1/Identity workflow passes1/1 (37.55s): scenario and CRUD
+omissions resolve the actual actor, supplied owner wins, update preserves ordinary
+writability, replay does not default again, late failure rolls back, and independent
+read-role/membership loss/restoration withhold/recover saved results without writes.
+The first capture correctly refused a Contracts output older than its final source
+comment; only the post-rebuild frozen run is credited. Root TypeScript retains16
+errors in four unchanged files. Compatibility R01 has14 passes and one unchanged
+array-message assertion failure; the pre-batch registry reproduces the same
+own-boolean rejection. Its assertion is not weakened and no all-green R01 claim
+is made. Formatting/diff checks pass.
+
+Frozen original24-source validation exits10 after379.54s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and
+no usable artifact. Exact full diagnostic comparison with the preceding whole
+Contract capture adds/removes none. Deal's nested invariant, root pair and original
+query-backed can_work remain local work; default support does not qualify complete
+CanCRM or training readiness.

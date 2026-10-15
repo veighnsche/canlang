@@ -625,9 +625,28 @@ inventory, none added/removed and no usable artifact. Original selected-query
 reuse, can_work and the adjacent root pair remain to qualify.
 The pair must preserve the original early Reference return, both root constructors
 and the genuine once-bound first Create reference in the second. Deal's
-`owner:user=actor` computed default and its nested parent/Money/location invariant
-are distinct constructor prerequisites: neither may be skipped to admit the pair.
-Existing shared State staging supplies atomicity; no new batch carrier is implied.
+`owner:user=actor` default now reaches native State as the closed ordinary
+{kind:context,value:actor} recipe. JEV3 weak-to-moderate advice (.52/.61/.74)
+and uncertainty are retained in model-context-defaults/. It resolves the actual
+nullable actor only on omission, preserves explicit override/update behavior,
+hook/rule order and original default receipts, and never uses attribution fallback.
+All4 constructor compiler,41 State and24 interface checks pass; actual generated
+CLI/verified assembly/D1/Identity case1/1 (37.55s) verifies scenario+CRUD defaults,
+override, update, rollback/replay and independent read-role/membership recovery.
+Normal builds/CLI and formatting/diff pass; root TypeScript retains16 old errors.
+R01 has14 passes and one pre-existing exact array-message mismatch reproduced
+against the pre-batch registry; no assertion is weakened. Frozen original24-source
+validation exits10 after379.54s with701 diagnostics (675 E6008,26 E6007),
+complete=true, omitted=0, identical source inventory, none added/removed and no
+usable artifact. Deal's nested parent/Money/location invariant remains a distinct
+constructor prerequisite and cannot be skipped to admit the pair. Its schema
+matcher and native local-rule classifier both require direct scalar row fields;
+typed reference/parent and Money paths need checked source correspondence plus
+the existing reference-reader bridge bound to the live owner-rule frame. Reuse
+State's final provisional reader for end-of-transaction invariant evaluation;
+committed viewer state cannot substitute for it. Current target/ancestor/lifetime,
+Boolean-only rule results, lazy order and whole rollback remain required. Existing
+shared State staging supplies atomicity; no new batch carrier is implied.
 Other Contract expressions retain explicit source-correspondence bounds; no
 alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order

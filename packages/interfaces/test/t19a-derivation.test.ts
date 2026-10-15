@@ -1089,3 +1089,48 @@ test('checked email/timezone choice labels validate full owning model fields', (
     }] }));
   }
 });
+
+test('retains actor context defaults as optional writable user inputs without JSON Schema literal defaults', () => {
+  for (const nullable of [false, true]) {
+    const op = withExtraInput(STORE_CREATE, { name: 'owner', field: { kind: 'user' }, required: false,
+      valueType: nullable ? 'user?' : 'user', ...(nullable ? { nullable: true } : {}),
+      default: { kind: 'context', value: 'actor' } });
+    const derived = deriveOperationInputs(op), owner = derived.inputs.find(input => input.name === 'owner');
+    assert.ok(owner);
+    assert.deepEqual(owner.default, { kind: 'context', value: 'actor' });
+    assert.equal(owner.required, false); assert.equal(owner.kind, 'user');
+    assert.deepEqual(checkBoundArguments(derived, { owner: { id: 'chosen-user' } }), null);
+    assert.deepEqual(checkBoundArguments(derived, {}), null);
+    assert.equal(checkBoundArguments(derived, { owner: null })?.code ?? null, nullable ? null : 'validation');
+    assert.equal(checkBoundArguments(derived, { owner: 'actor' })?.code, 'validation');
+    const tool = toToolInputSchemaFromArtifact(op);
+    const branches = tool['anyOf'] as Array<{ properties: Record<string, Record<string, unknown>>; required: string[] }>;
+    for (const branch of branches) {
+      assert.equal(Object.hasOwn(branch.properties['owner']!, 'default'), false);
+      assert.equal(branch.required.includes('owner'), false);
+      assert.ok(branch.properties['owner']);
+    }
+    assert.equal(toMcpInputSchema(op).fields.find(input => input.name === 'owner')!.required, false);
+  }
+});
+
+test('refuses malformed actor context defaults and wrong owning user profiles', () => {
+  for (const overrides of [
+    { default: { kind: 'context', value: 'now' } },
+    { default: { kind: 'context', init: 'actor' } },
+    { default: { kind: 'context', value: 'actor', extra: true } },
+    { required: true },
+    { field: { kind: 'string' }, valueType: 'text' },
+    { field: { kind: 'user' }, valueType: 'user[]', array: { required: false } },
+    { field: { kind: 'user' }, valueType: 'user?' },
+  ]) {
+    const op = withExtraInput(STORE_CREATE, { name: 'owner', field: { kind: 'user' }, valueType: 'user',
+      required: false, default: { kind: 'context', value: 'actor' }, ...overrides });
+    assert.equal(rejectionReason(() => checkArtifactOperation(op)), 'malformed_descriptor');
+  }
+  let reads = 0;
+  const fallback = Object.defineProperty({ kind: 'context' }, 'value', { enumerable: true, get() { reads++; return 'actor'; } });
+  const op = withExtraInput(STORE_CREATE, { name: 'owner', field: { kind: 'user' }, valueType: 'user', required: false, default: fallback });
+  assert.equal(rejectionReason(() => checkArtifactOperation(op)), 'malformed_descriptor');
+  assert.equal(reads, 0);
+});

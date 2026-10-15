@@ -1686,11 +1686,13 @@ export type CanonicalScalarKind =
  * `literal` is a JSON literal evaluated at admission; `parent` resolves a
  * dot path off the loaded parent row (create only); `server` and `derived`
  * exclude the field from writable inputs and are resolved by the engine
- * (T18 execution), never by the caller.
+ * (T18 execution), never by the caller. `context` is an ordinary omitted-only
+ * actor default on a singular User field; supplied values remain writable.
  */
 export type CanonicalFieldDefault =
   | { readonly kind: 'literal'; readonly value: unknown }
   | { readonly kind: 'parent'; readonly path: string }
+  | { readonly kind: 'context'; readonly value: 'actor' }
   | { readonly kind: 'server' }
   | { readonly kind: 'derived' };
 

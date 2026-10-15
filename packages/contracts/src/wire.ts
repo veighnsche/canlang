@@ -420,16 +420,19 @@ export type DerivedInputKind =
   | 'delivery';
 
 /**
- * T19a interface-visible default: the `literal`/`parent` subset of the
+ * T19a interface-visible default: the `literal`/`parent`/`context` subset of the
  * source default vocabulary, pinned verbatim. `literal` carries the
  * wire-encoded JSON value (ints/decimals as canonical decimal strings,
  * money as `{minor, currency}`); `parent` carries the dot path off the
- * loaded parent row (create only, leading `parent.` stripped).
+ * loaded parent row (create only, leading `parent.` stripped). The closed
+ * context recipe resolves the actual actor on omitted creation fields and
+ * retains caller override; it is never a JSON Schema literal default.
  * `server`/`derived` can never appear here (see the rule above).
  */
 export type DerivedInputDefault =
   | { readonly kind: 'literal'; readonly value: unknown }
-  | { readonly kind: 'parent'; readonly path: string };
+  | { readonly kind: 'parent'; readonly path: string }
+  | { readonly kind: 'context'; readonly value: 'actor' };
 
 /**
  * Operation-owned optional candidate assistance. The read declaration owns
