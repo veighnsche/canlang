@@ -2,6 +2,18 @@
 
 ## Current remainder and finite completion
 
+**C02 emitted predicate issuance (2026-10-15, implemented; native journey pending).**
+The original helper call captures its actual arguments once, then issues the lazy
+ANY callback through a module-private WeakMap with its genuine context and exact
+owner query/sourceCall marker. The exported getter attests only issued functions;
+missing/mismatched metadata produces E6008, never ordinary collection fallback.
+Changed Rust compiles and the original imported Employee helper fixture emits an
+artifact whose captured source verification passes. Existing CF private callback/
+frame checks remain the receiving proof. Real D1 setup currently stops at the
+unchanged Employee date invariant's missing local model-policy profile; retain
+that invariant and finish its defining comparison gap before claiming native
+helper execution. The unpassed journey fixture remains pending, not accepted.
+
 **C02 helper body source and leading native plan (2026-10-15, implemented/tested).**
 Body Require source consumption retains the genuine first initializer/non-null
 branch, ordered compound guard and required Model-edge DATA reads; candidate
