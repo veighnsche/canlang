@@ -2960,9 +2960,24 @@ fn checked_native_first_query_source_plan(
     let [dependency] = query.dependencies.as_slice() else {
         return None;
     };
-    let [order] = query.order.as_slice() else {
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
+    let call = effects.iter().find_map(|effect| match effect {
+        IrStmt::Let { value, span, .. } if *span == node_span(first.binding) => Some(value),
+        _ => None,
+    })?;
+    let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &call.expr else {
+        return None;
+    };
+    let [domain] = args.as_slice() else {
+        return None;
+    };
+    let IrExpr::Query(scan) = &domain.expr else {
+        return None;
+    };
+    checked_first_query_order(query, scan)?;
+    checked_first_query_predicate(ir, owner, query, scan)?;
     if checked_created_model_result(ir, owner).is_none()
         || query.projection.is_some()
         || query.cardinality_guard.is_some()
@@ -2976,17 +2991,10 @@ fn checked_native_first_query_source_plan(
         || first.binding.kind != SyntaxKind::Let as u8
         || query.limit.is_some()
         || query.archived
-        || !query.inputs.is_empty()
-        || order.field.is_some()
-        || order.field_name != "id"
-        || order.descending
         || dependency.id.is_empty()
         || dependency.source != query.source
         || dependency.model != query.model
         || dependency.model_name != query.model_name
-        || dependency.field_name != "account"
-        || dependency.type_id != "user"
-        || dependency.ty != ResolvedType::Scalar(Scalar::User)
         || dependency.role != DependencyRole::Control
         || !dependency.calls.is_empty()
         || query.influences.len() != 4
@@ -2997,7 +3005,9 @@ fn checked_native_first_query_source_plan(
     // row is not an original parameter or the model being returned.
     let model = checked_first_query_schema(ir, owner, query, db)?;
     if !model.fields.iter().any(|field| {
-        field.id == dependency.field && field.name == "account" && field.ty == dependency.ty
+        field.id == dependency.field
+            && field.name == dependency.field_name
+            && field.ty == dependency.ty
     }) {
         return None;
     }
@@ -3044,10 +3054,14 @@ fn checked_native_first_query_source_plan(
             source: transport_source(&query.source, entry_module)?,
             model: query.model_name.clone(),
             parent: None,
-            order: vec![ReceiptQueryOrder {
-                field: "id".into(),
-                direction: "asc".into(),
-            }],
+            order: query
+                .order
+                .iter()
+                .map(|order| ReceiptQueryOrder {
+                    field: order.field_name.clone(),
+                    direction: "asc".into(),
+                })
+                .collect(),
             limit: None,
             archived: "exclude".into(),
             dependencies: vec![ReceiptQueryDependency {
@@ -3055,7 +3069,7 @@ fn checked_native_first_query_source_plan(
                 source: transport_source(&dependency.source, entry_module)?,
                 role: ReceiptRole::Control,
                 field: dependency.field_name.clone(),
-                type_id: "user".into(),
+                type_id: dependency.type_id.clone(),
             }],
         }],
         returns: checked
@@ -3926,6 +3940,155 @@ fn checked_first_query_row<'a>(
 
 /// Exact selected original first call; ordinary Query expressions stay outside
 /// the native scalar visitor. The source operand matcher checks its CST too.
+pub(super) fn checked_first_query_order(
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    scan: &super::ir::IrQuery,
+) -> Option<()> {
+    let source = scan.source.as_deref()?;
+    if scan.value_order.is_some() {
+        return None;
+    }
+    match (
+        query.order.as_slice(),
+        scan.order.as_slice(),
+        source.clauses.as_slice(),
+    ) {
+        ([], [], [_, _]) => Some(()),
+        ([original], [actual], [_, _, clause])
+            if original.field.is_none()
+                && original.field_name == "id"
+                && !original.descending
+                && actual.field == original.field_name
+                && actual.descending == original.descending
+                && clause.kind == crate::analysis::types::CheckedQueryClauseKind::Order
+                && clause.expressions.as_slice() == [original.node] =>
+        {
+            Some(())
+        }
+        _ => None,
+    }
+}
+
+/// Check the actual alias-bound field and original equality operand. Parameter
+/// identity comes from its owning declaration; actor remains its context value.
+pub(super) fn checked_first_query_predicate(
+    ir: &IrProgram,
+    owner: &IrItem,
+    query: &crate::analysis::scenario_disclosure::DisclosureQuery,
+    scan: &super::ir::IrQuery,
+) -> Option<()> {
+    let first = query.first.as_ref()?;
+    let [dependency] = query.dependencies.as_slice() else {
+        return None;
+    };
+    let ResolvedType::Scalar(scalar) = &dependency.ty else {
+        return None;
+    };
+    if !matches!(
+        scalar,
+        Scalar::Bool
+            | Scalar::Int
+            | Scalar::Decimal
+            | Scalar::Text
+            | Scalar::Money
+            | Scalar::Date
+            | Scalar::Datetime
+            | Scalar::Duration
+            | Scalar::User
+    ) || dependency.type_id != scalar.as_str()
+        || dependency.role != DependencyRole::Control
+        || dependency.source != query.source
+        || dependency.model != query.model
+        || dependency.model_name != query.model_name
+        || !dependency.calls.is_empty()
+    {
+        return None;
+    }
+    let predicate = scan.where_pred.as_deref()?;
+    let IrExpr::Binary {
+        op: IrBinOp::Eq,
+        left,
+        right,
+    } = &predicate.expr
+    else {
+        return None;
+    };
+    let IrExpr::Member { base, field } = &left.expr else {
+        return None;
+    };
+    let original_predicate = node_span(query.predicate?);
+    // Lowering erases only grouping wrappers. The checked source expression
+    // matcher/fresh owner join still validates the exact inner expression.
+    if predicate.span.file != original_predicate.file
+        || predicate.span.start < original_predicate.start
+        || predicate.span.end > original_predicate.end
+        || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
+        || left.span != node_span(dependency.node)
+        || left.ty != dependency.ty
+        || right.span != node_span(first.operand)
+        || right.ty != dependency.ty
+        || field != &dependency.field_name
+        || !matches!(&base.expr, IrExpr::Name(name) if name == &scan.where_param)
+        || base.ty
+            != (ResolvedType::Record {
+                symbol: query.model,
+                stored: true,
+            })
+    {
+        return None;
+    }
+    match query.inputs.as_slice() {
+        [] if *scalar == Scalar::User => {
+            let IrExpr::Member { base, field } = &right.expr else {
+                return None;
+            };
+            (field == "actor"
+                && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                && base.ty == ResolvedType::Unknown
+                && base.span == right.span)
+                .then_some(())
+        }
+        [(operand, parameter)] if *operand == first.operand => {
+            let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
+            let IrItemKind::Scenario {
+                params,
+                read: false,
+                ..
+            } = &owner.kind
+            else {
+                return None;
+            };
+            let actual = ir.items.get(parameter.0 as usize)?;
+            let IrItemKind::Param {
+                owner: parameter_owner,
+                index,
+                ty: IrType::Known(ty),
+                default: None,
+                default_node: None,
+                default_copy_source: None,
+                array_bounds: None,
+                ..
+            } = &actual.kind
+            else {
+                return None;
+            };
+            let original = facts.parameters.get(*index)?;
+            (params.get(*index) == Some(parameter)
+                && *parameter_owner == owner.id
+                && actual.id == *parameter
+                && actual.module == owner.module
+                && actual.canonical == format!("{}.{}", owner.canonical, actual.name)
+                && original.parameter == *parameter
+                && original.default.is_none()
+                && original.ty == dependency.ty
+                && *ty == dependency.ty
+                && matches!(&right.expr, IrExpr::Name(name) if name == &actual.name))
+            .then_some(())
+        }
+        _ => None,
+    }
+}
+
 pub(super) fn checked_first_query_ir<'a>(
     ir: &'a IrProgram,
     original: &crate::analysis::scenario_disclosure::CheckedScenarioCreate,
@@ -3990,12 +4153,11 @@ pub(super) fn checked_first_query_ir<'a>(
         ordered: true,
         nonempty: false,
     };
-    let [alias, predicate, order] = source.clauses.as_slice() else {
+    let [alias, predicate, ..] = source.clauses.as_slice() else {
         return None;
     };
-    let [metadata_order] = query.order.as_slice() else {
-        return None;
-    };
+    checked_first_query_order(query, scan)?;
+    checked_first_query_predicate(ir, owner, query, scan)?;
     if id != "first"
         || first.call != node
         || actual.span != node_span(node)
@@ -4007,7 +4169,6 @@ pub(super) fn checked_first_query_ir<'a>(
         || query.cardinality_guard.is_some()
         || query.limit.is_some()
         || query.archived
-        || !query.inputs.is_empty()
         || source.node != query.node
         || source.domain != query.domain
         || source.domain_type != array
@@ -4026,11 +4187,6 @@ pub(super) fn checked_first_query_ir<'a>(
         || !alias.expressions.is_empty()
         || predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
         || predicate.expressions.as_slice() != [source_predicate]
-        || order.kind != crate::analysis::types::CheckedQueryClauseKind::Order
-        || order.expressions.as_slice() != [metadata_order.node]
-        || metadata_order.field.is_some()
-        || metadata_order.field_name != "id"
-        || metadata_order.descending
         || !matches!(&scan.domain, super::ir::IrQueryDomain::Model(model) if model == &query.model_name)
         || scan.parent.is_some()
         || scan.where_async
@@ -4039,13 +4195,6 @@ pub(super) fn checked_first_query_ir<'a>(
         || scan.limit.is_some()
         || scan.archived.is_some()
         || scan.contract_collection_call.is_some()
-        || scan.order.len() != 1
-        || scan.order[0].field != "id"
-        || scan.order[0].descending
-        || scan.where_pred.as_ref().is_none_or(|predicate| {
-            predicate.span != node_span(source_predicate)
-                || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
-        })
     {
         return None;
     }
@@ -8310,6 +8459,21 @@ fn ordered_created_model_effects(
             && matches!(
         effects.get(effects.len() - 2), Some(IrStmt::Create {span, ..})
             if *span == node_span(last_create));
+    // A late requirement has the same shared-owner rollback semantics without
+    // needing the unrelated guarded-send sequence below. Its exact condition
+    // and source position remain checked by checked_created_statements.
+    let direct = direct
+        || paired.is_none()
+            && effects.iter().enumerate().any(|(position, effect)| {
+                position + 1 < effects.len()
+                    && matches!(effect, IrStmt::Create { span, .. } if *span == node_span(create))
+                    && effects[..position]
+                        .iter()
+                        .all(|effect| matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }))
+                    && effects[position + 1..effects.len() - 1]
+                        .iter()
+                        .all(|effect| matches!(effect, IrStmt::Require { .. }))
+            });
     if !direct {
         let mut creates = effects
             .iter()

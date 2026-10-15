@@ -151,7 +151,7 @@ pub struct DisclosureFirstQuery {
     pub call: NodeKey,
     pub overload: usize,
     pub binding: NodeKey,
-    pub actor: NodeKey,
+    pub operand: NodeKey,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -6738,7 +6738,7 @@ impl<'a> Closure<'a> {
         })
     }
 
-    /// The original ordered account scan selects one owning mutable row. The
+    /// An original scalar-equality scan selects one owning mutable row. The
     /// whole candidate domain remains retained; first is never a query limit.
     /// This inventory is available even when another original source leaf
     /// declines. Native execution still needs the complete owner/source join.
@@ -6784,8 +6784,10 @@ impl<'a> Closure<'a> {
             ordered: true,
             nonempty: false,
         };
-        let [alias, predicate, order] = query.clauses.as_slice() else {
-            return None;
+        let (alias, predicate, order) = match query.clauses.as_slice() {
+            [alias, predicate] => (alias, predicate, None),
+            [alias, predicate, order] => (alias, predicate, Some(order)),
+            _ => return None,
         };
         if query.node != fact.query
             || query.projection.is_some()
@@ -6801,42 +6803,25 @@ impl<'a> Closure<'a> {
             || !alias.expressions.is_empty()
             || predicate.kind != CheckedQueryClauseKind::Where
             || predicate.expressions.len() != 1
-            || order.kind != CheckedQueryClauseKind::Order
-            || order.expressions.len() != 1
+            || order.is_some_and(|order| {
+                order.kind != CheckedQueryClauseKind::Order || order.expressions.len() != 1
+            })
             || owner.module != scenario.module
         {
             return None;
         }
         let predicate_node = predicate.expressions[0];
-        let (account, actor) = self.query_binary(predicate_node, "==")?;
-        let field = self.query_member(account, alias.node, fact.model)?;
-        let declaration = self.resolve.symbols.get(field.0 as usize)?;
-        let actor = self.query_group(actor)?;
-        let order_node = self.query_group(order.expressions[0])?;
-        if declaration.name != "account"
-            || !fields.contains(&field)
-            || self.types.symbol_types.get(&field) != Some(&ResolvedType::Scalar(Scalar::User))
-            || self.types.node_types.get(&account) != Some(&ResolvedType::Scalar(Scalar::User))
-            || !matches!(
-                self.query_binding(actor),
-                Some(Binding::Context(ContextVar::Actor(_)))
-            )
-            || self.nodes.get(&actor)?.kind != SyntaxKind::NameRef
-            || self.word(self.nodes.get(&actor)?)? != "actor"
-            || !matches!(
-                self.types.node_types.get(&actor),
-                Some(ResolvedType::Scalar(Scalar::User))
-            )
+        let (member, operand) = self.query_binary(predicate_node, "==")?;
+        let field = self.query_member(member, alias.node, fact.model)?;
+        let field_ty = self.types.symbol_types.get(&field)?;
+        let operand = self.query_group(operand)?;
+        if !fields.contains(&field)
+            || !primitive_type(field_ty)
+            || self.types.node_types.get(&self.query_group(member)?) != Some(field_ty)
+            || self.nodes.get(&operand)?.kind != SyntaxKind::NameRef
+            || self.types.node_types.get(&operand) != Some(field_ty)
             || self.types.node_types.get(&predicate_node)
                 != Some(&ResolvedType::Scalar(Scalar::Bool))
-            || self.query_member_name(order_node, alias.node, fact.model) != Some("id")
-            || self.types.node_types.get(&order_node) != Some(&ResolvedType::Scalar(Scalar::Text))
-            || self.nodes.get(&order.node)?.children.iter().any(|node| {
-                matches!(
-                    node.kind,
-                    SyntaxKind::Selectors | SyntaxKind::Descending | SyntaxKind::Path
-                )
-            })
             || fields.iter().any(|field| {
                 self.resolve
                     .symbols
@@ -6846,6 +6831,45 @@ impl<'a> Closure<'a> {
         {
             return None;
         }
+        let inputs = if matches!(
+            self.query_binding(operand),
+            Some(Binding::Context(ContextVar::Actor(_)))
+        ) && *field_ty == ResolvedType::Scalar(Scalar::User)
+            && self.word(self.nodes.get(&operand)?)? == "actor"
+        {
+            Vec::new()
+        } else {
+            let parameter = self.query_parameter(scenario, operand)?;
+            if self.types.symbol_types.get(&parameter) != Some(field_ty) {
+                return None;
+            }
+            vec![(operand, parameter)]
+        };
+        // Only authored ordering has a source node. An empty list preserves
+        // the canonical stored-query created/id default at the engine boundary.
+        let order = if let Some(order) = order {
+            let order_node = self.query_group(order.expressions[0])?;
+            if self.query_member_name(order_node, alias.node, fact.model) != Some("id")
+                || self.types.node_types.get(&order_node)
+                    != Some(&ResolvedType::Scalar(Scalar::Text))
+                || self.nodes.get(&order.node)?.children.iter().any(|node| {
+                    matches!(
+                        node.kind,
+                        SyntaxKind::Selectors | SyntaxKind::Descending | SyntaxKind::Path
+                    )
+                })
+            {
+                return None;
+            }
+            vec![DisclosureQueryOrder {
+                field: None,
+                field_name: "id".into(),
+                descending: false,
+                node: order_node,
+            }]
+        } else {
+            Vec::new()
+        };
         let returned = scenario.effects.last()?;
         let returned_value = self.query_group(returned.value?)?;
         let Binding::CreateAs { node: created } = self.query_binding(returned_value)? else {
@@ -6893,7 +6917,7 @@ impl<'a> Closure<'a> {
         .collect::<Option<Vec<_>>>()?;
         Some(DisclosureQuery {
             dependencies: vec![self.query_dependency(
-                account,
+                member,
                 scenario.module,
                 fact.model,
                 field,
@@ -6908,13 +6932,8 @@ impl<'a> Closure<'a> {
             model_name: owner.canonical.clone(),
             alias: Some(alias.node),
             predicate: Some(predicate_node),
-            inputs: Vec::new(),
-            order: vec![DisclosureQueryOrder {
-                field: None,
-                field_name: "id".into(),
-                descending: false,
-                node: order_node,
-            }],
+            inputs,
+            order,
             limit: None,
             archived: false,
             cardinality_guard: None,
@@ -6924,7 +6943,7 @@ impl<'a> Closure<'a> {
                 call,
                 overload: fact.overload,
                 binding: binding.node,
-                actor,
+                operand,
             }),
             count: None,
             influences,
@@ -12655,8 +12674,11 @@ impl<'a> Closure<'a> {
             let created_pair = self.checked_created_pair(effects, module, created);
             let direct_model_return = self.result_model.is_some_and(|model| {
                 effects.len() >= 2
-                    && ((effects.get(effects.len() - 2).map(|effect| effect.node) == Some(created.node)
-                            && effects[..effects.len() - 2].iter().all(|effect| matches!(effect.verb, EffectVerb::Let | EffectVerb::Require)))
+                    && ((!created_pair && effects.iter().position(|effect| effect.node == created.node).is_some_and(|position| {
+                            position + 1 < effects.len()
+                                && effects[..position].iter().all(|effect| matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+                                && effects[position + 1..effects.len() - 1].iter().all(|effect| effect.verb == EffectVerb::Require)
+                        }))
                         || (created_pair && effects.len() >= 3
                             && effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)))
                     && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)

@@ -2691,13 +2691,15 @@ impl SourceExpressions<'_> {
                 if Some(alias.node) != query.alias {
                     return None;
                 }
+                if let Some(order) = query.order.first()
+                    && source_path(self.nodes.get(&order.node)?, self.text)?
+                        != format!("{alias_name}.id")
+                {
+                    return None;
+                }
                 if NodeKey::of(source_argument) != query.node
                     || source_path(self.nodes.get(&query.domain)?, self.text)?
                         != self.ir.items.get(query.model.0 as usize)?.name
-                    || source_path(self.nodes.get(&query.first.as_ref()?.actor)?, self.text)?
-                        != "actor"
-                    || source_path(self.nodes.get(&query.order.first()?.node)?, self.text)?
-                        != format!("{alias_name}.id")
                 {
                     return None;
                 }

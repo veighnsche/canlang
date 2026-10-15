@@ -70,7 +70,7 @@ fn assert_first(db: &SourceDb, program: &CheckedProgram, name: &str, model: &str
     assert_eq!(program.symbols[query.model.0 as usize].canonical, model);
     assert!(text(db, first.call).starts_with("first("));
     assert!(text(db, first.binding).starts_with("let "));
-    assert_eq!(text(db, first.actor), "actor");
+    assert_eq!(text(db, first.operand), "actor");
     let alias = query.alias.expect("original first query alias");
     let predicate = query.predicate.expect("original first query predicate");
     assert_eq!(text(db, predicate), "row.account==actor");
@@ -217,15 +217,297 @@ fn byte_exact_original_first_queries_preserve_closed_chat_and_declined_creative_
     ));
 }
 
+const INPUT_LOOKUP: &str = r#"app ScalarLookup
+Given
+ Lookup {key:text,other:text}
+ Result {value:int=0}
+ policy Lookup read=members
+ policy Result read=members
+When
+ scenario lookup(needle:text,other:text) -> Result by=members
+  do
+   let existing=first(Lookup as candidate where candidate.key==needle)
+   require existing==null
+   create Result {} as result
+   return result
+Then
+"#;
+
+fn assert_input_lookup(
+    db: &SourceDb,
+    program: &CheckedProgram,
+    owner: &str,
+    model: &str,
+    member: &str,
+    operand: &str,
+    ty: Scalar,
+    explicit: bool,
+) {
+    let facts = disclosure(program, owner).source_facts().unwrap();
+    let [query] = facts
+        .queries
+        .as_deref()
+        .expect("original input lookup inventory")
+    else {
+        panic!("one original first lookup");
+    };
+    let first = query.first.as_ref().unwrap();
+    assert_eq!(query.model_name, model);
+    assert_eq!(text(db, first.operand), operand);
+    let [(input, parameter)] = query.inputs.as_slice() else {
+        panic!("one original required input");
+    };
+    assert_eq!(*input, first.operand);
+    assert_eq!(program.symbols[parameter.0 as usize].name, operand);
+    assert_eq!(
+        program.types.symbol_types.get(parameter),
+        Some(&ResolvedType::Scalar(ty))
+    );
+    let [dependency] = query.dependencies.as_slice() else {
+        panic!("one original control field");
+    };
+    assert_eq!(dependency.role, DependencyRole::Control);
+    assert_eq!(dependency.field_name, member.rsplit('.').next().unwrap());
+    assert_eq!(text(db, dependency.node).trim_matches(['(', ')']), member);
+    assert_eq!(dependency.model_name, model);
+    assert_eq!(dependency.model, query.model);
+    assert_eq!(dependency.ty, ResolvedType::Scalar(ty));
+    assert_eq!(dependency.type_id, ty.as_str());
+    assert_eq!(
+        program.symbols[dependency.field.0 as usize].canonical,
+        format!("{model}.{}", dependency.field_name)
+    );
+    if explicit {
+        let [order] = query.order.as_slice() else {
+            panic!("one authored metadata order");
+        };
+        assert_eq!(order.field_name, "id");
+        assert_eq!(order.field, None);
+        assert!(!order.descending);
+    } else {
+        assert!(
+            query.order.is_empty(),
+            "implicit created/id order has no fabricated source nodes"
+        );
+        assert!(
+            !program.types.checked_queries[&query.node]
+                .clauses
+                .iter()
+                .any(|clause| matches!(
+                    clause.kind,
+                    canlang_compiler::analysis::types::CheckedQueryClauseKind::Order
+                ))
+        );
+    }
+    assert_eq!(
+        query.source.sha256,
+        sha256_hex(db.get(query.node.file).unwrap().text.as_bytes())
+    );
+    assert_eq!(
+        query
+            .influences
+            .iter()
+            .map(|influence| influence.kind)
+            .collect::<Vec<_>>(),
+        [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder
+        ]
+    );
+    let selected = &program.types.checked_collection_calls[&first.call];
+    assert_eq!(selected.query, query.node);
+    assert_eq!(selected.model, query.model);
+    assert_eq!(Some(selected.alias), query.alias);
+    assert_eq!(selected.overload, first.overload);
+}
+
+#[test]
+fn scalar_required_input_lookup_derives_fields_bindings_and_optional_order() {
+    for ty in [
+        Scalar::Text,
+        Scalar::Int,
+        Scalar::Bool,
+        Scalar::Decimal,
+        Scalar::Money,
+        Scalar::Date,
+        Scalar::Datetime,
+        Scalar::Duration,
+        Scalar::User,
+    ] {
+        let source = INPUT_LOOKUP.replace(":text", &format!(":{}", ty.as_str()));
+        let (db, program) = checked(&[("scalar-first.can", &source)]);
+        assert_input_lookup(
+            &db,
+            &program,
+            "ScalarLookup.lookup",
+            "ScalarLookup.Lookup",
+            "candidate.key",
+            "needle",
+            ty,
+            false,
+        );
+    }
+    for (source, owner, model, member, operand, explicit) in [
+        (
+            INPUT_LOOKUP.replace("candidate.key==needle", "(candidate.key)==(needle)"),
+            "ScalarLookup.lookup",
+            "ScalarLookup.Lookup",
+            "candidate.key",
+            "needle",
+            false,
+        ),
+        (
+            INPUT_LOOKUP.replace(
+                "candidate.key==needle)",
+                "candidate.key==needle order=candidate.id)",
+            ),
+            "ScalarLookup.lookup",
+            "ScalarLookup.Lookup",
+            "candidate.key",
+            "needle",
+            true,
+        ),
+        (
+            INPUT_LOOKUP
+                .replace("ScalarLookup", "RenamedLookup")
+                .replace("Lookup {", "Entry {")
+                .replace("policy Lookup", "policy Entry")
+                .replace("first(Lookup", "first(Entry")
+                .replace("candidate", "selected")
+                .replace("key", "reference")
+                .replace("needle", "requested"),
+            "RenamedLookup.lookup",
+            "RenamedLookup.Entry",
+            "selected.reference",
+            "requested",
+            false,
+        ),
+        (
+            INPUT_LOOKUP.replace("candidate.key==needle", "candidate.key==other"),
+            "ScalarLookup.lookup",
+            "ScalarLookup.Lookup",
+            "candidate.key",
+            "other",
+            false,
+        ),
+    ] {
+        let (db, program) = checked(&[("scalar-first.can", &source)]);
+        assert_input_lookup(
+            &db,
+            &program,
+            owner,
+            model,
+            member,
+            operand,
+            Scalar::Text,
+            explicit,
+        );
+    }
+    // Actor is the original context alternative, independent of field spelling.
+    let source = INPUT_LOOKUP
+        .replace(":text", ":user")
+        .replace("candidate.key==needle", "candidate.other==actor");
+    let (db, program) = checked(&[("actor-first.can", &source)]);
+    let facts = disclosure(&program, "ScalarLookup.lookup")
+        .source_facts()
+        .unwrap();
+    let query = &facts.queries.as_ref().unwrap()[0];
+    assert_eq!(text(&db, query.first.as_ref().unwrap().operand), "actor");
+    assert!(query.inputs.is_empty() && query.order.is_empty());
+    assert_eq!(query.dependencies[0].field_name, "other");
+}
+
+#[test]
+fn input_lookup_refuses_copied_or_rebound_operands_reversal_and_unsupported_order() {
+    for source in [
+        INPUT_LOOKUP.replace("candidate.key==needle", "needle==candidate.key"),
+        INPUT_LOOKUP.replace("candidate.key==needle", "candidate.key==candidate.other"),
+        INPUT_LOOKUP
+            .replace("other:text)", "other:Lookup)")
+            .replace("candidate.key==needle", "other.key==needle"),
+        INPUT_LOOKUP
+            .replace("   let existing=", "   let copied=needle\n   let existing=")
+            .replace("candidate.key==needle", "candidate.key==copied"),
+        INPUT_LOOKUP.replace(
+            "lookup(needle:text,other:text)",
+            "lookup(other:text,needle:text=\"default\")",
+        ),
+        INPUT_LOOKUP.replace(
+            "candidate.key==needle)",
+            "candidate.key==needle order=candidate.other)",
+        ),
+        INPUT_LOOKUP.replace(
+            "candidate.key==needle)",
+            "candidate.key==needle order=-candidate.id)",
+        ),
+    ] {
+        let (_, program) = checked(&[("refused-input-first.can", &source)]);
+        let result = disclosure(&program, "ScalarLookup.lookup");
+        assert!(
+            result.source_facts().unwrap().queries.is_none(),
+            "{result:?}\n{source}"
+        );
+    }
+}
+
+#[test]
+fn original_crm_lookup_expression_has_input_and_implicit_order_inventory() {
+    // Preserve the original expression bytes in this bounded source-inventory
+    // witness. CRM's existing-reference branch/result remains a separate owner.
+    let crm = include_str!("../../draft/apps/CanCRM/CanCRM.can");
+    let original = crm
+        .lines()
+        .find(|line| {
+            line.trim()
+                .starts_with("let existing=first(ResearchIntake as intake ")
+        })
+        .unwrap()
+        .trim();
+    let source = INPUT_LOOKUP
+        .replace(
+            " Lookup {key:text,other:text}",
+            " ResearchIntake {source:text,other:text}",
+        )
+        .replace("policy Lookup", "policy ResearchIntake")
+        .replace("needle:text", "source:text")
+        .replace(
+            "let existing=first(Lookup as candidate where candidate.key==needle)",
+            original,
+        );
+    let (db, program) = checked(&[("crm-lookup-expression.can", &source)]);
+    assert_input_lookup(
+        &db,
+        &program,
+        "ScalarLookup.lookup",
+        "ScalarLookup.ResearchIntake",
+        "intake.source",
+        "source",
+        Scalar::Text,
+        false,
+    );
+    let query = &disclosure(&program, "ScalarLookup.lookup")
+        .source_facts()
+        .unwrap()
+        .queries
+        .as_ref()
+        .unwrap()[0];
+    assert_eq!(
+        format!(
+            "let existing={}",
+            text(&db, query.first.as_ref().unwrap().call)
+        ),
+        original
+    );
+}
+
 #[test]
 fn different_query_shapes_and_copied_selected_row_are_not_admitted() {
     for changed in [
         BOUNDED.replace("where row.account==actor", "where row.active"),
         BOUNDED.replace("order=row.id", "order=row.held"),
         BOUNDED.replace("order=row.id", "order=-row.id"),
-        BOUNDED
-            .replace("generate(enabled:bool", "generate(person:user,enabled:bool")
-            .replace("where row.account==actor", "where row.account==person"),
     ] {
         let (_, program) = checked(&[("refused-first.can", &changed)]);
         let result = disclosure(&program, "FirstSources.generate");
