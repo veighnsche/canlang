@@ -1640,7 +1640,24 @@ impl SourceExpressions<'_> {
                         .filter(|c| !c.is_whitespace())
                         .collect();
                     if authored_text != expected {
-                        return None;
+                        let mut base = known;
+                        while let ResolvedType::Nullable(inner)
+                        | ResolvedType::Array { element: inner, .. } = base
+                        {
+                            base = inner;
+                        }
+                        let ResolvedType::Record { symbol, .. } = base else {
+                            return None;
+                        };
+                        let name = &self.ir.items.get(symbol.0 as usize)?.name;
+                        let suffix = expected.strip_prefix(name)?;
+                        reference_name(
+                            self.ir,
+                            item,
+                            *symbol,
+                            authored_text.strip_suffix(suffix)?,
+                            self.db,
+                        )?;
                     }
                 }
                 formal_types.push((param.name.clone(), known.clone()));
@@ -2192,6 +2209,334 @@ impl SourceExpressions<'_> {
         };
         self.authenticated_derive(target, 0, &mut std::collections::HashSet::new())
             .unwrap_or(true)
+    }
+
+    /// Consume only the exact leading helper query already described by the
+    /// checked source census. Its predicate remains a query-owned callback.
+    fn query_authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
+        use crate::analysis::scenario_disclosure::{
+            CheckedDecisionCallTarget, CheckedDecisionStage, DependencyRole,
+        };
+        let (target, args, slots) = match &actual.expr {
+            IrExpr::Call {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+            } => (target, args, (0..args.len()).map(Some).collect::<Vec<_>>()),
+            IrExpr::BoundCall {
+                target: IrCallTarget::DeriveFn(target),
+                args,
+                slots,
+            } => (target, args, slots.clone()),
+            _ => return None,
+        };
+        let facts = self.transcript_source()?;
+        let owner = self.ir.items.get(facts.scenario.0 as usize)?;
+        let IrItemKind::Scenario { guards, .. } = &owner.kind else {
+            return None;
+        };
+        let mut sites = facts.decision_sites.as_deref()?.iter().filter(|site| {
+            site.owner == owner.id
+                && site.stage == CheckedDecisionStage::LeadingRequire
+                && site.source == facts.source
+                && site
+                    .calls
+                    .iter()
+                    .any(|call| call.node == key && call.chain.is_empty())
+        });
+        let site = sites.next()?;
+        let mut calls = site
+            .calls
+            .iter()
+            .filter(|call| call.node == key && call.chain.is_empty());
+        let outer = calls.next()?;
+        let CheckedDecisionCallTarget::DeriveFn(derive) = outer.target else {
+            return None;
+        };
+        let item = self.ir.items.get(derive.0 as usize)?;
+        let IrItemKind::DeriveFn {
+            params,
+            result: IrType::Known(result),
+            expr: Some(body),
+        } = &item.kind
+        else {
+            return None;
+        };
+        let [person, location] = params.as_slice() else {
+            return None;
+        };
+        let IrItemKind::Param {
+            ty: IrType::Known(location_type),
+            default: None,
+            ..
+        } = &self.ir.items.get(location.0 as usize)?.kind
+        else {
+            return None;
+        };
+        let ResolvedType::Record { stored: true, .. } = location_type else {
+            return None;
+        };
+        let [Some(person_slot), Some(location_slot)] = slots.as_slice() else {
+            return None;
+        };
+        if person_slot == location_slot || args.len() != 2 || outer.arguments.len() != 2 || sites.next().is_some() || calls.next().is_some()
+            || outer.module != owner.module || outer.source != facts.source || outer.slots != slots || !outer.defaults.is_empty()
+            || target != &item.canonical || actual.ty != ResolvedType::Scalar(Scalar::Bool) || result != &actual.ty || body.ty != actual.ty
+            || !matches!(&self.ir.items.get(person.0 as usize)?.kind, IrItemKind::Param { ty: IrType::Known(ResolvedType::Scalar(Scalar::User)), default: None, .. })
+            || args.get(*person_slot)?.ty != ResolvedType::Scalar(Scalar::User) || &args.get(*location_slot)?.ty != location_type
+            || !matches!(&args[*person_slot].expr, IrExpr::Member { base, field } if field == "actor" && matches!(&base.expr, IrExpr::Name(name) if name == "c"))
+            || !guards.iter().any(|guard| matches!(guard, IrStmt::Require { span: at, .. } if *at == span(site.statement)))
+            || self.authenticated_derive(target, 0, &mut HashSet::new()) != Some(true)
+        { return None; }
+        let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
+            query
+                .dependencies
+                .first()
+                .is_some_and(|read| read.calls.as_slice() == [key])
+        });
+        let query = queries.next()?;
+        let [(argument, parameter)] = query.inputs.as_slice() else {
+            return None;
+        };
+        let (actual_parameter, _) =
+            super::scenario_receipts::checked_contract_parameter_source_path(
+                self.ir,
+                owner,
+                &args[*location_slot],
+                Some(self.db),
+            )?;
+        if queries.next().is_some()
+            || actual_parameter != *parameter
+            || *argument != outer.arguments[*location_slot].0
+            || query.first.is_some()
+            || query.count.is_some()
+            || query.projection.is_some()
+            || query.cardinality_guard.is_some()
+            || query.archived
+            || query.limit.is_some()
+            || !query.order.is_empty()
+        {
+            return None;
+        }
+        for (value, (node, ty)) in args.iter().zip(&outer.arguments) {
+            if value.ty != *ty {
+                return None;
+            }
+            self.expression(value, *node, depth + 1)?;
+        }
+        let (collection, arguments) = match &body.expr {
+            IrExpr::Call {
+                target: IrCallTarget::Builtin { id, .. },
+                args,
+            } if id == "any" => (id, args),
+            IrExpr::BoundCall {
+                target: IrCallTarget::Builtin { id, .. },
+                args,
+                slots,
+            } if id == "any" && slots.as_slice() == [Some(0), Some(1)] => (id, args),
+            _ => return None,
+        };
+        let [domain, predicate] = arguments.as_slice() else {
+            return None;
+        };
+        let IrExpr::Query(scan) = &domain.expr else {
+            return None;
+        };
+        let checked = scan.source.as_deref()?;
+        let selected = scan.collection_call.as_deref()?;
+        let IrExpr::Lambda {
+            body: predicate_body,
+            ..
+        } = &predicate.expr
+        else {
+            return None;
+        };
+        if selected.builtin != *collection
+            || selected.model != query.model
+            || selected.query != query.node
+            || checked.domain != query.domain
+            || selected.predicate.as_ref()?.node != query.predicate?
+            || query.alias != Some(selected.alias)
+            || domain.span != span(query.node)
+        {
+            return None;
+        }
+        source(self.ir, &query.source, body.span, self.db)?;
+        let mut fields = Vec::new();
+        let mut pending = vec![predicate_body.as_ref()];
+        while let Some(value) = pending.pop() {
+            match &value.expr {
+                IrExpr::Member { base, field } => {
+                    fields.push((value, base.as_ref(), field));
+                }
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(right);
+                    pending.push(left);
+                }
+                IrExpr::Unary { operand, .. } => pending.push(operand),
+                IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, .. },
+                    args,
+                }
+                | IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, .. },
+                    args,
+                    ..
+                } => {
+                    if id != "active_member" {
+                        return None;
+                    }
+                    // The checked current-membership source stays in its
+                    // original StateRead lane; it is never evaluated here.
+                    let member = site.calls.iter().find(|call| {
+                        span(call.node) == value.span
+                            && call
+                                .chain
+                                .last()
+                                .is_some_and(|frame| frame.node == key && frame.derive == derive)
+                    })?;
+                    if !matches!(&member.target, CheckedDecisionCallTarget::Builtin { id, overload: 0 } if id == "active_member")
+                        || member.arguments.len() != 2
+                        || args.len() != 2
+                        || member.module != item.module
+                        || member.source != query.source
+                        || member.slots.as_slice() != [Some(0), Some(1)]
+                        || !member.defaults.is_empty()
+                        || member.chain.len() != 1
+                        || member.chain[0].module != owner.module
+                        || member.chain[0].source != facts.source
+                        || args[0].ty != ResolvedType::Scalar(Scalar::User)
+                        || args[1].ty != ResolvedType::Team
+                        || member.arguments.iter().zip(args).any(|((node, ty), arg)| {
+                            *ty != arg.ty
+                                || node.file != arg.span.file
+                                || arg.span.start < node.start
+                                || arg.span.end > node.end
+                        })
+                    {
+                        return None;
+                    }
+                }
+                IrExpr::Name(_) | IrExpr::Bool(_) => {}
+                _ => return None,
+            }
+            if fields.len() > 200 || pending.len() > 16384 {
+                return None;
+            }
+        }
+        if fields.len() != query.dependencies.len() {
+            return None;
+        }
+        let stamp = |source: &DisclosureSource, node: NodeKey| {
+            format!(
+                "{}:{}:{}:{}:{}",
+                source.path, source.sha256, source.module, node.start, node.end
+            )
+        };
+        let identity =
+            |kind: &str, source: &DisclosureSource, node: NodeKey, discriminator: &str| {
+                sha256_hex(
+                    format!(
+                        "scenario-disclosure/v1:{kind}:{}:{discriminator}",
+                        stamp(source, node)
+                    )
+                    .as_bytes(),
+                )
+            };
+        let id = identity(
+            "query",
+            &query.source,
+            query.node,
+            &stamp(&facts.source, key),
+        );
+        if query.id != id {
+            return None;
+        }
+        for ((value, base, field), read) in fields.iter().zip(&query.dependencies) {
+            let schema = facts
+                .stored_contracts
+                .as_deref()?
+                .iter()
+                .find(|schema| schema.model && schema.id == query.model)?;
+            let declared = schema
+                .fields
+                .iter()
+                .find(|declared| declared.name == **field)?;
+            super::scenario_receipts::match_stored_contract_field(self.ir, declared, self.db)?;
+            if base.ty
+                != (ResolvedType::Record {
+                    symbol: query.model,
+                    stored: true,
+                })
+                || read.model != query.model
+                || read.model_name != schema.canonical
+                || read.field != declared.id
+                || read.field_name != **field
+                || read.ty != value.ty
+                || read.ty != declared.ty
+                || read.type_id != declared.declared
+                || read.source != query.source
+                || span(read.node) != value.span
+                || read.calls.as_slice() != [key]
+                || read.role != DependencyRole::Control
+                || read.query_id.is_some()
+                || read.id != identity("query-control", &query.source, read.node, &id)
+            {
+                return None;
+            }
+        }
+        let kinds = [
+            crate::analysis::scenario_disclosure::InfluenceKind::QueryExistence,
+            crate::analysis::scenario_disclosure::InfluenceKind::QueryCardinality,
+            crate::analysis::scenario_disclosure::InfluenceKind::QueryMembership,
+            crate::analysis::scenario_disclosure::InfluenceKind::QueryOrder,
+        ];
+        if query.influences.len() != kinds.len()
+            || query.influences.iter().zip(kinds).any(|(influence, kind)| {
+                influence.kind != kind
+                    || influence.source != query.source
+                    || influence.node != query.node
+                    || influence.query_id.as_ref() != Some(&id)
+                    || influence.id
+                        != identity(
+                            "query-influence",
+                            &query.source,
+                            query.node,
+                            &format!("{id}:{kind:?}"),
+                        )
+            })
+        {
+            return None;
+        }
+        let first = query.dependencies.first()?;
+        let mut eager = predicate_body.as_ref();
+        while let IrExpr::Binary {
+            op: IrBinOp::And | IrBinOp::Or,
+            left,
+            ..
+        } = &eager.expr
+        {
+            eager = left;
+        }
+        let IrExpr::Binary {
+            op: IrBinOp::Eq,
+            left,
+            right,
+        } = &eager.expr
+        else {
+            return None;
+        };
+        let (read, compared) = if left.span == span(first.node) {
+            (left, right)
+        } else {
+            (right, left)
+        };
+        if read.span != span(first.node)
+            || first.ty != ResolvedType::Scalar(Scalar::User)
+            || !matches!(&compared.expr, IrExpr::Name(name) if name == &self.ir.items.get(person.0 as usize)?.name)
+        {
+            return None;
+        }
+        Some(())
     }
 
     fn authorization(&self, actual: &TypedExpr, key: NodeKey, depth: usize) -> Option<()> {
@@ -3416,8 +3761,11 @@ impl SourceExpressions<'_> {
                 SyntaxKind::Call,
             ) if self.operands && primitive(Scalar::Bool) => {
                 if self
-                    .authorization(actual, NodeKey::of(node), depth)
+                    .query_authorization(actual, NodeKey::of(node), depth)
                     .is_none()
+                    && self
+                        .authorization(actual, NodeKey::of(node), depth)
+                        .is_none()
                 {
                     if self.authorization_shaped(actual) {
                         return None;
@@ -4158,6 +4506,209 @@ mod tests {
                     checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
                         .is_none(),
                     "tampered sealed query must never reclassify ordinary"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn leading_query_authorization_matches_original_call_and_control_census() {
+        let source = r#"package Places
+ Given
+  export Location {name:text}
+ When
+ Then
+package People
+ use Places {Location as Site}
+ Given
+  export Worker {account:user,enabled:bool,all_sites:bool,home:Site,sites:Site[]}
+  export derive allowed(person:user,location:Site):bool = any(Worker as worker,worker.account==person and worker.enabled and active_member(person,team) and (worker.all_sites or worker.home==location or location in worker.sites))
+ When
+ Then
+app QueryConsumer
+use People {allowed}
+use Places {Location}
+Given
+ contract Input {location:Location}
+ Run {location:Location}
+When
+ scenario pick(input:Input) -> Run by=members
+  require allowed(actor,input.location)
+  do
+   create Run {location=input.location} as run
+   return run
+Then
+"#;
+        for named in [false, true] {
+            let source = if named {
+                source.replace(
+                    "allowed(actor,input.location)",
+                    "allowed(location=input.location,person=actor)",
+                )
+            } else {
+                source.into()
+            };
+            let (db, ir) = fixture_for(&source, "leading-query.can");
+            let (cond, at, original) = guard_and_fact(&ir, "QueryConsumer.pick");
+            let owner = ir
+                .items
+                .iter()
+                .find(|item| item.canonical == "QueryConsumer.pick")
+                .unwrap();
+            assert_eq!(
+                authenticate_for_guard(&ir, &db, &original, "People.allowed"),
+                Some(true),
+                "source derive seal"
+            );
+            assert!(
+                checked_create_expression(&ir, &original, &cond, node_at(&db, at), &db).is_some(),
+                "source-owned leading query authorization, including aliased Model type and named evaluation order"
+            );
+            assert!(
+                super::super::scenario_receipts::checked_helper_any_query_ir(
+                    &ir, owner, &cond, &db
+                )
+                .is_some()
+            );
+            for mutation in 0..7 {
+                let mut changed = ir.clone();
+                match mutation {
+                    0 => {
+                        derive_mut(&mut changed, "People.allowed").expr = IrExpr::Bool(true);
+                    }
+                    1 => {
+                        let owner = changed
+                            .items
+                            .iter()
+                            .find(|item| item.canonical == "QueryConsumer.pick")
+                            .unwrap()
+                            .id;
+                        let disclosure = changed.scenario_disclosures.get_mut(&owner).unwrap();
+                        let facts = match disclosure {
+                            ScenarioDisclosure::Complete(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                            ScenarioDisclosure::Declined(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                        };
+                        let query = facts
+                            .queries
+                            .as_mut()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|query| {
+                                query
+                                    .dependencies
+                                    .first()
+                                    .is_some_and(|read| read.calls.len() == 1)
+                            })
+                            .unwrap();
+                        query.dependencies.pop();
+                    }
+                    2 => {
+                        let owner = changed
+                            .items
+                            .iter()
+                            .find(|item| item.canonical == "QueryConsumer.pick")
+                            .unwrap()
+                            .id;
+                        let disclosure = changed.scenario_disclosures.get_mut(&owner).unwrap();
+                        let facts = match disclosure {
+                            ScenarioDisclosure::Complete(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                            ScenarioDisclosure::Declined(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                        };
+                        let query = facts
+                            .queries
+                            .as_mut()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|query| !query.dependencies.is_empty())
+                            .unwrap();
+                        query.dependencies.swap(0, 1);
+                    }
+                    3 => {
+                        let field = changed
+                            .items
+                            .iter_mut()
+                            .find(|item| item.canonical == "People.Worker.enabled")
+                            .unwrap();
+                        let IrItemKind::Field { ty, .. } = &mut field.kind else {
+                            panic!("field")
+                        };
+                        *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                    }
+                    4 => {
+                        let owner = changed
+                            .items
+                            .iter()
+                            .find(|item| item.canonical == "QueryConsumer.pick")
+                            .unwrap()
+                            .id;
+                        let disclosure = changed.scenario_disclosures.get_mut(&owner).unwrap();
+                        let facts = match disclosure {
+                            ScenarioDisclosure::Complete(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                            ScenarioDisclosure::Declined(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                        };
+                        let query = facts
+                            .queries
+                            .as_mut()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|query| !query.dependencies.is_empty())
+                            .unwrap();
+                        query.dependencies[0].calls.clear();
+                    }
+                    5 => {
+                        let derive = changed
+                            .items
+                            .iter_mut()
+                            .find(|item| item.canonical == "People.allowed")
+                            .unwrap();
+                        let IrItemKind::DeriveFn { params, .. } = &mut derive.kind else {
+                            panic!("derive")
+                        };
+                        params.swap(0, 1);
+                    }
+                    _ => {
+                        let owner = changed
+                            .items
+                            .iter()
+                            .find(|item| item.canonical == "QueryConsumer.pick")
+                            .unwrap()
+                            .id;
+                        let disclosure = changed.scenario_disclosures.get_mut(&owner).unwrap();
+                        let facts = match disclosure {
+                            ScenarioDisclosure::Complete(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                            ScenarioDisclosure::Declined(value) => {
+                                value.source_facts.as_mut().unwrap()
+                            }
+                        };
+                        let query = facts
+                            .queries
+                            .as_mut()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|query| !query.dependencies.is_empty())
+                            .unwrap();
+                        query.id = "substituted".into();
+                    }
+                }
+                let (cond, at, _) = guard_and_fact(&changed, "QueryConsumer.pick");
+                assert!(
+                    checked_create_expression(&changed, &original, &cond, node_at(&db, at), &db)
+                        .is_none(),
+                    "source/body/field/ordered census mutation {mutation} must not take ordinary fallback"
                 );
             }
         }

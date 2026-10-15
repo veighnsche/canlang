@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 leading helper source consumption (2026-10-15, implemented/tested).**
+Exact leading caller arguments/formals/Query/Lambda and ordered CONTROL source
+now join without eager predicate or membership execution. Required Contract Model
+origins and authored/named argument order remain. Helper-authenticated direct
+Model arrays retain their owning source declaration. Analysis1/1 and source/seal
+7/7 pass. Native plan/emission/issuance and later BodyRequire remain ready work;
+source proof alone does not admit execution.
+
 **C02 native predicate handoff (2026-10-15, implemented/tested prerequisite).**
 Verified-module predicate/context checks and once-consumed native receipt-frame
 captures now connect to State's sourceCall contract. CF normal build,11 frame

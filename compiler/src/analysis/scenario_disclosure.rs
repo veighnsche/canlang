@@ -5440,6 +5440,17 @@ impl<'a> Closure<'a> {
         {
             pending.push((transcript.model, true));
         }
+        // A helper's lazy CONTROL census needs the exact declared reference
+        // array even when it is not a reusable bounded Create operand. This
+        // inventory is source evidence; it grants no array read or write.
+        let helper_query_fields: HashSet<_> = self
+            .checked_helper_any_query_sources(scenario)
+            .into_iter()
+            .flatten()
+            .flat_map(|query| query.dependencies)
+            .filter(|read| read.role == DependencyRole::Control)
+            .map(|read| (read.model, read.field))
+            .collect();
         let mut seen = HashSet::new();
         let mut inventory = Vec::new();
         let mut field_count = 0usize;
@@ -5565,6 +5576,7 @@ impl<'a> Closure<'a> {
                 if model
                     && matches!(ty, ResolvedType::Array { .. })
                     && self.reference_operand_type_id(ty).is_some()
+                    && !helper_query_fields.contains(&(id, *field))
                     && self
                         .types
                         .field_reuse_sources
@@ -10452,6 +10464,88 @@ impl<'a> Closure<'a> {
             .get(&key)
             .ok_or_else(|| self.fail(key, "missing checked call selection"))?
             .clone();
+        if calls.is_empty()
+            && self.authorization
+            && self.statement_depth == 1
+            && self.loop_node.is_none()
+            && matches!(&selected.target, SelectedCallTarget::DeriveFn(_))
+        {
+            let query = self.effects.scenarios.values().find_map(|scenario| {
+                if scenario.module != module
+                    || key.file != scenario.node.file
+                    || key.start < scenario.node.start
+                    || key.end > scenario.node.end
+                {
+                    return None;
+                }
+                self.checked_helper_any_query_sources(scenario)?
+                    .into_iter()
+                    .find(|query| {
+                        query
+                            .dependencies
+                            .first()
+                            .is_some_and(|read| read.calls.as_slice() == [key])
+                    })
+            });
+            if let Some(query) = query {
+                let [(argument, parameter)] = query.inputs.as_slice() else {
+                    return Err(
+                        self.fail(key, "helper query needs its exact Contract input reference")
+                    );
+                };
+                let (_, model, _) = self
+                    .checked_contract_input_reference(*argument, module)
+                    .ok_or_else(|| {
+                        self.fail(*argument, "helper query Contract reference source mismatch")
+                    })?;
+                let argument_node = self
+                    .query_group(*argument)
+                    .ok_or_else(|| self.fail(*argument, "helper query reference group"))?;
+                let mut result = ValuePath::default();
+                // Traverse explicit arguments in their authored order. The
+                // callback's candidate reads and membership stay query-owned.
+                for supplied in &selected.arguments {
+                    let mut values = self.expr(*supplied, module, env, calls)?;
+                    let [value] = values.as_mut_slice() else {
+                        return Err(self.fail(
+                            *supplied,
+                            "helper query argument must have one original value",
+                        ));
+                    };
+                    if *supplied == *argument {
+                        if value.record != Some(model)
+                            || value.reference_origin
+                                != Some(ReferenceOrigin::ParameterMember {
+                                    parameter: *parameter,
+                                    node: argument_node,
+                                })
+                            || !env.contains_key(&Local::Symbol(*parameter))
+                            || !value.reads.is_empty()
+                            || !value.intrinsics.is_empty()
+                            || !value.influences.is_empty()
+                        {
+                            return Err(self.fail(
+                                *supplied,
+                                "helper query needs its original admitted Model slot",
+                            ));
+                        }
+                        value.record = None;
+                        value.reference_origin = None;
+                        value.reference = None;
+                    } else if value.record.is_some()
+                        || value.reference_origin.is_some()
+                        || !value.reads.is_empty()
+                        || !value.intrinsics.is_empty()
+                        || !value.influences.is_empty()
+                    {
+                        return Err(self.fail(*supplied, "helper query actor source mismatch"));
+                    }
+                    result.join(value);
+                }
+                result.influences = query.influences;
+                return Ok(vec![result]);
+            }
+        }
         if calls.is_empty()
             && let Some(argument) = self.checked_pure_input_guard(key, module)
         {
@@ -16447,7 +16541,7 @@ package crm
                     }
                 };
             }
-            let cx = make!(&types);
+            let mut cx = make!(&types);
             let sites = cx.checked_decision_sites(scenario).unwrap();
             let requires: Vec<_> = sites
                 .iter()
@@ -16580,6 +16674,25 @@ package crm
                             .dependencies
                             .iter()
                             .all(|read| read.calls == [outer.node])
+                    );
+                    let parameter = helper_query.inputs[0].1;
+                    let mut env = Env::new();
+                    env.insert(Local::Symbol(parameter), ValuePath::default());
+                    cx.statement_depth = 1;
+                    let closure = cx
+                        .authorization_expr(outer.node, scenario.module, &env, &[])
+                        .expect("exact leading helper source consumption");
+                    let [value] = closure.as_slice() else {
+                        panic!("one query verdict source")
+                    };
+                    assert_eq!(value.influences, helper_query.influences);
+                    assert!(
+                        value.reads.is_empty()
+                            && value.intrinsics.is_empty()
+                            && value.record.is_none()
+                            && value.reference_origin.is_none()
+                            && value.reference.is_none(),
+                        "query control grants no candidate/record authority"
                     );
                     assert_eq!(
                         cx.checked_contract_input_reference(argument, scenario.module)

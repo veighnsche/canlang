@@ -2259,6 +2259,31 @@ pub(super) fn checked_any_query_ir<'a>(
     Some(query)
 }
 
+/// Exact original leading helper call joined to its source-owned ANY census.
+/// This source/IR proof does not install or execute a native query callback.
+pub(super) fn checked_helper_any_query_ir<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    actual: &TypedExpr,
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::DisclosureQuery> {
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
+        query
+            .dependencies
+            .first()
+            .is_some_and(|read| read.calls.len() == 1 && node_span(read.calls[0]) == actual.span)
+    });
+    let query = queries.next()?;
+    if queries.next().is_some() {
+        return None;
+    }
+    let original = facts.creates.as_deref()?.first()?;
+    let call = query.dependencies.first()?.calls[0];
+    super::scenario_create_sources::checked_create_expression(ir, original, actual, call, db)?;
+    Some(query)
+}
+
 pub(super) fn checked_native_any_query_plan(
     ir: &IrProgram,
     owner: &IrItem,
