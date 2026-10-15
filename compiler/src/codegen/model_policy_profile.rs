@@ -1,8 +1,10 @@
 //! Conservative stored-field dependencies for the first native local-rule scope.
+use super::ir::IrCallTarget;
 use super::ir::{
     IrBinOp, IrExpr, IrItemKind, IrModelRuleKind, IrModelRuleOrigin, IrOwner, IrProgram, IrRuleFn,
     IrStmt, IrType, IrUnOp, TypedExpr,
 };
+use crate::analysis::{NodeKey, types::SelectedCallTarget};
 use crate::analysis::{
     resolve::{CrudOp, ModuleId, SymbolId},
     types::{ResolvedType, Scalar},
@@ -1459,6 +1461,378 @@ fn visit(
     }
 }
 
+fn argument(db: &crate::source::SourceDb, key: NodeKey, value: &TypedExpr) -> Option<()> {
+    let (tree, diagnostics) = crate::syntax::parse_source(key.file, &db.get(key.file)?.text);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    let mut node = tree.descendants().find(|node| NodeKey::of(node) == key)?;
+    for _ in 0..65 {
+        if node.kind != crate::syntax::SyntaxKind::Group {
+            return (node.span == value.span).then_some(());
+        }
+        node = node.children.iter().find(|child| {
+            child.token().is_none()
+                && !matches!(
+                    child.kind,
+                    crate::syntax::SyntaxKind::Trivia | crate::syntax::SyntaxKind::Comment
+                )
+        })?;
+    }
+    None
+}
+fn checked_rule_call<'a>(
+    checked: &crate::analysis::CheckedProgram,
+    value: &'a TypedExpr,
+    id: &str,
+    arity: usize,
+    db: &crate::source::SourceDb,
+    catalog: Option<&crate::analysis::catalog::Catalog>,
+) -> Option<Vec<&'a TypedExpr>> {
+    let (target, args, slots) = match &value.expr {
+        IrExpr::Call { target, args } => {
+            (target, args, (0..args.len()).map(Some).collect::<Vec<_>>())
+        }
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } => (target, args, slots.clone()),
+        _ => return None,
+    };
+    if !matches!(target, IrCallTarget::Builtin { id: actual, awaited: false } if actual == id) {
+        return None;
+    }
+    let key = NodeKey {
+        file: value.span.file,
+        start: value.span.start,
+        end: value.span.end,
+        kind: crate::syntax::SyntaxKind::Call as u8,
+    };
+    let selected = checked.types.selected_calls.get(&key)?;
+    if !matches!(&selected.target, SelectedCallTarget::Builtin { id: actual, overload: 0 } if actual == id)
+        || selected.arguments.len() != arity
+        || args.len() != arity
+        || selected.slots != slots
+        || slots.len() != arity
+        || checked.types.node_types.get(&key) != Some(&value.ty)
+    {
+        return None;
+    }
+    let catalog = catalog?;
+    if catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
+        || catalog.overloads(id)?.first()?.params.len() != arity
+    {
+        return None;
+    }
+    for (key, arg) in selected.arguments.iter().zip(args) {
+        argument(db, *key, arg)?;
+    }
+    let mut used = HashSet::new();
+    slots
+        .iter()
+        .map(|slot| {
+            let index = (*slot)?;
+            if !used.insert(index) {
+                return None;
+            }
+            args.get(index)
+        })
+        .collect()
+}
+
+/// Source-sealed Model query rules retain their original callbacks. The model
+/// census is also the complete invalidation domain: a root filter may fail on
+/// an unrelated candidate before deciding whether it matches the owning row.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedQueryRuleProfile {
+    pub fields: Vec<SymbolId>,
+    pub query_models: Vec<SymbolId>,
+    pub dependencies: Vec<SymbolId>,
+}
+
+pub(crate) fn checked_query_rule_fields(
+    checked: &crate::analysis::CheckedProgram,
+    program: &IrProgram,
+    model: SymbolId,
+    predicate: &TypedExpr,
+    db: &crate::source::SourceDb,
+    catalog: Option<&crate::analysis::catalog::Catalog>,
+) -> Option<CheckedQueryRuleProfile> {
+    struct QueryRule<'a> {
+        checked: &'a crate::analysis::CheckedProgram,
+        program: &'a IrProgram,
+        owner: SymbolId,
+        db: &'a crate::source::SourceDb,
+        catalog: Option<&'a crate::analysis::catalog::Catalog>,
+        profile: CheckedQueryRuleProfile,
+        bindings: Vec<(String, SymbolId)>,
+        remaining: usize,
+    }
+    impl QueryRule<'_> {
+        fn step(&mut self, depth: usize) -> Option<()> {
+            if depth > 64 || self.remaining == 0 {
+                return None;
+            }
+            self.remaining -= 1;
+            Some(())
+        }
+        fn dependency(&mut self, model: SymbolId) {
+            if !self.profile.dependencies.contains(&model) {
+                self.profile.dependencies.push(model);
+            }
+        }
+        fn fields(&mut self, fields: Vec<SymbolId>) {
+            for field in fields {
+                if !self.profile.fields.contains(&field) {
+                    self.profile.fields.push(field);
+                }
+            }
+        }
+        fn path(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
+            self.step(depth)?;
+            if let IrExpr::Name(name) = &value.expr {
+                let symbol = self
+                    .bindings
+                    .iter()
+                    .rev()
+                    .find(|(bound, _)| bound == name)?
+                    .1;
+                return (value.ty
+                    == ResolvedType::Record {
+                        symbol,
+                        stored: true,
+                    })
+                .then_some(());
+            }
+            let IrExpr::Member { base, field } = &value.expr else {
+                return None;
+            };
+            if !contains_span(value.span, base.span) {
+                return None;
+            }
+            self.path(base, depth + 1)?;
+            match &base.ty {
+                ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } => {
+                    let source = policy_model(self.program, *symbol)?;
+                    // Every candidate or dereferenced receiver participates in
+                    // the actual source filter's failure/order dependencies.
+                    if *symbol != self.owner || self.profile.query_models.contains(symbol) {
+                        self.dependency(*symbol);
+                    }
+                    if field == "id" {
+                        return (value.ty == ResolvedType::Scalar(Scalar::Text)).then_some(());
+                    }
+                    if field == "parent" {
+                        let IrItemKind::Model {
+                            owner: IrOwner::ChildOf(parent),
+                            ..
+                        } = source.kind
+                        else {
+                            return None;
+                        };
+                        policy_model(self.program, parent)?;
+                        return (value.ty
+                            == ResolvedType::Record {
+                                symbol: parent,
+                                stored: true,
+                            })
+                        .then_some(());
+                    }
+                    let id = policy_field(self.program, *symbol, field, &value.ty)?;
+                    if !matches!(
+                        value.ty,
+                        ResolvedType::Record { stored: true, .. }
+                            | ResolvedType::Scalar(
+                                Scalar::Text
+                                    | Scalar::Bool
+                                    | Scalar::Int
+                                    | Scalar::Currency
+                                    | Scalar::Money
+                            )
+                            | ResolvedType::Enum { .. }
+                    ) {
+                        return None;
+                    }
+                    if matches!(value.ty, ResolvedType::Enum { .. })
+                        && !local_type(self.program, *symbol, &value.ty)
+                    {
+                        return None;
+                    }
+                    self.fields(vec![id]);
+                    Some(())
+                }
+                ResolvedType::Scalar(Scalar::Money) => match (field.as_str(), &value.ty) {
+                    ("currency", ResolvedType::Scalar(Scalar::Currency))
+                    | ("minor", ResolvedType::Scalar(Scalar::Int)) => Some(()),
+                    _ => None,
+                },
+                _ => None,
+            }
+        }
+        fn operand(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
+            if self.path(value, depth).is_some() {
+                return Some(());
+            }
+            match (&value.expr, &value.ty) {
+                (IrExpr::Int(_), ResolvedType::Scalar(Scalar::Int))
+                | (IrExpr::Text(_), ResolvedType::Scalar(Scalar::Text))
+                | (IrExpr::Bool(_), ResolvedType::Scalar(Scalar::Bool)) => Some(()),
+                (
+                    IrExpr::Name(case) | IrExpr::Text(case),
+                    ResolvedType::Enum {
+                        cases,
+                        owner: Some(_),
+                    },
+                ) if cases.contains(case) => Some(()),
+                _ => None,
+            }
+        }
+        fn boolean(&mut self, value: &TypedExpr, depth: usize) -> Option<()> {
+            self.step(depth)?;
+            if value.ty != ResolvedType::Scalar(Scalar::Bool) {
+                return None;
+            }
+            // Existing no-query leaves keep their own exact type/field/source
+            // checks, including required arrays and selected pure call slots.
+            if self.bindings.len() == 1 {
+                if let Some(fields) = checked_local_rule_fields(
+                    self.checked,
+                    self.program,
+                    self.owner,
+                    value,
+                    self.db,
+                    self.catalog,
+                ) {
+                    self.fields(fields);
+                    return Some(());
+                }
+                if let Some(fields) = required_model_rule_fields(self.program, self.owner, value) {
+                    let reads = required_model_rule_dependencies(self.program, self.owner, value)?;
+                    self.fields(fields);
+                    for (target, _) in reads {
+                        self.dependency(target);
+                    }
+                    return Some(());
+                }
+            }
+            for id in ["any", "all"] {
+                let Some(formal) =
+                    checked_rule_call(self.checked, value, id, 2, self.db, self.catalog)
+                else {
+                    continue;
+                };
+                let IrExpr::Query(query) = &formal[0].expr else {
+                    return None;
+                };
+                let IrExpr::Lambda { param, body } = &formal[1].expr else {
+                    return None;
+                };
+                let args = match &value.expr {
+                    IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => args,
+                    _ => return None,
+                };
+                super::scenario_decisions::checked_collection_lambda(
+                    self.checked,
+                    args,
+                    formal[1],
+                    value.span,
+                    self.db,
+                )?;
+                let super::ir::IrQueryDomain::Model(canonical) = &query.domain else {
+                    return None;
+                };
+                if query.parent.is_some()
+                    || !query.order.is_empty()
+                    || query.value_order.is_some()
+                    || query.limit.is_some()
+                    || query.archived.is_some()
+                    || query.select.is_some()
+                    || query.select_param.is_some()
+                    || query.contract_collection_call.is_some()
+                {
+                    return None;
+                }
+                let mut matching = self.program.items.iter().filter(|item| {
+                    item.canonical == *canonical && matches!(item.kind, IrItemKind::Model { .. })
+                });
+                let candidate = matching.next()?.id;
+                if matching.next().is_some() {
+                    return None;
+                }
+                policy_model(self.program, candidate)?;
+                if !self.profile.query_models.contains(&candidate) {
+                    self.profile.query_models.push(candidate);
+                }
+                self.dependency(candidate);
+                if let Some(filter) = &query.where_pred {
+                    self.bindings.push((query.where_param.clone(), candidate));
+                    self.boolean(filter, depth + 1)?;
+                    self.bindings.pop()?;
+                }
+                self.bindings.push((param.clone(), candidate));
+                self.boolean(body, depth + 1)?;
+                self.bindings.pop()?;
+                return Some(());
+            }
+            match &value.expr {
+                IrExpr::Unary {
+                    op: IrUnOp::Not,
+                    operand,
+                } => self.boolean(operand, depth + 1),
+                IrExpr::Binary { op, left, right } => {
+                    policy_binary(value, *op)?;
+                    if matches!(op, IrBinOp::And | IrBinOp::Or) {
+                        self.boolean(left, depth + 1)?;
+                        return self.boolean(right, depth + 1);
+                    }
+                    if left.ty != right.ty
+                        || !(matches!(op, IrBinOp::Eq | IrBinOp::Ne)
+                            && matches!(
+                                left.ty,
+                                ResolvedType::Record { stored: true, .. }
+                                    | ResolvedType::Scalar(
+                                        Scalar::Text
+                                            | Scalar::Bool
+                                            | Scalar::Int
+                                            | Scalar::Currency
+                                    )
+                                    | ResolvedType::Enum { .. }
+                            )
+                            || matches!(op, IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge)
+                                && left.ty == ResolvedType::Scalar(Scalar::Int))
+                    {
+                        return None;
+                    }
+                    self.operand(left, depth + 1)?;
+                    self.operand(right, depth + 1)
+                }
+                _ => None,
+            }
+        }
+    }
+    policy_model(program, model)?;
+    let mut rule = QueryRule {
+        checked,
+        program,
+        owner: model,
+        db,
+        catalog,
+        profile: CheckedQueryRuleProfile {
+            fields: Vec::new(),
+            query_models: Vec::new(),
+            dependencies: Vec::new(),
+        },
+        bindings: vec![("row".into(), model)],
+        remaining: 4096,
+    };
+    rule.boolean(predicate, 0)?;
+    (!rule.profile.query_models.is_empty()).then_some(rule.profile)
+}
+
 /// Additional no-query leaves after the caller seals the complete original
 /// source/fresh policy closure. Raw local_rule_fields remains unchanged.
 pub(crate) fn checked_local_rule_fields(
@@ -1469,87 +1843,6 @@ pub(crate) fn checked_local_rule_fields(
     db: &crate::source::SourceDb,
     catalog: Option<&crate::analysis::catalog::Catalog>,
 ) -> Option<Vec<SymbolId>> {
-    use super::ir::IrCallTarget;
-    use crate::analysis::{NodeKey, types::SelectedCallTarget};
-    fn argument(db: &crate::source::SourceDb, key: NodeKey, value: &TypedExpr) -> Option<()> {
-        let (tree, diagnostics) = crate::syntax::parse_source(key.file, &db.get(key.file)?.text);
-        if !diagnostics.is_empty() {
-            return None;
-        }
-        let mut node = tree.descendants().find(|node| NodeKey::of(node) == key)?;
-        for _ in 0..65 {
-            if node.kind != crate::syntax::SyntaxKind::Group {
-                return (node.span == value.span).then_some(());
-            }
-            node = node.children.iter().find(|child| {
-                child.token().is_none()
-                    && !matches!(
-                        child.kind,
-                        crate::syntax::SyntaxKind::Trivia | crate::syntax::SyntaxKind::Comment
-                    )
-            })?;
-        }
-        None
-    }
-    fn call<'a>(
-        checked: &crate::analysis::CheckedProgram,
-        value: &'a TypedExpr,
-        id: &str,
-        arity: usize,
-        db: &crate::source::SourceDb,
-        catalog: Option<&crate::analysis::catalog::Catalog>,
-    ) -> Option<Vec<&'a TypedExpr>> {
-        let (target, args, slots) = match &value.expr {
-            IrExpr::Call { target, args } => {
-                (target, args, (0..args.len()).map(Some).collect::<Vec<_>>())
-            }
-            IrExpr::BoundCall {
-                target,
-                args,
-                slots,
-            } => (target, args, slots.clone()),
-            _ => return None,
-        };
-        if !matches!(target, IrCallTarget::Builtin { id: actual, awaited: false } if actual == id) {
-            return None;
-        }
-        let key = NodeKey {
-            file: value.span.file,
-            start: value.span.start,
-            end: value.span.end,
-            kind: crate::syntax::SyntaxKind::Call as u8,
-        };
-        let selected = checked.types.selected_calls.get(&key)?;
-        if !matches!(&selected.target, SelectedCallTarget::Builtin { id: actual, overload: 0 } if actual == id)
-            || selected.arguments.len() != arity
-            || args.len() != arity
-            || selected.slots != slots
-            || slots.len() != arity
-            || checked.types.node_types.get(&key) != Some(&value.ty)
-        {
-            return None;
-        }
-        let catalog = catalog?;
-        if catalog.lookup(id)?.effects != Some(crate::analysis::catalog::Effects::Pure)
-            || catalog.overloads(id)?.first()?.params.len() != arity
-        {
-            return None;
-        }
-        for (key, arg) in selected.arguments.iter().zip(args) {
-            argument(db, *key, arg)?;
-        }
-        let mut used = HashSet::new();
-        slots
-            .iter()
-            .map(|slot| {
-                let index = (*slot)?;
-                if !used.insert(index) {
-                    return None;
-                }
-                args.get(index)
-            })
-            .collect()
-    }
     fn field(
         program: &IrProgram,
         model: SymbolId,
@@ -1581,7 +1874,7 @@ pub(crate) fn checked_local_rule_fields(
         db: &crate::source::SourceDb,
         catalog: Option<&crate::analysis::catalog::Catalog>,
     ) -> Option<()> {
-        if let Some(args) = call(checked, value, "count", 1, db, catalog) {
+        if let Some(args) = checked_rule_call(checked, value, "count", 1, db, catalog) {
             if value.ty != ResolvedType::Scalar(Scalar::Int)
                 || !matches!(args[0].ty, ResolvedType::Array { .. })
             {
@@ -1589,7 +1882,7 @@ pub(crate) fn checked_local_rule_fields(
             }
             return field(program, model, args[0], fields);
         }
-        if let Some(args) = call(checked, value, "trim", 1, db, catalog) {
+        if let Some(args) = checked_rule_call(checked, value, "trim", 1, db, catalog) {
             if value.ty != ResolvedType::Scalar(Scalar::Text)
                 || args[0].ty != ResolvedType::Scalar(Scalar::Text)
             {
@@ -1627,7 +1920,7 @@ pub(crate) fn checked_local_rule_fields(
             }
             return Some(());
         }
-        if let Some(args) = call(checked, value, "starts_with", 2, db, catalog) {
+        if let Some(args) = checked_rule_call(checked, value, "starts_with", 2, db, catalog) {
             if !matches!(args[0].ty, ResolvedType::Scalar(Scalar::Text | Scalar::Url))
                 || args[1].ty != ResolvedType::Scalar(Scalar::Text)
                 || !matches!(args[1].expr, IrExpr::Text(_))
@@ -1946,6 +2239,256 @@ assert.equal(await choose({{}},{{first:pointer,second:pointer}}),false);
                         "{replacement}"
                     );
                 }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod checked_query_rule_tests {
+    use super::*;
+    use crate::analysis::{
+        CheckedProgram,
+        catalog::{Catalog, CatalogRequest, load_catalog},
+        check_program,
+    };
+    use crate::codegen::{ir, js, model_policies};
+    use crate::source::{SourceDb, Span};
+    use std::{collections::BTreeMap, path::Path, process::Command};
+
+    const SOURCE: &str = r#"app QueryRules
+Given
+ Program {reward:money,destination:url,window:duration,locations:text[],products:text[]!}
+ Advocate in Program {code:text}
+ Credit in Advocate {amount:money}
+ invariant Program: row.reward.minor>0 and starts_with(row.destination,"https://") and row.window>0m and count(row.locations)>0 and count(row.products)>0 and all(Credit as credit where credit.parent.parent==row,credit.amount.currency==row.reward.currency)
+ invariant Advocate: not any(Advocate as advocate,advocate.id!=row.id and advocate.code==row.code)
+When
+ scenario ping()->bool by=members
+  do
+   return true
+Then
+"#;
+    fn checked(source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let mut db = SourceDb::new();
+        let file = db.add("query-rules.can".into(), source.into());
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        (db, program, ir, catalog)
+    }
+    #[test]
+    fn original_query_invariants_keep_checked_domains_and_complete_selectors() {
+        for renamed in [false, true] {
+            let source = if renamed {
+                SOURCE.replace("Program", "Campaign").replace("Advocate", "Broker").replace("Credit", "Reward").replace("credit", "payment").replace("advocate", "broker").replace("all(Reward as payment where payment.parent.parent==row,payment.amount.currency==row.reward.currency)", "all(domain=(Reward as payment where payment.parent.parent==row),predicate=(payment.amount.currency==row.reward.currency))")
+            } else {
+                SOURCE.into()
+            };
+            let (db, program, ir, catalog) = checked(&source);
+            let module = js::module_path("QueryRules");
+            assert!(model_policies::collect_local_policies(&ir, &module).is_none());
+            let policies = model_policies::collect_checked_policies(
+                &program,
+                &ir,
+                &db,
+                Some(&catalog),
+                &module,
+            )
+            .expect("original source query rules");
+            let owner = if renamed {
+                "QueryRules.Campaign"
+            } else {
+                "QueryRules.Program"
+            };
+            let broker = if renamed {
+                "QueryRules.Broker"
+            } else {
+                "QueryRules.Advocate"
+            };
+            let credit = if renamed {
+                "QueryRules.Reward"
+            } else {
+                "QueryRules.Credit"
+            };
+            let owner_binding = policies
+                .bindings
+                .iter()
+                .find(|binding| ir.item(binding.model).canonical == owner)
+                .unwrap();
+            assert_eq!(
+                owner_binding
+                    .query_models
+                    .iter()
+                    .map(|id| ir.item(*id).canonical.as_str())
+                    .collect::<Vec<_>>(),
+                [credit]
+            );
+            let owner_dependencies = policies
+                .dependency_bindings
+                .iter()
+                .filter(|binding| binding.model == owner_binding.model)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                owner_dependencies
+                    .iter()
+                    .map(|binding| ir.item(binding.changed_model).canonical.as_str())
+                    .collect::<Vec<_>>(),
+                [credit, broker]
+            );
+            assert!(
+                policies
+                    .dependency_bindings
+                    .iter()
+                    .all(|binding| binding.all_owners && binding.path.is_empty())
+            );
+            assert!(
+                policies
+                    .descriptors
+                    .iter()
+                    .flat_map(|model| &model.rules)
+                    .all(|rule| match rule {
+                        model_policies::ModelRule::Invariant { dependencies, .. } => dependencies
+                            .iter()
+                            .all(|dependency| dependency.max_targets == u32::MAX),
+                        _ => false,
+                    })
+            );
+            let emitted = js::emit_program_with_feasible_query_sources(
+                &ir,
+                false,
+                &db,
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                js::EmitDecisionSources {
+                    local_policies: Some(&policies),
+                    ..Default::default()
+                },
+                None,
+            );
+            assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+            assert!(emitted.entry.js.contains("nativeReadReference(c,"));
+            assert!(emitted.entry.js.contains("queryModels:["));
+            let scratch = tempfile::tempdir().unwrap();
+            let stdlib = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .unwrap()
+                .join("packages/cloudflare/dist/runtime/stdlib.js");
+            for module in std::iter::once(&emitted.entry).chain(&emitted.packages) {
+                std::fs::write(
+                    scratch.path().join(&module.path),
+                    module
+                        .js
+                        .replace("@canlang/stdlib", &format!("file://{}", stdlib.display())),
+                )
+                .unwrap();
+            }
+            let script = format!(
+                r#"import assert from 'node:assert/strict';
+import {{canApp}} from './{entry}';
+const bindings=canApp().modelPolicyBindings;
+const dependencies=bindings.filter(binding=>binding.kind==='dependency');
+const changedModels={changed_models};
+for(const binding of dependencies){{
+ for(const change of [{{before:null,after:{{id:'changed'}}}},{{before:{{id:'changed'}},after:{{id:'changed',archivedAt:'now'}}}},{{before:{{id:'changed'}},after:null}}]){{
+  const requests=[];
+  const result=await binding.select({{maxRows:7,final:{{query:async spec=>{{requests.push(spec);return [{{id:'a'}},{{id:'unrelated'}}];}}}}}},{{...change,id:'changed',model:changedModels[binding.id]}});
+  assert.deepEqual(result,[{{model:binding.model,id:'a'}},{{model:binding.model,id:'unrelated'}}]);
+  assert.equal(requests[0].limit,7);assert.equal(requests[0].authority,'owner');assert.equal(requests[0].archived,'include');
+ }}
+ await assert.rejects(binding.select({{maxRows:1,final:{{query:async spec=>{{assert.equal(spec.limit,1);throw Error('owner completeness bound');}}}}}},{{model:changedModels[binding.id],id:'changed',before:null,after:{{id:'changed'}}}}),/owner completeness bound/);
+ await assert.rejects(binding.select({{}},{{model:'foreign',id:'changed',before:null,after:{{id:'changed'}}}}),/changed identity/);
+}}
+"#,
+                entry = emitted.entry.path,
+                changed_models = serde_json::to_string(
+                    &policies
+                        .dependency_bindings
+                        .iter()
+                        .map(|binding| (
+                            binding.id.clone(),
+                            ir.item(binding.changed_model).canonical.clone()
+                        ))
+                        .collect::<BTreeMap<_, _>>()
+                )
+                .unwrap()
+            );
+            let runner = scratch.path().join("check.mjs");
+            std::fs::write(&runner, script).unwrap();
+            let result = Command::new("node").arg(runner).output().unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            for mode in ["target", "slot", "query", "parent", "field", "predicate"] {
+                let (mut changed_program, diagnostics) =
+                    check_program(&db, &[crate::source::SourceId(0)], Some(&catalog));
+                assert!(diagnostics.is_empty());
+                let mut changed = ir.clone();
+                match mode {
+                    "target" | "slot" => {
+                        let selected=changed_program.types.selected_calls.values_mut().find(|call|matches!(&call.target,SelectedCallTarget::Builtin{id,..} if id=="all")).unwrap();
+                        if mode == "target" {
+                            selected.target = SelectedCallTarget::Builtin {
+                                id: "any".into(),
+                                overload: 0,
+                            };
+                        } else {
+                            selected.slots.reverse();
+                        }
+                    }
+                    "query" => {
+                        changed_program.types.checked_queries.clear();
+                    }
+                    "parent" => {
+                        let item = changed
+                            .items
+                            .iter_mut()
+                            .find(|item| item.canonical == broker)
+                            .unwrap();
+                        let IrItemKind::Model { owner, .. } = &mut item.kind else {
+                            panic!()
+                        };
+                        *owner = IrOwner::Team;
+                    }
+                    "field" => {
+                        let item = changed
+                            .items
+                            .iter_mut()
+                            .find(|item| item.canonical == format!("{credit}.amount"))
+                            .unwrap();
+                        let IrItemKind::Field { ty, .. } = &mut item.kind else {
+                            panic!()
+                        };
+                        *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                    }
+                    _ => {
+                        changed.invariants[0].pred.span.start += 1;
+                    }
+                }
+                assert!(
+                    model_policies::collect_checked_policies(
+                        &changed_program,
+                        &changed,
+                        &db,
+                        Some(&catalog),
+                        &module
+                    )
+                    .is_none(),
+                    "{mode}"
+                );
             }
         }
     }
