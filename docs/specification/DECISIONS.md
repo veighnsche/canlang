@@ -17432,3 +17432,18 @@ source/lock corruption regression passes1/.21s; affected pure-leaf control
 passes1/.42s. The genuine original Partner setup/transaction/page consumers still
 need the fresh compiler snapshot; their earlier two pre-setup refusals provide
 no runtime rule verdict. No new semantic choice or JEV consultation is needed.
+
+
+## 2026-10-15 — retain unsupported selected-field Require authority
+
+Three follow-on source discriminators showed the same omission for nullable text,
+enum and text-array fields: an independent-result Require compiled with no
+execution observation. The first-binding provenance census now retains every
+known stored-field read except the existing separately bound required-Model
+reference operand path. Unsupported field types then refuse at the existing
+exact typed receiver; they cannot silently become unobserved values. This is a
+safety prerequisite, not a language prohibition or claim that these profiles
+execute yet. All15 affected compiler controls pass/1.94s, retaining prior scalar,
+helper, Contract and reference behavior. Locked CLI build passes. No runtime
+carrier, grant, result taint or authored source assertion changes. General helper
+call-chain and unsupported field execution remain ready defining-owner work.
