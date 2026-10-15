@@ -1141,7 +1141,13 @@ delete globalThis.fileTargetFixture;
             String::from_utf8_lossy(&result.stderr)
         );
         // The extension is exact File?, not arbitrary nullable destinations or collections.
-        for ty in ["url?", "file[]"] {
+        // A nullable URL stays refused for buttons, but is the accepted
+        // link profile (outcome 2 renders its absent state instead).
+        let mut refused: Vec<&str> = vec!["file[]"];
+        if component == "button" {
+            refused.push("url?");
+        }
+        for ty in refused {
             let bad = format!(
                 "app InvalidFileTarget\nGiven\n Item {{target:{ty}}}\nWhen\nThen\n page / title=\"Files\"\n  list Item\n   {component} caption=\"Open\" target=row.target\n"
             );
@@ -1164,4 +1170,121 @@ delete globalThis.fileTargetFixture;
             );
         }
     }
+}
+
+#[test]
+fn nullable_url_link_destinations_render_present_and_absent_states() {
+    use std::process::Command;
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("url-target.can");
+    let specimen = r#"app UrlTargets
+Given
+ Item { href:url?, shown:bool }
+ policy Item read=members
+ derive pick(href:url?):url? = href
+When
+Then
+ page / title="Links"
+  list Item
+   link target=row.href caption="Direct"
+    require row.shown
+   link target=pick(row.href) caption="Helped"
+   link target=row.href
+"#;
+    std::fs::write(&source, specimen).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let compiled: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let js = compiled["modules"][0]["js"].as_str().unwrap();
+    // One static absent-URL marker per nullable-URL link; the marker
+    // carries no evaluation, so authored order is untouched.
+    assert_eq!(
+        js.matches("absentUrl:true").count(),
+        3,
+        "each nullable-url link emits its absent-state marker: {js}"
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, output.stdout).unwrap();
+    let runner = scratch.path().join("consume.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const [root,artifactPath,scratch]=process.argv.slice(2);
+const load=path=>import(pathToFileURL(resolve(root,path)));
+const {loadArtifactFile}=await load('packages/cloudflare/dist/runtime/artifact.js');
+const {assembleModules}=await load('packages/cloudflare/dist/runtime/modules.js');
+const fixture={trace:[],shown:true,href:'https://example.test/source',denied:false};
+globalThis.urlTargetFixture=fixture;
+const native={shown:true,href:'https://example.test/source'};
+for(const name of ['shown','href']) Object.defineProperty(native,name,{enumerable:true,configurable:true,get(){
+ fixture.trace.push(name);
+ if(fixture.denied&&name==='href')throw new Error('forbidden');
+ if(name==='shown')return fixture.shown;
+ return fixture.href;
+}});
+fixture.native=native;
+const uiPath=resolve(scratch,'ui.mjs');
+writeFileSync(uiPath,`export * from ${JSON.stringify(pathToFileURL(resolve(root,'packages/ui/dist/src/index.js')).href)};
+export async function list(props){const f=globalThis.urlTargetFixture;return (await Promise.all(await props.renderRow({id:'item',version:'1',fields:{}},props.context,f.native))).join('');}`);
+const loaded=loadArtifactFile(artifactPath);
+const asm=await assembleModules(loaded,{workDir:resolve(scratch,'modules'),stdlibUrl:pathToFileURL(resolve(root,'packages/cloudflare/dist/runtime/stdlib.js')).href,uiUrl:pathToFileURL(uiPath).href});
+const ref=loaded.artifact.pages[0],module=await import(asm.moduleUrls[ref.module]);
+const page=module[ref.export];
+const context={path:'/',preferredLocales:[],appDefaultLocale:'en',memberships:[],canonical:{builtinRoles:[]}};
+// Present direct, helper-produced and bare destinations render hrefs in authored order.
+let html=await page.render(context,{});
+assert.ok(html.includes('href="https://example.test/source">Direct</a>'),html);
+assert.ok(html.includes('href="https://example.test/source">Helped</a>'),html);
+assert.ok(html.includes('href="https://example.test/source">https://example.test/source</a>'),html);
+assert.deepEqual(fixture.trace,['shown','href','href','href']);
+// Absent destinations share one noninteractive state with no href: authored
+// captions where given, the shared unavailable label otherwise.
+fixture.trace=[];fixture.href=null;
+html=await page.render(context,{});
+assert.ok(html.includes('role="link" aria-disabled="true">Direct<'),html);
+assert.ok(html.includes('aria-disabled="true">Helped<'),html);
+assert.ok(html.includes('aria-disabled="true">Unavailable<'),html);
+assert.ok(!html.includes('href='),html);
+const nlHtml=await page.render({...context,preferredLocales:['nl']},{});
+assert.ok(nlHtml.includes('aria-disabled="true">Niet beschikbaar<'),nlHtml);
+// An authored guard omits its control before child evaluation.
+fixture.trace=[];fixture.shown=false;
+html=await page.render(context,{});
+assert.ok(!html.includes('Direct'),html);
+assert.ok(html.includes('aria-disabled="true">Helped<'),html);
+assert.deepEqual(fixture.trace,['shown','href','href']);
+// A denied field stays a failure: it never becomes an absent destination,
+// and the first failure prevents later sibling evaluation.
+fixture.trace=[];fixture.shown=true;fixture.denied=true;
+await assert.rejects(page.render(context,{}),/forbidden/);
+assert.deepEqual(fixture.trace,['shown','href']);
+delete globalThis.urlTargetFixture;
+"#).unwrap();
+    let result = Command::new("node")
+        .arg(runner)
+        .arg(root)
+        .arg(artifact)
+        .arg(scratch.path())
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
 }
