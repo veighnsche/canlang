@@ -13,19 +13,27 @@ export interface DraftJourney {
   actor?: string;
   /** Bootstrap the protected preview without creating an application session. */
   unauthenticated?: boolean;
+  /** Deliberate offline submission only; every declared failure must occur once. */
+  transportFailures?: { operation: string; code: "net::ERR_INTERNET_DISCONNECTED" }[];
   covers: { operations?: string[]; requirements?: string[]; states?: { route: string; state: string }[] };
   run(context: {
     page: Page; context: BrowserContext; session: DraftSession; baseURL: string;
     capture(route: string, state: string, reference?: string): Promise<DraftVisualResult>;
+    /** Record an asserted transient submit state; durable visual states still require capture. */
+    recordObservedState(route: string, state: 'pending' | 'success'): void;
   }): Promise<void>;
 }
 
 export interface DraftSuiteOptions {
+  /** Explicit local Identity grants resolved against the compiled selected app. */
+  previewRoles?: Readonly<Record<string, readonly string[]>>;
   /** Business-role provisioning must be real; never assign roles by changing the page DOM. */
   actor?: string;
   /** Permitted seeded identities for guarded routes; custom roles are never inferred. */
   pageActors?: { route: string; actor: string }[];
   journeys?: DraftJourney[];
+  /** Existing canonical runtime tests own nonvisual outcomes; this declares coverage, not execution. */
+  ownerChecks?: { test: string; requirements: string[] }[];
   /** A page concept may guide several states; it need not duplicate every capture. */
   references?: { route: string; state?: string; viewport?: string; file: string }[];
 }
@@ -60,10 +68,13 @@ async function auditPage(page: Page): Promise<void> {
   });
 }
 
-function browserFailures(page: Page, deniedRoutes: string[] = [], validation = false): () => string[] {
+function browserFailures(page: Page, deniedRoutes: string[] = [], validation = false,
+  transportFailures: NonNullable<DraftJourney["transportFailures"]> = []): () => string[] {
   const failures: string[] = [];
   const expectedErrors = new Set<string>();
-  const consoleErrors: { url: string; status: string | undefined }[] = [];
+  const observedTransport = new Set<number>();
+  const transportConsole = new Set<string>();
+  const consoleErrors: { url: string; status: string | undefined; transport: string | undefined }[] = [];
   // Retain categories and URL paths only; exception/log text can contain secrets or domain data.
   page.on("pageerror", () => failures.push("uncaught browser exception"));
   page.on("console", message => {
@@ -71,23 +82,39 @@ function browserFailures(page: Page, deniedRoutes: string[] = [], validation = f
     // Chromium reports deliberate HTTP denials as resource console errors.
     // Admit only the expected browser-generated 403 on a declared denied route.
     consoleErrors.push({ url: message.location().url,
-      status: /^Failed to load resource:.*\b(\d{3})\b/.exec(message.text())?.[1] });
+      status: /^Failed to load resource:.*\b(\d{3})\b/.exec(message.text())?.[1],
+      transport: /^Failed to load resource:\s*(net::ERR_[A-Z_]+)$/.exec(message.text())?.[1] });
   });
-  page.on("requestfailed", request => failures.push(`resource failed: ${new URL(request.url()).pathname}`));
+  page.on("requestfailed", request => {
+    const url = new URL(request.url()), code = request.failure()?.errorText;
+    const expected = request.method() === "POST" && url.origin === new URL(page.url()).origin
+      ? transportFailures.findIndex((failure, index) => !observedTransport.has(index) &&
+        url.pathname === `/api/operations/${failure.operation}` && code === failure.code) : -1;
+    if (expected < 0) failures.push(`resource failed: ${url.pathname}`);
+    else {
+      observedTransport.add(expected);
+      transportConsole.add(`${request.url()}#${code}`);
+    }
+  });
   page.on("response", response => {
     const status = response.status(), url = new URL(response.url());
     const expected = status === 403 && deniedRoutes.some(route => routeMatches(route, url.pathname)) ||
-      validation && [400, 422].includes(status) && response.request().method() === "POST" &&
+      validation && [400, 409, 422].includes(status) && response.request().method() === "POST" &&
       url.origin === new URL(page.url()).origin && url.pathname.startsWith("/api/operations/");
     if (expected) expectedErrors.add(`${response.url()}#${status}`);
     else if (status >= 400) failures.push(`HTTP ${status}: ${url.pathname}`);
   });
-  return () => [...failures, ...consoleErrors.filter(error => error.status === undefined ||
-    !expectedErrors.has(`${error.url}#${error.status}`)).map(() => "browser console error")];
+  return () => [...failures,
+    ...transportFailures.flatMap((failure, index) => observedTransport.has(index) ? [] : [`expected offline submission missing: ${failure.operation}`]),
+    ...consoleErrors.filter(error => !(
+      error.status !== undefined && expectedErrors.has(`${error.url}#${error.status}`) ||
+      error.transport !== undefined && transportConsole.has(`${error.url}#${error.transport}`)
+    )).map(() => "browser console error")];
 }
 
-async function withSession<T>(root: string, source: string, app: string, run: (session: DraftSession) => Promise<T>): Promise<T> {
-  const session = await openDraftSession({ root, source, app, timeoutMs: 240_000 });
+async function withSession<T>(root: string, source: string, app: string, run: (session: DraftSession) => Promise<T>, previewRoles?: DraftSuiteOptions["previewRoles"]): Promise<T> {
+  const session = await openDraftSession({ root, source, app, timeoutMs: 240_000,
+    ...(previewRoles === undefined ? {} : { previewRoles }) });
   try { return await run(session); } finally { await session.close(); }
 }
 
@@ -134,7 +161,10 @@ export function defineDraftAppSuite(specUrl: string, register: DraftTestRegistra
     test.describe(selection.name, () => {
       register("declared functionality and state coverage @coverage", async ({}, info) => {
         const coveredOperations = new Set(selectedJourneys.flatMap(journey => journey.covers.operations ?? []));
-        const coveredRequirements = new Set(selectedJourneys.flatMap(journey => journey.covers.requirements ?? []));
+        const coveredRequirements = new Set([
+          ...selectedJourneys.flatMap(journey => journey.covers.requirements ?? []),
+          ...(options.ownerChecks ?? []).flatMap(check => check.requirements),
+        ]);
         const coveredStates = new Set(selectedJourneys.flatMap(journey => journey.covers.states ?? []).map(state => `${state.route}#${state.state}`));
         const missingOperations = inventory.operations.filter(operation => operation.exampleRows === 0 && !coveredOperations.has(operation.name));
         const missingRequirements = owner.requirements.filter(requirement => !coveredRequirements.has(requirement.id));
@@ -147,6 +177,7 @@ export function defineDraftAppSuite(specUrl: string, register: DraftTestRegistra
             options.actor === undefined && !options.pageActors?.some(actor => actor.route === page.route)).map(page => page.route),
           operations: inventory.operations.map(operation => ({ name: operation.name, exampleRows: operation.exampleRows, browserOrDirectJourney: coveredOperations.has(operation.name) })),
           requirements: owner.requirements, pageStates: inventory.pages.map(page => ({ route: page.route, states: page.requiredStates })),
+          ownerChecks: options.ownerChecks ?? [],
           missingOperations: missingOperations.map(operation => operation.name), missingRequirements, missingStates,
           requiredSetup: "Original composed/prompted source, real business-role actors and serving-preview domain fixtures; source examples execute in separate stores.",
           acceptance: "This lexical gate only detects missing declared coverage. App acceptance additionally needs compiler-qualified closure, every companion requirement/control reviewed, actual functional execution, and inspected reference comparisons.",
@@ -179,7 +210,7 @@ export function defineDraftAppSuite(specUrl: string, register: DraftTestRegistra
             expect(result.summary?.setupFailed).toBe(0);
             expect(result.summary?.unsupported).toBe(0);
             await session.assertCurrent();
-          });
+          }, options.previewRoles);
         });
       }
 
@@ -204,7 +235,7 @@ export function defineDraftAppSuite(specUrl: string, register: DraftTestRegistra
             await capture(page, info, appDir, selection.name, pageSpec.route, "initial", mappedReference(pageSpec.route, "initial", info.project.name));
             expect(failures()).toEqual([]);
             await session.assertCurrent();
-          });
+          }, options.previewRoles);
         });
       }
 
@@ -213,9 +244,14 @@ export function defineDraftAppSuite(specUrl: string, register: DraftTestRegistra
           await withSession(root, source, selection.name, async session => {
             const baseURL = await session.authenticate(context, journey.unauthenticated ? null : journey.actor ?? options.actor ?? "Ava");
             const failures = browserFailures(page, (journey.covers.states ?? []).filter(state => state.state === "denied").map(state => state.route),
-              (journey.covers.states ?? []).some(state => state.state === "validation"));
+              (journey.covers.states ?? []).some(state => state.state === "validation"), journey.transportFailures);
             const captured = new Set<string>();
-            await journey.run({ page, context, session, baseURL, capture: async (route, state, reference) => {
+            const observed = new Set<string>();
+            await journey.run({ page, context, session, baseURL, recordObservedState: (route, state) => {
+              expect(['pending', 'success']).toContain(state);
+              expect(routeMatches(route, new URL(page.url()).pathname), 'Observed submission must match its actual route').toBe(true);
+              observed.add(`${route}#${state}`);
+            }, capture: async (route, state, reference) => {
               expect(routeMatches(route, new URL(page.url()).pathname), "State capture must match its declared route and genuine record binding").toBe(true);
               await session.assertCurrent();
               if (state === "denied") {
@@ -227,10 +263,13 @@ export function defineDraftAppSuite(specUrl: string, register: DraftTestRegistra
               captured.add(`${route}#${state}`);
               return result;
             } });
-            for (const state of journey.covers.states ?? []) expect(captured, "Declared state coverage requires an actual state capture").toContain(`${state.route}#${state.state}`);
+            for (const state of journey.covers.states ?? []) {
+              const evidence = state.state === 'pending' || state.state === 'success' ? new Set([...captured, ...observed]) : captured;
+              expect(evidence, 'Declared state coverage requires its actual capture or asserted transient submission').toContain(`${state.route}#${state.state}`);
+            }
             expect(failures()).toEqual([]);
             await session.assertCurrent();
-          });
+          }, options.previewRoles);
         });
       }
     });

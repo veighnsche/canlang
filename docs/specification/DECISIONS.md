@@ -14908,3 +14908,31 @@ composed emission/native/browser acceptance. This bounded task adds no new
 subsystem or relaxation. Existing C13 account/executor, C14 BDD3 policy and C23
 OUTBOX release holds and the nine broader references remain unchanged; no
 training or dataset generation is authorized by these results.
+
+
+Accept the existing PromptLab desktop/mobile journeys at their declared functional
+and visual scope. All sixteen cases complete their required functional
+assertions across retained runs; the corrected member case passes separately
+on both viewports. Correct only its exact-text fixture matcher for the existing
+Unicode-isolated formatter output, preserving native note/permission assertions.
+Thirty-eight visual states are individually inspected and accepted: thirteen
+existing desktop baselines are preserved and twenty-five new captures (six
+desktop/nineteen mobile) are adopted without redesign. Missing-baseline soft
+failures remain in first-capture logs; manual acceptance does not retroactively
+make those aggregate Playwright runs green. Repeating new screenshots against
+their identical copied baseline adds no evidence, so it is not required here.
+Existing baseline comparisons pass, as do browser TypeScript and the lexical
+source-state check. Prior unchanged source/native/activation results are reused.
+
+An existing foreign ActionGallery preview owns the default checkout socket;
+ordinary isolated TMPDIR namespaces allow the affected owner-controlled tests
+without stopping it. Two concurrent previews exceeded the existing ten-second
+shutdown wait after successful page/baseline assertions. Serialize this capture
+scope; subsequent single-owner cases stop normally, and actual affected endpoint
+and process absence is verified. No runtime shutdown relaxation is introduced.
+The final desktop member journey passes 1/1 with normal cleanup. The runtime,
+compiler and consumed source remain frozen for captures. This closes the bounded
+PromptLab remainder; the three explicit CanMember/CanShift source refusals and
+existing nine-reference/external release gates remain. Supported reference scope
+is not yet ready for unrestricted training-data authoring; no dataset or training
+work is started and the future 12 GB inference requirement remains unchanged.

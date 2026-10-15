@@ -41,6 +41,7 @@ class ControlFailure extends Error {
 /** Actual installed can-dev owner and protected preview; no replacement server or artifact. */
 export async function openDraftSession(options: {
   root: string; source: string; app: string; timeoutMs?: number;
+  previewRoles?: Readonly<Record<string, readonly string[]>>;
 }): Promise<DraftSession> {
   const timeoutMs = options.timeoutMs ?? 180_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 3_600_000) {
@@ -106,14 +107,15 @@ export async function openDraftSession(options: {
         try {
           const stopped = object((await control("stop", flags(), true)).result);
           if (stopped.stopped !== true) throw new Error("Owned session stop was not acknowledged");
-        } catch {
+        } catch (stopError) {
           // Stop can remove its socket before acknowledging. Only absence of this exact owner is sufficient.
           try { await control("discover", flags(), true); }
           catch (error) {
             if (error instanceof ControlFailure && error.endpointAbsent) return;
             throw new Error("Owned draft session cleanup could not verify endpoint absence");
           }
-          throw new Error("Owned draft session cleanup failed; its endpoint still exists");
+          const reason = stopError instanceof ControlFailure ? stopError.code : "invalid stop response";
+          throw new Error(`Owned draft session cleanup failed; its endpoint still exists (${reason})`);
         }
       };
       await stopOwned();
@@ -137,7 +139,8 @@ export async function openDraftSession(options: {
       typeof status.serving_build === "string";
   }
   try {
-    const started = await control("start", ["--root", root, "--source", source, "--app", app]);
+    const started = await control("start", ["--root", root, "--source", source, "--app", app,
+      ...(options.previewRoles === undefined ? [] : ["--preview-roles", JSON.stringify(options.previewRoles)])]);
     session = text(started.session, "session");
     const start = object(started.result);
     owned = start.attached === false;
