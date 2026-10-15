@@ -2,6 +2,22 @@
 
 ## Current remainder and finite completion
 
+**C02 original promotion native consumer (2026-10-15, unfinished).**
+The selected original schemas/policies, saved Given and both inline tables emit
+with3 queries. Actual CLI source membership/hashes (including contributed source)
+and captured producer inputs verify. Default example loading then refuses an
+undefined imported fixture `test_company` in the emitted promotion test module,
+before invoking any row. Accepted defining direction: canonical declaration keys
+for generated fixture slots/dependencies and one linked recipe object per key;
+source aliases remain unchanged. Required producer/receiver joins and alias/diamond/
+same-name/claimed-provider/refusal controls are in progress, not qualified. JEV
+corrected4–6 favors this direction (.90/.91/.84); exploratory1–3 had a corrected
+context assumption and give no acceptance credit. Compiler-owned imported-fixture
+dependency emission plus loader resolution is the next defining fix; acceptance requires all6 original rows through default
+canonical hooks. No replacement fixture modules or reduced policies qualify it.
+Earlier stale package outputs and the integration harness's generated-source/
+fixture-suite assumptions were corrected before reaching this actual failure.
+
 **C02 typed nested example fixtures (2026-10-15, qualified component).**
 Reuse owning canonical schema/codecs for nested Contract Model slots and actual
 operation input encoding. Typed row-cell traversal updates genuine isolated
