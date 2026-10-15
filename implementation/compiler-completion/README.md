@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 emitted helper membership selectors (2026-10-15, qualified).**
+Emit the exact canonical owner-site/call occurrence for helper membership nodes
+using the selected query and original derive-call chain. Ambiguous/missing proof
+refuses; unrelated legacy physical markers retain their existing unique-match
+rule. The genuine four-file captured CLI/assembly/D1/Identity journey passes
+1/1 in61.21s, now also requiring an actual emitted occurrence selector. Existing
+same-file and fourteen receiving-selector checks are reused. CLI build and diff
+checks pass. This qualifies issuance/receiving for the leading helper; the mixed
+two-invocation first/body plan remains open. All four pending component batches
+are now committed separately; original24 qualification remains655 until rerun.
+
 **C02 feasible Require paths (2026-10-15, component qualified).**
 Use the existing native DTO node budget as well as row/reference limits to trigger
 source-proved projection. Conditional body Requires prune only original return

@@ -2286,6 +2286,7 @@ fn emit_program_with_sources(
     emitter.send_guard_gap = decisions.send_guard_gap;
     if let Some(membership) = decisions.membership {
         emitter.membership_calls = membership.calls(ir).cloned().unwrap_or_default();
+        emitter.membership_sites = Some(&membership.sites);
         emitter.membership_predicates = membership.predicates(ir).cloned().unwrap_or_default();
     }
     if native_receipts {
@@ -3419,6 +3420,7 @@ pub struct Emitter<'a> {
     prepared_query_receipts: std::collections::HashSet<SymbolId>,
     query_capture: Option<NativeQuerySource>,
     membership_calls: HashMap<Span, serde_json::Value>,
+    membership_sites: Option<&'a BTreeMap<String, serde_json::Value>>,
     membership_predicates: HashMap<Span, serde_json::Value>,
     boolean_sources: HashMap<Span, serde_json::Value>,
     boolean_derives: HashSet<String>,
@@ -3555,6 +3557,7 @@ impl<'a> Emitter<'a> {
             prepared_query_receipts: std::collections::HashSet::new(),
             query_capture: None,
             membership_calls: HashMap::new(),
+            membership_sites: None,
             membership_predicates: HashMap::new(),
             boolean_sources: HashMap::new(),
             boolean_derives: HashSet::new(),
@@ -6420,6 +6423,88 @@ impl<'a> Emitter<'a> {
         ))
     }
 
+    /// The same physical membership node can occur in two helper invocations.
+    /// Reuse the selected query's original owner census and actual derive chain.
+    fn helper_membership_source(
+        &self,
+        at: Span,
+        physical: &serde_json::Value,
+    ) -> Result<Option<serde_json::Value>, ()> {
+        let Some(capture) = &self.query_capture else {
+            return Ok(None);
+        };
+        if self.receipt_calls.is_empty() {
+            return Ok(None);
+        }
+        let mut queries = capture.queries.iter().filter(|query| {
+            query.predicate.is_some_and(|node| {
+                node.file == at.file && node.start <= at.start && node.end >= at.end
+            }) && !query.dependencies.is_empty()
+                && query.dependencies.iter().all(|dependency| {
+                    dependency
+                        .calls
+                        .iter()
+                        .map(|node| Span::new(node.file, node.start, node.end))
+                        .eq(self.receipt_calls.iter().copied())
+                })
+        });
+        let Some(query) = queries.next() else {
+            return Ok(None);
+        };
+        if queries.next().is_some() {
+            return Err(());
+        }
+        let mut metadata = self
+            .query_any
+            .and_then(|owners| owners.get(&capture.owner))
+            .and_then(serde_json::Value::as_array)
+            .ok_or(())?
+            .iter()
+            .filter(|metadata| metadata["kind"] == "predicate" && metadata["queryId"] == query.id);
+        let selected = metadata.next().ok_or(())?;
+        if metadata.next().is_some() {
+            return Err(());
+        }
+        let site_index = usize::try_from(selected["sourceCall"]["siteIndex"].as_u64().ok_or(())?)
+            .map_err(|_| ())?;
+        let query_index = usize::try_from(selected["sourceCall"]["callIndex"].as_u64().ok_or(())?)
+            .map_err(|_| ())?;
+        let site = self
+            .membership_sites
+            .and_then(|owners| owners.get(&capture.owner))
+            .and_then(serde_json::Value::as_array)
+            .ok_or(())?
+            .iter()
+            .filter(|site| {
+                !matches!(
+                    site["stage"].as_str(),
+                    Some("read-policy" | "read-predicate" | "send-dispatch")
+                )
+            })
+            .nth(site_index)
+            .ok_or(())?;
+        let calls = site["calls"].as_array().ok_or(())?;
+        let original_query = calls.get(query_index).ok_or(())?;
+        if original_query["target"]["kind"] != "builtin" || original_query["target"]["id"] != "any"
+        {
+            return Err(());
+        }
+        let mut members = calls.iter().enumerate().filter(|(_, call)| {
+            call["target"]["kind"] == "builtin"
+                && call["target"]["id"] == "active_member"
+                && call["source"] == physical["source"]
+                && call["node"] == physical["node"]
+                && call["chain"] == original_query["chain"]
+        });
+        let (call_index, _) = members.next().ok_or(())?;
+        if members.next().is_some() {
+            return Err(());
+        }
+        let mut marker = physical.clone();
+        marker["sourceCall"] = serde_json::json!({"siteIndex":site_index,"callIndex":call_index});
+        Ok(Some(marker))
+    }
+
     fn lower_call_rendered(
         &mut self,
         target: &IrCallTarget,
@@ -6444,7 +6529,7 @@ impl<'a> Emitter<'a> {
                 }
                 let mut parts = parts.to_vec();
                 if id == "active_member" {
-                    let Some(source) = self.membership_calls.get(&span) else {
+                    let Some(mut source) = self.membership_calls.get(&span).cloned() else {
                         self.unsupported(
                             "membership observation",
                             "active_member lacks its original checked source and selected call closure",
@@ -6460,8 +6545,20 @@ impl<'a> Emitter<'a> {
                         );
                         return self.throw_expr("unsupported membership call shape");
                     }
+                    match self.helper_membership_source(span, &source) {
+                        Ok(Some(selected)) => source = selected,
+                        Ok(None) => {}
+                        Err(()) => {
+                            self.unsupported(
+                                "membership observation",
+                                "original helper occurrence selector is unavailable",
+                                span,
+                            );
+                            return self.throw_expr("unsupported helper membership occurrence");
+                        }
+                    }
                     parts.insert(0, "c".to_string());
-                    parts.push(descriptor_json(source));
+                    parts.push(descriptor_json(&source));
                 }
                 if id == "app_url" {
                     // Only the resolved builtin receives the trusted host context.
