@@ -32,9 +32,11 @@ Then
     input title $FieldSurface
 ```
 
-Named styles are definitions directly in the owning Then namespace, with no visual body. Ordinary rendered components, pages and custom component instances accept one style suffix: static `$"..."` or `$Name`. Nonvisual data/guard/schema declarations do not become style targets. Definition/use context and actual root/part contracts determine compatibility; uses introduce no generation output or AI call. Ordinary style wrapper uses are superseded by attachments for the implementation. Generated view definitions retain their renderer prompt in `view Name(row:Model) $"..."`; an optional second suffix on that same header (`$"..."` or `$Name`) styles its renderer root, with canonical controls as the only permitted children. The `style` keyword appears only in the top-level named definition; there is no inline, wrapper or leaf `style` statement, and no top-level anonymous style scope. Caller instance styling respects the child-host/interior ownership rule.
+Named styles are definitions directly in the owning Then namespace, with no visual body. Ordinary rendered components, pages and custom component instances accept one style suffix: static `$"..."` or `$Name`. Nonvisual data/guard/schema declarations do not become style targets. Definition/use context and actual root/part contracts determine compatibility; uses introduce no generation output or AI call. Ordinary style wrapper uses are superseded by attachments for the implementation. Generated view definitions retain their renderer prompt in `view Name(row:Model) $"..."`; an optional second suffix on that same header (`$"..."` or `$Name`) styles its renderer root. Its direct children follow the [finite generated-view contract](../../../docs/specification/BUILD_GENERATION_REQUIREMENTS.md): canonical cards and controls, text/content/history display bindings, and whole-view require guards. The `style` keyword appears only in the top-level named definition; there is no inline, wrapper or leaf `style` statement, and no top-level anonymous style scope. Caller instance styling respects the child-host/interior ownership rule.
 
 Existing optional logical profiles remain generation-definition-owned. Inline prompt attachments may select a profile through the owning declaration's `agent=profile`; named applications cannot select another recipe for a shared definition. Then defaults to frontend, Given to shared. Ordinary When has no generation carrier or recipe. All prompt literals are static JSON strings with adjacent `$` and no interpolation.
+
+Canonical cards keep their ordinary checked subtrees and local guards, and are passed to the renderer as complete opaque `card` bindings. Source child names survive factory lowering (`button action=...` remains `button`), with repeated names suffixed `2`, `3`, and so on. Row evaluation is once per instance; whole-view guards run before source-ordered child rendering. The generated renderer preserves each binding unchanged. Direct priority actions still need their concrete action owner; slots, nested `show`, arbitrary props and caller capture remain excluded. This reconciles the earlier controls-only wording with the accepted action-owner correction; it adds no runtime carrier.
 
 ## Typed owner integration
 
@@ -47,6 +49,28 @@ Use a checked descriptor selecting owner-versioned producer schemas, rather than
 - bounded execution and target compatibility.
 
 Source declarations and checked owner-attached contributions establish the contract; compiler-owned wrappers derive the runtime artifact. The host assembles minimal `unit.json` contract/association/provenance from checked source and structured MCP submissions. Ordinary `contributions.can` remains the carrier for generated owning declarations where needed. There is no second authored registry, and JavaScript is never executed to discover schema, permissions or registration.
+
+Pure checks on required native text fields may accompany named/inline trait
+contributions as saved `implementation.js`. The source-derived contract fixes
+`state.field-validation@1`, export `check(value)`, text input, Boolean result,
+`validate-fields` lifecycle and no reads/effects/authority. The single-field
+`contributions.can` template may specify only `value:text` when there are no extra
+native constraints. State checks the normalized, hook-adjusted candidate on every
+create/update before publishing state, history or key claims; only strict `true`
+succeeds. False, exceptions and other return types produce canonical validation.
+Desired migration checks cover staged and retained rows. Implementation/import
+bytes are fingerprinted separately from the contribution carrier. Model traits,
+nullable and other field types do not admit this executable profile. Saved modules
+retain the existing trusted-code boundary; no general JavaScript sandbox is implied.
+
+Model-field contributions use existing native State/Values associations and exact
+default codecs: Boolean/integer aliases, decimal, text, email, timezone, date,
+datetime, duration, money, user, file and inline enums; at most one array wrapper
+and outer nullability. Explicit defaults remain required. Unsupported associations
+and nested arrays refuse. Static literal captions flow through existing field-label
+IR in the receiving source locale and use the existing ICU checker; unsupported
+caption forms refuse. Constraint-only traits preserve source-authored captions.
+
 
 Canonical owners publish their producer schemas and admit checked bindings. A metadata string cannot self-register authority, storage or a new lifecycle. Extend the relevant owner where accepted new semantics need a missing producer; the architecture is explicitly extensible beyond the initial producer. Generated exports receive projected exact inputs and admitted sequential effect handles, never raw context/store/commit/registry. Existing permission, mutation order, rollback, replay and exact-value rules remain governing contracts.
 
