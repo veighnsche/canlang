@@ -152,6 +152,15 @@ contextual equivalence) and 4 (`9e794037`, 8/8 inventory) are implemented;
 (33 tests) pass in the integrated parent. Genuine defaults/server-
 initializer restrictions and independent refusals preserved.
 
+Outcome 10 implemented in `466db826` (Lane C commit `08ee88fb`): guarded
+send occurrences reading a stored email field now pass native correspondence
+(`Scalar::Email` admitted to both field_type_id and receipt-transport
+gates, reusing accepted send-guard Rule machinery, no runtime/ABI change);
+stale/foreign authority still refuses and effects stage once in source
+order. Focused `compiler/tests/native_dispatch_email_inputs.rs` passes 3/3
+in the integrated parent; owning/inventory, admission, link, producer and
+hook suites unchanged per worker report. Codex review pending.
+
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
 demanding a lane-02 catalog entry (25 E6007s); unversioned declarations and
