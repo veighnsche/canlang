@@ -2,6 +2,13 @@
 
 ## Current remainder and finite completion
 
+**C02 PaymentState identity (2026-10-15, implemented/tested).**
+The declared catalog owner survives the existing StdNominal path, closing the
+structural-object identity gap behind ProviderReceipt. Two CLI/installed-codec
+and source/schema refusal checks pass. This is the existing standard-owner rule,
+not a new app spelling or inferred anonymous identity. Diagnostic removal awaits
+original24 capture; provider ingress/full payment workflows remain unqualified.
+
 **C02 helper ANY query census (2026-10-15, implemented/tested prerequisite).**
 Leading helper queries now retain actual formal/argument source joins and ordered
 candidate CONTROL dependencies through existing query facts. The compulsory
