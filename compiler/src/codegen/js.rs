@@ -4939,7 +4939,7 @@ impl<'a> Emitter<'a> {
         self.stdlib
             .insert("selectScenarioReceiptReturn".to_string());
         let mut selection = "const $receiptReturns=[];".to_string();
-        for returned in returns {
+        for returned in &returns {
             let tests = returned
                 .decisions
                 .iter()
@@ -4975,7 +4975,28 @@ impl<'a> Emitter<'a> {
             // The existing native frame captures the genuine once-evaluated
             // owning view. Bind before selection, and return its canonical wire.
             self.stdlib.insert("bindScenarioReceiptModelResult".into());
-            selection.push_str("const $receiptModelResult=await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptValue);");
+            if returns
+                .iter()
+                .any(|returned| returned.reference_result.is_some())
+            {
+                self.stdlib
+                    .insert("readScenarioReceiptStoredReference".into());
+                self.stdlib
+                    .insert("observeScenarioReceiptDependency".into());
+                selection.push_str("let $receiptModelView=$receiptValue;");
+                for returned in &returns {
+                    if let Some(read) = &returned.reference_result {
+                        selection.push_str(&format!(
+                            "if($receiptReturns[0]==={}){{$receiptModelView=await readScenarioReceiptStoredReference(c,$receiptValue,{},{});await observeScenarioReceiptDependency(c,{},$receiptModelView,\"id\",{});}}",
+                            js_string(&returned.id), js_string(read.source_dependency_id.as_deref()?),
+                            js_string(&read.id), js_string(&read.model), js_string(&read.id),
+                        ));
+                    }
+                }
+                selection.push_str("const $receiptModelResult=await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptModelView);");
+            } else {
+                selection.push_str("const $receiptModelResult=await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptValue);");
+            }
         }
         selection.push_str("selectScenarioReceiptReturn(c,$receiptReturns[0]);");
         Some(selection)

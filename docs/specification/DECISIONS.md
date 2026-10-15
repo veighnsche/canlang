@@ -15720,3 +15720,47 @@ State/frame component qualification. The receiving invoke metadata alternative
 compiles; actual generated consumer qualification waits for compiler reference/
 branch joins. Reuse the retained701-diagnostic original static capture for this
 CF-only change; full CanCRM remains unfinished.
+
+
+2026-10-15 — C02/C10: bind original observed reference results across early branches.
+
+Implement the settled stored-reference result semantics at their existing owners.
+An original required Model field on a genuine first-selected row or required
+parameter retains its declaration, source getter/field data observation and a
+separate reserved target-ID data dependency at the same real Member occurrence.
+After that once-evaluated getter and marker, the private native return promotes
+the exact wire reference, observes the actual target identity and binds its
+existing model result. Source/target owner-stage, grants, ancestors, Identity,
+lifetime and final/replay checks remain in State and the native bridge. No fake
+id field, source-member rewrite, new public DTO/API or permission is introduced.
+
+Original early If/Require/Return paths join exact source conditions, statement
+counts/order, spans and types. Model-result lookup now finds the actual nested
+Return; final fresh creates retain their own proven binding. First-query source
+metadata retains all original return paths and their common query influences,
+rather than substituting the final Return anchor for every path. Unsupported
+aliases, nullable/array references and additional navigation remain explicit
+backend gaps; these restrictions are not canonical language rules. Settled
+reference identity and branch/effect semantics require no new JEV choice.
+
+All28 affected compiler checks pass, including renamed/grouped/required-parameter
+reuse and guard/condition/order/reference substitution refusals. Actual captured
+CLI/verified assembly/D1/Identity consumer passes1/1 in18.74s: genuine separate
+source/target witnesses, zero business writes/history for existing results, one
+fresh insertion, both late failure rollbacks, no-query-execution ordinary and
+dedicated replay, membership revocation withholding/restoration and frozen
+source/artifact/module bytes. The original fixture's missing reference version
+was corrected after the real input validator refused it. Catalog freshness was
+repaired with its owning emitter after dependency emission; catalog bytes are
+identical. CLI build, changed-file formatting and diff pass. Root TypeScript
+retains16 errors in four untouched files, none in this consumer; strict library
+Clippy reports29 errors at unchanged lines. Neither whole check is claimed green.
+
+Frozen original24-source validation exits10 after382.85s with the same701
+diagnostics (675 E6008,26 E6007), complete=true, omitted=0, none added/removed
+and identical source inventory. Original .can/catalog bytes are unchanged;
+there is no usable native artifact. Original CRM guard reference navigation,
+reference-bearing Contract input members, root-model constructor pairing and
+whole-cohort hook preparation remain locally unfinished. Preserve and qualify
+the existing canonical Contract equality rather than adding a new mechanism. The coherent reference-return
+prerequisite does not qualify full CanCRM or training-data authoring.

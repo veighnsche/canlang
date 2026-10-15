@@ -635,7 +635,7 @@ fn collect_complete_query_receipt_prepared(
                 return None;
             }
             for (returned, emitted) in selected_returns.iter().zip(&plan.returns) {
-                if returned.node != query.return_node
+                if super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
                     || returned.id != emitted.id
                     || returned.source != query.source
                     || returned.model_result.is_none()
@@ -653,6 +653,7 @@ fn collect_complete_query_receipt_prepared(
                         span: Span::new(returned.node.file, returned.node.start, returned.node.end),
                         decisions: Vec::new(),
                         implicit: false,
+                        reference_result: None,
                     })
                     .collect();
             }
@@ -720,6 +721,7 @@ fn collect_complete_query_receipt_prepared(
             ),
             decisions: Vec::new(),
             implicit: false,
+            reference_result: None,
         }],
     })
 }
@@ -1856,7 +1858,8 @@ fn checked_first_query_plan(
         ScenarioDisclosure::Complete(checked) => {
             if checked.returns.is_empty()
                 || checked.returns.iter().any(|returned| {
-                    returned.node != q.return_node
+                    super::scenario_receipts::checked_created_model_result(ir, owner).is_none()
+                        || returned.model_result.is_none()
                         || returned.source != q.source
                         || returned.influences != expected_influences
                 })

@@ -223,6 +223,12 @@ pub struct DisclosureReturn {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DisclosureModelResult {
+    Reference {
+        model: SymbolId,
+        node: NodeKey,
+        source_model: SymbolId,
+        field: SymbolId,
+    },
     Parameter {
         model: SymbolId,
         parameter: SymbolId,
@@ -242,7 +248,8 @@ pub(crate) enum DisclosureModelResult {
 impl DisclosureModelResult {
     pub(crate) fn model(self) -> SymbolId {
         match self {
-            Self::Parameter { model, .. }
+            Self::Reference { model, .. }
+            | Self::Parameter { model, .. }
             | Self::Create { model, .. }
             | Self::Call { model, .. } => model,
         }
@@ -4918,6 +4925,100 @@ impl<'a> Closure<'a> {
             .all(|rule| rule.module == data.module && attribute(rule.node, "until", rule.until))
     }
 
+    /// Original required Model-valued field, used by expression provenance and
+    /// the owning schema census. This prepares source facts, never a row view.
+    fn checked_required_model_reference(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+    ) -> Option<(SymbolId, SymbolId, SymbolId)> {
+        let key = self.query_group(key)?;
+        let node = self.nodes.get(&key)?;
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let mut operands = node.children.iter().filter(|child| expression(child.kind));
+        let base = self.query_group(NodeKey::of(operands.next()?))?;
+        if operands.next().is_some() {
+            return None;
+        }
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.node_types.get(&base)?
+        else {
+            return None;
+        };
+        let scenario = self.effects.scenarios.values().find(|scenario| {
+            scenario.module == module
+                && scenario.node.file == key.file
+                && scenario.node.start <= key.start
+                && key.end <= scenario.node.end
+        })?;
+        if scenario.read || scenario.on.is_some() {
+            return None;
+        }
+        let original = match self.query_binding(base)? {
+            Binding::Symbol(parameter) => {
+                self.checked_call_parent_path(base, *parameter, 0) == Some((*model, 0))
+            }
+            Binding::Let { node } => scenario
+                .effects
+                .iter()
+                .find(|binding| binding.node == *node)
+                .and_then(|binding| self.checked_first_query_source(scenario, binding))
+                .is_some_and(|query| {
+                    query.model == *model && query.first.is_some_and(|first| first.binding == *node)
+                }),
+            _ => false,
+        };
+        if !original {
+            return None;
+        }
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        let SymbolKind::Model { fields, .. } = &owner.kind else {
+            return None;
+        };
+        let name = self.word(
+            node.children
+                .iter()
+                .rev()
+                .find(|child| child.kind == SyntaxKind::Name)?,
+        )?;
+        let field = fields
+            .iter()
+            .filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+            .find(|field| {
+                field.name == name
+                    && field.module == owner.module
+                    && matches!(field.kind, SymbolKind::Field {owner, ..} if owner == *model)
+            })?;
+        let ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        } = self.types.symbol_types.get(&field.id)?
+        else {
+            return None;
+        };
+        if self.types.node_types.get(&key) != self.types.symbol_types.get(&field.id)
+            || !matches!(
+                self.resolve.symbols.get(target.0 as usize)?.kind,
+                SymbolKind::Model { .. }
+            )
+            || self
+                .effects
+                .models
+                .get(model)?
+                .fields
+                .iter()
+                .find(|declaration| declaration.field == field.id)?
+                .required_array
+        {
+            return None;
+        }
+        Some((*model, field.id, *target))
+    }
+
     fn checked_stored_contracts(
         &self,
         scenario: &super::effects::ScenarioData,
@@ -4975,8 +5076,8 @@ impl<'a> Closure<'a> {
                 pending.push((query.model, true));
             }
         }
-        // Only an actual original Profile or unfinished-guard reference adds
-        // its target census. No runtime view is issued.
+        // Only an actual original stored reference adds its target census.
+        // No runtime view is issued.
         let mut expressions: Vec<_> = scenario
             .guards
             .iter()
@@ -4991,6 +5092,12 @@ impl<'a> Closure<'a> {
             }
             if node.kind == SyntaxKind::Examples {
                 continue;
+            }
+            if node.kind == SyntaxKind::Member
+                && let Some((_, _, target)) =
+                    self.checked_required_model_reference(NodeKey::of(node), scenario.module)
+            {
+                pending.push((target, true));
             }
             if node.kind == SyntaxKind::Member
                 && let Some((_, _, _, profile)) = self
@@ -8180,6 +8287,19 @@ impl<'a> Closure<'a> {
         }
         let mut values = self.expr(base_key, module, env, calls)?;
         for value in &mut values {
+            if matches!(
+                value.model_result,
+                Some(DisclosureModelResult::Reference { .. })
+            ) && self
+                .checked_profile_scalar(key, module)
+                .or_else(|| self.checked_run_unfinished(key, module))
+                .is_none()
+            {
+                return Err(self.fail(
+                    key,
+                    "stored Model reference needs its direct result consumer",
+                ));
+            }
             if value.current_revision.is_some() {
                 return Err(self.fail(
                     key,
@@ -8476,6 +8596,18 @@ impl<'a> Closure<'a> {
             let profile_scalar = self
                 .checked_profile_scalar(key, module)
                 .or_else(|| self.checked_run_unfinished(key, module));
+            // A required stored Model field is a reference to its actual row,
+            // never a local Contract shell. Retain the exact original receiver;
+            // lexical copies and further traversal are separate consumers.
+            let required_reference = self.checked_required_model_reference(key, module)
+                .filter(|(source, reference, _)| *source == model && *reference == field.id)
+                .filter(|_| calls.is_empty() && self.loop_node.is_none()
+                    && (matches!(value.reference_origin, Some(ReferenceOrigin::Parameter(parameter))
+                        if matches!(self.query_binding(base_key), Some(Binding::Symbol(actual)) if *actual == parameter))
+                        || value.first_query.is_some_and(|(_, binding)| {
+                            matches!(self.query_binding(base_key), Some(Binding::Let {node}) if *node == binding)
+                        })))
+                .map(|(_, _, target)| target);
             if matches!(value.reference_origin, Some(ReferenceOrigin::Field { .. }))
                 && self
                     .checked_profile_reference(base_key, module)
@@ -8605,6 +8737,20 @@ impl<'a> Closure<'a> {
                 });
                 self.reference_operand_type_id(field_ty)
                     .ok_or_else(|| self.fail(key, "reference operand canonical type"))?
+            } else if required_reference.is_some() {
+                if self.effects.models.get(&model).is_none_or(|owner| {
+                    !owner.fields.iter().any(|declaration| {
+                        declaration.field == field.id && !declaration.required_array
+                    })
+                }) {
+                    return Err(self.fail(key, "missing required stored Model field declaration"));
+                }
+                value.contract_value = None;
+                value.first_query = None;
+                value.reference_origin = None;
+                self.reference_operand_type_id(field_ty).ok_or_else(|| {
+                    self.fail(key, "missing required stored Model target declaration")
+                })?
             } else if let ResolvedType::Record {
                 symbol: contract, ..
             } = field_ty
@@ -8656,7 +8802,15 @@ impl<'a> Closure<'a> {
                 type_id,
             });
             value.observed.push((key, calls.to_vec()));
-            value.record = profile_reference.map(|(_, _, _, profile)| profile);
+            value.record =
+                required_reference.or_else(|| profile_reference.map(|(_, _, _, profile)| profile));
+            value.model_result =
+                required_reference.map(|target| DisclosureModelResult::Reference {
+                    model: target,
+                    node: key,
+                    source_model: model,
+                    field: field.id,
+                });
             value.reference = None;
         }
         Ok(values)
@@ -12672,11 +12826,27 @@ impl<'a> Closure<'a> {
             .find(|effect| effect.verb == EffectVerb::Create)
         {
             let created_pair = self.checked_created_pair(effects, module, created);
+            // Branch contents still pass the ordinary ordered Flow proof:
+            // only the actual surviving path reaches this final created row.
+            let before_direct_create =
+                |effect: &Effect| {
+                    matches!(effect.verb, EffectVerb::Let | EffectVerb::Require)
+                        || effect.verb == EffectVerb::If
+                            && effect.match_arms.is_empty()
+                            && effect.then_effects.iter().chain(&effect.else_effects).all(
+                                |nested| {
+                                    matches!(nested.verb, EffectVerb::Require | EffectVerb::Return)
+                                        && nested.then_effects.is_empty()
+                                        && nested.else_effects.is_empty()
+                                        && nested.match_arms.is_empty()
+                                },
+                            )
+                };
             let direct_model_return = self.result_model.is_some_and(|model| {
                 effects.len() >= 2
                     && ((!created_pair && effects.iter().position(|effect| effect.node == created.node).is_some_and(|position| {
                             position + 1 < effects.len()
-                                && effects[..position].iter().all(|effect| matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
+                                && effects[..position].iter().all(before_direct_create)
                                 && effects[position + 1..effects.len() - 1].iter().all(|effect| effect.verb == EffectVerb::Require)
                         }))
                         || (created_pair && effects.len() >= 3
@@ -12691,8 +12861,9 @@ impl<'a> Closure<'a> {
                                     })
                             })
                     })
-                    && effects.iter().all(|effect| effect.then_effects.is_empty()
-                        && effect.else_effects.is_empty() && effect.match_arms.is_empty())
+                    && effects.iter().all(|effect| effect.verb == EffectVerb::If
+                        || effect.then_effects.is_empty()
+                            && effect.else_effects.is_empty() && effect.match_arms.is_empty())
             });
             let created_child_return = self.result_model.is_some_and(|model| {
                 if effects.len() < 3
@@ -12926,6 +13097,15 @@ impl<'a> Closure<'a> {
                             self.fail(effect.node, "missing immutable initializer")
                         })?;
                         for evaluated in self.expr(value, module, &flow.env, calls)? {
+                            if matches!(
+                                evaluated.model_result,
+                                Some(DisclosureModelResult::Reference { .. })
+                            ) {
+                                return Err(self.fail(
+                                    value,
+                                    "stored Model reference result cannot be copied",
+                                ));
+                            }
                             if matches!(
                                 evaluated.reference_origin,
                                 Some(
@@ -13288,6 +13468,70 @@ impl<'a> Closure<'a> {
                                         node: operand,
                                     });
                                 }
+                                if let Some(DisclosureModelResult::Reference {
+                                    model: target,
+                                    node: operand,
+                                    source_model,
+                                    field,
+                                }) = value.model_result
+                                {
+                                    let owner = self
+                                        .resolve
+                                        .symbols
+                                        .get(target.0 as usize)
+                                        .ok_or_else(|| {
+                                            self.fail(operand, "missing reference result target")
+                                        })?;
+                                    if target != model
+                                        || value.record != Some(target)
+                                        || effect.value.and_then(|key| self.query_group(key))
+                                            != Some(operand)
+                                        || self
+                                            .nodes
+                                            .get(&operand)
+                                            .is_none_or(|node| node.kind != SyntaxKind::Member)
+                                        || self.types.node_types.get(&operand)
+                                            != Some(&ResolvedType::Record {
+                                                symbol: target,
+                                                stored: true,
+                                            })
+                                        || !value.reads.iter().any(|read| {
+                                            read.node == operand
+                                                && read.role == DependencyRole::Data
+                                                && read.model == source_model
+                                                && read.field == field
+                                                && read.ty
+                                                    == (ResolvedType::Record {
+                                                        symbol: target,
+                                                        stored: true,
+                                                    })
+                                                && read.calls.is_empty()
+                                                && read.query_id.is_none()
+                                        })
+                                        || !matches!(owner.kind, SymbolKind::Model { .. })
+                                    {
+                                        return Err(self.fail(operand, "direct required reference result source correspondence"));
+                                    }
+                                    value.reads.push(DisclosureDependency {
+                                        query_id: None,
+                                        id: self.opaque(
+                                            "return-model-id",
+                                            operand,
+                                            &self.call_stamp(calls)?,
+                                        )?,
+                                        source: self.source(module, operand)?,
+                                        node: operand,
+                                        calls: calls.to_vec(),
+                                        role: DependencyRole::Data,
+                                        model: target,
+                                        field: target,
+                                        model_name: owner.canonical.clone(),
+                                        field_name: "id".into(),
+                                        ty: ResolvedType::Scalar(Scalar::Text),
+                                        type_id: "text".into(),
+                                    });
+                                    value.observed.push((operand, calls.to_vec()));
+                                }
                                 let matches = match (direct, value.model_result) {
                                     (
                                         Some(Binding::Symbol(parameter)),
@@ -13312,6 +13556,18 @@ impl<'a> Closure<'a> {
                                             ..
                                         }),
                                     ) => *node == producer && model == actual,
+                                    (
+                                        _,
+                                        Some(DisclosureModelResult::Reference {
+                                            model: actual,
+                                            node,
+                                            ..
+                                        }),
+                                    ) => {
+                                        model == actual
+                                            && effect.value.and_then(|key| self.query_group(key))
+                                                == Some(node)
+                                    }
                                     _ => false,
                                 };
                                 if !matches {

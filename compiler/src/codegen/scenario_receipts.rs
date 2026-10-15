@@ -249,6 +249,9 @@ pub(super) struct NativeReturn {
     pub span: Span,
     pub decisions: Vec<(String, DisclosureChoice)>,
     pub implicit: bool,
+    /// Target identity is observed after promoting the once-read reference,
+    /// never as another field read on its original source receiver.
+    pub reference_result: Option<NativeDependency>,
 }
 
 #[derive(Debug, Clone)]
@@ -451,6 +454,48 @@ pub(super) fn has_original_transcript_source(
         .is_some_and(|transcripts| !transcripts.is_empty())
 }
 
+fn result_statement_at(effects: &[IrStmt], at: Span) -> Option<&IrStmt> {
+    fn collect<'a>(
+        effects: &'a [IrStmt],
+        at: Span,
+        depth: usize,
+        found: &mut Vec<&'a IrStmt>,
+    ) -> Option<()> {
+        if depth > 16 {
+            return None;
+        }
+        for statement in effects {
+            match statement {
+                IrStmt::Return { span, .. }
+                | IrStmt::Create { span, .. }
+                | IrStmt::Call { span, .. }
+                    if *span == at =>
+                {
+                    found.push(statement)
+                }
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => {
+                    collect(then_branch, at, depth + 1, found)?;
+                    collect(else_branch, at, depth + 1, found)?;
+                }
+                IrStmt::Match { arms, .. } => {
+                    for arm in arms {
+                        collect(&arm.body, at, depth + 1, found)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Some(())
+    }
+    let mut found = Vec::new();
+    collect(effects, at, 0, &mut found)?;
+    (found.len() == 1).then(|| found[0])
+}
+
 pub(super) fn checked_created_model_result(
     ir: &IrProgram,
     item: &IrItem,
@@ -504,7 +549,75 @@ pub(super) fn checked_created_model_result(
             if origin.model() != *model || returned.source != checked.source {
                 return None;
             }
+            let IrStmt::Return {
+                value: Some(value), ..
+            } = result_statement_at(effects, node_span(returned.node))?
+            else {
+                return None;
+            };
+            if let DisclosureModelResult::Reference {
+                model: actual,
+                node,
+                source_model,
+                field,
+            } = origin
+            {
+                let IrExpr::Member { base, field: name } = &value.expr else {
+                    return None;
+                };
+                let declared = ir.items.get(field.0 as usize)?;
+                let IrItemKind::Field {
+                    owner,
+                    ty: IrType::Known(ty),
+                    default: None,
+                    server: None,
+                    ..
+                } = &declared.kind
+                else {
+                    return None;
+                };
+                let target = ResolvedType::Record {
+                    symbol: *model,
+                    stored: true,
+                };
+                if actual != *model
+                    || *owner != source_model
+                    || declared.name != *name
+                    || *ty != target
+                    || value.ty != target
+                    || value.span != node_span(node)
+                    || base.ty
+                        != (ResolvedType::Record {
+                            symbol: source_model,
+                            stored: true,
+                        })
+                    || !returned.dependencies.iter().any(|read| {
+                        read.node == node
+                            && read.model == source_model
+                            && read.field == field
+                            && read.ty == target
+                            && read.role == DependencyRole::Data
+                            && read.calls.is_empty()
+                            && read.query_id.is_none()
+                    })
+                    || !returned.dependencies.iter().any(|read| {
+                        read.node == node
+                            && read.model == *model
+                            && read.field == *model
+                            && read.field_name == "id"
+                            && read.ty == ResolvedType::Scalar(Scalar::Text)
+                            && read.type_id == "text"
+                            && read.role == DependencyRole::Data
+                            && read.calls.is_empty()
+                            && read.query_id.is_none()
+                    })
+                {
+                    return None;
+                }
+                continue;
+            }
             let (node, binding) = match origin {
+                DisclosureModelResult::Reference { .. } => unreachable!(),
                 DisclosureModelResult::Parameter {
                     model: actual,
                     parameter,
@@ -568,8 +681,15 @@ pub(super) fn checked_created_model_result(
                     else {
                         return None;
                     };
-                    let IrStmt::Create {model: target, binding: Some(actual_binding), when: None, ..} = effects.iter().find(|effect|
-                        matches!(effect, IrStmt::Create {span, ..} if *span == node_span(node)))? else { return None; };
+                    let IrStmt::Create {
+                        model: target,
+                        binding: Some(actual_binding),
+                        when: None,
+                        ..
+                    } = result_statement_at(effects, node_span(node))?
+                    else {
+                        return None;
+                    };
                     if actual != *proven
                         || target != &declaration.canonical
                         || binding != actual_binding
@@ -593,9 +713,18 @@ pub(super) fn checked_created_model_result(
                     else {
                         return None;
                     };
-                    let IrStmt::Call { target: IrEffectCallTarget::Operation {operation: target, ..}, binding: Some(binding), result,
-                        .. } = effects.iter().find(|effect| matches!(effect, IrStmt::Call {span, ..} if *span == node_span(node)))?
-                        else { return None; };
+                    let IrStmt::Call {
+                        target:
+                            IrEffectCallTarget::Operation {
+                                operation: target, ..
+                            },
+                        binding: Some(binding),
+                        result,
+                        ..
+                    } = result_statement_at(effects, node_span(node))?
+                    else {
+                        return None;
+                    };
                     let source_call = facts.calls.iter().find(|call| call.node == node)?;
                     if operation != *proven
                         || target != &operation
@@ -614,8 +743,6 @@ pub(super) fn checked_created_model_result(
                     (node, binding)
                 }
             };
-            let IrStmt::Return {value: Some(value), ..} = effects.iter().find(|effect|
-                matches!(effect, IrStmt::Return {span, ..} if *span == node_span(returned.node)))? else { return None; };
             if node.file != returned.node.file
                 || node.end > returned.node.start
                 || value.ty
@@ -871,25 +998,33 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             let IrStmt::Return {
                 value: Some(value),
                 span,
-            } = effects.iter().find(
-                |effect| matches!(effect, IrStmt::Return {span, ..} if *span == return_span),
-            )?
+            } = result_statement_at(effects, return_span)?
             else {
                 return None;
             };
-            let IrExpr::Name(binding) = &value.expr else {
-                return None;
-            };
-            created_record_name_matches(
-                value,
-                &ResolvedType::Record {
-                    symbol: model,
-                    stored: true,
-                },
-                binding,
-                *span,
-                db?,
-            )?;
+            if matches!(
+                returned.model_result,
+                Some(DisclosureModelResult::Reference { .. })
+            ) {
+                let target = checked_reference_model_result(ir, item, value, models, db?)?;
+                if target.id != model {
+                    return None;
+                }
+            } else {
+                let IrExpr::Name(binding) = &value.expr else {
+                    return None;
+                };
+                created_record_name_matches(
+                    value,
+                    &ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    },
+                    binding,
+                    *span,
+                    db?,
+                )?;
+            }
             checked_effect_node(ir, item, returned.node, db?)?;
         }
         if !implicit {
@@ -900,6 +1035,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
             span: if implicit { item.span } else { return_span },
             decisions: Vec::new(),
             implicit,
+            reference_result: None,
         };
         let mut plan_return = ReceiptReturn {
             id: returned.id.clone(),
@@ -970,18 +1106,23 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
         }
         for dependency in &returned.dependencies {
             let result_identity = match returned.model_result {
-                Some(DisclosureModelResult::Parameter { model, node, .. })
-                    if dependency.node == node
-                        && dependency.model == model
-                        && dependency.field == model
-                        && dependency.field_name == "id"
-                        && dependency.role == DependencyRole::Data
-                        && dependency.calls.is_empty()
-                        && dependency.query_id.is_none() =>
+                Some(
+                    DisclosureModelResult::Parameter { model, node, .. }
+                    | DisclosureModelResult::Reference { model, node, .. },
+                ) if dependency.node == node
+                    && dependency.model == model
+                    && dependency.field == model
+                    && dependency.field_name == "id"
+                    && dependency.role == DependencyRole::Data
+                    && dependency.calls.is_empty()
+                    && dependency.query_id.is_none() =>
                 {
-                    let IrStmt::Return { value: Some(value), .. } = effects.iter().find(|effect|
-                        matches!(effect, IrStmt::Return { span, .. } if *span == node_span(returned.node)))?
-                    else { return None; };
+                    let IrStmt::Return {
+                        value: Some(value), ..
+                    } = result_statement_at(effects, node_span(returned.node))?
+                    else {
+                        return None;
+                    };
                     if value.span != node_span(node) {
                         return None;
                     }
@@ -1165,7 +1306,14 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     Some(value) => value,
                     None => *sites.members.get(&site)?.first()?,
                 };
-                let original = checked_parameter_row_id(ir, item, expression, models, db?)?;
+                let original = if matches!(
+                    returned.model_result,
+                    Some(DisclosureModelResult::Reference { .. })
+                ) {
+                    checked_reference_model_result(ir, item, expression, models, db?)?
+                } else {
+                    checked_parameter_row_id(ir, item, expression, models, db?)?
+                };
                 if original.id != dependency.model || original.canonical != dependency.model_name {
                     return None;
                 }
@@ -1501,18 +1649,53 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                     return None;
                 }
             }
-            let observed = recipe.dependencies.entry(site).or_default();
-            if let Some(previous) = observed.iter().find(|read| read.id == dependency.id) {
-                if previous.source_dependency_id != source_dependency_id {
+            let reference_result = result_identity.is_some()
+                && matches!(
+                    returned.model_result,
+                    Some(DisclosureModelResult::Reference { .. })
+                );
+            if reference_result {
+                let Some(DisclosureModelResult::Reference {
+                    node,
+                    source_model,
+                    field,
+                    ..
+                }) = returned.model_result
+                else {
+                    return None;
+                };
+                let mut reads = returned.dependencies.iter().filter(|read| {
+                    read.node == node
+                        && read.model == source_model
+                        && read.field == field
+                        && read.role == DependencyRole::Data
+                        && read.calls.is_empty()
+                        && read.query_id.is_none()
+                });
+                let read = reads.next()?;
+                if reads.next().is_some() || native_return.reference_result.is_some() {
                     return None;
                 }
-            } else {
-                observed.push(NativeDependency {
+                native_return.reference_result = Some(NativeDependency {
                     id: dependency.id.clone(),
                     model: dependency.model_name.clone(),
-                    field: dependency.field_name.clone(),
-                    source_dependency_id,
+                    field: "id".into(),
+                    source_dependency_id: Some(read.id.clone()),
                 });
+            } else {
+                let observed = recipe.dependencies.entry(site).or_default();
+                if let Some(previous) = observed.iter().find(|read| read.id == dependency.id) {
+                    if previous.source_dependency_id != source_dependency_id {
+                        return None;
+                    }
+                } else {
+                    observed.push(NativeDependency {
+                        id: dependency.id.clone(),
+                        model: dependency.model_name.clone(),
+                        field: dependency.field_name.clone(),
+                        source_dependency_id,
+                    });
+                }
             }
             plan_return.dependencies.push(ReceiptDependency {
                 id: dependency.id.clone(),
@@ -2984,7 +3167,8 @@ fn checked_native_first_query_source_plan(
         || query.source != checked.source
         || checked.returns.iter().any(|returned| {
             returned.source != checked.source
-                || query.return_node != returned.node
+                || result_statement_at(effects, node_span(returned.node)).is_none()
+                || returned.model_result.is_none()
                 || returned.influences != expected_influences
         })
         || query.id.is_empty()
@@ -3882,11 +4066,7 @@ fn checked_first_query_row<'a>(
     let IrExpr::Name(name) = &value.expr else {
         return None;
     };
-    let original = facts
-        .creates
-        .as_deref()?
-        .iter()
-        .find(|created| checked_created_model_result(ir, owner) == Some(created.model))?;
+    let original = facts.creates.as_deref()?.first()?;
     let IrItemKind::Scenario { effects, .. } = &owner.kind else {
         return None;
     };
@@ -6188,7 +6368,65 @@ pub(super) fn stored_reference_operand<'a>(
     let IrExpr::Member { base, field } = &value.expr else {
         return None;
     };
-    let (_, parent) = checked_parent_reference(ir, owner, base, db)?;
+    let parent = if matches!(base.expr, IrExpr::Name(_)) {
+        let models = super::js::Emitter::source_models(ir, db)?;
+        checked_parameter_row_id(ir, owner, base, &models, db)
+            .or_else(|| checked_first_query_row(ir, owner, base, db))?
+    } else {
+        checked_parent_reference(ir, owner, base, db)?.1
+    };
+    // Join the exact original member and receiver, including erased grouping.
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let node = checked_effect_node(
+        ir,
+        owner,
+        crate::analysis::NodeKey {
+            file: value.span.file,
+            start: value.span.start,
+            end: value.span.end,
+            kind: SyntaxKind::Member as u8,
+        },
+        db,
+    )?;
+    let mut receiver = node.children.iter().find(|node| {
+        matches!(
+            node.kind,
+            SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Group
+        )
+    })?;
+    while receiver.kind == SyntaxKind::Group {
+        let children: Vec<_> = receiver
+            .children
+            .iter()
+            .filter(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::NameRef | SyntaxKind::Member | SyntaxKind::Group
+                )
+            })
+            .collect();
+        let [inner] = children.as_slice() else {
+            return None;
+        };
+        receiver = inner;
+    }
+    if receiver.span != base.span {
+        return None;
+    }
+    let name = node
+        .children
+        .iter()
+        .rev()
+        .find(|node| node.kind == SyntaxKind::Name)?;
+    if name.token()?.text(&db.get(value.span.file)?.text) != field
+        || !source
+            .expression_types
+            .as_deref()?
+            .iter()
+            .any(|(at, ty)| node_span(*at) == value.span && ty == &value.ty)
+    {
+        return None;
+    }
     let mut fields = parent
         .fields
         .iter()
@@ -6247,6 +6485,52 @@ pub(super) fn stored_reference_operand<'a>(
         }
     }
     Some(original)
+}
+
+fn checked_reference_model_result<'a>(
+    ir: &'a IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    models: &[JsModel],
+    db: &SourceDb,
+) -> Option<&'a crate::analysis::scenario_disclosure::CheckedStoredContractSchema> {
+    let field = stored_reference_operand(ir, owner, value, db)?;
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = field.ty
+    else {
+        return None;
+    };
+    let source = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut schemas = source
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .filter(|schema| schema.model && schema.id == symbol);
+    let target = schemas.next()?;
+    if schemas.next().is_some() || target.fields.iter().any(|field| field.name == "id") {
+        return None;
+    }
+    match_stored_contract_schema(ir, target, db)?;
+    for field in &target.fields {
+        match_stored_contract_field(ir, field, db)?;
+    }
+    let generated = super::js::Emitter::source_models(ir, db)?;
+    let mut expected = generated
+        .iter()
+        .filter(|model| model.name == target.canonical);
+    let mut actual = models.iter().filter(|model| model.name == target.canonical);
+    let (expected_descriptor, descriptor) = (expected.next()?, actual.next()?);
+    if expected.next().is_some()
+        || actual.next().is_some()
+        || descriptor.fields.iter().any(|field| field.name == "id")
+        || serde_json::to_value(expected_descriptor).ok()?
+            != serde_json::to_value(descriptor).ok()?
+    {
+        return None;
+    }
+    Some(target)
 }
 
 fn reference_operand_type_id(ir: &IrProgram, ty: &ResolvedType) -> Option<String> {
@@ -7787,6 +8071,16 @@ fn checked_created_statements(
                 (SyntaxKind::Let, *span, Some(value))
             }
             IrStmt::Require { cond, span } => (SyntaxKind::Require, *span, Some(cond)),
+            IrStmt::If { span, .. } => {
+                super::scenario_create_sources::checked_create_prefix_if(
+                    ir,
+                    original,
+                    statement,
+                    NodeKey::of(authored),
+                    db,
+                )?;
+                (SyntaxKind::If, *span, None)
+            }
             IrStmt::Create { span, .. } => (SyntaxKind::Create, *span, None),
             IrStmt::Set {
                 record,
@@ -8420,6 +8714,30 @@ pub(super) fn checked_created_reference_operand(
     Some(())
 }
 
+fn model_result_prefix(statement: &IrStmt) -> bool {
+    fn branch(statements: &[IrStmt], depth: usize) -> bool {
+        depth <= 16
+            && statements.iter().all(|statement| match statement {
+                IrStmt::Require { .. } | IrStmt::Return { value: Some(_), .. } => true,
+                IrStmt::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => branch(then_branch, depth + 1) && branch(else_branch, depth + 1),
+                _ => false,
+            })
+    }
+    match statement {
+        IrStmt::Let { .. } | IrStmt::Require { .. } => true,
+        IrStmt::If {
+            then_branch,
+            else_branch,
+            ..
+        } => branch(then_branch, 0) && branch(else_branch, 0),
+        _ => false,
+    }
+}
+
 fn ordered_created_model_effects(
     ir: &IrProgram,
     owner: &IrItem,
@@ -8451,9 +8769,7 @@ fn ordered_created_model_effects(
     let last_create = paired.unwrap_or(create);
     let direct = matches!(effects.get(effects.len() - 2),
         Some(IrStmt::Create {span, ..}) if *span == node_span(create))
-        && effects[..effects.len() - 2]
-            .iter()
-            .all(|effect| matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }));
+        && effects[..effects.len() - 2].iter().all(model_result_prefix);
     let direct = direct
         || paired.is_some()
             && matches!(
@@ -8467,9 +8783,7 @@ fn ordered_created_model_effects(
             && effects.iter().enumerate().any(|(position, effect)| {
                 position + 1 < effects.len()
                     && matches!(effect, IrStmt::Create { span, .. } if *span == node_span(create))
-                    && effects[..position]
-                        .iter()
-                        .all(|effect| matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }))
+                    && effects[..position].iter().all(model_result_prefix)
                     && effects[position + 1..effects.len() - 1]
                         .iter()
                         .all(|effect| matches!(effect, IrStmt::Require { .. }))
@@ -8495,7 +8809,7 @@ fn ordered_created_model_effects(
         if creates.next().is_some()
             || effects[..position]
                 .iter()
-                .any(|effect| !matches!(effect, IrStmt::Let { .. } | IrStmt::Require { .. }))
+                .any(|effect| !model_result_prefix(effect))
             || !matches!(statement, IrStmt::Create {input, span, ..}
                 if *span == node_span(create) && matches!(&input.expr,
                     IrExpr::Object(entries) if !entries.is_empty()))
