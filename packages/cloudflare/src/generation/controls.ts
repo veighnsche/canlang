@@ -947,10 +947,10 @@ async function runOperation(
 
 /**
  * Forward one request to the compiler and return its envelope
- * untouched. File operands absolutize against the request root
- * first (the compiler resolves operands against its own working
- * directory); every other field passes through verbatim, and the
- * control layer adds no fields to the response.
+ * untouched. Source operands absolutize against the request root;
+ * saved validation operands stay canonical root-relative paths.
+ * Every other field passes through verbatim, and the control layer
+ * adds no fields to the response.
  */
 async function runPassthrough(
   header: RequestHeader,
@@ -959,7 +959,7 @@ async function runPassthrough(
   ctx: ControlContext,
 ): Promise<ControlResult> {
   const caller = ctx.compiler ?? defaultCompilerCaller;
-  const forwarded = absolutizeOperands(params, operation);
+  const forwarded = compilerOperands(params, operation);
   const { code, stdout } = await caller(
     JSON.stringify({ version: 1, request_id: header.request_id, operation, ...forwarded }),
   );
@@ -979,16 +979,17 @@ async function runPassthrough(
   return { code, envelope: stdout.endsWith("\n") ? stdout : `${stdout}\n` };
 }
 
-/** Absolutize a passthrough request's file operands against its root. */
-function absolutizeOperands(params: object, operation: string): Record<string, unknown> {
+/** Source operands resolve from the compiler cwd; saved validation uses root-relative paths. */
+function compilerOperands(params: object, operation: string): Record<string, unknown> {
   const record = { ...(params as Record<string, unknown>) };
   const root = record["root"];
   if (typeof root !== "string") return record;
   const absolutize = (file: string): string => scopeAbs(root, file);
   if ((operation === "status" || operation === "validate") && Array.isArray(record["files"])) {
-    record["files"] = (record["files"] as unknown[]).map((file) =>
-      typeof file === "string" ? absolutize(file) : file,
-    );
+    record["files"] = (record["files"] as unknown[]).map(file => {
+      if (typeof file !== "string") return file;
+      return operation === "validate" ? leaseRel(root, file) ?? absolutize(file) : absolutize(file);
+    });
   }
   if ((operation === "inspect" || operation === "bind") && typeof record["file"] === "string") {
     record["file"] = absolutize(record["file"] as string);
@@ -1839,7 +1840,8 @@ function issueJobHandles(units: ResolvedUnit[]): {
       }
       taken.add(handle);
       const saved = savedPathFor(role, filename);
-      const optional = role === "asset" || (unit.kind === "view" && role !== "server");
+      const optional = role === "asset" || (unit.kind === "view" && role !== "server")
+        || ((unit.kind === "named-trait" || unit.kind === "inline-trait") && role === "server");
       allowed.push({ handle, role: role as McpRole, kind: unit.kind, filename });
       handles[handle] = { unit: unit.unit_id, role, filename, saved, required: !optional };
       if (!optional) required.push(handle);
@@ -1867,9 +1869,9 @@ function renderJobPrompt(
     "## Owning output interfaces",
     "Scoped CSS forbids bare universal * selectors, including :host > * + *. Use explicit element/class selectors or supported :where(...) selector forms. Prefer root layout properties such as gap when styling sibling spacing.",
     "Generated view input uses RowView={id,version,fields}. Model data is projected under row.fields: read row.fields.title, row.fields.handle or row.fields.done, never row.title/row.handle/row.done. Row identity and version are row.id and row.version.",
-    "Traits: submit only contributions.can. It is a Can source carrier beginning with `app <owning app>`, then `Given`. A named model trait uses a template model named after the trait, e.g. `completable {done:bool=false}`. An inline model trait names its attached model. A field trait uses one field of the attached type with the requested constraints; a named field trait template is `clean {value:text trim min=1}`, while an inline field trait names its model and field. Do not redeclare unrelated source fields, add executable code, or emit a server module for a trait.",
+    "Traits: always submit contributions.can. It is a Can source carrier beginning with `app <owning app>`, then `Given`. A named model trait uses a template model named after the trait, e.g. `completable {done:bool=false}`. An inline model trait names its attached model. A field trait uses one field of the attached type with the requested constraints; a named field trait template is `clean {value:text trim min=1}`, while an inline field trait names its model and field. A pure validator on a required native text field may additionally submit a server ES module exporting `check(value)` returning a boolean (or Promise of boolean); this source-derived state.field-validation@1 binding checks the normalized post-hook value before State publishes writes, history or unique claims. False, nonboolean and exceptions refuse with canonical validation. A checker-only template can use `value:text` without extra constraints. Do not repair or mutate input, access network/storage, add authority, or supply a server module for a model trait, nullable or other field type. Do not redeclare unrelated fields.",
     "Keywords: the admitted v1 source signature (target:model, field:field(target,text)) binds the compiler-owned pure state.unique-key@1 producer. Submit a JavaScript ES module exporting `canonicalKey(value)` with an exact text input and text result. No contributions carrier, metadata, store, network, permissions, or effect handles. The compiler owns uniqueness, transactions, namespaces, and source applications. Preserve stored spelling; implement the prompt's key semantics only.",
-    "Views: submit an ES module exporting `render({row, bindings, ui})` returning HTML (or a Promise of HTML). `row` is already admitted data; escape displayed values with ui.escapeHtml and attributes with ui.escapeAttr. `bindings` contains complete canonical HTML keyed by child factory in source order (card, edit, delete, form, action, actions; repeated names add 2, 3, ...). Include each binding exactly once, unchanged. A card binding includes its source-authored content, primary footer and secondary heading menu; Can owns the whole card composition and design. Do not rebuild the card, duplicate its metadata, or extract or independently position its nested controls. Primary and secondary are labeled checked actions allowed only in semantic owner regions: page heading, card footer/header, list/table row, modal/drawer actions slot, detail drawer, or canonical form submission. Views and annotation/layout wrappers such as tooltip, tab, fieldset or join are not action owners. Do not invent controls, endpoints or hidden fields. Do not hide or restyle canonical controls. Optional `mount(root,presentation)` in the SAME module enhances only its instance and returns cleanup. Do not access browser globals at module scope. The host creates the instance root and supplies {view,useId,row}. View style.css and assets are optional.",
+    "Views: submit an ES module exporting `render({row, bindings, ui})` returning HTML (or a Promise of HTML). `row` is already admitted data; escape displayed values with ui.escapeHtml and attributes with ui.escapeAttr. `bindings` contains complete canonical HTML keyed by source child kind in source order (card, edit, delete, form, action, actions, button, text, content, history; repeated names add 2, 3, ...). An action button keeps the name button even when implemented by a protected form. A locally guarded child may supply an empty binding; whole-view guards prevent the renderer call. Include each binding exactly once, unchanged. A card binding includes its source-authored content, primary footer and secondary heading menu; Can owns the whole card composition and design. Do not rebuild the card, duplicate its metadata, or extract or independently position its nested controls. Primary and secondary are labeled checked actions allowed only in semantic owner regions: page heading, card footer/header, list/table row, modal/drawer actions slot, detail drawer, or canonical form submission. Views and annotation/layout wrappers such as tooltip, tab, fieldset or join are not action owners. Do not invent controls, endpoints or hidden fields. Do not hide or restyle canonical controls. Optional `mount(root,presentation)` in the SAME module enhances only its instance and returns cleanup. Do not access browser globals at module scope. The host creates the instance root and supplies {view,useId,row}. View style.css and assets are optional.",
     "Styles: submit ordinary CSS for the attached component and its owned parts. Use :host for the attachment root, :host(.class) for a root condition, and ordinary selectors for owned descendants. The compiler scopes selectors and local custom properties/keyframes. Do not use html, body, :root, :scope, :has(), global escapes, @import, remote URLs, or redefine shared theme variables. Read existing --color-base-100/200/300, --color-base-content, --color-primary, --color-accent, --color-error, --radius-box/field and --border with var(). Keep accessible focus, usable contrast and responsive layouts. Coordinate all Then intents and component uses shown below. Do not hide canonical controls or their validation states. Primary/secondary controls and standard form submits are shared design boundaries: do not restyle their internals, typography, color, dimensions or placement within their owning action region.",
     "",
   ];
@@ -3240,6 +3242,7 @@ async function runAdopt(
 ): Promise<ControlResult> {
   const root = params.root;
   const record = await requireRecord(root, params.unit_id);
+  const repairedFiles: string[] = [];
   for (const file of params.files) {
     const rel = leaseRel(root, file);
     const prefix = `${GENERATED_DIR}/${params.unit_id}/`;
@@ -3251,6 +3254,7 @@ async function runAdopt(
         ["adopt only the unit's own repaired saved files"],
       );
     }
+    repairedFiles.push(rel);
   }
   const leasePaths = [`${GENERATED_DIR}/${params.unit_id}/${UNIT_FILE}`];
   const sourceRel = leaseRel(root, record.source.path);
@@ -3262,9 +3266,9 @@ async function runAdopt(
       request_id: `${header.request_id}.validate`,
       operation: "validate",
       root,
-      // The compiler resolves file operands against its own working
-      // directory, not the request root: the bridge absolutizes.
-      files: params.files.map((file) => scopeAbs(root, file)),
+      // Saved validation binds these canonical paths under the explicit root;
+      // absolute source operands belong to status/inspect/bind only.
+      files: repairedFiles,
     });
     if (validated.code !== EXIT_OK || validated.body["ok"] !== true) {
       throw compilerFailure("validate", validated);
