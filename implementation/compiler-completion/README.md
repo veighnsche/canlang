@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 nested common fixture dependency census (2026-10-15, producer qualified).**
+The original first4 promotion rows reference company/contact inside their common
+Contract input, but the emitted table previously seeded only test_worker.
+Collect actual checked fixture reads recursively from common inputs and rejoin
+canonical s-slot keys to the resolved fixture declaration (source aliases were
+already checked during decoding). Preserve explicit seed order and independent
+row dependencies. Actual generated-module/Node check1/.22s passes nested
+Contract/array values, imported aliases, exact common recipe identity and a later
+row's fixture absent from the common seed set. Original6 execution still requires
+the new frozen binary; their last2 validation errors remain under investigation.
+
 **C02 parent enum invariant association (2026-10-15, qualified component).**
 CompanyRole's original `row.parent.kind==company` was outside the compiler's
 closed required-field classifier, suppressing the entire model-policy group.
@@ -41,8 +52,8 @@ joins sparse native kinds to the exact owning declaration without new metadata.
 State source10/3.95s pass, including Memory/D1 concurrency/rollback/swaps/replay/
 stale controls; actual-source CF association/refusal2/.85s pass. Isolated normal
 State/Work/CF builds pass with a coherent single State stage owner. The post-fix
-original6 run passes that profile gate, then all6 setup-refuse Employee invariant
-activation before business invocation. Its original date invariant stays intact.
+original6 run passes that profile gate; the subsequent parent-enum producer repair
+also closes invariant activation. Original schema and date invariant stay intact.
 The isolated Contracts/State/Work/Testkit/Files/Interfaces/CF normal producer
 closure is built and frozen; this run is not invalidated by missing output.
 
@@ -56,7 +67,7 @@ example/sequence expectations remain unchanged. Frozen isolated producer passes
 order5/.30s; tables1; sequences1) and locked CLI build. Retained compiler binary
 `/tmp/can-compiler-canonical-fixtures`; compatible shared target reused. Actual
 six promotion rows now reach canonical fixture setup with the frozen runtime
-closure; invariant activation remains unfinished. No original24 removals are
+closure; nested selector adaptation and invocation validation remain unfinished. No original24 removals are
 claimed from this fixture-only component.
 
 **C02 typed record-route reader lifecycle (2026-10-15, qualified prerequisite).**
@@ -86,12 +97,12 @@ promotion rows remain required.
 **C02 original promotion native consumer (2026-10-15, unfinished).**
 The exact selected schemas/policies/saved Given and both inline tables emit3
 queries with verified consumed source hashes. Canonical fixture linking now
-loads the original graph. With User+enum uniqueness fixed and the complete
-isolated producer closure frozen, the latest run setup-refuses all6 rows at
-`t17b: employee.Employee` invariant activation (6.52s), before business invocation.
-The original date invariant and complete policies remain unchanged. The earlier
-missing-Testkit attempt supplied no qualification; the latest failure is a real
-receiving gate. No fixture/schema/policy/unique reductions qualify it.
+loads the original graph. With User+enum uniqueness and parent-enum invariant
+association fixed, the frozen-closure run14.56s reaches the next adapter leaves:
+4 rows setup-refuse `input.customer.active` selector resolution;2 invoke and
+reject validation. Original date invariant and complete policies remain unchanged.
+Earlier missing-Testkit capture and invariant-gate results are superseded at
+these scopes. No fixture/schema/policy/unique reductions qualify this workflow.
 Acceptance still requires all6 unchanged rows through default canonical hooks.
 
 **C02 typed nested example fixtures (2026-10-15, qualified component).**
