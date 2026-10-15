@@ -4500,6 +4500,10 @@ impl<'a> Typer<'a> {
         // Attribute vocabulary, by/on exclusivity, trusted shape and
         // the user parameter list are the parser's (`E12xx`).
         self.check_param_defaults(file, text, module, node, &params);
+        // DESIGN §5: `by` evaluates before any declared parameter
+        // default, so an explicit-default parameter is unavailable to
+        // it, directly or through a helper call.
+        self.check_by_explicit_defaults(text, node, &params);
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         if let Some(by) = attribute_value(node, "by", text) {
@@ -5093,6 +5097,54 @@ impl<'a> Typer<'a> {
             let narrow = NarrowEnv::default();
             let cx = Self::body_cx(module, file, text, &narrow);
             self.check_description_slot(&cx, param_node);
+        }
+    }
+
+    /// Reject `by=` dependence on explicit-default parameters
+    /// (DESIGN §5: admission runs before defaults, so `p:T=expr` is
+    /// unavailable to `by` directly or through a helper call's
+    /// arguments, even when a caller supplies it). Required inputs,
+    /// implicit null/empty-array absence values and fixed admission
+    /// facts are untouched. Reports `E3011` per offending reference
+    /// without moving the permission expression or reordering
+    /// defaults.
+    fn check_by_explicit_defaults(&mut self, text: &str, node: &SyntaxNode, params: &[SymbolId]) {
+        let Some(by) = attribute_value(node, "by", text) else {
+            return;
+        };
+        let mut banned: HashSet<SymbolId> = HashSet::new();
+        for (i, param_node) in kids(node)
+            .into_iter()
+            .filter(|c| c.kind == SyntaxKind::Parameter)
+            .enumerate()
+        {
+            let Some(param) = params.get(i).copied() else {
+                continue;
+            };
+            if field_parts(param_node, text).default.is_some() {
+                banned.insert(param);
+            }
+        }
+        if banned.is_empty() {
+            return;
+        }
+        let mut work = vec![by];
+        while let Some(current) = work.pop() {
+            if current.kind == SyntaxKind::NameRef
+                && let Some(Binding::Symbol(target)) =
+                    self.tables.node_binding.get(&NodeKey::of(current))
+                && banned.contains(target)
+            {
+                self.diags.push(Diagnostic::error(
+                    "E3011",
+                    format!(
+                        "`by=` cannot use explicit-default parameter '{}'; checks needing resolved defaults belong in leading `require`",
+                        self.tables.symbols[target.0 as usize].name
+                    ),
+                    tight_span(text, current),
+                ));
+            }
+            work.extend(kids(current));
         }
     }
 
