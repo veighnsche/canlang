@@ -5851,10 +5851,10 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrExpr::HasRole { role, person } => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook role gate",
-                        "role gates need the ambient context, which hooks do not receive",
+                        "role gates need the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
@@ -6756,10 +6756,10 @@ impl<'a> Emitter<'a> {
                 )
             }
             IrCallTarget::CapabilityOp(canonical) => {
-                if self.in_hook() {
+                if self.in_hook() && !self.hook_native() {
                     return self.hook_gap(
                         "hook capability call",
-                        "capability calls need the ambient context, which hooks do not receive",
+                        "capability calls need the ambient context, which legacy hooks do not receive",
                         span,
                     );
                 }
