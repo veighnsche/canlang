@@ -262,6 +262,55 @@ describe('native rules through the actual owner mutation session', () => {
     assert.deepEqual(seen.pop(), [3, []]); assert.notEqual(await store.load(CHILD, asId('new')), null);
   });
 
+  it('selects required-reference dependents by final pointer identity after moves and removals', async () => {
+    const { store } = createTestMemoryStorage();
+    const table = buildModelTable([
+      modelDef(ITEM, { fields: { amount: field(), limit: field({ required: true }) },
+        refs: [{ field: 'limit', model: LIMIT }], deleteMode: 'remove' }),
+      modelDef(LIMIT, { fields: { cap: field() }, deleteMode: 'remove' }),
+    ]);
+    await seedRow(store, ITEM, { id: 'one', data: { amount: 2, limit: { id: 'old' } } });
+    await seedRow(store, LIMIT, { id: 'old', data: { cap: 3 } });
+    await seedRow(store, LIMIT, { id: 'next', data: { cap: 3 } });
+    const selected: string[][] = [], evaluated: string[] = [];
+    const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor([
+      { kind: 'invariant', id: 'valid', dependencies: [{ id: 'limit-users', model: LIMIT, maxTargets: 4 }] },
+    ])], bindings: [predicate('valid', 'invariant', async ({ read }, row) => {
+      evaluated.push(row.id);
+      const reference = row.data.limit as { readonly id: string };
+      const limit = await read.get(LIMIT, asId(reference.id));
+      return limit !== null && Number(row.data.amount) <= Number(limit.data.cap);
+    }), dependency('limit-users', async (views, change) => {
+      const rows = await views.final.query({ model: ITEM, authority: 'owner', archived: 'include', limit: 4,
+        where: { op: 'eq', field: 'limit.id', value: change.id } });
+      selected.push(rows.map(row => row.id));
+      return rows.map(row => ({ model: ITEM, id: row.id }));
+    })] });
+    const begin = () => beginOwnerMutation({ table, store, context: context(), bounds: { maxWork: 300, maxRows: 4 }, policies });
+    const retained = await begin();
+    await retained.stage({ op: 'update', model: LIMIT, id: asId('old'), data: { cap: 1 } }, { cause: 'scenario' });
+    await assert.rejects(retained.finalize(), isStateError('rule_failed'));
+    assert.deepEqual(selected.splice(0), [['one']]);
+    assert.deepEqual(evaluated.splice(0), ['one']);
+
+    const moved = await begin();
+    await moved.stage({ op: 'update', model: LIMIT, id: asId('old'), data: { cap: 1 } }, { cause: 'scenario' });
+    await moved.stage({ op: 'update', model: ITEM, id: asId('one'), data: { limit: { id: 'next' } } }, { cause: 'scenario' });
+    const movedOutput = await moved.finalize();
+    assert.equal(movedOutput.writes.length, 2);
+    assert.deepEqual(selected.splice(0), [[]]);
+    assert.deepEqual(evaluated.splice(0), ['one']);
+
+    const removed = await begin();
+    await removed.stage({ op: 'update', model: LIMIT, id: asId('old'), data: { cap: 1 } }, { cause: 'scenario' });
+    await removed.stage({ op: 'remove', model: ITEM, id: asId('one') }, { cause: 'scenario' });
+    assert.equal((await removed.finalize()).writes.length, 2);
+    assert.deepEqual(selected, [[]]);
+    assert.deepEqual(evaluated, []);
+    assert.deepEqual((await store.load(ITEM, asId('one')))!.data.limit, { id: 'old' });
+    assert.equal((await store.load(LIMIT, asId('old')))!.data.cap, 3);
+  });
+
   const invalidTargets: readonly [string, unknown, number, number][] = [
     ['wrong model', [{ model: LIMIT, id: 'one' }], 4, 4],
     ['nontext identity', [{ model: ITEM, id: 1 }], 4, 4],

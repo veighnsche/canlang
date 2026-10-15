@@ -6160,7 +6160,8 @@ function localPolicyContextFacts(context: InvocationContext): string {
 /** Decode only the row presently chosen by State. A referenced current row is
  * fetched later, at the original source callback's explicit access point. */
 async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, row: StoredRow,
-  owner: OwnerRuleContext, hydrateParent = false): Promise<Record<string, unknown>> {
+  owner: OwnerRuleContext, hydrateParent = false,
+  register?: (view: Record<string, unknown>, model: string, row: StoredRow) => void): Promise<Record<string, unknown>> {
   const StateError = native.producers.errors;
   const definition = native.models.find(candidate => candidate.name === model);
   if (definition === undefined) throw new StateError('validation', 'Owner rule names no loaded model.');
@@ -6194,13 +6195,15 @@ async function nativeOwnerRuleRecord(native: NativeRecordScope, model: string, r
       if (parentRow === null || parentRow.id !== parent.id) {
         throw new StateError('validation', 'Owner rule parent is missing from its owning view.');
       }
-      record.parent = await nativeOwnerRuleRecord(native, parent.model, parentRow, owner);
+      record.parent = await nativeOwnerRuleRecord(native, parent.model, parentRow, owner, false, register);
     } else {
       record.parent = makeRecordRef(parent.model, parent.id);
     }
   }
   bindNativeRecord(record, model, row.id, row.version);
-  return freezeScenarioSnapshot(record) as Record<string, unknown>;
+  freezeScenarioSnapshot(record);
+  register?.(record, model, row);
+  return record;
 }
 
 async function loadLocalOwnerPolicyControl(input: {
@@ -6215,18 +6218,6 @@ async function loadLocalOwnerPolicyControl(input: {
   for (const descriptor of descriptors) {
     if (descriptor.rules.length + descriptor.hooks.length === 0) {
       throw new Error('Local owner policies require nonempty claims.');
-    }
-    for (const rule of descriptor.rules) {
-      if (rule.kind !== 'invariant' || rule.dependencies.length === 0) continue;
-      const dependency = rule.dependencies[0];
-      const parent = dependency === undefined ? undefined : input.native.containment.get(dependency.model);
-      if (rule.dependencies.length !== 1 || dependency === undefined || dependency.maxTargets !== 1 ||
-          descriptor.model !== `${descriptor.ownerPackage}.Template` ||
-          dependency.model !== `${descriptor.ownerPackage}.Revision` ||
-          input.native.refs.get(descriptor.model)?.filter(ref => ref.field === 'current' && ref.model === dependency.model).length !== 1 ||
-          !isUnknownRecord(parent) || parent.parent !== descriptor.model) {
-        throw new Error('Local owner rule lacks the checked current Revision dependency and declared Template parent.');
-      }
     }
   }
   const activeFrames = new WeakMap<InvocationContext, { active: boolean; readonly deploymentBase?: string }>();
@@ -6397,19 +6388,63 @@ async function loadLocalOwnerPolicyControl(input: {
           localPolicyMember(binding, 'ownerPackage') !== descriptor.ownerPackage || typeof evaluate !== 'function') {
         throw new Error('Local owner native binding disagrees with its exact loaded claim.');
       }
-      if (rule.kind === 'invariant' && rule.dependencies.length === 1 && evaluate.length !== 3) {
-        throw new Error('Original current owner predicate lacks its source-ordered accessor.');
+      if (rule.kind === 'invariant' && evaluate.length === 3) {
+        const dependency = rule.dependencies[0];
+        const parent = dependency === undefined ? undefined : input.native.containment.get(dependency.model);
+        if (rule.dependencies.length !== 1 || dependency === undefined || dependency.maxTargets !== 1 ||
+            descriptor.model !== `${descriptor.ownerPackage}.Template` || dependency.model !== `${descriptor.ownerPackage}.Revision` ||
+            input.native.refs.get(descriptor.model)?.filter(ref => ref.field === 'current' && ref.model === dependency.model).length !== 1 ||
+            !isUnknownRecord(parent) || parent.parent !== descriptor.model) {
+          throw new Error('Local owner rule lacks the checked current Revision dependency and declared Template parent.');
+        }
+      } else if (rule.kind === 'invariant' && evaluate.length !== 2) {
+        throw new Error('Native owner invariant lacks its original two-argument predicate.');
       }
       adapted.push(Object.freeze({ id: rule.id, model: descriptor.model, kind: rule.kind,
         module: descriptor.module, ownerPackage: descriptor.ownerPackage,
         evaluate: async (owner: OwnerRuleContext, row: StoredRow): Promise<boolean> => {
           const frame = activeFrames.get(owner.context);
           if (frame?.active !== true) throw new input.native.producers.errors('validation', 'Owner model rule has no live private frame.');
-          let active = true;
-          const assertLive = (): void => {
-            if (!active || !frame.active) throw new input.native.producers.errors('validation', 'Owner model rule frame is closed.');
+          let active = true, failed = false, firstFailure: unknown, pendingReferences = 0;
+          const poison = (error: unknown): never => {
+            if (!failed) { failed = true; firstFailure = error; }
+            throw firstFailure;
           };
-          const refuse = (): never => { assertLive(); throw new input.native.producers.errors('validation', 'Local owner model rules cannot access storage.'); };
+          const assertLive = (): void => {
+            if (failed) throw firstFailure;
+            if (!active || !frame.active) poison(new input.native.producers.errors('validation', 'Owner model rule frame is closed.'));
+          };
+          const refuse = (): never => {
+            assertLive(); return poison(new input.native.producers.errors('validation', 'Local owner model rules cannot access storage.'));
+          };
+          const issuedViews = new WeakSet<object>();
+          const issuedReferences = new WeakMap<object, { readonly model: string; readonly id: string }>();
+          const referenceViews = new Map<string, Promise<Record<string, unknown>>>();
+          const register = (view: Record<string, unknown>, model: string, source: StoredRow): void => {
+            assertLive(); issuedViews.add(view);
+            const definition = input.native.models.find(candidate => candidate.name === model)!;
+            for (const declaration of input.native.refs.get(model) ?? []) {
+              const field = definition.fields[declaration.field];
+              if (field?.required !== true || field.nullable === true || field.array !== undefined) continue;
+              const member = Object.getOwnPropertyDescriptor(view, declaration.field);
+              const value = member !== undefined && 'value' in member ? member.value : undefined;
+              if (!isRecordRef(value) || value.model !== declaration.model) {
+                return poison(new input.native.producers.errors('validation', 'Owner rule reference differs from its required loaded field.'));
+              }
+              issuedReferences.set(value, Object.freeze({ model: declaration.model, id: value.id }));
+            }
+            const containment = input.native.containment.get(model);
+            if (isUnknownRecord(containment) && typeof containment.parent === 'string' && source.parent !== null && source.parent !== undefined) {
+              const member = Object.getOwnPropertyDescriptor(view, 'parent');
+              const value = member !== undefined && 'value' in member ? member.value : undefined;
+              if (isRecordRef(value) && value.model === containment.parent && value.id === source.parent.id) {
+                issuedReferences.set(value, Object.freeze({ model: value.model, id: value.id }));
+              } else if (typeof value !== 'object' || value === null || !issuedViews.has(value)) {
+                poison(new input.native.producers.errors('validation', 'Owner rule parent lacks its actual declared containment.'));
+              }
+            }
+          };
+          const hydrate = (model: string, source: StoredRow) => nativeOwnerRuleRecord(input.native, model, source, owner, false, register);
           const store: StoragePort = Object.freeze({ cohortIdOrder: 'utf16' as const,
             cohortIdentityPage: refuse, cohortLoad: refuse, cohortRowPage: refuse, cohortAnchorFact: refuse,
             readRevision: refuse, load: refuse, query: refuse, commit: refuse,
@@ -6418,8 +6453,9 @@ async function loadLocalOwnerPolicyControl(input: {
             publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
             recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
           try {
-            const nativeRow = await nativeOwnerRuleRecord(input.native, descriptor.model, row, owner);
-            const dependency = rule.kind === 'invariant' ? rule.dependencies[0] : undefined;
+            const nativeRow = await hydrate(descriptor.model, row);
+            referenceViews.set(stagedKey(descriptor.model, row.id), Promise.resolve(nativeRow));
+            const dependency = rule.kind === 'invariant' && evaluate.length === 3 ? rule.dependencies[0] : undefined;
             const originalCurrent = dependency === undefined ? undefined : nativeRow.current;
             let currentView: Promise<Record<string, unknown>> | undefined;
             const readCurrent = async (reference: unknown): Promise<Record<string, unknown>> => {
@@ -6434,7 +6470,7 @@ async function loadLocalOwnerPolicyControl(input: {
                 if (current === null || current.id !== reference.id || current.archivedAt !== null) {
                   throw new input.native.producers.errors('validation', 'Owner current Revision is missing from its owning view.');
                 }
-                const view = await nativeOwnerRuleRecord(input.native, dependency.model, current, owner, true);
+                const view = await nativeOwnerRuleRecord(input.native, dependency.model, current, owner, true, register);
                 assertLive();
                 return view;
               })();
@@ -6447,12 +6483,43 @@ async function loadLocalOwnerPolicyControl(input: {
               memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
               qualified: owner.context,
             });
+            bindNativeSourceReferenceReader(c, async (reference, field) => {
+              pendingReferences++;
+              try {
+                assertLive();
+                if (field !== undefined) poison(new input.native.producers.errors('validation', 'Owner rule reference reads require the actual evaluated receiver.'));
+                if (typeof reference !== 'object' || reference === null) {
+                  return poison(new input.native.producers.errors('validation', 'Owner rule reference requires an issued view or field value.'));
+                }
+                if (issuedViews.has(reference)) return reference;
+                const target = issuedReferences.get(reference);
+                if (target === undefined) return poison(new input.native.producers.errors('validation', 'Owner rule reference is copied, foreign or unbound.'));
+                const key = stagedKey(target.model, target.id);
+                let pending = referenceViews.get(key);
+                if (pending === undefined) {
+                  pending = (async () => {
+                    const current = await owner.read.get(target.model as ModelName, target.id as RecordId);
+                    assertLive();
+                    if (current === null || current.id !== target.id || current.archivedAt !== null) {
+                      return poison(new input.native.producers.errors('validation', 'Owner rule reference is unavailable in its owning view.'));
+                    }
+                    const view = await hydrate(target.model, current);
+                    assertLive(); return view;
+                  })();
+                  referenceViews.set(key, pending);
+                }
+                const view = await pending;
+                assertLive(); return view;
+              } catch (error) { return poison(error); }
+              finally { pendingReferences--; }
+            });
             freezeScenarioSnapshot(c);
             const callback = evaluate as (c: HandlerContext, row: Record<string, unknown>,
               readCurrent?: (reference: unknown) => Promise<Record<string, unknown>>) => unknown;
             const answer: unknown = dependency === undefined ? await callback(c, nativeRow)
               : await callback(c, nativeRow, readCurrent);
             assertLive();
+            if (pendingReferences !== 0) poison(new input.native.producers.errors('validation', 'Owner rule reference reads must complete before its predicate.'));
             if (typeof answer !== 'boolean') throw new input.native.producers.errors('validation', 'Native owner model predicate did not return bool.');
             return answer;
           } finally { active = false; }

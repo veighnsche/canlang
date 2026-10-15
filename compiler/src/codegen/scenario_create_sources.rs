@@ -2775,8 +2775,20 @@ impl SourceExpressions<'_> {
                     .text
                     .get(name.span.start as usize..name.span.end as usize)?
                     != field
-                    || !matches!(&base.expr, IrExpr::Name(name) if name == "row")
                 {
+                    return None;
+                }
+                if super::model_policy_profile::required_model_rule_path(
+                    self.ir,
+                    self.original.model,
+                    actual,
+                )
+                .is_some()
+                {
+                    self.expression(base, NodeKey::of(source_base), depth + 1)?;
+                    return Some(());
+                }
+                if !matches!(&base.expr, IrExpr::Name(name) if name == "row") {
                     return None;
                 }
                 let declared = self

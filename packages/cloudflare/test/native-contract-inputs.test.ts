@@ -18,7 +18,7 @@ import type { MutationOutcome } from '../src/worker/assembly.js';
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const nodeImport = compileFunction('return import(url)', ['url'], { importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
-const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`), SNAPSHOT = asModel(`${APP}.Snapshot`), ASSIGNMENT = asModel(`${APP}.Assignment`);
+const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`), SNAPSHOT = asModel(`${APP}.Snapshot`), ASSIGNMENT = asModel(`${APP}.Assignment`), CHECKED = asModel(`${APP}.Checked`);
 const SOURCE = `app ContractInputs
 Given
  Customer {active:bool,name:text}
@@ -30,17 +30,21 @@ Given
  contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text}
  Snapshot {input:Lead}
  Assignment {title:text,owner:user=actor}
+ Checked {customer:Customer,contact:Contact,location:Location,value:money}
+ invariant Checked: row.contact.parent==row.customer and row.value.minor>=0 and row.value.currency==row.location.currency
  policy Customer read=members
  policy Contact read=contact_reader
  policy Location read=members
  policy Result read=members
  policy Snapshot read=contact_reader
  policy Assignment read=contact_reader
+ policy Checked read=members
 When
  crud Customer by=members fields=active,name
  crud Contact by=members fields=name
  crud Location by=members fields=title,currency
  crud Assignment by=members fields=title,owner
+ crud Checked by=members fields=customer,contact,location,value
  scenario promote(input:Lead,accept:bool) -> Result by=members
   require input.customer.active and input.alternate.active and input.contact.parent==input.customer and input.value.minor>=0 and input.value.currency==input.selection.location.currency
   do
@@ -68,6 +72,10 @@ When
   do
    require snapshot.input==input
    return true
+ scenario check(input:Lead) -> Checked by=members
+  do
+   create Checked {customer=input.customer,contact=input.contact,location=input.selection.location,value=input.value} as checked
+   return checked
  scenario assign(title:text,accept:bool) -> Assignment by=members
   do
    create Assignment {title} as assignment
@@ -114,10 +122,16 @@ test('native Contract input slots retain normalized values, distinct reference v
       if (compiled.kind !== 'artifact') throw new Error('Original Contract input source did not compile');
       const artifact: CompileArtifact = compiled.artifact;
       assert.equal(verifyCompilerSources(capture, {complete:true,sources:artifact.sources}).ok, true);
-      for (const name of ['promote', 'select', 'versions', 'echoCurrency', 'capture', 'same', 'requireSame', 'assign', 'assignOther']) {
+      for (const name of ['promote', 'select', 'versions', 'echoCurrency', 'capture', 'same', 'requireSame', 'assign', 'assignOther', 'check']) {
         const operation = artifact.operations?.find(operation => operation.name === `${APP}.${name}`);
         assert.ok(operation?.result?.disclosure?.returns.length);
       }
+      const checkedPolicy=artifact.modelPolicies?.find(policy=>policy.model===CHECKED);
+      assert.ok(checkedPolicy);
+      const checkedInvariant=checkedPolicy.rules.find(rule=>rule.kind==='invariant');
+      assert.ok(checkedInvariant?.kind==='invariant');
+      assert.deepEqual(new Set(checkedInvariant.dependencies.map(dependency=>dependency.model)),new Set([CONTACT,LOCATION]));
+      assert.ok(checkedInvariant.dependencies.every(dependency=>Number.isSafeInteger(dependency.maxTargets)&&dependency.maxTargets>0));
       const asm = await assembleModules({artifact,sourcePath}, {workDir:join(directory,'modules'),stdlibUrl:installed('runtime/stdlib.js')});
       worker = new Miniflare({ compatibilityDate:'2026-07-15',modules:true,
         script:'export default { fetch() { return new Response("ok"); } }',
@@ -304,6 +318,52 @@ test('native Contract input slots retain normalized values, distinct reference v
         assert.deepEqual(await store.query({model:LOCATION,authority:'owner'}),beforeLocations);
         assert.deepEqual(await records(),beforeResults); assert.deepEqual(await store.load(LOCATION,location.id),location);
       }
+
+      // The model invariant runs independently of scenario guards, through owner final-state reads.
+      const checkedCall = envelope('check',{input:payload});
+      const checkedId = referenceId(await invoke(checkedCall));
+      const checkedRow = await store.load(CHECKED,asId(checkedId)); assert.ok(checkedRow);
+      assert.deepEqual(checkedRow.data,{customer:{id:customer.id},contact:{id:contact.id},location:{id:location.id},value:payload.value});
+      const checkedCount = batches.length;
+      assert.equal(referenceId(await invoke(checkedCall),'replayed'),checkedId); assert.equal(batches.length,checkedCount);
+      for(const invalid of [
+        {...payload,contact:ref(otherContact)},
+        {...payload,value:{minor:'-1',currency:'EUR'}},
+        {...payload,value:{minor:'500',currency:'USD'}},
+      ]) {
+        for(const call of [
+          envelope('check',{input:invalid}),
+          envelope(`${CHECKED}.create`,{customer:invalid.customer,contact:invalid.contact,location:invalid.selection.location,value:invalid.value}),
+        ]) {
+          const before=await store.query({model:CHECKED,authority:'owner'}),count=batches.length;
+          const rejected=await invoke(call);assert.ok('error' in rejected,JSON.stringify(rejected));assert.equal(rejected.error.code,'rule_failed');
+          assert.equal(batches.length,count+1);const batch=batches.at(-1)!;
+          assert.deepEqual(batch.writes,[]);assert.deepEqual(batch.history,[]);assert.deepEqual(batch.outbox,[]);assert.deepEqual(batch.schedules,[]);
+          assert.deepEqual(await store.query({model:CHECKED,authority:'owner'}),before);
+          const replay=await invoke(call);assert.ok('error' in replay);assert.equal(replay.error.code,'rule_failed');assert.equal(batches.length,count+1);
+        }
+      }
+      const badUpdate=envelope(`${CHECKED}.update`,{record:ref(checkedRow),value:{minor:'1',currency:'USD'}});
+      const beforeUpdate=batches.length;
+      const rejectedUpdate=await invoke(badUpdate);assert.ok('error' in rejectedUpdate);assert.equal(rejectedUpdate.error.code,'rule_failed');
+      assert.deepEqual(await store.load(CHECKED,asId(checkedId)),checkedRow);
+      assert.equal(batches.length,beforeUpdate+1);assert.deepEqual(batches.at(-1)!.writes,[]);
+
+      // A referenced-row-only change must recheck the existing dependent invariant.
+      const foreignUpdate=envelope(`${LOCATION}.update`,{record:ref(location),currency:'USD'});
+      const beforeForeign=batches.length;
+      const rejectedForeign=await invoke(foreignUpdate);assert.ok('error' in rejectedForeign,JSON.stringify(rejectedForeign));
+      assert.equal(rejectedForeign.error.code,'rule_failed');assert.equal(batches.length,beforeForeign+1);
+      assert.deepEqual(batches.at(-1)!.writes,[]);assert.deepEqual(batches.at(-1)!.history,[]);
+      assert.deepEqual(await store.load(LOCATION,location.id),location);assert.deepEqual(await store.load(CHECKED,asId(checkedId)),checkedRow);
+      const foreignReplay=await invoke(foreignUpdate);assert.ok('error' in foreignReplay);assert.equal(foreignReplay.error.code,'rule_failed');
+      assert.equal(batches.length,beforeForeign+1);
+
+      const unusedLocation=await seed(LOCATION,{title:'unreferenced location',currency:'EUR'});
+      const unrelatedUpdate=envelope(`${LOCATION}.update`,{record:ref(unusedLocation),currency:'USD'});
+      committed(await invoke(unrelatedUpdate));
+      assert.equal((await store.load(LOCATION,unusedLocation.id))!.data.currency,'USD');
+      assert.deepEqual(await store.load(CHECKED,asId(checkedId)),checkedRow);
 
       // Original early, parent, Currency correspondence and late guards each fail atomically.
       for (const bad of [
