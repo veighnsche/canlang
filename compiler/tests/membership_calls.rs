@@ -232,11 +232,9 @@ fn record_page_and_boolean_field_admit_bounded_reads_without_relaxing_other_valu
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let nonbool = source.replace("derive Entry.visible:bool = current(row.account)", "derive Entry.visible:text = first([\"yes\"] as value where current(row.account))??\"no\"")
         .replace(" and row.visible", "");
+    // A Boolean result never defines permission to read (DESIGN §3): the
+    // non-Boolean spelling of the same derived field admits the same
+    // bounded helper read with identical order/failure rules.
     let (_, diagnostics) = check(&nonbool, &catalog());
-    assert!(
-        diagnostics
-            .iter()
-            .any(|d| d.code == "E3010" && d.message.contains("current")),
-        "{diagnostics:?}"
-    );
+    assert!(diagnostics.is_empty(), "{nonbool}\n{diagnostics:?}");
 }
