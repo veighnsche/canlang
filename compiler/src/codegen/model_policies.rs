@@ -7,6 +7,7 @@ use crate::codegen::model_policy_profile::{
     CurrentRevisionRuleKind, CurrentRevisionRuleProfile, checked_chat_invariant_fields,
     checked_chat_lock_target, current_revision_lock_target, current_revision_rule_profile,
     local_hook_supported, local_rule_fields, local_stored_field_type,
+    required_model_rule_dependencies, required_model_rule_fields,
 };
 use crate::diagnostic::Severity;
 use crate::source::SourceDb;
@@ -82,6 +83,9 @@ pub(crate) struct DependencyBinding {
     pub model: SymbolId,
     pub owner_package: String,
     pub changed_model: SymbolId,
+    /// Checked required-reference path for bounded reverse final-view joins.
+    /// Empty only for the existing original current-Revision selector.
+    pub path: Vec<(SymbolId, String, SymbolId)>,
 }
 
 /// Link the descriptor to the original emitted hooks[operation].run function.
@@ -213,15 +217,20 @@ fn collect_policies(
                 .and_then(|profiles| profiles.iter().find(|profile| &profile.origin == origin))
                 .cloned();
             if current_revision.is_none() {
-                local_rule_fields(ir, model.id, &rule.pred).or_else(|| {
-                    checked_profiles
-                        .and_then(|_| checked_chat_invariant_fields(ir, rule))
-                        .filter(|fields| {
-                            checked_chat_fields.is_some_and(|checked| {
-                                fields.iter().all(|field| checked.contains(field))
+                local_rule_fields(ir, model.id, &rule.pred)
+                    .or_else(|| {
+                        checked_profiles
+                            .and_then(|_| required_model_rule_fields(ir, model.id, &rule.pred))
+                    })
+                    .or_else(|| {
+                        checked_profiles
+                            .and_then(|_| checked_chat_invariant_fields(ir, rule))
+                            .filter(|fields| {
+                                checked_chat_fields.is_some_and(|checked| {
+                                    fields.iter().all(|field| checked.contains(field))
+                                })
                             })
-                        })
-                })?;
+                    })?;
             }
             let id = format!("{owner_package}.{}", origin.registry_id);
             let mut dependencies = Vec::new();
@@ -242,7 +251,28 @@ fn collect_policies(
                     model: model.id,
                     owner_package: owner_package.clone(),
                     changed_model: *revision,
+                    path: Vec::new(),
                 });
+            }
+            if current_revision.is_none()
+                && checked_profiles.is_some()
+                && let Some(reads) = required_model_rule_dependencies(ir, model.id, &rule.pred)
+            {
+                for (index, (changed_model, path)) in reads.into_iter().enumerate() {
+                    let dependency_id = format!("{id}.reference.{}", index + 1);
+                    dependencies.push(ModelDependency {
+                        id: dependency_id.clone(),
+                        model: ir.items.get(changed_model.0 as usize)?.canonical.clone(),
+                        max_targets: 200,
+                    });
+                    dependency_bindings.push(DependencyBinding {
+                        id: dependency_id,
+                        model: model.id,
+                        owner_package: owner_package.clone(),
+                        changed_model,
+                        path,
+                    });
+                }
             }
             rules.push((
                 origin.ordinal,
@@ -709,5 +739,65 @@ mod tests {
                 .is_none()
         );
         assert!(collect_checked_policies(&program, &original, &db, None, &module).is_none());
+    }
+
+    #[test]
+    fn checked_required_paths_refuse_changed_receiver_parent_and_money_member() {
+        let source = "app RequiredRules\nGiven\n Customer {active:bool}\n Contact in Customer {name:text}\n Location {currency:currency}\n Checked {customer:Customer,contact:Contact,location:Location,value:money}\n invariant Checked: row.contact.parent==row.customer and row.value.minor>=0 and row.value.currency==row.location.currency\nWhen\nThen\n";
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let mut db = SourceDb::new();
+        let file = db.add("required-rules.can".into(), source.into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (original, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let module = super::super::js::module_path("RequiredRules");
+        assert!(
+            collect_checked_policies(&program, &original, &db, catalog.as_ref(), &module).is_some()
+        );
+        assert!(
+            collect_local_policies(&original, &module).is_none(),
+            "raw IR supplies no source-backed required-path admission"
+        );
+        fn change(value: &mut TypedExpr, corruption: usize) -> bool {
+            if let IrExpr::Member { base, field } = &mut value.expr {
+                if corruption == 0 && field == "minor" {
+                    *field = "currency".into();
+                    return true;
+                }
+                if corruption == 1 && field == "parent" {
+                    *field = "customer".into();
+                    return true;
+                }
+                if corruption == 2 && field == "location" {
+                    base.expr = IrExpr::Name("copied".into());
+                    return true;
+                }
+                return change(base, corruption);
+            }
+            if let IrExpr::Binary { left, right, .. } = &mut value.expr {
+                return change(left, corruption) || change(right, corruption);
+            }
+            false
+        }
+        for corruption in 0..3 {
+            let mut lowered = original.clone();
+            assert!(change(&mut lowered.invariants[0].pred, corruption));
+            assert!(
+                collect_checked_policies(&program, &lowered, &db, catalog.as_ref(), &module)
+                    .is_none(),
+                "corruption {corruption}"
+            );
+        }
     }
 }

@@ -16153,3 +16153,55 @@ no usable artifact. Exact full diagnostic comparison with the preceding whole
 Contract capture adds/removes none. Deal's nested invariant, root pair and original
 query-backed can_work remain local work; default support does not qualify complete
 CanCRM or training readiness.
+
+
+2026-10-15 — C02/C10: evaluate required-reference invariants in final owner state.
+
+Implement the existing DESIGN §4 invariant contract for Deal's required Contact
+parent and Location currency comparisons and Money minor/currency members.
+Source-backed classification retains the original owning model, field types,
+actual containment, predicate tree and fresh-source correspondence. Equality
+keeps reference identity; only a reached Model receiver uses the existing private
+nativeReadReference bridge. Nullable/collection/computed paths and unsupported
+arithmetic remain explicit backend boundaries, not new language restrictions.
+Original and renamed declarations use the same mechanism; no app name selects it.
+This joins settled invariant semantics and requires no new JEV language decision.
+
+The native adapter registers only its genuine issued views, required declared
+Model field references and actual parent references in the live rule frame.
+Reached targets come from State's existing final provisional reader, with exact
+identity, target/containment, archive, revision/work and lifetime checks. Copied,
+foreign and escaped values cannot acquire authority. Per-frame caching preserves
+single target snapshots, first failures remain sticky, raw storage stays refused,
+and the predicate must return bool. These decision reads confer no viewer grant.
+
+Forward reads alone would violate the existing dependency promise. Checked
+required-reference paths therefore also emit bounded reverse selectors through
+the existing dependency ABI and complete final owner queries. Referenced-row-only
+changes recheck the affected owning rows; provisional pointer moves/removals use
+the final graph. Oversized domains refuse rather than truncate. No reverse index,
+new public carrier, State read engine or transaction mechanism is added. The
+existing specialized current-Revision accessor keeps its declaration checks and
+parent identity behavior, including archived containing Templates; a regression
+check caught and removed an accidental extra parent-archive refusal.
+
+Validation:21 affected compiler checks,71 State policy/session checks and the
+issued-reference native component1/1 pass. Normal State/Cloudflare and CLI builds,
+changed Rust formatting and diff checks pass. The actual captured CLI/verified
+assembly/D1/Identity workflow1/1 (46.11s) rejects wrong parent, negative minor and
+currency mismatch through independent scenario/CRUD invariant paths; direct and
+foreign Location updates roll back with rejected replay, while an unrelated target
+update succeeds. Existing defaults, receipts, role/membership revocation and
+recovery remain verified. The existing current-Revision native regression passes
+1/1 (144.03s) after the archive-parent correction, with original assertions and
+private File/current authority behavior retained. State additionally discriminates
+final pointer moves and removal; existing overflow/revision/first-error controls
+remain green. Root TypeScript has the same16 baseline errors in four unchanged
+files. Component harness setup failures were corrected without production bypasses.
+
+Frozen original24-source validation exits10 after394.37s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and no
+usable artifact. Exact diagnostic comparison with the actor-default capture
+adds/removes none. This closes the nested invariant prerequisite; original
+adjacent root constructors, query-backed can_work and cohort hook requirements
+remain local work. No full CanCRM or training readiness is claimed.

@@ -424,6 +424,247 @@ pub fn local_rule_fields(
     Some(fields)
 }
 
+/// Nongrant classification for required owning paths. Native activation still
+/// requires the complete source/fresh declaration and predicate correspondence.
+/// Nullable references, collections, aliases and computed receivers stay out.
+pub(crate) fn required_model_rule_path(
+    program: &IrProgram,
+    model: SymbolId,
+    value: &TypedExpr,
+) -> Option<Vec<SymbolId>> {
+    fn path(
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        fields: &mut Vec<SymbolId>,
+        depth: usize,
+    ) -> Option<()> {
+        if depth > 16 {
+            return None;
+        }
+        if matches!(value.expr, IrExpr::Name(_)) {
+            return policy_row(value, model);
+        }
+        let IrExpr::Member { base, field } = &value.expr else {
+            return None;
+        };
+        if !contains_span(value.span, base.span) {
+            return None;
+        }
+        path(program, model, base, fields, depth + 1)?;
+        match &base.ty {
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } => {
+                let target = policy_model(program, *symbol)?;
+                if field == "parent" {
+                    let IrItemKind::Model {
+                        owner: IrOwner::ChildOf(parent),
+                        ..
+                    } = target.kind
+                    else {
+                        return None;
+                    };
+                    policy_model(program, parent)?;
+                    return (value.ty
+                        == ResolvedType::Record {
+                            symbol: parent,
+                            stored: true,
+                        })
+                    .then_some(());
+                }
+                if !matches!(
+                    &value.ty,
+                    ResolvedType::Record { stored: true, .. }
+                        | ResolvedType::Scalar(Scalar::Money | Scalar::Currency)
+                ) {
+                    return None;
+                }
+                let id = policy_field(program, *symbol, field, &value.ty)?;
+                if let ResolvedType::Record { symbol, .. } = value.ty {
+                    policy_model(program, symbol)?;
+                }
+                if !fields.contains(&id) {
+                    fields.push(id);
+                }
+                Some(())
+            }
+            ResolvedType::Scalar(Scalar::Money) => match (field.as_str(), &value.ty) {
+                ("minor", ResolvedType::Scalar(Scalar::Int))
+                | ("currency", ResolvedType::Scalar(Scalar::Currency)) => Some(()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    let mut fields = Vec::new();
+    path(program, model, value, &mut fields, 0)?;
+    Some(fields)
+}
+
+/// The bounded invariant extension composes identity/currency comparisons and
+/// Money minor bounds through the existing lazy bool tree. It adds no general
+/// Record arithmetic, nullable traversal, calls or collection operations.
+pub(crate) fn required_model_rule_fields(
+    program: &IrProgram,
+    model: SymbolId,
+    predicate: &TypedExpr,
+) -> Option<Vec<SymbolId>> {
+    if local_rule_fields(program, model, predicate).is_some() {
+        return None;
+    }
+    fn visit(
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        fields: &mut Vec<SymbolId>,
+        depth: usize,
+    ) -> Option<()> {
+        if depth > 64 || value.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        if let Some(local) = local_rule_fields(program, model, value) {
+            for id in local {
+                if !fields.contains(&id) {
+                    fields.push(id);
+                }
+            }
+            return Some(());
+        }
+        let IrExpr::Binary { op, left, right } = &value.expr else {
+            return None;
+        };
+        policy_binary(value, *op)?;
+        if matches!(op, IrBinOp::And | IrBinOp::Or) {
+            visit(program, model, left, fields, depth + 1)?;
+            return visit(program, model, right, fields, depth + 1);
+        }
+        if left.ty != right.ty {
+            return None;
+        }
+        let path_pair = matches!(op, IrBinOp::Eq | IrBinOp::Ne)
+            && matches!(
+                &left.ty,
+                ResolvedType::Record { stored: true, .. } | ResolvedType::Scalar(Scalar::Currency)
+            );
+        let minor_bound = matches!(op, IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge)
+            && left.ty == ResolvedType::Scalar(Scalar::Int);
+        if !path_pair && !minor_bound {
+            return None;
+        }
+        let mut paths = 0;
+        for operand in [left, right] {
+            if minor_bound && matches!(operand.expr, IrExpr::Int(_)) {
+                continue;
+            }
+            let path = required_model_rule_path(program, model, operand)?;
+            if path.is_empty() {
+                return None;
+            }
+            paths += 1;
+            for id in path {
+                if !fields.contains(&id) {
+                    fields.push(id);
+                }
+            }
+        }
+        (paths > 0).then_some(())
+    }
+    let mut fields = Vec::new();
+    visit(program, model, predicate, &mut fields, 0)?;
+    Some(fields)
+}
+
+/// Existing dependency bindings consume declaration-derived reverse edges.
+/// Each edge is (owning Model, actual stored field or implicit parent, target).
+pub(crate) type RequiredModelRuleDependency = (SymbolId, Vec<(SymbolId, String, SymbolId)>);
+
+pub(crate) fn required_model_rule_dependencies(
+    program: &IrProgram,
+    model: SymbolId,
+    predicate: &TypedExpr,
+) -> Option<Vec<RequiredModelRuleDependency>> {
+    fn edges(
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        depth: usize,
+    ) -> Option<Vec<(SymbolId, String, SymbolId)>> {
+        if depth > 16 {
+            return None;
+        }
+        if matches!(value.expr, IrExpr::Name(_)) {
+            policy_row(value, model)?;
+            return Some(Vec::new());
+        }
+        let IrExpr::Member { base, field } = &value.expr else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: source,
+            stored: true,
+        } = base.ty
+        else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: target,
+            stored: true,
+        } = value.ty
+        else {
+            return None;
+        };
+        required_model_rule_path(program, model, value)?;
+        let mut path = edges(program, model, base, depth + 1)?;
+        path.push((source, field.clone(), target));
+        Some(path)
+    }
+    fn visit(
+        program: &IrProgram,
+        model: SymbolId,
+        value: &TypedExpr,
+        dependencies: &mut Vec<RequiredModelRuleDependency>,
+        depth: usize,
+    ) -> Option<()> {
+        if depth > 64 || dependencies.len() > 200 {
+            return None;
+        }
+        match &value.expr {
+            IrExpr::Member { base, .. } => {
+                visit(program, model, base, dependencies, depth + 1)?;
+                if let ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                } = base.ty
+                {
+                    let path = edges(program, model, base, 0)?;
+                    if !path.is_empty()
+                        && !dependencies
+                            .iter()
+                            .any(|(target, original)| *target == symbol && *original == path)
+                    {
+                        dependencies.push((symbol, path));
+                    }
+                }
+            }
+            IrExpr::Binary { left, right, .. } => {
+                visit(program, model, left, dependencies, depth + 1)?;
+                visit(program, model, right, dependencies, depth + 1)?;
+            }
+            IrExpr::Unary { operand, .. } => {
+                visit(program, model, operand, dependencies, depth + 1)?
+            }
+            _ => {}
+        }
+        Some(())
+    }
+    required_model_rule_fields(program, model, predicate)?;
+    let mut dependencies = Vec::new();
+    visit(program, model, predicate, &mut dependencies, 0)?;
+    Some(dependencies)
+}
+
 /// The two original current-Revision rules, classified without publishing a
 /// policy descriptor. In particular, Template's referenced Revision requires
 /// an original/fresh source join and an owning reverse affected-row selector;

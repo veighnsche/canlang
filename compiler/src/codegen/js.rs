@@ -14602,11 +14602,21 @@ impl<'a> Emitter<'a> {
             }
             let previous_rule = self.current_policy_rule.take();
             self.current_policy_rule = binding.current_revision.clone();
+            self.boolean_body = binding.kind == crate::codegen::ir::IrModelRuleKind::Invariant
+                && binding.predicate.as_ref().is_some_and(|predicate| {
+                    super::model_policy_profile::required_model_rule_fields(
+                        self.ir,
+                        binding.model,
+                        predicate,
+                    )
+                    .is_some()
+                });
             let predicate = binding
                 .predicate
                 .as_ref()
                 .map(|predicate| self.lower_rule_fn(predicate))
                 .unwrap_or_else(|| "(c,row)=>true".to_string());
+            self.boolean_body = false;
             self.current_policy_rule = previous_rule;
             let kind = match binding.kind {
                 crate::codegen::ir::IrModelRuleKind::Invariant => "invariant",
@@ -14624,6 +14634,35 @@ impl<'a> Emitter<'a> {
         for binding in &plan.dependency_bindings {
             let model = &self.ir.item(binding.model).canonical;
             let changed = &self.ir.item(binding.changed_model).canonical;
+            if !binding.path.is_empty() {
+                let mut joins = String::new();
+                for (source, field, target) in binding.path.iter().rev() {
+                    let source = &self.ir.item(*source).canonical;
+                    let target = &self.ir.item(*target).canonical;
+                    let selection = if field == "parent" {
+                        format!("parent:{{model:{},id:$id}}", js_string(target))
+                    } else {
+                        format!(
+                            "where:{{op:\"eq\",field:{},value:$id}}",
+                            js_string(&format!("{field}.id"))
+                        )
+                    };
+                    joins.push_str(&format!(
+                        "{{const $next=new Set();for(const $id of $ids){{const $rows=await views.final.query({{model:{},authority:\"owner\",archived:\"include\",limit:views.maxRows,{selection}}});for(const $row of $rows){{if(typeof $row.id!==\"string\"||$row.id===\"\")throw new Error('Required rule dependency lost its row identity');$next.add($row.id);if($next.size>views.maxRows)throw new Error('Required rule dependency exceeds its bound');}}}}$ids=[...$next];}}",
+                        js_string(source)
+                    ));
+                }
+                let select = format!(
+                    "async(views,change)=>{{if(change.model!=={}||typeof change.id!==\"string\"||change.id===\"\"||change.before===null&&change.after===null||change.before!==null&&change.before.id!==change.id||change.after!==null&&change.after.id!==change.id)throw new Error('Required rule dependency changed identity differs');let $ids=[change.id];{joins}return $ids.map(id=>({{model:{},id}}));}}",
+                    js_string(changed),
+                    js_string(model)
+                );
+                entries.push(format!(
+                    "{{id:{},module:{},ownerPackage:{},model:{},kind:\"dependency\",select:{select}}}",
+                    js_string(&binding.id), js_string(module), js_string(&binding.owner_package), js_string(model)
+                ));
+                continue;
+            }
             let select = format!(
                 "(_views,change)=>{{if(change.model!=={}){{throw new Error('Original current dependency changed model differs');}}const before=change.before;const after=change.after;const row=after??before;if(row===null||row.id!==change.id||row.parent===undefined||row.parent===null||row.parent.model!=={}||typeof row.parent.id!==\"string\"||row.parent.id===\"\"||before!==null&&after!==null&&(before.id!==after.id||before.parent===undefined||before.parent===null||before.parent.model!==after.parent.model||before.parent.id!==after.parent.id)){{throw new Error('Original current dependency lost its immutable owning parent');}}return[{{model:{},id:row.parent.id}}];}}",
                 js_string(changed),
@@ -14687,7 +14726,16 @@ impl<'a> Emitter<'a> {
             .iter()
             .map(|rule| {
                 self.boolean_body = matches!(member, "read" | "callbackRead")
-                    && self.boolean_rules.contains(&rule.id);
+                    && self.boolean_rules.contains(&rule.id)
+                    || member == "invariants"
+                        && rule.origin.as_ref().is_some_and(|origin| {
+                            super::model_policy_profile::required_model_rule_fields(
+                                self.ir,
+                                origin.model,
+                                &rule.pred,
+                            )
+                            .is_some()
+                        });
                 let body = self.lower_rule_fn(&rule.pred);
                 self.boolean_body = false;
                 format!("{}:{}", js_string(&rule.id), body)

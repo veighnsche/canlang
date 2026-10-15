@@ -638,15 +638,9 @@ R01 has14 passes and one pre-existing exact array-message mismatch reproduced
 against the pre-batch registry; no assertion is weakened. Frozen original24-source
 validation exits10 after379.54s with701 diagnostics (675 E6008,26 E6007),
 complete=true, omitted=0, identical source inventory, none added/removed and no
-usable artifact. Deal's nested parent/Money/location invariant remains a distinct
-constructor prerequisite and cannot be skipped to admit the pair. Its schema
-matcher and native local-rule classifier both require direct scalar row fields;
-typed reference/parent and Money paths need checked source correspondence plus
-the existing reference-reader bridge bound to the live owner-rule frame. Reuse
-State's final provisional reader for end-of-transaction invariant evaluation;
-committed viewer state cannot substitute for it. Current target/ancestor/lifetime,
-Boolean-only rule results, lazy order and whole rollback remain required. Existing
-shared State staging supplies atomicity; no new batch carrier is implied.
+usable artifact. Deal's nested parent/Money/location invariant prerequisite is implemented below;
+the adjacent root pair and query-backed can_work remain separate. Existing shared
+State staging supplies atomicity; no new batch carrier is implied.
 Other Contract expressions retain explicit source-correspondence bounds; no
 alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
@@ -660,6 +654,38 @@ not native/browser qualification of complete CanCRM. The original reference scop
 is **not ready for unrestricted training-data authoring**. Existing broader
 reference and external release holds remain unchanged. No training, dataset
 generation or push was performed.
+
+**C02/C10 required-reference final invariants (2026-10-15).** Source/fresh
+checks now admit the original Deal predicate's required Model/actual parent and
+Money minor/currency paths. Reached Model receivers use the existing private
+nativeReadReference bridge against State's final provisional reader; equality
+keeps reference identity. The live frame retains genuine issued provenance,
+cache, first failure, archive/identity/containment and lifetime checks without
+viewer grants or raw storage. Bounded declaration-derived reverse selectors reuse
+the existing dependency ABI and final queries, so foreign Contact/Location changes
+recheck affected rows and final pointer moves/removals select the correct graph.
+No app-name special case, new transaction/read engine or public carrier is added.
+This implements DESIGN §4's existing semantics; no new JEV choice is required.
+
+Compiler21 affected checks pass, including original/renamed emission and a
+source-backed corruption check that first accepts the original. State71 policy/
+session checks pass, including a required-ref pointer-move/removal test. Normal
+State/Cloudflare and CLI builds pass; root TypeScript retains the same16 old errors
+in four unchanged files. Native issued/copy/foreign/escaped/cache/lazy/sticky-error
+component1/1 passes. Captured CLI/verified assembly/D1/Identity1/1 (46.11s) verifies
+scenario and CRUD invariant failures, updates, foreign Location-only rejection and
+rejected replay, unrelated Location success, original defaults/receipts and current
+read-role/membership withholding/recovery. Existing current-Revision regression1/1 passes (144.03s), retaining archive,
+current authority, private File, rollback and recovery behavior. Its first run
+caught an added parent-archive refusal; restoring the established parent identity
+behavior fixes the actual failure without changing its assertions. Formatting and
+diff checks pass.
+
+Frozen original24-source validation exits10 after394.37s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and
+no usable artifact. Full diagnostic comparison with the actor-default capture
+adds/removes none. This constructor prerequisite does not close the root pair,
+can_work, whole-cohort hooks, full application or training-readiness gates.
 
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:
