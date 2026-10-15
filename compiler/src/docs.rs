@@ -59,8 +59,8 @@
 //!   checker's production scope). Dotted references stay unresolved (the
 //!   checker rejects them; no new syntax). Unresolvable references leave
 //!   the declaration undescribed rather than carrying wrong wording.
-//! - `app_default_locale` is the selected app module's checked `context` /
-//!   `locale default=` tag: the single app module when exactly one
+//! - `app_default_locale` is the selected app module's checked default,
+//!   including inherited app composition: the single app module when exactly one
 //!   analyzed module declares an app, otherwise (package-only or
 //!   multi-app inputs) the first analyzed module's checked default.
 //!   An absent default resolves to the pinned `"en"` (DESIGN:887), never
@@ -936,11 +936,11 @@ fn checked_description_value(
     }
 }
 
-/// Default reading locale: the selected app module's checked `context` /
-/// `locale default=` tag (DESIGN §9.1). Selection is unchanged: the single
+/// Default reading locale: the selected app module's checked default,
+/// including inherited app composition (DESIGN §9.1). Selection is unchanged: the single
 /// app module when exactly one analyzed module declares an app (implicit
 /// or composed), else the first analyzed module (package-only/multi-app
-/// fallback). An absent default — no `locale` declaration, or nothing
+/// fallback). An absent default — no selected app default, or nothing
 /// analyzed — resolves to the pinned `"en"` (DESIGN:887), never to any
 /// module's `source=` tag: source language governs authored wording,
 /// the default governs viewer selection (DESIGN:850). Pure selection over
@@ -956,7 +956,7 @@ fn app_default_locale(program: &CheckedProgram) -> String {
     };
     selected
         .and_then(|m| program.effects.modules.get(&m.id))
-        .and_then(|d| d.locale_default.clone())
+        .and_then(|d| d.app_default_locale.clone())
         .unwrap_or_else(|| "en".to_string())
 }
 

@@ -1140,6 +1140,48 @@ fn app_default_locale_prefers_the_checked_default_over_source() {
     }
 }
 
+/// Reference extraction consumes the existing recursive app-default fold,
+/// including when a composed app has no local locale declaration.
+#[test]
+fn app_default_locale_inherits_checked_composition_default() {
+    let tasks = (
+        "tasks.can",
+        concat!(
+            "app Tasks source=\"en\"\n",
+            "context\n locale default=\"nl\"\n",
+            "Given\n",
+            " # Task wording. @{nl=\"Taaktekst.\"}\n",
+            " Task {title:text}\n",
+            " policy Task read=members\n",
+            "When\nThen\n",
+        ),
+    );
+    for sources in [
+        vec![
+            ("office.can", "app Office uses=[Tasks] source=\"de\"\n"),
+            tasks,
+        ],
+        vec![
+            ("office.can", "app Office uses=[Workspace] source=\"de\"\n"),
+            (
+                "workspace.can",
+                "app Workspace uses=[Tasks] source=\"fr\"\n",
+            ),
+            tasks,
+        ],
+    ] {
+        for sources in [sources.clone(), sources.into_iter().rev().collect()] {
+            let (db, ids, program) = check_clean_multi(&sources);
+            let model = extract_reference(&db, &ids, &program);
+            assert_eq!(model.app_default_locale, "nl", "sources: {sources:?}");
+            let task = described(&model, "Task");
+            assert_eq!(task.source, "Task wording.");
+            assert_eq!(task.source_lang, "en");
+            assert_eq!(task.variants[0].tag, "nl");
+        }
+    }
+}
+
 /// (R5) Requested → default → source chain payload (DESIGN:891): under an
 /// explicit Dutch default over English sources, an unavailable requested
 /// locale resolves per description — the Dutch variant where authored
