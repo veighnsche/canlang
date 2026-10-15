@@ -17300,3 +17300,18 @@ their actual limits instead of assuming one shared constant. The owning session
 check passes at bounds 7 and 1000, distinguishes entry locks from final
 invariants and confirms no publication before commit; normal State build passes.
 Partner query qualification and receiving remain unfinished.
+
+
+## 2026-10-15 — lower the existing heading-free card form
+
+Accepted mechanical correction: the parser already admits a card with a
+nonempty suite and no heading. IR now requires a checked text/message caption
+only when a header is authored; the existing UI card contract makes title
+optional and omits heading markup when absent. Layout, ordered children, gates
+and primary/secondary action placement retain their existing behavior. No new
+source primitive or permission is introduced, so no new JEV choice is needed.
+Normal Contracts/UI builds and eight focused card/action checks pass. The
+existing actual CLI-to-installed-factory check passes1/.86s with bare/layout/
+gated cards alongside unchanged captioned, localized and async controls. An
+earlier overlapping package-output run is not used as qualification. Original
+24-source diagnostic impact awaits the next frozen compiler capture.

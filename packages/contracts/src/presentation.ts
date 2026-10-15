@@ -618,7 +618,7 @@ export type TextValue =
 
 export interface CardProps {
   readonly context: PresentationContext;
-  readonly title: MessageValue;
+  readonly title?: MessageValue;
   readonly layout?: "stack" | "columns";
   readonly children: PageChildren;
 }

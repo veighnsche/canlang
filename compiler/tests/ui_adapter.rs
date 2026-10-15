@@ -655,6 +655,13 @@ Then
    text "Card body"
   card caption()
    text "Dynamic card body"
+  card
+   text "Bare card body"
+  card layout=columns
+   text "Bare columns body"
+  card
+   require false
+   text actor
   hero
    text "Bare hero body"
   hero caption()
@@ -781,12 +788,13 @@ assert.ok(!html.includes('Hidden disclosure'),'false disclosure gate omits capti
 assert.ok(html.includes('Heading &lt;&amp;&gt;'),'title uses the actual text prop');
 assert.ok(html.includes('Metric value'),'stat uses the singular value prop');
 assert.ok(html.includes('Empty card'),'empty Card receives its owning children array');
-for(const sentinel of ['Card body','Dynamic card body','Bare hero body','Captioned hero body','Collapse body','Original disclosure body','Dynamic disclosure body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
+for(const sentinel of ['Card body','Dynamic card body','Bare card body','Bare columns body','Bare hero body','Captioned hero body','Collapse body','Original disclosure body','Dynamic disclosure body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
  assert.equal(html.split(sentinel).length-1,1,`${sentinel} renders once`);
 }
 assert.ok(!html.includes('Hidden panel'),'panel gate omits the entire item');
 assert.ok(!html.includes('Hidden modal'),'modal gate omits its caption and slots');
 assert.ok(!html.includes('Hidden hero body'),'hero gate encloses its body');
+assert.ok(!html.includes('<h2 class="card-title"></h2>'),'bare cards omit heading markup');
 assert.ok(html.includes('class="hero"')&&html.includes('class="hero-content"'),'compact hero reaches the installed group factory');
 assert.ok(html.includes('<h1 class="text-3xl font-bold">Dynamic</h1>'),'checked header caption reaches its existing hero sink');
 for(const caption of ['Vertaalde tekst','Vertaalde badge','Vertaalde statistiek','Vertaalde melding']) {

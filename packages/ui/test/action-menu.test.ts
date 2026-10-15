@@ -551,6 +551,15 @@ describe('action menu', () => {
     assert.ok(html.indexOf('<h2') < html.indexOf('<p>Body'));
     assert.ok(html.indexOf('<p>Body') < html.indexOf('<footer'));
     assert.ok(html.indexOf('<footer') < html.indexOf('data-can-primary-actions>'));
+    const bare = await card({ context, children: [
+      primaryActions({ context, children: ['<button type="button">Save</button>'] }),
+      '<p>Bare body</p>',
+      actionMenu({ context, id: 'bare-card-menu', children: [archive()] }),
+    ] });
+    assert.ok(!bare.includes('<h2 class="card-title">'));
+    assert.ok(bare.indexOf('data-can-action-menu>') < bare.indexOf('<p>Bare body'));
+    assert.ok(bare.indexOf('<p>Bare body') < bare.indexOf('<footer'));
+    assert.ok(bare.includes('data-can-primary-actions>'));
     const empty = await card({ context, title: 'Empty', layout: 'columns', children: [] });
     assert.ok(!empty.includes('<footer'));
     assert.ok(!empty.includes('class="grid'));

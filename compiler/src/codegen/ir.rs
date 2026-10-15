@@ -12445,7 +12445,10 @@ impl<'a> Cx<'a> {
                 }
                 self.check_ui_attributes(node, "card", &["layout"]);
                 let mut props = Vec::new();
-                if let Some(caption) = self.decode_single_ui_caption(scope, node, "card") {
+                if kids(node).into_iter().any(|child| {
+                    is_expression(child.kind) || child.kind == SyntaxKind::MessageValue
+                }) && let Some(caption) = self.decode_single_ui_caption(scope, node, "card")
+                {
                     props.push(("title".to_string(), caption));
                 }
                 for (name, value) in ui_attributes(self.db, node) {
