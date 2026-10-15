@@ -15216,12 +15216,18 @@ fn ordinary_file_array(ty: &ResolvedType) -> bool {
         if element.as_ref() == &ResolvedType::Scalar(Scalar::File))
 }
 
+/// Email joins the disclosed primitives: stored email fields are ordinary
+/// checked scalars with a String MCP mapping and a Values wire codec, and
+/// native dispatch (row 10) must seal record email inputs such as a mail
+/// recipient. Other unlisted scalars keep failing closed; each needs its own
+/// probe before admission.
 fn primitive_type(ty: &ResolvedType) -> bool {
     matches!(
         ty,
         ResolvedType::Scalar(
             Scalar::Int
                 | Scalar::Text
+                | Scalar::Email
                 | Scalar::Bool
                 | Scalar::Decimal
                 | Scalar::Money

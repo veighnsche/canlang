@@ -5685,6 +5685,11 @@ fn native_result_type(ty: &ResolvedType) -> bool {
 }
 
 /// Exact first State scalar profile; nominal aliases never become text here.
+/// Email is a supported dependency transport identity alongside the other
+/// disclosed string-like scalars: the checked `email` type_id round-trips
+/// through the native receipt and the Values wire codec, which native
+/// dispatch (row 10) needs for record email inputs such as a mail recipient.
+/// Any other unlisted scalar still fails closed here.
 pub(super) fn supported_type_id(type_id: &str) -> bool {
     let base = type_id.strip_suffix('?').unwrap_or(type_id);
     let base = base.strip_suffix("[]").unwrap_or(base);
@@ -5692,6 +5697,7 @@ pub(super) fn supported_type_id(type_id: &str) -> bool {
         base,
         "int"
             | "text"
+            | "email"
             | "bool"
             | "decimal"
             | "money"
