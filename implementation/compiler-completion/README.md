@@ -2,14 +2,24 @@
 
 ## Current remainder and finite completion
 
+**C02 typed nested example fixtures (2026-10-15, qualified component).**
+Reuse owning canonical schema/codecs for nested Contract Model slots and actual
+operation input encoding. Typed row-cell traversal updates genuine isolated
+stored fixtures atomically through existing defaults/invariants, then refreshes
+all repeated reference paths. Plain Contract/scalar/enum input overrides remain
+inputs; caller/request channels and post-invocation seal remain intact. Normal
+CF build passes; existing adapter10/35.47s plus nested positive/invariant controls
+2/5.76s pass. Initial positive-test failure was incorrect Money units (200 versus
+2 minor); corrected assertions retain all original semantic checks. Original six
+promotion rows and complete policy closure remain required.
+
 **C02 optional File fixture setup (2026-10-15, qualified component).**
 Absent/null optional singular File values now pass the existing canonical fixture
 session; nonnull/required/array File and Delivery still require their resource
 profile. Finalized rows are rechecked before commit, preserving defaults and
 invariant validation. Normal CF build passes; seven-mode focused native fixture
 check passes1/7.84s. Original promotion native execution remains required. Nested
-Contract fixture/row-cell controls currently expose an unexpected success-row
-rule_failed and are not accepted yet.
+Contract fixture/row-cell controls are qualified separately below.
 
 **Original24 qualification atc1cec0c6 (2026-10-15).**
 Isolated CLI428.83s, exit10, complete=true/omitted0:656 findings (630 E6008,

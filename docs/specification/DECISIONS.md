@@ -16986,3 +16986,18 @@ pass (1 test/7.84s), including requiredness and invariant refusals. This repairs
 fixture setup only; original CRM native workflow remains unqualified. Original24
 at isolated c1cec0c6 finishes428.83s with656 findings, complete/omitted0, unchanged
 source records/catalog and zero multiset changes.
+
+
+### 2026-10-15 — typed nested example fixtures and row cells
+
+Use the owning canonical value schema and existing codec reference resolver to
+materialize nested Contract/Model fixture fields and encode operation inputs.
+Resolve row-cell paths from the declared operation input through Contracts and
+arrays; update only genuine isolated fixture bindings, validate the complete
+override batch through the canonical session, then refresh every typed reference
+slot. Preserve plain scalar/enum input cells, ordinary Contract business fields,
+caller/request channels and the post-invocation fixture seal. No production
+permission or operation behavior changes. Normal CF build, existing adapter
+checks10/35.47s and focused nested controls2/5.76s pass. One initial test failure
+was its incorrect Money units; actual guard operands verified200/100 minor
+units before correcting assertions. Original six promotion rows remain required.
