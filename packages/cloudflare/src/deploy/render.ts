@@ -64,6 +64,12 @@ export function renderWranglerToml(plan: DeployPlan): string {
     lines.push(`bucket_name = ${tomlString(bucket.bucket_name)}`);
     lines.push("");
   }
+  for (const namespace of wrangler.kv_namespaces ?? []) {
+    lines.push("[[kv_namespaces]]");
+    lines.push(`binding = ${tomlString(namespace.binding)}`);
+    lines.push(`id = ${tomlString(namespace.id)}`);
+    lines.push("");
+  }
   for (const binding of wrangler.durable_objects.bindings) {
     lines.push("[[durable_objects.bindings]]");
     lines.push(`name = ${tomlString(binding.name)}`);
