@@ -6077,14 +6077,14 @@ impl<'a> Cx<'a> {
     /// Resolve an `s` scope slot to its fixture (bindings first, then
     /// module fixtures).
     fn resolve_scope_fixture(&self, scope: &Scope, name: &str) -> Option<SymbolId> {
-        if let Some(id) = scope
-            .bindings
-            .values()
-            .find(|id| self.local_name(**id) == name)
-        {
-            return Some(*id);
-        }
-        self.fixture_in_scope(scope.module, name)
+        self.program
+            .symbols
+            .iter()
+            .find(|symbol| {
+                matches!(symbol.kind, SymbolKind::Fixture { .. }) && symbol.canonical == name
+            })
+            .map(|symbol| symbol.id)
+            .or_else(|| self.fixture_in_scope(scope.module, name))
     }
 
     /// Inferred member type from a base type plus field: declared
@@ -6268,7 +6268,7 @@ impl<'a> Cx<'a> {
         }
         // Example input bindings rewrite to their fixture scope slot.
         if let Some(fixture) = scope.bindings.get(&name) {
-            let fixture_name = self.local_name(*fixture);
+            let fixture_name = self.canonical(*fixture);
             return member_of("s", &fixture_name, &self.fixture_type(*fixture), node.span);
         }
         // These reads refer to checked immutable descriptor lets. Keep their
@@ -6301,7 +6301,7 @@ impl<'a> Cx<'a> {
         }
         // Fixture references resolve through the example tables.
         if let Some(id) = self.fixture_in_scope(scope.module, &name) {
-            let fixture_name = self.local_name(id);
+            let fixture_name = self.canonical(id);
             return member_of("s", &fixture_name, &self.fixture_type(id), node.span);
         }
         // A checked lexical bool remains a value even when a module role
@@ -18180,8 +18180,7 @@ impl<'a> Cx<'a> {
         });
         let mut scope = Scope::module(symbol.module);
         scope.example_values = true;
-        let dependencies: Vec<String> =
-            recipe.seeds.iter().map(|id| self.local_name(*id)).collect();
+        let dependencies: Vec<String> = recipe.seeds.iter().map(|id| self.canonical(*id)).collect();
         let kind = match target {
             FixtureTarget::Model(model) => {
                 let fields = object
@@ -18336,7 +18335,7 @@ impl<'a> Cx<'a> {
             }
         };
         Some(IrFixture {
-            name: symbol.name.clone(),
+            name: symbol.canonical.clone(),
             canonical: symbol.canonical.clone(),
             kind,
             dependencies,
@@ -18578,48 +18577,28 @@ impl<'a> Cx<'a> {
                 recipes.insert(item.id, recipe.clone());
             }
         }
-        let mut claimed: HashSet<SymbolId> = HashSet::new();
+        // Every checked declaration owns one recipe-only provider. Operations
+        // link those exact canonical objects, including same-module fixtures;
+        // aliases never create a second setup/provisioning identity.
+        let import = |id: SymbolId| {
+            let symbol = self.program.symbols.get(id.0 as usize)?;
+            let provider = self.program.modules.get(symbol.module.0 as usize)?;
+            Some(crate::codegen::bdd::IrExampleImport {
+                provider: provider.name.clone(),
+                member: symbol.name.clone(),
+                alias: symbol.canonical.clone(),
+            })
+        };
         let mut suites = Vec::new();
         for (operation, tables, sequences, refs) in &by_operation {
-            let operation_module = self
-                .program
-                .symbols
-                .get(operation.0 as usize)
-                .map(|s| s.module)
-                .unwrap_or(ModuleId(0));
-            let closure = self.fixture_closure(refs);
-            let mut fixtures = Vec::new();
-            let mut imported = Vec::new();
-            for id in closure {
-                let Some(recipe) = recipes.get(&id) else {
-                    continue;
-                };
-                let home = self
-                    .program
-                    .symbols
-                    .get(id.0 as usize)
-                    .map(|s| s.module)
-                    .unwrap_or(ModuleId(0));
-                if home != operation_module {
-                    let provider = self
-                        .program
-                        .modules
-                        .get(home.0 as usize)
-                        .map(|m| m.name.clone())
-                        .unwrap_or_default();
-                    imported.push(crate::codegen::bdd::IrExampleImport {
-                        provider,
-                        member: recipe.name.clone(),
-                        alias: recipe.name.clone(),
-                    });
-                    continue;
-                }
-                claimed.insert(id);
-                fixtures.push(recipe.clone());
-            }
+            let imported = self
+                .fixture_closure(refs)
+                .into_iter()
+                .filter_map(import)
+                .collect();
             suites.push(BddSuite {
                 scope: self.canonical(*operation),
-                fixtures,
+                fixtures: Vec::new(),
                 imported,
                 tables: tables.clone(),
                 sequences: sequences.clone(),
@@ -18627,25 +18606,31 @@ impl<'a> Cx<'a> {
                     .program
                     .symbols
                     .get(operation.0 as usize)
-                    .map(|s| s.span)
+                    .map(|symbol| symbol.span)
                     .unwrap_or(Span::new(SourceId(0), 0, 0)),
             });
         }
-        // Orphan recipes: fixtures no same-module suite claims.
-        let mut orphans: Vec<SymbolId> = recipes
-            .keys()
-            .copied()
-            .filter(|id| !claimed.contains(id))
-            .collect();
-        orphans.sort_by_key(|id| id.0);
-        for id in orphans {
-            let Some(recipe) = recipes.get(&id) else {
-                continue;
-            };
+        let mut providers: Vec<_> = recipes.keys().copied().collect();
+        providers.sort_by_key(|id| id.0);
+        for id in providers {
+            let recipe = &recipes[&id];
+            let mut seen = HashSet::new();
+            let imported = self
+                .program
+                .examples
+                .fixtures
+                .iter()
+                .find(|fixture| fixture.symbol == id)
+                .into_iter()
+                .flat_map(|fixture| &fixture.seeds)
+                .copied()
+                .filter(|id| seen.insert(*id))
+                .filter_map(import)
+                .collect();
             suites.push(BddSuite {
                 scope: recipe.canonical.clone(),
                 fixtures: vec![recipe.clone()],
-                imported: Vec::new(),
+                imported,
                 tables: Vec::new(),
                 sequences: Vec::new(),
                 span: recipe.span,
@@ -18806,7 +18791,7 @@ impl<'a> Cx<'a> {
         let dependencies: Vec<String> = sequence
             .seeds
             .iter()
-            .map(|id| self.local_name(*id))
+            .map(|id| self.canonical(*id))
             .collect();
         Some((
             IrSequence {
@@ -18866,7 +18851,7 @@ impl<'a> Cx<'a> {
     /// canonical identity, anything else stays a spelling.
     fn decode_caller(&mut self, module: ModuleId, name: &str, span: Span) -> TypedExpr {
         if let Some(id) = self.fixture_in_scope(module, name) {
-            let fixture_name = self.local_name(id);
+            let fixture_name = self.canonical(id);
             let ty = self.fixture_type(id);
             return TypedExpr::new(member_of("s", &fixture_name, &ty, span), ty, span);
         }
@@ -19163,7 +19148,7 @@ impl<'a> Cx<'a> {
                 let mut names: Vec<String> = row_refs
                     .iter()
                     .filter(|id| !table_deps.contains(id))
-                    .map(|id| self.local_name(*id))
+                    .map(|id| self.canonical(*id))
                     .collect();
                 names.sort();
                 names.dedup();
@@ -19182,9 +19167,9 @@ impl<'a> Cx<'a> {
         // Table dependencies: explicit seeds plus common baseline
         // fixtures, deduplicated, seeds first.
         let mut dependencies: Vec<String> =
-            table.seeds.iter().map(|id| self.local_name(*id)).collect();
+            table.seeds.iter().map(|id| self.canonical(*id)).collect();
         for id in &binding_fixtures {
-            let name = self.local_name(*id);
+            let name = self.canonical(*id);
             if !dependencies.contains(&name) {
                 dependencies.push(name);
             }
@@ -19218,7 +19203,7 @@ impl<'a> Cx<'a> {
             return self.decode_expr(&scope, cell);
         };
         if let Some(id) = self.fixture_in_scope(module, &name) {
-            let fixture_name = self.local_name(id);
+            let fixture_name = self.canonical(id);
             let ty = self.fixture_type(id);
             return TypedExpr::new(member_of("s", &fixture_name, &ty, span), ty, span);
         }
