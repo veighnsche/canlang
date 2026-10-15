@@ -625,7 +625,8 @@ fn parse_params(
                 require_text(name, "copy_from", copy_from)?;
                 if params.unit != "new" {
                     return Err(ProtocolError::invalid(
-                        "invalid-param", "bind `copy_from` requires `unit: new`",
+                        "invalid-param",
+                        "bind `copy_from` requires `unit: new`",
                     ));
                 }
             }
