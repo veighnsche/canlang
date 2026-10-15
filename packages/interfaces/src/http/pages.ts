@@ -30,6 +30,7 @@ import type {
   PageDescriptor,
   PageSourceContext,
   PageReadScope,
+  PageRecordsReader,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -165,9 +166,9 @@ function checkedPreferenceVersion(value: string): boolean {
 
 /** Saved preference values are loaded only for this resolved active actor/team. */
 async function preferenceSource(
-  deps: PageHttpDeps, identity: ResolvedIdentity, descriptor: PageDescriptor,
+  deps: PageHttpDeps, identity: ResolvedIdentity, descriptor: PageDescriptor, readRecords?: PageRecordsReader,
 ): Promise<PageSourceContext> {
-  const source = buildPageSourceContext(identity);
+  const source = buildPageSourceContext(identity, readRecords);
   const fields = checkedPreferenceFields(descriptor);
   if (fields.length === 0) {
     await deps.bindSourceReadContext?.(identity, source);
@@ -397,33 +398,12 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
   }
 
   let source: PageSourceContext;
-  try {
-    source = await preferenceSource(deps, identity, match.descriptor);
-  } catch (err) {
-    return renderThrowResponse(deps, err, pathname);
-  }
-  let bindings: AdmittedBindings;
-  try {
-    bindings = await match.descriptor.admit(source, match.routeBindings);
-  } catch (err) {
-    const error = caughtToBusinessError(err);
-    if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
-    return jsonErrorResponse(error, httpStatusFor(error.code));
-  }
-
-  let csrfToken: string;
-  try {
-    csrfToken = sessionToken === null ? '' : await deriveCsrfToken(sessionToken);
-  } catch (err) {
-    return internalResponse(deps, err, pathname);
-  }
-
-  const partial = isPartialRequest(request);
+  let sourceReady = false;
   let scope: PageReadScope | undefined;
   let closeScope: (() => void | Promise<void>) | undefined;
   let scopeActive = true;
   const requireActiveScope = (): void => {
-    if (!scopeActive) throw new IdentityError('forbidden', 'Page read scope is closed.');
+    if (!scopeActive || request.signal.aborted) throw new IdentityError('forbidden', 'Page read scope is closed.');
   };
   const resolveCaller = async (): Promise<ResolvedIdentity> => {
     requireActiveScope();
@@ -433,14 +413,57 @@ async function handlePageRequestCore(deps: PageHttpDeps, request: Request): Prom
     requireActiveScope();
     return resolved.identity;
   };
+  let query!: RowQueryRunner;
+  let opening: Promise<void> | undefined;
+  const openScope = (): Promise<void> => opening ??= Promise.resolve().then(async () => {
+    requireActiveScope();
+    scope = await deps.createReadScope?.(identity, source, resolveCaller);
+    closeScope = scope?.close?.bind(scope);
+    requireActiveScope();
+    const scopedQuery = scope?.query;
+    query = bindRowQueryRunner(deps, identity, scopedQuery, scopedQuery === undefined ? deps : scope);
+    await scope?.onQueryBound?.(query);
+    requireActiveScope();
+  });
+  const admissionRead: PageRecordsReader = async (model, selected) => {
+    requireActiveScope();
+    if (!sourceReady) throw buildBusinessError('validation', 'Page source admission is not active.');
+    await openScope();
+    requireActiveScope();
+    if (scope?.readRecords === undefined) throw buildBusinessError('validation', 'Authorized page source reads are not configured.');
+    // This reader owns model, source and current field authority. A page guard
+    // has not admitted the request and cannot grant any of those permissions.
+    const rows = await scope.readRecords.call(scope, model, selected);
+    requireActiveScope();
+    return rows;
+  };
   try {
-    let query: RowQueryRunner;
     try {
-      scope = await deps.createReadScope?.(identity, source, resolveCaller);
-      closeScope = scope?.close?.bind(scope);
-      const scopedQuery = scope?.query;
-      query = bindRowQueryRunner(deps, identity, scopedQuery, scopedQuery === undefined ? deps : scope);
-      await scope?.onQueryBound?.(query);
+      source = await preferenceSource(deps, identity, match.descriptor,
+        Object.keys(match.routeBindings).length === 0 ? undefined : admissionRead);
+      sourceReady = true;
+    } catch (err) {
+      return renderThrowResponse(deps, err, pathname);
+    }
+    let bindings: AdmittedBindings;
+    try {
+      bindings = await match.descriptor.admit(source, match.routeBindings);
+    } catch (err) {
+      const error = caughtToBusinessError(err);
+      if (!isBusinessThrow(err)) logInternalError(deps.logger, err, { path: pathname });
+      return jsonErrorResponse(error, httpStatusFor(error.code));
+    }
+
+    let csrfToken: string;
+    try {
+      csrfToken = sessionToken === null ? '' : await deriveCsrfToken(sessionToken);
+    } catch (err) {
+      return internalResponse(deps, err, pathname);
+    }
+
+    const partial = isPartialRequest(request);
+    try {
+      await openScope();
     } catch (err) {
       return renderThrowResponse(deps, err, pathname);
     }

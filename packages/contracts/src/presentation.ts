@@ -189,7 +189,8 @@ export interface PageSourceContext {
   readonly preferenceVersions?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly canonical: {
     readonly builtinRoles: readonly string[];
-    /** Render-only native records from this request's authorized viewer scope. */
+    /** Native records from this request's authorized viewer scope, shared by
+     * matched dynamic admission and rendering without granting page authority. */
     readonly readRecords?: PageRecordsReader;
     readonly observeDelivery?: PageDeliveryObserver;
     readonly observeGenerationCallbackDiagnostics?: PageGenerationCallbackDiagnosticsObserver;

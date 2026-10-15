@@ -135,7 +135,7 @@ export interface BuildPresentationContextInput {
 }
 
 /** Project verified identity facts into the generated page callable contract. */
-export function buildPageSourceContext(identity: ResolvedIdentity): PageSourceContext {
+export function buildPageSourceContext(identity: ResolvedIdentity, readRecords?: PageRecordsReader): PageSourceContext {
   const { actor, team, membership } = identity;
   const active = actor !== null && team !== null && membership !== null
     && membership.status === 'active' && membership.user_id === actor.user_id
@@ -148,7 +148,7 @@ export function buildPageSourceContext(identity: ResolvedIdentity): PageSourceCo
     actorFacts: actor === null ? null : Object.freeze({ email: actor.email, email_verified: actor.email_verified }),
     team: team === null ? null : Object.freeze({ id: team.team_id, timezone: team.timezone }),
     memberships: Object.freeze(active ? membership.roles.map(grant => grant.role) : []),
-    canonical: Object.freeze({ builtinRoles: Object.freeze(builtinRoles) }),
+    canonical: Object.freeze({ builtinRoles: Object.freeze(builtinRoles), ...(readRecords === undefined ? {} : { readRecords }) }),
   });
 }
 

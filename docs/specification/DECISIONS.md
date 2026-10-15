@@ -17047,3 +17047,20 @@ same-name identity, live bindings/context isolation and graph refusals. Whole CF
 build is not green: concurrent unrelated deploy/resource-host/root-authority edits
 currently fail typechecking. No original six-row execution credit; compiler
 provider integration and current complete package outputs remain required.
+
+
+### 2026-10-15 — share dynamic page admission and render read scope
+
+Reuse existing PageSourceContext.canonical.readRecords and PageReadScope: matched
+dynamic admission opens its owning scope lazily, and rendering uses that same
+reader/physical scope. Concurrent admission reads open it once; skipped reads stay
+lazy. The reader retains independent model/field authority before page admission.
+Close initialized scopes after denial, errors, cancellation and rendering; retained
+source wrappers refuse after close. Static admission keeps its prior lifecycle.
+No new route DTO, Boolean-row reuse, predicate rerun or publication-time hook.
+
+Interfaces normal build and all49 owning HTTP-page tests pass (7.15s), including
+4 new lifecycle/private-binding/current-reader/refusal controls. This qualifies
+the runtime prerequisite, not typed-route compiler emission or original Partner.
+Original5 route diagnostics and66 related row renders remain the shared defining
+producer/consumer group; whole-composition counts are unchanged.
