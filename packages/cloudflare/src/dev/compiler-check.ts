@@ -25,7 +25,8 @@ export type CapturedCompileResult =
   | { readonly kind: "capture_incomplete"; readonly reason: string; readonly capture: SingleFileCapture }
   | { readonly kind: "tool_failure"; readonly reason: string; readonly capture: SingleFileCapture };
 
-/** The first profile has one implicit app and no package/composition imports. */
+/** One authored app, with same-file packages resolved by the compiler.
+ * Cross-file member imports remain outside this captured source profile. */
 export function admitSingleAppProfile(sourceText: string): { ok: true } | { ok: false; reason: string } {
   let apps = 0;
   for (const [index, line] of sourceText.split(/\r?\n/).entries()) {
@@ -34,14 +35,8 @@ export function admitSingleAppProfile(sourceText: string): { ok: true } | { ok: 
     if (/^(?:export\s+)?use\b/.test(source)) {
       return { ok: false, reason: `line ${index + 1}: imported members are outside the first profile` };
     }
-    if (/^package\b/.test(source)) {
-      return { ok: false, reason: `line ${index + 1}: explicit packages are outside the first profile` };
-    }
     if (/^app\b/.test(source)) {
       apps += 1;
-      if (/\buses\s*=/.test(source)) {
-        return { ok: false, reason: `line ${index + 1}: composed apps are outside the first profile` };
-      }
     }
   }
   return apps === 1

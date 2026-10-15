@@ -44,7 +44,10 @@ test("daemon handshake admits exact current inputs, attaches, and releases its o
     await assert.rejects(discoverDevDaemon({ checkoutRoot: root, app: "Other", runtimeDir }),
       error => error instanceof SessionSocketError && error.code === "SESSION_MISMATCH");
 
-    await assert.rejects(startDevDaemon({ selectedApp: "OfficeSupplies", capture, runtimeDir }),
+    // An explicit seed configuration cannot attach to a differently seeded
+    // owner; starts always preserve the existing exclusive session.
+    await assert.rejects(startDevDaemon({ selectedApp: "OfficeSupplies", capture, runtimeDir,
+      previewRoles: { Ava: ["curator"] } }),
       error => error instanceof SessionSocketError && error.code === "SESSION_EXISTS");
 
     const stopped = await stopDevDaemon({ checkoutRoot: root, sessionId: started.identity.sessionId, runtimeDir });

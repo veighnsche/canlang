@@ -37,7 +37,7 @@ const FIRST_PROFILE_IDS = new Set([
 // Explicit exclusions enforced by admitSingleAppProfile and preview admission.
 // The complement of the included surface is never an exclusion verdict.
 const FIRST_PROFILE_OUTSIDE_IDS = new Set([
-  'can.v1.app.composed', 'can.v1.package', 'can.v1.import',
+  'can.v1.import',
   'can.v1.import.alias', 'can.v1.import.bound', 'can.v1.when.scenario.periodic',
 ]);
 

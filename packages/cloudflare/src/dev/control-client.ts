@@ -2,6 +2,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { prepareLocalPreviewCapture } from "./preview-inputs.js";
+import { parsePreviewRoles } from "./preview-roles.js";
 import { discoverDevDaemon, startDevDaemon, stopDevDaemon } from "./session-daemon.js";
 import type { SingleFileCaptureRequest } from "./source-capture.js";
 import { validAuthorIntent } from './construct-evidence.js';
@@ -20,10 +21,10 @@ const COMMANDS = [
 type Command = typeof COMMANDS[number];
 type Flag = "--root" | "--session" | "--app" | "--profile" | "--revision" |
   "--expected-revision" | "--index" | "--after" | "--limit" | "--ref" | "--capture" |
-  "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row" | "--author-intent";
+  "--preview-roles" | "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row" | "--author-intent";
 const FLAGS: ReadonlySet<string> = new Set<Flag>([
   "--root", "--session", "--app", "--profile", "--revision", "--expected-revision",
-  "--index", "--after", "--limit", "--ref", "--capture", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row", "--author-intent",
+  "--index", "--after", "--limit", "--ref", "--capture", "--preview-roles", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row", "--author-intent",
 ]);
 
 export type DevControlEnvelope =
@@ -58,7 +59,7 @@ function help(): DevControlEnvelope {
         session: command === "start" ? "exclusive owner for the selected source"
           : "canonical checkout and verified owner-only socket" })),
       flags: {
-        start: ["--source", "--root", "--app", "--compiler", "--catalog", "--help-index", "--capture"],
+        start: ["--source", "--root", "--app", "--compiler", "--catalog", "--help-index", "--capture", "--preview-roles"],
         common: ["--root", "--session", "--app", "--profile"],
         check: ["--expected-revision"],
         diagnostics: ["--revision", "--after", "--limit"],
@@ -143,7 +144,7 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     values.set(flag as Flag, value);
   }
   const allowed = new Set<string>(selected === "start"
-    ? ["--root", "--app", "--source", "--capture", "--compiler", "--catalog", "--help-index"]
+    ? ["--root", "--app", "--source", "--capture", "--compiler", "--catalog", "--help-index", "--preview-roles"]
     : ["--root", "--session", "--app", "--profile"]);
   if (selected === "check" || selected === "example.run") allowed.add("--expected-revision");
   if (selected === "example.run") { allowed.add("--operation"); allowed.add("--row"); }
@@ -233,7 +234,10 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
         }
       }
       const app = values.get("--app") ?? await declaredAppName(resolve(capture.checkoutRoot, capture.appPath));
-      const started = await startDevDaemon({ selectedApp: app, capture });
+      let previewRoles: ReturnType<typeof parsePreviewRoles> | undefined;
+      try { previewRoles = values.has("--preview-roles") ? parsePreviewRoles(JSON.parse(values.get("--preview-roles")!)) : undefined; }
+      catch { throw new SessionSocketError("INVALID_ARGUMENTS", "--preview-roles requires a JSON map of seeded actor labels to declared role names"); }
+      const started = await startDevDaemon({ selectedApp: app, capture, ...(previewRoles === undefined ? {} : { previewRoles }) });
       return { ok: true, command: selected, session: started.identity.sessionId,
         result: { schema: "can.dev.start.v1", attached: started.attached, root: started.identity.root, status: started.status } };
     }

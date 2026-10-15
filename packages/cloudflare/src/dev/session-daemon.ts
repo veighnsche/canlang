@@ -7,6 +7,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { admitSingleAppProfile } from "./compiler-check.js";
+import { parsePreviewRoles, type PreviewRoles } from "./preview-roles.js";
 import { createInstalledLocalPreviewBuilder } from "./preview-host.js";
 import { createInstalledFirstProfileQualification } from "./first-profile-qualification.js";
 import { attachDevSessionService, startDevSessionService, type SessionServiceOwner, type SessionServiceStatus } from "./session-service.js";
@@ -31,6 +32,7 @@ const MAX_ERROR_MESSAGE = 300;
 
 export interface DevDaemonStartOptions {
   selectedApp: string;
+  previewRoles?: PreviewRoles;
   capture: SingleFileCaptureRequest;
   runtimeDir?: string;
   startupTimeoutMs?: number;
@@ -51,6 +53,7 @@ export interface DevDaemonLauncherDependencies {
 interface ChildStartMessage {
   type: "start";
   selectedApp: string;
+  previewRoles?: PreviewRoles;
   capture: SingleFileCaptureRequest;
   runtimeDir?: string;
   expectedSourceRevision: string;
@@ -199,6 +202,7 @@ export async function startDevDaemon(
   options: DevDaemonStartOptions,
   dependencies: DevDaemonLauncherDependencies = {},
 ): Promise<DevDaemonResult> {
+  const previewRoles = parsePreviewRoles(options.previewRoles ?? {});
   const timeoutMs = startupLimit(options.startupTimeoutMs);
   const expected = await admittedCapture(options);
   const entryPath = dependencies.entryPath ?? fileURLToPath(new URL("./session-daemon-entry.js", import.meta.url));
@@ -220,7 +224,7 @@ export async function startDevDaemon(
   try {
     const replyPromise = awaitReply(child, timeoutMs);
     const delivery = sendStart(child, {
-      type: "start", selectedApp: options.selectedApp, capture: options.capture,
+      type: "start", selectedApp: options.selectedApp, capture: options.capture, previewRoles,
       ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
       expectedSourceRevision: expected.sourceRevision,
       expectedEpochMaterial: expected.epochMaterial,
@@ -253,7 +257,7 @@ export async function startDevDaemon(
 }
 
 /** Stop only the verified owner and wait for its private endpoint to vanish. */
-export async function stopDevDaemon(lookup: SessionSocketLookup, timeoutMs = 5_000): Promise<{ session: string; stopped: true }> {
+export async function stopDevDaemon(lookup: SessionSocketLookup, timeoutMs = 10_000): Promise<{ session: string; stopped: true }> {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30_000) {
     throw new SessionSocketError("INVALID_LIMIT", "daemon stop timeout is outside the supported range");
   }
@@ -289,6 +293,7 @@ function childRequest(value: unknown): ChildStartMessage | null {
       typeof capture.profile !== "string" || typeof capture.compilerPath !== "string" ||
       (capture.catalogPath !== null && typeof capture.catalogPath !== "string") ||
       typeof capture.helpIndexPath !== "string" || !Array.isArray(capture.packageInputPaths)) return null;
+  try { parsePreviewRoles(item.previewRoles ?? {}); } catch { return null; }
   return item as unknown as ChildStartMessage;
 }
 
@@ -331,7 +336,7 @@ export async function serveDevDaemonProcess(): Promise<void> {
     owner = await startDevSessionService({
       selectedApp: request.selectedApp,
       capture: request.capture,
-      previewBuilder: createInstalledLocalPreviewBuilder(),
+      previewBuilder: createInstalledLocalPreviewBuilder(parsePreviewRoles(request.previewRoles ?? {})),
       constructRanking: { qualify: createInstalledFirstProfileQualification() },
       ...(request.runtimeDir === undefined ? {} : { runtimeDir: request.runtimeDir }),
     });

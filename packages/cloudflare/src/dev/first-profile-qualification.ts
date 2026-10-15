@@ -113,7 +113,7 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
   let identities: D1Database | undefined, preview: LocalPreviewWithActors | undefined;
   const build = createLocalPreviewBuilder({ resources: { d1: { binding: 'DB', availability: 'real_local' },
     identity: { backingBinding: 'DB', availability: 'real_local' } }, activationVerdict: preflightLocalPreviewActivation,
-    produceBundle: produceInstalledPortableBundle, seedLocalActors: seedLocalPreviewActors,
+    produceBundle: produceInstalledPortableBundle, seedLocalActors: db => seedLocalPreviewActors(db),
     workerVarsForOrigin: localPreviewWorkerVars,
     confirmRunningActivation: async (artifact, source, db, id, owner, identityDb) => {
       check(); assert.ok(owner && identityDb); owners.set(owner, db); identities = identityDb;

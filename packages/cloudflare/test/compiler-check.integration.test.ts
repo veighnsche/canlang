@@ -7,7 +7,7 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { captureSingleFileSource, type SingleFileCaptureRequest } from "../src/dev/source-capture.js";
-import { compileCapturedSingleFile } from "../src/dev/compiler-check.js";
+import { admitSingleAppProfile, compileCapturedSingleFile } from "../src/dev/compiler-check.js";
 
 const repo = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const witness = join(repo, "tests/integration/can-dev-server/OfficeSupplies.can");
@@ -84,7 +84,32 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
     }
   }, 30000);
 
-  it("refuses imports and composition before a whole-app result", async () => {
+  it("admits one same-file composition while the compiler owns its package references", async () => {
+    const { root, app, request } = await tempWitness();
+    const source = 'app OfficeSupplies uses=[Catalog]\n\npackage Catalog\n Given\n  Supply {name:text}\n  policy Supply read=members\n When\n  crud Supply by=members fields=name\n Then\n  page / title="Supplies"\n   list Supply\n    text row.name\n';
+    try {
+      writeFileSync(app, source);
+      const capture = await captureSingleFileSource(request);
+      const result = await compileCapturedSingleFile(capture);
+      expect(result.kind).toBe("artifact");
+      if (result.kind === "artifact") {
+        expect(result.artifact.sources).toEqual([{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
+        expect(result.artifact.pages).toHaveLength(1);
+        expect(result.artifact.pages[0]?.owner).toBe("Catalog");
+      }
+      writeFileSync(app, source.replace("uses=[Catalog]", "uses=[Missing]"));
+      const missing = await compileCapturedSingleFile(await captureSingleFileSource(request));
+      expect(missing.kind).toBe("diagnostics");
+      if (missing.kind === "diagnostics") {
+        expect(missing.envelope.complete).toBe(true);
+        expect(missing.envelope.diagnostics.some(diagnostic =>
+          typeof diagnostic === "object" && diagnostic !== null && "code" in diagnostic && diagnostic.code === "E2005" &&
+          "message" in diagnostic && diagnostic.message === "app 'OfficeSupplies' selects unknown member 'Missing'")).toBe(true);
+      }
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  }, 30000);
+
+  it("refuses imports and multiple apps before a whole-app result", async () => {
     const { root, app, request } = await tempWitness();
     try {
       const source = await readFile(app, "utf8");
@@ -93,10 +118,11 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
       expect(importResult.kind).toBe("profile_unsupported");
       if (importResult.kind === "profile_unsupported") expect(importResult.reason).toMatch(/imported members/);
 
-      writeFileSync(app, source.replace("app OfficeSupplies", "app OfficeSupplies uses=Extra"));
-      const compositionResult = await compileCapturedSingleFile(await captureSingleFileSource(request));
-      expect(compositionResult.kind).toBe("profile_unsupported");
-      if (compositionResult.kind === "profile_unsupported") expect(compositionResult.reason).toMatch(/composed apps/);
+      writeFileSync(app, source + "\napp Another\nGiven\nWhen\nThen\n");
+      const multiple = await compileCapturedSingleFile(await captureSingleFileSource(request));
+      expect(multiple.kind).toBe("profile_unsupported");
+      if (multiple.kind === "profile_unsupported") expect(multiple.reason).toMatch(/exactly one app/);
+      expect(admitSingleAppProfile("package Orphan\n Given\n When\n Then\n").ok).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

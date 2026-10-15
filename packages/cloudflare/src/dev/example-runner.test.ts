@@ -53,6 +53,70 @@ async function input(artifact: CompileArtifact): Promise<CompiledExampleInput> {
   };
 }
 
+test('field validation protects privileged fixture seeding and row-cell overrides after native trim', async () => {
+  for (const mode of ['valid', 'invalid-seed', 'invalid-override'] as const) {
+    const artifact = compiled(`app RunnerProbe
+Given
+ Item {code:text trim min=1 max=100}
+ policy Item read=members
+When
+ scenario inspect(entry:Item) by=members
+  do require entry.code!=""
+Then
+`);
+    const js = 'export function check(value) { return new TextEncoder().encode(value).byteLength <= 128; }';
+    const { sha256HexText } = await import('@canlang/identity');
+    artifact.modules.push({ path: 'can.generated/budget/server.js', js,
+      map: { version: 3, file: 'server.js', sources: [], sourcesContent: [], names: [], mappings: '' } });
+    artifact.requires.push({ capability: 'state.field-validation', min_version: 1 });
+    artifact.givenContracts = { keywords: [], traits: [{
+      id: 'RunnerProbe.Item.code#budget', owner: 'RunnerProbe', inline: false, trait: 'budget',
+      anchor: 'RunnerProbe:trait:budget:', unitId: 'budget', target: 'RunnerProbe.Item.code',
+      fields: [{ name: 'value', type: 'text', trim: false }], order: 0, fingerprint: '0'.repeat(64),
+      validation: { producer: 'state.field-validation@1', export: 'check', lifecycle: 'validate-fields',
+        input: { name: 'value', type: 'text' }, result: { type: 'bool' }, reads: [], effects: [], authority: [],
+        fingerprint: await sha256HexText(js) },
+    }] };
+    const code = mode === 'invalid-seed' ? 'é'.repeat(65) : '  Valid  ';
+    const override = mode === 'invalid-override';
+    artifact.tests = [testModule('RunnerProbe.inspect', `
+const entry={model:"RunnerProbe.Item",dependencies:[],value:async()=>({code:${JSON.stringify(code)}})};
+export function exampleFixtures(){return {fixtures:{entry},examples:[{operation:"RunnerProbe.inspect",
+ dependencies:[entry],inputs:async(_b,s)=>({entry:s.entry}),selectors:${JSON.stringify(override ? ['as', 'entry.code'] : ['as'])},
+ selectorChannels:${JSON.stringify(override ? ['caller', 'input'] : ['caller'])},observations:[async(_b,s)=>s.entry.code],
+ rows:[{dependencies:[entry],values:async()=>${JSON.stringify(override ? ['self', 'é'.repeat(65)] : ['self'])},expected:async()=>["Valid"]}]}]};}
+`)];
+    const result = await runCompiledExamples(await input(artifact));
+    assert.equal(result.ok, mode === 'valid', `${mode}: ${JSON.stringify(result.report)}`);
+    if (mode !== 'valid') assert.match(JSON.stringify(result.report), /field validation failed/);
+  }
+});
+
+test("authored self other and outsider bindings use each row's provisioned native users and clock", async () => {
+  const artifact = compiled(`app RunnerProbe
+Given
+ Item {owner:user server=actor,seen:user?=null,stamp:datetime?=null}
+ policy Item read=members
+ fixture delegated=Item {owner=other}
+ fixture foreign_owned=Item {owner=outsider}
+When
+ scenario inspect(item:Item) by=members
+  do set item {seen=actor,stamp=now}
+  examples item=delegated
+   as -> item.owner,item.seen,item.stamp
+   self -> other,self,now
+   other -> other,other,now
+   outsider -> error(forbidden)
+  examples item=foreign_owned
+   as -> item.owner,item.seen,item.stamp
+   self -> outsider,self,now
+Then
+`);
+  const result = await runCompiledExamples(await input(artifact));
+  assert.equal(result.ok, true, JSON.stringify(result.report));
+  assert.equal(result.executed, 4);
+});
+
 test("default adapter routes public calls through the current team and preserves member denial", async () => {
   const artifact = compiled(`app RunnerProbe
 Given
@@ -129,6 +193,74 @@ Then
   const result = await runCompiledExamples(await input(artifact));
   assert.equal(result.ok, true, JSON.stringify(result.report));
   assert.equal(result.executed, 2);
+});
+
+test("source result observations expose returned records through caller reads and decode primitive and nullable values", async () => {
+  const artifact = compiled(`app RunnerProbe
+Given
+ Entry {name:text}
+ policy Entry read=members
+When
+ scenario make(name:text) by=public -> Entry
+  do
+   create Entry {name} as entry
+   return entry
+  examples
+   as,name -> result.name
+   members,"Visible" -> "Visible"
+ scenario number() by=members -> int
+  do return 9007199254740993
+  examples
+   as -> result
+   members -> 9007199254740993
+ scenario readNumber() read=true by=members -> int
+  do return 7
+  examples
+   as -> result
+   members -> 7
+ scenario empty() read=true by=members -> text?
+  do return null
+  examples
+   as -> result
+   members -> null
+Then
+`);
+  // A successful public call may create the row without receiving its
+  // private result. The observation adapter must retain that canonical null.
+  artifact.tests.push(testModule("RunnerProbe.make", `export function exampleFixtures() {
+    return {fixtures:{},examples:[{operation:"RunnerProbe.make",dependencies:[],inputs:async()=>({name:"Private"}),
+      selectors:["as"],observations:[async(_b,s)=>s.result],
+      rows:[{dependencies:[],values:async()=>["public"],expected:async()=>[null]}]}]};
+  }`));
+  // Give the additional test module its own path; its operation remains the
+  // same checked source declaration as the authored member row above.
+  artifact.tests[artifact.tests.length - 1]!.module.path = "tests/private-result.mjs";
+  const result = await runCompiledExamples(await input(artifact));
+  assert.equal(result.ok, true, JSON.stringify(result.report));
+  assert.equal(result.executed, 5);
+});
+
+test("returned record observations select their identity beyond the default first page", async () => {
+  const artifact = compiled(`app RunnerProbe
+Given
+ Entry {name:text}
+ policy Entry read=members
+When
+ scenario echo(entry:Entry) read=true by=members -> Entry
+  do return entry
+Then
+`);
+  artifact.tests = [testModule("RunnerProbe.echo", `
+const entries=Array.from({length:30},(_,i)=>({model:"RunnerProbe.Entry",dependencies:[],value:async()=>({name:"Entry "+i})}));
+const selected=s=>Array.from({length:30},(_,i)=>s["f"+i]).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).at(-1);
+export function exampleFixtures(){return {fixtures:Object.fromEntries(entries.map((entry,i)=>["f"+i,entry])),examples:[{
+ operation:"RunnerProbe.echo",dependencies:entries,inputs:async(_b,s)=>({entry:selected(s)}),selectors:["as"],
+ observations:[async(_b,s)=>s.result.name],rows:[{dependencies:entries,values:async()=>["members"],
+ expected:async(_b,s)=>[selected(s).name]}]}]};}
+`)];
+  const result = await runCompiledExamples(await input(artifact));
+  assert.equal(result.ok, true, JSON.stringify(result.report));
+  assert.equal(result.executed, 1);
 });
 
 test("default adapter respects input, request and caller selector channels for stored fixtures", async () => {
@@ -219,9 +351,7 @@ Then
             } else {
               assert.notEqual(currentFixture, fixture);
               assert.equal(afterRevision, beforeRevision + 1);
-              assert.deepEqual(afterRow, { ...beforeRow, version: beforeRow.version + 1,
-                updated: afterRow.updated, updatedBy: args.scope.fixtureActorId,
-                data: { ...beforeRow.data, seen: true } });
+              assert.deepEqual(afterRow, { ...beforeRow, data: { ...beforeRow.data, seen: true } });
               assert.equal(currentFixture.seen, true);
               assert.deepEqual(Object.keys(after), Object.keys(before));
               for (const binding of Object.keys(before)) {
@@ -370,9 +500,7 @@ Then
               assert.notEqual(currentFixture, fixture);
               assert.equal(currentFixture.title, "row");
               assert.equal(afterRevision, beforeRevision + 1);
-              assert.deepEqual(afterRow, { ...beforeRow, version: beforeRow.version + 1,
-                updated: afterRow.updated, updatedBy: args.scope.fixtureActorId,
-                data: { ...beforeRow.data, title: "row" } });
+              assert.deepEqual(afterRow, { ...beforeRow, data: { ...beforeRow.data, title: "row" } });
               assertResourceChanges(before, after, ["records"]);
               assert.equal(after.log.length, before.log.length + 1);
               assert.deepEqual(after.log.slice(0, -1), before.log);

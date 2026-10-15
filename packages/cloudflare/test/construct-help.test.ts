@@ -150,6 +150,13 @@ describe("captured construct help", () => {
       {id:ids[3],profile:"unknown",working:"unqualified"},
     ]);
     expect(Object.isFrozen(selected.classification)).toBe(true);
+    // Same-file app composition/package admission is no longer an explicit
+    // exclusion; ranking still needs its own exact qualification evidence.
+    expect(index.candidates({...inventory,ids:["can.v1.app.composed","can.v1.package"]}).classification)
+      .toEqual([
+        {id:"can.v1.app.composed",profile:"unknown",working:"unqualified"},
+        {id:"can.v1.package",profile:"unknown",working:"unqualified"},
+      ]);
     const outside=joinCompilerConstructCandidates(index,{version:1,disposition:"exact",slot:"given.rule",ids:[ids[2]],complete:true},inventory.profile);
     expect(outside).toMatchObject({disposition:"exact",grammarCoverage:"complete",candidateCoverage:"unknown",
       classification:[{profile:"outside",working:"unqualified"}]});

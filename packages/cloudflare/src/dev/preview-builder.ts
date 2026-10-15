@@ -35,7 +35,7 @@ const PROFILE = "local-d1-identity";
 const BROWSER_KEYS = ["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"] as const;
 export const LOCAL_PREVIEW_CAPABILITIES = [
   "canlang.builtins", "values.decimal", "values.int64", "values.money", "values.temporal", "state",
-  "state.machines", "state.parameters", "interfaces.input-choices",
+  "state.machines", "state.parameters", "state.field-validation", "interfaces.input-choices",
 ] as const;
 const PROFILE_CAPABILITIES = new Set<string>(LOCAL_PREVIEW_CAPABILITIES);
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -86,7 +86,7 @@ export interface LocalPreviewBuilderOptions {
   /** T06 host configuration, called only after the protected loopback origin exists. */
   readonly workerVarsForOrigin?: (origin: string) => Readonly<Record<string, unknown>>;
   /** Real D1 Identity seed; its credentials are disclosed only by preview.open. */
-  readonly seedLocalActors?: (db: D1Database) => Promise<LocalPreviewSeed>;
+  readonly seedLocalActors?: (db: D1Database, artifact: CompileArtifact, capture: SingleFileCapture) => Promise<LocalPreviewSeed>;
 }
 
 export interface LocalPreviewActor {
@@ -479,7 +479,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         d1Persist: persistence,
       });
       let seed: LocalPreviewSeed;
-      try { seed = await options.seedLocalActors(await provisioning.getD1Database("DB")); }
+      try { seed = await options.seedLocalActors(await provisioning.getD1Database("DB"), artifact, capture); }
       finally { await provisioning.dispose(); }
       if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password) ||
           seed.owners.length !== 2 || new Set(seed.owners.map(owner => owner.owner)).size !== 2 ||

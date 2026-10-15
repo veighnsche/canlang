@@ -1,12 +1,16 @@
 /** Real installed producers for the first local D1/Identity preview profile. */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { parsePreviewRoles, resolvePreviewRoles, type PreviewRoles } from "./preview-roles.js";
+import { assembleModules, importVerifiedAssemblyModule } from "../runtime/modules.js";
 import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import type { D1Database } from "@cloudflare/workers-types";
 import { CONTRACTS_VERSION, type ActivationVerdict, type CompileArtifact, type CompatibilityDescriptor, type EnvironmentSelection } from "@canlang/contracts";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
-import { createD1IdentityStore, ensureIdentitySchema, hashPassword } from "@canlang/identity";
+import { createD1IdentityStore, ensureIdentitySchema, hashPassword, setMemberRole } from "@canlang/identity";
 import { checkActivationInventory } from "@canlang/state/migration/activate";
 import { buildWorkInventory } from "@canlang/work/recovery";
 import { activate } from "../deploy/activate.js";
@@ -206,7 +210,19 @@ export async function produceInstalledPortableBundle(request: LocalPreviewBundle
 }
 
 /** Seed ordinary verified users and memberships into the serving Identity D1. */
-export async function seedLocalPreviewActors(db: D1Database): Promise<LocalPreviewSeed> {
+export async function seedLocalPreviewActors(db: D1Database, previewRoles: PreviewRoles = {}, artifact?: CompileArtifact, capture?: SingleFileCapture): Promise<LocalPreviewSeed> {
+  let grants = parsePreviewRoles(previewRoles);
+  if (Object.keys(grants).length !== 0) {
+    if (artifact === undefined || capture === undefined) throw new Error("preview roles require the current compiled application");
+    const workDir = await mkdtemp(join(tmpdir(), "can-preview-roles-"));
+    try {
+      const assembled = await assembleModules({ artifact, sourcePath: capture.appPath }, {
+        workDir, stdlibUrl: new URL("../runtime/stdlib.js", import.meta.url).href,
+      });
+      const entry = await importVerifiedAssemblyModule(assembled, artifact.modules[0]!.path, artifact) as { appDefinition?: unknown };
+      grants = resolvePreviewRoles(grants, entry.appDefinition);
+    } finally { await rm(workDir, { recursive: true, force: true }); }
+  }
   await ensureIdentitySchema(db);
   const identity = createD1IdentityStore(db);
   const cedar = await identity.createTeam({});
@@ -231,6 +247,19 @@ export async function seedLocalPreviewActors(db: D1Database): Promise<LocalPrevi
     actors.push(Object.freeze({ label: profile.label, email: profile.email, password,
       teams: Object.freeze([...profile.teams]) }));
   }
+  // Grants run through Identity's real current-owner API after all accounts
+  // exist. Team ownership alone never implies an authored business role.
+  for (const [label, roles] of Object.entries(grants)) {
+    if (roles.length === 0) continue;
+    const profile = profiles.find(item => item.label === label)!;
+    if (profile.teamId === null) throw new Error("preview role actor must belong to a seeded team");
+    const target = (await identity.findUserByEmail(profile.email))!;
+    const ownerProfile = profiles.find(item => item.teamId === profile.teamId && item.owner)!;
+    const owner = (await identity.findUserByEmail(ownerProfile.email))!;
+    for (const role of roles) await setMemberRole(identity, {
+      team_id: profile.teamId, member_user_id: target.user_id, role,
+    }, { granted_by: owner.user_id });
+  }
   const ava = actors[0]!;
   return { actors: Object.freeze(actors), probe: { email: ava.email, password: ava.password, teamId: cedar.team_id },
     owners: Object.freeze([
@@ -245,7 +274,8 @@ export function localPreviewWorkerVars(): Readonly<Record<string, unknown>> {
 }
 
 /** Host hook injected into the session owner; no caller can supply `active:true`. */
-export function createInstalledLocalPreviewBuilder() {
+export function createInstalledLocalPreviewBuilder(previewRoles: PreviewRoles = {}) {
+  const roles = parsePreviewRoles(previewRoles);
   return createLocalPreviewBuilder({
     resources: {
       d1: { binding: BINDING_NAME, availability: "real_local" },
@@ -254,7 +284,7 @@ export function createInstalledLocalPreviewBuilder() {
     activationVerdict: preflightLocalPreviewActivation,
     confirmRunningActivation: localPreviewActivationVerdict,
     produceBundle: produceInstalledPortableBundle,
-    seedLocalActors: seedLocalPreviewActors,
+    seedLocalActors: (db, artifact, capture) => seedLocalPreviewActors(db, roles, artifact, capture),
     workerVarsForOrigin: localPreviewWorkerVars,
   });
 }
