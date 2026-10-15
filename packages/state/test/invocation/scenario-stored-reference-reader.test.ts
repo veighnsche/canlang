@@ -14,8 +14,9 @@ import { invoke } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { beginScenarioReceiptMutation, bindScenarioReceiptReferenceProducer, observeScenarioReceiptDependency,
   readScenarioReceiptStoredReferenceRow, selectScenarioReceiptReturn, readScenarioReceiptAssociation,
-  projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
-import { asId, asModel, FIXED_NOW, makeIdentity, makeEnvelope, uuidv7 } from './fixtures.js';
+  projectScenarioReceipt, observeScenarioReceiptRowId, bindScenarioReceiptModelResult,
+  readScenarioReceiptNullableStoredReferenceRow } from '../../src/invocation/scenario-receipt.js';
+import { asId, asModel, FIXED_NOW, makeIdentity, makeEnvelope, makeBatch, makeRow, uuidv7 } from './fixtures.js';
 
 const CONVERSATION = asModel('ReferenceReader.Conversation'), BRANCH = asModel('ReferenceReader.Branch'), PROFILE = asModel('ReferenceReader.Profile');
 const OP = 'ReferenceReader.active', APP = 'stored-reference-reader', cause = { cause: 'scenario' } as const;
@@ -277,4 +278,147 @@ test('source-only related Identity revoked during the late target snapshot refus
   await assert.rejects(invoke({ ...execution.request, memberships }), refuses);
   assert.equal(targetEvaluated, true); assert.equal(laterSourceObserved, true); assert.equal(revocations, 1);
   assert.equal(execution.targetRow(), undefined); await unchanged(w);
+});
+
+
+/** The existing ID dependency supplies model-result lifetime evidence. There is
+ * no authored id field or id field grant, and the source is not an input slot. */
+async function identityWorld(role: 'data' | 'control' = 'data', shape: Shape = 'singular') {
+  const w = await world(shape, true), original = artifact(shape);
+  const descriptors: ArtifactDescriptorSlice = { ...original, operations: original.operations!.map(operation => ({
+    ...operation, result: { type: PROFILE as CanTypeId, disclosure: { version: 1, source, returns: [{
+      id: 'identity-return', source, influences: [], dependencies: [
+        { id: 'branch-profile', source, role: 'data', model: BRANCH, field: 'profile',
+          type: `${PROFILE}${shape === 'nullable' ? '?' : shape === 'array' ? '[]!' : ''}` as CanTypeId },
+        { id: 'profile-id', source, role, model: PROFILE, field: 'id', type: 'text' as CanTypeId },
+        { id: 'branch-title', source, role: 'control', model: BRANCH, field: 'title', type: 'text' as CanTypeId },
+      ],
+    }] } },
+  })) };
+  // Shared observations may appear in distinct checked return paths. The
+  // normalized ID inventory is declaration-based, not object-pointer-based.
+  const branched: ArtifactDescriptorSlice = { ...descriptors, operations: descriptors.operations!.map(operation => ({
+    ...operation, result: { ...operation.result!, disclosure: { ...operation.result!.disclosure!, returns: [
+      ...operation.result!.disclosure!.returns,
+      ...operation.result!.disclosure!.returns.map(returned => ({ ...returned, id: 'other-identity-return' })),
+    ] } },
+  })) };
+  const loaded = loadArtifactDescriptors(branched, { by: 'members' });
+  const def = loaded.registry.get(OP); assert.ok(def && isGeneratedOperationDef(def));
+  const targetRead = w.readPolicies.get(PROFILE)!; assert.ok('grants' in targetRead);
+  w.readPolicies.set(PROFILE, { ...targetRead, grants: targetRead.grants.map(grant => ({
+    ...grant, fields: grant.fields.filter(field => field !== 'id'),
+  })) });
+  bindScenarioReceiptReferenceProducer(def, { source, app: APP, policy: w.policy, readPolicies: w.readPolicies });
+  const rows = [
+    { model: CONVERSATION, row: makeRow({ id: 'conversation', createdBy: w.caller.user_id, data: { title: 'Owning conversation' } }) },
+    { model: PROFILE, row: makeRow({ id: 'profile', createdBy: w.caller.user_id, data: { active: true } }) },
+    { model: BRANCH, row: { ...makeRow({ id: 'branch', createdBy: w.caller.user_id,
+      data: { title: 'Owning branch', profile: { id: 'profile' } } }), parent: { model: CONVERSATION, id: asId('conversation') } } },
+  ];
+  await w.store.commit(makeBatch(await w.store.readRevision(), { writes: rows.map(value => ({ kind: 'insert', ...value })) }));
+  const stored = await Promise.all(rows.map(async ({ model, row }) => {
+    const current = await w.store.load(model, row.id); assert.ok(current); return { model, row: current };
+  }));
+  return { ...w, registry: loaded.registry, rows: stored };
+}
+type IdentityWorld = Awaited<ReturnType<typeof identityWorld>>;
+function identityInput(w: IdentityWorld, mode: 'normal' | 'unobserved' | 'copied-source' | 'copied-target' | 'missing-id' | 'foreign-pair' | 'stale-stage' = 'normal',
+  after?: (session: Session) => Promise<void>) {
+  let receipt: Receipt | undefined, executions = 0;
+  return { request: { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
+    executions++;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds: { maxRows: 10, maxWork: 1000 } });
+    assert.deepEqual(call.recordRefs, [], 'promotion source is an owner-issued row, not an admitted parameter');
+    const branch = await session.read(BRANCH, asId('branch')); assert.ok(branch);
+    if (mode !== 'unobserved') await observeScenarioReceiptDependency(call, w.store,
+      { dependencyId: 'branch-profile', model: BRANCH, row: branch, field: 'profile' });
+    await observeScenarioReceiptDependency(call, w.store,
+      { dependencyId: 'branch-title', model: BRANCH, row: branch, field: 'title' });
+    if (mode === 'stale-stage') await session.stage({ op: 'update', model: BRANCH, id: branch.id, data: { title: 'Later stage' } }, cause);
+    const read = w.shape === 'nullable' ? readScenarioReceiptNullableStoredReferenceRow : readScenarioReceiptStoredReferenceRow;
+    const target = await read(call, w.store, { sourceDependencyId: 'branch-profile',
+      scalarLeafDependencyId: mode === 'foreign-pair' ? 'branch-title' : 'profile-id',
+      sourceRow: mode === 'copied-source' ? { ...branch } : branch }); assert.ok(target);
+    assert.equal(target.id, 'profile'); assert.equal(Object.hasOwn(target.data, 'id'), false);
+    if (mode !== 'missing-id') await observeScenarioReceiptRowId(call, w.store,
+      { dependencyId: 'profile-id', model: PROFILE, row: mode === 'copied-target' ? { ...target } : target });
+    const result = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'identity-return', row: target });
+    await after?.(session); selectScenarioReceiptReturn(call, w.store, 'identity-return');
+    return { ...await session.finalize(), result, outbox: [] };
+  } }, receipt: () => receipt, executions: () => executions };
+}
+async function existingRowsUnchanged(w: IdentityWorld) {
+  for (const { model, row } of w.rows) {
+    assert.deepEqual(await w.store.load(model, row.id), row);
+    assert.deepEqual(await w.store.historyFor(model, row.id), []);
+  }
+  assert.deepEqual(await w.store.outboxPending(), []);
+}
+
+test('observed owner-row reference promotes reserved DATA identity without an id field/grant and returns its existing lifetime with zero writes', async () => {
+  const w = await identityWorld(), execution = identityInput(w);
+  assert.equal((await invoke(execution.request)).status, 'committed');
+  const receipt = execution.receipt(); assert.ok(receipt && receipt.outcome.status === 'committed');
+  assert.deepEqual(receipt.outcome.result, { id: 'profile' }); assert.deepEqual(receipt.outcome.recordVersions, []);
+  const saved = readScenarioReceiptAssociation(receipt)!; assert.deepEqual(saved.changed, []);
+  assert.deepEqual(saved.observations.map(value => [value.dependencyId, value.model, value.row.id]), [
+    ['branch-profile', BRANCH, 'branch'], ['branch-title', BRANCH, 'branch'], ['profile-id', PROFILE, 'profile'],
+  ]);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: { id: 'profile' }, records: [] });
+  await existingRowsUnchanged(w);
+  const revision = await w.store.readRevision();
+  assert.equal((await invoke(execution.request)).status, 'replayed'); assert.equal(execution.executions(), 1);
+  assert.equal(await w.store.readRevision(), revision); await existingRowsUnchanged(w);
+});
+
+test('identity promotion rejects unobserved, copied, crossed-stage and foreign-pair sources and requires the target DATA identity observer', async () => {
+  for (const mode of ['unobserved', 'copied-source', 'stale-stage', 'foreign-pair', 'copied-target', 'missing-id'] as const) {
+    const w = await identityWorld(); await assert.rejects(invoke(identityInput(w, mode).request), refuses);
+    await existingRowsUnchanged(w);
+  }
+  for (const shape of ['singular', 'nullable', 'array'] as const) {
+    const w = await identityWorld(shape === 'singular' ? 'control' : 'data', shape);
+    await assert.rejects(invoke(identityInput(w).request), refuses); await existingRowsUnchanged(w);
+  }
+});
+
+test('promoted identity keeps source/target/ancestor and both related Identity grants through commit and saved recovery', async () => {
+  for (const loss of ['source', 'target', 'ancestor', 'source-member', 'target-member'] as const) {
+    const lose = async (w: IdentityWorld) => {
+      if (loss === 'source') w.access.branch = false;
+      else if (loss === 'target') w.access.target = false;
+      else if (loss === 'ancestor') w.access.ancestor = false;
+      else await w.memberships.removeMembership((loss === 'source-member' ? w.reader : w.targetReader).membership_id);
+    };
+    const w = await identityWorld();
+    await assert.rejects(invoke(identityInput(w, 'normal', () => lose(w)).request), refuses);
+    await existingRowsUnchanged(w);
+    const saved = await identityWorld(), execution = identityInput(saved);
+    await invoke(execution.request); const receipt = execution.receipt(); assert.ok(receipt);
+    await lose(saved); const revision = await saved.store.readRevision();
+    assert.deepEqual(await projectScenarioReceipt({ ...saved, receipt }), { result: null, records: [] });
+    assert.equal((await invoke(execution.request)).status, 'replayed'); assert.equal(execution.executions(), 1);
+    assert.equal(await saved.store.readRevision(), revision); await existingRowsUnchanged(saved);
+    saved.access.branch = true; saved.access.target = true; saved.access.ancestor = true;
+    if (loss === 'source-member' || loss === 'target-member') await saved.memberships.reactivateMembership(
+      (loss === 'source-member' ? saved.reader : saved.targetReader).membership_id, { is_owner: false, roles: [] });
+    assert.deepEqual(await projectScenarioReceipt({ ...saved, receipt }), { result: { id: 'profile' }, records: [] });
+  }
+});
+
+test('promoted model identity cannot survive target removal/recreation and late failure rolls back owner mutations', async () => {
+  for (const mode of ['remove', 'recreate', 'reject'] as const) {
+    const w = await identityWorld();
+    const rejection = new StateError('rule_failed', 'Late business rejection after target identity');
+    await assert.rejects(invoke(identityInput(w, 'normal', async session => {
+      if (mode === 'reject') {
+        await session.stage({ op: 'update', model: BRANCH, id: asId('branch'), data: { title: 'Must roll back' } }, cause);
+        throw rejection;
+      }
+      await session.stage({ op: 'remove', model: PROFILE, id: asId('profile') }, cause);
+      if (mode === 'recreate') await session.stage({ op: 'create', model: PROFILE, id: asId('profile'), data: { active: true } }, cause);
+    }).request), mode === 'reject' ? error => error === rejection : refuses);
+    await existingRowsUnchanged(w);
+  }
 });
