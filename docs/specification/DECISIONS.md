@@ -15247,3 +15247,50 @@ not permission to bypass it or a claim that all standard-result consumers are
 accepted. Their focused complete-owner cohort works, while the composition
 continues to fail closed. Native handler execution/grants remain under their
 existing source/receipt checks; counts alone do not qualify those workflows.
+
+2026-10-15 — C02/C10: distinguish contextual read authority from observer limits.
+
+Review the recent choices against REQUIREMENTS' adoption, compact authoring,
+canonical primitives and coherent reusable semantics. Current membership is a
+State read, including when reached through a helper. The separation between
+private policy-decision inputs and viewer-readable data dependencies is a real
+authority boundary; strict defaults cannot gain current State authority through
+refactoring. In contrast, bool-only derived results and record-bound top-level
+page gates name the currently implemented observer/result entry points. Return
+type or an incidental route row does not intrinsically confer authority. Label
+other contextual result/page forms as implementation gaps in DESIGN/GRAMMAR,
+not permanent language exclusions. Do not add an unrelated record requirement
+to a business eligibility gate merely to fit the current backend.
+
+No app-name allowlist was found: checked declarations, helper/default closures
+and source identities select the existing observers. However, boolean_body and
+boolean_helper currently enable different query/async lowering paths. The
+bounded next discriminating check must compare direct expressions and equivalent
+helpers in an ordinary supported consumer; do not assume its exported helper
+inherits all private observer support. A demonstrated lowering gap belongs in
+the general expression mechanism, without broadening private read authority.
+
+Retain private account-addressed mail. The business need is to notify the chosen
+account without exposing its address or resolving before dispatch admission.
+An overloaded recipient API is credible but needs the same private resolution,
+durable pin, eligibility and recovery machinery plus overload compatibility;
+a new capability would duplicate ownership. The existing narrow same-team
+recipient profile is not a universal statement about email destinations.
+No concrete consumer requires expanding that profile here.
+
+Retain completed mutation context in table observations: ordinary business tests
+must correlate stored work with the actual request even for void scenarios.
+Returning an id solely for tests changes the public business contract; counting
+all rows loses correlation; another authored test request schema repeats setup.
+Reusing operation.id/source after the actual successful call is compact and
+stage-correct. Expected/setup expressions cannot inspect a future call;
+sequences do not automatically inherit the single table call's context.
+
+Retain explicit enum qualification and domain conversion. Lexical bindings must
+win, and distinct closed business domains do not become compatible just because
+they share two labels. Renaming canonical operations or implicit subset coercion
+would change wider contracts. No new language choice remains for these retained
+rules, so their narrower earlier JEV answers are reused only as advice alongside
+this product-level rationale. Mechanical results are reused. The conversion's
+indirect first/filter expression may use the existing pure choose primitive;
+that is a bounded authoring simplification, not another enum mechanism.

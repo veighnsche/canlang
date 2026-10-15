@@ -196,7 +196,13 @@ against REQUIREMENTS. Close each with justified reusable semantics or a named
 held decision; then continue the ready root-cause table above and its concrete
 dependencies. Missing local implementations are ready work, not external holds.
 Retain accepted component results; no broader historical-reference reopening,
-push, deployment, training or dataset generation is authorized.
+push, deployment, training or dataset generation is authorized. The bounded
+review retains private user-mail, post-mutation table context and explicit enum
+qualification/domain conversion on their business/authority rationale. Native
+bool-only/record-bound observation entry points are now labeled implementation
+limits in DESIGN/GRAMMAR. Next: discriminate ordinary direct/helper async
+any/all behavior and repair any demonstrated general lowering gap; preserve
+private policy versus viewer-read authority.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
