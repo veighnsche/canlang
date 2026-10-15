@@ -28,10 +28,10 @@ pub(super) fn matches(program: &CheckedProgram, actual: &IrProgram, fresh: &IrPr
     for (actual, fresh) in actual.items.iter().zip(&fresh.items) {
         if matches!(
             actual.kind,
-            IrItemKind::Model { .. } | IrItemKind::Field { .. }
+            IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Field { .. }
         ) || matches!(
             fresh.kind,
-            IrItemKind::Model { .. } | IrItemKind::Field { .. }
+            IrItemKind::Model { .. } | IrItemKind::Contract { .. } | IrItemKind::Field { .. }
         ) {
             // Exact bounded owning declarations include field defaults/server,
             // type/schema, source spans, grants, uniqueness and lock registries.

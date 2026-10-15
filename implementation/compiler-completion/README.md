@@ -639,8 +639,9 @@ against the pre-batch registry; no assertion is weakened. Frozen original24-sour
 validation exits10 after379.54s with701 diagnostics (675 E6008,26 E6007),
 complete=true, omitted=0, identical source inventory, none added/removed and no
 usable artifact. Deal's nested parent/Money/location invariant prerequisite is implemented below;
-the adjacent root pair and query-backed can_work remain separate. Existing shared
-State staging supplies atomicity; no new batch carrier is implied.
+the adjacent root pair is implemented in the continuation below, and query-backed
+can_work remains separate. Existing shared State staging supplies atomicity; no
+new batch carrier is implied.
 Other Contract expressions retain explicit source-correspondence bounds; no
 alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
@@ -686,6 +687,60 @@ Frozen original24-source validation exits10 after394.37s with701 diagnostics
 no usable artifact. Full diagnostic comparison with the actor-default capture
 adds/removes none. This constructor prerequisite does not close the root pair,
 can_work, whole-cohort hooks, full application or training-readiness gates.
+
+**C02/C10 adjacent root constructors and immutable evidence (2026-10-15).**
+The original adjacent Team-root pair now keeps the independent first-query
+Reference return and the final first-Create result. Both constructors retain
+exact source/schema/default/invariant/unique/lock proofs; the second must consume
+the genuine once-bound first Create reference. Original/renamed and checked-empty
+query census cases pass; missing query evidence and altered order/reference/return/
+guard/schema still refuse. Existing contained/count pair obligations remain.
+The original starts_with guard gains exact selected-builtin/operand correspondence
+and the installed facade re-exports the existing Values helper. No guard is removed.
+
+Required Model/Contract lock targets now require complete fresh/source declaration
+proof, including Contract identity/field order; raw local admission stays bounded.
+State privately retains owning schemas on actual fields and uses canonical Values
+equality for declared references/Contracts. Reference versions remain concurrency
+metadata; identities, business fields and ordered arrays remain locked. Other
+wire fields keep their previous comparison and failure timing, including the
+optional-codec scalar path. No tag stripping, alternate equality or public carrier.
+
+All33 affected compiler checks and73 State policy/session checks pass, reusing
+unchanged outcomes at their exact scopes. Normal State/Cloudflare and CLI builds,
+changed Rust formatting/diff checks pass; root TypeScript retains16 old errors in
+four unchanged files. Actual captured CLI/verified assembly/D1/Identity1/1 (66.65s)
+verifies two ordered inserts/history entries/unique claim in one commit, full
+stored Contract/link, both retained rows and first-constructor actor default/receipt,
+zero-write early reuse, immutable-field
+CRUD rejection, exact late-second-constructor rollback/rejected replay, version-only
+Contract refresh, and independent role/membership recovery. Existing current-
+Revision native1/1 (144.94s) passes; later scalar restoration returns its unchanged
+wire path and the pure helper export changes no existing implementation. Initial
+pair import failed on the missing native starts_with export; the final captured
+run passes after its genuine producer re-export. No assertion is weakened.
+
+Frozen original24-source validation exits10 after389.72s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and no
+usable artifact; full comparison adds/removes none. The original can_work scenario
+source proof still assumes nullable user, helper-owned Model and narrow parent
+arguments; use existing checked Contract/required/first-query reference lineage
+for the actual leading/body stages. Policy/CRUD callers retain their own authority
+stages. Whole-cohort hooks and other recorded groups remain local work.
+
+**C02/C03 ready Values consistency gap.** Typed lock work exposed an existing
+collision for declared business Contract kind/id/model/version fields: runtime
+kind dispatch can reject them or mistake them for reference carriers, including
+lossy encoding. ResearchLead has no such business tag, so the native case above
+qualifies its original shape rather than all Contract payloads. Three balanced
+JEV Choice requests prefer exact source-owned schema dispatch over private Contract
+provenance (.89/.93/.72; confidence .78/.86/.44); no rationale, advice only.
+Requests/responses and uncertainty: contract-runtime-kinds/. The proposed correction
+must use the existing equality/encoding primitives across literals, decoded values,
+normal/hook consumers and nested alias/array/union positions; retain genuine lazy
+native refs, ordinary business fields, malformed-tag refusals, rollback/replay and
+failure order. This is ready local implementation, not an external hold or a
+completed language capability. No new source spelling or global type-name registry.
 
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:

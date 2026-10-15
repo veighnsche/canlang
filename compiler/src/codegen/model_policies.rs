@@ -5,9 +5,9 @@ use crate::analysis::{CheckedProgram, catalog::Catalog};
 use crate::codegen::ir::{self, IrItemKind, IrModelRuleKind, IrProgram, IrType, TypedExpr};
 use crate::codegen::model_policy_profile::{
     CurrentRevisionRuleKind, CurrentRevisionRuleProfile, checked_chat_invariant_fields,
-    checked_chat_lock_target, current_revision_lock_target, current_revision_rule_profile,
-    local_hook_supported, local_rule_fields, local_stored_field_type,
-    required_model_rule_dependencies, required_model_rule_fields,
+    checked_chat_lock_target, checked_required_record_lock_target, current_revision_lock_target,
+    current_revision_rule_profile, local_hook_supported, local_rule_fields,
+    local_stored_field_type, required_model_rule_dependencies, required_model_rule_fields,
 };
 use crate::diagnostic::Severity;
 use crate::source::SourceDb;
@@ -304,7 +304,8 @@ fn collect_policies(
                     item.name == *field
                         && matches!(&item.kind, IrItemKind::Field { owner, ty: IrType::Known(ty), .. } if *owner == model.id &&
                             (local_stored_field_type(ir, model.id, ty) || checked_profiles.is_some_and(|profiles|
-                                (checked_chat_fields.is_some_and(|checked| checked.contains(&item.id))
+                                checked_required_record_lock_target(ir, model.id, item.id, field, ty)
+                                    || (checked_chat_fields.is_some_and(|checked| checked.contains(&item.id))
                                     && checked_chat_lock_target(ir, model.id, item.id, field, ty))
                                     || profiles.iter().any(|profile| profile.origin.model == model.id
                                         && current_revision_lock_target(ir, profile, item.id, field, ty)))))
@@ -795,6 +796,78 @@ mod tests {
             assert!(change(&mut lowered.invariants[0].pred, corruption));
             assert!(
                 collect_checked_policies(&program, &lowered, &db, catalog.as_ref(), &module)
+                    .is_none(),
+                "corruption {corruption}"
+            );
+        }
+    }
+
+    #[test]
+    fn required_record_locks_need_original_fields_and_contract_order() {
+        let source = "app NominalLocks\nGiven\n Account {active:bool}\n contract Reviewed {account:Account,notes:text}\n Stored {input:Reviewed,account:Account}\n lock Stored fields=input,account\nWhen\nThen\n";
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let mut db = SourceDb::new();
+        let file = db.add("nominal-locks.can".into(), source.into());
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (original, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let module = super::super::js::module_path("NominalLocks");
+        let policies =
+            collect_checked_policies(&program, &original, &db, catalog.as_ref(), &module).unwrap();
+        assert_eq!(policies.descriptors.len(), 1);
+        assert!(
+            matches!(&policies.descriptors[0].rules[0], ModelRule::Lock { fields, .. }
+            if fields == &["input", "account"])
+        );
+        assert!(
+            collect_local_policies(&original, &module).is_none(),
+            "raw nominal types cannot supply original source authority"
+        );
+        for corruption in 0..2 {
+            let mut changed = original.clone();
+            if corruption == 0 {
+                let account = changed
+                    .items
+                    .iter()
+                    .find(|item| item.canonical == "NominalLocks.Account")
+                    .unwrap()
+                    .id;
+                let input = changed
+                    .items
+                    .iter_mut()
+                    .find(|item| item.canonical == "NominalLocks.Stored.input")
+                    .unwrap();
+                let IrItemKind::Field { ty, .. } = &mut input.kind else {
+                    panic!("field");
+                };
+                *ty = IrType::Known(ResolvedType::Record {
+                    symbol: account,
+                    stored: true,
+                });
+            } else {
+                let reviewed = changed
+                    .items
+                    .iter_mut()
+                    .find(|item| item.canonical == "NominalLocks.Reviewed")
+                    .unwrap();
+                let IrItemKind::Contract { fields, .. } = &mut reviewed.kind else {
+                    panic!("contract");
+                };
+                fields.swap(0, 1);
+            }
+            assert!(
+                collect_checked_policies(&program, &changed, &db, catalog.as_ref(), &module)
                     .is_none(),
                 "corruption {corruption}"
             );

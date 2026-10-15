@@ -8933,10 +8933,19 @@ fn checked_created_pair<'a>(
     else {
         return None;
     };
-    let crate::analysis::resolve::ModelOwner::ChildOf(parent_id) =
-        first.definition.declaration.owner
-    else {
-        return None;
+    let parent_id = match (
+        first.definition.declaration.owner,
+        second.definition.declaration.owner,
+    ) {
+        (
+            crate::analysis::resolve::ModelOwner::Team,
+            crate::analysis::resolve::ModelOwner::Team,
+        ) => None,
+        (
+            crate::analysis::resolve::ModelOwner::ChildOf(first),
+            crate::analysis::resolve::ModelOwner::ChildOf(second),
+        ) if first == second => Some(first),
+        _ => return None,
     };
     if first.source != checked.source
         || second.source != checked.source
@@ -8946,16 +8955,19 @@ fn checked_created_pair<'a>(
         || !direct_field_name(&second.binding)
         || first.node.file != second.node.file
         || first.node.end > second.node.start
-        || second.definition.declaration.owner
-            != crate::analysis::resolve::ModelOwner::ChildOf(parent_id)
         || checked_created_model_result(ir, owner) != Some(first.model)
-        || checked.returns.iter().any(|returned| {
-            returned.model_result
-                != Some(DisclosureModelResult::Create {
-                    model: first.model,
-                    node: first.node,
-                })
-        })
+        || checked
+            .returns
+            .iter()
+            .any(|returned| match returned.model_result {
+                Some(DisclosureModelResult::Create { model, node }) => {
+                    model != first.model || node != first.node
+                }
+                Some(DisclosureModelResult::Reference { model, .. }) if parent_id.is_none() => {
+                    model != first.model || returned.node.end > first.node.start
+                }
+                _ => true,
+            })
     {
         return None;
     }
@@ -8967,9 +8979,13 @@ fn checked_created_pair<'a>(
     let (second_position, second_statement) = creates.next()?;
     if creates.next().is_some()
         || second_position != position + 1
-        || effects[..position]
-            .iter()
-            .any(|statement| !matches!(statement, IrStmt::Let { .. } | IrStmt::Require { .. }))
+        || effects[..position].iter().any(|statement| {
+            if parent_id.is_none() {
+                !model_result_prefix(statement)
+            } else {
+                !matches!(statement, IrStmt::Let { .. } | IrStmt::Require { .. })
+            }
+        })
         || params.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -8983,30 +8999,37 @@ fn checked_created_pair<'a>(
         return None;
     }
     let queries = facts.queries.as_deref()?;
-    checked_native_query_influences(queries)?;
-    let mut selected = queries.iter().filter(|query| {
-        query
-            .count
-            .as_ref()
-            .is_some_and(|count| count.statement == second.node)
-    });
-    let query = selected.next()?;
-    if selected.next().is_some() {
-        return None;
+    if !queries.is_empty() {
+        checked_native_query_influences(queries)?;
     }
-    let count = query.count.as_ref()?;
-    let parameter = checked_count_query_parent(ir, owner, query, db)?;
-    let parent_type = ResolvedType::Record {
-        symbol: parent_id,
-        stored: true,
-    };
-    if query.model != second.model
-        || count.statement != second.node
-        || !matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty), ..}
+    let parent_context = if let Some(parent_id) = parent_id {
+        let mut selected = queries.iter().filter(|query| {
+            query
+                .count
+                .as_ref()
+                .is_some_and(|count| count.statement == second.node)
+        });
+        let query = selected.next()?;
+        if selected.next().is_some() {
+            return None;
+        }
+        let count = query.count.as_ref()?;
+        let parameter = checked_count_query_parent(ir, owner, query, db)?;
+        let parent_type = ResolvedType::Record {
+            symbol: parent_id,
+            stored: true,
+        };
+        if query.model != second.model
+            || count.statement != second.node
+            || !matches!(&parameter.kind, IrItemKind::Param {ty:IrType::Known(ty), ..}
             if ty == &parent_type)
-    {
-        return None;
-    }
+        {
+            return None;
+        }
+        Some((count, parameter, parent_type))
+    } else {
+        None
+    };
     let result_type = ResolvedType::Record {
         symbol: first.model,
         stored: true,
@@ -9066,11 +9089,12 @@ fn checked_created_pair<'a>(
                 return None;
             }
             if input.field.is_none() {
-                if parent_found || name != "parent" || input.ty != parent_type {
+                let (_, parameter, parent_type) = parent_context.as_ref()?;
+                if parent_found || name != "parent" || &input.ty != parent_type {
                     return None;
                 }
                 parent_found = true;
-                created_record_name_matches(value, &parent_type, &parameter.name, *span, db)?;
+                created_record_name_matches(value, parent_type, &parameter.name, *span, db)?;
                 super::scenario_create_sources::checked_create_expression(
                     ir,
                     original,
@@ -9107,10 +9131,13 @@ fn checked_created_pair<'a>(
                 }
             }
         }
-        if !parent_found {
+        if parent_found != parent_context.is_some() {
             return None;
         }
     }
+    let Some((count, _, _)) = parent_context else {
+        return Some((first, second));
+    };
     let IrStmt::Create { input, .. } = second_statement else {
         return None;
     };
@@ -9259,15 +9286,15 @@ fn ordered_created_model_effects(
     // needing the unrelated guarded-send sequence below. Its exact condition
     // and source position remain checked by checked_created_statements.
     let direct = direct
-        || paired.is_none()
-            && effects.iter().enumerate().any(|(position, effect)| {
-                position + 1 < effects.len()
-                    && matches!(effect, IrStmt::Create { span, .. } if *span == node_span(create))
-                    && effects[..position].iter().all(model_result_prefix)
-                    && effects[position + 1..effects.len() - 1]
-                        .iter()
-                        .all(|effect| matches!(effect, IrStmt::Require { .. }))
-            });
+        || effects.iter().enumerate().any(|(position, effect)| {
+            let after = position + 1 + usize::from(paired.is_some());
+            after < effects.len()
+                && matches!(effect, IrStmt::Create { span, .. } if *span == node_span(create))
+                && effects[..position].iter().all(model_result_prefix)
+                && effects[after..effects.len() - 1]
+                    .iter()
+                    .all(|effect| matches!(effect, IrStmt::Require { .. }))
+        });
     if !direct {
         let mut creates = effects
             .iter()
@@ -10476,3 +10503,101 @@ mod profile_pair_tests;
 #[cfg(test)]
 #[path = "scenario_transcript_selection_tests.rs"]
 mod transcript_selection_tests;
+
+#[cfg(test)]
+mod root_pair_schema_tests {
+    use super::*;
+    use crate::analysis::catalog::{CatalogRequest, load_catalog};
+    use crate::analysis::check_program;
+
+    #[test]
+    fn root_pair_source_owners_refuse_changed_lock_and_prefix_guard() {
+        let text = "app PairLocks\nGiven\n First {value:int}\n Evidence {first:First}\n lock Evidence fields=first\n policy First read=members\n policy Evidence read=members\nWhen\n scenario createPair(source:text) -> First by=members\n  require starts_with(source,\"discover:\") and source!=\"discover:\"\n  do\n   create First {value=1} as first\n   create Evidence {first} as evidence\n   return first\nThen\n";
+        let mut db = SourceDb::new();
+        let file = db.add("pair-locks.can".into(), text.into());
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap();
+        let path = root.join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+            flag: Some(&path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (program, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (original, diagnostics) = crate::codegen::ir::build(&program, &db, catalog.as_ref());
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        for corruption in 0..3 {
+            let mut actual = original.clone();
+            if corruption == 1 {
+                actual.locks[0].fields.clear();
+            }
+            if corruption == 2 {
+                fn change(value: &mut TypedExpr) -> bool {
+                    match &mut value.expr {
+                        IrExpr::Call {
+                            target: IrCallTarget::Builtin { id, .. },
+                            args,
+                        }
+                        | IrExpr::BoundCall {
+                            target: IrCallTarget::Builtin { id, .. },
+                            args,
+                            ..
+                        } if id == "starts_with" => {
+                            args[1].expr = IrExpr::Text("invented".into());
+                            true
+                        }
+                        IrExpr::Binary { left, right, .. } => change(left) || change(right),
+                        _ => false,
+                    }
+                }
+                let IrItemKind::Scenario { guards, .. } = &mut actual
+                    .items
+                    .iter_mut()
+                    .find(|item| item.name == "createPair")
+                    .unwrap()
+                    .kind
+                else {
+                    panic!("scenario");
+                };
+                let IrStmt::Require { cond, .. } = &mut guards[0] else {
+                    panic!("guard");
+                };
+                assert!(change(cond));
+            }
+            let owner = actual
+                .items
+                .iter()
+                .find(|item| item.name == "createPair")
+                .unwrap();
+            let (_, second) = checked_created_pair(&actual, owner, &db).unwrap();
+            let models = crate::codegen::js::Emitter::source_models(&actual, &db).unwrap();
+            assert_eq!(
+                crate::codegen::scenario_create_sources::checked_created_schema(
+                    &actual, owner, &models, second, &db
+                )
+                .is_some(),
+                corruption != 1
+            );
+            let ScenarioDisclosure::Complete(checked) =
+                actual.scenario_disclosures.get(&owner.id).unwrap()
+            else {
+                panic!("complete");
+            };
+            let first = &checked
+                .source_facts
+                .as_ref()
+                .unwrap()
+                .creates
+                .as_ref()
+                .unwrap()[0];
+            assert_eq!(
+                checked_created_statements(&actual, owner, checked, first, &db).is_some(),
+                corruption != 2
+            );
+        }
+    }
+}

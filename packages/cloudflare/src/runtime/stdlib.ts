@@ -72,7 +72,7 @@ export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, sele
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, join, trim, compareScalar, choose, concat, flatten,
+  ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, join, trim, starts_with, compareScalar, choose, concat, flatten,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
   date, add_days, compareDate, encodeValue,

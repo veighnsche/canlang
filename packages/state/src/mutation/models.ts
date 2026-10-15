@@ -353,6 +353,13 @@ export function getUniqueGroupProfile(def: InterimModelDef, key: string): Unique
 }
 
 const fieldConstraintSchemas = new WeakMap<InterimFieldDef, { readonly schema: NormalizedSchema; readonly type: string }>();
+// Ordinary typed locks need the owning Contract schema even without receiving
+// constraints. Keep that association separate from constraint-phase execution.
+const fieldValueSchemas = new WeakMap<InterimFieldDef, NormalizedSchema>();
+
+export function getModelFieldValueSchema(field: InterimFieldDef): NormalizedSchema | undefined {
+  return fieldValueSchemas.get(field);
+}
 
 export function getModelFieldConstraint(field: InterimFieldDef): { readonly schema: NormalizedSchema; readonly type: string } | undefined {
   return fieldConstraintSchemas.get(field);
@@ -459,6 +466,7 @@ export function modelFieldConstraintSchema(field: Pick<InterimFieldDef, 'valueTy
 export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: ModelTableOptions = {}): ModelTable {
   // Reuse the values validator's normalized-schema shape gate.
   if (opts.valueSchema !== undefined) validateValue(opts.valueSchema, 'text', '', 'create');
+  const valueSchema = opts.valueSchema === undefined ? undefined : deepFreeze(structuredClone(opts.valueSchema));
   const table = new Map<ModelName, InterimModelDef>();
   const modelNames = new Set(models.map(def => def.model as string));
   for (const def of models) {
@@ -892,6 +900,7 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
     }
     for (const [name, field] of Object.entries(fields)) {
       if (contextActorDefaults.has(def.fields[name]!)) contextActorDefaults.add(field);
+      if (field.valueType !== undefined && valueSchema !== undefined) fieldValueSchemas.set(field, valueSchema);
       const constraint = modelFieldConstraintSchema(field, opts.valueSchema);
       if (constraint !== undefined) fieldConstraintSchemas.set(field, constraint);
     }

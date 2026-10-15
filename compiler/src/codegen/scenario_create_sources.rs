@@ -2490,6 +2490,73 @@ impl SourceExpressions<'_> {
         Some(())
     }
 
+    /// Pure prefix decisions retain the selected original builtin and operand
+    /// occurrences; a same-spelled derive cannot substitute for this call.
+    fn prefix_guard(
+        &self,
+        actual: &TypedExpr,
+        node: &SyntaxNode,
+        args: &[TypedExpr],
+        slots: Option<&[Option<usize>]>,
+        depth: usize,
+    ) -> Option<()> {
+        use crate::analysis::scenario_disclosure::{
+            CheckedDecisionCallTarget, CheckedDecisionStage,
+        };
+        let source = self.transcript_source()?;
+        let key = NodeKey::of(node);
+        let mut calls = source
+            .decision_sites
+            .as_deref()?
+            .iter()
+            .filter(|site| {
+                site.owner == source.scenario
+                    && matches!(
+                        site.stage,
+                        CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+                    )
+            })
+            .flat_map(|site| &site.calls)
+            .filter(|call| call.node == key);
+        let original = calls.next()?;
+        if calls.next().is_some()
+            || original.source != self.original.source
+            || !matches!(&original.target, CheckedDecisionCallTarget::Builtin {id,overload:0} if id == "starts_with")
+            || !original.chain.is_empty()
+            || !original.defaults.is_empty()
+            || original.slots.as_slice() != [Some(0), Some(1)]
+            || slots.is_some_and(|actual| actual != original.slots.as_slice())
+            || original.arguments.len() != 2
+            || args.len() != 2
+            || actual.ty != ResolvedType::Scalar(Scalar::Bool)
+            || source_path(expressions(node).first()?, self.text)? != "starts_with"
+        {
+            return None;
+        }
+        let authored: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument)
+            .collect();
+        if authored.len() != args.len() {
+            return None;
+        }
+        for ((argument, value), (key, ty)) in authored.iter().zip(args).zip(&original.arguments) {
+            let values = expressions(argument);
+            let [source_value] = values.as_slice() else {
+                return None;
+            };
+            if NodeKey::of(source_value) != *key
+                || *ty != ResolvedType::Scalar(Scalar::Text)
+                || value.ty != *ty
+            {
+                return None;
+            }
+            self.expression(value, *key, depth + 1)?;
+        }
+        Some(())
+    }
+
     fn trim_guard(
         &self,
         actual: &TypedExpr,
@@ -3023,6 +3090,27 @@ impl SourceExpressions<'_> {
                     query.predicate?,
                     depth + 1,
                 )?;
+                true
+            }
+            (
+                IrExpr::Call {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "starts_with" => {
+                self.prefix_guard(actual, node, args, None, depth)?;
+                true
+            }
+            (
+                IrExpr::BoundCall {
+                    target: IrCallTarget::Builtin { id, awaited: false },
+                    args,
+                    slots,
+                },
+                SyntaxKind::Call,
+            ) if self.operands && id == "starts_with" => {
+                self.prefix_guard(actual, node, args, Some(slots), depth)?;
                 true
             }
             (

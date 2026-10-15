@@ -10711,7 +10711,15 @@ impl<'a> Closure<'a> {
                 // explicit operands. Catalog defaults are not source defaults.
                 if !matches!(
                     id.as_str(),
-                    "date" | "datetime" | "money" | "abs" | "round" | "min" | "max" | "trim"
+                    "date"
+                        | "datetime"
+                        | "money"
+                        | "abs"
+                        | "round"
+                        | "min"
+                        | "max"
+                        | "trim"
+                        | "starts_with"
                 ) || selected.slots.iter().any(Option::is_none)
                 {
                     return Err(self.fail(key, "unsupported builtin closure"));
@@ -13016,9 +13024,9 @@ impl<'a> Closure<'a> {
         result
     }
 
-    /// Two original contained creates may retain the first row as their result.
-    /// The later row must directly store that exact CreateAs and use its own
-    /// checked contained count; this does not admit arbitrary multi-create bodies.
+    /// Two adjacent original creates may retain the first row as their result.
+    /// Team roots store its exact CreateAs; the established contained pair also
+    /// retains its same-parent and checked-count obligations.
     fn checked_created_pair(&self, effects: &[Effect], module: ModuleId, created: &Effect) -> bool {
         let Some(model) = self.result_model else {
             return false;
@@ -13033,13 +13041,7 @@ impl<'a> Closure<'a> {
         let Some((second_index, second)) = creates.next() else {
             return false;
         };
-        if creates.next().is_some()
-            || first.node != created.node
-            || second_index != index + 1
-            || effects[..index]
-                .iter()
-                .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
-        {
+        if creates.next().is_some() || first.node != created.node || second_index != index + 1 {
             return false;
         }
         let Some(first) = self.checked_create_source(first, module) else {
@@ -13048,6 +13050,43 @@ impl<'a> Closure<'a> {
         let Some(second) = self.checked_create_source(second, module) else {
             return false;
         };
+        if first.model != model || second.model == model || first.binding == second.binding {
+            return false;
+        }
+        let result_type = ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        };
+        let mut result_inputs = second.inputs.iter().filter(|input| input.ty == result_type);
+        let Some(result_input) = result_inputs.next() else {
+            return false;
+        };
+        if result_inputs.next().is_some()
+            || result_input.field.is_none()
+            || !matches!(self.query_binding(result_input.value_node),
+                Some(Binding::CreateAs {node}) if *node == first.node)
+        {
+            return false;
+        }
+        if first.definition.declaration.owner == ModelOwner::Team
+            && second.definition.declaration.owner == ModelOwner::Team
+        {
+            return effects[..index].iter().all(|effect| {
+                matches!(effect.verb, EffectVerb::Let | EffectVerb::Require)
+                    || effect.verb == EffectVerb::If
+                        && effect.match_arms.is_empty()
+                        && effect
+                            .then_effects
+                            .iter()
+                            .chain(&effect.else_effects)
+                            .all(|nested| {
+                                matches!(nested.verb, EffectVerb::Require | EffectVerb::Return)
+                                    && nested.then_effects.is_empty()
+                                    && nested.else_effects.is_empty()
+                                    && nested.match_arms.is_empty()
+                            })
+            });
+        }
         let ModelOwner::ChildOf(parent) = first.definition.declaration.owner else {
             return false;
         };
@@ -13074,18 +13113,9 @@ impl<'a> Closure<'a> {
         {
             return false;
         }
-        let result_type = ResolvedType::Record {
-            symbol: model,
-            stored: true,
-        };
-        let mut result_inputs = second.inputs.iter().filter(|input| input.ty == result_type);
-        let Some(result_input) = result_inputs.next() else {
-            return false;
-        };
-        if result_inputs.next().is_some()
-            || result_input.field.is_none()
-            || !matches!(self.query_binding(result_input.value_node),
-                Some(Binding::CreateAs {node}) if *node == first.node)
+        if effects[..index]
+            .iter()
+            .any(|effect| !matches!(effect.verb, EffectVerb::Let | EffectVerb::Require))
         {
             return false;
         }
@@ -13177,7 +13207,10 @@ impl<'a> Closure<'a> {
                                 && effects[position + 1..effects.len() - 1].iter().all(|effect| effect.verb == EffectVerb::Require)
                         }))
                         || (created_pair && effects.len() >= 3
-                            && effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)))
+                            && (effects.get(effects.len() - 3).map(|effect| effect.node) == Some(created.node)
+                                || effects.iter().position(|effect| effect.node == created.node).is_some_and(|position|
+                                    position + 2 < effects.len()
+                                        && effects[position + 2..effects.len() - 1].iter().all(|effect| effect.verb == EffectVerb::Require)))))
                     && matches!(created.target, Some(EffectTarget::Model(actual)) if actual == model)
                     && effects.last().is_some_and(|returned| {
                         returned.verb == EffectVerb::Return
