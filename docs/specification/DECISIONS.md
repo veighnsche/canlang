@@ -15885,3 +15885,33 @@ Original source/catalog bytes remain unchanged; no usable artifact exists.
 Original can_work query-backed leading/body authorization, adjacent root-model
 create pairing and whole-cohort hook preparation remain local work. This
 prerequisite does not qualify the complete CRM workflow or training readiness.
+
+
+2026-10-15 — C02/C10: preserve canonical equality for native reference leaves.
+
+A hydrated Contract may contain a genuine native row view where the same stored
+Contract has a canonical RecordRef. Keep one Values equality primitive and its
+existing Model/id identity (versions remain concurrency metadata). Add an optional
+framework reference resolver to that primitive's existing recursive dispatch;
+Cloudflare supplies only its private nativeRecordReference lookup. Resolve a
+value only when the original comparison demands it, before inspecting its kind.
+No context, store, business getter, read authority or public source spelling is
+added. Three-argument behavior and JavaScript function arity remain unchanged.
+
+An eager recursive conversion was rejected: canonical equality can skip the
+other side of null, mismatched array length, missing key, different union arm or
+an earlier unequal field. A preliminary walk could introduce a failure from an
+unconsumed operand. Lazy proxy operands would reproduce more machinery without
+improving the same outcome. The Values-owned leaf join preserves those existing
+branches directly. These are implementation alternatives under settled equality
+semantics, so no new language decision/JEV consultation is required.
+
+Normal Values and Cloudflare builds pass. Values equality46/46 and native ABI
+checks2/2 pass, including actual private identities, repeated/array/Contract
+leaves, versions, copied identity refusal, no native business getter reads,
+argument order, context-free behavior, exact original getter/resolver errors and
+unchanged lazy malformed-input boundaries. The emitted Values catalog is byte-
+identical to its preceding capture. Reuse the unchanged original24-source
+396.29s/701-diagnostic static result for this runtime prerequisite. This does not
+qualify whole hydrated-Contract storage or the original selected-row CRM reuse
+workflow; their canonical snapshot and source/receipt joins remain local work.
