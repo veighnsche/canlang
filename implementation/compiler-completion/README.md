@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 checked owner-query receiver (2026-10-15, component qualified).**
+Verified invariant query domains reuse existing owner transaction views/bounds,
+issued/cached rows and reference lifetime. Complete ordered source filtering
+precedes lazy ANY/ALL predicates; domain/shape/nonbool/closed/sticky failures stay.
+NormalCFbuild and both existing reference/new query components pass2/.470s.
+Compiler original-source qualifier and original Partner native consumer remain
+unfinished; this receiving check supplies no whole-workflow acceptance.
+
 **C02/C10 heading-free card (2026-10-15, component qualified).**
 The existing parser form now lowers through optional title in the actual UI
 factory. No invented/empty heading; suite, layout, gate and action ownership stay.
