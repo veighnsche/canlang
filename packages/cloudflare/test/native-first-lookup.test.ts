@@ -51,17 +51,28 @@ function committed(outcome: MutationOutcome, status: 'committed' | 'replayed' = 
 const byCreatedId = (left: StoredRow, right: StoredRow) => left.created - right.created ||
   (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 
-for (const spelling of ['inline', 'helper'] as const) test(`native ${spelling} first retains the authorized full domain, default ordering, atomic failure and current-authority replay`,
+for (const spelling of ['inline', 'helper', 'chain'] as const) test(`native ${spelling} first retains the authorized full domain, default ordering, atomic failure and current-authority replay`,
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-native-first-lookup-'));
     const sourceDirectory = spelling === 'inline' ? undefined : await mkdtemp(join(root, '.can-native-first-helper-'));
     const sourcePath = sourceDirectory === undefined ? fixtureSourcePath : join(sourceDirectory, 'helper.can');
-    if (spelling === 'helper') {
+    if (spelling !== 'inline') {
       const original = await readFile(fixtureSourcePath, 'utf8');
-      const equivalent = original.replace(' policy Run read=members',
-        ' derive approved(record:Item):bool = record.approved\n policy Run read=members')
-        .replaceAll('require chosen!=null and chosen.approved', 'require chosen!=null and approved(record=chosen)');
-      assert.equal(equivalent.split('approved(record=chosen)').length - 1, 2);
+      const helpers = spelling === 'helper' ? ' derive approved(record:Item):bool = record.approved\n' :
+        ' derive approved_leaf(record:Item,enabled:bool=(true)):bool = not enabled or record.approved\n' +
+        ' derive approved(record:Item,enabled:bool=(true)):bool = approved_leaf(enabled=enabled,record=record)\n' +
+        ' derive ignored(record:Item,probe:bool=record.approved):bool = true\n';
+      const call = spelling === 'helper' ? 'approved(record=chosen)' : 'approved(record=((chosen)))';
+      let equivalent = original.replace(' policy Run read=members', helpers + ' policy Run read=members')
+        .replaceAll('require chosen!=null and chosen.approved', `require chosen!=null and ${call}`);
+      assert.equal(equivalent.split(call).length - 1, 2);
+      if (spelling === 'chain') equivalent = equivalent.replace('Then\n',
+        ' scenario eager_unused(source:text) -> bool by=members\n  do\n' +
+        '   let chosen=first(Item as candidate where candidate.source==source)\n' +
+        '   require chosen!=null and ignored(record=chosen)\n   return true\n' +
+        ' scenario explicit_default(source:text) -> bool by=members\n  do\n' +
+        '   let chosen=first(Item as candidate where candidate.source==source)\n' +
+        '   require chosen!=null and ignored(record=chosen,probe=true)\n   return true\nThen\n');
       assert.deepEqual(equivalent.split('\n').filter(line => line.trim().startsWith('policy ')),
         original.split('\n').filter(line => line.trim().startsWith('policy ')));
       await writeFile(sourcePath, equivalent);
@@ -250,6 +261,25 @@ for (const spelling of ['inline', 'helper'] as const) test(`native ${spelling} f
           assert.deepEqual(afterDenied.owner[table], beforeDenied.owner[table], table);
         }
 
+      }
+      if (spelling === 'chain') {
+        const beforeEager = await resources();
+        const eager = await invoke(envelope(`${APP}.eager_unused`, { source: 'inactive' }));
+        assert.ok('error' in eager, JSON.stringify(eager)); assert.equal(eager.error.code, 'forbidden');
+        const afterEager = await resources(); assert.deepEqual(afterEager.identity, beforeEager.identity);
+        for (const table of Object.keys(beforeEager.owner)) if (!['receipts', 'fence', 'fence_log'].includes(table)) {
+          assert.deepEqual(afterEager.owner[table], beforeEager.owner[table], table);
+        }
+        const explicitInput = envelope(`${APP}.explicit_default`, { source: 'inactive' });
+        const explicit = await invoke(explicitInput); assert.ok('result' in explicit, JSON.stringify(explicit));
+        assert.equal(explicit.result.status, 'committed'); assert.equal(explicit.result.result, true);
+        const receipt = await store.readReceipt(receiptIdentity(explicitInput)); assert.ok(receipt);
+        const saved = readScenarioReceiptAssociation(receipt); assert.ok(saved);
+        assert.deepEqual(saved.observations, []); assert.equal(saved.queries, undefined);
+        const afterExplicit = await resources();
+        for (const table of Object.keys(afterEager.owner)) if (!['receipts', 'fence', 'fence_log'].includes(table)) {
+          assert.deepEqual(afterExplicit.owner[table], afterEager.owner[table], table);
+        }
       }
       const input = lookup('wanted'), before = await resources(), revision = await store.readRevision(), count = batches.length;
       const result = committed(await invoke(input));

@@ -1170,7 +1170,7 @@ fn scalar_require_helper_reuses_exact_call_formal_and_body_proof() {
 }
 
 #[test]
-fn unsupported_first_scalar_helper_shapes_refuse_instead_of_dropping_field_authority() {
+fn same_owner_first_scalar_helpers_preserve_nested_slots_and_defaults() {
     for (helpers, call) in [
         (
             "derive inner(record:Budget):bool = record.approved\n derive allowed(record:Budget):bool = inner(record)",
@@ -1189,12 +1189,13 @@ fn unsupported_first_scalar_helper_shapes_refuse_instead_of_dropping_field_autho
             "app FirstSources\nGiven\n Budget {{account:user,approved:bool}}\n policy Budget read=members\n {helpers}\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and {call}\n   return true\nThen\n"
         );
         let (db, program, _, catalog) = fixture_source("unsupported-first-helper.can", &source);
-        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(diagnostics.is_empty(), "{helpers}: {diagnostics:?}");
         assert!(
-            diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == "E6008"),
-            "{helpers}: {diagnostics:?}"
+            artifact["modules"][0]["js"]
+                .as_str()
+                .unwrap()
+                .contains("executionDependencies:[")
         );
     }
 }
@@ -1216,6 +1217,79 @@ fn unsupported_first_field_types_retain_require_authority_and_refuse() {
                 .iter()
                 .any(|diagnostic| diagnostic.code == "E6008"),
             "{field}: {diagnostics:?}"
+        );
+    }
+}
+
+#[test]
+fn grouped_nested_helper_defaults_keep_original_slots_and_refuse_changed_defaults() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool}\n policy Budget read=members\n derive inner(record:Budget,flag:bool=true):bool = not flag or record.approved\n derive allowed(record:Budget,flag:bool=true):bool = inner(flag=flag,record=record)\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and allowed(record=((budget)))\n   return true\nThen\n";
+    let (db, program, original, catalog) =
+        fixture_source("grouped-first-helper-default.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        artifact["modules"][0]["js"]
+            .as_str()
+            .unwrap()
+            .contains("executionDependencies:[")
+    );
+    let mut changed = original.clone();
+    let helper = item(&original, "FirstSources.allowed");
+    let IrItemKind::DeriveFn { params, .. } = &helper.kind else {
+        panic!("derive");
+    };
+    let IrItemKind::Param {
+        default: Some(ir::IrDefault::Literal(value)),
+        ..
+    } = &mut changed.items[params[1].0 as usize].kind
+    else {
+        panic!("default");
+    };
+    value.expr = IrExpr::Bool(false);
+    assert!(
+        js::emit_program_with_native_source_receipts(&changed, true, &db)
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+}
+
+#[test]
+fn eager_unused_helper_operands_keep_authority_but_explicit_defaults_cut_it_off() {
+    for (signature, call, observes) in [
+        (
+            "record:Budget,probe:bool",
+            "allowed(record=budget,probe=budget.approved)",
+            true,
+        ),
+        (
+            "record:Budget,probe:bool=record.approved",
+            "allowed(record=budget)",
+            true,
+        ),
+        (
+            "record:Budget,probe:bool=record.approved",
+            "allowed(record=budget,probe=true)",
+            false,
+        ),
+    ] {
+        let source = format!(
+            "app FirstSources\nGiven\n Budget {{account:user,approved:bool}}\n policy Budget read=members\n derive allowed({signature}):bool = true\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and {call}\n   return true\nThen\n"
+        );
+        let (db, program, _, catalog) = fixture_source("eager-first-helper.can", &source);
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(
+            diagnostics.is_empty(),
+            "{signature}/{call}: {diagnostics:?}"
+        );
+        assert_eq!(
+            artifact["modules"][0]["js"]
+                .as_str()
+                .unwrap()
+                .contains("executionDependencies:["),
+            observes,
+            "{signature}/{call}"
         );
     }
 }

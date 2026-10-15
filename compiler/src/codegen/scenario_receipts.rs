@@ -828,10 +828,8 @@ pub(super) struct NativeRequireConsumption {
     pub observation: NativeDependency,
 }
 
-/// Reuse the exact checked-program/fresh-IR seal already prepared for Require
-/// feasibility. Nothing here changes return dependencies or evaluates a guard.
-/// Reuse the existing inlined derive-call recipe. The selected row remains the
-/// actual first handle; the formal is only its once-evaluated lexical alias.
+/// Reuse the existing inlined call recipe and original checked slots. These
+/// borrowed frames normalize lexical formals; they grant no row authority.
 fn checked_require_helper_consumption(
     ir: &IrProgram,
     owner: &IrItem,
@@ -842,13 +840,12 @@ fn checked_require_helper_consumption(
     read: &crate::analysis::scenario_disclosure::DisclosureDependency,
     db: &SourceDb,
 ) -> Option<NativeRequireConsumption> {
-    use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
-    let [call] = read.calls.as_slice() else {
-        return None;
-    };
-    if call.file != site.node.file
-        || call.start < site.node.start
-        || call.end > site.node.end
+    use crate::analysis::scenario_disclosure::{CheckedDecisionCall, CheckedDecisionCallTarget};
+    let outer = *read.calls.first()?;
+    if read.calls.len() > 16
+        || outer.file != site.node.file
+        || outer.start < site.node.start
+        || outer.end > site.node.end
         || read.source != site.source
         || read.query_id.is_some()
         || read.role != DependencyRole::Control
@@ -856,62 +853,37 @@ fn checked_require_helper_consumption(
     {
         return None;
     }
-    let mut calls = site
-        .calls
-        .iter()
-        .filter(|value| value.node == *call && value.chain.is_empty());
-    let source_call = calls.next()?;
-    if calls.next().is_some() || source_call.source != site.source {
-        return None;
-    }
-    let CheckedDecisionCallTarget::DeriveFn(id) = source_call.target else {
-        return None;
-    };
-    let derive = ir.items.get(id.0 as usize)?;
-    let IrItemKind::DeriveFn {
-        params,
-        expr: Some(body),
-        result: IrType::Known(result),
-        ..
-    } = &derive.kind
-    else {
-        return None;
-    };
-    let [parameter_id] = params.as_slice() else {
-        return None;
-    };
-    let parameter = ir.items.get(parameter_id.0 as usize)?;
-    let model_type = ResolvedType::Record {
-        symbol: read.model,
-        stored: true,
-    };
     let boolean = ResolvedType::Scalar(Scalar::Bool);
-    let IrItemKind::Param {
-        owner: parameter_owner,
-        index: 0,
-        ty: IrType::Known(parameter_type),
-        default: None,
-        default_node: None,
-        array_bounds: None,
-        ..
-    } = &parameter.kind
-    else {
-        return None;
-    };
-    if derive.module != owner.module
-        || parameter.module != owner.module
-        || *parameter_owner != id
-        || parameter_type != &model_type
-        || result != &boolean
-        || body.ty != boolean
-        || source_call.arguments.len() != 1
-        || source_call.slots.as_slice() != [Some(0)]
-        || source_call.arguments[0].1 != model_type
-    {
-        return None;
+    // This finite same-owner pure closure contains no catalog/StateRead calls.
+    // The source census still retains unsupported calls for refusal here.
+    for called in site.calls.iter().filter(|called| {
+        called
+            .chain
+            .first()
+            .is_some_and(|frame| frame.node == outer)
+            || called.node == outer && called.chain.is_empty()
+    }) {
+        let CheckedDecisionCallTarget::DeriveFn(id) = called.target else {
+            return None;
+        };
+        let derive = ir.items.get(id.0 as usize)?;
+        let IrItemKind::DeriveFn {
+            result: IrType::Known(ResolvedType::Scalar(scalar)),
+            expr: Some(_),
+            ..
+        } = &derive.kind
+        else {
+            return None;
+        };
+        if derive.module != owner.module
+            || called.source != site.source
+            || !supported_type_id(scalar.as_str())
+        {
+            return None;
+        }
     }
-    fn find(value: &TypedExpr, span: Span, pure: bool) -> Option<&TypedExpr> {
-        let mut pending = vec![value];
+    fn find<'a>(roots: &[&'a TypedExpr], span: Span) -> Option<&'a TypedExpr> {
+        let mut pending = roots.to_vec();
         let mut found = None;
         let mut steps = 0;
         while let Some(value) = pending.pop() {
@@ -931,44 +903,202 @@ fn checked_require_helper_consumption(
                     pending.push(operand)
                 }
                 IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
-                    if pure {
-                        return None;
-                    }
-                    pending.extend(args.iter().rev());
+                    pending.extend(args.iter().rev())
                 }
                 _ => {}
             }
         }
         found
     }
-    let actual_call = find(condition, node_span(*call), false)?;
-    let (target, arguments) = match &actual_call.expr {
-        IrExpr::Call { target, args } => (target, args),
-        IrExpr::BoundCall {
-            target,
-            args,
-            slots,
-        } if slots.as_slice() == [Some(0)] => (target, args),
-        _ => return None,
-    };
-    let [receiver] = arguments.as_slice() else {
+    fn inside(span: Span, node: crate::analysis::NodeKey) -> bool {
+        span.file == node.file && span.start >= node.start && span.end <= node.end
+    }
+    struct Frame<'a> {
+        derive: &'a IrItem,
+        source: &'a CheckedDecisionCall,
+        arguments: &'a [TypedExpr],
+        parameters: &'a [crate::analysis::SymbolId],
+        defaults: Vec<Option<&'a TypedExpr>>,
+    }
+    let mut frames: Vec<Frame<'_>> = Vec::new();
+    let mut roots = vec![condition];
+    for (depth, call) in read.calls.iter().enumerate() {
+        let mut candidates = site.calls.iter().filter(|candidate| {
+            candidate.node == *call
+                && candidate.chain.len() == depth
+                && candidate
+                    .chain
+                    .iter()
+                    .zip(&read.calls[..depth])
+                    .all(|(frame, node)| frame.node == *node)
+        });
+        let source = candidates.next()?;
+        if candidates.next().is_some() || source.source != site.source {
+            return None;
+        }
+        let CheckedDecisionCallTarget::DeriveFn(id) = source.target else {
+            return None;
+        };
+        if source.chain.iter().zip(&frames).any(|(frame, prior)| {
+            frame.derive != prior.derive.id
+                || frame.module != owner.module
+                || frame.source != site.source
+        }) {
+            return None;
+        }
+        let derive = ir.items.get(id.0 as usize)?;
+        let IrItemKind::DeriveFn {
+            params,
+            expr: Some(body),
+            result: IrType::Known(result),
+        } = &derive.kind
+        else {
+            return None;
+        };
+        if derive.module != owner.module
+            || params.len() > 64
+            || params.len() != source.slots.len()
+            || body.ty != *result
+            || depth == 0 && result != &boolean
+        {
+            return None;
+        }
+        let actual = find(&roots, node_span(*call))?;
+        let (target, arguments) = match &actual.expr {
+            IrExpr::Call { target, args }
+                if source.slots.iter().copied().eq((0..args.len()).map(Some)) =>
+            {
+                (target, args)
+            }
+            IrExpr::BoundCall {
+                target,
+                args,
+                slots,
+            } if slots == &source.slots => (target, args),
+            _ => return None,
+        };
+        if !matches!(target,IrCallTarget::DeriveFn(name) if name==&derive.canonical)
+            || actual.ty != *result
+            || arguments.len() != source.arguments.len()
+            || arguments
+                .iter()
+                .zip(&source.arguments)
+                .any(|(value, (node, ty))| !inside(value.span, *node) || value.ty != *ty)
+        {
+            return None;
+        }
+        let mut defaults = Vec::new();
+        let mut default_count = 0;
+        for (index, parameter_id) in params.iter().enumerate() {
+            let parameter = ir.items.get(parameter_id.0 as usize)?;
+            let IrItemKind::Param {
+                owner: parameter_owner,
+                index: parameter_index,
+                ty: IrType::Known(ty),
+                default,
+                default_node,
+                array_bounds: None,
+                ..
+            } = &parameter.kind
+            else {
+                return None;
+            };
+            if *parameter_owner != id
+                || *parameter_index != index
+                || parameter.module != owner.module
+                || !(matches!(ty,ResolvedType::Scalar(scalar) if supported_type_id(scalar.as_str()))
+                    || matches!(ty,ResolvedType::Record {stored:true,symbol} if matches!(&ir.items.get(symbol.0 as usize)?.kind,IrItemKind::Model {..})))
+            {
+                return None;
+            }
+            if let Some(argument) = source.slots[index] {
+                if arguments.get(argument)?.ty != *ty {
+                    return None;
+                }
+                defaults.push(None);
+            } else {
+                let (Some(default), Some(node)) = (default, default_node) else {
+                    return None;
+                };
+                let value = match default {
+                    IrDefault::Literal(value) | IrDefault::Computed { expr: value, .. } => value,
+                };
+                if value.ty != *ty
+                    || !inside(value.span, *node)
+                    || source
+                        .defaults
+                        .iter()
+                        .filter(|(id, key)| id == parameter_id && key == node)
+                        .count()
+                        != 1
+                {
+                    return None;
+                }
+                defaults.push(Some(value));
+                default_count += 1;
+            }
+        }
+        if default_count != source.defaults.len() {
+            return None;
+        }
+        roots = vec![body];
+        roots.extend(defaults.iter().flatten().copied());
+        frames.push(Frame {
+            derive,
+            source,
+            arguments,
+            parameters: params,
+            defaults,
+        });
+    }
+    let member = find(&roots, node_span(read.node))?;
+    let IrExpr::Member { base, field } = &member.expr else {
         return None;
     };
+    if field != &read.field_name || member.ty != read.ty {
+        return None;
+    }
+    let model_type = ResolvedType::Record {
+        symbol: read.model,
+        stored: true,
+    };
+    let mut receiver = base.as_ref();
+    for frame in frames.iter().rev() {
+        let mut seen = HashSet::new();
+        loop {
+            let IrExpr::Name(name) = &receiver.expr else {
+                return None;
+            };
+            let mut parameters = frame
+                .parameters
+                .iter()
+                .enumerate()
+                .filter_map(|(index, id)| {
+                    let parameter = ir.items.get(id.0 as usize)?;
+                    (parameter.name == *name).then_some((index, parameter))
+                });
+            let (index, parameter) = parameters.next()?;
+            if parameters.next().is_some() || !seen.insert(parameter.id) {
+                return None;
+            }
+            created_record_name_matches(receiver, &model_type, &parameter.name, receiver.span, db)?;
+            match frame.source.slots[index] {
+                Some(index) => {
+                    receiver = frame.arguments.get(index)?;
+                    break;
+                }
+                None => receiver = frame.defaults.get(index)?.as_ref().copied()?,
+            }
+        }
+    }
     let IrExpr::Name(binding) = &receiver.expr else {
         return None;
     };
-    if !matches!(target,IrCallTarget::DeriveFn(name) if name==&derive.canonical)
-        || actual_call.ty != boolean
-        || receiver.ty != model_type
-        || receiver.span != node_span(source_call.arguments[0].0)
-    {
-        return None;
-    }
-    created_record_name_matches(receiver, &model_type, binding, actual_call.span, db)?;
+    created_record_name_matches(receiver, &model_type, binding, node_span(outer), db)?;
     let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
         query.model == read.model
             && query.first.as_ref().is_some_and(|first| {
-                first.binding.end <= call.start
+                first.binding.end <= outer.start
                     && matches!(&owner.kind,IrItemKind::Scenario {effects,..}
                 if effects.iter().any(|statement| matches!(statement,IrStmt::Let {name,span,..}
                     if name==binding && *span==node_span(first.binding))))
@@ -993,19 +1123,6 @@ fn checked_require_helper_consumption(
     if checked_owner_first_query_ir(ir, owner, initializer, first.call, db)? != query {
         return None;
     }
-    let member = find(body, node_span(read.node), true)?;
-    let IrExpr::Member { base, field } = &member.expr else {
-        return None;
-    };
-    if field != &read.field_name
-        || member.ty != read.ty
-        || read.node.file != body.span.file
-        || read.node.start < body.span.start
-        || read.node.end > body.span.end
-    {
-        return None;
-    }
-    created_record_name_matches(base, &model_type, &parameter.name, member.span, db)?;
     let ResolvedType::Scalar(scalar) = &read.ty else {
         return None;
     };
@@ -1034,8 +1151,8 @@ fn checked_require_helper_consumption(
             site_index,
             query_id: query.id.clone(),
             node: ReceiptRequireNode {
-                start: call.start,
-                end: call.end,
+                start: outer.start,
+                end: outer.end,
             },
             dependency: ReceiptDependency {
                 id: read.id.clone(),

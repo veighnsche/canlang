@@ -5155,6 +5155,89 @@ impl<'a> Closure<'a> {
                 .is_some_and(|(_, model, _)| model == read.model)
     }
 
+    /// Executed operands retain field authority even when the helper result
+    /// does not consume their data. `observed` is the original evaluation lane.
+    fn require_observed_stored_read(
+        &self,
+        node: NodeKey,
+        calls: &[NodeKey],
+        caller: ModuleId,
+    ) -> Option<DisclosureDependency> {
+        let (base, name) = self.count_member(node)?;
+        let ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        } = self.types.node_types.get(&self.query_group(base)?)?
+        else {
+            return None;
+        };
+        let model = *model;
+        let owner = self.resolve.symbols.get(model.0 as usize)?;
+        if !matches!(owner.kind, SymbolKind::Model { .. }) {
+            return None;
+        }
+        let ty = self.types.node_types.get(&node)?.clone();
+        let field = self
+            .effects
+            .models
+            .get(&model)?
+            .fields
+            .iter()
+            .find_map(|declaration| {
+                let field = self.resolve.symbols.get(declaration.field.0 as usize)?;
+                (field.name == name
+                    && matches!(field.kind,SymbolKind::Field {owner,..} if owner==model)
+                    && self.types.symbol_types.get(&field.id) == Some(&ty))
+                .then_some(field)
+            })?;
+        let module = match calls.last() {
+            Some(call) => {
+                let SelectedCallTarget::DeriveFn(id) = self.types.selected_calls.get(call)?.target
+                else {
+                    return None;
+                };
+                self.effects.derives.get(&id)?.module
+            }
+            None => caller,
+        };
+        let type_id = match &ty {
+            ResolvedType::Record { symbol, .. }
+                if self
+                    .resolve
+                    .symbols
+                    .get(symbol.0 as usize)
+                    .is_some_and(|declaration| {
+                        matches!(declaration.kind, SymbolKind::Contract { .. })
+                    }) =>
+            {
+                self.resolve
+                    .symbols
+                    .get(symbol.0 as usize)?
+                    .canonical
+                    .clone()
+            }
+            _ => self
+                .reference_operand_type_id(&ty)
+                .or_else(|| self.field_type_id(node, field.id, &ty).ok())?,
+        };
+        Some(DisclosureDependency {
+            query_id: None,
+            id: self
+                .opaque("read-data", node, &self.call_stamp(calls).ok()?)
+                .ok()?,
+            source: self.source(module, node).ok()?,
+            node,
+            calls: calls.to_vec(),
+            role: DependencyRole::Data,
+            model,
+            field: field.id,
+            model_name: owner.canonical.clone(),
+            field_name: field.name.clone(),
+            ty,
+            type_id,
+        })
+    }
+
     /// Census unsupported helper shapes too: an unproved execution read must
     /// refuse at the existing original-call join, never disappear with pruning.
     fn first_query_stored_require_read(
@@ -14389,8 +14472,23 @@ impl<'a> Closure<'a> {
                             // Preserve the existing canonical whole-field read even
                             // when an independent return prunes the guard lane.
                             // Emission observes it only at this authored Member.
+                            let mut execution_reads = value.reads.clone();
+                            for (node, calls) in &value.observed {
+                                if let Some(read) =
+                                    self.require_observed_stored_read(*node, calls, module)
+                                {
+                                    if !execution_reads.iter().any(|prior| {
+                                        prior.node == read.node
+                                            && prior.calls == read.calls
+                                            && prior.model == read.model
+                                            && prior.field == read.field
+                                    }) {
+                                        execution_reads.push(read);
+                                    }
+                                }
+                            }
                             let dependencies = self.control(ValuePath {
-                                reads: value.reads.iter().filter(|read| {
+                                reads: execution_reads.iter().filter(|read| {
                                     matches!(&read.ty, ResolvedType::Record {symbol, ..}
                                         if self.resolve.symbols.get(symbol.0 as usize)
                                             .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
