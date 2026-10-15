@@ -4549,6 +4549,46 @@ impl<'a> Cx<'a> {
         true
     }
 
+    /// Metadata may remain complete when an unrelated executable has no lowering.
+    /// Recheck its whole existing census against the original checked source;
+    /// never turn a partial executable into an inventory authority.
+    fn standard_value_census_matches_source(&self, census: &StandardValueCensus) -> bool {
+        if self.program.validate_cohort(self.db, self.catalog).is_err() {
+            return false;
+        }
+        let (original, diagnostics) = crate::analysis::check_program_with_given(
+            self.db,
+            self.program.checked_files(),
+            self.catalog,
+            self.program.original_given(),
+        );
+        if diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+        {
+            return false;
+        }
+        let mut fresh = Cx::new(&original, self.db, self.catalog);
+        fresh.native_hook_context = self.native_hook_context;
+        fresh.native_standard_completion = self.native_standard_completion;
+        fresh.check_standard_completion_census();
+        let mut projection = empty_program(&original.catalog_version);
+        projection.modules = fresh.build_modules();
+        fresh.build_rule_maps(
+            &mut projection.read_rules,
+            &mut projection.callback_read_rules,
+            &mut projection.invariants,
+            &mut projection.locks,
+            &mut projection.retention,
+            &mut projection.crud_when,
+            &mut projection.preferences_valid,
+        );
+        projection.items = fresh.build_items();
+        projection.value_constraints = original.types.value_constraints.clone();
+        StandardValueCensus::collect(&projection).as_ref() == Some(census)
+            && fresh.standard_value_sends_match(census)
+    }
+
     /// Build the program: modules, rule maps, items, suites.
     fn build_program(&mut self) -> (IrProgram, Vec<Diagnostic>) {
         self.check_standard_completion_census();
@@ -4661,13 +4701,13 @@ impl<'a> Cx<'a> {
         // Establish absence from the owning original CST, never from a raw or
         // partial IR. Imported/catalog and declared structural closures remain
         // owned by the existing nonempty collector.
-        if self.diags.is_empty()
-            && self
-                .catalog
-                .is_some_and(|catalog| self.program.catalog_version == catalog.version())
+        if self
+            .catalog
+            .is_some_and(|catalog| self.program.catalog_version == catalog.version())
             && let Some(census) = StandardValueCensus::collect(&program)
             && self.standard_value_sends_match(&census)
             && !census.roots.is_empty()
+            && (self.diags.is_empty() || self.standard_value_census_matches_source(&census))
         {
             program.committed_sources.standard_value_inventory =
                 Some(CheckedStandardValueInventory {

@@ -628,3 +628,87 @@ for(const invalid of [{source:'s',revision:'1',state:'invented'},{source:'s',sta
         "standard result cannot invent its original source census",
     );
 }
+
+#[test]
+fn unrelated_lowering_refusals_preserve_only_source_owned_standard_metadata() {
+    let source = r#"app PartialOutcome uses=[outcome]
+package outcome
+ use std {OperationOutcome as Outcome}
+ use outcome {Workflow as Bound} from=deployment.workflow
+ Given
+  export capability Workflow version=1
+   apply() -> Outcome
+  event Completed {value:Outcome}
+ When
+ Then
+"#;
+    let (db, checked, catalog) = checked(source);
+    let (ir, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6007"),
+        "retain unrelated producer refusal: {diagnostics:?}"
+    );
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    let inventory =
+        serde_json::to_value(output.value_types.as_ref().expect("source-owned inventory")).unwrap();
+    assert_eq!(names(&inventory), BTreeSet::from(["OperationOutcome"]));
+    assert!(
+        !output
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("OperationOutcome has no")),
+        "{:?}",
+        output.diagnostics
+    );
+    assert!(output.entry.js.contains("OperationOutcome"));
+
+    let scratch = tempfile::tempdir().unwrap();
+    let compiled = compile(source, &scratch.path().join("partial-outcome.can"));
+    assert!(
+        !compiled.status.success(),
+        "unrelated refusal must still block the CLI"
+    );
+    let result: Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    assert!(
+        result.get("artifact").is_none_or(Value::is_null),
+        "{result}"
+    );
+
+    let field = checked
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "outcome.Completed.value")
+        .unwrap()
+        .id;
+    let mut edited = checked;
+    edited
+        .types
+        .symbol_types
+        .insert(field, ResolvedType::Scalar(Scalar::Text));
+    let (edited, _) = ir::build(&edited, &db, Some(&catalog));
+    refused(
+        &edited,
+        &db,
+        "edited checked field type cannot borrow original metadata",
+    );
+
+    let (_, mut edited, _) = self::checked(source);
+    edited
+        .symbols
+        .iter_mut()
+        .find(|symbol| symbol.canonical == "outcome.Completed")
+        .unwrap()
+        .canonical
+        .push_str("Forged");
+    let (edited, _) = ir::build(&edited, &db, Some(&catalog));
+    let output = js::emit_program_with_native_source_receipts(&edited, false, &db);
+    assert!(
+        output.value_types.as_ref().is_none_or(|inventory| inventory
+            .contracts
+            .iter()
+            .all(|contract| contract.name != "OperationOutcome")),
+        "edited checked declaration owner cannot borrow original metadata"
+    );
+}
