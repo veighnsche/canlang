@@ -1017,6 +1017,7 @@ impl SemanticJoin<'_> {
         if a.source != b.source
             || a.collection_call != b.collection_call
             || a.contract_collection_call != b.contract_collection_call
+            || a.where_param != b.where_param
             || a.where_async != b.where_async
             || a.select_param != b.select_param
             || a.order.len() != b.order.len()

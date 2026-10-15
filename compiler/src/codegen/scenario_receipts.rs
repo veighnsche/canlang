@@ -3947,7 +3947,7 @@ pub(super) fn checked_first_query_ir<'a>(
         || collection.predicate.is_some()
         || alias.node != source_alias
         || !matches!(&alias.kind,
-            crate::analysis::types::CheckedQueryClauseKind::As {name} if name == "row")
+            crate::analysis::types::CheckedQueryClauseKind::As {name} if !name.is_empty())
         || !alias.expressions.is_empty()
         || predicate.kind != crate::analysis::types::CheckedQueryClauseKind::Where
         || predicate.expressions.as_slice() != [source_predicate]

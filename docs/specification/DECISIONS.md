@@ -15554,3 +15554,31 @@ branches as acceptance, rather than another first-specific carrier. This is an
 implementation direction, not an accepted new API or bypass. Unrelated hook
 context IR failures also suppress whole-cohort fresh preparation; the shared
 source matcher remains locally finishable before that local gate releases.
+
+2026-10-15 — C02: preserve checked first-query alias equivalence and binding correspondence.
+
+An exact accepted-source control compiles with query alias `row` but fails with
+an otherwise equivalent `candidate` alias. This is an implementation spelling
+exception, not a language rule. The source matcher now derives the alias from
+its checked original clause and maps it to the lowered query parameter only
+inside that predicate. Original source nodes/types, model ownership, order,
+query handle, owner-row binding and receipt consumption remain checked. There
+is no new runtime carrier or alternative first primitive. Existing lexical
+binding rules settle this correction without a new JEV language decision.
+
+The discriminating same-span lowered-parameter mutation also found the shared
+fresh-IR comparison omitted `where_param`. Compare it alongside predicate body,
+asynchrony and projection binding so an unbound/captured name cannot borrow
+original source correspondence. All four first-query compiler checks pass,
+including two alias spellings and retained source/declaration/membership
+refusals. Normal owning package builds, CLI build, formatting and diff checks
+pass. The renamed-alias actual native D1/Identity/Work fixture passes 1/1 in
+66.82s, retaining empty query, hidden candidates, constraints, guarded send,
+provider execution, late rollback, revocation/replay/restoration and final source/
+installed-byte checks. Frozen original 24-source validation exits 10 after
+392.08s with the same 701 diagnostics (675 E6008, 26 E6007), complete=true,
+omitted=0, no added/removed diagnostics and no usable artifact. Original sources
+and catalog are unchanged; broader first source/consumption work remains open.
+The native revocation fixture now retains a distinct team owner; its earlier
+attempt to remove the sole owner was correctly refused by Identity. The existing
+revocation, replay, rollback and permission assertions are unchanged.

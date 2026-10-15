@@ -42,8 +42,8 @@ async function snapshot(db: D1Database) {
   return result;
 }
 
-test('original first Budget, Sets, guarded Email and model receipt preserve lawful source authority and late rollback',
- {timeout: 240000}, async () => {
+test.each(['row', 'candidate'])('first Budget alias=%s, Sets, guarded Email and model receipt preserve lawful source authority and late rollback',
+ {timeout: 240000}, async (queryAlias) => {
   const directory = await mkdtemp(join(root, '.can-native-first-budget-'));
   const startedAt = Date.now(), phase = (name: string) => console.info(`[native-first-budget] ${name} elapsed_ms=${Date.now() - startedAt}`);
   let worker: Miniflare | undefined, physical: SqliteFileStore | undefined;
@@ -96,8 +96,11 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     const paths = [originalSource, compiler, catalog], originals = await Promise.all(paths.map(path => readFile(path)));
     assert.equal(hash(originals[0]!), ORIGINAL_SHA256); assert.equal(originals[0]!.length, 1032);
     const originalText = originals[0]!.toString('utf8'); assert.equal(originalText.split('When\n').length, 2);
-    const authored = originalText.replace('When\n', `When\n${SETUP}`);
-    assert.equal(authored.split(SETUP).length, 2); assert.equal(authored.replace(SETUP, ''), originalText);
+    const originalQuery = 'Budget as row where row.account==actor order=row.id';
+    const renamedQuery = `Budget as ${queryAlias} where ${queryAlias}.account==actor order=${queryAlias}.id`;
+    const authored = originalText.replace(originalQuery, renamedQuery).replace('When\n', `When\n${SETUP}`);
+    assert.equal(authored.split(SETUP).length, 2);
+    assert.equal(authored.replace(SETUP, '').replace(renamedQuery, originalQuery), originalText);
     await writeFile(source, authored); const authoredHash = hash(Buffer.from(authored));
     // Capture the actual augmented source and installed Values catalog using
     // the existing public capture builder; invoke the locked CLI directly as
@@ -161,6 +164,9 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     const identities = createD1IdentityStore(identityDb, {clock}), team = await identities.createTeam({timezone: 'UTC'});
     const user = await identities.createUser({email: 'first-budget@example.test', password_hash: 'unused', email_verified: true});
     const membership = await identities.createMembership({user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: []});
+    // The later revocation removes this caller, while Identity must retain an owner.
+    const retainedOwner = await identities.createUser({email: 'first-budget-retained-owner@example.test', password_hash: 'unused', email_verified: true});
+    await identities.createMembership({user_id: retainedOwner.user_id, team_id: team.team_id, is_owner: true, roles: []});
     const foreignTeam = await identities.createTeam({timezone: 'UTC'}), foreignUser = await identities.createUser({email: 'first-budget-foreign@example.test', password_hash: 'unused', email_verified: true});
     await identities.createMembership({user_id: foreignUser.user_id, team_id: foreignTeam.team_id, is_owner: true, roles: []});
     const grant = await issueMcpGrant(identities, {user_id: user.user_id, team_id: team.team_id, client_id: 'first-budget'}, {clock});
@@ -422,7 +428,7 @@ test('original first Budget, Sets, guarded Email and model receipt preserve lawf
     const restored = await resources(), replay = await invoke(saved[1]!.input); assert.ok('result' in replay); assert.equal(replay.result.status, 'replayed');
     assert.deepEqual(replay.result.result, {id: saved[1]!.id}); await unchanged(restored); assert.equal(requests.length, 1);
     phase('authority:complete; lifetime/source closure:start');
-    assert.equal(hash(await readFile(source)),authoredHash); assert.equal((await readFile(source,'utf8')).replace(SETUP,''),originalText);
+    assert.equal(hash(await readFile(source)),authoredHash); assert.equal((await readFile(source,'utf8')).replace(SETUP,'').replace(renamedQuery,originalQuery),originalText);
     for(const {path,bytes}of compilerSources)assert.deepEqual(await readFile(path),bytes);
     for(const [path,bytes]of compiledBytes)assert.deepEqual(await readFile(fileURLToPath(asm.moduleUrls[path]!)),bytes);
     assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);

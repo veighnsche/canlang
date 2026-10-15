@@ -43,8 +43,12 @@ fn fixture() -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
 
 fn fixture_at(path: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     assert_eq!(sha256_hex(SOURCE.as_bytes()), SOURCE_HASH);
+    fixture_source(path, SOURCE)
+}
+
+fn fixture_source(path: &str, source: &str) -> (SourceDb, CheckedProgram, IrProgram, Catalog) {
     let mut db = SourceDb::new();
-    let file = db.add(path.into(), SOURCE.into());
+    let file = db.add(path.into(), source.into());
     let path = native_owner_root().join("packages/cloudflare/dist/native-catalog.json");
     let (catalog, diagnostics) = load_catalog(&CatalogRequest {
         flag: Some(&path),
@@ -570,4 +574,67 @@ fn membership_derive_body_only_mutation_refuses_first_receipt() {
         .is_none(),
         "body-only membership deletion must refuse"
     );
+}
+
+#[test]
+fn first_query_alias_renaming_retains_original_source_correspondence() {
+    let original = "Budget as row where row.account==actor order=row.id";
+    for alias in ["candidate", "budgetRow"] {
+        let source = SOURCE.replace(
+            original,
+            &format!("Budget as {alias} where {alias}.account==actor order={alias}.id"),
+        );
+        let (db, program, ir, catalog) = fixture_source("renamed-first.can", &source);
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(diagnostics.is_empty(), "{alias}: {diagnostics:?}");
+        let disclosure = &operation(&artifact)["result"]["disclosure"];
+        assert_eq!(
+            disclosure["source"]["sha256"],
+            sha256_hex(source.as_bytes())
+        );
+        assert_eq!(
+            disclosure["queries"][0]["order"],
+            serde_json::json!([{"field":"id","direction":"asc"}])
+        );
+        assert!(
+            serialize_complete_query_receipt(
+                &program,
+                &ir,
+                item(&ir, OWNER),
+                &db,
+                Some(&catalog),
+                "./app.js"
+            )
+            .is_some(),
+            "original renamed IR must prepare"
+        );
+        let mut changed = ir.clone();
+        let IrItemKind::Scenario { effects, .. } =
+            &mut changed.items[item(&ir, OWNER).id.0 as usize].kind
+        else {
+            panic!()
+        };
+        let IrStmt::Let { value, .. } = &mut effects[0] else {
+            panic!()
+        };
+        let IrExpr::Call { args, .. } = &mut value.expr else {
+            panic!()
+        };
+        let IrExpr::Query(query) = &mut args[0].expr else {
+            panic!()
+        };
+        query.where_param = "unbound".into();
+        assert!(
+            serialize_complete_query_receipt(
+                &program,
+                &changed,
+                item(&changed, OWNER),
+                &db,
+                Some(&catalog),
+                "./app.js"
+            )
+            .is_none(),
+            "changed lowered alias must refuse"
+        );
+    }
 }
