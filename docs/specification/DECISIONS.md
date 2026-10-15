@@ -17126,3 +17126,20 @@ and permissions and fix the defining producer/consumer association. Earlier
 passing helper-native invariant coverage is evidence to locate the difference,
 not acceptance of this default runner path. No new language rule or workflow
 qualification is claimed; executable receiving and full-cohort joins remain open.
+
+
+## 2026-10-15 — execute source-owned parent enum invariants
+
+Recognize equality/inequality of an exact checked required owning enum path and
+its typed cases through the existing invariant mechanism. CompanyRole's original
+parent.kind rule now emits its private predicate and the existing reverse parent
+dependency, so Customer changes recheck affected CompanyRole rows. Retain enum
+owner/cases, field/containment/source checks, lazy order and bounded affected-row
+selection; no new language rule, runtime evaluator or permission bypass.
+
+Two focused compiler checks and the frozen CLI build pass. A genuine native
+D1/Identity test passes default fixture activation, valid/invalid child creation,
+atomic parent-change rejection and an unrelated parent update (1/4.44s). The
+original six CRM rows pass this gate but expose four nested-selector setup errors
+and two invocation validation errors. Full-composition source correspondence is
+separately traced to global IR-diagnostic refusal and remains unfinished.

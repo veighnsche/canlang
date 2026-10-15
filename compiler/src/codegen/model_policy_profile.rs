@@ -478,7 +478,10 @@ pub(crate) fn required_model_rule_path(
                     &value.ty,
                     ResolvedType::Record { stored: true, .. }
                         | ResolvedType::Scalar(Scalar::Money | Scalar::Currency)
-                ) {
+                        | ResolvedType::Enum { .. }
+                ) || matches!(&value.ty, ResolvedType::Enum { .. })
+                    && !local_type(program, *symbol, &value.ty)
+                {
                     return None;
                 }
                 let id = policy_field(program, *symbol, field, &value.ty)?;
@@ -503,9 +506,9 @@ pub(crate) fn required_model_rule_path(
     Some(fields)
 }
 
-/// The bounded invariant extension composes identity/currency comparisons and
-/// Money minor bounds through the existing lazy bool tree. It adds no general
-/// Record arithmetic, nullable traversal, calls or collection operations.
+/// The bounded invariant extension composes identity/currency/owning-enum
+/// comparisons and Money minor bounds through the existing lazy bool tree.
+/// It adds no general Record arithmetic, nullable traversal, calls or collections.
 pub(crate) fn required_model_rule_fields(
     program: &IrProgram,
     model: SymbolId,
@@ -546,7 +549,9 @@ pub(crate) fn required_model_rule_fields(
         let path_pair = matches!(op, IrBinOp::Eq | IrBinOp::Ne)
             && matches!(
                 &left.ty,
-                ResolvedType::Record { stored: true, .. } | ResolvedType::Scalar(Scalar::Currency)
+                ResolvedType::Record { stored: true, .. }
+                    | ResolvedType::Scalar(Scalar::Currency)
+                    | ResolvedType::Enum { .. }
             );
         let minor_bound = matches!(op, IrBinOp::Lt | IrBinOp::Le | IrBinOp::Gt | IrBinOp::Ge)
             && left.ty == ResolvedType::Scalar(Scalar::Int);
@@ -555,6 +560,14 @@ pub(crate) fn required_model_rule_fields(
         }
         let mut paths = 0;
         for operand in [left, right] {
+            // The other operand must still establish an exact owning stored
+            // path. A case literal alone cannot certify a dependency or rule.
+            if let ResolvedType::Enum { cases, .. } = &operand.ty {
+                if matches!(&operand.expr, IrExpr::Name(case) | IrExpr::Text(case) if cases.contains(case))
+                {
+                    continue;
+                }
+            }
             if minor_bound && matches!(operand.expr, IrExpr::Int(_)) {
                 continue;
             }
