@@ -1,0 +1,134 @@
+[
+  {
+    "request": {
+      "state": {
+        "product": "Can targets economical AI-generated CRUD SaaS: compact unambiguous source, source-owned reusable defaults/components, one canonical primitive. Compare complete outcomes and total maintenance, not diagnostic count, draft spelling or patch size. Preserve independent read permissions, order, atomicity, failure identity and all authored assertions.",
+        "verified_failure": "Original crm.promote_research has by=salesperson. Six actual original rows run through genuine CLI/default Testkit/D1/Identity with all original schemas/policies/fixtures/saved Given. No setup failures. Inactive-customer rule_failed and missing-salesperson forbidden pass; four other rows reject forbidden at the leading input.contact.parent equality, before their expected success/currency failure/existing-input mismatch. Exact error: Original model query source fields are unavailable for customer.Contact parent. Do not reinterpret these permission failures as missing data or business false.",
+        "existing_policies": "Customer read grants: customer_reader or billing_reader WHERE customer_staff(actor,row), fields=name,kind,locations,active; customer_manager AND customer_staff; authenticated WHERE owns(actor,row) OR has_role(actor,row,administrator/booker/billing); finance WHERE customer_staff fields=name,kind,locations,active. owns is kind==individual AND any(Contact account==person AND verified). customer_staff checks can_work at a customer location. Contact has authenticated self-account/has_role and staff-reader/manager grants, but source ancestor projection independently requires current Customer access. No crm.salesperson grant exists on Customer.",
+        "fixtures_and_callers": "test_company has kind=company and test_site location; test_contact has parent=test_company,account=self,verified=true. test_worker is Employee user=self at test_site. First examples seed only test_worker and common Contract input references company/contact/site. Second also seeds research_intake. Current salesperson rows provision only canonical crm.salesperson team role to row self. No CompanyRole admin is seeded. Existing exported customer.test_admin is CompanyRole {parent=test_company,account=self,role=administrator,locations=[test_site]}. All initial snapshots still enforce invariants/uniques; no historical workflow is claimed.",
+        "settled_mechanisms": "Table as supports existing static role arrays, e.g. [salesperson,customer_reader], provisioning SAME row self with both declared team roles. A named role must be visible via source import; customer_reader currently lacks export. Exporting/importing its identifier does not assign it to anyone. User-fixture roles also exist but use their own account and would require extra matching Employee/Contact setup; no new caller syntax or role-inheritance feature is needed.",
+        "option_roles": "Expose/import the existing customer_reader role and use [salesperson,customer_reader] for the five salesperson rows in both original tables. Keep members negative row, all seeds/model data/guards/order/expected values and errors unchanged. Production policy grants remain unchanged. This represents a staff sales operator with explicit limited directory-read role; costs one export/import plus repeated two-role cell arrays, which use an existing primitive.",
+        "option_admin_seed": "Import existing test_admin fixture and seed it alongside test_worker in both tables, keeping all caller cells salesperson/members and all assertions. Production grants remain unchanged. This represents a salesperson who also has administrator rights on the example company through company-owned data, rather than the limited staff reader role. Fewer caller tokens and no public role export; it tests a stronger customer relationship and adds a model fixture dependency.",
+        "same_acceptance": "Both must run all six original expectations through same runtime and still deny missing operation role; preserve rollback/replay/current authority and exact first-failure order. A passing run alone does not show best business example. Do not silently broaden Customer/Contact policies or infer read rights from by=salesperson. No waiver or new broad effect/role system. Select investigate if source/model authority facts are insufficient or a different existing mechanism is needed."
+      },
+      "questions": {
+        "context": {
+          "type": "choice",
+          "instructions": "Which existing source context best represents these sales-staff examples while preserving the same production permissions and authored workflow checks?",
+          "criteria": {
+            "explicit_reader_roles": "Use the existing role-array caller with salesperson and customer_reader; export/import that role identifier.",
+            "company_admin_fixture": "Seed the existing company administrator relationship while keeping salesperson caller cells.",
+            "investigate": "A concrete unresolved requirement prevents choosing either source context."
+          }
+        }
+      }
+    },
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "context": {
+          "type": "choice",
+          "choice": "explicit_reader_roles",
+          "confidence": 0.8,
+          "probabilities": {
+            "explicit_reader_roles": 0.87,
+            "company_admin_fixture": 0.06,
+            "investigate": 0.07
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 1260,
+        "output_tokens": 47
+      }
+    }
+  },
+  {
+    "request": {
+      "state": {
+        "product": "Can targets economical AI-generated CRUD SaaS: compact unambiguous source, source-owned reusable defaults/components, one canonical primitive. Compare complete outcomes and total maintenance, not diagnostic count, draft spelling or patch size. Preserve independent read permissions, order, atomicity, failure identity and all authored assertions.",
+        "verified_failure": "Original crm.promote_research has by=salesperson. Six actual original rows run through genuine CLI/default Testkit/D1/Identity with all original schemas/policies/fixtures/saved Given. No setup failures. Inactive-customer rule_failed and missing-salesperson forbidden pass; four other rows reject forbidden at the leading input.contact.parent equality, before their expected success/currency failure/existing-input mismatch. Exact error: Original model query source fields are unavailable for customer.Contact parent. Do not reinterpret these permission failures as missing data or business false.",
+        "existing_policies": "Customer read grants: customer_reader or billing_reader WHERE customer_staff(actor,row), fields=name,kind,locations,active; customer_manager AND customer_staff; authenticated WHERE owns(actor,row) OR has_role(actor,row,administrator/booker/billing); finance WHERE customer_staff fields=name,kind,locations,active. owns is kind==individual AND any(Contact account==person AND verified). customer_staff checks can_work at a customer location. Contact has authenticated self-account/has_role and staff-reader/manager grants, but source ancestor projection independently requires current Customer access. No crm.salesperson grant exists on Customer.",
+        "fixtures_and_callers": "test_company has kind=company and test_site location; test_contact has parent=test_company,account=self,verified=true. test_worker is Employee user=self at test_site. First examples seed only test_worker and common Contract input references company/contact/site. Second also seeds research_intake. Current salesperson rows provision only canonical crm.salesperson team role to row self. No CompanyRole admin is seeded. Existing exported customer.test_admin is CompanyRole {parent=test_company,account=self,role=administrator,locations=[test_site]}. All initial snapshots still enforce invariants/uniques; no historical workflow is claimed.",
+        "settled_mechanisms": "Table as supports existing static role arrays, e.g. [salesperson,customer_reader], provisioning SAME row self with both declared team roles. A named role must be visible via source import; customer_reader currently lacks export. Exporting/importing its identifier does not assign it to anyone. User-fixture roles also exist but use their own account and would require extra matching Employee/Contact setup; no new caller syntax or role-inheritance feature is needed.",
+        "option_roles": "Expose/import the existing customer_reader role and use [salesperson,customer_reader] for the five salesperson rows in both original tables. Keep members negative row, all seeds/model data/guards/order/expected values and errors unchanged. Production policy grants remain unchanged. This represents a staff sales operator with explicit limited directory-read role; costs one export/import plus repeated two-role cell arrays, which use an existing primitive.",
+        "option_admin_seed": "Import existing test_admin fixture and seed it alongside test_worker in both tables, keeping all caller cells salesperson/members and all assertions. Production grants remain unchanged. This represents a salesperson who also has administrator rights on the example company through company-owned data, rather than the limited staff reader role. Fewer caller tokens and no public role export; it tests a stronger customer relationship and adds a model fixture dependency.",
+        "same_acceptance": "Both must run all six original expectations through same runtime and still deny missing operation role; preserve rollback/replay/current authority and exact first-failure order. A passing run alone does not show best business example. Do not silently broaden Customer/Contact policies or infer read rights from by=salesperson. No waiver or new broad effect/role system. Select investigate if source/model authority facts are insufficient or a different existing mechanism is needed."
+      },
+      "questions": {
+        "context": {
+          "type": "choice",
+          "instructions": "Given the observed denied parent read and existing mechanisms, which complete correction should the examples use for their authorized operator?",
+          "criteria": {
+            "explicit_reader_roles": "Declare both existing team roles in each sales caller cell and make reader role source-visible.",
+            "company_admin_fixture": "Retain sales-only caller cells and add the existing company-admin data fixture to table setup.",
+            "investigate": "Neither option is justified until another specific authority or product fact is resolved."
+          }
+        }
+      }
+    },
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "context": {
+          "type": "choice",
+          "choice": "explicit_reader_roles",
+          "confidence": 0.86,
+          "probabilities": {
+            "explicit_reader_roles": 0.91,
+            "company_admin_fixture": 0.06,
+            "investigate": 0.03
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 1265,
+        "output_tokens": 47
+      }
+    }
+  },
+  {
+    "request": {
+      "state": {
+        "product": "Can targets economical AI-generated CRUD SaaS: compact unambiguous source, source-owned reusable defaults/components, one canonical primitive. Compare complete outcomes and total maintenance, not diagnostic count, draft spelling or patch size. Preserve independent read permissions, order, atomicity, failure identity and all authored assertions.",
+        "verified_failure": "Original crm.promote_research has by=salesperson. Six actual original rows run through genuine CLI/default Testkit/D1/Identity with all original schemas/policies/fixtures/saved Given. No setup failures. Inactive-customer rule_failed and missing-salesperson forbidden pass; four other rows reject forbidden at the leading input.contact.parent equality, before their expected success/currency failure/existing-input mismatch. Exact error: Original model query source fields are unavailable for customer.Contact parent. Do not reinterpret these permission failures as missing data or business false.",
+        "existing_policies": "Customer read grants: customer_reader or billing_reader WHERE customer_staff(actor,row), fields=name,kind,locations,active; customer_manager AND customer_staff; authenticated WHERE owns(actor,row) OR has_role(actor,row,administrator/booker/billing); finance WHERE customer_staff fields=name,kind,locations,active. owns is kind==individual AND any(Contact account==person AND verified). customer_staff checks can_work at a customer location. Contact has authenticated self-account/has_role and staff-reader/manager grants, but source ancestor projection independently requires current Customer access. No crm.salesperson grant exists on Customer.",
+        "fixtures_and_callers": "test_company has kind=company and test_site location; test_contact has parent=test_company,account=self,verified=true. test_worker is Employee user=self at test_site. First examples seed only test_worker and common Contract input references company/contact/site. Second also seeds research_intake. Current salesperson rows provision only canonical crm.salesperson team role to row self. No CompanyRole admin is seeded. Existing exported customer.test_admin is CompanyRole {parent=test_company,account=self,role=administrator,locations=[test_site]}. All initial snapshots still enforce invariants/uniques; no historical workflow is claimed.",
+        "settled_mechanisms": "Table as supports existing static role arrays, e.g. [salesperson,customer_reader], provisioning SAME row self with both declared team roles. A named role must be visible via source import; customer_reader currently lacks export. Exporting/importing its identifier does not assign it to anyone. User-fixture roles also exist but use their own account and would require extra matching Employee/Contact setup; no new caller syntax or role-inheritance feature is needed.",
+        "option_roles": "Expose/import the existing customer_reader role and use [salesperson,customer_reader] for the five salesperson rows in both original tables. Keep members negative row, all seeds/model data/guards/order/expected values and errors unchanged. Production policy grants remain unchanged. This represents a staff sales operator with explicit limited directory-read role; costs one export/import plus repeated two-role cell arrays, which use an existing primitive.",
+        "option_admin_seed": "Import existing test_admin fixture and seed it alongside test_worker in both tables, keeping all caller cells salesperson/members and all assertions. Production grants remain unchanged. This represents a salesperson who also has administrator rights on the example company through company-owned data, rather than the limited staff reader role. Fewer caller tokens and no public role export; it tests a stronger customer relationship and adds a model fixture dependency.",
+        "same_acceptance": "Both must run all six original expectations through same runtime and still deny missing operation role; preserve rollback/replay/current authority and exact first-failure order. A passing run alone does not show best business example. Do not silently broaden Customer/Contact policies or infer read rights from by=salesperson. No waiver or new broad effect/role system. Select investigate if source/model authority facts are insufficient or a different existing mechanism is needed."
+      },
+      "questions": {
+        "context": {
+          "type": "choice",
+          "instructions": "For a compact reusable CRUD SaaS language, which of these permission-preserving example setups better captures this reviewed-research promotion workflow?",
+          "criteria": {
+            "explicit_reader_roles": "Model a salesperson with the explicit limited customer directory-reader role, using existing arrays/imports.",
+            "company_admin_fixture": "Model a salesperson who also administers the example company, through its existing fixture relationship.",
+            "investigate": "Further concrete investigation is needed rather than adopting either setup."
+          }
+        }
+      }
+    },
+    "response": {
+      "model": "jev-1.13.0",
+      "answers": {
+        "context": {
+          "type": "choice",
+          "choice": "explicit_reader_roles",
+          "confidence": 0.89,
+          "probabilities": {
+            "explicit_reader_roles": 0.93,
+            "company_admin_fixture": 0.02,
+            "investigate": 0.04
+          }
+        }
+      },
+      "usage": {
+        "input_tokens": 1273,
+        "output_tokens": 47
+      }
+    }
+  }
+]

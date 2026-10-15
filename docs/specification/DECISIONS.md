@@ -17380,3 +17380,25 @@ replay controls plus hidden-field denial, ordinary late grant revocation and
 independent scalar/void replay. The helper retry corrected only generated source
 placement inside the checkout; an earlier package-link freshness refusal ran no
 rows. No authored permission or independent expectation was weakened.
+
+
+## 2026-10-15 — declare the promotion example operator's reader role
+
+Accepted source correction, committed in draft4990400: export/import existing
+customer_reader and select [salesperson,customer_reader] for the five sales caller
+cells. Keep the members denial, all original schemas/policies/fixtures, the full
+promotion operation, saved Given defaults and six independently authored
+expectations. This expresses limited directory access required by the leading
+Contact/Customer read; operation membership alone supplies no such grant.
+
+Three equivalent JEV Choice consultations prefer this over the existing stronger
+company-admin fixture (.87/.91/.93; confidence .80/.86/.89); requests/responses
+and uncertainty are retained in crm-example-authority-jev.json. The initial
+context correctly described the supported role-array meaning but overstated
+receiving implementation: separate compiler/Testkit/CF adapters were repaired
+and qualified without granting new permissions. Existing policy-domain and
+record-identity fixes complete the original workflow. All six original rows pass
+through genuine captured CLI/default Testkit/D1/Identity in82.695s, including
+existing-deal identity and all four exact rejection/write-absence expectations.
+Input/saved-generated closure checks pass. Reuse this unchanged native result;
+full original24 composition remains a separate unfinished qualification.
