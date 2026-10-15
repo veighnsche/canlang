@@ -33,13 +33,13 @@
 //!   `[`, matching choice maps before `{` (`score "Cap" [low="L"]`).
 //! * Routes on `page` header lines are emitted contiguously (spaces inside a
 //!   route are a parse error), as is the `@{...}` message-suffix marker.
-//! * `#` description lines, `##` comment lines, strings, numbers, durations
-//!   and byte quantities are byte-preserved apart from trailing-whitespace
-//!   removal and (for inline `#` lines inside joined regions) re-indentation.
+//! * `#` description content, strings, numbers, durations and byte quantities
+//!   are byte-preserved. Description lines inside joined regions may be
+//!   re-indented; `##` comments have trailing whitespace removed.
 //!   Declaration, member and example-row order is always preserved, as are
 //!   semicolon leaves and the inline-vs-suite shape of `do` bodies.
-//! * No trailing whitespace; LF line endings; exactly one trailing newline
-//!   (an empty input stays empty).
+//! * No trailing whitespace outside description content; LF line endings;
+//!   exactly one trailing newline (an empty input stays empty).
 //!
 //! # Line endings and errors
 //!
@@ -306,15 +306,17 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    /// A `#`/`##` line at `indent`: marker-to-end text with trailing
-    /// whitespace stripped. Prose, `#=` references and `@{...}` suffixes
-    /// are otherwise byte-preserved.
+    /// A `#`/`##` line at `indent`. Description tokens retain their complete
+    /// content: trailing prose whitespace is part of the description value.
+    /// Only ordinary comments have trailing whitespace stripped.
     fn preserved(&self, indent: usize, token: &Token) -> String {
-        format!(
-            "{}{}",
-            " ".repeat(indent),
-            token.text(self.source).trim_end_matches([' ', '\t'])
-        )
+        let text = token.text(self.source);
+        let text = if token.kind == TokenKind::Comment {
+            text.trim_end_matches([' ', '\t'])
+        } else {
+            text
+        };
+        format!("{}{}", " ".repeat(indent), text)
     }
 
     /// Emit one physical code line: canonical indent plus tokens joined by
