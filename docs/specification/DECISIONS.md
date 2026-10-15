@@ -17645,3 +17645,58 @@ execute yet. All15 affected compiler controls pass/1.94s, retaining prior scalar
 helper, Contract and reference behavior. Locked CLI build passes. No runtime
 carrier, grant, result taint or authored source assertion changes. General helper
 call-chain and unsupported field execution remain ready defining-owner work.
+
+
+## 2026-10-15 — qualify the existing standalone Linux x64 installation
+
+Accepted: retain the existing Linux x64/glibc release target and standalone
+builder, assembler, verifier and canonical shell installer. Qualify the pushed
+implementation from `a4d780f656d7370c87d26dfeb34cf5e92ff56665` in an isolated
+worktree, preserving the original checkout's unrelated changes. Users install
+the complete prebuilt distribution with the adjacent `install-local.sh`; they
+need no user-installed Rust, Node, Bun or npm packages. Production dependency
+closure and the separately opt-in browser tooling remain unchanged.
+
+Installed qualification exposed two queue-preview startup gaps. Owner inspection
+could combine an old null/missing pin with newly committed State and falsely
+report unassigned legacy storage. Re-read the persisted pin before each legacy
+refusal, then apply the existing exact app/owner check. Genuine unassigned legacy
+state, foreign pins and D1 failures still refuse. Preview activation also used
+plain hex while native recovery installed a `sha256:`-prefixed snapshot digest.
+Use the canonical digest spelling in the preview descriptor; retain strict
+snapshot equality and all activation gates. Recovery timing is unchanged.
+
+Two focused owner tests pass, including six forced same/foreign app/owner races
+after null or missing pin reads and existing legacy/isolation controls. Both
+native queue tests pass: original commit/replay and unsupported-global controls,
+plus a separate real-recovery lifecycle proving exact snapshot activation and
+changed-digest refusal. The combined test's initial socket failure was resolved
+by giving the new regression its own Miniflare lifecycle. All 13 production
+package owners build and the matching locked Rust compiler/catalog are retained.
+Installer/resolver tests pass14 with one optional browser skip; publication-helper
+tests pass6. No browser is installed by these checks.
+
+The verifier now supplies the canonical sidecar to Bash on stdin, uses a
+disposable HOME with spaces and a utility-only PATH which explicitly excludes
+external language tools. Preserve the original external-app checks, and add
+actual installed-byte measurements and direct private native-tool execution.
+Reports record host OS/glibc, ELF architecture and required shared libraries.
+Failed qualification writes `passed: false` and retains its diagnostic state.
+The final Linux archive passes all21 checks, including original inline examples,
+ordinary check/build, protected preview, automatic R2/Durable Objects and the
+model-free member queue's owning State. The successful disposable install is
+removed after its measurements are recorded.
+
+Align the Linux compiler job with the existing Ubuntu 24.04 standalone job so
+`ubuntu-latest` cannot silently raise its glibc requirement. Upload only the
+matching platform archive/checksum and fail when artifacts are absent; retain
+reports and canonical installer for the existing publication gate. macOS rows
+and assembly/signing behavior are preserved. CI execution, public hosting and
+authenticated deployment are separate unperformed gates. No release candidate,
+version bump, tag or GitHub release is created here.
+
+See [the installation reference](../install.md#linux-x64-qualification--2026-10-15)
+for exact measured bytes, tested native versions and Linux compatibility limits.
+This host is Rocky Linux 10.2 x86_64/glibc 2.39; this locally built compiler requires
+glibc 2.39 or newer. Other distributions/CPU generations and the Linux browser
+add-on are not qualified. Retain prior macOS evidence without claiming a new run.

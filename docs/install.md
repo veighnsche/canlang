@@ -8,7 +8,7 @@ The compiler-only routes below remain available for compiler consumers:
 
 The standalone bundle includes the compiler, matching catalog, private Node
 runtime, production runtime dependencies, workerd, inline-example tooling
-and the Cloudflare deployment CLI. Chrome and Playwright are excluded. Users do not install Rust, Node, Bun
+and the Cloudflare deployment CLI. Chrome, Chromium and Playwright are excluded. Users do not install Rust, Node, Bun
 or npm dependencies separately.
 
 The public entry point is prepared for the SodaOS website:
@@ -42,9 +42,9 @@ Installation defaults to `~/.can`, configures the shell PATH, and retains the
 previous version during upgrades. Open a new terminal afterward. Set
 `CAN_INSTALL_DIR` on the command to choose another installation directory.
 
-The macOS arm64 artifact has passed the complete external-app verification. Linux
-x64 has an Ubuntu 24.04 CI qualification job but has not been verified locally;
-arbitrary Linux distributions are not qualified. Public GitHub Release hosting and a Homebrew tap are not yet published.
+The macOS arm64 artifact has passed the complete external-app verification.
+Linux x64 qualification and compatibility limits are recorded below; arbitrary
+Linux distributions are not qualified. Public GitHub Release hosting and a Homebrew tap are not yet published.
 Do not present the remote curl command as live until matching release assets exist.
 
 Measured macOS arm64 artifact: **90,087,787 bytes download (85.9 MiB)**;
@@ -57,6 +57,50 @@ Bun is now a contributor build dependency only. Dynamic application bundles use
 Node and the same esbuild 0.28.1 already required by Wrangler. The assembler
 removes local native symbols from Node/workerd (preserving dynamic exports),
 re-signs the modified macOS binaries ad hoc, and verifies their execution.
+
+The size report distinguishes the archive payload from `actualInstallation`,
+which measures the installed version directory, including the installer's
+65-byte checksum marker. `installedFileBytes` sums regular file lengths;
+`allocatedFileBytes` sums their allocated blocks; `installedDiskBytes` also
+includes directory blocks. Parent directories, public symlinks, application
+state and retained older versions are additional. Allocation varies by filesystem.
+
+### Linux x64 qualification — 2026-10-15
+
+The existing Linux/glibc target was built and tested on **Rocky Linux 10.2
+(Red Quartz), x86_64, glibc 2.39**, kernel `6.12.0-211.64.1.el10_2.x86_64`.
+The local artifact is `can-0.1.0-linux-x64.tar.gz`; no version was changed.
+All **21 installed qualification checks pass**, including installation through
+Bash stdin in a disposable HOME with no host language tools on PATH, ordinary
+check/build, original inline examples, protected local preview, automatic
+R2/Durable Objects and model-free member-queue State provisioning. Chrome,
+Chromium, Playwright and contributor tooling remain excluded.
+
+| Measurement | Exact bytes |
+| --- | ---: |
+| Compressed download | 109,205,619 |
+| Installed regular files, including checksum marker | 347,296,983 |
+| Allocated regular files | 357,273,600 |
+| Allocated installation, including directory blocks | 357,711,872 |
+
+The archive itself contains 347,296,918 file bytes, 3,693 files and 155 package
+identities. Installation adds the 65-byte checksum marker. These measurements
+come from the generated `size-report.json` and `verification.json`.
+
+Native execution checks cover compiler 0.1.0 with its matching catalog, private Node 24.22.0,
+esbuild 0.28.1, workerd 1.20260730.1, Miniflare 4.20260730.0,
+Sharp 0.35.2 with libvips 8.18.3, and Wrangler 4.116.0. The verifier checks
+Linux x64 ELF headers and package OS/CPU/libc constraints, runs esbuild,
+workerd and Sharp, and exercises Miniflare through real D1/Worker execution.
+Wrangler bundling uses a dry run without account credentials.
+
+This locally built compiler requires **glibc 2.39 or newer**. Node requires
+2.28 and workerd 2.35; the compiler sets this archive's highest requirement.
+The report lists required system shared libraries. Other distributions and CPU
+generations have not been exercised; a matching glibc version alone is not a
+qualification. Linux musl, Linux ARM and Windows are outside the existing
+standalone targets. macOS assembly/signing support and its retained measurements
+remain intact; macOS and the Linux browser add-on were not rerun here.
 
 ### Optional browser development tools
 
@@ -195,8 +239,18 @@ unknown output. Move the previous `output/install/can` stage aside before anothe
 assembly. Packaging never publishes a release.
 
 The current local artifact uses integrated source-built production packages;
-its manifest records `inputMode: built-checkout`. All 13 package builds and all
-18 installed checks pass on macOS arm64, including API-only previews which
-provision R2/Durable Objects and a model-free member queue automatically.
-The matching release compiler passes the original inline examples. Linux CI
-qualification and public release/Homebrew publication remain pending.
+its manifest records `inputMode: built-checkout`. The retained macOS arm64
+qualification passed all 13 package builds and the original 18 installed checks,
+including API-only previews which provision R2/Durable Objects and a model-free
+member queue automatically. This Linux task does not rerun macOS qualification.
+The verifier now also checks that PATH contains no external language tools,
+measures the actual installation and directly exercises the private native tools.
+It supplies the canonical installer to Bash on stdin in a disposable HOME with
+spaces, then runs the existing external-app checks. On Linux, the report records
+ELF architecture, required shared libraries and maximum referenced glibc version.
+
+The release workflow consumes the matching platform compiler artifact, assembles
+and qualifies the standalone archive, and retains its checksum, size report,
+verification report and canonical installer. Both Linux stages use Ubuntu 24.04;
+their CI execution remains pending. No version, tag or release is created by
+local qualification. Public release/Homebrew publication remains pending.
