@@ -712,3 +712,70 @@ package outcome
         "edited checked declaration owner cannot borrow original metadata"
     );
 }
+
+#[test]
+fn reused_standard_inline_enum_and_url_fields_keep_the_owning_source_census() {
+    let source = ORIGINAL
+        .replacen("use std {", "use std {OperationOutcome,", 1)
+        .replacen(
+            "Given\n",
+            "Given\n contract ReceiptState {state:OperationOutcome.state,link:url?}\n",
+            1,
+        );
+    let (db, ir) = build(&source);
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    let inventory = serde_json::to_value(output.value_types.unwrap()).unwrap();
+    let receipt = inventory["contracts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|contract| contract["name"] == "TypedImagesProgress.ReceiptState")
+        .expect("complete original ordinary contract must publish");
+    assert_eq!(
+        receipt["fields"],
+        json!([
+            {"name":"state","type":"enum(pending,confirmed,unavailable,failed,unknown,released)"},
+            {"name":"link","type":"url?"}
+        ])
+    );
+    assert!(inventory["enums"].as_array().is_none_or(|enums| {
+        enums
+            .iter()
+            .all(|entry| entry["name"] != "TypedImagesProgress.ReceiptState.state")
+    }));
+    let state = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "TypedImagesProgress.ReceiptState.state")
+        .unwrap();
+    let mut edited = ir.clone();
+    let IrItemKind::Field {
+        ty: IrType::Known(ResolvedType::Enum { cases, owner: None }),
+        ..
+    } = &mut edited.items[state.id.0 as usize].kind
+    else {
+        panic!("standard field reuse retains its original inline enum cases");
+    };
+    cases.push("invented".into());
+    refused(&edited, &db, "changed standard inline cases");
+    let mut edited = ir.clone();
+    let IrItemKind::Field {
+        ty: IrType::Known(ResolvedType::Enum { owner, .. }),
+        ..
+    } = &mut edited.items[state.id.0 as usize].kind
+    else {
+        unreachable!()
+    };
+    *owner = Some(state.id);
+    refused(&edited, &db, "invented nominal enum owner");
+    let mut stale = SourceDb::new();
+    stale.add(
+        PATH.into(),
+        source.replace(
+            "state:OperationOutcome.state",
+            "state:OperationOutcome.source",
+        ),
+    );
+    refused(&ir, &stale, "changed reused standard field source");
+}
