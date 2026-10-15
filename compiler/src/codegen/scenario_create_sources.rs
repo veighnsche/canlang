@@ -13,7 +13,7 @@ use crate::syntax::{SyntaxKind, SyntaxNode};
 
 use super::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrItem, IrItemKind, IrModelRuleKind, IrOwner,
-    IrProgram, IrServer, IrType, IrUnOp, TypedExpr, ir_model_rule_prefix,
+    IrProgram, IrServer, IrStmt, IrType, IrUnOp, TypedExpr, ir_model_rule_prefix,
 };
 use super::js::{Emitter, JsModel, js_field_default, literal_json};
 
@@ -658,6 +658,42 @@ pub(super) fn checked_create_expression(
     .expression(actual, node, 0)
 }
 
+/// Join an original conditional prefix without admitting effects inside it.
+/// The caller retains responsibility for its position before the original Create.
+pub(super) fn checked_create_prefix_if(
+    ir: &IrProgram,
+    original: &CheckedScenarioCreate,
+    actual: &IrStmt,
+    node: NodeKey,
+    db: &SourceDb,
+) -> Option<()> {
+    if !matches!(actual, IrStmt::If { .. }) {
+        return None;
+    }
+    source(ir, &original.source, span(node), db)?;
+    let (tree, diagnostics) = crate::syntax::parse(db, node.file);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    let mut nodes = HashMap::new();
+    let mut pending = vec![&tree];
+    while let Some(node) = pending.pop() {
+        nodes.insert(NodeKey::of(node), node);
+        pending.extend(node.children.iter());
+    }
+    let expressions = SourceExpressions {
+        ir,
+        db,
+        original,
+        nodes: &nodes,
+        text: &db.get(node.file)?.text,
+        operands: true,
+        membership_call: None,
+        query_alias: None,
+    };
+    expressions.prefix_statement(actual, nodes.get(&node)?, 0)
+}
+
 /// Match the same original Given field for construction and stored disclosure.
 /// Its span names the checked attachment, never an invented Field syntax node.
 pub(super) fn checked_contributed_field(
@@ -771,6 +807,88 @@ struct SourceExpressions<'a> {
 }
 
 impl SourceExpressions<'_> {
+    fn prefix_statement(&self, actual: &IrStmt, node: &SyntaxNode, depth: usize) -> Option<()> {
+        if depth > 64 {
+            return None;
+        }
+        let values = expressions(node);
+        match actual {
+            IrStmt::Require { cond, span }
+                if node.kind == SyntaxKind::Require && node.span == *span =>
+            {
+                let [value] = values.as_slice() else {
+                    return None;
+                };
+                if cond.ty != ResolvedType::Scalar(Scalar::Bool) {
+                    return None;
+                }
+                self.expression(cond, NodeKey::of(value), depth + 1)
+            }
+            IrStmt::Return { value, span }
+                if node.kind == SyntaxKind::Return && node.span == *span =>
+            {
+                match (value, values.as_slice()) {
+                    (Some(value), [authored]) => {
+                        self.expression(value, NodeKey::of(authored), depth + 1)
+                    }
+                    (None, []) => Some(()),
+                    _ => None,
+                }
+            }
+            IrStmt::If {
+                cond,
+                then_branch,
+                else_branch,
+                span,
+            } if node.kind == SyntaxKind::If && node.span == *span => {
+                let [condition] = values.as_slice() else {
+                    return None;
+                };
+                if cond.ty != ResolvedType::Scalar(Scalar::Bool) {
+                    return None;
+                }
+                self.expression(cond, NodeKey::of(condition), depth + 1)?;
+                let mut then_nodes = Vec::new();
+                let mut else_nodes = Vec::new();
+                let mut in_else = false;
+                for child in &node.children {
+                    if child.span == condition.span
+                        || matches!(child.kind, SyntaxKind::Trivia | SyntaxKind::Comment)
+                    {
+                        continue;
+                    }
+                    if child.kind == SyntaxKind::Name {
+                        match child.token()?.text(self.text) {
+                            "if" if !in_else && then_nodes.is_empty() => continue,
+                            "else" if !in_else => {
+                                in_else = true;
+                                continue;
+                            }
+                            _ => return None,
+                        }
+                    }
+                    if in_else {
+                        else_nodes.push(child);
+                    } else {
+                        then_nodes.push(child);
+                    }
+                }
+                if then_branch.len() != then_nodes.len() || else_branch.len() != else_nodes.len() {
+                    return None;
+                }
+                for (actual, authored) in then_branch
+                    .iter()
+                    .zip(then_nodes)
+                    .chain(else_branch.iter().zip(else_nodes))
+                {
+                    self.prefix_statement(actual, authored, depth + 1)?;
+                }
+                Some(())
+            }
+            _ => None,
+        }
+    }
+
     fn transcript_source(
         &self,
     ) -> Option<&crate::analysis::scenario_disclosure::CheckedScenarioSource> {

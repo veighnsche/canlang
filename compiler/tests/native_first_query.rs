@@ -793,3 +793,150 @@ fn first_lookup_and_late_requirement_do_not_require_guarded_send_effects() {
         "removing the late business guard must refuse"
     );
 }
+
+const REFERENCE_RESULT: &str = r#"app ReferenceSources
+Given
+ Deal {title:text}
+ Intake {source:text,deal:Deal}
+ policy Deal read=members
+ policy Intake read=members
+When
+ crud Deal by=members fields=title
+ crud Intake by=members fields=source,deal
+ scenario promote(source:text,accept:bool) -> Deal by=members
+  do
+   let existing=first(Intake as candidate where candidate.source==source)
+   if existing!=null
+    require accept
+    return existing.deal
+   create Deal {title=source} as deal
+   require accept
+   return deal
+Then
+"#;
+
+#[test]
+fn required_reference_return_and_fresh_branch_emit_distinct_observations_and_sealed_guards() {
+    let (db, program, ir, catalog) = fixture_source("reference-results.can", REFERENCE_RESULT);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["name"] == "ReferenceSources.promote")
+        .unwrap();
+    let plan = &operation["result"]["disclosure"];
+    assert_eq!(plan["returns"].as_array().unwrap().len(), 2);
+    let modules = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        modules.contains("await readScenarioReceiptStoredReference(c,$receiptValue,"),
+        "{modules}"
+    );
+    assert!(
+        modules.contains(
+            "await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptModelView)"
+        )
+    );
+    assert!(
+        modules
+            .contains("await bindScenarioReceiptModelResult(c,$receiptReturns[0],$receiptValue)")
+    );
+    let owner = item(&ir, "ReferenceSources.promote").id;
+    for mode in [
+        "branch-guard",
+        "branch-condition",
+        "reference-field",
+        "reference-receiver",
+        "branch-order",
+    ] {
+        let mut changed = ir.clone();
+        let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+            unreachable!()
+        };
+        let IrStmt::If {
+            cond, then_branch, ..
+        } = &mut effects[1]
+        else {
+            unreachable!()
+        };
+        match mode {
+            "branch-condition" => cond.expr = IrExpr::Bool(true),
+            "branch-guard" => {
+                then_branch.remove(0);
+            }
+            "branch-order" => then_branch.swap(0, 1),
+            _ => {
+                let IrStmt::Return {
+                    value: Some(value), ..
+                } = &mut then_branch[1]
+                else {
+                    unreachable!()
+                };
+                let IrExpr::Member { base, field } = &mut value.expr else {
+                    unreachable!()
+                };
+                if mode == "reference-field" {
+                    *field = "source".into();
+                } else {
+                    base.expr = IrExpr::Name("copied".into());
+                }
+            }
+        }
+        let emitted = js::emit_program_with_native_source_receipts(&changed, true, &db);
+        assert!(
+            emitted
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{mode}: {:?}",
+            emitted.diagnostics
+        );
+        assert!(
+            emitted
+                .operations
+                .iter()
+                .find(|op| op.name == "ReferenceSources.promote")
+                .is_none_or(|op| op.disclosure.is_none()),
+            "{mode}"
+        );
+    }
+}
+
+#[test]
+fn required_reference_result_reuses_the_same_rules_after_renaming_grouping_and_parameter_binding() {
+    let renamed = REFERENCE_RESULT
+        .replace("ReferenceSources", "Reused")
+        .replace("Intake", "Selection")
+        .replace("Deal", "Outcome")
+        .replace("source", "key")
+        .replace("deal", "outcome")
+        .replace("existing", "selected")
+        .replace("candidate", "entry");
+    let grouped = REFERENCE_RESULT
+        .replace("candidate.source==source", "((candidate.source)==(source))")
+        .replace("existing!=null", "(existing!=null)")
+        .replace("return existing.deal", "return ((existing).deal)");
+    let parameter = REFERENCE_RESULT.replace("scenario promote(source:text,accept:bool)", "scenario promote(existing:Intake,source:text,accept:bool)")
+        .replace("   let existing=first(Intake as candidate where candidate.source==source)\n   if existing!=null\n    require accept\n    return existing.deal\n   create Deal {title=source} as deal\n   require accept\n   return deal", "   require accept\n   return existing.deal");
+    for source in [renamed, grouped, parameter] {
+        let (db, program, _, catalog) = fixture_source("reused-reference.can", &source);
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
+        let modules = artifact["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|module| module["js"].as_str().unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(modules.contains("await readScenarioReceiptStoredReference(c,$receiptValue,"));
+        assert!(!modules.contains("$receiptValue[\"id\"]"));
+    }
+}
