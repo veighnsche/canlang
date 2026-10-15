@@ -15514,3 +15514,43 @@ CanPurchase first-query recipes remain a local dependency. Original sources and
 catalog are unchanged. Remaining temporal direct fields require typed receiver
 decoding, while computed/reference keys need a distinct observation-owned
 evaluator. Those local dependencies remain open.
+
+2026-10-15 — C02: lower direct temporal field order through the existing typed receiver.
+
+DESIGN's ordered scalar rule already includes date/datetime. Admit only checked
+own-row stored scalar fields (including nullable fields) in the compiler's
+existing field-order recipe, and add those exact types to the mutation, read
+scenario and page source receivers. State's existing numeric order pipeline is
+renamed typed order and extended with Values date/instant decoding/comparison.
+Projected keys decode once before sorting, even for a singleton; existing
+null/absence placement, ID ties, grants, filters, revision/limit and error paths
+remain. No new language decision or JEV consultation is needed for this settled
+scalar contract. Computed/reference expressions are not passed as field strings.
+
+The extended State check passes 1/1, preserving numeric precision/currency checks
+while adding temporal direction/ties/null/absence, array/no-grant refusal,
+withheld malformed rows and singleton malformed-wire validation. Three compiler
+ordering checks pass. The extended actual native D1/Identity check passes 1/1,
+including offset constructor normalization, nullable ordering, exact no-grant
+validation, ordinary malformed typed-order validation and earlier predicate
+schema failure, with unchanged stored state. These controls distinguish the
+existing receiver failures from newly enforced temporal wire validation; no
+failure is converted to missing data or success. State/Cloudflare and CLI
+builds, formatting and diff checks pass. Frozen original 24-source validation
+exits 10 after 376.81s with 701 diagnostics (675 E6008, 26 E6007), complete=true,
+omitted=0 and no usable artifact. All eight direct temporal-order refusals
+disappear relative to the 705-error capture, exposing four existing stored-first
+correspondence refusals. Original sources/catalog are unchanged. Computed/
+reference evaluation and stored-first source correspondence remain local work.
+
+Read-only source inspection identifies the next dependency: first is already the
+canonical nullable selection from an ordered array. The native first helper
+adds private receipt consumption and owner-row binding, not different language
+semantics. Current source preparation repeats an account/actor/id-specific
+pattern in multiple matchers; original CRM's text-field/input lookup is outside
+it. The implementation direction is reuse of original query/call/binding facts
+and the existing selected-row/null receipt join, with actual existing/fresh
+branches as acceptance, rather than another first-specific carrier. This is an
+implementation direction, not an accepted new API or bypass. Unrelated hook
+context IR failures also suppress whole-cohort fresh preparation; the shared
+source matcher remains locally finishable before that local gate releases.

@@ -528,7 +528,7 @@ test('bound read forwards exact authorized ordering and fails rather than trunca
   assert.deepEqual(fieldPaths(closed), ['/bogus']);
 });
 
-test('checked model declarations order numeric wire values through the bound viewer read', async () => {
+test('checked model declarations order numeric and temporal wire values through the bound viewer read', async () => {
   const { store } = createTestMemoryStorage();
   const memberships = createMemoryIdentityStore();
   const alice = await seedMember(memberships, { isOwner: false });
@@ -539,12 +539,16 @@ test('checked model declarations order numeric wire values through the bound vie
     { name: 'price', field: { kind: 'money' }, required: false, nullable: true, serverOnly: false },
     { name: 'counts', field: { kind: 'integer' }, required: false, array: { required: false }, serverOnly: false },
     { name: 'privateCount', field: { kind: 'integer' }, required: false, serverOnly: false },
+    { name: 'day', field: { kind: 'date' }, valueType: 'date?', required: false, nullable: true, serverOnly: false },
+    { name: 'at', field: { kind: 'datetime' }, valueType: 'datetime?', required: false, nullable: true, serverOnly: false },
+    { name: 'days', field: { kind: 'date' }, valueType: 'date[]', required: false, array: { required: false }, serverOnly: false },
+    { name: 'privateAt', field: { kind: 'datetime' }, valueType: 'datetime', required: false, serverOnly: false },
     { name: 'code', field: { kind: 'string' }, valueType: 'text', required: false, serverOnly: false },
   ];
   const loaded = loadArtifactDescriptors(raw, { by: 'members' });
   const models = structuredClone(loaded.models);
   const policy = policyTable(modelPolicy(model, { grants: [
-    grant('members', ['label', 'count', 'amount', 'price', 'counts', 'code'],
+    grant('members', ['label', 'count', 'amount', 'price', 'counts', 'code', 'day', 'at', 'days'],
       { op: 'eq', field: 'label', value: 'full' }),
     grant('members', ['label'], { op: 'eq', field: 'label', value: 'partial' }),
   ] }));
@@ -561,23 +565,23 @@ test('checked model declarations order numeric wire values through the bound vie
   const args = { envelope: { operation, inputs: {} },
     identity: makeIdentity({ membership: alice.membership, email: alice.user.email }) };
   await seedRows(store, model, [
-    { id: 'a', data: { label: 'full', count: '10', amount: '10.000', price: { minor: '10', currency: 'EUR' }, code: '10' } },
-    { id: 'b', data: { label: 'full', count: '2', amount: '2.00', price: { minor: '2', currency: 'EUR' }, code: '2' } },
-    { id: 'c', data: { label: 'full', count: '2', amount: '2.0', price: { minor: '2', currency: 'EUR' }, code: '2' } },
-    { id: 'd', data: { label: 'full', count: '-3', amount: '-3', price: { minor: '-3', currency: 'EUR' }, code: '-3' } },
-    { id: 'e', data: { label: 'full', count: null, amount: null, price: null } },
+    { id: 'a', data: { label: 'full', day: '2026-10-20', at: '2026-10-20T01:00:00.000Z', count: '10', amount: '10.000', price: { minor: '10', currency: 'EUR' }, code: '10' } },
+    { id: 'b', data: { label: 'full', day: '2026-10-15', at: '2026-10-15T01:00:00.000Z', count: '2', amount: '2.00', price: { minor: '2', currency: 'EUR' }, code: '2' } },
+    { id: 'c', data: { label: 'full', day: '2026-10-15', at: '2026-10-15T01:00:00.000Z', count: '2', amount: '2.0', price: { minor: '2', currency: 'EUR' }, code: '2' } },
+    { id: 'd', data: { label: 'full', day: '2026-10-01', at: '2026-10-01T01:00:00.000Z', count: '-3', amount: '-3', price: { minor: '-3', currency: 'EUR' }, code: '-3' } },
+    { id: 'e', data: { label: 'full', day: null, at: null, count: null, amount: null, price: null } },
     { id: 'f', data: { label: 'full' } },
     // This visible row's malformed numerics are withheld by its matching grant.
-    { id: 'g', data: { label: 'partial', count: 'bad', amount: {}, price: {}, code: 'bad' } },
-    { id: 'h', archivedAt: 1, data: { label: 'full', count: 'bad', amount: {}, price: {} } },
-    { id: 'i', data: { label: 'hidden', count: 'bad', amount: {}, price: {} } },
-    { id: 'j', data: { label: 'full', count: '9223372036854775807',
+    { id: 'g', data: { label: 'partial', day: '2026-02-30', at: 'bad', count: 'bad', amount: {}, price: {}, code: 'bad' } },
+    { id: 'h', archivedAt: 1, data: { label: 'full', day: '2026-02-30', at: 'bad', count: 'bad', amount: {}, price: {} } },
+    { id: 'i', data: { label: 'hidden', day: '2026-02-30', at: 'bad', count: 'bad', amount: {}, price: {} } },
+    { id: 'j', data: { label: 'full', day: '9999-12-31', at: '9999-12-31T23:59:59.999Z', count: '9223372036854775807',
       amount: '9007199254740992.000000000000000001', price: { minor: '9007199254740993', currency: 'EUR' } } },
-    { id: 'k', data: { label: 'full', count: '9223372036854775806',
+    { id: 'k', data: { label: 'full', day: '9999-12-30', at: '9999-12-30T23:59:59.999Z', count: '9223372036854775806',
       amount: '9007199254740992.000000000000000000', price: { minor: '9007199254740992', currency: 'EUR' } } },
   ]);
   const ids = (result: Awaited<ReturnType<typeof reader>>) => result.records.map(record => record.id);
-  for (const field of ['count', 'amount', 'price']) {
+  for (const field of ['count', 'amount', 'price', 'day', 'at']) {
     for (const direction of ['asc', 'desc'] as const) {
       const order = [{ field, direction }];
       const result = await reader({ ...args, selection: { order, limit: 9 } });
@@ -602,7 +606,7 @@ test('checked model declarations order numeric wire values through the bound vie
   assert.equal(overflow.code, 'validation');
   assert.match(overflow.message, /over the limit/);
   const scanCount = scans.length;
-  for (const [field, message] of [['privateCount', /not granted/], ['counts', /singular numeric/]] as const) {
+  for (const [field, message] of [['privateCount', /not granted/], ['counts', /singular numeric/], ['days', /singular numeric/], ['privateAt', /not granted/]] as const) {
     const error = await captureStateError(reader({ ...args, selection: { order: [{ field, direction: 'asc' }] } }));
     assert.equal(error.code, 'validation');
     assert.match(error.message, message);
@@ -617,11 +621,11 @@ test('checked model declarations order numeric wire values through the bound vie
   assert.match(mismatched.message, /descriptor does not match/);
   assert.equal(scans.length, scanCount);
   await seedRows(store, model, [
-    { id: 'bad', data: { label: 'full', count: 2, amount: 2, price: { minor: '2', currency: 'ZZZ' } } },
+    { id: 'bad', data: { label: 'full', day: '2026-02-30', at: '2026-10-15T01:00:00+00:00', count: 2, amount: 2, price: { minor: '2', currency: 'ZZZ' } } },
     { id: 'usd', data: { label: 'full', price: { minor: '2', currency: 'USD' } } },
   ]);
   // A singleton must validate its selected wire value even without comparisons.
-  for (const field of ['count', 'amount', 'price']) {
+  for (const field of ['count', 'amount', 'price', 'day', 'at']) {
     const error = await captureStateError(reader({ ...args, selection: {
       where: { op: 'eq', field: 'id', value: 'bad' }, order: [{ field, direction: 'asc' }],
     } }));

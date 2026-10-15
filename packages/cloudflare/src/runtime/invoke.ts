@@ -7486,8 +7486,8 @@ async function runScenarioExecution(
             const fields = loaded.models.find(candidate => candidate.name === model)?.fields;
             for (const term of order) {
               const type = fields?.[term.field]?.valueType?.replace(/\?$/, '');
-              if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
-                throw new StateError('validation', 'Mutation query order currently supports metadata, text, bool, int, decimal, and money fields.');
+              if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime'].includes(type ?? '')) {
+                throw new StateError('validation', 'Mutation query order currently supports metadata, text, bool, int, decimal, money, date, and datetime fields.');
               }
             }
           }
@@ -12021,8 +12021,8 @@ async function runReadScenarioSeam(
       const fields = loaded.models.find(candidate => candidate.name === model)?.fields;
       for (const term of order) {
         const type = fields?.[term.field]?.valueType?.replace(/\?$/, '');
-        if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
-          throw new StateError('validation', 'Read scenario order currently supports metadata, text, bool, int, decimal, and money fields.');
+        if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime'].includes(type ?? '')) {
+          throw new StateError('validation', 'Read scenario order currently supports metadata, text, bool, int, decimal, money, date, and datetime fields.');
         }
       }
     }
@@ -12900,8 +12900,8 @@ export function createPageReadScopeCanonical(
       const metadataOrder = new Set(['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt']);
       for (const term of order ?? []) {
         const type = loaded.models.find(candidate => candidate.name === model)?.fields[term.field]?.valueType?.replace(/\?$/, '');
-        if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
-          throw new StateError('validation', 'Page source order currently supports metadata, text, bool, int, decimal, and money fields.');
+        if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime'].includes(type ?? '')) {
+          throw new StateError('validation', 'Page source order currently supports metadata, text, bool, int, decimal, money, date, and datetime fields.');
         }
       }
       const nativeLimit: unknown = query.limit;

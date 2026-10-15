@@ -8632,14 +8632,20 @@ impl<'a> Cx<'a> {
             return None;
         } else {
             // Both metadata keys already belong to the native record order
-            // contract. This does not admit arbitrary stored temporal fields.
+            // contract. Other metadata remains outside this checked profile.
             return Some(IrOrder { field, descending });
         }
         let ty = ty.nullable_inner().unwrap_or(&ty);
         if !matches!(
             ty,
             ResolvedType::Scalar(
-                Scalar::Text | Scalar::Bool | Scalar::Int | Scalar::Decimal | Scalar::Money
+                Scalar::Text
+                    | Scalar::Bool
+                    | Scalar::Int
+                    | Scalar::Decimal
+                    | Scalar::Money
+                    | Scalar::Date
+                    | Scalar::Datetime
             )
         ) {
             return None;

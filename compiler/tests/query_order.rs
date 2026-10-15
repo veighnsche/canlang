@@ -38,19 +38,19 @@ fn ui_order_aliases_and_descending_datetime_keys_keep_their_owning_domain() {
     assert!(generated.contains("order:[\"at\"]"), "{generated}");
     assert!(!generated.contains("order:[\"-item.at\"]"), "{generated}");
     assert!(!generated.contains("order:[\"inner.at\"]"), "{generated}");
-    let datetime_source = source.replace("at:int", "at:datetime");
-    let (output, response) = invoke("descending-datetime", &datetime_source, "check");
-    assert!(output.status.success(), "{response}");
-    let (output, response) = invoke("descending-datetime", &datetime_source, "compile");
-    assert_eq!(output.status.code(), Some(10), "{response}");
-    let diagnostics = response["diagnostics"].as_array().unwrap();
-    assert_eq!(diagnostics.len(), 1, "{response}");
-    assert_eq!(diagnostics[0]["code"], "E6008", "{response}");
-    assert_eq!(
-        diagnostics[0]["message"], "cannot lower expression query order: no §13 lowering exists",
-        "{response}"
-    );
-    assert!(response.get("modules").is_none(), "{response}");
+    for temporal in ["date", "datetime", "datetime?"] {
+        let temporal_source = source.replace("at:int", &format!("at:{temporal}"));
+        let (output, response) = invoke("descending-temporal", &temporal_source, "compile");
+        assert!(output.status.success(), "{temporal}: {response}");
+        assert!(
+            response["modules"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|module| module["js"].as_str().unwrap().contains("order:[\"-at\"]")),
+            "{response}"
+        );
+    }
     for (name, source, code) in [
         (
             "foreign-alias",
@@ -342,7 +342,7 @@ fn first_query_orders_checked_owning_metadata_without_admitting_other_expression
 }
 
 #[test]
-fn created_metadata_orders_real_native_rows_with_id_ties_and_viewer_grants() {
+fn metadata_and_temporal_fields_order_real_native_rows_with_id_ties_and_viewer_grants() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::Builder::new()
         .prefix("metadata-order-")
@@ -350,13 +350,28 @@ fn created_metadata_orders_real_native_rows_with_id_ties_and_viewer_grants() {
         .unwrap();
     let source = r#"app MetadataOrder
 Given
- Entry {label:text}
- policy Entry read=members
+ Entry {label:text, day:date?, at:datetime?, privateAt:datetime?}
+ policy Entry read=owner
+ policy Entry read=members fields=label,day,at
 When
  scenario ascending() read=true -> text[] by=public
   do return Entry as entry order=entry.created select entry.label
  scenario descending() read=true -> text[] by=public
   do return Entry as entry order=-entry.created select entry.label
+ scenario dayAscending() read=true -> text[] by=public
+  do return Entry as entry order=entry.day select entry.label
+ scenario dayDescending() read=true -> text[] by=public
+  do return Entry as entry order=-entry.day select entry.label
+ scenario instantAscending() read=true -> text[] by=public
+  do return Entry as entry order=entry.at select entry.label
+ scenario instantDescending() read=true -> text[] by=public
+  do return Entry as entry order=-entry.at select entry.label
+ scenario privateAscending() read=true -> text[] by=public
+  do return Entry as entry order=entry.privateAt select entry.label
+ scenario badDate() read=true -> text[] by=public
+  do return Entry as entry where entry.label=="bad" order=entry.day select entry.label
+ scenario badInstant() read=true -> text[] by=public
+  do return Entry as entry where entry.label=="bad" order=entry.at select entry.label
 Then
 "#;
     let compile = |text: &str| {
@@ -390,6 +405,7 @@ import {createD1Storage,ensureSchema} from '@canlang/state/storage/d1';
 import {FIXED_NOW,asModel,createMemoryIdentityStore,makeIdentity,seedMember,seedRow,uuidv7} from '@canlang/state/testing/invocation/fixtures';
 import {assembleModules} from '@canlang/cloudflare/runtime/modules';
 import {buildInvoker} from '@canlang/cloudflare/worker/assembly';
+import {datetime,encodeValue} from '@canlang/values';
 const artifact=__ARTIFACT__,sourcePath=__SOURCE__;
 const worker=new Miniflare({compatibilityDate:'2026-07-15',modules:true,
  script:'export default {fetch(){return new Response(null,{status:404})}}',d1Databases:['DB']});
@@ -399,21 +415,59 @@ try {
  const memberships=createMemoryIdentityStore(), member=await seedMember(memberships,{isOwner:false});
  const identity=makeIdentity({membership:member.membership,email:member.user.email});
  const anonymous=makeIdentity({actor:null,team:null,membership:null});
- for(const [sequence,created,label] of [[1,FIXED_NOW+1000,'late-a'],[2,FIXED_NOW,'early-b'],[3,FIXED_NOW,'early-c']]) {
-  await seedRow(store,model,{id:uuidv7(FIXED_NOW,sequence),created,updated:created,data:{label}});
+ for(const [sequence,created,label,fields] of [
+  [1,FIXED_NOW+1000,'late-a',{day:'2026-10-16',at:encodeValue('datetime',datetime('2026-10-16T03:00:00+02:00'))}],
+  [2,FIXED_NOW,'early-b',{day:'2026-10-15',at:'2026-10-15T01:00:00.000Z'}],
+  [3,FIXED_NOW,'early-c',{day:'2026-10-15',at:'2026-10-15T01:00:00.000Z'}],
+  [4,FIXED_NOW+2000,'null',{day:null,at:null}],
+  [5,FIXED_NOW+3000,'absent',{}],
+ ]) {
+  await seedRow(store,model,{id:uuidv7(FIXED_NOW,sequence),created,updated:created,data:{label,privateAt:'2026-10-15T01:00:00.000Z',...fields}});
  }
  const asm=await assembleModules({artifact,sourcePath},{workDir:__WORK__,
   stdlibUrl:import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
  const invoker=buildInvoker(artifact,asm,store,{memberships,now:()=>FIXED_NOW+2000});
  const revision=await store.readRevision(),before=await store.query({model,authority:'owner'});
- for(const [operation,expected] of [['ascending',['early-b','early-c','late-a']],['descending',['late-a','early-b','early-c']]]) {
+ for(const [operation,expected] of [
+  ['ascending',['early-b','early-c','late-a','null','absent']],
+  ['descending',['absent','null','late-a','early-b','early-c']],
+  ['dayAscending',['null','absent','early-b','early-c','late-a']],
+  ['dayDescending',['late-a','early-b','early-c','null','absent']],
+  ['instantAscending',['null','absent','early-b','early-c','late-a']],
+  ['instantDescending',['late-a','early-b','early-c','null','absent']],
+ ]) {
   const result=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},identity);
   assert.ok('result' in result,JSON.stringify(result));assert.deepEqual(result.result,{result:expected,revision});
   const hidden=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},anonymous);
-  assert.ok('result' in hidden,JSON.stringify(hidden));assert.deepEqual(hidden.result,{result:[],revision});
+  if(operation==='ascending'||operation==='descending') {
+   assert.ok('result' in hidden,JSON.stringify(hidden));assert.deepEqual(hidden.result,{result:[],revision});
+  } else {
+   assert.equal(hidden.error?.code,'validation',JSON.stringify(hidden));
+   const field=operation.startsWith('day')?'day':'at';
+   assert.equal(hidden.error.message,'Query path "'+field+'" is not granted to this caller.');
+  }
  }
+ const denied=await invoker.invokeRead({operation:'MetadataOrder.privateAscending',inputs:{}},identity);
+ assert.equal(denied.error?.code,'validation',JSON.stringify(denied));
+ assert.equal(denied.error.message,'Query path "privateAt" is not granted to this caller.');
  assert.equal(await store.readRevision(),revision);
  assert.deepEqual(await store.query({model,authority:'owner'}),before);
+ await seedRow(store,model,{id:uuidv7(FIXED_NOW,6),data:{label:'bad',day:'2026-02-30',at:'2026-10-15T01:00:00+00:00'}});
+ const badRevision=await store.readRevision(),badBefore=await store.query({model,authority:'owner'});
+ for(const [operation,type] of [['dayAscending','date'],['instantAscending','datetime']]) {
+  const failed=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},identity);
+  assert.equal(failed.error?.code,'validation',JSON.stringify(failed));
+  assert.match(failed.error.message,new RegExp('invalid '+type+' wire value'));
+ }
+ // The authored predicate materializes the native row first: its schema failure
+ // remains earlier than the order step, including this singleton selection.
+ for(const operation of ['badDate','badInstant']) {
+  const failed=await invoker.invokeRead({operation:'MetadataOrder.'+operation,inputs:{}},identity);
+  assert.equal(failed.error?.code,'rule_failed',JSON.stringify(failed));
+  assert.equal(failed.error.message,'schema validation failed with 1 violation(s)');
+ }
+ assert.equal(await store.readRevision(),badRevision);
+ assert.deepEqual(await store.query({model,authority:'owner'}),badBefore);
 } finally {await worker.dispose();}
 "#.replace("__ARTIFACT__",String::from_utf8_lossy(&output.stdout).trim())
  .replace("__SOURCE__",&serde_json::to_string(&scratch.path().join("metadata.can")).unwrap())
