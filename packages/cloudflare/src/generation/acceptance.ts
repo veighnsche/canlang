@@ -1,9 +1,10 @@
+import { browserToolsRoot } from '../dev/browser-tools.js';
 /** Mandatory app checks over candidate bytes. This module never promotes files. */
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupAcceptanceBrowsers } from "./acceptance-cleanup.js";
 
@@ -15,7 +16,7 @@ export interface AppAcceptanceInput {
   files: string[];
   compiler: string;
   reportDir: string;
-  /** Installed tooling checkout. The candidate must be inside it. */
+  /** Tooling root; installed candidates stay beneath their application root. */
   workspace?: string;
   onEvent?: (phase: string, detail: string) => void;
 }
@@ -106,9 +107,10 @@ async function testInputs(appDir: string): Promise<string> {
  * There is deliberately no "no tests" or unavailable-browser success fallback.
  */
 export const runAppAcceptance: AppAcceptanceGate = async input => {
-  const workspace = resolve(input.workspace ?? process.cwd());
+  const workspace = resolve(input.workspace ?? process.env.CAN_INSTALL_ROOT ?? process.cwd());
   const candidateRoot = resolve(input.candidateRoot);
-  const rel = relative(workspace, candidateRoot);
+  const installed = process.env.CAN_INSTALL_ROOT !== undefined;
+  const executionRoot = installed ? candidateRoot : workspace;
   const reportPath = join(input.reportDir, "report.json");
   const checks: { source: string; stage: string; ok: boolean; detail?: string }[] = [];
   let stage = "setup", source = "";
@@ -116,10 +118,26 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
   const report = async (ok: boolean): Promise<void> => writeFile(reportPath,
     `${JSON.stringify({ version: 1, ok, checks }, null, 2)}\n`);
   try {
-    if (rel === ".." || rel.startsWith(`..${sep}`)) throw new Error("candidate must be inside the installed tooling workspace");
+    const rel = installed
+      ? relative(await realpath(input.root), await realpath(candidateRoot))
+      : relative(workspace, candidateRoot);
+    if ((installed && rel === "") || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+      throw new Error(installed ? "candidate must be beneath the application root" : "candidate must be inside the installed tooling workspace");
+    }
     if (input.files.length === 0) throw new Error("acceptance requires an application source");
     const platform = fileURLToPath(new URL("../cli/platform.js", import.meta.url));
-    const playwright = createRequire(join(workspace, "package.json")).resolve("@playwright/test/cli");
+    const development = installed ? browserToolsRoot() : null;
+    if (installed && development === null) {
+      throw new Error('Browser development tools are not installed. Run the separate install-browser-tools.sh supplied with the release; browser acceptance remains required.');
+    }
+    let playwright: string;
+    try { playwright = createRequire(join(development ?? workspace, "package.json")).resolve("@playwright/test/cli"); }
+    catch (error) {
+      if (installed && development === null && (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
+        throw new Error('Browser development tools are not installed. Run the separate install-browser-tools.sh supplied with the release; browser acceptance remains required.');
+      }
+      throw error;
+    }
     const catalog = process.env["CAN_CATALOG"] ?? join(workspace, "packages/values/dist/catalog.json");
     for (const [index, file] of [...new Set(input.files)].sort().entries()) {
       stage = "setup";
@@ -136,13 +154,13 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
       const testsBefore = await testInputs(appDir);
       const output = join(input.reportDir, String(index + 1));
       await mkdir(output, { recursive: true });
-      const env = { ...process.env, CAN_COMPILER_BIN: resolve(input.compiler),
-        CAN_ACCEPTANCE_SOURCE: candidate, CAN_ACCEPTANCE_WORKSPACE: workspace, CAN_ACCEPTANCE_OUTPUT: output,
+      const env = { ...process.env, ...(development === null ? {} : { CAN_BROWSER_TOOLS_ROOT: development, PLAYWRIGHT_BROWSERS_PATH: join(development, "browsers") }), CAN_COMPILER_BIN: resolve(input.compiler),
+        CAN_ACCEPTANCE_SOURCE: candidate, CAN_ACCEPTANCE_WORKSPACE: executionRoot, CAN_ACCEPTANCE_OUTPUT: output,
         PLAYWRIGHT_JSON_OUTPUT_FILE: join(output, "playwright.json") };
       const execute = async (name: string, command: string, args: string[], timeoutMs: number): Promise<string> => {
         stage = name;
         input.onEvent?.("acceptance", `${file}: ${name}`);
-        const result = await runAcceptanceCommand(command, args, { cwd: workspace, env, timeoutMs });
+        const result = await runAcceptanceCommand(command, args, { cwd: executionRoot, env, timeoutMs });
         await writeFile(join(output, `${name}.stdout.log`), result.stdout);
         await writeFile(join(output, `${name}.stderr.log`), result.stderr);
         if (result.code !== 0) throw new Error(`exited ${String(result.code)}; see ${output}`);
@@ -151,7 +169,7 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
       const passed = (): void => { checks.push({ source, stage, ok: true }); };
       const artifact = join(output, "candidate.artifact.json");
       const compiled = await execute("compile", input.compiler, ["compile", "--format=json", "--native-scenario-receipts",
-        `--catalog=${catalog}`, relative(workspace, candidate)], 60_000);
+        `--catalog=${catalog}`, relative(executionRoot, candidate)], 60_000);
       object(JSON.parse(compiled));
       await writeFile(artifact, compiled);
       passed();
@@ -166,12 +184,13 @@ export const runAppAcceptance: AppAcceptanceGate = async input => {
       await rm(join(output, "browser-session.json"), { force: true });
       await rm(join(output, "playwright.json"), { force: true });
       try {
-        await execute("playwright", process.execPath, [playwright, "test", `--config=${configurations[0]!}`,
+        const moduleHook = installed ? ["--import", join(process.env.CAN_INSTALL_ROOT!, "libexec/module-resolution.mjs")] : [];
+        await execute("playwright", process.execPath, [...moduleHook, playwright, "test", `--config=${configurations[0]!}`,
           "--reporter=json", "--retries=0", "--workers=1", "--global-timeout=300000", `--output=${join(output, "results")}`], 330_000);
       } finally {
         // Dev owners are detached from Playwright's process group. Reap the
         // registered candidate sessions even after a worker crash or timeout.
-        await cleanupAcceptanceBrowsers(output, workspace, candidate);
+        await cleanupAcceptanceBrowsers(output, executionRoot, candidate);
       }
       const browser = object(JSON.parse(await readFile(join(output, "playwright.json"), "utf8")));
       const stats = object(browser.stats);
