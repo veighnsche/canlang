@@ -46,6 +46,12 @@ describe("card", () => {
     assert.ok(html.includes("<p>one</p>"));
   });
 
+  it("renders a heading-free card without inventing an empty title", async () => {
+    const html = await card({ context: makeContext(), layout: "columns", children: ["<p>first</p>", Promise.resolve("<p>second</p>")] });
+    assert.ok(!html.includes("<h2"));
+    assert.ok(html.includes('<div class="grid gap-4 sm:grid-cols-2"><p>first</p><p>second</p></div>'));
+  });
+
   it("resolves descriptor titles against viewer locale", async () => {
     const ctx = makeContext({ preferredLocales: ["nl"] });
     const html = await card({

@@ -149,9 +149,9 @@ export function rowHeading(
   return escapeHtml(`${resolveCaption(modelCaption, context)} ${row.id}`);
 }
 
-/** daisyUI card: resolved title plus awaited children, optional 2-col grid. */
+/** daisyUI card: optional resolved title plus awaited children and 2-col grid. */
 export async function card(props: CardProps): Promise<string> {
-  const heading = escapeHtml(resolveCaption(props.title, props.context));
+  const heading = props.title === undefined ? "" : `<h2 class="card-title">${escapeHtml(resolveCaption(props.title, props.context))}</h2>`;
   const kids = typeof props.children === "function" ? await props.children() : props.children;
   const parts = await Promise.all(kids);
   // Controls evaluate in authored order; only their completed presentation
@@ -161,8 +161,8 @@ export async function card(props: CardProps): Promise<string> {
     props.layout === "columns" && rendered !== ""
       ? `<div class="grid gap-4 sm:grid-cols-2">${rendered}</div>`
       : rendered;
-  const header = secondary === "" ? `<h2 class="card-title">${heading}</h2>`
-    : `<div class="can-card-heading"><h2 class="card-title">${heading}</h2><div class="can-heading-actions">${secondary}</div></div>`;
+  const header = secondary === "" ? heading
+    : `<div class="can-card-heading">${heading}<div class="can-heading-actions">${secondary}</div></div>`;
   const footer = primary === "" ? "" : `<footer class="can-card-footer">${primary}</footer>`;
   return `<section class="card bg-base-100 shadow" data-can-card><div class="card-body">${header}${body}${footer}</div></section>`;
 }

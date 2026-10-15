@@ -2,6 +2,13 @@
 
 ## Current remainder and finite completion
 
+**C02/C10 heading-free card (2026-10-15, component qualified).**
+The existing parser form now lowers through optional title in the actual UI
+factory. No invented/empty heading; suite, layout, gate and action ownership stay.
+Normal Contracts/UI builds and focused8 card/action checks pass; actual original
+CLI/installed-factory control passes1/.86s under frozen outputs. This fixes the
+recorded bare-card profile, without claiming full original UI/composition output.
+
 **C02 query-invariant row bound (2026-10-15, prerequisite qualified).**
 The existing private owner-rule context now forwards the actual mutation
 transaction maxRows. Its owning session check passes at7/1000, preserving lock
