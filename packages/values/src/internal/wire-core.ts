@@ -1359,7 +1359,12 @@ function hasKnownKindTag(value: object): boolean {
  * here, so those throw for schema-aware (L3) encoding; nested arrays are
  * unrepresentable and heterogeneous arrays fail on their first mismatch.
  */
-function inferInvocationArgType(value: CanValue, path: Path): string {
+type RecordReferenceResolver = (value: CanValue, path: Path) => RecordRef | undefined;
+
+function inferInvocationArgType(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): string {
+  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    value = resolveReference(value, path) ?? value;
+  }
   if (value === null) {
     return "text?";
   }
@@ -1419,7 +1424,7 @@ function inferInvocationArgType(value: CanValue, path: Path): string {
     if (Array.isArray(first)) {
       throw encodeError("invocation array arguments cannot nest arrays", [...path, 0]);
     }
-    return `${inferInvocationArgType(first, [...path, 0])}[]`;
+    return `${inferInvocationArgType(first, [...path, 0], resolveReference)}[]`;
   }
   if (typeof value === "object" && value !== null) {
     if (isSecretValue(value) || kindTagOf(value) === "message") {
@@ -1436,7 +1441,7 @@ function inferInvocationArgType(value: CanValue, path: Path): string {
   throw encodeError(`cannot encode ${actualWire(value)} as an invocation argument`, path);
 }
 
-function encodeInvocationValue(value: unknown, targets: readonly string[] | null, path: Path): WireValue {
+function encodeInvocationValue(value: unknown, targets: readonly string[] | null, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
   if (!isInvocationRef(value)) {
     throw encodeError("expected an invocation ref", path);
   }
@@ -1454,8 +1459,8 @@ function encodeInvocationValue(value: unknown, targets: readonly string[] | null
     if (name === "__proto__") {
       throw encodeError('invocation argument name "__proto__" is reserved', [...path, "arguments", name]);
     }
-    const type = inferInvocationArgType(arg, [...path, "arguments", name, "value"]);
-    const encoded = encodeNode(parseTypeId(type), arg, [...path, "arguments", name, "value"]);
+    const type = inferInvocationArgType(arg, [...path, "arguments", name, "value"], resolveReference);
+    const encoded = encodeNode(parseTypeId(type), arg, [...path, "arguments", name, "value"], resolveReference);
     entries.push([name, Object.freeze({ type, value: encoded })]);
   }
   return Object.freeze({ target: value.target, arguments: Object.freeze(Object.fromEntries(entries)) });
@@ -1494,7 +1499,10 @@ function encodeJsonValue(value: unknown, path: Path): WireValue {
  * canonical strings, tagged values use their pinned shapes, secrets and
  * message descriptors throw (neither has a wire form).
  */
-function encodeDynamic(value: CanValue, path: Path): WireValue {
+function encodeDynamic(value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
+  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    value = resolveReference(value, path) ?? value;
+  }
   if (value === null || typeof value === "string" || typeof value === "boolean") {
     return value;
   }
@@ -1526,7 +1534,7 @@ function encodeDynamic(value: CanValue, path: Path): WireValue {
     return encodeActionValue(value, null, path);
   }
   if (isInvocationRef(value)) {
-    return encodeInvocationValue(value, null, path);
+    return encodeInvocationValue(value, null, path, resolveReference);
   }
   if (isDeliveryRef(value)) {
     return encodeDeliveryValue(value, null, path);
@@ -1535,7 +1543,7 @@ function encodeDynamic(value: CanValue, path: Path): WireValue {
     return encodeFileValue(value, path);
   }
   if (isUnionValue(value)) {
-    return Object.freeze({ type: value.type, value: encodeDynamic(value.value, [...path, "value"]) });
+    return Object.freeze({ type: value.type, value: encodeDynamic(value.value, [...path, "value"], resolveReference) });
   }
   if (isSecretValue(value)) {
     throw encodeError("secret values are never serialized", path);
@@ -1549,7 +1557,7 @@ function encodeDynamic(value: CanValue, path: Path): WireValue {
   if (Array.isArray(value)) {
     const out: WireValue[] = [];
     for (let index = 0; index < value.length; index += 1) {
-      out.push(encodeDynamic(value[index] as CanValue, [...path, index]));
+      out.push(encodeDynamic(value[index] as CanValue, [...path, index], resolveReference));
     }
     return freezeArray(out);
   }
@@ -1565,7 +1573,7 @@ function encodeDynamic(value: CanValue, path: Path): WireValue {
       if (key === "__proto__") {
         throw encodeError('contract field name "__proto__" is reserved', [...path, key]);
       }
-      out[key] = encodeDynamic(entry as CanValue, [...path, key]);
+      out[key] = encodeDynamic(entry as CanValue, [...path, key], resolveReference);
     }
     return Object.freeze(out);
   }
@@ -1639,9 +1647,12 @@ function encodeStringlike(name: StringLikeName, value: CanValue, path: Path): Wi
   }
 }
 
-function encodeNominal(model: string, value: CanValue, path: Path): WireValue {
+function encodeNominal(model: string, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
   if (typeof value === "string") {
     return value;
+  }
+  if (resolveReference !== undefined && typeof value === "object" && value !== null && !Array.isArray(value)) {
+    value = resolveReference(value, path) ?? value;
   }
   if (isRecordRef(value)) {
     if (value.model !== model) {
@@ -1653,23 +1664,23 @@ function encodeNominal(model: string, value: CanValue, path: Path): WireValue {
     if (hasKnownKindTag(value)) {
       throw encodeError(`expected a ${model} value`, path);
     }
-    return encodeDynamic(value, path);
+    return encodeDynamic(value, path, resolveReference);
   }
   throw encodeError(`expected a ${model} value`, path);
 }
 
-function encodeUnion(arms: readonly string[], value: CanValue, path: Path): WireValue {
+function encodeUnion(arms: readonly string[], value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
   if (!isUnionValue(value)) {
     throw encodeError("expected a union value", path);
   }
   if (!arms.includes(value.type)) {
     throw encodeError(`union branch ${JSON.stringify(value.type)} is not a declared arm`, [...path, "type"]);
   }
-  const inner = encodeNode(parseTypeId(value.type), value.value, [...path, "value"]);
+  const inner = encodeNode(parseTypeId(value.type), value.value, [...path, "value"], resolveReference);
   return Object.freeze({ type: value.type, value: inner });
 }
 
-function encodeBase(base: TypeBase, value: CanValue, path: Path): WireValue {
+function encodeBase(base: TypeBase, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
   switch (base.kind) {
     case "scalar":
       return encodeScalar(base.name, value, path);
@@ -1689,7 +1700,7 @@ function encodeBase(base: TypeBase, value: CanValue, path: Path): WireValue {
     }
     case "invocation": {
       const invocation = value as InvocationRef;
-      return encodeInvocationValue(invocation, base.targets, path);
+      return encodeInvocationValue(invocation, base.targets, path, resolveReference);
     }
     case "json":
       return encodeJsonValue(value, path);
@@ -1706,15 +1717,15 @@ function encodeBase(base: TypeBase, value: CanValue, path: Path): WireValue {
       }
       return value;
     case "nominal":
-      return encodeNominal(base.path, value, path);
+      return encodeNominal(base.path, value, path, resolveReference);
     case "union": {
       const union = value as UnionValue;
-      return encodeUnion(base.arms, union, path);
+      return encodeUnion(base.arms, union, path, resolveReference);
     }
   }
 }
 
-function encodeNode(ast: NormalizedType, value: CanValue, path: Path): WireValue {
+function encodeNode(ast: NormalizedType, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
   if (value === null) {
     if (ast.nullable) {
       return null;
@@ -1731,19 +1742,20 @@ function encodeNode(ast: NormalizedType, value: CanValue, path: Path): WireValue
     const element: NormalizedType = { base: ast.base, array: false, nullable: false, requiredArray: false };
     const out: WireValue[] = [];
     for (let index = 0; index < value.length; index += 1) {
-      out.push(encodeNode(element, value[index] as CanValue, [...path, index]));
+      out.push(encodeNode(element, value[index] as CanValue, [...path, index], resolveReference));
     }
     return freezeArray(out);
   }
-  return encodeBase(ast.base, value, path);
+  return encodeBase(ast.base, value, path, resolveReference);
 }
 
 /**
  * Encodes a `CanValue` to frozen wire data per the type id. Value/type
  * mismatches (and every secret encode) throw ValueError; a bad type id
- * throws ValueError too.
+ * throws ValueError too. An optional host resolver supplies private record
+ * identities at demanded nominal/dynamic candidates; it performs no row reads.
  */
-export function encodeValueTsCore(typeId: string, value: CanValue): WireValue {
+export function encodeValueTsCore(typeId: string, value: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined): WireValue {
   const ast = parseTypeId(typeId);
-  return encodeNode(ast, value, []);
+  return encodeNode(ast, value, [], resolveReference);
 }
