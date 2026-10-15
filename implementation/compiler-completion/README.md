@@ -2,6 +2,20 @@
 
 ## Current remainder and finite completion
 
+**Original24 qualification atab3ec9f5 (2026-10-15).**
+The isolated committed CLI finishes in421.83s: exit10, complete=true, omitted=0,
+no usable artifact,656 diagnostics (630 E6008,26 E6007). All26 consumed source
+records equal the previous qualification and the supplied Values catalog remains
+unchanged. Full diagnostic multiset comparison removes0/adds1: the existing
+`promote_research` declaration now also reports missing native created-Model
+correspondence after checked Given omission made its source census Complete.
+This is another refusal in the same unfinished mixed query/create workflow, not
+a new business requirement or an accepted native consumer. Component fixes above
+therefore claim no whole-composition removals. Retained outputs are
+`/tmp/cancrm-guard-components-20261015-{compile,result}.json`; binary is isolated
+at `/tmp/can-compiler-ab3ec9f5`. Continue exact Require field observation and the
+mixed leading/first/body native plan with permissions/order/failure intact.
+
 **C02 emitted helper membership selectors (2026-10-15, qualified).**
 Emit the exact canonical owner-site/call occurrence for helper membership nodes
 using the selected query and original derive-call chain. Ambiguous/missing proof
@@ -385,8 +399,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **655 errors**:
-**629 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **656 errors**:
+**630 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -410,7 +424,7 @@ are not independent feature tasks:
 | Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
 | Value/type/arithmetic lowering | 0 | The original named OperationOutcome field-schema dependency is closed. Owner retention and source-associated inventory now resolve all recorded occurrences in this group. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
-| Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |
+| Scenario/handler/authority emission | 65 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
 | Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
 | Declared event input carriers | 0 | Exact capability-event owners, URL/inline enum inventory and declared PaymentState identity close all46 recorded carrier occurrences. Event ingress execution remains a distinct workflow gate. |
