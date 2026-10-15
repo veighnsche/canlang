@@ -7401,7 +7401,8 @@ mod tests {
     //! write), the stdin/fixed-argv renderer boundary against stub
     //! platform binaries, and every failure mapping. Stub-spawn tests are
     //! unix-only (shebang scripts); all fixtures are hermetic temp files
-    //! (no `PATH` or environment dependence).
+    //! (no `PATH` or environment dependence). The original CanCRM regression
+    //! deliberately consumes workspace sources and their frozen saved Given inputs.
 
     use super::{
         Analyzer, CatalogAnalyzer, OutputFormat, StubAnalyzer, dispatch_with, docs_out_refusal,
@@ -8006,5 +8007,140 @@ mod tests {
         assert_eq!(result.code, crate::exit::TOOL_FAILURE);
         assert!(result.stdout.is_empty());
         assert!(result.stderr.contains("E7007"), "{}", result.stderr);
+    }
+    #[test]
+    fn original_cancrm_fixture_roles_and_leave_sequence_keep_checked_owners() {
+        use crate::codegen::ir::{IrFixtureKind, IrItemKind, IrStep};
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .canonicalize()
+            .unwrap();
+        let paths = [
+            "apps/CanCRM/CanCRM.can",
+            "apps/CanCustomer/CanCustomer.can",
+            "apps/CanBook/CanBook.can",
+            "apps/CanPropose/CanPropose.can",
+            "apps/CanAffiliate/CanAffiliate.can",
+            "apps/CanInvoice/CanInvoice.can",
+            "apps/CanMember/CanMember.can",
+            "apps/CanRefer/CanRefer.can",
+            "apps/CanRent/CanRent.can",
+            "apps/CanReport/CanReport.can",
+            "shared/Employees.can",
+            "shared/Locations.can",
+            "apps/CanExpense/CanExpense.can",
+            "apps/CanPurchase/CanPurchase.can",
+            "apps/CanSuccess/CanSuccess.can",
+            "apps/CanDesk/CanDesk.can",
+            "apps/CanEvent/CanEvent.can",
+            "apps/CanShift/CanShift.can",
+            "apps/CanLeave/CanLeave.can",
+            "apps/CanContract/CanContract.can",
+            "apps/CanMaintain/CanMaintain.can",
+            "apps/CanStock/CanStock.can",
+            "shared/Suppliers.can",
+            "apps/CanField/CanField.can",
+        ];
+        let operands = paths
+            .iter()
+            .map(|path| root.join("draft").join(path).to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        let roots = super::compile_saved_roots(&operands);
+        let mut db = super::frozen_source_db(&operands, &roots)
+            .unwrap_or_else(|error| panic!("original frozen closure: {}", error.stderr));
+        let analyzer = CatalogAnalyzer::new(
+            Some(root.join("packages/values/dist/catalog.json")),
+            None,
+            root,
+        );
+        let mut owned = analyzer.analyze_owned(&db, super::tool_version());
+        let mut program = owned.program.take().expect("original checked program");
+        super::prepare_saved_given(
+            &mut db,
+            &mut program,
+            owned.catalog.as_ref(),
+            &roots,
+            &mut owned.result,
+        )
+        .expect("original saved Given inputs, including seats and reorder");
+        assert!(
+            owned.result.diagnostics.is_empty(),
+            "{:?}",
+            owned.result.diagnostics
+        );
+        let (ir, diagnostics) = crate::codegen::ir::build(&program, &db, owned.catalog.as_ref());
+        assert!(
+            diagnostics.iter().all(|d| d.code != "E6006"),
+            "{diagnostics:?}"
+        );
+        for name in ["expense.reviewer_user", "expense.replacement_user"] {
+            let recipe = ir
+                .items
+                .iter()
+                .find_map(|item| match &item.kind {
+                    IrItemKind::Fixture {
+                        recipe: Some(recipe),
+                        ..
+                    } if item.canonical == name => Some(recipe),
+                    _ => None,
+                })
+                .expect("original user recipe is retained");
+            assert!(
+                matches!(&recipe.kind, IrFixtureKind::User { roles } if roles == &["expense.reviewer"])
+            );
+        }
+        let original = program
+            .examples
+            .sequences
+            .iter()
+            .find(|sequence| {
+                sequence
+                    .operation
+                    .is_some_and(|id| program.symbols[id.0 as usize].canonical == "leave.cancel")
+            })
+            .expect("original cancellation workflow");
+        let sequence = ir
+            .suites
+            .iter()
+            .flat_map(|suite| &suite.sequences)
+            .find(|sequence| sequence.operation == "leave.cancel")
+            .expect("whole original sequence is retained");
+        assert_eq!(
+            sequence.steps.len(),
+            15,
+            "all original calls, bindings and assertions survive"
+        );
+        let calls = sequence
+            .steps
+            .iter()
+            .filter_map(|step| match step {
+                IrStep::Call {
+                    operation, error, ..
+                } => Some((operation.as_str(), error.as_deref())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let targets = original
+            .calls
+            .iter()
+            .map(|call| {
+                program.symbols[call.target.expect("checked call target").0 as usize]
+                    .canonical
+                    .as_str()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            calls
+                .iter()
+                .map(|(operation, _)| *operation)
+                .collect::<Vec<_>>(),
+            targets,
+            "canonical operations and authored call order agree with original checked source"
+        );
+        assert_eq!(
+            calls.last(),
+            Some(&("leave.cancel", Some("rule_failed"))),
+            "repeated cancellation retains its failure expectation"
+        );
     }
 }

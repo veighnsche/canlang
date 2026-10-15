@@ -15040,3 +15040,48 @@ catalog checks, and three original example-analysis fact refusals. The preceding
 The earlier three semantic errors are gone. Keep full application/reference
 acceptance and unrestricted training-data authoring gated; no push or training
 is authorized by these focused results.
+
+2026-10-15 — C02/C10: retain module ownership during lowering.
+
+Accept a direct-module declaration index in the existing IR builder. Nested
+model fields, scenario parameters, derived fields, CRUD/capability operations and
+capability events cannot replace a module declaration with the same spelling.
+Keep field and lexical bindings in their owning scopes. Mutation target paths
+reuse the resolver's retained lexical binding on the original head token, so a
+parameter named `request` remains the selected record rather than becoming a
+same-named module scenario. Import aliases still resolve to the original owner.
+This reconciles code generation with the existing checked lexical-scope contract;
+it introduces no language choice requiring another JEV consultation, syntax,
+public authority flag or permission relaxation.
+
+The defining failures were Expense's two omitted reviewer fixture roles and
+Leave's omitted cancellation sequence. Both original reviewer recipes now retain
+`expense.reviewer`. A direct original 24-source check through the CLI's frozen
+source and saved-Given preparation preserves all 15 cancellation steps, canonical
+call targets/order and the repeated-cancellation `rule_failed` expectation. Raw
+source-only checking was insufficient because it omitted real saved `seats` and
+`reorder` contributions; no source or assertion was weakened to compensate.
+A complete-emission regression executes local/imported fixture factories and
+canonical handler role guards through the installed facade; unqualified,
+foreign-alias and model-field spellings do not grant the reviewer role. It also
+covers a same-named record mutation target and both original sequence calls.
+This is producer/guard verification, not execution of the complete Leave workflow.
+
+The two focused checks pass 1/1 each; 29 existing example checks, seven membership
+codegen checks and seven source-census/substitution checks pass. The broader
+codegen run retains two form golden failures, `catalog_factories_lower_from_source`
+and `golden_expenseflow_structure`; each fails identically against the pre-change
+compiler. The other 140 cases pass, and the changed focused case passes separately
+after using the installed handler facade. Those existing form assertions are
+preserved. The final CLI build, formatting and diff checks pass. Full composition
+results and the next bounded candidate are recorded in compiler-completion.
+
+Final original 24-source validation after this batch: exit 10, 909 errors
+(883 E6008 and 26 E6007), complete=true, omitted=0, no usable artifact. All three
+E6006 omissions are closed; eleven admission and four lexical record-target
+refusals also disappear. Keeping the original Leave sequence exposes one further
+query-order refusal instead of hiding its workflow. The existing completion
+record groups the remaining report families and separates source-census cascades
+from owning implementation/catalog gaps. The eleven admitted duration operations
+are a proposed next finite batch using existing Values semantics; they remain
+unimplemented here. No complete-app, broader-reference or training release follows.
