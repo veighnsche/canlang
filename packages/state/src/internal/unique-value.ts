@@ -48,6 +48,12 @@ export function canonicalUniqueRowValue(row: Pick<StoredRow, 'data' | 'parent'>,
     return d.value;
   };
   const ref = read(group.fields[0]), role = read(group.fields[1]);
+  if (group.kind === 'user-enum') {
+    const id = canonicalUniqueFieldValue(ref, group.fields[0], def.model, def.fields[group.fields[0]]);
+    if (id === null || typeof role !== 'string' || !group.cases.includes(role)) return invalid();
+    const parent = def.containment?.parent === undefined ? null : uniqueParentScope(row, def);
+    return JSON.stringify(['user-enum', parent, 'user', id, role]);
+  }
   if (typeof ref !== 'object' || ref === null || Array.isArray(ref) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(ref))) return invalid();
   const keys = Reflect.ownKeys(ref);

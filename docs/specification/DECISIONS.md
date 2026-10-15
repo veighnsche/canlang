@@ -17086,3 +17086,25 @@ source excludes concurrent foreign Rust work. A catalog removed by a failed
 concurrent package build invalidated the later selected emitter attempt; it adds
 no native credit. Actual original six rows remain required with complete current
 package outputs, not manual replacement fixture modules.
+
+
+### 2026-10-15 — canonical User plus enum composite uniqueness
+
+Extend the existing closed tuple profile for required singular User + enum fields;
+retain ordered fields, exact canonical User wire, checked enum cases and actual
+containment parent scope. Use the existing User decoder and unique storage fence;
+keep Model-ref + enum encoding unchanged. CF recovers sparse user/inline-enum
+types from the already-validated artifact/owning declaration, retaining exact
+source, fields, package, requiredness, order, case and Model-ref checks. The
+original CompanyRole declaration was already emitted correctly; no compiler
+carrier, app spelling, policy or uniqueness reduction is needed.
+
+Ten State source checks pass3.95s, including real Memory/D1 concurrent claims,
+swaps, late-failure rollback, replay and stale versions. Both actual-source CF
+association/refusal tests pass (Node runner2/.85s). Isolated normal State/Work/CF
+builds pass with one coherent State stage owner. Build/cache setup failures from
+missing links and mixed branded State owners were corrected before qualification;
+no duplicate dependency install or Cargo cache was made. The original6 tables
+previously all failed setup on this exact gate; post-fix native execution awaits
+current Testkit outputs (the shared owner's output was removed during concurrent
+installation/runtime work). Whole original24 remains separately in progress.

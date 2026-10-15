@@ -230,3 +230,111 @@ test('affected migration row calls preserve conditional admission and atomic act
   await assert.rejects(async () => commit(store, await runMutationWrites({store, table, context: context(), writes: [{op: 'create', model: name, id: asId('duplicate'), data: {qty: '7', closed: true}}]})), conflict);
   await commit(store, await runMutationWrites({store, table, context: context(), writes: [{op: 'update', model: name, id: asId('b'), data: {closed: false}}, {op: 'create', model: name, id: asId('recovered'), data: {qty: '7', closed: true}}]}));
 });
+
+const CUSTOMER = asModel('customer.Customer'), COMPANY_ROLE = asModel('customer.CompanyRole');
+function companyRoleDefinitions(): InterimModelDef[] {
+  return [modelDef(CUSTOMER, {deleteMode: 'remove'}), {
+    ...modelDef(COMPANY_ROLE, {fields: {
+      account: {...field({required: true}), valueType: 'user' as CanTypeId},
+      role: {...field({required: true}), valueType: 'enum(administrator,booker,billing)' as CanTypeId},
+    }, uniqueKeys: ['account,role'], deleteMode: 'remove'}),
+    containment: {parent: CUSTOMER}, uniqueGroups: [['account', 'role']],
+  }];
+}
+const roleData = (account: string, role = 'administrator') => ({account: {id: account}, role});
+const roleParent = (id: string) => ({model: CUSTOMER, id: asId(id)});
+async function seedCustomers(store: StoragePort, table: ModelTable) {
+  await commit(store, await runMutationWrites({store, table, context: context(), writes: ['company-a', 'company-b'].map(id =>
+    ({op: 'create' as const, model: CUSTOMER, id: asId(id), data: {}}))}));
+}
+
+test('CompanyRole User/enum derives from canonical types, preserves ordered parent-scoped identity and refuses malformed Users', () => {
+  const definitions = companyRoleDefinitions(), def = buildModelTable(definitions).get(COMPANY_ROLE)!;
+  const row = {data: roleData('account|1'), parent: roleParent('company-a')};
+  const key = canonicalUniqueRowValue(row, 'account,role', def);
+  assert.equal(key, JSON.stringify(['user-enum', [CUSTOMER, 'company-a'], 'user', 'account|1', 'administrator']));
+  assert.notEqual(key, canonicalUniqueRowValue({...row, parent: roleParent('company-b')}, 'account,role', def));
+  assert.notEqual(key, canonicalUniqueRowValue({...row, data: roleData('account,1')}, 'account,role', def));
+  assert.notEqual(key, canonicalUniqueRowValue({...row, data: roleData('account|1', 'billing')}, 'account,role', def));
+  assert.throws(() => canonicalUniqueRowValue({...row, parent: {model: asModel(RUN), id: asId('company-a')}}, 'account,role', def));
+  assert.throws(() => canonicalUniqueRowValue({...row, parent: null}, 'account,role', def));
+  for (const account of [null, [], {}, 'account|1', {id: ''}, {id: 'account|1', version: '1'},
+    {id: 'account|1', model: CUSTOMER}, {kind: 'user', id: 'account|1'}, {id: 'account|1', extra: true}]) {
+    assert.throws(() => canonicalUniqueRowValue({...row, data: {...row.data, account}}, 'account,role', def));
+  }
+  for (const role of [null, 'other', {}, ['administrator']]) {
+    assert.throws(() => canonicalUniqueRowValue({...row, data: {...row.data, role}}, 'account,role', def));
+  }
+  let reads = 0;
+  const account = Object.defineProperty({}, 'id', {enumerable: true, get() {reads++; return 'account|1';}});
+  assert.throws(() => canonicalUniqueRowValue({...row, data: {...row.data, account}}, 'account,role', def)); assert.equal(reads, 0);
+  const models: CanonicalModelDescriptor[] = [{name: CUSTOMER, fields: {}, deleteMode: 'remove'},
+    {name: COMPANY_ROLE, fields: {account: {valueType: 'user' as CanTypeId, required: true, serverOnly: false},
+      role: {valueType: 'enum(administrator,booker,billing)' as CanTypeId, required: true, serverOnly: false}}, deleteMode: 'remove'}];
+  const canonical = buildModelTableFromCanonical(models, {uniqueGroups: new Map([[COMPANY_ROLE, [['account', 'role']]]]),
+    containment: new Map([[COMPANY_ROLE, {parent: CUSTOMER}]])});
+  assert.equal(key, canonicalUniqueRowValue(row, 'account,role', canonical.get(COMPANY_ROLE)!));
+  for (const patch of [{required: false}, {valueType: 'user?' as CanTypeId}, {nullable: true},
+    {valueType: 'user[]' as CanTypeId, array: {required: false}}, {valueType: 'text' as CanTypeId}]) {
+    const defs = companyRoleDefinitions(); defs[1] = {...defs[1]!, fields: {...defs[1]!.fields,
+      account: {...defs[1]!.fields.account!, ...patch}}}; assert.throws(() => buildModelTable(defs));
+  }
+  const fakeReference = companyRoleDefinitions(); fakeReference[1] = {...fakeReference[1]!, refs: [{field: 'account', model: CUSTOMER}]};
+  assert.throws(() => buildModelTable(fakeReference));
+  const reversed = companyRoleDefinitions(); reversed[1] = {...reversed[1]!, uniqueKeys: ['role,account'], uniqueGroups: [['role', 'account']]};
+  assert.throws(() => buildModelTable(reversed));
+});
+
+test('CompanyRole duplicates roll back, independent Customer/User/roles admit, stale updates refuse and replay preserves claims', async () => {
+  const w = await setupMutation(companyRoleDefinitions()); await seedCustomers(w.store, w.table);
+  const account = w.alice.user.user_id, parent = roleParent('company-a');
+  const first = await crudCreate(w, COMPANY_ROLE, {id: 'role-a', parent, data: roleData(account)});
+  const revision = await w.store.readRevision(), history = await w.store.historyFor(COMPANY_ROLE, asId('role-a'));
+  assert.equal((await crudCreate(w, COMPANY_ROLE, {id: 'role-a', parent, data: roleData(account), operationId: first.operationId})).out.status, 'replayed');
+  assert.equal(await w.store.readRevision(), revision); assert.deepEqual(await w.store.historyFor(COMPANY_ROLE, asId('role-a')), history);
+  await assert.rejects(crudCreate(w, COMPANY_ROLE, {id: 'duplicate', parent, data: roleData(account)}), conflict);
+  assert.equal(await w.store.load(COMPANY_ROLE, asId('duplicate')), null);
+  await crudCreate(w, COMPANY_ROLE, {id: 'role-b', parent, data: roleData(account, 'billing')});
+  await crudCreate(w, COMPANY_ROLE, {id: 'other-company', parent: roleParent('company-b'), data: roleData(account)});
+  await crudCreate(w, COMPANY_ROLE, {id: 'other-account', parent, data: roleData('other-account')});
+  await assert.rejects(crudUpdate(w, COMPANY_ROLE, 'role-b', {version: 1, patch: {role: 'administrator'}}), conflict);
+  assert.equal((await mustLoad(w.store, COMPANY_ROLE, 'role-b')).data.role, 'billing');
+  await crudUpdate(w, COMPANY_ROLE, 'role-b', {version: 1, patch: {role: 'booker'}});
+  await assert.rejects(crudUpdate(w, COMPANY_ROLE, 'role-b', {version: 1, patch: {role: 'billing'}}), conflict);
+  const current = await mustLoad(w.store, COMPANY_ROLE, 'role-b'); assert.equal(current.data.role, 'booker');
+  assert.deepEqual(await w.store.historyFor(COMPANY_ROLE, asId('duplicate')), []);
+});
+
+test('CompanyRole Memory/D1 concurrent claims, final swaps and late failure remain atomic with no leaked User tuple', {timeout: 30000}, async () => {
+  const worker = new Miniflare({modules: true, script: 'export default {fetch(){return new Response("ok")}}', d1Databases: ['DB']});
+  try {
+    const db = await worker.getD1Database('DB') as unknown as D1Database; await ensureSchema(db);
+    const memory = await setupMutation(companyRoleDefinitions());
+    for (const store of [memory.store, createD1Storage(db)]) {
+      const table = buildModelTable(companyRoleDefinitions()); await seedCustomers(store, table);
+      const createRole = (id: string, account = 'same-account', role = 'administrator') => ({op: 'create' as const,
+        model: COMPANY_ROLE, id: asId(id), parent: roleParent('company-a'), data: roleData(account, role)});
+      const first = await runMutationWrites({store, table, context: context(), writes: [createRole('race-a')]});
+      const second = await runMutationWrites({store, table, context: context(), writes: [createRole('race-b')]});
+      const results = await Promise.allSettled([commit(store, first), commit(store, second)]);
+      assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+      const rejected = results.find(result => result.status === 'rejected'); assert.ok(rejected?.status === 'rejected');
+      assert.ok(conflict(rejected.reason) || rejected.reason instanceof FenceConflictError);
+      const winner = await store.load(COMPANY_ROLE, asId('race-a')) ? 'race-a' : 'race-b';
+      const loser = winner === 'race-a' ? 'race-b' : 'race-a'; assert.equal(await store.load(COMPANY_ROLE, asId(loser)), null);
+      await commit(store, await runMutationWrites({store, table, context: context(), writes: [createRole('billing', 'same-account', 'billing')]}));
+      const session = await beginOwnerMutation({store, table, context: context(), bounds});
+      await session.stage({op: 'update', model: COMPANY_ROLE, id: asId(winner), data: {role: 'billing'}}, cause);
+      await session.stage({op: 'update', model: COMPANY_ROLE, id: asId('billing'), data: {role: 'administrator'}}, cause);
+      await commit(store, await session.finalize());
+      const defs = companyRoleDefinitions(); defs[1] = {...defs[1]!, invariants: [invariant('late', view => {
+        if (view.get(COMPANY_ROLE, asId('failed')) !== null) throw new StateError('rule_failed', 'late');
+      })]};
+      const hooked = buildModelTable(defs);
+      await assert.rejects(runMutationWrites({store, table: hooked, context: context(), writes: [createRole('failed', 'new-account')]}),
+        error => error instanceof StateError && error.code === 'rule_failed');
+      assert.equal(await store.load(COMPANY_ROLE, asId('failed')), null);
+      await commit(store, await runMutationWrites({store, table, context: context(), writes: [createRole('recovered', 'new-account')]}));
+    }
+  } finally {await worker.dispose();}
+});
