@@ -1,0 +1,9 @@
+{
+  "name": "can-browser-development-tools",
+  "version": "1.63.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
