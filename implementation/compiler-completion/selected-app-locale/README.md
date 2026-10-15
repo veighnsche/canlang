@@ -31,6 +31,12 @@ equivalence remains outside the current compiler tag normalizer. Trusted
 `HandlerContext` construction is released at package commit b8399f5e, and the
 [localized formatter join](../localized-format/outcome.md) consumes it with
 the owning source language and explicit business-sink refusals. Wider
-presentation/outbound provenance remains open. Existing `docs.rs` still
-consumes raw `locale_default` with its current source-language fallback;
-inherited composition locale behavior is not migrated for that consumer here.
+presentation/outbound provenance remains open.
+
+The 2026-10-14 language consistency repair closes the reference-documentation
+consumer: `docs.rs` now reads checked `app_default_locale`, including recursive
+composition inheritance, while keeping its existing selected-module policy and
+the pinned `en` fallback. Source-language descriptions stay independent. The
+31 documentation checks pass, including direct/nested inheritance in both
+input orders. This closes only the documentation consumer; the wider
+presentation/outbound provenance scope remains open.
