@@ -3929,6 +3929,8 @@ pub struct IrPage {
     pub owner: String,
     /// Normalized route pattern.
     pub path: String,
+    /// Exact checked Model and authored route token; absent for static/scalar routes.
+    pub record_route: Option<IrRecordRoute>,
     /// Static caption.
     pub title: IrMessage,
     /// Static description, if authored.
@@ -3955,6 +3957,12 @@ pub struct IrPage {
     pub descriptor_name: String,
     /// Declaration span.
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrRecordRoute {
+    pub model: String,
+    pub token: String,
 }
 
 #[derive(Debug, Clone)]
@@ -12031,9 +12039,12 @@ impl<'a> Cx<'a> {
             }
         });
         let description = self.owner_description(module, &page.node);
+        let record_route = node
+            .as_ref()
+            .and_then(|node| self.decode_record_route(module, node));
         let (path, order, group, nav_none, poll, refresh) = node
             .as_ref()
-            .map(|n| self.decode_page_head(module, n))
+            .map(|n| self.decode_page_head(module, n, record_route.is_some()))
             .unwrap_or_else(|| ("/".to_string(), None, None, false, None, None));
         let mut admit = Vec::new();
         let mut render = Vec::new();
@@ -12089,6 +12100,7 @@ impl<'a> Cx<'a> {
         IrPage {
             owner: module_name.to_string(),
             path,
+            record_route,
             title,
             description,
             order,
@@ -12105,6 +12117,75 @@ impl<'a> Cx<'a> {
         }
     }
 
+    fn decode_record_route(
+        &mut self,
+        module: ModuleId,
+        page: &SyntaxNode,
+    ) -> Option<IrRecordRoute> {
+        let route = kids(page)
+            .into_iter()
+            .find(|part| part.kind == SyntaxKind::Route)?;
+        let parts = kids(route);
+        let records: Vec<_> = parts
+            .iter()
+            .filter(|part| part.kind == SyntaxKind::RouteRecord)
+            .copied()
+            .collect();
+        if records.len() != 1
+            || parts
+                .iter()
+                .any(|part| part.kind == SyntaxKind::RouteScalar)
+        {
+            return None;
+        }
+        let record = records[0];
+        let Some(ResolvedType::Record {
+            symbol,
+            stored: true,
+        }) = self.program.types.node_types.get(&NodeKey::of(record))
+        else {
+            self.gap(
+                "record route lacks its checked stored Model association".into(),
+                record.span,
+            );
+            return None;
+        };
+        if !matches!(
+            self.program
+                .symbols
+                .get(symbol.0 as usize)
+                .map(|symbol| &symbol.kind),
+            Some(SymbolKind::Model { .. })
+        ) {
+            self.gap(
+                "record route type does not name its owning Model declaration".into(),
+                record.span,
+            );
+            return None;
+        }
+        let symbol = *symbol;
+        let model = self.canonical(symbol);
+        let path = kids(record)
+            .into_iter()
+            .find(|part| part.kind == SyntaxKind::Path)?;
+        let source = self.db.get(path.span.file)?;
+        let segments = crate::analysis::path_segments(path, &source.text);
+        if segments.len() != 2
+            || segments[1] != "id"
+            || self.resolve_member(module, segments[0]).map(|(id, _)| id) != Some(symbol)
+        {
+            self.gap(
+                "record route type disagrees with its checked owning declaration".into(),
+                record.span,
+            );
+            return None;
+        }
+        Some(IrRecordRoute {
+            model,
+            token: self.text(path.span).to_string(),
+        })
+    }
+
     /// Decode the page head: route pattern plus `order`/`group`/`nav`.
     /// `data` has no lowering and stays loud `E6008`. `poll` decodes
     /// the checked constant duration to millis; `refresh` resolves the
@@ -12114,6 +12195,7 @@ impl<'a> Cx<'a> {
         &mut self,
         module: ModuleId,
         node: &SyntaxNode,
+        record_route: bool,
     ) -> (
         String,
         Option<i128>,
@@ -12131,23 +12213,7 @@ impl<'a> Cx<'a> {
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::Route => {
-                    let membership_page = kids(node).iter().any(|candidate| {
-                        matches!(candidate.kind, SyntaxKind::Require | SyntaxKind::UiLeaf)
-                            && crate::analysis::scenario_disclosure::expression_reads_membership(
-                                &self.program.types,
-                                &self.program.effects,
-                                NodeKey::of(candidate),
-                            )
-                    });
-                    let record_only = kids(child)
-                        .iter()
-                        .filter(|n| n.kind == SyntaxKind::RouteRecord)
-                        .count()
-                        == 1
-                        && !kids(child)
-                            .iter()
-                            .any(|n| n.kind == SyntaxKind::RouteScalar);
-                    path = self.decode_route(child, node.span, membership_page && record_only);
+                    path = self.decode_route(child, node.span, record_route);
                 }
                 SyntaxKind::Attribute => {
                     let parts = kids(child);
@@ -12252,9 +12318,8 @@ impl<'a> Cx<'a> {
         (path, order, group, nav_none, poll, refresh)
     }
 
-    /// Normalize a route pattern. Static segments concatenate; dynamic
-    /// (record/scalar) segments have no normalized lowering, so the
-    /// source spelling is kept loudly (`E6008`).
+    /// Static and checked singular record routes retain their authored token.
+    /// Other dynamic profiles remain explicit lowering refusals.
     fn decode_route(&mut self, route: &SyntaxNode, span: Span, membership_record: bool) -> String {
         let mut out = String::new();
         let mut dynamic = false;

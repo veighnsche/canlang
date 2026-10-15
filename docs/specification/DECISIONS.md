@@ -17176,3 +17176,22 @@ unsupported sibling and affected owner/helper/schema/source/return refusals. Ful
 original24 qualification is running from a frozen binary. Diagnostic original6
 has no setup failures but four query-domain runtime refusals; no complete native
 workflow acceptance is claimed. No language rule, grant or error identity changes.
+
+
+## 2026-10-15 — retain checked record-route identity and authorized row
+
+Use the existing resolved RouteRecord Model association in TypeTable and private
+page IR, preserving the authored token separately from canonical declaration
+identity. Reuse the existing viewer exact-id records query and matched admission/
+render read scope. Memoize lazily at the first executed row expression, preserving
+context guards and short circuit order; retain the actual authorized row for
+render and action bindings. Boolean control observations remain separate.
+
+Six focused compiler controls and locked CLI build pass, including imported
+aliases, missing/corrupt declaration proof, once-only lookup, order, failure
+identity and existing static/preference/Boolean behavior. Original Partner native
+intake still requires its exact saved style unit; complete source permissions,
+invariants and imported capture workflow remain in the consumer. No native page
+or full-composition route qualification is claimed. The prior query-association
+binary's original24 run is terminal419.34s/656 unchanged, with stable26sources;
+inspect the next owner gate rather than rerunning unchanged full emission.

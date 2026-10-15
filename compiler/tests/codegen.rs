@@ -3058,6 +3058,7 @@ fn construct_pages_admit_render() {
     let mut emitter = Emitter::new(&ir);
     let mut out = canlang_compiler::codegen::js::JsWriter::new();
     let review = IrPage {
+        record_route: None,
         owner: "expense".to_string(),
         path: "/expenses/review".to_string(),
         title: IrMessage {
@@ -3088,6 +3089,7 @@ fn construct_pages_admit_render() {
         span: sp(0, 1),
     };
     let mine = IrPage {
+        record_route: None,
         owner: "expense".to_string(),
         path: "/expenses/mine".to_string(),
         title: IrMessage {
@@ -3158,6 +3160,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
     let mut out = canlang_compiler::codegen::js::JsWriter::new();
     let text_ty = ResolvedType::Scalar(Scalar::Text);
     let page = IrPage {
+        record_route: None,
         owner: "expense".to_string(),
         path: "/expenses/prefs".to_string(),
         title: IrMessage {
@@ -3263,6 +3266,7 @@ fn construct_page_admit_returns_preference_defaults() {
     let mut emitter = Emitter::new(&ir);
     let mut out = canlang_compiler::codegen::js::JsWriter::new();
     let page = IrPage {
+        record_route: None,
         owner: "demo".to_string(),
         path: "/prefs".to_string(),
         title: IrMessage {
