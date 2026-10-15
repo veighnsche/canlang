@@ -7604,6 +7604,71 @@ fn t31_hook_derive_call_native_context() {
     assert!(text.contains("(c,1n)"), "ambient context call: {text}");
 }
 
+/// (T31/outcome 12) Ambient-context expressions inside hooks: native
+/// runners bind `($candidate,$hookCtx,c)` (see `emit_hooks_map`), so a
+/// role gate (`hasRole(c,..)`) or capability call (`local(c,..)`) — both
+/// lowered with a leading `c` — must lower in native hooks instead of
+/// reporting `E6008`. Legacy runners bind no `c`, so the gaps stay.
+#[test]
+fn t31_hook_ambient_call_native_context() {
+    let mut ir = fixture_ir();
+    ir.items.push(IrItem {
+        id: SymbolId(5),
+        canonical: "demo.ping".to_string(),
+        name: "ping".to_string(),
+        module: ModuleId(0),
+        span: sp(0, 1),
+        exported: false,
+        kind: IrItemKind::CapabilityOp {
+            params: Vec::new(),
+            result: IrType::Known(ResolvedType::Scalar(Scalar::Int)),
+        },
+    });
+    let role = typed(
+        IrExpr::HasRole {
+            role: "members".to_string(),
+            person: None,
+        },
+        ResolvedType::Scalar(Scalar::Bool),
+    );
+    let call = typed(
+        IrExpr::Call {
+            target: IrCallTarget::CapabilityOp("demo.ping".to_string()),
+            args: Vec::new(),
+        },
+        ResolvedType::Scalar(Scalar::Int),
+    );
+    for (what, expr, fragment) in [
+        ("hook role gate", &role, "hasRole(c,\"members\")"),
+        ("hook capability call", &call, "(c)"),
+    ] {
+        // Legacy hook: still a gap.
+        let mut legacy = Emitter::new(&ir);
+        legacy.enter_hook(SymbolId(0), false);
+        assert!(
+            legacy.lower_expr(expr).contains("throw"),
+            "legacy hook placeholder: {what}"
+        );
+        let (diags, _, _, _) = legacy.finish();
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains(what)),
+            "legacy hook gap: {what}: {diags:?}"
+        );
+        // Native hook: lowers with the ambient context, no gap.
+        let mut native = Emitter::new(&ir);
+        native.enter_hook(SymbolId(0), true);
+        let text = native.lower_expr(expr);
+        let (diags, _, _, _) = native.finish();
+        assert!(
+            diags.iter().all(|d| d.code != "E6008"),
+            "native hook lowers: {what}: {diags:?}"
+        );
+        assert!(text.contains(fragment), "ambient context: {what}: {text}");
+    }
+}
+
 /// Fresh unique stage directory under the system temp dir for T31
 /// engine drivers (emitted module plus driver script).
 fn t31_stage_dir(stem: &str) -> PathBuf {
