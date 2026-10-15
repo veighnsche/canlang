@@ -17352,3 +17352,31 @@ archive/remove/unrelated-owner selectors and owner-bound refusal pass1/.45s; the
 affected pure-leaf control passes1/.30s. Original Partner native and actual
 transactional query-rule acceptance remain pending. No new language primitive,
 policy grant or broad effect system is introduced.
+
+
+## 2026-10-15 — observe selected scalar Require reads independently of results
+
+Accepted finite compiler/receiver correction: a required primitive field read
+from the genuine checked first-query binding retains its existing execution
+dependency even when the operation returns an independent scalar or void. The
+existing State observation checks exact row/field/type/current grant and once
+consumption; execution-only reads do not create saved result/query taint. Whole
+Contract observation keeps the actual owning schema identity, including the
+existing stored representation. No synthetic Return, new carrier or grant.
+
+An equivalent same-owner Bool helper initially exposed a concrete bypass: the
+read disappeared from the execution census and committed despite its denied
+field grant. Existing derive inlining/call recipes now bind the original call,
+formal/actual selected row and original inner Member to the same observation.
+The qualified helper profile currently has one required Model formal and no
+inner calls. Unsupported nested/multiformal/default shapes retain the full read
+census and refuse instead of dropping authority; general bounded call-chain
+reuse remains ready implementation work, not a language prohibition.
+
+Compiler14 pass/1.51s; affected State20, strict noEmit and normal State/CF builds
+are reused unchanged. The complete native inline harness passes47.77s and its
+equivalent helper passes79.24s, preserving original Model/order/failure/rollback/
+replay controls plus hidden-field denial, ordinary late grant revocation and
+independent scalar/void replay. The helper retry corrected only generated source
+placement inside the checkout; an earlier package-link freshness refusal ran no
+rows. No authored permission or independent expectation was weakened.

@@ -1186,7 +1186,7 @@ export interface ScenarioReceiptReferenceProducer {
    * projection of original SEND model lexicals and reserved row ID dependencies. Bind the framework producer
    * first when SEND lexicals are this definition's only reference consumer. */
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
-  /** Verified Require reads of a whole Contract from an original first selection.
+  /** Verified Require reads of a scalar or whole Contract from an original first selection.
    * These are execution guards, independently of the selected result closure. */
   readonly executionSites?: readonly ScenarioReceiptMembershipSite[];
   readonly executionDependencies?: readonly {
@@ -1196,7 +1196,7 @@ export interface ScenarioReceiptReferenceProducer {
   }[];
 }
 type ExecutionDependency = NonNullable<ScenarioReceiptReferenceProducer['executionDependencies']>[number];
-type BoundExecutionDependency = { readonly association: ExecutionDependency; readonly profile: StoredNominalFieldProfile };
+type BoundExecutionDependency = { readonly association: ExecutionDependency; readonly profile: StoredNominalFieldProfile | undefined };
 const executedDependencies = new WeakMap<Capture, Set<string>>();
 const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptReferenceProducer & {
   readonly boundExecutionDependencies: ReadonlyMap<string, BoundExecutionDependency>;
@@ -1306,8 +1306,15 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
         bound.plan.queries?.some(query => query.dependencies.some(other => other.id === dep.id))) {
       return invalid('execution Contract dependency requires its exact owning Require, first query and unique occurrence.');
     }
-    const profile = storedNominalField(bound, dep.model, dep.field, dep.type);
-    if (profile.array || profile.nullable || profile.hasFiles) return invalid('execution dependency requires its singular ordinary whole Contract.');
+    let profile: StoredNominalFieldProfile | undefined;
+    if (/^(int|datetime|text|bool|decimal|money|date|duration|currency|user)$/.test(dep.type)) {
+      if (bound.models.get(dep.model)?.fields.get(dep.field) !== scalarType(dep.type)) {
+        return invalid('execution scalar dependency differs from its exact declared field type.');
+      }
+    } else {
+      profile = storedNominalField(bound, dep.model, dep.field, dep.type);
+      if (profile.array || profile.nullable || profile.hasFiles) return invalid('execution dependency requires its singular ordinary whole Contract.');
+    }
     let model: ModelName | undefined = dep.model;
     const seen = new Set<ModelName>();
     while (model !== undefined) {
@@ -3723,7 +3730,7 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     const narrowed = state.bound.narrowedDependencies.get(dependency.id);
     if (narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, input.row);
     const namedEnum = state.bound.namedEnumDependencies.get(dependency.id);
-    const nominal = execution === undefined ? state.bound.nominalDependencies.get(dependency.id) : { profile: execution.profile };
+    const nominal = execution?.profile === undefined ? state.bound.nominalDependencies.get(dependency.id) : { profile: execution.profile };
     const reference = state.bound.referenceDependencies.get(dependency.id);
     const file = state.bound.fileDependencies.get(dependency.id);
     const id = state.bound.idDependencies.get(dependency.id);

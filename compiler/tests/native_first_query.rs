@@ -1068,3 +1068,133 @@ fn original_first_execution_is_independent_of_void_scalar_and_model_result_shape
         }
     }
 }
+
+#[test]
+fn scalar_require_uses_original_first_field_observation_without_retaining_result_dependency() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,held:int}\n policy Budget read=members\nWhen\n scenario generate(enabled:bool) -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and (not enabled or budget.held>0)\n   return true\nThen\n";
+    let (db, program, original, catalog) = fixture_source("scalar-require-first.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let plan = &operation(&artifact)["result"]["disclosure"];
+    assert!(
+        plan["returns"][0]["dependencies"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        plan["returns"][0]["influences"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+    assert!(text.contains("observeScenarioReceiptDependency"));
+    assert!(text.contains("\"field\":\"held\",\"type\":\"int\""));
+    let mut corrupt = original.clone();
+    let IrItemKind::Scenario { effects, .. } =
+        &mut corrupt.items[item(&original, OWNER).id.0 as usize].kind
+    else {
+        panic!("scenario");
+    };
+    let IrStmt::Require { cond, .. } = &mut effects[1] else {
+        panic!("Require");
+    };
+    fn replace(value: &mut ir::TypedExpr) {
+        match &mut value.expr {
+            IrExpr::Member { field, .. } if field == "held" => *field = "account".into(),
+            IrExpr::Binary { left, right, .. } => {
+                replace(left);
+                replace(right);
+            }
+            IrExpr::Unary { operand, .. } => replace(operand),
+            _ => {}
+        }
+    }
+    replace(cond);
+    let emitted = js::emit_program_with_native_source_receipts(&corrupt, true, &db);
+    assert!(
+        emitted
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+}
+
+#[test]
+fn scalar_require_preserves_existing_stored_contract_schema_identity() {
+    let source = "app FirstSources\nGiven\n contract Details {note:text}\n Budget {account:user,input:Details,held:int}\n policy Budget read=members\nWhen\n scenario generate(input:Details) -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and budget.input==input and budget.held>0\n   return true\nThen\n";
+    let (db, program, _, catalog) = fixture_source("contract-scalar-require-first.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("\"field\":\"held\",\"type\":\"int\""));
+    assert!(text.contains("\"field\":\"input\",\"type\":\"FirstSources.Details\""));
+}
+
+#[test]
+fn scalar_require_helper_reuses_exact_call_formal_and_body_proof() {
+    let source = "app FirstSources\nGiven\n Budget {account:user,approved:bool,active:bool}\n policy Budget read=members\n derive allowed(record:Budget):bool = record.approved and record.active\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and allowed(record=budget)\n   return true\nThen\n";
+    let (db, program, original, catalog) = fixture_source("scalar-require-helper.can", source);
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let text = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(text.contains("executionDependencies:["));
+    for field in ["approved", "active"] {
+        assert!(text.contains(&format!("\"field\":\"{field}\",\"type\":\"bool\"")));
+        assert!(text.contains(&format!("$receiptRow,\"{field}\"")));
+    }
+    let mut corrupt = original.clone();
+    let helper = item(&original, "FirstSources.allowed").id;
+    let IrItemKind::DeriveFn {
+        expr: Some(body), ..
+    } = &mut corrupt.items[helper.0 as usize].kind
+    else {
+        panic!("derive");
+    };
+    let IrExpr::Binary { left, .. } = &mut body.expr else {
+        panic!("and");
+    };
+    let IrExpr::Member { field, .. } = &mut left.expr else {
+        panic!("member");
+    };
+    *field = "active".into();
+    let emitted = js::emit_program_with_native_source_receipts(&corrupt, true, &db);
+    assert!(
+        emitted
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+}
+
+#[test]
+fn unsupported_first_scalar_helper_shapes_refuse_instead_of_dropping_field_authority() {
+    for (helpers, call) in [
+        (
+            "derive inner(record:Budget):bool = record.approved\n derive allowed(record:Budget):bool = inner(record)",
+            "allowed(budget)",
+        ),
+        (
+            "derive allowed(record:Budget,flag:bool):bool = record.approved and flag",
+            "allowed(record=budget,flag=true)",
+        ),
+        (
+            "derive allowed(record:Budget,flag:bool=true):bool = record.approved and flag",
+            "allowed(record=budget)",
+        ),
+    ] {
+        let source = format!(
+            "app FirstSources\nGiven\n Budget {{account:user,approved:bool}}\n policy Budget read=members\n {helpers}\nWhen\n scenario generate() -> bool by=members\n  do\n   let budget=first(Budget as row where row.account==actor order=row.id)\n   require budget!=null and {call}\n   return true\nThen\n"
+        );
+        let (db, program, _, catalog) = fixture_source("unsupported-first-helper.can", &source);
+        let (_, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "{helpers}: {diagnostics:?}"
+        );
+    }
+}

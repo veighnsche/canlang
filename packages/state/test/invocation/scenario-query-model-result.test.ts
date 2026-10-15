@@ -52,7 +52,7 @@ function artifact(limit: number | null = null, absenceResult = false, skippedCon
       } } })),
   };
 }
-async function world(options: { domain?: 'empty' | 'false'; limit?: number; absenceResult?: boolean; skippedControl?: boolean; executionContract?: boolean; guardOnlyQuery?: boolean; scalarResult?: 'bool' | 'void'; firstBinding?: (metadata: Record<string, unknown>) => void; executionFirst?: boolean; executionBinding?: (producer: ScenarioReceiptReferenceProducer, sites: ScenarioReceiptMembershipSite[]) => void } = {}) {
+async function world(options: { domain?: 'empty' | 'false'; limit?: number; absenceResult?: boolean; skippedControl?: boolean; executionContract?: boolean; executionScalar?: boolean; guardOnlyQuery?: boolean; scalarResult?: 'bool' | 'void'; firstBinding?: (metadata: Record<string, unknown>) => void; executionFirst?: boolean; executionBinding?: (producer: ScenarioReceiptReferenceProducer, sites: ScenarioReceiptMembershipSite[]) => void } = {}) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const reader = await memberships.createMembership({ team_id: TEAM, user_id: 'allowance-reader', is_owner: false, roles: [] });
@@ -85,7 +85,7 @@ async function world(options: { domain?: 'empty' | 'false'; limit?: number; abse
     await store.commit(makeBatch(await store.readRevision(), { writes: [{ kind: 'insert', model: ALLOWANCE, row }] }));
     const stored = await store.load(ALLOWANCE, row.id); assert.ok(stored); rows.push(stored);
   }
-  const access = { allowance: true, run: true, active: true, input: true };
+  const access = { allowance: true, run: true, active: true, input: true, held: true };
   const policy = buildPolicyTable([
     { model: ALLOWANCE, secretFields: [], grants: [{ by: 'members', fields: ['account', 'held', ...(options.skippedControl ? ['active'] : [])] }] },
     { model: RUN, secretFields: [], grants: [{ by: 'members', fields: ['account', 'title'] }] },
@@ -94,21 +94,21 @@ async function world(options: { domain?: 'empty' | 'false'; limit?: number; abse
   for (const [model, fields] of [[ALLOWANCE, ['account', 'held']], [RUN, ['account', 'title']]] as const) {
     readPolicies.set(model, { fields: [...fields, ...(model === ALLOWANCE && options.skippedControl ? ['active'] : []),
         ...(model === ALLOWANCE && options.executionContract ? ['input'] : [])],
-      secretFields: [], grants: [{ fields: ['id', ...fields], read: async ({ context }) =>
+      secretFields: [], grants: [{ fields: ['id', ...fields.filter(field => !options.executionScalar || field !== 'held')], read: async ({ context }) =>
       (model === ALLOWANCE ? access.allowance : access.run) &&
       (await context.memberships.findMembership(TEAM, model === ALLOWANCE ? 'allowance-reader' : 'caller'))?.status === 'active' &&
       context.membership?.status === 'active',
-    }, ...(model === ALLOWANCE && options.skippedControl ? [{ fields: ['active'], read: async () => access.active }] : []),
+    }, ...(model === ALLOWANCE && options.executionScalar ? [{ fields: ['held'], read: async () => access.held }] : []), ...(model === ALLOWANCE && options.skippedControl ? [{ fields: ['active'], read: async () => access.active }] : []),
       ...(model === ALLOWANCE && options.executionContract ? [{ fields: ['input'], read: async ({ context }: Readonly<ViewerGenerationCallbackReadObservation>) => access.input &&
         (await context.memberships.findMembership(TEAM, 'allowance-reader'))?.status === 'active' }] : [])] });
   }
   for (const def of [root, child]) {
-    if (options.scalarResult && (def === root || options.executionFirst && !options.executionContract)) continue;
+    if (options.scalarResult && (def === root || options.executionFirst && !options.executionContract && !options.executionScalar)) continue;
     const producer: ScenarioReceiptReferenceProducer = { source, app: APP, policy, readPolicies,
-      ...(def === child && options.executionContract ? { executionDependencies: [{ siteIndex: 0, queryId: 'allowances',
-        node: { start: 12, end: 14 }, dependency: { id: 'require-input', source, role: 'control', model: ALLOWANCE,
+      ...(def === child && (options.executionContract || options.executionScalar) ? { executionDependencies: [{ siteIndex: 0, queryId: 'allowances',
+        node: { start: 12, end: 14 }, dependency: options.executionScalar ? { id: 'require-held', source, role: 'control', model: ALLOWANCE, field: 'held', type: 'text' as CanTypeId } : { id: 'require-input', source, role: 'control', model: ALLOWANCE,
           field: 'input', type: 'QueryModel.Input' as CanTypeId } }] } : {}) };
-    if (def === child && options.executionContract) {
+    if (def === child && (options.executionContract || options.executionScalar)) {
       const sites: ScenarioReceiptMembershipSite[] = [{ version: 1, source, owner: CHILD,
         node: { start: 10, end: 30 }, statement: { start: 9, end: 31 }, stage: 'body-require',
         position: [{ kind: 'body', index: 1 }, { kind: 'then', index: 0 }], calls: [] }];
@@ -522,5 +522,59 @@ test('first execution rejects malformed source bindings, missing/copy/foreign ma
       return { ...await session.finalize(), result: true, outbox: [] };
     } };
     await assert.rejects(invoke(request), refuses, mode); assert.equal(accesses, 0); await unchanged(w);
+  }
+});
+
+async function scalarRequireRequest(w: World, type: 'bool' | 'void', mode: 'read' | 'skip' | 'copy' | 'repeat' | 'late-field' | 'late-membership') {
+  let receipt: Receipt | undefined, reads = 0;
+  const request = { ...w, envelope: makeEnvelope(CHILD, uuidv7(FIXED_NOW, ++sequence), {}),
+    observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      const query = await executeScenarioReceiptQuery(call, w.store, { queryId: 'allowances', predicate: ({ slot, record }) => {
+        const account = record.data.account;
+        observeScenarioReceiptQueryDependency(call, w.store, { slot, dependencyId: 'account-control' }); return account === 'caller';
+      } });
+      const row = await selectScenarioReceiptQueryFirstRow(call, w.store, { query: query.query,
+        first: { node: { start: 12, end: 25 }, statement: { start: 10, end: 26 } } }); assert.ok(row);
+      if (mode !== 'skip') {
+        const held = row.data.held; reads++;
+        const observe = () => observeScenarioReceiptDependency(call, w.store,
+          { dependencyId: 'require-held', model: ALLOWANCE, row: mode === 'copy' ? { ...row } : row, field: 'held' });
+        await observe(); assert.equal(held, '7');
+        if (mode === 'repeat') await observe();
+      }
+      await session.stage({ op: 'create', model: RUN, id: CREATED, data: { account: 'caller', title: 'Scalar guard' } }, cause);
+      if (mode === 'late-field') w.access.held = false;
+      if (mode === 'late-membership') await w.memberships.removeMembership(w.reader.membership_id);
+      selectScenarioReceiptReturn(call, w.store, 'child-return');
+      return { ...await session.finalize(), result: type === 'bool' ? true : null, outbox: [] };
+    } };
+  return { request, get receipt() { return receipt; }, get reads() { return reads; } };
+}
+
+test('scalar first-selected Require observes the exact field lazily without result taint for bool and void', async () => {
+  for (const type of ['bool', 'void'] as const) for (const mode of ['read', 'skip'] as const) {
+    const w = await world({ absenceResult: true, scalarResult: type, guardOnlyQuery: true, executionFirst: true, executionScalar: true });
+    if (mode === 'skip') w.access.held = false;
+    const run = await scalarRequireRequest(w, type, mode);
+    assert.equal((await invoke(run.request)).status, 'committed'); assert.ok(run.receipt);
+    assert.equal(run.reads, mode === 'read' ? 1 : 0);
+    const saved = readScenarioReceiptAssociation(run.receipt)!;
+    assert.deepEqual(saved.observations, []); assert.equal(saved.queries, undefined);
+    assert.equal(JSON.stringify(run.receipt).includes('require-held'), false);
+    w.access.held = false;
+    assert.equal((await projectScenarioReceipt({ ...w, receipt: run.receipt })).result, type === 'bool' ? true : null);
+    assert.equal((await invoke(run.request)).status, 'replayed'); assert.equal(run.reads, mode === 'read' ? 1 : 0);
+  }
+});
+
+test('scalar Require refuses hidden, copied, repeated, wrong-type and late-revoked observations atomically', async () => {
+  await assert.rejects(world({ absenceResult: true, scalarResult: 'bool', guardOnlyQuery: true, executionFirst: true, executionScalar: true,
+    executionBinding: producer => { Object.assign(producer.executionDependencies![0]!.dependency, { type: 'int' }); } }), refuses);
+  for (const mode of ['read', 'copy', 'repeat', 'late-field', 'late-membership'] as const) {
+    const w = await world({ absenceResult: true, scalarResult: 'bool', guardOnlyQuery: true, executionFirst: true, executionScalar: true });
+    if (mode === 'read') w.access.held = false;
+    const run = await scalarRequireRequest(w, 'bool', mode);
+    await assert.rejects(invoke(run.request), refuses, mode); await unchanged(w);
   }
 });

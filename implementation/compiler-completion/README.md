@@ -2,6 +2,18 @@
 
 ## Current remainder and finite completion
 
+**C02 selected scalar Require (2026-10-15, native component qualified).**
+Exact genuine first-selected scalar fields now use existing execution dependency
+observations independently of result shape; current grants/once/order/failure
+checks remain. Scalar/void receipts gain no invented result/query influence.
+Whole Contract schema identity stays valid. Compiler14/1.51s and prior unchanged
+State20/noEmit/builds pass; complete inline native47.77s and equivalent same-owner
+Bool helper79.24s pass original plus hidden-field/revocation/independent replay
+assertions. The demonstrated helper permission bypass is closed. Current helper
+profile is one required Model formal/no inner calls; unsupported nested/multiple/
+default forms retain the census and refuse. General bounded existing call-chain
+join remains next ready work, rather than a semantic restriction.
+
 **C02 checked query-invariant producer (2026-10-15, component qualified).**
 Original Program/Advocate rules and renamed/named/grouped equivalents retain
 checked selected slots/query/lambda/field/parent proofs and original awaited

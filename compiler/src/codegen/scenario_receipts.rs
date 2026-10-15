@@ -830,6 +830,233 @@ pub(super) struct NativeRequireConsumption {
 
 /// Reuse the exact checked-program/fresh-IR seal already prepared for Require
 /// feasibility. Nothing here changes return dependencies or evaluates a guard.
+/// Reuse the existing inlined derive-call recipe. The selected row remains the
+/// actual first handle; the formal is only its once-evaluated lexical alias.
+fn checked_require_helper_consumption(
+    ir: &IrProgram,
+    owner: &IrItem,
+    condition: &TypedExpr,
+    site: &crate::analysis::scenario_disclosure::CheckedDecisionSite,
+    site_index: usize,
+    facts: &crate::analysis::scenario_disclosure::CheckedScenarioSource,
+    read: &crate::analysis::scenario_disclosure::DisclosureDependency,
+    db: &SourceDb,
+) -> Option<NativeRequireConsumption> {
+    use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
+    let [call] = read.calls.as_slice() else {
+        return None;
+    };
+    if call.file != site.node.file
+        || call.start < site.node.start
+        || call.end > site.node.end
+        || read.source != site.source
+        || read.query_id.is_some()
+        || read.role != DependencyRole::Control
+        || read.node.kind != SyntaxKind::Member as u8
+    {
+        return None;
+    }
+    let mut calls = site
+        .calls
+        .iter()
+        .filter(|value| value.node == *call && value.chain.is_empty());
+    let source_call = calls.next()?;
+    if calls.next().is_some() || source_call.source != site.source {
+        return None;
+    }
+    let CheckedDecisionCallTarget::DeriveFn(id) = source_call.target else {
+        return None;
+    };
+    let derive = ir.items.get(id.0 as usize)?;
+    let IrItemKind::DeriveFn {
+        params,
+        expr: Some(body),
+        result: IrType::Known(result),
+        ..
+    } = &derive.kind
+    else {
+        return None;
+    };
+    let [parameter_id] = params.as_slice() else {
+        return None;
+    };
+    let parameter = ir.items.get(parameter_id.0 as usize)?;
+    let model_type = ResolvedType::Record {
+        symbol: read.model,
+        stored: true,
+    };
+    let boolean = ResolvedType::Scalar(Scalar::Bool);
+    let IrItemKind::Param {
+        owner: parameter_owner,
+        index: 0,
+        ty: IrType::Known(parameter_type),
+        default: None,
+        default_node: None,
+        array_bounds: None,
+        ..
+    } = &parameter.kind
+    else {
+        return None;
+    };
+    if derive.module != owner.module
+        || parameter.module != owner.module
+        || *parameter_owner != id
+        || parameter_type != &model_type
+        || result != &boolean
+        || body.ty != boolean
+        || source_call.arguments.len() != 1
+        || source_call.slots.as_slice() != [Some(0)]
+        || source_call.arguments[0].1 != model_type
+    {
+        return None;
+    }
+    fn find(value: &TypedExpr, span: Span, pure: bool) -> Option<&TypedExpr> {
+        let mut pending = vec![value];
+        let mut found = None;
+        let mut steps = 0;
+        while let Some(value) = pending.pop() {
+            steps += 1;
+            if steps > 16384 {
+                return None;
+            }
+            if value.span == span && found.replace(value).is_some() {
+                return None;
+            }
+            match &value.expr {
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(right);
+                    pending.push(left);
+                }
+                IrExpr::Unary { operand, .. } | IrExpr::Member { base: operand, .. } => {
+                    pending.push(operand)
+                }
+                IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
+                    if pure {
+                        return None;
+                    }
+                    pending.extend(args.iter().rev());
+                }
+                _ => {}
+            }
+        }
+        found
+    }
+    let actual_call = find(condition, node_span(*call), false)?;
+    let (target, arguments) = match &actual_call.expr {
+        IrExpr::Call { target, args } => (target, args),
+        IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } if slots.as_slice() == [Some(0)] => (target, args),
+        _ => return None,
+    };
+    let [receiver] = arguments.as_slice() else {
+        return None;
+    };
+    let IrExpr::Name(binding) = &receiver.expr else {
+        return None;
+    };
+    if !matches!(target,IrCallTarget::DeriveFn(name) if name==&derive.canonical)
+        || actual_call.ty != boolean
+        || receiver.ty != model_type
+        || receiver.span != node_span(source_call.arguments[0].0)
+    {
+        return None;
+    }
+    created_record_name_matches(receiver, &model_type, binding, actual_call.span, db)?;
+    let mut queries = facts.queries.as_deref()?.iter().filter(|query| {
+        query.model == read.model
+            && query.first.as_ref().is_some_and(|first| {
+                first.binding.end <= call.start
+                    && matches!(&owner.kind,IrItemKind::Scenario {effects,..}
+                if effects.iter().any(|statement| matches!(statement,IrStmt::Let {name,span,..}
+                    if name==binding && *span==node_span(first.binding))))
+            })
+    });
+    let query = queries.next()?;
+    if queries.next().is_some() {
+        return None;
+    }
+    let first = query.first.as_ref()?;
+    let IrItemKind::Scenario { effects, .. } = &owner.kind else {
+        return None;
+    };
+    let initializer = effects.iter().find_map(|statement| match statement {
+        IrStmt::Let { name, value, span }
+            if name == binding && *span == node_span(first.binding) =>
+        {
+            Some(value)
+        }
+        _ => None,
+    })?;
+    if checked_owner_first_query_ir(ir, owner, initializer, first.call, db)? != query {
+        return None;
+    }
+    let member = find(body, node_span(read.node), true)?;
+    let IrExpr::Member { base, field } = &member.expr else {
+        return None;
+    };
+    if field != &read.field_name
+        || member.ty != read.ty
+        || read.node.file != body.span.file
+        || read.node.start < body.span.start
+        || read.node.end > body.span.end
+    {
+        return None;
+    }
+    created_record_name_matches(base, &model_type, &parameter.name, member.span, db)?;
+    let ResolvedType::Scalar(scalar) = &read.ty else {
+        return None;
+    };
+    if !supported_type_id(scalar.as_str()) || read.type_id != scalar.as_str() {
+        return None;
+    }
+    let schema = facts
+        .stored_contracts
+        .as_deref()?
+        .iter()
+        .find(|schema| schema.model && schema.id == read.model)?;
+    match_stored_contract_schema(ir, schema, db)?;
+    let field = schema.fields.iter().find(|field| field.id == read.field)?;
+    match_stored_contract_field(ir, field, db)?;
+    if field.ty != read.ty
+        || field.name != read.field_name
+        || field.source != read.source
+        || field.owner != schema.id
+        || field.required_array
+        || schema.canonical != read.model_name
+    {
+        return None;
+    }
+    Some(NativeRequireConsumption {
+        association: ReceiptRequireConsumption {
+            site_index,
+            query_id: query.id.clone(),
+            node: ReceiptRequireNode {
+                start: call.start,
+                end: call.end,
+            },
+            dependency: ReceiptDependency {
+                id: read.id.clone(),
+                source: transport_source(&read.source, &read.source.module)?,
+                role: ReceiptRole::Control,
+                model: read.model_name.clone(),
+                field: read.field_name.clone(),
+                type_id: read.type_id.clone(),
+                query_id: None,
+            },
+        },
+        site: checked_site(read.node, &read.calls)?,
+        observation: NativeDependency {
+            id: read.id.clone(),
+            model: read.model_name.clone(),
+            field: read.field_name.clone(),
+            source_dependency_id: None,
+        },
+    })
+}
+
 pub(super) fn checked_require_consumptions(
     ir: &IrProgram,
     owner: &IrItem,
@@ -902,6 +1129,15 @@ pub(super) fn checked_require_consumptions(
             return None;
         }
         for read in &consumption.dependencies {
+            if !read.calls.is_empty() {
+                if out.len() >= 200 || !ids.insert(read.id.clone()) || read.id.is_empty() {
+                    return None;
+                }
+                out.push(checked_require_helper_consumption(
+                    ir, owner, cond, site, site_index, facts, read, db,
+                )?);
+                continue;
+            }
             if out.len() >= 200
                 || !ids.insert(read.id.clone())
                 || read.id.is_empty()
@@ -1074,26 +1310,31 @@ pub(super) fn checked_require_consumptions(
             match_stored_contract_schema(ir, schema, db)?;
             let field = schema.fields.iter().find(|field| field.id == read.field)?;
             match_stored_contract_field(ir, field, db)?;
-            let ResolvedType::Record {
-                symbol: contract, ..
-            } = &read.ty
-            else {
-                return None;
+            let type_matches = match &read.ty {
+                ResolvedType::Scalar(scalar) => {
+                    supported_type_id(scalar.as_str()) && read.type_id == scalar.as_str()
+                }
+                ResolvedType::Record {
+                    symbol: contract, ..
+                } => {
+                    let contract = schemas
+                        .iter()
+                        .find(|schema| !schema.model && schema.id == *contract)?;
+                    match_stored_contract_schema(ir, contract, db)?;
+                    for field in &contract.fields {
+                        match_stored_contract_field(ir, field, db)?;
+                    }
+                    contract.canonical == read.type_id
+                }
+                _ => false,
             };
-            let contract = schemas
-                .iter()
-                .find(|schema| !schema.model && schema.id == *contract)?;
-            match_stored_contract_schema(ir, contract, db)?;
-            for field in &contract.fields {
-                match_stored_contract_field(ir, field, db)?;
-            }
             if field.ty != read.ty
                 || field.name != read.field_name
                 || field.source != read.source
                 || field.owner != schema.id
                 || field.required_array
                 || schema.canonical != read.model_name
-                || contract.canonical != read.type_id
+                || !type_matches
             {
                 return None;
             }
@@ -11055,7 +11296,13 @@ impl<'a> Sites<'a> {
                                 })
                             })
                         {
-                            checked_owner_first_query_ir(ir, owner, expression, query.first.as_ref()?.call, db?)?;
+                            checked_owner_first_query_ir(
+                                ir,
+                                owner,
+                                expression,
+                                query.first.as_ref()?.call,
+                                db?,
+                            )?;
                             // Query candidate fields have their separate query
                             // observation path, not ordinary parent row reads.
                             continue;

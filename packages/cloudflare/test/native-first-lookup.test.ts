@@ -1,7 +1,7 @@
 /** Original scalar-input first lookup -> captured CLI -> verified module -> real D1/Identity. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -23,7 +23,7 @@ const nodeImport = compileFunction('return import(url)', ['url'], {
 });
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
 const APP = 'LookupSources', ITEM = asModel(`${APP}.Item`), RUN = asModel(`${APP}.Run`);
-const sourcePath = join(root, 'packages/cloudflare/test/fixtures/native-first-lookup.can');
+const fixtureSourcePath = join(root, 'packages/cloudflare/test/fixtures/native-first-lookup.can');
 type Tables = Record<string, Array<Record<string, unknown>>>;
 function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === 'object' && !Array.isArray(value));
@@ -51,9 +51,21 @@ function committed(outcome: MutationOutcome, status: 'committed' | 'replayed' = 
 const byCreatedId = (left: StoredRow, right: StoredRow) => left.created - right.created ||
   (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 
-test('native field/input first retains the authorized full domain, default ordering, atomic failure and current-authority replay',
+for (const spelling of ['inline', 'helper'] as const) test(`native ${spelling} first retains the authorized full domain, default ordering, atomic failure and current-authority replay`,
   { timeout: 120000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'can-native-first-lookup-'));
+    const sourceDirectory = spelling === 'inline' ? undefined : await mkdtemp(join(root, '.can-native-first-helper-'));
+    const sourcePath = sourceDirectory === undefined ? fixtureSourcePath : join(sourceDirectory, 'helper.can');
+    if (spelling === 'helper') {
+      const original = await readFile(fixtureSourcePath, 'utf8');
+      const equivalent = original.replace(' policy Run read=members',
+        ' derive approved(record:Item):bool = record.approved\n policy Run read=members')
+        .replaceAll('require chosen!=null and chosen.approved', 'require chosen!=null and approved(record=chosen)');
+      assert.equal(equivalent.split('approved(record=chosen)').length - 1, 2);
+      assert.deepEqual(equivalent.split('\n').filter(line => line.trim().startsWith('policy ')),
+        original.split('\n').filter(line => line.trim().startsWith('policy ')));
+      await writeFile(sourcePath, equivalent);
+    }
     let worker: Miniflare | undefined;
     let capture: Awaited<ReturnType<typeof import('../src/dev/source-capture.js')['captureSingleFileSource']>> | undefined;
     try {
@@ -157,7 +169,7 @@ test('native field/input first retains the authorized full domain, default order
         const projected = object(outcome.result.records![0]); assert.equal(typeof projected.id, 'string');
         const row = await store.load(ITEM, asId(projected.id as string)); assert.ok(row);
         assert.equal(row.created, created); assert.equal(row.createdBy, subject.membership.user_id);
-        assert.deepEqual(row.data, { account: { id: subject.membership.user_id }, source, active });
+        assert.deepEqual(row.data, { account: { id: subject.membership.user_id }, source, active, approved: true });
         assert.equal((await store.historyFor(ITEM, row.id)).length, 1); return row;
       }
 
@@ -209,10 +221,12 @@ test('native field/input first retains the authorized full domain, default order
         } else await unchanged(before);
       }
 
+      const independentResults: Array<{ input: MutationEnvelope; value: boolean | null }> = [];
       // These original-profile variants consume first without disclosing its
       // row/query. They use the same captured CLI/verified module/D1 owners.
       for (const [operation, expectedValue] of [['lookup_scalar', true], ['lookup_void', null]] as const) {
         const independent = envelope(operation, { source: 'wanted', accept: true });
+        independentResults.push({ input: independent, value: expectedValue });
         const before = await resources();
         const outcome = await invoke(independent); assert.ok('result' in outcome, JSON.stringify(outcome));
         assert.equal(outcome.result.status, 'committed'); assert.equal(outcome.result.result, expectedValue);
@@ -225,6 +239,17 @@ test('native field/input first retains the authorized full domain, default order
         assert.equal(replay.result.result, expectedValue); await unchanged(after);
         await rejectedWithoutEffects(envelope(operation, { source: 'wanted', accept: false }));
         await rejectedWithoutEffects(envelope(operation, { source: 'absent', accept: true }));
+        // The business value is true, but its current field grant is absent
+        // for this inactive selected row. The Require must fail at the read.
+        const denied = envelope(operation, { source: 'inactive', accept: true });
+        const beforeDenied = await resources();
+        const hidden = await invoke(denied); assert.ok('error' in hidden, JSON.stringify(hidden));
+        assert.equal(hidden.error.code, 'forbidden', JSON.stringify(hidden));
+        const afterDenied = await resources(); assert.deepEqual(afterDenied.identity, beforeDenied.identity);
+        for (const table of Object.keys(beforeDenied.owner)) if (!['receipts', 'fence', 'fence_log'].includes(table)) {
+          assert.deepEqual(afterDenied.owner[table], beforeDenied.owner[table], table);
+        }
+
       }
       const input = lookup('wanted'), before = await resources(), revision = await store.readRevision(), count = batches.length;
       const result = committed(await invoke(input));
@@ -289,11 +314,38 @@ test('native field/input first retains the authorized full domain, default order
       const restored = await member.current(), restoredResources = await resources();
       assert.equal(committed(await invoker.invokeRetainedMutation(input, restored), 'replayed').id, row.id);
       await unchanged(restoredResources); assert.deepEqual(await store.readReceipt(receiptIdentity(input)), physical);
+      // A later ordinary update revokes only the selected scalar field grant.
+      // Fresh execution must recheck it, while earlier scalar results stay independent.
+      const setActive = async (active: boolean) => {
+        const current = await store.load(ITEM, expected.id); assert.ok(current);
+        const updated = await invoker.invokeMutation(envelope(`${ITEM}.update`, {
+          record: { id: current.id, version: String(current.version) }, active,
+        }), colleague.identity);
+        assert.ok('result' in updated, JSON.stringify(updated)); assert.equal(updated.result.status, 'committed');
+      };
+      await setActive(false);
+      for (const operation of [`${APP}.lookup_scalar`, `${APP}.lookup_void`]) {
+        const beforeDenied = await resources();
+        const denied = await invoke(envelope(operation, { source: 'wanted', accept: true }));
+        assert.ok('error' in denied, JSON.stringify(denied)); assert.equal(denied.error.code, 'forbidden');
+        const afterDenied = await resources(); assert.deepEqual(afterDenied.identity, beforeDenied.identity);
+        for (const table of Object.keys(beforeDenied.owner)) if (!['receipts', 'fence', 'fence_log'].includes(table)) {
+          assert.deepEqual(afterDenied.owner[table], beforeDenied.owner[table], table);
+        }
+      }
+      const revokedScalarResources = await resources();
+      for (const { input, value } of independentResults) {
+        const replay = await invoke(input); assert.ok('result' in replay, JSON.stringify(replay));
+        assert.equal(replay.result.status, 'replayed'); assert.equal(replay.result.result, value);
+        await unchanged(revokedScalarResources);
+      }
+      await setActive(true);
       assert.deepEqual(await readFile(sourcePath), originalSource);
       for (const module of moduleBytes) assert.deepEqual(await readFile(module.path), module.bytes);
       assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await captureIsCurrent(capture), true);
       assert.equal(createHash('sha256').update(originalSource).digest('hex'), artifact.sources.find(source => resolve(source.path) === sourcePath)!.sha256);
     } finally {
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });
+      if (sourceDirectory !== undefined) await rm(sourceDirectory, { recursive: true, force: true });
     }
   });
