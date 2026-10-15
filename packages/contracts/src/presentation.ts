@@ -597,7 +597,8 @@ export interface PageReadScope {
 /**
  * One `text` value. Raw strings are verbatim text; raw numbers must be safe
  * integers (non-integers throw: decimals need {type,value}); bigint/bool are
- * exact; descriptors render through the formatter with bound params;
+ * exact; native user references display their stable ID and native datetimes
+ * use the existing typed scalar formatter; descriptors render with bound params;
  * {type,value} pairs carry numerics/temporals with explicit types; null and
  * undefined render as empty.
  */
@@ -606,6 +607,8 @@ export type TextValue =
   | number
   | bigint
   | boolean
+  | UserRef
+  | DatetimeValue
   | MessageDescriptor
   | ResolvedMessage
   | MessageParamValue
@@ -1710,7 +1713,9 @@ export interface ButtonActionBinding {
 /**
  * `button` canonical bound control. Exactly one of `action`, `submit`,
  * `target` or `opens` must be present. `submit` renders the submit control
- * alone inside an owning form; `target` needs a safe URL; `opens` names a
+ * alone inside an owning form; `target` needs a safe URL or an original
+ * source-bound File. A sole configured null File target, or a File withheld by
+ * the presenter, renders a disabled control without a destination. `opens` names a
  * declared local panel id wired through the :target pattern.
  */
 export interface ButtonProps {
@@ -1719,7 +1724,7 @@ export interface ButtonProps {
   readonly caption?: MessageValue;
   readonly action?: ButtonActionBinding;
   readonly submit?: true;
-  readonly target?: string;
+  readonly target?: string | FileValue | null;
   readonly opens?: string;
   readonly tone?: AppearanceTone;
   readonly size?: AppearanceSize;

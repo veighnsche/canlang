@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import type {
   AdmissionOutcome,
   AppearanceTone,
+  FileLinkView,
+  FileValue,
   MessageValue,
   NavigationEntry,
   NavigationGroup,
@@ -673,6 +675,68 @@ describe("button", () => {
     const xss = await button({ context: makeContext(), caption: XSS, submit: true });
     assert.ok(!xss.includes("<script>"), xss);
     assert.ok(xss.includes("&lt;script&gt;"), xss);
+  });
+
+  it("disables sole null and withheld File targets without exposing a destination", async () => {
+    const file: FileValue = Object.freeze({ kind: "file", id: "private-file" });
+    let calls = 0;
+    const context = makeContext({ preferredLocales: ["nl"], presentFile: async target => {
+      assert.equal(target, file); calls++; return null;
+    } });
+    const caption = message("Open <PDF>", { nl: "Open <offerte>" });
+    const absent = await button({ context, caption, target: null });
+    assert.equal(calls, 0);
+    const withheld = await button({ context, caption, target: file });
+    assert.equal(calls, 1);
+    assert.equal(withheld, absent);
+    assert.match(absent, /type="button".*disabled aria-disabled="true">Open &lt;offerte&gt;/);
+    assert.ok(!absent.includes("href=") && !absent.includes(file.id) && !absent.includes("<form"));
+    assert.match(await button({ context, target: null }), />Bestand openen<\/button>/);
+    await assert.rejects(button(withExtra({ context, caption }, { target: undefined })), /exactly one/);
+  });
+
+  it("presents the exact original File once and escapes its authorized destination", async () => {
+    const file: FileValue = Object.freeze({ kind: "file", id: "private-file" });
+    const seen: FileValue[] = [];
+    const context = makeContext({ presentFile: async target => {
+      seen.push(target); await Promise.resolve();
+      return { href: '/files/read/current?x=1&y="2"', name: "<authorized name>" };
+    } });
+    const html = await button({ context, target: file, caption: XSS });
+    assert.deepEqual(seen, [file]); assert.equal(seen[0], file);
+    assert.match(html, /href="\/files\/read\/current\?x=1&amp;y=&quot;2&quot;"/);
+    assert.ok(html.includes("&lt;script&gt;") && !html.includes("<script>") && !html.includes(file.id));
+    assert.ok(!html.includes("authorized name"));
+    assert.match(await button({ context: makeContext({ presentFile: async () => ({ href: "/files/read/current" }) }),
+      target: file }), />Open file<\/a>/);
+    assert.match(await button({ context, target: file }), /&lt;authorized name&gt;/);
+  });
+
+  it("refuses malformed File targets and presenter faults without an inert fallback", async () => {
+    const file: FileValue = Object.freeze({ kind: "file", id: "private-file" });
+    let calls = 0;
+    const context = makeContext({ presentFile: async () => { calls++; return { href: "/files/read/current" }; } });
+    let getterReads = 0;
+    for (const target of [{ kind: "file", id: "" }, { kind: "user", id: "u" }, [file],
+      { get kind() { getterReads++; return "file"; }, id: "f" }]) {
+      await assert.rejects(button(withExtra({ context, caption: "Open" }, { target })), /File/);
+    }
+    assert.equal(calls, 0); assert.equal(getterReads, 0);
+    await assert.rejects(button({ context: makeContext(), target: file }), /source-bound presenter/);
+    const failure = new Error("actual presenter fault");
+    await assert.rejects(button({ context: makeContext({ presentFile: async () => { throw failure; } }),
+      target: file }), error => error === failure);
+    let hrefReads = 0;
+    const invalid: unknown[] = [undefined, {}, [], { href: "" }, { href: "javascript:alert(1)" },
+      { href: "data:text/html,secret" }, { href: "/safe", name: 42 }, { href: "/safe", status: "not-a-status" },
+      { get href() { hrefReads++; return "/safe"; } }];
+    for (const view of invalid) {
+      await assert.rejects(button({ context: makeContext({ presentFile: async () => view as FileLinkView }),
+        target: file, caption: "Open" }), /invalid authorized link/);
+    }
+    assert.equal(hrefReads, 0);
+    await assert.rejects(button({ context, target: file, submit: true, caption: "Open" }), /exactly one/);
+    assert.equal(calls, 0);
   });
 
   it("maps the admitted tone/size/variant scale", async () => {

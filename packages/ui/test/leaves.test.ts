@@ -8,6 +8,7 @@ import type {
   PresentationContext,
   TextValue,
 } from "@canlang/contracts";
+import { makeDatetime, makeUserRef } from "@canlang/values";
 import { message } from "../src/messages.js";
 import {
   badge,
@@ -61,6 +62,28 @@ describe("badge", () => {
     assert.ok(html.startsWith(`<span class="badge">`), html);
     assert.ok(html.includes("Open"), html);
     assert.ok(!html.includes("aria-label"), html);
+  });
+
+  it("preserves native user and datetime text in visible badges and plain accessible names", async () => {
+    const instant = makeDatetime(1792016096123n);
+    const displayed = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" })
+      .format(new Date("2026-10-14T22:14:56.123Z"));
+    for (const [value, expected] of [[makeUserRef('actor<&>"'), 'actor<&>"'], [instant, displayed], [null, ""]] as const) {
+      const markup = await badge({ context: makeContext(), value, caption: "Archive evidence" });
+      const page = await loadHtml(markup);
+      try {
+        const element = page.document.querySelector(".badge")!;
+        assert.equal(element.getAttribute("aria-label"), `Archive evidence: ${expected}`);
+        assert.equal(element.textContent, expected === "" ? "" : `\u2068${expected}\u2069`);
+      } finally { await page.close(); }
+      const state = await loadHtml(await status({ context: makeContext(), value }));
+      try {
+        assert.equal(state.document.querySelector(".status")!.getAttribute("aria-label"), expected);
+      } finally { await state.close(); }
+    }
+    for (const value of [{ kind: "user", id: "" }, { kind: "datetime", ms: 1792016096123 }, { kind: "datetime", ms: 253402300800000n }]) {
+      await assert.rejects(status({ context: makeContext(), value: value as never }));
+    }
   });
 
   it("maps every admitted tone", async () => {

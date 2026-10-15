@@ -38,12 +38,12 @@ import type {
   MessageValue,
   PageChildren,
   PresentationContext,
-  ResolvedMessage,
   StatusProps,
   TextValue,
 } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
+import { nativeTextScalar } from "./internal/native-text.js";
 import { renderTextValue } from "./components.js";
 import { escapeAttr, escapeHtml, safeHref } from "./escape.js";
 import {
@@ -64,7 +64,7 @@ function pageLocaleOf(context: PresentationContext): string {
 }
 
 function isMessageDescriptor(
-  value: MessageDescriptor | MessageParamValue | ResolvedMessage,
+  value: object,
 ): value is MessageDescriptor {
   return typeof (value as MessageDescriptor).source === "string";
 }
@@ -85,6 +85,7 @@ function plainTextOf(value: TextValue, context: PresentationContext): string {
   if (typeof value === "number" || typeof value === "bigint") {
     return String(value);
   }
+  const scalar = nativeTextScalar(value);
   const formatted = resolvedText(value);
   if (formatted !== undefined) {
     return formatted.text;
@@ -92,7 +93,7 @@ function plainTextOf(value: TextValue, context: PresentationContext): string {
   if (isMessageDescriptor(value)) {
     return resolveCaption(value, context);
   }
-  return formatScalar(value as MessageParamValue, {
+  return formatScalar(scalar ?? (value as MessageParamValue), {
     locale: pageLocaleOf(context),
     timeZone: "UTC",
     ...(context.currencyScales !== undefined

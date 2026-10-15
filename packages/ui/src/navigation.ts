@@ -28,6 +28,7 @@ import type {
 import { CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 import { pickAppearance } from "./internal/appearance-props.js";
+import { checkedFile, checkedFileLink, OPEN_FILE } from "./internal/file-link.js";
 import { escapeAttr, escapeHtml, operationPostPath, safeHref } from "./escape.js";
 import { assertFieldPath, serializeActionScalar } from "./forms.js";
 import { message, resolveCaption } from "./messages.js";
@@ -363,7 +364,7 @@ export async function breadcrumbs(props: BreadcrumbsProps): Promise<string> {
 
 /**
  * Canonical bound control. Caption order: explicit `caption` first, then
- * the action binding's label, then the target URL (the link precedent).
+ * the action binding's label, then the target URL or authorized File caption.
  * `submit` and `opens` have no derivation source at the presentation layer
  * -- the owning form's submit label and the panel declaration's caption are
  * supplied by the caller as `caption`, and omission throws.
@@ -371,12 +372,15 @@ export async function breadcrumbs(props: BreadcrumbsProps): Promise<string> {
 export async function button(props: ButtonProps): Promise<string> {
   const modifiers = appearanceClasses("button", "btn", pickAppearance(props));
   const cls = escapeAttr(joinClasses("btn", modifiers));
-  // Null counts as absent (the overlays valueOrChildren precedent); a
-  // present-but-null binding must never slip into a branch below.
-  const bound = [props.action, props.submit, props.target, props.opens].filter(
+  // Null placeholders remain absent beside an active binding. Only an
+  // explicitly configured sole target may represent an unavailable File.
+  const { action, submit, target, opens } = props;
+  const unavailableTarget = target === null && Object.hasOwn(props, "target") &&
+    ["action", "submit", "opens"].every(key => !Object.hasOwn(props, key));
+  const bound = [action, submit, target, opens].filter(
     (binding) => binding !== undefined && binding !== null,
   ).length;
-  if (bound === 0) {
+  if (bound === 0 && !unavailableTarget) {
     throw new Error("button needs exactly one of action, submit, target or opens");
   }
   if (bound > 1) {
@@ -384,8 +388,11 @@ export async function button(props: ButtonProps): Promise<string> {
   }
   const override =
     props.caption === undefined ? undefined : escapeHtml(resolveCaption(props.caption, props.context));
-  if (props.action !== undefined && props.action !== null) {
-    const binding = props.action;
+  const unavailable = () => `<button type="button" class="${cls}" disabled aria-disabled="true">${
+    override ?? escapeHtml(resolveCaption(OPEN_FILE, props.context))}</button>`;
+  if (unavailableTarget) return unavailable();
+  if (action !== undefined && action !== null) {
+    const binding = action;
     requireText("button", "action postTo", binding.postTo);
     requireText("button", "action operation", binding.operation);
     requireText("button", "action operationId", binding.operationId);
@@ -406,8 +413,8 @@ export async function button(props: ButtonProps): Promise<string> {
       `<button type="submit" class="${cls}">${text}</button></form>`
     );
   }
-  if (props.submit !== undefined && props.submit !== null) {
-    if (props.submit !== true) {
+  if (submit !== undefined && submit !== null) {
+    if (submit !== true) {
       throw new Error("button submit must be true when present");
     }
     if (override === undefined) {
@@ -415,12 +422,20 @@ export async function button(props: ButtonProps): Promise<string> {
     }
     return `<button type="submit" class="${cls}">${override}</button>`;
   }
-  if (props.target !== undefined && props.target !== null) {
-    requireText("button", "target", props.target);
-    const text = override ?? escapeHtml(props.target);
-    return `<a class="${cls}" href="${escapeAttr(safeHref(props.target))}">${text}</a>`;
+  if (target !== undefined && target !== null) {
+    if (typeof target === "string") {
+      requireText("button", "target", target);
+      const text = override ?? escapeHtml(target);
+      return `<a class="${cls}" href="${escapeAttr(safeHref(target))}">${text}</a>`;
+    }
+    const file = checkedFile(target, "button");
+    const present = props.context.presentFile;
+    if (typeof present !== "function") throw new Error("button File presentation requires a source-bound presenter");
+    const view = await present(file);
+    if (view === null) return unavailable();
+    const link = checkedFileLink(view, props.context, "button");
+    return `<a class="${cls}" href="${escapeAttr(link.href)}">${override ?? escapeHtml(link.caption)}</a>`;
   }
-  const opens: unknown = props.opens;
   // Explicit string check first: RE.test(null) coerces to "null", which
   // matches, so a null opens would slip past the pattern alone.
   if (typeof opens !== "string" || !ACTIVATION_ID_RE.test(opens)) {
