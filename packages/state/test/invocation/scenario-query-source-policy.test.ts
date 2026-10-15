@@ -8,7 +8,7 @@ import { StateError } from '../../src/errors.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
 import { buildPolicyTable } from '../../src/policy/grants.js';
-import { projectCurrentRecordForViewerSourcePolicies, type ViewerSourceReadPolicy, type ViewerGenerationCallbackReadObservation } from '../../src/query/source-policy.js';
+import { readRecordsAtSourceObservation, projectCurrentRecordForViewerSourcePolicies, type ViewerSourceReadPolicy, type ViewerGenerationCallbackReadObservation } from '../../src/query/source-policy.js';
 import { invoke, type ExecutionEffects } from '../../src/invocation/invoke.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
@@ -53,7 +53,7 @@ function artifact(first = false): ArtifactDescriptorSlice {
       } } })),
   };
 }
-async function world(options: { first?: boolean; noVisible?: boolean; bind?: boolean; decoyRoot?: boolean; nestedParent?: boolean } = {}) {
+async function world(options: { first?: boolean; noVisible?: boolean; bind?: boolean; decoyRoot?: boolean; nestedParent?: boolean; policyCollections?: boolean } = {}) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const reader = await memberships.createMembership({ team_id: TEAM, user_id: 'turn-reader', is_owner: false, roles: [] });
@@ -84,6 +84,14 @@ async function world(options: { first?: boolean; noVisible?: boolean; bind?: boo
         const { context, row } = observation; grants++;
         if (!(access.budget && row.data.account === context.actorUserId &&
           (await context.memberships.findMembership(TEAM, 'turn-reader'))?.status === 'active' && context.membership?.status === 'active')) return false;
+        if (options.policyCollections) {
+          const roots = await readRecordsAtSourceObservation({observation, store, model: PARENT, readPolicies, policy});
+          const children = await readRecordsAtSourceObservation({observation, store, model: TURN,
+            parent: row.parent!, readPolicies, policy});
+          const parent = roots.find(value => value.record.id === row.parent!.id);
+          nestedTitles.push(parent?.record.data.title as string);
+          return parent?.record.data.title === 'Enabled' && children.some(value => value.record.id === row.id);
+        }
         if (!options.nestedParent) return true;
         assert.ok(row.parent);
         const parent = await projectCurrentRecordForViewerSourcePolicies({ model: PARENT, id: row.parent.id,
@@ -96,8 +104,12 @@ async function world(options: { first?: boolean; noVisible?: boolean; bind?: boo
     }] }],
     [PARENT, { fields: ['title'], secretFields: [], grants: [{ fields: ['id', 'title'], read: async ({ context }) =>
       access.parent && context.membership?.status === 'active' }] }],
-    [RUN, { fields: ['account', 'title'], secretFields: [], grants: [{ fields: ['id', 'account', 'title'], read: async ({ context }) =>
-      access.run && context.membership?.status === 'active' }] }],
+    [RUN, { fields: ['account', 'title'], secretFields: [], grants: [{ fields: ['id', 'account', 'title'], read: async observation => {
+      if (!access.run || observation.context.membership?.status !== 'active') return false;
+      if (!options.policyCollections) return true;
+      const roots = await readRecordsAtSourceObservation({observation, store, model: PARENT, readPolicies, policy});
+      return roots.some(value => value.record.data.title === 'Enabled');
+    } }] }],
   ]);
   const rootReads: Map<ModelName, ViewerSourceReadPolicy> = new Map(readPolicies);
   if (options.decoyRoot) rootReads.set(TURN, { parent: PARENT, fields: ['account', 'held', 'position'], secretFields: [],
@@ -308,4 +320,27 @@ test('installed Budget callback borrows its genuine observation and physical sto
   assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
   assert.ok((w.nestedTitles as readonly string[]).includes('Disabled'), 'saved recovery consults current genuine ancestor');
   assert.equal((await invoke(request)).status, 'replayed'); assert.equal(producer.executions, 1); assert.equal(producer.predicates, 2);
+});
+
+
+test('installed policy root and contained domains retain stage inputs, final authority and current recovery', async () => {
+  const before = async (session: Pick<Session, 'stage' | 'read' | 'views'>) => {
+    await session.stage({op: 'update', model: PARENT, id: asId('workspace'), data: {title: 'Enabled'}}, cause);
+  };
+  const w = await world({first: true, policyCollections: true}); bindChild(w, undefined, false, before);
+  let receipt: Receipt | undefined;
+  assert.equal((await invoke(input(w, value => {receipt = value;}))).status, 'committed'); assert.ok(receipt);
+  assert.ok(w.nestedTitles.length > 0); assert.ok(w.nestedTitles.every(title => title === 'Enabled'));
+  assert.deepEqual((await projectScenarioReceipt({...w, receipt})).result, {id: CREATED});
+  const parent = await w.store.load(PARENT, asId('workspace')); assert.ok(parent);
+  await w.store.commit(makeBatch(await w.store.readRevision(), {writes: [{kind: 'update', model: PARENT, id: parent.id,
+    expectedVersion: parent.version, row: {...parent, version: asVersion(parent.version + 1), data: {title: 'Disabled'}}}]}));
+  assert.deepEqual(await projectScenarioReceipt({...w, receipt}), {result: null, records: []});
+
+  const late = await world({first: true, policyCollections: true}); bindChild(late, undefined, false, before);
+  await assert.rejects(invoke(input(late, undefined, async (_call, session) => {
+    await session.stage({op: 'update', model: PARENT, id: asId('workspace'), data: {title: 'Disabled'}}, cause);
+  })), error => error instanceof StateError && error.code === 'forbidden');
+  await unchanged(late);
+  assert.equal((await late.store.load(PARENT, asId('workspace')))!.data.title, 'Workspace');
 });

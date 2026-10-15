@@ -17232,3 +17232,10 @@ new formatting semantics are proposed. Neither full native workflow is accepted.
 ## 2026-10-15 — canonical format runtime export
 
 Accepted: expose the existing Values `format` function directly through the generated-code Cloudflare stdlib facade. This repairs a missing installed export without adding formatting semantics or changing failure identity. Normal isolated Cloudflare build passes; actual installed named-import identity, stable Partner identifier formatting and malformed-input ValueError equivalence pass (1 test, 56ms). Original Partner assembly now passes this import and reaches its separate unsupported model-invariant gate; native Partner behavior remains unqualified.
+
+
+## 2026-10-15 — installed policy collections at their owning stage
+
+Accepted implementation correction: installed Bool-confined read policies retain their existing checked root and declared-parent collection reads inside a real scenario owner session. Capture only reached, bounded, ordered, unarchived domains at the actual stage; retain stage inputs for original-query rechecks and overlay actual final owner writes for final grants. No data query, copied observer, replacement closure or post-lifetime use gains this capability. Parent navigation refreshes/seals the same domains against actual effects. Existing source-policy grants and secret carving remain authoritative; this adds no language primitive or grant.
+
+Normal isolated State and Cloudflare builds pass. All36 affected State source-policy/query/predicate controls pass (.40s), including declared-parent identity, copied/accessor/closed refusal, exact failure propagation, stage/final authority, rollback and current recovery. Original CRM proceeds past the prior collection-domain gate and correctly refuses four callers lacking Customer read authority (2/6 expectations pass); source caller correction and full native acceptance remain separate work.

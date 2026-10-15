@@ -2656,6 +2656,44 @@ async function readObservedStoredReferenceRow(call: AdmittedCall, store: Storage
   } catch (error) { state.poisoned = true; if (owner !== undefined) owner.capture.poisoned = true; poisonSourceOwner(); throw error; }
   finally { if (acquired) { state.pending--; owner!.busy = false; } }
 }
+/** Capture only reached installed-policy collections from this actual owner
+ * stage. Original query checks retain their stage rows; final grants use the
+ * same domains with actual owner effects, without broadening query certificates. */
+function ownerPolicyDomains(owner: ReceiptOwnerSession, healthy: () => void) {
+  type Parent = Readonly<{model: ModelName; id: RecordId}>;
+  const domains = new Map<string, {model: ModelName; parent: Parent | undefined; rows: readonly StoredRow[]}>();
+  const keyOf = (model: ModelName, parent?: Parent) => stableStringify([model, parent ?? null]);
+  const capture = async (model: ModelName, parent?: Parent): Promise<readonly StoredRow[]> => {
+    healthy();
+    const key = keyOf(model, parent), cached = domains.get(key);
+    if (cached !== undefined) return cached.rows;
+    if (domains.size >= MAX_ITEMS || owner.session === null) return invalid('policy collection exceeds its owning stage.');
+    const rows = await owner.session.views.final.query({model, authority: 'owner', archived: 'exclude',
+      order: [{field: 'id', direction: 'asc'}], limit: owner.maxRows, ...(parent === undefined ? {} : {parent})});
+    healthy();
+    const copied = deepFreeze(dataCopy(rows));
+    domains.set(key, {model, parent, rows: copied});
+    return copied;
+  };
+  const retained = (assertHealthy: () => void, writes: readonly DomainWrite[] = []) =>
+    async (model: ModelName, parent?: Parent): Promise<readonly StoredRow[]> => {
+      assertHealthy();
+      const domain = domains.get(keyOf(model, parent));
+      if (domain === undefined) throw new StateError('forbidden', 'Policy collection requires its original observed owner domain.');
+      const rows = new Map(domain.rows.map(row => [row.id, row]));
+      for (const write of writes) if (write.model === model) {
+        if (write.kind === 'remove') rows.delete(write.id);
+        else rows.set(write.row.id, write.row);
+      }
+      const current = [...rows.values()].filter(row => row.archivedAt === null &&
+        (parent === undefined || row.parent?.model === parent.model && row.parent.id === parent.id));
+      if (current.length > owner.maxRows) return invalid('policy collection exceeds its owning row bound.');
+      current.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+      assertHealthy(); return Object.freeze(current);
+    };
+  return {capture, retained};
+}
+
 /** Borrow only this complete root predicate domain. Source-policy collections
  * retain id order and exclude archives; final authority sees the actual final
  * owning overlay while the original query guard retains its intermediate rows. */
@@ -2694,18 +2732,20 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
       return invalid('model query source authority crossed its original owner stage.');
     }
   };
+  const policyDomains = ownerPolicyDomains(owner, healthy);
   const reader = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
     teamId = call.context.team?.teamId ?? null;
   const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
   const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
   const project = async (current: StoredRow, observed: ByContext,
     load: (model: ModelName, id: RecordId) => Promise<StoredRow | null>, assertHealthy: () => void,
-    query?: (model: ModelName) => Promise<readonly StoredRow[]>) => {
+    query?: (model: ModelName) => Promise<readonly StoredRow[]>,
+    policyQuery = policyDomains.capture) => {
     try {
       return await projectInstalledSourceRowAndAncestors({ model, row: current,
         readPolicies: producer.readPolicies!, policy: producer.policy, context: observed, revision: call.revision,
         fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]),
-        ownerRows: { read: load, assertHealthy, ...(query === undefined ? {} : { query }) } });
+        ownerRows: { read: load, assertHealthy, policyQuery, ...(query === undefined ? {} : { query }) } });
     } catch (error) {
       if (error instanceof FenceConflictError) throw new StateError('conflict', 'Model query source authority moved beyond its checkpoint.');
       throw error;
@@ -2734,7 +2774,8 @@ async function observeModelQuerySourceAuthority(call: AdmittedCall, store: Stora
     const current = await load(model, row.id);
     if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'Original model query row lifetime changed.');
     const now = await observeRowGrantAuthority(context, observed => project(current, observed, load, finalHealthy,
-      predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, finalHealthy, final.writes)));
+      predicateDomain === undefined ? undefined : predicateControlDomain(model, predicateDomain, owner.maxRows, finalHealthy, final.writes),
+      policyDomains.retained(finalHealthy, final.writes)));
     finalHealthy();
     if (!readable(now.value)) throw new StateError('forbidden', 'Model query source field authority changed before commit.');
     await now.revalidate(); await authority.revalidate(); finalHealthy();
@@ -2860,8 +2901,9 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
           return invalid('source query crossed its actual owner stage.');
         }
       };
+      const policyDomains = ownerPolicyDomains(owner, stageHealthy);
       const predicateDomain = anyProfile?.kind === 'predicate' && plan.parent === undefined ? domain : undefined;
-      const stageReader = { assertHealthy: stageHealthy,
+      const stageReader = { assertHealthy: stageHealthy, policyQuery: policyDomains.capture,
         ...(predicateDomain === undefined ? {} : { query: predicateControlDomain(plan.model, predicateDomain, owner.maxRows, stageHealthy) }),
         read: async (model: ModelName, id: RecordId) => {
         stageHealthy(); const key = `${model}\0${id}`;
@@ -2960,7 +3002,7 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         const finalHealthy = () => {
           if (final === null || owner.finalized !== final || owner.capture.poisoned) return invalid('source query final owning effects are unavailable.');
         };
-        const originalReader = { assertHealthy: finalHealthy,
+        const originalReader = { assertHealthy: finalHealthy, policyQuery: policyDomains.retained(finalHealthy),
           ...(predicateDomain === undefined ? {} : { query: predicateControlDomain(plan.model, predicateDomain, owner.maxRows, finalHealthy) }),
           read: async (model: ModelName, id: RecordId) => {
           finalHealthy(); const key = `${model}\0${id}`;
@@ -3910,6 +3952,7 @@ export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: 
       if (owner.executingCall !== call || owner.stage !== stage || !owner.busy || state.pending !== 1 ||
           state.returnId !== null || ownerRows.get(input.row) !== issued) return invalid('model result crossed its actual owning return stage.');
     };
+    const policyDomains = ownerPolicyDomains(owner, healthy);
     const previous = await owner.session.views.entry.get(model, row.id); healthy();
     const existing = previous !== null;
     const observed = modelResultObservedRow(returned, state.observations, model, row.id);
@@ -3924,11 +3967,11 @@ export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: 
     const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
     const context: ByContext = { actorUserId, teamId, membership, memberships: reader };
     const project = async (current: StoredRow, observed: ByContext, read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>,
-      assertHealthy: () => void) => {
+      assertHealthy: () => void, policyQuery = policyDomains.capture) => {
       try {
         return await projectInstalledSourceRowAndAncestors({ model, row: current,
           readPolicies: producer.readPolicies!, policy: producer.policy, context: observed, revision: call.revision,
-          fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]), ownerRows: { read, assertHealthy } });
+          fence: undefined, store, rows: new Map([[`${model}\0${current.id}`, current]]), ownerRows: { read, assertHealthy, policyQuery } });
       } catch (error) {
         if (error instanceof FenceConflictError) throw new StateError('conflict', 'Returned model source authority moved beyond its checkpoint.');
         throw error;
@@ -3958,7 +4001,7 @@ export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: 
       };
       const current = await read(model, row.id);
       if (current === null || !sameModelLifetime(row, current)) throw new StateError('forbidden', 'Returned model lifetime is unavailable at commit.');
-      const projected = await observeRowGrantAuthority(context, observed => project(current, observed, read, finalHealthy));
+      const projected = await observeRowGrantAuthority(context, observed => project(current, observed, read, finalHealthy, policyDomains.retained(finalHealthy, final.writes)));
       finalHealthy();
       if (projected.value.record === null) throw new StateError('forbidden', 'Returned model grant no longer holds at commit.');
       await projected.revalidate(); await authority.revalidate(); finalHealthy();
