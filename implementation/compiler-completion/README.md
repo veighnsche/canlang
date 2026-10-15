@@ -61,22 +61,66 @@ membership typing, code generation and final source-census checks each pass
 actual compiler/native profile **1/1** and the retained contract/Work checks.
 JEV requests/responses and uncertainty are retained in the decision entry.
 
-The final original **24-source** command below exits **10**, with **926 errors**,
-`complete=true`, `omitted=0`, and no usable artifact. The three earlier semantic
-refusals are absent. Counts describe reported occurrences, including secondary
-whole-source correspondence refusals; they are not independent feature tasks.
+**Current C02/C10 batch — module-member ownership (2026-10-15).** Correct the
+IR builder's module index: nested fields/parameters/operations cannot replace a
+module role, model or scenario. Retain the resolver's exact lexical mutation-head
+binding before consulting module declarations. This implements the existing
+scope rules; no new language choice or repeated JEV consultation is needed.
+The original Expense reviewer fixtures retain `expense.reviewer`; the original
+Leave cancellation sequence retains all **15 steps**, canonical call order and
+its final repeated-cancellation failure. The actual source check uses frozen
+saved-Given inputs, including the real contributed fields. Source guards,
+permissions and workflows are preserved.
 
-| Defining mechanism | Diagnostics | Exact remaining requirement / examples |
+Both focused producer/guard checks pass **1/1**. Existing examples pass **29/29**;
+membership codegen and source-census/substitution checks each pass **7/7**.
+The broader codegen check has **140 unchanged passes**, with the changed case
+passing separately after correcting its installed-facade harness. Two form golden
+failures remain: `catalog_factories_lower_from_source` and
+`golden_expenseflow_structure`, both reproduced against the pre-change compiler.
+Their assertions are preserved; no all-green compiler-suite claim follows.
+The final CLI build, formatting and diff checks pass.
+
+The current original **24-source** command below exits **10**, with **909 errors**:
+**883 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+Relative to the retained 926-error run, this closes all three E6006 example
+omissions, eleven admission-lowering refusals and four lexical record-target
+refusals. Retaining the formerly omitted Leave sequence exposes one expression
+query-order refusal. Error counts alone are not workflow acceptance.
+
+Remaining report families are grouped by their defining mechanism; occurrences
+are not independent feature tasks:
+
+| Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
-| Native emission and checked source correspondence | 897 E6008 | Query/predicate lowering (including 83 first-query and 95 synchronous any/all refusals outside the finite installed cohort); UI/forms/filters/order and route bindings; event input/handler/hook/dispatch correspondence; business formatting, type/arithmetic and cross-operation lowering. Of these, 68 now explicitly refuse free route-row rendering, which the boolean-only admission ABI does not supply. No unbound JavaScript is accepted. |
-| Installed producer contracts | 26 E6007 | 25 checks lack bound producer catalog entries (including RoomsV1, ScheduleV1 and BillingV1); the supplied Values catalog also marks active_member external. The focused native installed-member catalog is separately tested, without inventing the absent business capability bindings. |
-| Original example analysis facts | 3 E6006 | Two Expense fixtures lack published reviewer-role facts; leave.cancel sequence steps lack the required example analysis facts. |
+| Checked source/inventory publication | 5 | Standard inventory/completions, membership and collection-call correspondence. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
+| Query and predicate lowering | 229 | 95 async any/all, 83 first-query correspondence, ordering/projection/predicate/domain/archive profiles. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
+| Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
+| Dynamic route normalization | 5 | Original typed route descriptors. |
+| Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
+| Value/type/arithmetic lowering | 37 | Structural value/type profiles and admitted scalar operators; eleven duration operations already have Values implementations. |
+| Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
+| Scenario/handler/authority emission | 93 | Original trigger/authority profiles and owning execution context. |
+| Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
+| Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
+| Declared event input carriers | 68 | Complete owning operation-input correspondence. |
+| Hook query/context/derive/effects | 76 | Original event snapshots, clock, query context and atomic effects. |
+| Installed producer contracts | 26 E6007 | 25 missing catalog checks across 17 bound capabilities; one external active_member entry in the supplied Values catalog. No invented bindings. |
 
-These results close the requested language contracts, not native/browser
-qualification of the complete CanCRM composition. Record-bound page admission is
-implemented; carrying its authorized route row into rendering remains an explicit
-implementation gap. The original reference scope is **not ready for unrestricted
-training-data authoring**. No training, dataset generation or push was performed.
+**Next ready candidate, proposed only:** lower the three already admitted duration
+operator shapes to existing Values helpers: duration/duration division (six
+occurrences), duration remainder (four) and int-times-duration (one). Preserve
+left-to-right evaluation, exact result types, sign, zero-divisor and overflow
+behavior, then recheck the original composition. This is a finite compiler/facade
+batch, not a new arithmetic design or a requirement to finish every numeric form.
+It is not implemented by the module-ownership change.
+
+These results close the declared module-lookup batch at its producer/guard scope,
+not native/browser qualification of complete CanCRM. The original reference scope
+is **not ready for unrestricted training-data authoring**. Existing broader
+reference and external release holds remain unchanged. No training, dataset
+generation or push was performed.
 
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:

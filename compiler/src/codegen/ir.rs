@@ -1058,7 +1058,7 @@ struct Cx<'a> {
     catalog: Option<&'a Catalog>,
     /// Re-parsed trees per source, in [`SourceDb`] order.
     trees: Vec<(SourceId, SyntaxNode)>,
-    /// `(module, name)` to member symbol.
+    /// `(module, name)` to direct module declaration, excluding nested owners.
     by_name: HashMap<(ModuleId, String), SymbolId>,
     /// `(owner, name)` to field symbol (model/contract/event/preferences
     /// fields plus derived fields).
@@ -1096,7 +1096,27 @@ impl<'a> Cx<'a> {
         let mut by_name = HashMap::new();
         let mut fields = HashMap::new();
         for symbol in &program.symbols {
-            by_name.insert((symbol.module, symbol.name.clone()), symbol.id);
+            // Nested fields/parameters/operations have their own lexical owner.
+            // They must not overwrite a module role, model or scenario with the
+            // same spelling. Capability events also share Event's kind, so
+            // require the exact direct-module canonical identity as well.
+            if !matches!(
+                symbol.kind,
+                SymbolKind::Field { .. }
+                    | SymbolKind::Param { .. }
+                    | SymbolKind::DeriveField { .. }
+                    | SymbolKind::Crud { .. }
+                    | SymbolKind::CrudOp { .. }
+                    | SymbolKind::CapabilityOp { .. }
+            ) && program
+                .modules
+                .get(symbol.module.0 as usize)
+                .is_some_and(|module| {
+                    symbol.canonical == format!("{}.{}", module.name, symbol.name)
+                })
+            {
+                by_name.insert((symbol.module, symbol.name.clone()), symbol.id);
+            }
             match &symbol.kind {
                 SymbolKind::Field { owner, .. } | SymbolKind::DeriveField { model: owner, .. } => {
                     fields.insert((*owner, symbol.name.clone()), symbol.id);
@@ -5941,7 +5961,23 @@ impl<'a> Cx<'a> {
                     .types
                     .cohort_child_references
                     .contains_key(&NodeKey::of(node))
+                    || self
+                        .program
+                        .types
+                        .lexical_value_references
+                        .contains(&NodeKey::of(node))
+                    || kids(node)
+                        .into_iter()
+                        .find(|head| head.kind == SyntaxKind::Name)
+                        .is_some_and(|head| {
+                            self.program
+                                .types
+                                .lexical_value_references
+                                .contains(&NodeKey::of(head))
+                        })
                 {
+                    // Mutation targets use Path syntax, but retain the same
+                    // checked lexical owner as ordinary NameRef values.
                     IrExpr::Name(name)
                 } else {
                     self.decode_bare_name(scope, &name, &ty, span)
@@ -6327,9 +6363,8 @@ impl<'a> Cx<'a> {
 
     /// Fixture symbol for `name` visible in `module` (tables only).
     fn fixture_in_scope(&self, module: ModuleId, name: &str) -> Option<SymbolId> {
-        // The generic by_name index also contains record fields and scenario
-        // parameters. Those declarations cannot mask a module's fixture inside
-        // an example recipe; actual lexical locals were handled before lookup.
+        // Fixture lookup is kind-specific; actual lexical locals were handled
+        // before lookup. Recipes use their test scope, including import aliases.
         let local = |module, name: &str| {
             self.program
                 .symbols

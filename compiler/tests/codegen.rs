@@ -8945,3 +8945,120 @@ Then
         "generated delete retains its existing-row precondition: {js}"
     );
 }
+
+/// Module declarations retain their checked identity when unrelated model
+/// fields and scenario parameters reuse their spelling.
+/// Unlike the historical goldens, this uses complete production emission.
+#[test]
+fn module_members_survive_nested_names_in_fixture_roles_and_sequence_calls() {
+    let source = r#"app ScopeOwners uses=[expense,consumer]
+package expense
+ Given
+  export role reviewer
+  export Claim {reviewer:user,request:text}
+  export fixture reviewer_user=user {roles=[reviewer]}
+  fixture claim=Claim {reviewer=reviewer_user,request="unchanged"}
+ When
+  export scenario request(value:text) by=reviewer
+   do let retained=value
+  scenario finish(request:Claim,reviewer:text) by=members
+   do set request {request=reviewer}
+   examples seed=[reviewer_user,claim]
+    do
+     call request {value="original"} by=reviewer_user
+     call finish {request=claim,reviewer="kept"} by=reviewer_user
+     let retained="original"
+     retained -> "original"
+ Then
+package consumer
+ use expense {reviewer as approval_role,Claim as Sheet,request as submit,reviewer_user}
+ Given
+  Collisions {approval_role:user,submit:text,Sheet:text}
+  fixture aliased_user=user {roles=[approval_role]}
+  fixture sheet=Sheet {reviewer=aliased_user,request="unchanged"}
+ When
+  scenario exercise(submit:text,approval_role:text) by=members
+   do let retained=submit
+   examples seed=[aliased_user,sheet]
+    do
+     call submit {value="imported"} by=aliased_user
+     call exercise {submit="imported",approval_role="kept"} by=aliased_user
+     let retained="imported"
+     retained -> "imported"
+ Then
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("module-members.can".into(), source.into());
+    let (catalog, path) = golden_catalog();
+    let (program, mut result) = check_example(&db, id, Some(&catalog));
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    result.complete = true;
+    // Exercise the installed handler guard facade; native receipt execution
+    // remains a separate host-owned profile, checked by the original composition.
+    let options = EmitOptions::new();
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    let _ = std::fs::remove_file(path);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let suites = artifact
+        .tests
+        .iter()
+        .map(|suite| suite.module.js.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(suites.len(), 2, "both original sequences remain present");
+    let node = find_node().expect("Node is required for generated fixture/sequence checks");
+    let script = r#"import assert from 'node:assert/strict';
+const modules=__MODULES__;
+const entryText=__ENTRY__.replaceAll('"@canlang/stdlib"',JSON.stringify(import.meta.resolve('@canlang/cloudflare/runtime/stdlib')));
+const entry=await import('data:text/javascript;base64,'+Buffer.from(entryText).toString('base64'));
+const handler=entry.canApp()['expense.request'];
+assert.equal(typeof handler,'function');
+await handler({memberships:['expense.reviewer']},{value:'authorized'});
+for(const memberships of [[],['reviewer'],['expense.Claim.reviewer'],['consumer.approval_role']]) {
+ await assert.rejects(()=>handler({memberships},{value:'denied'}),/forbidden/);
+}
+for (const js of modules) {
+ const module=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+ const value=module.exampleFixtures({self:{id:'self'},other:{id:'other'},imported:{}});
+ const user=value.fixtures.reviewer_user ?? value.fixtures.aliased_user;
+ assert.deepEqual(await user.user({},{}),{roles:['expense.reviewer']});
+ assert.equal(value.examples.length,1);
+ const example=value.examples[0];
+ assert.equal(example.sequence.length,4,'both calls, binding and assertion survive in authored order');
+ const [call,enclosing,binding,assertion]=example.sequence;
+ assert.ok(enclosing.operation==='expense.finish'||enclosing.operation==='consumer.exercise');
+ assert.equal(call.operation,'expense.request');
+ const caller={id:'selected reviewer'};
+ const scope={reviewer_user:caller,aliased_user:caller,claim:{id:'claim'}};
+ assert.equal(await call.by({},scope,{}),caller);
+ const input=await call.inputs({},scope,{});
+ assert.ok(input.value==='original'||input.value==='imported');
+ if(enclosing.operation==='expense.finish') assert.equal((await enclosing.inputs({},scope,{})).request,scope.claim);
+ const retained=await binding.value({},scope,{});
+ assert.equal(retained,input.value);
+ assert.deepEqual(await assertion.observations({},scope,{retained}),[retained]);
+ assert.deepEqual(await assertion.expected({},scope,{}),[retained]);
+ if(value.fixtures.sheet) {
+  assert.equal(value.fixtures.sheet.model,'expense.Claim');
+  assert.deepEqual(await value.fixtures.sheet.value({},scope),{reviewer:caller,request:'unchanged'});
+ }
+}
+"#.replace("__MODULES__", &serde_json::to_string(&suites).unwrap())
+        .replace("__ENTRY__", &serde_json::to_string(&artifact.modules[0].js).unwrap());
+    let output = std::process::Command::new(node)
+        .args(["--input-type=module", "--eval", &script])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
