@@ -135,6 +135,8 @@ export interface FinalizedFileReceiver {
 export interface FileRetentionPolicy {
   readonly unattachedHorizonMs: number;
   readonly retentionMs: number;
+  /** Timely attached files remain current until explicitly removed; no synthetic infinite deadline. */
+  readonly retainAttached?: true;
 }
 
 /** Immutable original physical identity; matching these facts grants no authority.
