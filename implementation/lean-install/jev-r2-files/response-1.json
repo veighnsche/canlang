@@ -1,0 +1,20 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "direction": {
+      "type": "choice",
+      "choice": "d1_r2_adapter",
+      "confidence": 0.95,
+      "probabilities": {
+        "d1_r2_adapter": 0.96,
+        "files_actor": 0.0,
+        "async_kernel": 0.0,
+        "investigate": 0.04
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1500,
+    "output_tokens": 58
+  }
+}

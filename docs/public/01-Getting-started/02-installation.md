@@ -4,7 +4,45 @@ Set up the `can` compiler, create a complete task application, and check its sou
 
 ## The tools you will use
 
-The compiler is a single `can` binary. Compiler commands such as `check`, `fmt` and `policy` use it directly; platform commands also need the matching `can-platform` runtime, and local development needs `can-dev`. Build the source workspace below to obtain those tools and the language catalog together.
+The compiler is a single `can` binary. Compiler commands such as `check`, `fmt` and `policy` use it directly; platform commands also need the matching `can-platform` runtime, and local development needs `can-dev`. The standalone bundle supplies those tools and the matching language catalog together. The source route below is for contributors.
+
+## Install the standalone bundle
+
+The prepared public install command is:
+
+```sh
+curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
+```
+
+Deployment is pending: the website owner must host the installer and a matching
+standalone GitHub release must be published first. The script downloads the
+platform bundle and checksum from GitHub Releases.
+
+Until then, from a downloaded standalone release artifact set, run:
+
+```sh
+sh install-local.sh
+```
+
+The installer verifies the bundled archive checksum, installs under `~/.can`,
+and configures your shell PATH. Open a new terminal, then run `can --version`.
+You do not need to install Rust, Node, Bun or npm packages. The complete bundle
+includes the local Worker engine. Chrome and Playwright are excluded.
+For browser automation, explicitly run the separately supplied
+`sh install-browser-tools.sh` after installing Can. That development installation
+lives outside the core installation; ordinary preview and inline examples do not
+need it. Required browser acceptance fails with installation guidance when the
+add-on is absent.
+
+Release status: the macOS arm64 bundle is locally verified. Public download
+hosting and Homebrew publication are still pending. The checkout's generated
+bundle can be installed with `sh output/install/install-local.sh`; this command
+uses prebuilt files and performs no source build. Linux x64 qualification is
+prepared for Ubuntu 24.04 CI and has not run here. See the repository's
+[installation reference](https://github.com/veighnsche/canlang/blob/main/docs/install.md)
+for the exact measured sizes and current release scope.
+
+You can write and run the following tutorial in your own application directory.
 
 ## Set up a complete source workspace
 
@@ -23,7 +61,7 @@ export CAN_DEV_BIN="$PWD/packages/cloudflare/dist/dev/control-cli.js"
 can --version
 ```
 
-Run the following tutorial from that repository root so the compiler can discover `packages/values/dist/catalog.json`. In another directory, pass an absolute `--catalog=PATH` to compiler commands or set `CAN_CATALOG`. Keep absolute runtime overrides when changing directories.
+For the source-workspace route, run the following tutorial from that repository root so the compiler can discover `packages/values/dist/catalog.json`. In another directory, pass an absolute `--catalog=PATH` to compiler commands or set `CAN_CATALOG`. Keep absolute runtime overrides when changing directories.
 
 ## Create Tasks
 

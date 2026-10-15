@@ -1,7 +1,7 @@
 /** Private host adapter for Values' demanded reference encoder callback.
  * This checks a genuine native identity against its owning typed occurrence;
  * State still owns admission, row authority, effects and lifetime checks. */
-import type { CanValue, RecordRef } from '@canlang/contracts';
+import type { CanValue, RecordRef, CanonicalValueTypes, CompileArtifact } from '@canlang/contracts';
 import { parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
 import { nativeRecordReference } from './native-records.js';
 
@@ -75,4 +75,23 @@ export function nativeValueReferenceEncoder(rootType: string, schema: Normalized
     }
     return refuse();
   };
+}
+
+
+/** The compiler omits the nominal inventory only for an original empty declaration set. */
+export function checkedNativeValueTypes(artifact: CompileArtifact, originalDefinition: unknown,
+  loaded: CanonicalValueTypes | undefined): CanonicalValueTypes {
+  if (loaded !== undefined) return loaded;
+  const empty = (key: string, required: boolean): boolean => {
+    if (typeof originalDefinition !== 'object' || originalDefinition === null) return false;
+    const descriptor = Object.getOwnPropertyDescriptor(originalDefinition, key);
+    if (descriptor === undefined) return !required;
+    if (!('value' in descriptor) || descriptor.value === null || typeof descriptor.value !== 'object' || Array.isArray(descriptor.value)) return false;
+    const prototype = Object.getPrototypeOf(descriptor.value);
+    return (prototype === Object.prototype || prototype === null) && Reflect.ownKeys(descriptor.value).length === 0;
+  };
+  if (artifact.valueTypes !== undefined || artifact.models === undefined || !empty('contracts', true) || !empty('enums', false) || !empty('aliases', false)) {
+    throw new Error('Original nominal value declarations are missing from the canonical inventory.');
+  }
+  return Object.freeze({ contracts: Object.freeze([]) });
 }

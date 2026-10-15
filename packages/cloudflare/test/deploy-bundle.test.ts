@@ -259,6 +259,8 @@ describe("deploy bundle (P-B)", () => {
       "runtime/context.js",
       "runtime/stdlib.js",
       "runtime/native-membership.js",
+      "runtime/native-read-boolean.js",
+      "runtime/native-value-schema.js",
       "runtime/generation-callback-origin.js",
       "runtime/invoke.js",
       "runtime/sourcemap.js",

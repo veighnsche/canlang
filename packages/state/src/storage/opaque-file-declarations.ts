@@ -326,7 +326,7 @@ function originalDeliveryInstance(bound: BoundOpaqueDeclarations, selected: Fram
     const event = original.kind === 'standard-completion' ? original.declaration
       : original.kind === 'event-input' ? original.declaration
       : original.kind === 'handler-result' ? original.event.declaration
-      : original.kind === 'source-routing' && original.recipe.kind !== 'committed-model'
+      : original.kind === 'source-routing' && (original.recipe.kind === 'scheduled-cohorts' || original.recipe.kind === 'scheduled-routes')
         ? original.recipe.event.declaration : undefined;
     if (event?.kind !== 'standard-completion') return refuse('original delivery instance is absent from this payload origin.');
     context = event.delivery; source = event.source;
@@ -448,7 +448,15 @@ export function resolveOpaqueFileProjection(bound: BoundOpaqueDeclarations, proj
     if (selected.declaration.source.kind === 'delivery' && selected.declaration.source.context.kind === 'generation-profile') {
       originalDeliveryInstance(bound, selected.declaration, binding);
     }
-    if (selected.declaration.source.kind === 'send-guard') same(picked.path, ['inputs']);
+    if (selected.declaration.source.kind === 'send-guard') {
+      const queued = binding?.origin.kind === 'source-routing' && binding.origin.recipe.kind === 'queued-routes'
+        ? binding.origin.recipe : undefined;
+      if (queued?.guard !== undefined && queued.guard.inputsDeclarationId === picked.declarationId) {
+        validateOpaqueFileOrigin(bound, binding!);
+        same(queued.guard.declaration, (() => { const { kind: _kind, ...original } = selected.declaration.source; return original; })());
+        same(picked.path, ['origin', 'dispatch', 'sourceGuard', 'inputs']);
+      } else same(picked.path, ['inputs']);
+    }
     const inputs = selected.inputs!;
     const data = record(wire, [], [...inputs.keys()]);
     const found: { path: readonly (string | number)[]; ref: string }[] = [];
@@ -630,7 +638,13 @@ function callable(bound: BoundOpaqueDeclarations, value: FrameworkOpaqueCallable
   record(value, ['source', 'callable', 'canonical', 'artifact', 'resultDeclarationId']);
   source(bound.declarationSet, value.source); callableShape(value.callable);
   record(value.canonical, ['name', 'kind', 'inputs'], ['result']);
-  record(value.artifact, ['name', 'kind', 'description', 'inputs'], ['result']);
+  record(value.artifact, ['name', 'kind', 'description', 'inputs'], ['result', 'rootAuthority']);
+  if (value.artifact.rootAuthority !== undefined) {
+    const root = record(value.artifact.rootAuthority, ['binding', 'model'], ['createsRoot']);
+    string(root.binding); string(root.model);
+    if (!bound.declarationSet.canonicalModels.some(model => model.name === root.model)) return refuse('actual original root model required.');
+    if (Object.hasOwn(root, 'createsRoot') && root.createsRoot !== true) return refuse('actual checked root creation marker required.');
+  }
   if (value.callable.module !== value.source.module || value.callable.id !== value.canonical.name ||
       value.callable.id !== value.artifact.name || value.canonical.kind !== value.artifact.kind) return refuse('complete original callable identity required.');
   if (typeof value.artifact.description !== 'string' || !['read', 'create', 'update', 'delete', 'scenario'].includes(value.canonical.kind)) return refuse('actual original callable descriptor required.');
@@ -706,6 +720,14 @@ function eventOrigin(bound: BoundOpaqueDeclarations, value: FrameworkOpaqueEvent
         same(projected.profile.canonical, value.target.handler.canonical.inputs);
       }
     }
+  } else if (value.target.kind === 'queue-publication') {
+    record(value.target, ['kind', 'intent']);
+    record(value.target.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+    for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(value.target.intent[key]);
+    integer(value.target.intent.occurrenceIndex);
+    if (value.declaration.kind !== 'declared-event' || value.lineage.kind !== 'source') return refuse('queue publication requires its original declared event/source.');
+    same(value.occurrenceId, value.target.intent.intentId); same(value.sourceOccurrence, value.target.intent.intentId);
+    same(value.target.intent.target, `${value.declaration.event}.publish`);
   } else if (value.target.kind === 'schedule') record(value.target, ['kind']);
   else return refuse('actual event target required.');
 }
@@ -822,6 +844,23 @@ function origin(bound: BoundOpaqueDeclarations, value: FrameworkOpaquePayloadOri
       integer(recipe.context.now); bounds(recipe.bounds);
       for (const route of recipe.routes) if (!recipe.descriptor.handlers.includes(route.handler.callable.id)) return refuse('actual committed-model route handler required.');
       routes(bound, recipe.routes);
+    } else if (recipe.kind === 'queued-routes') {
+      record(recipe, ['kind', 'declaration', 'originalIntent', 'originalCommit', 'routes'], ['guard']);
+      eventDeclaration(bound, recipe.declaration);
+      record(recipe.originalIntent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+      for (const key of ['intentId', 'operation', 'operationId', 'target'] as const) string(recipe.originalIntent[key]);
+      integer(recipe.originalIntent.occurrenceIndex);
+      same(recipe.originalIntent.target, `${recipe.declaration.event}.publish`);
+      same(value.occurrenceId, `queue/v1/${encodeURIComponent(recipe.originalIntent.intentId)}`);
+      record(recipe.originalCommit, ['revision', 'createdAt']); integer(recipe.originalCommit.revision); integer(recipe.originalCommit.createdAt);
+      if (recipe.originalCommit.revision >= value.revision) return refuse('queue publication must precede its intake.');
+      if (recipe.guard !== undefined) {
+        origin(bound, recipe.guard);
+        const { dispatchGuard: _rule, ...originalIntent } = recipe.guard.intent;
+        same(originalIntent, recipe.originalIntent);
+      }
+      routes(bound, recipe.routes);
+      if (recipe.routes.some(route => route.kind !== 'ordinary')) return refuse('queue requires exact ordinary handler routes.');
     } else if (recipe.kind === 'scheduled-cohorts' || recipe.kind === 'scheduled-routes') {
       record(recipe, ['kind', 'event', 'bounds', 'routes']); eventOrigin(bound, recipe.event);
       record(recipe.bounds, ['pageLimit', 'chunkSize']);

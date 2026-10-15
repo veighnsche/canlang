@@ -40,13 +40,22 @@ export class MissingExampleTestkitError extends Error {
   }
 }
 
-/** The invoking application installs the optional producer, without a package cycle. */
+/** Prefer the application's producer, then the producer shipped with this runtime. */
 export async function loadInstalledExampleTestkit(applicationRoot: string): Promise<ExampleTestkitPort> {
   let entry: string;
   try {
     entry = createRequire(resolve(applicationRoot, "package.json")).resolve("@canlang/testkit");
-  } catch {
-    throw new MissingExampleTestkitError();
+  } catch (error) {
+    if (!(error instanceof Error) || (error as NodeJS.ErrnoException).code !== "MODULE_NOT_FOUND" ||
+        error.message.split("\n", 1)[0] !== "Cannot find module '@canlang/testkit'") throw error;
+    try { entry = createRequire(import.meta.url).resolve("@canlang/testkit"); }
+    catch (fallbackError) {
+      if (fallbackError instanceof Error && (fallbackError as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
+          fallbackError.message.split("\n", 1)[0] === "Cannot find module '@canlang/testkit'") {
+        throw new MissingExampleTestkitError();
+      }
+      throw fallbackError;
+    }
   }
   const kit = await import(pathToFileURL(entry).href);
   requirement(kit.loadExampleSuite, "testkit loader");

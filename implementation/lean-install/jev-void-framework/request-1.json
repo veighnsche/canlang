@@ -1,0 +1,31 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "goal": "Implement real authored void source scenario queue+analytics deferred sends with typed guards, atomic State Work rows+outbox, exact null public result and replay without reemission. Prefer smallest complete implementation.",
+    "verified": {
+      "compiler": "Actual release compiler emits complete original scenario result {type:void,disclosure:{version:1,returns:[...]}} even with Work contract payload and guarded queue+analytics sends. Genuine State-loaded descriptor preserves same plan. No missing compiler plan.",
+      "State": "beginScenarioReceiptMutation registers actual owner session and framework ledger from installed frameworkProducers. Framework stage refuses unless that ledger exists. State already retains/projects void receipt association and enforces null result, exact finalized business+framework effects, atomic owner commit and replay.",
+      "join": "Cloudflare bindScenarioFrameworkProducers iterates genuine planned scenario defs, imports verified original module appDefinition, reads only legacy bindings service inventory. It immediately skips if names.length===0&&!deliveryFields. New checked queue/analytics declarations live appDefinition.runtimeBindings instead. Therefore no same-load framework producer binding nor sendGuards WeakMap is installed for runtime-resource-only source scenarios. owner session exists but framework=null.",
+      "resources": "Artifact and original appDefinition carry identical compiler-owned runtimeBindings array: queue {owner,name,binding:owner.name,type,handlers}, analytics {owner,name,binding:owner.name,schema}. resolveResourceSend validates declared operation/binding/payload. Queue canonical target owner.name.publish, AE owner.name.write. selected owner closure is source compiler-owned, selected host provisions only chosen owners.",
+      "guards": "Same native typed lexical declaration, original source guard Rule IDs, State owner frame and Work staging ABI already used for service sends; local pure value contracts are now admitted through checked schema at both lexical gates. No eager external effect required."
+    },
+    "options": {
+      "reuse": "Extend exact existing verified framework producer inventory with queue/AE binding+targets from original runtimeBindings, compare array exactly artifact, maintain all existing guards and State finalization/replay; no new carriers/compiler changes.",
+      "new_frame": "Add a dedicated void framework-owner session to State plus new runtime binding path, retain null receipt handling separately, even though original full void plan and owner session exist.",
+      "new_plan": "Change compiler to emit a separate checked void framework plan and State new consumer, retaining same source declaration correspondence, even though current void disclosure plan is already emitted/loaded.",
+      "investigate": "A concrete missing checked authority or semantic prerequisite blocks choosing; inspect it before editing."
+    }
+  },
+  "questions": {
+    "direction": {
+      "type": "choice",
+      "instructions": "Which implementation direction best fulfills this finite void-resource scenario behavior with least new mechanism while preserving every listed authority/atomicity/replay condition?",
+      "criteria": {
+        "reuse": "Extend exact existing verified framework producer inventory with queue/AE binding+targets from original runtimeBindings, compare array exactly artifact, maintain all existing guards and State finalization/replay; no new carriers/compiler changes.",
+        "new_frame": "Add a dedicated void framework-owner session to State plus new runtime binding path, retain null receipt handling separately, even though original full void plan and owner session exist.",
+        "new_plan": "Change compiler to emit a separate checked void framework plan and State new consumer, retaining same source declaration correspondence, even though current void disclosure plan is already emitted/loaded.",
+        "investigate": "A concrete missing checked authority or semantic prerequisite blocks choosing; inspect it before editing."
+      }
+    }
+  }
+}

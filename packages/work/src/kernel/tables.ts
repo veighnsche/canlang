@@ -219,6 +219,8 @@ export function readDispatchSourceGuard(data: Readonly<Record<string, unknown>>)
 
 /** Claim lifecycle per staged intent. Flat for store querying. */
 export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin>, Partial<DispatchMailRecipientPin> {
+  readonly queuePayload?: Readonly<Record<string, unknown>>;
+  readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly sourceGuard?: DispatchSourceGuard;
   readonly filePayloadOrigin?: FrameworkFilePayloadOrigin;
   readonly intentId: OutboxId;
@@ -482,11 +484,12 @@ export function readWorkFilePayloadOrigin(
   data: Readonly<Record<string, unknown>>,
   row: Pick<StoredRow, 'id' | 'created' | 'createdBy'>,
   model: ModelName,
-  field: 'payload' | 'result' | 'sourceGuard',
+  field: 'payload' | 'result' | 'sourceGuard' | 'queuePayload',
   role: 'retained-result' | 'deferred-input',
+  headerField: 'filePayloadOrigin' | 'queuePayloadOrigin' = 'filePayloadOrigin',
 ): FrameworkFilePayloadOrigin | undefined {
-  if (!Object.hasOwn(data, 'filePayloadOrigin')) return undefined;
-  const descriptor = Object.getOwnPropertyDescriptor(data, 'filePayloadOrigin');
+  if (!Object.hasOwn(data, headerField)) return undefined;
+  const descriptor = Object.getOwnPropertyDescriptor(data, headerField);
   if (descriptor === undefined || !descriptor.enumerable || !('value' in descriptor)) throw new KernelTableError('filePayloadOrigin must be own JSON data.');
   const value = snapshotKernelJsonValue(descriptor.value, 'filePayloadOrigin');
   const origin = closedOriginRecord(value, ['version', 'inventory', 'declarationSetId', 'slot', 'scope', 'origin', 'files'], 'filePayloadOrigin');
@@ -581,6 +584,17 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
       throw new KernelTableError('work.dispatch sourceGuard differs from its original physical intent/declaration.');
     }
   }
+  const queuePayloadOrigin = readWorkFilePayloadOrigin(data, row, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin');
+  const queuePayload = Object.hasOwn(data, 'queuePayload') ? snapshotKernelJsonValue(checkRecord(data['queuePayload'], 'work.dispatch.queuePayload'), 'work.dispatch.queuePayload') : undefined;
+  if ((queuePayload === undefined) !== (queuePayloadOrigin === undefined)) throw new KernelTableError('work.dispatch queue payload and original header must be present together.');
+  if (queuePayloadOrigin !== undefined) {
+    const origin = queuePayloadOrigin.origin;
+    if (origin.kind !== 'event-input' || origin.target.kind !== 'queue-publication' || origin.declaration.kind !== 'declared-event' ||
+        origin.occurrenceId !== row.id || origin.sourceOccurrence !== row.id || origin.lineage.kind !== 'source' || origin.lineage.sourceOccurrence !== row.id ||
+        origin.target.intent.intentId !== row.id || origin.target.intent.operationId !== data['operationId'] ||
+        origin.target.intent.target !== data['source'] || origin.target.intent.occurrenceIndex !== data['occurrenceIndex'] ||
+        origin.target.intent.target !== `${origin.declaration.event}.publish`) throw new KernelTableError('work.dispatch queue publication lost its original event/intent.');
+  }
   const correlation = readDispatchImageCorrelation(data);
   const mailPin = readDispatchMailRecipientPin(data);
   if (mailPin !== null && data['source'] !== 'std.EmailV1.send_user') throw new KernelTableError('Private mail pin requires its original user send.');
@@ -596,6 +610,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     ...(mailPin ?? {}),
     ...(sourceGuard === null ? {} : { sourceGuard }),
     ...(filePayloadOrigin === undefined ? {} : { filePayloadOrigin }),
+    ...(queuePayload === undefined ? {} : { queuePayload, queuePayloadOrigin: queuePayloadOrigin! }),
     intentId: checkString(data, 'intentId', 'work.dispatch'),
     operationId: checkString(data, 'operationId', 'work.dispatch'),
     source: checkString(data, 'source', 'work.dispatch'),
@@ -763,7 +778,7 @@ export function newDispatchRow(
   input: Pick<
     DispatchRowData,
     'intentId' | 'operationId' | 'source' | 'occurrenceIndex' | 'originOccurrence'
-  > & Partial<DispatchImageCorrelation> & { readonly sourceGuard?: DispatchSourceGuard; readonly filePayloadOrigin?: FrameworkFilePayloadOrigin },
+  > & Partial<DispatchImageCorrelation> & { readonly sourceGuard?: DispatchSourceGuard; readonly filePayloadOrigin?: FrameworkFilePayloadOrigin; readonly queuePayload?: Readonly<Record<string, unknown>>; readonly queuePayloadOrigin?: FrameworkFilePayloadOrigin },
   meta: NewRowMeta,
 ): StoredRow {
   const correlation = readDispatchImageCorrelation(input as unknown as Readonly<Record<string, unknown>>);

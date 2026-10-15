@@ -522,7 +522,8 @@ export interface UploadDeps {
   readonly app: AppInfo;
   readonly files: FileUseInfo;
   readonly kernel: FileKernel;
-  readonly identity: IdentityDeps;
+  /** Uploads resolve credentials; they do not send mail or run account lifecycle routes. */
+  readonly identity: Pick<IdentityDeps, 'store'> & Partial<Omit<IdentityDeps, 'store'>>;
   readonly logger: Logger;
   readonly clock: InterfacesClock;
 }

@@ -1,0 +1,45 @@
+{
+  "request": {
+    "state": {
+      "required": "Implement true per-Calendar SQLite Durable Object authority. Children inherit it; root IDs derive complete app/team/principal/operation/opID identity. Every mutation one owner; reject cross-root reads/writes; use fresh Identity D1 auth facts without claiming distributed atomic auth. Directory D1 eventual discovery only, direct routed IDs work before indexing. Must implement now; no D1 business fallback.",
+      "verified": [
+        "DESIGN section7 specifies per-root DO authority, routable child references, eventual directory, and one-authority fences/receipts/outbox.",
+        "Current canonical invoker accepts StoragePort and fresh ResolvedIdentity, performs State admission/receipts/commit; native create IDs use operationId#create:index and require new allocator hook.",
+        "createDOStorage + ensureSchema is real SQLite StoragePort. Existing DO class is TEST-ONLY arbitrary method RPC and cannot be production reused.",
+        "Current worker uses D1 business store and supports team D1 routing. No existing production DO root routing or directory.",
+        "Record references use opaque string IDs; root prefix in IDs avoids adding user-settable authority fields. Must still verify Values/ID length behavior.",
+        "Whole-invocation actor can receive original credential-bearing HTTP request, independently authenticate using Identity D1 and execute canonical invocation with local DO StoragePort. Requires trusted store/allocator composition hooks and concrete generated class export.",
+        "Alternative scoped StoragePort protocol keeps canonical invoker on frontend and forwards fixed validated load/query/commit/receipt actions to DO with signed fresh scope and bound actor. It still uses local atomic commit and optimistic fence, but business reads/evaluation cross RPC and replay/authority/session capabilities need transport-safe handling.",
+        "Either design must pin root/team, reject foreign mutable records, preserve evaluation order and atomic commit/outbox, provide actual emitted-source tests, and implement eventual directory separately with owner-written work."
+      ]
+    },
+    "questions": {
+      "boundary": {
+        "type": "choice",
+        "instructions": "Which implementation boundary best meets per-root authority, recovery and maintainability given these existing producer APIs?",
+        "criteria": {
+          "actor": "Route each business request to its root actor, reauthenticate there, and use existing canonical evaluation/receipts with direct DO storage. Expose no arbitrary storage RPC.",
+          "port": "Reuse frontend evaluation by transporting a complete allowlisted StoragePort to its root DO. Authenticate scope and maintain all fence and session provenance semantics across calls."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "boundary": {
+        "type": "choice",
+        "choice": "actor",
+        "confidence": 0.98,
+        "probabilities": {
+          "actor": 0.99,
+          "port": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 814,
+      "output_tokens": 31
+    }
+  }
+}

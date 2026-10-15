@@ -24,8 +24,8 @@ import { LocalCommandInterrupted, type LocalCommandLifetime } from "../cli/comma
  *   PORTABLE `AssembledModules` (module-map-relative URLs, never node
  *   file-URLs) and `verdict` is the deploy-time `activate()` verdict the
  *   caller computed.
- * - `worker/mcp-handler.js`: the interfaces/MCP-SDK handler chain, `bun
- *   build --target=browser --format=esm` from a generated entry that
+ * - `worker/mcp-handler.js`: the interfaces/MCP-SDK handler chain, `esbuild
+ *   --bundle --platform=browser --format=esm` from a generated entry that
  *   re-exports ONLY the real `createMcpHandler` (interfaces dist, also
  *   aliased as `createHandler` for the main's join contract) and the real
  *   `createArtifactRegistry`/`createArtifactCatalog` (cloudflare dist) —
@@ -33,7 +33,7 @@ import { LocalCommandInterrupted, type LocalCommandLifetime } from "../cli/comma
  *   INCLUDING its marker check. Bundling (not vendoring) is required
  *   because transitive MCP SDK deps (ajv, content-type) ship CJS only.
  * - `worker/http-operations.js` (C3): the real `handleOperationRequest`
- *   POST chain, `bun build --target=browser --format=esm` from a pure
+ *   POST chain, `esbuild --bundle --platform=browser --format=esm` from a pure
  *   re-export entry (MCP-identical shape, so no entry-path comment
  *   leaks the tmpdir and the bundle stays deterministic). The main's
  *   join contract curries it (`(deps) => (req, op) => ...` — arity
@@ -140,11 +140,25 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "stdlib.js",
   "native-records.js",
   "native-membership.js",
+  "native-read-boolean.js",
+  "native-value-schema.js",
   "native-ui-query.js",
   "generation-callback-origin.js",
   "scenario-receipt-frame.js",
   "assembly-verification.js",
   "invoke.js",
+  "resource-dispatch.js",
+  "file-inventory.js",
+  "d1-file-inventory.js",
+  "r2-files.js",
+  "worker-files.js",
+  "bound-files.js",
+  "resource-host.js",
+  "queue-runtime.js",
+  "queue-file-retention.js",
+  "root-authority.js",
+  "root-authority-http.js",
+  "root-authority-directory.js",
   "given-unique-keys.js",
   "bound-judgment.js",
   "input-choices.js",
@@ -167,21 +181,45 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
 export const DEPLOY_DIR_SUFFIX = ".deploy";
 /** Stage-local termination trigger and captured-output cap; not a whole-command
  * deadline or a guarantee about descendant processes or absolute exit time. */
-const LOCAL_BUN_BUILD_OPTIONS = {
+const LOCAL_BUNDLE_BUILD_OPTIONS = {
   stdio: "pipe", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 1_048_576,
 } as const;
 
-function bunBuildOptions(lifetime?: LocalCommandLifetime) {
-  return lifetime === undefined ? LOCAL_BUN_BUILD_OPTIONS : {
-    ...LOCAL_BUN_BUILD_OPTIONS, timeout: lifetime.remainingMs(LOCAL_BUN_BUILD_OPTIONS.timeout),
+function bundleBuildOptions(lifetime?: LocalCommandLifetime) {
+  return lifetime === undefined ? LOCAL_BUNDLE_BUILD_OPTIONS : {
+    ...LOCAL_BUNDLE_BUILD_OPTIONS, timeout: lifetime.remainingMs(LOCAL_BUNDLE_BUILD_OPTIONS.timeout),
   };
 }
 
-function bunStageFailure(error: unknown, lifetime?: LocalCommandLifetime): unknown {
+function bundleStageFailure(error: unknown, lifetime?: LocalCommandLifetime): unknown {
   if (error instanceof LocalCommandInterrupted) return error;
   // Pin the operative stage outcome before cleanup can consume its budget.
-  try { lifetime?.checkpoint("deploy Bun failed"); } catch (interruption) { return interruption; }
+  try { lifetime?.checkpoint("deploy esbuild failed"); } catch (interruption) { return interruption; }
   return error;
+}
+
+/** Keep the bundler outside the host event loop and under the same process
+ * limits as other local tools. Resolve the JS API: esbuild's bin may be a
+ * native executable after installation, so it cannot always be run by Node.
+ * A stable stdin sourcefile keeps generated-entry scratch paths out of bytes. */
+const ESBUILD_DRIVER = `
+const [esbuild, entry, outfile, minifyWhitespace] = process.argv.slice(1);
+const fs = require("node:fs"), path = require("node:path");
+const result = require(esbuild).buildSync({
+  stdin: { contents: fs.readFileSync(entry, "utf8"), resolveDir: path.dirname(entry), sourcefile: path.basename(entry) },
+  bundle: true, platform: "browser", format: "esm", target: "esnext",
+  minifyWhitespace: minifyWhitespace === "true", outfile, write: false, metafile: true,
+});
+for (const output of Object.values(result.metafile.outputs)) {
+  for (const imported of output.imports) {
+    if (imported.external) throw new Error("deploy bundle: refusing external import " + JSON.stringify(imported.path));
+  }
+}
+for (const output of result.outputFiles) fs.writeFileSync(output.path, output.contents);
+`;
+
+function runBrowserBundle(entry: string, output: string, lifetime?: LocalCommandLifetime, minifyWhitespace = false): void {
+  execFileSync(process.execPath, ["--eval", ESBUILD_DRIVER, createRequire(import.meta.url).resolve("esbuild"), entry, output, String(minifyWhitespace)], bundleBuildOptions(lifetime));
 }
 
 /** Thrown error `code` when the built worker entry is missing. */
@@ -680,6 +718,7 @@ function rewriteSelectedProducerImports(js: string, moduleKey: string): string {
   ]));
   return rewriteNamedProducerImports(js, moduleKey, STATE_STORAGE_SOURCE_SPECIFIER, new Map([
     ['bindOpaqueFileDeclarations', 'vendor/state/storage/opaque-file-declarations.js'],
+    ['STATE_FILE_REFERENCE_PRODUCER', 'vendor/state/storage/file-reference-inventory.js'],
     ['prepareFrameworkFilePayloadOrigin', 'vendor/state/storage/file-retirement.js'],
     ['resolveOpaqueFileProjection', 'vendor/state/storage/opaque-file-declarations.js'],
     ['validateOpaqueFileOrigin', 'vendor/state/storage/opaque-file-declarations.js'],
@@ -693,6 +732,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
+    if (spec === "@canlang/state/storage") return relativeSpecifier(moduleKey, "vendor/state/storage/index.js");
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
     if (spec === STATE_MUTATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_MUTATION_VENDOR_ENTRY);
     if (spec === STATE_INVOCATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_INVOCATION_VENDOR_ENTRY);
@@ -708,15 +748,18 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
     if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
+    if (spec === "@canlang/work/recovery") return relativeSpecifier(moduleKey, "vendor/work/recovery/index.js");
     if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
     if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+    if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
+    if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
     if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
     if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
     if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
-    if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
+    if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations" || spec === "@canlang/interfaces/uploads/kernel") {
       return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
     }
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
@@ -766,7 +809,7 @@ function stageWorkStagingProducers(): Record<string, string> {
     WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER,
     WORK_INTENT_STAGING_SOURCE_SPECIFIER,
     WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER,
-    "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
+    "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence", "@canlang/work/kernel/commands", "@canlang/work/recovery"]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
   entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "committed-model-source.js"));
   entries.push(join(fileURLToPath(workDistribution.modules), "kernel", "standard-completion-source.js"));
@@ -842,14 +885,18 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === UI_SPECIFIER) return relativeSpecifier(moduleKey, UI_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_VENDOR_ENTRY);
+    if (spec === "@canlang/state/storage") return relativeSpecifier(moduleKey, "vendor/state/storage/index.js");
     if (spec === STATE_QUERY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_QUERY_VENDOR_ENTRY);
     if (spec === "@canlang/state/storage/port") return relativeSpecifier(moduleKey, "vendor/state/storage/port.js");
     if (spec === WORK_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_VENDOR_ENTRY);
     if (spec === WORK_DISPATCH_EXECUTION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_EXECUTION_VENDOR_ENTRY);
+    if (spec === "@canlang/work/recovery") return relativeSpecifier(moduleKey, "vendor/work/recovery/index.js");
     if (spec === WORK_INTENT_STAGING_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_INTENT_STAGING_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+    if (spec === "@canlang/files/upload") return relativeSpecifier(moduleKey, "vendor/files/upload/index.js");
+    if (spec === "@canlang/files/provenance") return relativeSpecifier(moduleKey, "vendor/files/provenance/index.js");
     if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
     if (spec === FILES_BRIDGE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_BRIDGE_VENDOR_ENTRY);
     if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
@@ -990,13 +1037,9 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
       "utf8",
     );
     entryWritten = true;
-    lifetime?.checkpoint("deploy Bun start");
-    execFileSync(
-      "bun",
-      ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      bunBuildOptions(lifetime),
-    );
-    lifetime?.checkpoint("deploy Bun completed");
+    lifetime?.checkpoint("deploy esbuild start");
+    runBrowserBundle(entryFile, outFile, lifetime);
+    lifetime?.checkpoint("deploy esbuild completed");
   } catch (err) {
     if (!entryWritten) {
       try {
@@ -1005,21 +1048,15 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
         throw err;
       }
     }
-    const failure = bunStageFailure(err, lifetime);
+    const failure = bundleStageFailure(err, lifetime);
     try {
       rmSync(workDir, { force: true, recursive: true });
     } finally {
       if (failure instanceof LocalCommandInterrupted) throw failure;
       const detail = err instanceof Error ? err.message : String(err);
-      if (detail.includes("ENOENT")) {
-        throw new Error(
-          "deploy bundle: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
-            "install bun (https://bun.sh) or deploy via `bun run`",
-        );
-      }
       throw new Error(
-        `deploy bundle: MCP bundle build failed (\`bun build\` on the generated entry); ` +
-        `the MCP SDK must resolve (run \`bun install\`) and both producer dists must be built. ` +
+        `deploy bundle: MCP bundle build failed (\`esbuild\` on the generated entry); ` +
+        `the MCP SDK and esbuild must resolve and both producer dists must be built. ` +
         `Underlying error: ${detail}`,
       );
     }
@@ -1051,10 +1088,9 @@ export function buildMcpBundle(_repoRoot?: string, lifetime?: LocalCommandLifeti
  * Build the `http-operations.js` module (C3): the real HTTP op-POST
  * chain bundled self-contained for workerd. Mirrors `buildMcpBundle`
  * (same flags, same marker check, same loud errors) with a pure
- * re-export entry: any entry-local code makes bun emit an
- * entry-path comment that leaks the random tmpdir and breaks bundle
- * determinism, so the main's join-contract currying lives in stable
- * main source instead (see `defaultLoadHttpOperationsFactory`).
+ * re-export entry. The stable stdin sourcefile keeps scratch paths out of
+ * bytes; the main's join-contract currying lives in stable main source
+ * instead (see `defaultLoadHttpOperationsFactory`).
  */
 export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCommandLifetime): string {
   lifetime?.checkpoint("deploy HTTP inputs");
@@ -1077,6 +1113,10 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
       `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
       `export { parseJsonBody, JSON_BODY_MAX_BYTES } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "limits.js")))};\n` +
       `export { receiverFromIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "principals.js")))};\n` +
+      `export { handleUploadRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "routes.js")))};\n` +
+      `export { createFileJourneyKernel } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "uploads", "kernel.js")))};\n` +
+      `export { buildBusinessError, fromUnknown, toHttpResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
+      `export { resolveRequestIdentity } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
       `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
       `export { handlePageRequest, handlePagePreferencePost } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
       `export { assertTrustedAuthOrigin, caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
@@ -1086,13 +1126,9 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
       "utf8",
     );
     entryWritten = true;
-    lifetime?.checkpoint("deploy Bun start");
-    execFileSync(
-      "bun",
-      ["build", entryFile, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      bunBuildOptions(lifetime),
-    );
-    lifetime?.checkpoint("deploy Bun completed");
+    lifetime?.checkpoint("deploy esbuild start");
+    runBrowserBundle(entryFile, outFile, lifetime);
+    lifetime?.checkpoint("deploy esbuild completed");
   } catch (err) {
     if (!entryWritten) {
       try {
@@ -1101,20 +1137,14 @@ export function buildHttpOperationsBundle(_repoRoot?: string, lifetime?: LocalCo
         throw err;
       }
     }
-    const failure = bunStageFailure(err, lifetime);
+    const failure = bundleStageFailure(err, lifetime);
     try {
       rmSync(workDir, { force: true, recursive: true });
     } finally {
       if (failure instanceof LocalCommandInterrupted) throw failure;
       const detail = err instanceof Error ? err.message : String(err);
-      if (detail.includes("ENOENT")) {
-        throw new Error(
-          "deploy bundle: `bun` is not on PATH, needed to bundle the HTTP operations chain; " +
-            "install bun (https://bun.sh) or deploy via `bun run`",
-        );
-      }
       throw new Error(
-        `deploy bundle: HTTP bundle build failed (\`bun build\` on the generated entry); ` +
+        `deploy bundle: HTTP bundle build failed (\`esbuild\` on the generated entry); ` +
         `the interfaces dist must be built. Underlying error: ${detail}`,
       );
     }
@@ -1763,10 +1793,9 @@ function buildBrowserAssetsModule(
     `}\n`;
   try {
     writeFileSync(entry, source, "utf8");
-    lifetime?.checkpoint("deploy browser assets Bun start");
-    // Whitespace minification removes the random generated-entry path comment.
-    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], bunBuildOptions(lifetime));
-    lifetime?.checkpoint("deploy browser assets Bun completed");
+    lifetime?.checkpoint("deploy browser assets esbuild start");
+    runBrowserBundle(entry, output, lifetime, true);
+    lifetime?.checkpoint("deploy browser assets esbuild completed");
     const contents = readFileSync(output, "utf8");
     for (const marker of ["createHandler", "browser assets: selected page collides", "browser assets: selected resource integrity mismatch"]) {
       if (!contents.includes(marker)) throw new Error(`deploy bundle: selected browser assets bundle dropped ${marker}`);
@@ -1774,7 +1803,7 @@ function buildBrowserAssetsModule(
     return contents;
   } catch (error) {
     if (error instanceof LocalCommandInterrupted) throw error;
-    lifetime?.checkpoint("deploy browser assets Bun failed");
+    lifetime?.checkpoint("deploy browser assets esbuild failed");
     throw new Error(`deploy bundle: selected browser assets producer bundle failed: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     rmSync(workDir, { recursive: true, force: true });
@@ -1829,7 +1858,9 @@ function buildGeneratedBrowserClient(artifact: CompileArtifact, lifetime?: Local
     // Mount newly registered views without disposing live forms or panels.
     lines.push('if (typeof window !== "undefined" && window.document.readyState !== "loading") { startNativeBrowserClient(window).rescan(); }');
     writeFileSync(entry, lines.join("\n"), "utf8");
-    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], bunBuildOptions(lifetime));
+    lifetime?.checkpoint("deploy generated browser esbuild start");
+    runBrowserBundle(entry, output, lifetime, true);
+    lifetime?.checkpoint("deploy generated browser esbuild completed");
     return new Uint8Array(readFileSync(output));
   } finally { rmSync(workDir, { recursive: true, force: true }); }
 }

@@ -329,7 +329,7 @@ test('child framework unbound, foreign app/store, copied call and wrong source r
   }
   const w = await frameworkWorld(false);
   assert.throws(() => bindScenarioReceiptFrameworkProducer(w.complete, { source: source(), app: APP, bindings: [],
-    stage: stageCanonicalSend, read: readCanonicalSendStaging }), stateError, 'parent source cannot bind the child producer');
+    stage: (input, context) => stageCanonicalSend(input, context), read: readCanonicalSendStaging }), stateError, 'parent source cannot bind the child producer');
 });
 
 test('child framework SEND and business writes roll back together on late failure or current child role revocation', async () => {
