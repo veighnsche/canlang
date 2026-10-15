@@ -637,3 +637,111 @@ fn original_query_reference_boolean_graph_emits_both_observers() {
         "{text}"
     );
 }
+
+#[test]
+fn builtin_actor_predicates_keep_canonical_permissions_and_lazy_boolean_order() {
+    let source = r#"app ActorPredicates
+Given
+ contract Ticket {account:user,enabled:bool}
+ derive own(ticket:Ticket):bool = authenticated and ticket.account==actor
+ derive public_gate():bool = public
+ derive member_gate():bool = members
+ derive owner_gate():bool = owner
+ derive and_gate(ticket:Ticket):bool = authenticated and ticket.enabled
+ derive or_gate(ticket:Ticket):bool = authenticated or ticket.enabled
+ derive left_gate(ticket:Ticket):bool = ticket.enabled and authenticated
+ derive shadow(authenticated:bool):bool = authenticated
+When
+Then
+ page /tickets title="Tickets"
+  text "Public catalog"
+  card "Own tickets"
+   require authenticated
+   text "Private ticket"
+ page /protected title="Protected"
+  require authenticated
+  text "Protected page"
+"#;
+    let (db, catalog, program) = checked_source(source);
+    let mut result = DiagnosticResult::new("actor-predicates", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let script = r#"
+import assert from 'node:assert/strict';
+import {makeUserRef} from '@canlang/values';
+const text=__ENTRY__
+ .replaceAll('"@canlang/stdlib"',JSON.stringify(import.meta.resolve('@canlang/cloudflare/runtime/stdlib')))
+ .replaceAll('"@canlang/ui"',JSON.stringify(import.meta.resolve('@canlang/ui')));
+const entry=await import('data:text/javascript;base64,'+Buffer.from(text).toString('base64'));
+const registry=entry.canApp();
+const call=(name,c,...args)=>registry['ActorPredicates.'+name](c,...args);
+const context=roles=>({actor:roles.includes('authenticated')?makeUserRef('self'):null,
+ memberships:['authenticated','members','owner'],canonical:{builtinRoles:roles},
+ preferredLocales:['en'],appDefaultLocale:'en',theme:{},path:'/',isPartial:true,csrfToken:'csrf'});
+const anonymous=context(['public']), external=context(['public','authenticated']);
+const member=context(['public','authenticated','members']), owner=context(['public','authenticated','members','owner']);
+const ticket={account:makeUserRef('self'),enabled:true};
+assert.equal(await call('own',anonymous,{get account(){throw Error('anonymous read');}}),false);
+assert.equal(await call('own',external,ticket),true);
+assert.equal(await call('own',external,{account:makeUserRef('other')}),false);
+for(const [c,isMember,isOwner] of [[anonymous,false,false],[external,false,false],[member,true,false],[owner,true,true]]) {
+ assert.equal(await call('public_gate',c),true);
+ assert.equal(await call('member_gate',c),isMember);
+ assert.equal(await call('owner_gate',c),isOwner);
+}
+assert.equal(await call('own',context([]),ticket),false,'forged caller memberships cannot supply canonical authentication');
+assert.equal(await call('public_gate',context([])),false,'missing canonical grant stays false');
+assert.equal(await call('shadow',owner,false),false,'lexical boolean retains ownership');
+assert.equal(await call('shadow',anonymous,true),true);
+for(const [name,roles,enabled,expected,trace] of [
+ ['and_gate',[],true,false,['role']],['and_gate',['authenticated'],true,true,['role','value']],
+ ['or_gate',[],true,true,['role','value']],['or_gate',['authenticated'],false,true,['role']],
+ ['left_gate',[],false,false,['value']],['left_gate',['authenticated'],true,true,['value','role']],
+]) {
+ const seen=[], c=context([]);
+ Object.defineProperty(c.canonical,'builtinRoles',{get(){seen.push('role');return roles;}});
+ const value={get enabled(){seen.push('value');return enabled;}};
+ assert.equal(await call(name,c,value),expected);assert.deepEqual(seen,trace);
+}
+const sentinel=new Error('original failure');
+await assert.rejects(()=>call('and_gate',external,{get enabled(){throw sentinel;}}),error=>error===sentinel);
+await assert.rejects(()=>call('left_gate',external,{get enabled(){throw sentinel;}}),error=>error===sentinel);
+const c=context([]);Object.defineProperty(c.canonical,'builtinRoles',{get(){throw sentinel;}});
+await assert.rejects(()=>call('and_gate',c,{get enabled(){throw Error('later operand');}}),error=>error===sentinel);
+assert.equal(await call('left_gate',c,{enabled:false}),false);
+const page=entry.appDefinition.pages.find(page=>page.path.endsWith('/tickets'));
+await page.admit(anonymous,{});
+let html=await page.render(anonymous,{});
+assert(html.includes('Public catalog'));assert(!html.includes('Private ticket'));
+html=await page.render(external,{});
+assert(html.includes('Public catalog'));assert(html.includes('Private ticket'));
+const protectedPage=entry.appDefinition.pages.find(page=>page.path.endsWith('/protected'));
+await assert.rejects(()=>protectedPage.admit(anonymous,{}),error=>error.code==='forbidden');
+await protectedPage.admit(external,{});
+"#.replace("__ENTRY__", &serde_json::to_string(&artifact.modules[0].js).unwrap());
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let output = Command::new("node")
+        .args(["--input-type=module", "--eval", &script])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

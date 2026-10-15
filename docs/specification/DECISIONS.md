@@ -15125,3 +15125,44 @@ other root-cause groups and catalog holds remain as recorded in
 compiler-completion. The finite eleven-operation batch is closed. Complete
 CanCRM native/browser acceptance and unrestricted training-data authoring remain
 gated on those remaining requirements. No push or training was performed.
+
+2026-10-15 — C02/C10: retain built-in actor predicates in boolean expressions.
+
+Group the 26 remaining value/type/arithmetic diagnostics into three mechanisms:
+22 structural standard-result schema failures (19 object type-id refusals and
+three resulting event field-schema refusals, all at OperationOutcome consumers),
+two cascaded refusals at CanBook's example observation
+`visit.source==operation.id`, and two built-in `authenticated` expression
+refusals. The latter are CanRent's booking read predicate and CanEvent's nested
+ticket-card requirement. Counts are occurrences, not independent requirements.
+No ordinary arithmetic refusal remains in this group after the duration batch.
+
+Implement the smallest complete batch: decode checked boolean built-in actor
+predicates to the existing HasRole IR, preserving the established caller
+snapshot helper used by admission guards. DESIGN §4 already permits their
+boolean combination with record predicates; this reconciles implementation
+with the settled language rather than introducing a new language choice.
+No new JEV consultation is needed. Include the four existing built-in spellings
+(public, authenticated, members, owner); do not introduce subject call syntax.
+Existing checked lexical bindings win before this fallback. Hook-context
+refusals, policies, source correspondence and canonical role producers remain
+in force.
+
+All eight membership codegen checks pass. The new complete-emission check
+executes through the installed native facade/UI: anonymous and external callers,
+member/owner snapshots, rejection of forged membership grants in a canonical
+context, lexical shadowing, lazy left-to-right single evaluation and exact
+operand-error propagation. Public page admission remains public while its
+nested authenticated card is omitted for anonymous callers; an authenticated
+page requirement continues to reject them. The CLI build passes. Existing
+permission/workflow validations remain at their recorded unchanged scopes.
+
+Final original 24-source CanCRM validation: exit 10, 896 errors
+(870 E6008, 26 E6007), complete=true, omitted=0, no usable artifact. Comparing
+complete diagnostics to the retained duration capture removes exactly the two
+original authenticated-expression refusals and adds none. The grouped
+value/type/arithmetic remainder is 24 (22 structural standard-result schema
+occurrences and two diagnostics at the one example operation-context expression).
+Other root-cause groups and catalog holds remain unchanged. This closes the
+finite actor-predicate batch; full CanCRM/native/browser acceptance and
+unrestricted training-data authoring remain gated. No push or training occurred.

@@ -6300,10 +6300,13 @@ impl<'a> Cx<'a> {
         if is_test_account(name) {
             return member_of("c", name, &ResolvedType::Scalar(Scalar::User), span);
         }
-        if is_predicate_spelling(name) {
-            return IrExpr::Unsupported {
-                what: format!("predicate spelling `{name}`"),
-                why: "predicate spellings gate guards, they are not values".to_string(),
+        if is_predicate_spelling(name) && matches!(ty, ResolvedType::Scalar(Scalar::Bool)) {
+            // Checked actor predicates keep the same canonical snapshot test
+            // in boolean expressions as in admission guards. Lexical shadows
+            // were consumed by decode_name_ref before this fallback.
+            return IrExpr::HasRole {
+                role: name.to_string(),
+                person: None,
             };
         }
         if let Some((id, _)) = self.resolve_member(scope.module, name) {
