@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **705 errors**:
-**679 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **701 errors**:
+**675 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -99,7 +99,7 @@ are not independent feature tasks:
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
 | Checked source/inventory publication | 3 | Membership and collection-call correspondence; standard inventory/completions publication is closed at its metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
-| Query and predicate lowering | 115 | 87 stored first-query correspondence, 12 model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| Query and predicate lowering | 111 | 91 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
@@ -295,7 +295,7 @@ no usable artifact. Against the retained 718-error inventory capture, exactly
 **12** value-order refusals disappear and **none** are added. Formatting/diff
 checks pass; no original source or Values catalog is changed.
 
-**Current C02/C10 batch — explicit own-row created ordering (2026-10-15).**
+**Completed C02/C10 batch — explicit own-row created ordering (2026-10-15).**
 The compiler now recognizes checked `created:datetime` metadata on the owning
 query alias, matching State's existing `created,id` contract. The actual native
 D1/Identity check passes chronological ASC/DESC ordering, ascending ID ties in
@@ -310,10 +310,47 @@ disappear and two CanPurchase stored-first correspondence refusals are exposed.
 The CanRefer metadata-order occurrence clears; the CanPurchase native source
 recipes remain a local dependency. Original sources and catalog are unchanged.
 
-Eight direct temporal field keys need their typed receiver validation; four
-computed/reference keys remain a separate observation-owned evaluator dependency.
-These are local implementation dependencies. No app-specific exception, broader
-observer profile or native CanCRM completion is claimed.
+**Current C02/C10 batch — direct temporal field ordering (2026-10-15).**
+The next eight original order keys are direct own-row date/datetime fields.
+Compiler lowering and the three existing native receivers now admit those exact
+scalar types. State extends its existing typed order pipeline with Values civil
+date/instant decoding and comparison, including singleton validation. No new
+syntax, source profile or authority carrier is introduced. Acceptance is the
+owning compiler/native execution, unchanged numeric/grant/failure checks, and
+one frozen original 24-source capture after the final producer build.
+
+The extended State check passes **1/1**: date/datetime ASC/DESC, ID ties,
+null/legitimate absence, withheld malformed data, no-grant/array refusals and
+malformed singleton wire failures, retaining numeric precision and currency
+checks. The extended native D1/Identity check passes **1/1** for chronological
+order, normalized offset construction, nullable keys, ID ties, metadata behavior,
+ungranted/anonymous field-order refusal, malformed typed-order validation and
+earlier predicate schema failure with unchanged state. The other three ordering
+checks pass, including source-owned temporal emission and alias/container
+refusals. State/Cloudflare and CLI builds, formatting and diff checks pass.
+No-grant field ordering retains its exact validation refusal; malformed source
+predicate materialization still fails schema validation before sorting.
+Frozen original 24-source validation exits **10** after **376.81s**, with
+**701** diagnostics (**675 E6008**, **26 E6007**), complete=true, omitted=0 and
+no usable artifact. Against the retained 705-error capture, all **eight** direct
+temporal-order refusals disappear and **four** stored-first correspondence
+refusals are exposed. Original sources and catalog remain unchanged.
+
+The next defining query dependency is canonical checked query→first composition
+correspondence, preserving its exact ordered output and selected-row/null use.
+Existing private runtime query handles already support first selection; source
+preparation currently recognizes an account/actor/id-specific pattern. Extend
+the shared original expression matcher and consumption join rather than invent
+another app-shaped first carrier. The original CRM field/input lookup and its
+existing-result/fresh-create branches provide the finite source and executable
+acceptance; renamed-field/alias and copied/stale source controls retain reuse
+and seal checks. An independent source inspection confirms all 87 prior first
+occurrences also miss that narrow pattern. Unrelated hook-context IR failures
+additionally close the global fresh-source preparation gate; that local join
+must release before full original native execution can pass. Analysis/source
+matching can progress independently. Four computed/reference model order keys
+need an observation-owned evaluator. These remain local implementation work;
+no native CanCRM completion is claimed.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
