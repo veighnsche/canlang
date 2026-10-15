@@ -1154,6 +1154,7 @@ fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
     if matches!(
         schema.name,
         "OperationOutcome"
+            | "PaymentState"
             | "IncomingEmail"
             | "TextMessage"
             | "TextRequest"

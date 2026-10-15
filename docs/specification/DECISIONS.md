@@ -16538,3 +16538,18 @@ private native callback integration remain ready local work. Body Require is
 still retained in the original decision census and awaits its own source join.
 Reuse the last original24 qualification at its recorded scope; no diagnostic
 removal or native can_work workflow acceptance follows from this census alone.
+
+2026-10-15 — C02: retain declared PaymentState identity.
+
+Preserve catalog-owned PaymentState through the existing consumed StdNominal
+profile, following the accepted OperationOutcome owner rule. Its exact closed
+schema supplies identity; anonymous object shape never infers a standard name.
+This repairs the concrete ProviderReceipt source gap without changing other
+unconsumed standard profiles, authoring syntax or provider authority.
+
+Both focused checks pass: actual CLI/installed Values alias, capability result,
+event, derive and literal schemas, all four statuses, nullable provider/URL/failure
+values, exact int64 revisions/money and malformed codec refusals; original source
+census and four schema mutations refuse. Required/nullability/default receiving
+semantics remain unchanged. Original24 diagnostic removal awaits the next
+integrated capture; no provider-ingress or complete payment workflow is claimed.
