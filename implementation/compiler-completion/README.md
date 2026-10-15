@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 helper ANY query census (2026-10-15, implemented/tested prerequisite).**
+Leading helper queries now retain actual formal/argument source joins and ordered
+candidate CONTROL dependencies through existing query facts. The compulsory
+first User read is proved. Original/import-alias/local/reordered-named reuse and
+corruption controls pass in the owning test; six source seals pass. Native
+execution remains refused until source consumer, logical/transport association
+and installed callback join. Body Require source consumption remains next.
+
 **C02 URL/inline-enum Contract inventory (2026-10-15, implemented/tested).**
 Ordinary Contracts now publish the existing URL profiles and source-checked
 ownerless inline enum cases, including reused OperationOutcome.state. No invented
