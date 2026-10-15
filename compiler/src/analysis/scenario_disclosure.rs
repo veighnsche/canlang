@@ -12929,7 +12929,57 @@ impl<'a> Closure<'a> {
             return Err(self.fail(effect.node, "ambiguous send import"));
         }
         let binding = self.types.target_bindings.get(&NodeKey::of(head));
+        let sink = self
+            .types
+            .runtime_bindings
+            .get(&module)
+            .into_iter()
+            .flatten()
+            .find_map(|declaration| match (declaration, &effect.target) {
+                (
+                    super::types::CheckedRuntimeBinding::Queue { name, .. },
+                    Some(EffectTarget::Queue { queue, op }),
+                ) if name == &alias
+                    && queue == name
+                    && op == "publish"
+                    && member == Some(op.as_str()) =>
+                {
+                    Some((op.as_str(), vec!["value".to_string()], Vec::new()))
+                }
+                (
+                    super::types::CheckedRuntimeBinding::Analytics { name, fields },
+                    Some(EffectTarget::Analytics { sink, op }),
+                ) if name == &alias
+                    && sink == name
+                    && op == "write"
+                    && member == Some(op.as_str()) =>
+                {
+                    Some((
+                        op.as_str(),
+                        fields.iter().map(|(name, _)| name.clone()).collect(),
+                        fields
+                            .iter()
+                            .filter(|(_, ty)| matches!(ty, ResolvedType::Nullable(_)))
+                            .map(|(name, _)| name.clone())
+                            .collect::<Vec<_>>(),
+                    ))
+                }
+                _ => None,
+            });
+        let optional_sink_inputs = sink
+            .as_ref()
+            .map(|(_, _, optional)| optional.clone())
+            .unwrap_or_default();
         let (operation, deployment_binding, delivery, input_names) = match binding {
+            None if sink.is_some() && imports.is_empty() => {
+                let (op, inputs, _) = sink.unwrap();
+                (
+                    format!("{}.{}.{op}", host.name, alias),
+                    Some(format!("{}.{}", host.name, alias)),
+                    super::types::sink_delivery_type(),
+                    inputs,
+                )
+            }
             Some(Binding::External { provider, name }) => {
                 let (import, item) = imports
                     .first()
@@ -13021,7 +13071,11 @@ impl<'a> Closure<'a> {
                 })
                 .map(|(name, _)| *name)
                 .collect::<Vec<_>>(),
-            _ => input_names.iter().map(String::as_str).collect(),
+            _ => input_names
+                .iter()
+                .filter(|name| !optional_sink_inputs.contains(name))
+                .map(String::as_str)
+                .collect(),
         };
         if required_inputs
             .iter()

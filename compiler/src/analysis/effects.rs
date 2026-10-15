@@ -43,9 +43,9 @@
 //!   declaration sets `delete=none` (DESIGN §5).
 //! - `E4050` hook on disabled op: an `on=Model.create/update/delete` hook
 //!   whose `crud` declaration disables that operation (DESIGN §5, §6).
-//! - `E4051` mixed handler scope: an `on=every(...)` handler whose
-//!   owner-bound queries, writes and local-call dependencies span both
-//!   app-scoped and team-scoped models (DESIGN §6).
+//! - `E4051` mixed owner scope: an `on=every(...)` handler mixing app/team
+//!   models, or a mutation whose checked reads/writes/local calls mix a
+//!   Durable Object root with D1 or another root (DESIGN §6–7).
 //! - `E4052` same-model staging: a hook stages `create`/`set` of its own
 //!   trigger model (T31 Rule A NARROW bar: all same-model CRUD barred,
 //!   matching the engine; the pending-record adjustment is not staging).
@@ -199,6 +199,8 @@ impl EffectTables {
 /// Scenario body: guards plus effects with labels and parameters (G1).
 #[derive(Debug, Clone)]
 pub struct ScenarioData {
+    /// Compiler-inferred root placement; never an authored authority selector.
+    pub root_authority: Option<RootAuthority>,
     /// Scenario symbol.
     pub scenario: SymbolId,
     /// Declaring module.
@@ -237,6 +239,15 @@ pub struct ScenarioData {
     /// is absent or fails the check (an `E4055` is reported then and
     /// codegen emits no descriptor — fail-closed, never silently admitted).
     pub cohort: Option<CohortData>,
+}
+
+/// One declared root whose storage authority owns an entire mutation.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct RootAuthority {
+    pub binding: String,
+    pub model: String,
+    #[serde(rename = "createsRoot", skip_serializing_if = "std::ops::Not::not")]
+    pub creates_root: bool,
 }
 
 /// Checked `each=` fanout cohort: the codegen emission input (T34-F6).
@@ -1128,6 +1139,7 @@ impl<'a> Cx<'a> {
         self.check_app_locales();
         self.check_app_policies();
         self.record_creation_dependencies(trees);
+        self.check_root_authorities(trees);
         self.check_every_scopes();
         self.out.referenced_builtins = self.builtins.iter().cloned().collect();
         let descriptions = std::mem::take(&mut self.descriptions);
@@ -2605,6 +2617,7 @@ impl<'a> Cx<'a> {
         self.out.scenarios.insert(
             id,
             ScenarioData {
+                root_authority: None,
                 scenario: id,
                 module,
                 node: NodeKey::of(node),
@@ -4372,6 +4385,29 @@ impl<'a> Cx<'a> {
     /// Follow only executed owning initializer anchors after declaration collection.
     fn record_creation_dependencies(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         let mut pending = Vec::new();
+        for model in self.out.models.values() {
+            pending.extend(model.policies.iter().map(|rule| (model.model, rule.node)));
+            pending.extend(model.invariants.iter().map(|rule| (model.model, rule.node)));
+            pending.extend(model.locks.iter().map(|rule| (model.model, rule.node)));
+            pending.extend(model.uniques.iter().map(|rule| (model.model, rule.node)));
+        }
+        for scenario in self.out.scenarios.values() {
+            if let Some(HandlerSource::Hook { model, .. }) = scenario.on {
+                push_unique(
+                    self.callable_calls.entry(model).or_default(),
+                    scenario.scenario,
+                );
+            }
+        }
+        for crud in self.out.cruds.values() {
+            for operation in &crud.ops {
+                push_unique(
+                    self.callable_models.entry(*operation).or_default(),
+                    crud.model,
+                );
+                pending.push((*operation, crud.node));
+            }
+        }
         for (caller, calls) in &self.callable_default_calls {
             for call in calls {
                 pending.extend(
@@ -4465,35 +4501,206 @@ impl<'a> Cx<'a> {
             .collect()
     }
 
+    /// Share the existing finite owner-bound read/write/call closure.
+    fn callable_model_closure(&self, callable: SymbolId) -> Vec<SymbolId> {
+        let mut models = Vec::new();
+        let mut visited = HashSet::new();
+        let mut pending = vec![callable];
+        while let Some(current) = pending.pop() {
+            if !visited.insert(current) {
+                continue;
+            }
+            if let Some(direct) = self.callable_models.get(&current) {
+                for model in direct {
+                    push_unique(&mut models, *model);
+                    pending.push(*model);
+                }
+            }
+            if let Some(callees) = self.callable_calls.get(&current) {
+                for callee in callees {
+                    match self.tables.symbols[callee.0 as usize].kind {
+                        SymbolKind::Scenario { .. }
+                        | SymbolKind::DeriveFn { .. }
+                        | SymbolKind::DeriveField { .. } => pending.push(*callee),
+                        SymbolKind::CrudOp { model, .. } => {
+                            push_unique(&mut models, model);
+                            pending.push(model);
+                            pending.push(*callee);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        models
+    }
+
+    fn storage_root(&self, mut model: SymbolId) -> SymbolId {
+        let mut seen = HashSet::new();
+        while seen.insert(model) {
+            match self.tables.symbols[model.0 as usize].kind {
+                SymbolKind::Model {
+                    owner: ModelOwner::ChildOf(parent),
+                    ..
+                } => model = parent,
+                _ => break,
+            }
+        }
+        model
+    }
+
+    fn callable_creates_root(&self, callable: SymbolId, root: SymbolId) -> bool {
+        let mut pending = vec![callable];
+        let mut visited = HashSet::new();
+        while let Some(current) = pending.pop() {
+            if !visited.insert(current) {
+                continue;
+            }
+            if self
+                .callable_creates
+                .get(&current)
+                .is_some_and(|creates| creates.iter().any(|(model, _)| *model == root))
+                || matches!(self.tables.symbols[current.0 as usize].kind, SymbolKind::CrudOp { model, op: CrudOp::Create, .. } if model == root)
+            {
+                return true;
+            }
+            if let Some(calls) = self.callable_calls.get(&current) {
+                pending.extend(calls);
+            }
+        }
+        false
+    }
+
+    /// Top-level omitted inputs are potential execution dependencies. Keep
+    /// them separate from the local-call graph, whose callers already carry
+    /// only the defaults their actual supplied arguments select.
+    fn root_operation_models(
+        &self,
+        callable: SymbolId,
+        trees: &[(SourceId, SyntaxNode)],
+    ) -> Vec<SymbolId> {
+        let mut models = self.callable_model_closure(callable);
+        let mut pending: Vec<_> = self
+            .out
+            .scenarios
+            .get(&callable)
+            .into_iter()
+            .flat_map(|scenario| scenario.params.iter().filter_map(|param| param.default))
+            .collect();
+        if let SymbolKind::CrudOp {
+            model,
+            op: CrudOp::Create,
+            ..
+        } = self.tables.symbols[callable.0 as usize].kind
+        {
+            if let Some(model) = self.out.models.get(&model) {
+                pending.extend(
+                    model
+                        .fields
+                        .iter()
+                        .filter_map(|field| field.server.or(field.default)),
+                );
+            }
+        }
+        let mut visited = HashSet::new();
+        while let Some(key) = pending.pop() {
+            if !visited.insert(key) {
+                continue;
+            }
+            let Some(node) = trees
+                .iter()
+                .find(|(file, _)| *file == key.file)
+                .and_then(|(_, tree)| dependency_node(tree, &key))
+            else {
+                continue;
+            };
+            let mut calls = Vec::new();
+            let mut creates = Vec::new();
+            collect_subtree_models(
+                self.tables,
+                self.types,
+                self.text(key.file),
+                node,
+                &mut models,
+                &mut calls,
+                &mut creates,
+            );
+            for call in calls {
+                for model in self.callable_model_closure(call) {
+                    push_unique(&mut models, model);
+                }
+            }
+            let mut selected = Vec::new();
+            collect_selected_calls(node, self.types, &mut selected);
+            for call in selected {
+                pending.extend(self.selected_defaults(&call));
+            }
+        }
+        models
+    }
+
+    /// E4051 also rejects statically incompatible root storage scopes.
+    /// Different instances of the same root remain a runtime admission check.
+    fn check_root_authorities(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        let mut roots = HashMap::new();
+        for (module, declarations) in &self.types.runtime_bindings {
+            for declaration in declarations {
+                if let super::types::CheckedRuntimeBinding::DurableObject { name, key } =
+                    declaration
+                {
+                    roots.insert(
+                        *key,
+                        RootAuthority {
+                            binding: format!(
+                                "{}.{}",
+                                self.tables.modules[module.0 as usize].name, name
+                            ),
+                            model: self.tables.symbols[key.0 as usize].canonical.clone(),
+                            creates_root: false,
+                        },
+                    );
+                }
+            }
+        }
+        for symbol in &self.tables.symbols {
+            match self.out.scenarios.get(&symbol.id) {
+                Some(scenario) if !scenario.read => {}
+                None if matches!(symbol.kind, SymbolKind::CrudOp { .. }) => {}
+                _ => continue,
+            }
+            let models = self.root_operation_models(symbol.id, trees);
+            let authority = models
+                .iter()
+                .find_map(|model| roots.get(&self.storage_root(*model)))
+                .cloned();
+            let Some(authority) = authority else { continue };
+            if let Some(other) = models
+                .iter()
+                .find(|model| roots.get(&self.storage_root(**model)) != Some(&authority))
+            {
+                self.diags.push(Diagnostic::error("E4051", format!("scenario '{}' mixes DurableObject root '{}' with incompatible storage model '{}'; one mutation requires one storage authority", symbol.canonical, authority.model, self.tables.symbols[other.0 as usize].canonical), symbol.span));
+                continue;
+            }
+            let mut authority = authority;
+            if let Some(root) = models
+                .iter()
+                .map(|model| self.storage_root(*model))
+                .find(|root| self.tables.symbols[root.0 as usize].canonical == authority.model)
+            {
+                authority.creates_root = self.callable_creates_root(symbol.id, root);
+            }
+            if let Some(scenario) = self.out.scenarios.get_mut(&symbol.id) {
+                scenario.root_authority = Some(authority);
+            }
+        }
+    }
+
     /// E4051: an `on=every` handler must not mix app-scoped and team-scoped
     /// data across its owner-bound queries, writes and local calls.
     fn check_every_scopes(&mut self) {
         let handlers = std::mem::take(&mut self.every_handlers);
         for (handler, span) in handlers {
-            let mut models: Vec<SymbolId> = Vec::new();
-            let mut visited: HashSet<SymbolId> = HashSet::new();
-            let mut stack = vec![handler];
-            while let Some(current) = stack.pop() {
-                if !visited.insert(current) {
-                    continue;
-                }
-                if let Some(direct) = self.callable_models.get(&current) {
-                    for model in direct {
-                        push_unique(&mut models, *model);
-                    }
-                }
-                if let Some(callees) = self.callable_calls.get(&current).cloned() {
-                    for callee in callees {
-                        match &self.tables.symbols[callee.0 as usize].kind {
-                            SymbolKind::Scenario { .. } | SymbolKind::DeriveFn { .. } => {
-                                stack.push(callee)
-                            }
-                            SymbolKind::CrudOp { model, .. } => push_unique(&mut models, *model),
-                            _ => {}
-                        }
-                    }
-                }
-            }
+            let models = self.callable_model_closure(handler);
             let mut app: Option<SymbolId> = None;
             let mut team: Option<SymbolId> = None;
             for model in &models {
@@ -5586,7 +5793,6 @@ fn collect_subtree_models(
                 .find(|n| n.kind == SyntaxKind::Path)
                 .copied();
             if let Some(path) = path
-                && path_segments(path, text).first() != Some(&"event")
                 && let Some(ResolvedType::Record { symbol, .. }) =
                     types.node_types.get(&NodeKey::of(path))
                 && matches!(
@@ -5595,6 +5801,36 @@ fn collect_subtree_models(
                 )
             {
                 push_unique(out, *symbol);
+            }
+        }
+        SyntaxKind::Member => {
+            let parts = significant_children(node);
+            if let (Some(receiver), Some(name)) = (
+                parts.first(),
+                parts.last().and_then(|part| name_text(part, text)),
+            ) {
+                let ty = types.node_types.get(&NodeKey::of(receiver));
+                let ty = ty.map(|ty| ty.nullable_inner().unwrap_or(ty));
+                if let Some(ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                }) = ty
+                    && matches!(tables.symbols[symbol.0 as usize].kind, SymbolKind::Model { .. })
+                {
+                    if let Some(field) = tables.symbols[symbol.0 as usize]
+                        .fields_of()
+                        .iter()
+                        .find(|field| tables.symbols[field.0 as usize].name == name)
+                    {
+                        match tables.symbols[field.0 as usize].kind {
+                            SymbolKind::Field { .. } => push_unique(out, *symbol),
+                            SymbolKind::DeriveField { .. } => push_unique(calls, *field),
+                            _ => {}
+                        }
+                    } else if matches!(name, "version" | "created" | "updated" | "archived") {
+                        push_unique(out, *symbol);
+                    }
+                }
             }
         }
         SyntaxKind::NameRef => {

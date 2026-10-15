@@ -851,6 +851,7 @@ struct Resolver<'a> {
     /// Authentication proof from each exact owning CRUD declaration's grant.
     crud_actor_proofs: HashMap<SymbolId, bool>,
     resolved_crud_grants: HashSet<NodeKey>,
+    context_sinks: HashSet<(ModuleId, String)>,
 }
 
 impl<'a> Resolver<'a> {
@@ -863,6 +864,7 @@ impl<'a> Resolver<'a> {
             pending_parents: Vec::new(),
             crud_actor_proofs: HashMap::new(),
             resolved_crud_grants: HashSet::new(),
+            context_sinks: HashSet::new(),
         }
     }
 
@@ -3545,6 +3547,23 @@ impl<'a> Resolver<'a> {
         diags: &mut Vec<Diagnostic>,
     ) -> Result<(), Diagnostic> {
         let root = self.module_root(module, node.span)?;
+        for context in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Context)
+        {
+            for decl in kids(context)
+                .into_iter()
+                .filter(|n| n.kind == SyntaxKind::ContextDecl)
+            {
+                let names: Vec<_> = kids(decl)
+                    .into_iter()
+                    .filter_map(|n| name_text(n, text))
+                    .collect();
+                if let ["queue" | "analytics", name, ..] = names.as_slice() {
+                    self.context_sinks.insert((module, (*name).to_string()));
+                }
+            }
+        }
         self.resolve_description_refs(text, module, node, diags);
         // Hook declarations may precede their CRUD owner. Resolve only the
         // owning grants first; body/source order confers no authentication.
@@ -5748,7 +5767,28 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::Send => {
+                let target = kids(node).into_iter().find(|n| is_expression(n.kind));
                 for part in kids(node) {
+                    let sink_target = target.is_some_and(|target| std::ptr::eq(target, part))
+                        && part.kind == SyntaxKind::Member
+                        && kids(part).first().is_some_and(|head| {
+                            head.kind == SyntaxKind::NameRef
+                                && kids(head)
+                                    .into_iter()
+                                    .find_map(|n| name_text(n, text))
+                                    .is_some_and(|name| {
+                                        self.context_sinks.contains(&(module, name.to_string()))
+                                            && self
+                                                .tables
+                                                .resolve_name(scope, name, self.catalog)
+                                                .is_none()
+                                    })
+                        });
+                    if sink_target {
+                        // The context declaration owns this deployment target;
+                        // its operation and inputs are checked by the typer.
+                        continue;
+                    }
                     if is_expression(part.kind) {
                         self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     } else if part.kind == SyntaxKind::Object {
