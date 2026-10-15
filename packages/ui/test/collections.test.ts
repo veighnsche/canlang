@@ -480,6 +480,54 @@ describe("list", () => {
     assert.ok(!html.includes(cursor));
     assert.ok(html.includes(`data-cursor="${escapeAttr(cursor)}"`));
   });
+
+  it("prepares authored enum list filters with exact query context before row bodies", async () => {
+    const filter: readonly ColumnMeta[] = [{ field: "state", type: "enum:TeamTasks.Todo.state",
+      label: "State", valueLabels: { open: "Open", closed: "Closed" } }];
+    const defaults = { state: "open" };
+    const first: RowView = { id: "todo-1", version: "1", fields: { title: "First", state: "open" } };
+    const second: RowView = { id: "todo-2", version: "2", fields: { title: "Second", state: "open" } };
+    let queries = 0, preparations = 0;
+    const bodies: RowView[] = [];
+    const context = makeContext({
+      path: "/todos",
+      prepareCollectionFilters: (occurrence, fields, actualDefaults) => {
+        preparations++;
+        assert.equal(occurrence, "todos-list");
+        assert.equal(fields, filter);
+        assert.equal(actualDefaults, defaults);
+        return [{ field: "state", op: "eq", value: "open" }];
+      },
+      query: async (invocation, model, args) => {
+        queries++;
+        assert.equal(invocation, context.invocation);
+        assert.equal(model, "TeamTasks.Todo");
+        assert.deepEqual(args, { where: { op: "eq", field: "state", value: "open" },
+          occurrence: "todos-list" });
+        return { rows: [first, second], columns: [{ field: "title", label: "Title", type: "text" }, ...filter] };
+      },
+    });
+    const props = { context, model: "TeamTasks.Todo", columns: ["title"], filter, defaults,
+      occurrence: "todos-list",
+      renderRow: (record: RowView, view: PresentationContext) => {
+        assert.equal(view, context); bodies.push(record); return [`<p>body-${record.id}</p>`];
+      } };
+    const html = await list(props);
+    assert.deepEqual(bodies, [first, second]);
+    assert.ok(html.indexOf("body-todo-1") < html.indexOf("body-todo-2"), html);
+    assert.ok(html.includes("First") && html.includes("Second"), html);
+    assert.ok(html.includes("data-can-list-filters"), html);
+    assert.equal(queries, 1); assert.equal(preparations, 1);
+    bodies.length = 0;
+    const { prepareCollectionFilters: _prepareFilters, ...unpreparedContext } = context;
+    const { filter: _filter, ...withoutFilter } = props;
+    await assert.rejects(list({ ...props, context: unpreparedContext }),
+      /source filter preparation is unavailable/);
+    await assert.rejects(list({ ...props, context: { ...context, query: async () => {
+      queries++; return { rows: [first], columns: [{ field: "title", label: "Title", type: "text" }] };
+    } } }), /missing authorized filter field "state"/);
+    assert.equal(queries, 2); assert.deepEqual(bodies, []);
+  });
 });
 
 describe("table", () => {
@@ -2325,6 +2373,47 @@ describe("board", () => {
       );
     }
     assert.equal(seen.length, 0);
+  });
+
+  it("prepares authored enum board filters with exact query context before grouping", async () => {
+    const filter: readonly ColumnMeta[] = [{ field: "priority", type: "enum:TeamTasks.Todo.priority",
+      label: "Priority", valueLabels: { high: "High", low: "Low" } }];
+    const defaults = { priority: "high" };
+    const seen: SeenCall[] = [];
+    let queries = 0, preparations = 0;
+    const context = boardContext(seen, {
+      rows: [],
+      columns: [titleCol, stateCol, ...filter],
+    }, {
+      path: "/todos",
+      prepareCollectionFilters: (occurrence, fields, actualDefaults) => {
+        preparations++;
+        assert.equal(occurrence, "todos-board");
+        assert.equal(fields, filter);
+        assert.equal(actualDefaults, defaults);
+        return [{ field: "priority", op: "eq", value: "high" }];
+      },
+      query: async (invocation, model, args) => {
+        queries++;
+        assert.equal(invocation, context.invocation);
+        assert.equal(model, "TeamTasks.Todo");
+        assert.deepEqual(args, { where: { op: "eq", field: "priority", value: "high" },
+          occurrence: "todos-board" });
+        return {
+          rows: [
+            row("a", { title: "First", state: "open", priority: "high" }),
+            row("b", { title: "Second", state: "closed", priority: "high" }),
+          ],
+          columns: [titleCol, stateCol, ...filter],
+        };
+      },
+    });
+    const html = await board({ context, model: "TeamTasks.Todo", by: "state", columns: ["title"],
+      filter, defaults, occurrence: "todos-board", empty: "No todos" });
+    assert.ok(html.includes("data-can-board-filters"), html);
+    assert.ok(html.includes("First") && html.includes("Second"), html);
+    assert.equal(queries, 1);
+    assert.equal(preparations, 1);
   });
 });
 

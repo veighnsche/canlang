@@ -1859,6 +1859,8 @@ export interface BoardProps {
   readonly defaults?: Readonly<Record<string, string | null>>;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Stable source collection occurrence; required when filter controls or pagination apply. */
+  readonly occurrence?: string;
   readonly empty: MessageValue;
   readonly controls?: CollectionControls;
 }
