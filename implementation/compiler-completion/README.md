@@ -4,7 +4,7 @@
 
 Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. The human requested all remaining work be reevaluated and each existing worker receive its own prioritized list. This section replaces historical next/pending/source-lease instructions. [status.json](status.json) retains **58/67 references accepted at scope; nine remaining**. C01–C24 below are shared work labels, not additional canonical tasks. No active/unmerged release is accepted by this planning edit. Apply [finite execution](../../AGENTS.md#finite-execution).
 
-**Current execution (2026-10-15):** the user resumed language consistency work before model training. The [generated-view decision](../../docs/specification/DECISIONS.md#2026-10-14--reconcile-generated-views-and-checked-presentation-consumers) closes the view contract, disclosure typing and inherited reference locale; the [computed-message join](../../docs/specification/DECISIONS.md#2026-10-14--format-computed-anonymous-messages-with-their-checked-schemas) closes the bounded formatter and ordinary submit-button defects. [PromptLab adoption and field validation](../../docs/specification/DECISIONS.md#2026-10-14--adopt-legacy-saved-outputs-and-enforce-pure-field-checks) now retains all 17 live saved associations under `prompt_lab`, preserves three obsolete style groups, and enforces required UTF-8/EAN field checks through State. Native CRUD candidate admission, lexical query capture, fixture snapshots, nullable archive-evidence policies, example identity/dependencies and parent-scoped computed keys have passing owner checks. All **30/30 actual PromptLab source rows** pass, including after checked scenario disclosure. Actual-app native permission/rollback/replay and collision-refusing activation checks pass. The active PromptLab scope is browser qualification. Implicit parent binding and protected-reference preparation pass 10 compiler/native and eight protected-form checks; nullable archive-default preparation passes both affected native HTTP checks. Rejected-attempt recovery passes State 16/16, UI 50/50 and Interfaces 60/60, and the actual native Tag form corrects a rejected input and commits once. The complete current-source native check passes 1/1: Tag/protected parent-bound Entry rejection, renewed-attempt correction, immutable old replay/changed-input conflict, proof binding, populated/archived page evidence and private native source-row identity/lifetime controls. The original wire row remains unchanged for saved-view metadata. History scalar checks pass 34/34; fresh Given/read-predicate compiler checks pass 5/5. The separate C10 original File-page consumer and affected compiler/UI producer checks each pass at their recorded finite scopes. Role provisioning, paged owner binding and portable cursor packaging have passing focused checks; the preview starts and commits catalog creation, and the modal-close test race is fixed. The browser suite authors eight cases per project for desktop/mobile; twelve-fixture lexical coverage and browser TypeScript checks pass, while functional journey execution and visual acceptance remain pending. This is BGI/DFE saved-output and application work, not new canonical task IDs. The previous checkpoints, external holds and **58/67** reference count remain; accepted components of the nine broader references are not reopened. Training remains gated on actual agreement and the listed remaining requirements.
+**Current execution (2026-10-15):** the user resumed language consistency work before model training. The [generated-view decision](../../docs/specification/DECISIONS.md#2026-10-14--reconcile-generated-views-and-checked-presentation-consumers) closes the view contract, disclosure typing and inherited reference locale; the [computed-message join](../../docs/specification/DECISIONS.md#2026-10-14--format-computed-anonymous-messages-with-their-checked-schemas) closes the bounded formatter and ordinary submit-button defects. [PromptLab adoption and field validation](../../docs/specification/DECISIONS.md#2026-10-14--adopt-legacy-saved-outputs-and-enforce-pure-field-checks) now retains all 17 live saved associations under `prompt_lab`, preserves three obsolete style groups, and enforces required UTF-8/EAN field checks through State. Native CRUD candidate admission, lexical query capture, fixture snapshots, nullable archive-evidence policies, example identity/dependencies and parent-scoped computed keys have passing owner checks. All **30/30 actual PromptLab source rows** pass, including after checked scenario disclosure. Actual-app native permission/rollback/replay and collision-refusing activation checks pass. The bounded PromptLab browser remainder is closed by the continuation below. Implicit parent binding and protected-reference preparation pass 10 compiler/native and eight protected-form checks; nullable archive-default preparation passes both affected native HTTP checks. Rejected-attempt recovery passes State 16/16, UI 50/50 and Interfaces 60/60, and the actual native Tag form corrects a rejected input and commits once. The complete current-source native check passes 1/1: Tag/protected parent-bound Entry rejection, renewed-attempt correction, immutable old replay/changed-input conflict, proof binding, populated/archived page evidence and private native source-row identity/lifetime controls. The original wire row remains unchanged for saved-view metadata. History scalar checks pass 34/34; fresh Given/read-predicate compiler checks pass 5/5. The separate C10 original File-page consumer and affected compiler/UI producer checks each pass at their recorded finite scopes. Role provisioning, paged owner binding and portable cursor packaging have passing focused checks; the preview starts and commits catalog creation, and the modal-close test race is fixed. The browser suite authors eight cases per project for desktop/mobile; twelve-fixture lexical coverage and browser TypeScript checks pass, while functional journey execution and visual acceptance are closed at the bounded scope below. This is BGI/DFE saved-output and application work, not new canonical task IDs. The previous checkpoints, external holds and **58/67** reference count remain; accepted components of the nine broader references are not reopened. Training remains gated on actual agreement and the listed remaining requirements.
 
 **PromptLab bounded completion (2026-10-15).** Checked Given stored-field
 read/write/schema provenance now produces authorized Entry/Tag archive/restore
@@ -20,7 +20,7 @@ existing cleanup budget; serial execution released owners normally, and the
 exact affected endpoints/processes exited. The unrelated ActionGallery preview
 remains untouched. Browser TypeScript and the lexical source-state check pass.
 These results close this affected PromptLab scope, not the broader nine
-references or three composed-source refusals below. No training/dataset work
+references or the full composed-application emission below. No training/dataset work
 has begun, and the original supported-language/reference readiness gate remains.
 
 **C02/C10 continuation (2026-10-15).** The recorded 64 diagnostics divide into
@@ -33,17 +33,50 @@ associations retained without issues and originals hidden in `.legacy.saved`.
 Expense owns its typed receipt view body; Shift removes only the redundant
 comparison against known-null `previous`. Explicit enum qualification and a pure
 closed hour/day converter preserve CanRent operation identities and unit meaning.
-The complete current-source compile now reports **three diagnostics**, complete
-with zero omitted: Member's page admission transitively reads membership through
-`can_work`; Shift's computed `Coverage.met` transitively reads membership through
-`coverage_met`; Shift's notice requires arbitrary-user email, while only
-`actor.email` is readable. These are explicit unsupported original application
-requirements under the current purity/directory contracts. Preserve the guards
-and notice; no generic membership/presentation or directory subsystem is added.
-Composed native emission and application qualification remain blocked by those
-three source requirements, and Dev's preview remains single-file. Available
-source owners are no longer external prerequisites. The accepted File mechanism
-and broader **58/67** reference count remain unchanged.
+The preceding source reconciliation stopped at three semantic refusals: Member's
+record-page admission via `can_work`, Shift's bool `Coverage.met` via
+`coverage_met`, and Shift's arbitrary-user email lookup. The resumed three-blocker
+implementation accepts checked boolean State reads and private user-addressed
+mail, following three equivalent JEV consultations per design decision (plus the
+concrete query/reference dependency decision). The original guards, eligibility,
+recipient and notice remain; `send_user(to=event.recipient,...)` replaces directory
+field access. See the current [decision and validation entry](../../docs/specification/DECISIONS.md).
+
+The original 24-source composition is separately checked through native emission.
+Closing these semantic contracts does not imply an emitted CanCRM application.
+The resulting failures are grouped by defining mechanism below, rather than
+counted as hundreds of new assignments. Dev's preview still has its existing
+single-file limitation. The accepted File mechanism, **58/67** reference count,
+nine broader references and C13/C14/C23 external release holds remain unchanged.
+
+**Three-blocker acceptance and original composition (2026-10-15).** The exact
+original Member role/work and Shift coverage helper bodies pass their compiled
+native cohort **1/1**, including lazy administrator admission, manager queries,
+Employee self-policy control, viewer field withholding, false coverage after
+subject removal, caller/subject revocation and unchanged rows/history. Relevant
+State/Interfaces/simple-native checks pass **81/81**; final affected lease checks
+**2/2** and recipe check **1/1** supersede only their changed scopes. Compiler
+membership typing, code generation and final source-census checks each pass
+**7/7**; the CLI and affected package emits pass. Private user-mail passes its
+actual compiler/native profile **1/1** and the retained contract/Work checks.
+JEV requests/responses and uncertainty are retained in the decision entry.
+
+The final original **24-source** command below exits **10**, with **926 errors**,
+`complete=true`, `omitted=0`, and no usable artifact. The three earlier semantic
+refusals are absent. Counts describe reported occurrences, including secondary
+whole-source correspondence refusals; they are not independent feature tasks.
+
+| Defining mechanism | Diagnostics | Exact remaining requirement / examples |
+| --- | ---: | --- |
+| Native emission and checked source correspondence | 897 E6008 | Query/predicate lowering (including 83 first-query and 95 synchronous any/all refusals outside the finite installed cohort); UI/forms/filters/order and route bindings; event input/handler/hook/dispatch correspondence; business formatting, type/arithmetic and cross-operation lowering. Of these, 68 now explicitly refuse free route-row rendering, which the boolean-only admission ABI does not supply. No unbound JavaScript is accepted. |
+| Installed producer contracts | 26 E6007 | 25 checks lack bound producer catalog entries (including RoomsV1, ScheduleV1 and BillingV1); the supplied Values catalog also marks active_member external. The focused native installed-member catalog is separately tested, without inventing the absent business capability bindings. |
+| Original example analysis facts | 3 E6006 | Two Expense fixtures lack published reviewer-role facts; leave.cancel sequence steps lack the required example analysis facts. |
+
+These results close the requested language contracts, not native/browser
+qualification of the complete CanCRM composition. Record-bound page admission is
+implemented; carrying its authorized route row into rendering remains an explicit
+implementation gap. The original reference scope is **not ready for unrestricted
+training-data authoring**. No training, dataset generation or push was performed.
 
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:
@@ -94,7 +127,7 @@ Rows stop at their finite exit. If a named input is absent, skip only that leaf 
 | 7 / C20 | Original static/runtime Judgment outbox, assessment/options/provider normalization and durable CanDecide/Inbox. | Capability/Work/Dev exact frozen options/request/association and provider tuple. | Real request/result/rollback/replay, unknown/error behavior; Task46 metadata is not completion. |
 | 8 / C07 | Full original Maintain hooks/schedules and initiating author, cancel/time/null-handler continuation. | Exact source closure after applicable C02/C03; State/Dev scheduling/context transfer. | Original complete graph preserves author and late failure; unsupported delete/transitive graphs stay refused. |
 | 9 / C06 | Remaining named Payments.changed/Mailbox.received verified original ingress. IncomingEmail canonical source component is closed; signed Identity is separate closed scope. | Dev/Interfaces genuine namespace/team/owner issuer, closed payload, durable native receiver. | Trusted null actor/current authority/commit/replay and File provenance where used; no unverified event authority. |
-| 10 / C10 | Revision.pdf:file? source lowering, UI presentation and finalized current-authorized File consumer are closed at their tested scopes. Original composed CanCRM consumer remains. | Required local owners and saved groups, including `sales_seats`, are adopted. The current C02/C10 continuation records the three unsupported source requirements; Dev's single-file preview still refuses cross-file imports. | Qualify the original `CanCRM` selection from project root `draft` after those exact inputs; preserve current grant/null behavior, gated nonevaluation/order. Do not repeat closed File mechanisms or substitute a flattened source. |
+| 10 / C10 | Revision.pdf:file? source lowering, UI presentation and finalized current-authorized File consumer are closed at their tested scopes. Original composed CanCRM consumer remains. | Required local owners and saved groups, including `sales_seats`, are adopted. The current C02/C10 continuation records the resolved source contracts and remaining full-composition native emission failures; Dev's single-file preview still refuses cross-file imports. | Qualify the original `CanCRM` selection from project root `draft` after those exact inputs; preserve current grant/null behavior, gated nonevaluation/order. Do not repeat closed File mechanisms or substitute a flattened source. |
 | 11 / C11 | Remaining original CanBook/pages/model/browser/preferences, signed selected-row versions and conditional policies. Named table/history/date/partial-form mechanisms are closed. | Original source and Dev actual current State/D1/grants/pagination/rendered browser consumer. | Original named workflow/security/current version once; fixture does not certify full application. |
 | 12 / C12 | Only declared configured mount/action/static/poll/auth/Files profiles. Root Office/current configured-root source scope is closed. | Defining deployment/host contract and Dev actual supported mount. | Real installed original routes and explicit missing/foreign configuration refuse; no all-host expansion. |
 | 13 / C13 | Original Office support remainder is G3/A7 external account protocol only; G2/T04/T11 A1–A6 closed frozen8935. | Dev/human exact required gpt-6.1-sol account/executor release. | Preserve attempts/denominator/six-arm protocol; no model substitute, trial or provider repeat. |

@@ -15029,3 +15029,14 @@ bindings remain supported. The original complete CanCRM composition is separatel
 refused by its remaining native emission/catalog/example requirements, grouped in
 the existing compiler-completion record. No complete CanCRM artifact or browser
 acceptance, broader reference release, or training-data readiness follows.
+
+Final original CanCRM validation uses all 24 retained source operands and the
+recorded Values catalog command: exit 10, 926 errors, complete=true, omitted=0,
+no usable artifact. Grouped causes are 897 native lowering/source-correspondence
+refusals (including 68 explicit free route-row render refusals), 26 producer
+catalog checks, and three original example-analysis fact refusals. The preceding
+858-error capture predates the explicit route-row safeguard; those additional
+68 occurrences expose the same missing render binding, not 68 new requirements.
+The earlier three semantic errors are gone. Keep full application/reference
+acceptance and unrestricted training-data authoring gated; no push or training
+is authorized by these focused results.
