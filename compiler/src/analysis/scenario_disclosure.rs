@@ -2679,6 +2679,15 @@ impl<'a> Closure<'a> {
                 ))
             .then_some((*symbol, 0));
         }
+        // A required Model leaf in the original Contract parameter owns the
+        // same admitted containment lineage as a direct Model parameter. Its
+        // Contract selectors do not consume the two authored parent hops.
+        if node.kind == SyntaxKind::Member {
+            let module = self.resolve.symbols.get(parameter.0 as usize)?.module;
+            if let Some((root, model, _)) = self.checked_contract_input_reference(key, module) {
+                return (root == parameter).then_some((model, 0));
+            }
+        }
         if node.kind != SyntaxKind::Member || depth == 2 {
             return None;
         }
@@ -5252,6 +5261,23 @@ impl<'a> Closure<'a> {
                     self.checked_contract_input_reference(NodeKey::of(node), scenario.module)
             {
                 pending.push((target, true));
+            }
+            // Capture only actually authored implicit-parent targets. Required
+            // Contract Model leaves are discovered above; the parent proof
+            // retains the same original parameter and checked containment.
+            if node.kind == SyntaxKind::Member
+                && self
+                    .count_member(NodeKey::of(node))
+                    .is_some_and(|(_, field)| field == "parent")
+            {
+                for parameter in &scenario.params {
+                    if let Some((parent, hops)) =
+                        self.checked_call_parent_path(NodeKey::of(node), parameter.param, 0)
+                        && hops > 0
+                    {
+                        pending.push((parent, true));
+                    }
+                }
             }
             if node.kind == SyntaxKind::Member
                 && let Some((_, _, target)) =
@@ -8708,6 +8734,16 @@ impl<'a> Closure<'a> {
             if field_name == "parent" {
                 let (parameter, depth) = match value.reference_origin {
                     Some(ReferenceOrigin::Parameter(parameter)) => (parameter, 0),
+                    Some(ReferenceOrigin::ParameterMember { parameter, node })
+                        if Some(node) == self.query_group(base_key)
+                            && self
+                                .checked_contract_input_reference(node, module)
+                                .is_some_and(|(root, target, _)| {
+                                    root == parameter && target == model
+                                }) =>
+                    {
+                        (parameter, 0)
+                    }
                     Some(ReferenceOrigin::Parent {
                         parameter,
                         model: original,
@@ -9193,8 +9229,36 @@ impl<'a> Closure<'a> {
                 "nullable reference selection or comparison",
             ));
         }
+        // Exact original required Model slots, direct or in Contracts, may
+        // consume checked containment in equality. Both operands retain their
+        // own admission provenance and must name the same model. Arbitrary
+        // stored-reference fields keep their direct-child/count-only boundary.
+        let admitted_parent_comparison =
+            matches!(op, "==" | "!=") && calls.is_empty() && self.loop_node.is_none() && {
+                let operand = |node: &SyntaxNode| -> Option<(SymbolId, bool)> {
+                    let key = self.query_group(NodeKey::of(node))?;
+                    if let Some((parameter, model, _)) =
+                        self.checked_contract_input_reference(key, module)
+                    {
+                        return env
+                            .contains_key(&Local::Symbol(parameter))
+                            .then_some((model, false));
+                    }
+                    env.keys().find_map(|local| {
+                        let Local::Symbol(parameter) = local else {
+                            return None;
+                        };
+                        let (model, hops) = self.checked_call_parent_path(key, *parameter, 0)?;
+                        Some((model, hops > 0))
+                    })
+                };
+                matches!((operand(children[0]), operand(children[1])),
+                    (Some((left_model, left_parent)), Some((right_model, right_parent)))
+                    if left_model == right_model && (left_parent || right_parent))
+            };
         let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
         if !current_null_check
+            && !admitted_parent_comparison
             && left.iter().any(|value| {
                 matches!(
                     value.reference_origin,
@@ -9248,21 +9312,24 @@ impl<'a> Closure<'a> {
                 return Err(self.fail(key, "unsupported scalar operator"));
             }
             let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
-            if right.iter().any(|value| {
-                matches!(
-                    value.reference_origin,
-                    Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
-                )
-            }) {
+            if !admitted_parent_comparison
+                && right.iter().any(|value| {
+                    matches!(
+                        value.reference_origin,
+                        Some(ReferenceOrigin::Parent { .. } | ReferenceOrigin::Field { .. })
+                    )
+                })
+            {
                 return Err(self.fail(
                     key,
                     "stored reference operand needs direct child or count consumer",
                 ));
             }
             let mut values = self.product(key, &left, &right)?;
-            if current_null_check || input_null_check {
+            if current_null_check || input_null_check || admitted_parent_comparison {
                 for value in &mut values {
                     value.reference_origin = None;
+                    value.reference = None;
                     value.record = None;
                     value.current_revision = None;
                 }

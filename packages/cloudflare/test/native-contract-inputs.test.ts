@@ -18,22 +18,26 @@ import type { MutationOutcome } from '../src/worker/assembly.js';
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const nodeImport = compileFunction('return import(url)', ['url'], { importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
-const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`);
+const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`);
 const SOURCE = `app ContractInputs
 Given
  Customer {active:bool,name:text}
+ Contact in Customer {name:text}
+ role contact_reader
  Location {title:text}
  Result {location:Location,title:text trim min=1,value:money,notes:text}
  contract Selection {location:Location}
- contract Lead {customer:Customer,alternate:Customer,selection:Selection,title:Result.title,value:money,notes:text}
+ contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text}
  policy Customer read=members
+ policy Contact read=contact_reader
  policy Location read=members
  policy Result read=members
 When
  crud Customer by=members fields=active,name
+ crud Contact by=members fields=name
  crud Location by=members fields=title
  scenario promote(input:Lead,accept:bool) -> Result by=members
-  require input.customer.active and input.alternate.active and input.value.minor>=0 and input.value.currency==input.value.currency
+  require input.customer.active and input.alternate.active and input.contact.parent==input.customer and input.value.minor>=0 and input.value.currency==input.value.currency
   do
    create Result {location=input.selection.location,title=input.title,value=input.value,notes=input.notes} as result
    require accept
@@ -95,7 +99,8 @@ test('native Contract input slots retain normalized values, distinct reference v
       const now = Date.now(), clock = {nowMs:()=>now}, identities = createD1IdentityStore(identityDb,{clock});
       const team = await identities.createTeam({timezone:'UTC'});
       const user = await identities.createUser({email:'contract-input@example.test',password_hash:'unused',email_verified:true});
-      const membership = await identities.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:false,roles:[]});
+      const contactRoles = [{role:`${APP}.contact_reader`,granted_at:new Date(now).toISOString(),granted_by:user.user_id}];
+      const membership = await identities.createMembership({team_id:team.team_id,user_id:user.user_id,is_owner:false,roles:contactRoles});
       const token = `contract-input-${user.user_id}`;
       await identities.createSession({user_id:user.user_id,token_sha256:await sha256HexText(token),last_team_id:team.team_id,
         expires_at:new Date(now+3600_000).toISOString()});
@@ -119,9 +124,12 @@ test('native Contract input slots retain normalized values, distinct reference v
       }
       const customer = await seed(CUSTOMER,{active:true,name:'member'});
       const blocked = await seed(CUSTOMER,{active:false,name:'blocked'});
+      const other = await seed(CUSTOMER,{active:true,name:'other customer'});
       const location = await seed(LOCATION,{title:'original location'});
       const ref = (row:typeof customer)=>({id:row.id,version:String(row.version)});
-      const payload = {customer:ref(customer),alternate:ref(customer),selection:{location:ref(location)},
+      const contact = await seed(CONTACT,{parent:ref(customer),name:'original contact'});
+      const otherContact = await seed(CONTACT,{parent:ref(other),name:'other contact'});
+      const payload = {customer:ref(customer),alternate:ref(customer),contact:ref(contact),selection:{location:ref(location)},
         title:'  reviewed  ',value:{minor:'500',currency:'EUR'},notes:'original evidence'};
       const records = ()=>store.query({model:RESULT,authority:'owner'});
       const createdBefore = await records();
@@ -140,6 +148,13 @@ test('native Contract input slots retain normalized values, distinct reference v
       const activeReads = association.observations.filter(read=>activeIds.has(read.dependencyId));
       assert.equal(activeReads.length,2); assert.equal(new Set(activeReads.map(read=>read.dependencyId)).size,2);
       assert.ok(activeReads.every(read=>read.row.id===customer.id));
+      const parentDependencies = association.plan.returns.flatMap(returned=>returned.dependencies)
+        .filter(read=>read.model===CONTACT && read.field==='parent' && read.role==='control');
+      const parentIds = new Set(parentDependencies.map(read=>read.id));
+      assert.equal(parentIds.size,1);
+      const parentReads = association.observations.filter(read=>parentIds.has(read.dependencyId));
+      assert.equal(parentReads.length,1); assert.deepEqual(parentReads[0]!.row,contact);
+      assert.deepEqual(parentReads[0]!.row.parent,{model:CUSTOMER,id:customer.id});
       assert.equal(association.changed.length,1); assert.equal(association.changed[0]!.row.id,id);
       const afterCommit = batches.length, committedRecords = await records(), committedHistory = await store.historyFor(RESULT,asId(id));
       assert.equal(referenceId(await invoke(input),'replayed'),id);
@@ -157,8 +172,13 @@ test('native Contract input slots retain normalized values, distinct reference v
       assert.equal(new Set(versionAssociation.intrinsics?.map(value=>value.dependencyId)).size,2);
       assert.ok(versionAssociation.intrinsics?.every(value=>value.kind==='admitted-reference-version' && value.row.id===customer.id));
 
-      // Original early guard and late guard each fail without exposing a staged insert.
-      for (const bad of [{input:{...payload,customer:ref(blocked)},accept:true},{input:payload,accept:false}]) {
+      // Original early, parent-correspondence and late guards each fail atomically.
+      for (const bad of [
+        {input:{...payload,customer:ref(blocked)},accept:true},
+        {input:{...payload,contact:ref(otherContact)},accept:true},
+        {input:{...payload,customer:ref(other)},accept:true},
+        {input:payload,accept:false},
+      ]) {
         const call = envelope('promote',bad), before = await records(), count = batches.length;
         const result = await invoke(call); assert.ok('error' in result); assert.equal(result.error.code,'rule_failed');
         assert.equal(batches.length,count+1);
@@ -171,6 +191,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       for (const [invalid,code] of [
         [{...payload,customer:{id:customer.id}},'validation'],
         [{...payload,customer:{id:customer.id,version:String(customer.version+1)}},'conflict'],
+        [{...payload,contact:{id:contact.id,version:String(contact.version+1)}},'conflict'],
         [{...payload,selection:{location:{id:'missing-contract-location',version:'1'}}},'not_found'],
       ] as const) {
         const call = envelope('promote',{input:invalid,accept:true}), count = batches.length, revision = await store.readRevision(), before = await records();
@@ -178,13 +199,26 @@ test('native Contract input slots retain normalized values, distinct reference v
         assert.equal(batches.length,count); assert.equal(await store.readRevision(),revision);
         assert.deepEqual(await records(),before); assert.equal(await store.readReceipt(receiptIdentity(call)),null);
       }
+      // Current Contact read authority is independent from operation membership.
+      await identities.setMembershipRoles(membership.membership_id,[]);
+      const grantCount = batches.length, grantRecords = await records();
+      for (const recovered of [await invoke(input),await invoker.invokeRetainedMutation(input,await current())]) {
+        const withheld = committed(recovered,'replayed'); assert.equal(withheld.result,null); assert.deepEqual(withheld.records,[]);
+      }
+      assert.equal(batches.length,grantCount); assert.deepEqual(await records(),grantRecords);
+      await identities.setMembershipRoles(membership.membership_id,contactRoles);
+      assert.equal(referenceId(await invoker.invokeRetainedMutation(input,await current()),'replayed'),id);
+      assert.equal(batches.length,grantCount);
+      assert.deepEqual(await store.load(CONTACT,contact.id),contact);
+      assert.deepEqual(await store.load(CONTACT,otherContact.id),otherContact);
+      assert.deepEqual(await store.load(CUSTOMER,customer.id),customer);
       await identities.removeMembership(membership.membership_id);
       const revokedCount = batches.length;
       const withheld = committed(await invoke(selectedInput),'replayed'); assert.equal(withheld.result,null);
       const denied = await invoker.invokeRetainedMutation(selectedInput,identity); assert.ok('error' in denied); assert.equal(denied.error.code,'forbidden');
       const freshDenied = await invoke(envelope('promote',{input:payload,accept:true})); assert.ok('error' in freshDenied); assert.equal(freshDenied.error.code,'forbidden');
       assert.equal(batches.length,revokedCount);
-      await identities.reactivateMembership(membership.membership_id,{is_owner:false,roles:[]});
+      await identities.reactivateMembership(membership.membership_id,{is_owner:false,roles:contactRoles});
       assert.equal(referenceId(await invoker.invokeRetainedMutation(selectedInput,await current()),'replayed'),location.id);
       assert.equal(batches.length,revokedCount);
       assert.deepEqual(await store.readReceipt(receiptIdentity(input)),physical);
