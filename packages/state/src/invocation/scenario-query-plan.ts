@@ -72,7 +72,7 @@ function checkedType(value: unknown, nominal = false, files = false): CanTypeId 
     const type = parseTypeId(value);
     if (printTypeId(type) !== value || type.requiredArray ||
         !(files && value === 'file[]' || type.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(value) ||
-          nominal && type.base.kind === 'nominal' && !type.array && value !== 'void')) return fail('unsupported query type.');
+          nominal && type.base.kind === 'nominal' && value !== 'void')) return fail('unsupported query type.');
   } catch (error) { if (error instanceof StateError) throw error; return fail('invalid canonical type.'); }
   return value as CanTypeId;
 }
@@ -290,6 +290,9 @@ export function checkQueryInventory(plan: ScenarioResultDisclosurePlan, type: Ca
         continue;
       }
       if (field === undefined || artifactType(field, models, schema) !== dependency.type) fail('query dependency disagrees with owning field.');
+      const parsed = parseTypeId(dependency.type);
+      if (parsed.base.kind === 'nominal' && parsed.array &&
+          (dependency.role !== 'control' || field?.field.kind !== 'ref')) fail('nominal query arrays require owning Model-reference CONTROL fields.');
     }
     for (const term of query.order) {
       if (term.field === 'parent') fail('parent metadata is not an ordered business field.');

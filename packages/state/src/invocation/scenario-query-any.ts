@@ -1,20 +1,28 @@
 /** Finite stored-bool ANY correspondence. No declaration grants row authority. */
 import type { ArtifactModel, CanonicalModelDescriptor, ModelName, ScenarioReceiptQueryObservation,
   ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan } from '@canlang/contracts';
+import { parseTypeId, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze } from '../internal/own-data.js';
 import { copyScenarioFileData } from './scenario-file-assignment.js';
 import { stableStringify } from './replay.js';
 
-export interface ScenarioQueryAnyMetadata { readonly queryId: string; readonly dependencyId: string }
-export interface ScenarioQueryAnyProfile {
+export type ScenarioQueryAnyMetadata = { readonly queryId: string; readonly dependencyId: string } |
+  { readonly kind: 'predicate'; readonly queryId: string; readonly dependencyIds: readonly string[] };
+interface StoredBoolAnyProfile {
+  readonly kind?: never;
   readonly queryId: string; readonly dependencyId: string;
   readonly model: ModelName; readonly field: string;
   readonly source: ScenarioReceiptQueryPlan['source'];
   readonly parentModel: ModelName; readonly parameter: string;
   readonly query: ScenarioReceiptQueryPlan;
 }
-type Bound = { readonly plan: ScenarioResultDisclosurePlan;
+interface PredicateAnyProfile {
+  readonly kind: 'predicate'; readonly queryId: string; readonly dependencyIds: readonly string[];
+  readonly model: ModelName; readonly source: ScenarioReceiptQueryPlan['source']; readonly query: ScenarioReceiptQueryPlan;
+}
+export type ScenarioQueryAnyProfile = StoredBoolAnyProfile | PredicateAnyProfile;
+type Bound = { readonly valueSchema?: NormalizedSchema | undefined; readonly plan: ScenarioResultDisclosurePlan;
   readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>;
   readonly canonicalModels: readonly CanonicalModelDescriptor[] };
 const profiles = new WeakSet<ScenarioQueryAnyProfile>();
@@ -28,9 +36,14 @@ function closed(value: unknown, keys: readonly string[]): Record<string, unknown
 
 /** Root additionally checks the admitted parameter's required versioned input.
  * Compiler/Dev owns exact builtin/lambda/getter source correspondence. */
+export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { dependencyId: string }>): StoredBoolAnyProfile;
+export function bindScenarioQueryAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>): PredicateAnyProfile;
+export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMetadata): ScenarioQueryAnyProfile;
 export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMetadata): ScenarioQueryAnyProfile {
   try {
-    const input = closed(copyScenarioFileData(metadata), ['queryId', 'dependencyId']);
+    const copied = copyScenarioFileData(metadata) as ScenarioQueryAnyMetadata;
+    if ('kind' in copied && copied.kind === 'predicate') return bindPredicateAny(bound, copied);
+    const input = closed(copied, ['queryId', 'dependencyId']);
     if (typeof input.queryId !== 'string' || !input.queryId || typeof input.dependencyId !== 'string' || !input.dependencyId) return fail('owning occurrence identities required.');
     const plan = copyScenarioFileData(bound.plan) as ScenarioResultDisclosurePlan;
     const queries = plan.queries?.filter(query => query.id === input.queryId);
@@ -66,6 +79,42 @@ export function bindScenarioQueryAny(bound: Bound, metadata: ScenarioQueryAnyMet
   } catch (error) { if (error instanceof StateError) throw error; return fail('invalid owning plan.'); }
 }
 
+/** The installed producer, not this transport profile, authenticates the
+ * executable source/capture. The finite profile is a same-source root query;
+ * imported helper chains need their own checked producer association. */
+function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetadata, { kind: 'predicate' }>): PredicateAnyProfile {
+  const input = closed(copyScenarioFileData(metadata), ['kind', 'queryId', 'dependencyIds']);
+  if (input.kind !== 'predicate' || typeof input.queryId !== 'string' || !input.queryId ||
+      !Array.isArray(input.dependencyIds) || input.dependencyIds.length === 0) return fail('exact predicate CONTROL census required.');
+  const query = bound.plan.queries?.find(query => query.id === input.queryId);
+  if (query === undefined || query.parent !== undefined || query.order.length !== 0 || query.limit !== null ||
+      query.archived !== 'exclude' || !same(query.source, bound.plan.source) ||
+      !same(input.dependencyIds, query.dependencies.map(dependency => dependency.id))) return fail('exact same-source root predicate query required.');
+  const model = bound.artifactModels.get(query.model), canonical = bound.canonicalModels.find(model => model.name === query.model);
+  if (model === undefined || canonical === undefined || model.parent !== undefined) return fail('declared root query model required.');
+  for (const dependency of query.dependencies) {
+    const fields = model.fields.filter(field => field.name === dependency.field), field = fields[0];
+    const checked = canonical.fields[dependency.field];
+    if (dependency.role !== 'control' || !same(dependency.source, query.source) || fields.length !== 1 ||
+        field === undefined || checked === undefined || field.valueType !== dependency.type || checked.valueType !== dependency.type ||
+        field.default?.kind === 'derived' || checked.default?.kind === 'derived') return fail('exact stored CONTROL field declaration required.');
+    const type = parseTypeId(dependency.type);
+    const modelReference = type.base.kind === 'nominal' && bound.artifactModels.has(type.base.path as ModelName) &&
+      bound.valueSchema !== undefined && !Object.hasOwn(bound.valueSchema.contracts, type.base.path) &&
+      !Object.hasOwn(bound.valueSchema.enums, type.base.path) && !Object.hasOwn(bound.valueSchema.aliases ?? {}, type.base.path);
+    if (type.nullable || type.requiredArray || !(dependency.type === 'bool' || dependency.type === 'user' || modelReference)) return fail('predicate requires bool, User or declared Model reference CONTROL fields.');
+    for (const marker of ['required', 'serverOnly', 'nullable', 'array', 'trim', 'min', 'max'] as const) {
+      if (Object.hasOwn(field, marker) !== Object.hasOwn(checked, marker) || Object.hasOwn(field, marker) && !same(field[marker], checked[marker])) return fail('owning predicate field markers disagree.');
+    }
+  }
+  const consumers = bound.plan.returns.filter(returned => returned.influences.some(influence => influence.queryId === query.id));
+  if (consumers.length === 0 || bound.plan.returns.some(returned => returned.projection?.queryId === query.id) ||
+      consumers.some(returned => returned.dependencies.some(dependency => dependency.queryId === query.id && dependency.role === 'data'))) return fail('predicate requires actual CONTROL influence without projection.');
+  const profile = deepFreeze({ kind: 'predicate' as const, queryId: query.id, dependencyIds: [...metadata.dependencyIds],
+    model: query.model, source: query.source, query: copyScenarioFileData(query) as ScenarioReceiptQueryPlan });
+  profiles.add(profile); return profile;
+}
+
 /** Validate the retained lazy prefix; suffix rows were not predicate reads.
  * General row/lifetime/parent structural checks remain with receipt parsing. */
 export function checkSavedScenarioQueryAny(profile: ScenarioQueryAnyProfile, observation: ScenarioReceiptQueryObservation): boolean {
@@ -73,14 +122,14 @@ export function checkSavedScenarioQueryAny(profile: ScenarioQueryAnyProfile, obs
   try {
     const saved = copyScenarioFileData(observation) as ScenarioReceiptQueryObservation;
     if (saved.queryId !== profile.queryId || !Number.isSafeInteger(saved.revision) || saved.revision < 0 ||
-        saved.parent?.model !== profile.parentModel || !Array.isArray(saved.candidates) || !Array.isArray(saved.selectedIndices) ||
+        (profile.kind === 'predicate' ? saved.parent !== undefined : saved.parent?.model !== profile.parentModel) || !Array.isArray(saved.candidates) || !Array.isArray(saved.selectedIndices) ||
         saved.selectedIndices.length > 1) return fail('exact saved ANY domain required.');
     const identities = new Set<string>(); let firstTrue = -1;
     for (let index = 0; index < saved.candidates.length; index++) {
       const candidate = saved.candidates[index]!;
       if (typeof candidate.row.id !== 'string' || identities.has(candidate.row.id) || !Number.isSafeInteger(candidate.row.created) ||
-          candidate.row.archivedAt !== null || candidate.row.parent?.model !== profile.parentModel ||
-          candidate.row.parent.id !== saved.parent.row.id || typeof candidate.matched !== 'boolean' || !Array.isArray(candidate.dependencies)) return fail('complete genuine contained candidate census required.');
+          candidate.row.archivedAt !== null || (profile.kind === 'predicate' ? candidate.row.parent != null :
+          candidate.row.parent?.model !== profile.parentModel || candidate.row.parent.id !== saved.parent!.row.id) || typeof candidate.matched !== 'boolean' || !Array.isArray(candidate.dependencies)) return fail('complete genuine contained candidate census required.');
       identities.add(candidate.row.id);
       const previous = saved.candidates[index - 1];
       if (previous !== undefined && (previous.row.created > candidate.row.created ||
@@ -89,7 +138,16 @@ export function checkSavedScenarioQueryAny(profile: ScenarioQueryAnyProfile, obs
         if (candidate.matched || candidate.dependencies.length !== 0) return fail('ANY suffix must be unvisited.');
         continue;
       }
-      if (candidate.dependencies.length !== 1 || candidate.dependencies[0] !== profile.dependencyId ||
+      if (profile.kind === 'predicate') {
+        if (candidate.dependencies.length === 0 || candidate.dependencies[0] !== profile.dependencyIds[0] ||
+            new Set(candidate.dependencies).size !== candidate.dependencies.length ||
+            candidate.dependencies.some((id: string) => !profile.dependencyIds.includes(id))) return fail('visited predicate requires its declared first CONTROL and executed closure.');
+        for (const id of candidate.dependencies) {
+          const dependency = profile.query.dependencies.find(dependency => dependency.id === id)!;
+          if (!Object.hasOwn(candidate.record.data, dependency.field) ||
+              !same(candidate.record.data[dependency.field], candidate.row.data[dependency.field])) return fail('predicate CONTROL must retain its exact projected field.');
+        }
+      } else if (candidate.dependencies.length !== 1 || candidate.dependencies[0] !== profile.dependencyId ||
           typeof candidate.record.data[profile.field] !== 'boolean' || candidate.record.data[profile.field] !== candidate.row.data[profile.field] ||
           candidate.matched !== candidate.record.data[profile.field]) return fail('every visited bool verdict requires its exact CONTROL marker.');
       if (candidate.matched) firstTrue = index;

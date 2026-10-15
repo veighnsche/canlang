@@ -10,7 +10,16 @@ previous resolver. Fresh CLI/captured-module checks preserve sibling input types
 and release defaults. Original24-source capture is pending; the 37 candidate
 occurrences are not yet credited as removed or as ingress workflow acceptance.
 
-**C02 lazy ANY binding (2026-10-15, accepted direction; implementation pending).**
+**C02 State predicate ANY receiving (2026-10-15, implemented/tested prerequisite).**
+Exact installed once-captured callbacks now run through the existing lazy receipt
+query path with same-source root profiles, mandatory first CONTROL proof and
+current executed-field authority. New4/4 and retained stored-bool10/10 checks plus
+normal State build pass. Reached private fields fail forbidden; skipped suffix
+fields remain unread. Old stored-bool verdict checks remain. Imported helper
+source mismatch still refuses; compiler/CF source factory/call-chain integration
+is the next dependency, not an external hold or completed can_work workflow.
+
+**C02 lazy ANY binding (2026-10-15, accepted direction; native integration pending).**
 Use the installed producer's once-consumed exact active callback capture at the
 existing State receipt query boundary. Three equivalent JEV requests/responses
 in `predicate-any-source-binding/` prefer this over an installed active-closure

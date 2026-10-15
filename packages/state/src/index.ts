@@ -191,7 +191,7 @@ export {
   type ScenarioReceiptCallProducer, type ScenarioReceiptCallFrame,
   bindScenarioReceiptQueryProducer, executeScenarioReceiptQuery, executeScenarioReceiptAny, observeScenarioReceiptQueryDependency, bindScenarioReceiptQueryResult,
   selectScenarioReceiptQueryFirstRow, bindScenarioReceiptQueryCount, bindScenarioReceiptQuerySelection, readScenarioReceiptQueryParentRow, readScenarioReceiptStoredReferenceRow, readScenarioReceiptNullableStoredReferenceRow,
-  type ScenarioReceiptQueryProducer, type ScenarioReceiptQueryResult, type ScenarioReceiptQuerySlot, type ScenarioReceiptQueryHandle,
+  type ScenarioReceiptQueryProducer, type ScenarioReceiptAnyPredicate, type ScenarioReceiptQueryResult, type ScenarioReceiptQuerySlot, type ScenarioReceiptQueryHandle,
   type ScenarioReceiptFrameworkProducer, type ScenarioReceiptDeliveryOriginFrame, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
   type ScenarioReceiptSendGuard, type ScenarioReceiptSendGuardFrame, type ScenarioReceiptSourceSendGuard,
   type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
