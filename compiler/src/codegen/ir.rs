@@ -19315,6 +19315,14 @@ impl<'a> Cx<'a> {
     /// reference, roles canonically, spellings as text.
     fn decode_as_cell(&mut self, module: ModuleId, cell: &SyntaxNode) -> TypedExpr {
         let span = cell.span;
+        if cell.kind == SyntaxKind::Array {
+            let values = kids(cell)
+                .iter()
+                .filter(|node| is_expression(node.kind))
+                .map(|node| self.decode_as_role_cell(module, node))
+                .collect();
+            return TypedExpr::new(IrExpr::Array(values), ResolvedType::Unknown, span);
+        }
         let name = match cell.kind {
             SyntaxKind::NameRef => kids(cell).iter().find_map(|n| name_text(self.db, n)),
             _ => None,
@@ -19349,6 +19357,43 @@ impl<'a> Cx<'a> {
             );
         }
         TypedExpr::new(IrExpr::Text(name), ResolvedType::Scalar(Scalar::Text), span)
+    }
+
+    /// Role arrays belong only to the checked example caller position. Their
+    /// static members never enter general executable role-value lowering.
+    fn decode_as_role_cell(&mut self, module: ModuleId, cell: &SyntaxNode) -> TypedExpr {
+        let name = (cell.kind == SyntaxKind::NameRef)
+            .then(|| kids(cell).iter().find_map(|node| name_text(self.db, node)))
+            .flatten();
+        if let Some(name) = name {
+            let role = if matches!(name.as_str(), "owner" | "members") {
+                Some(name)
+            } else {
+                self.resolve_member(module, &name).and_then(|(id, _)| {
+                    matches!(
+                        self.program
+                            .symbols
+                            .get(id.0 as usize)
+                            .map(|symbol| &symbol.kind),
+                        Some(SymbolKind::Role)
+                    )
+                    .then(|| self.canonical(id))
+                })
+            };
+            if let Some(role) = role {
+                return TypedExpr::new(
+                    IrExpr::Text(role),
+                    ResolvedType::Scalar(Scalar::Text),
+                    cell.span,
+                );
+            }
+        }
+        self.unsupported_expr(
+            "example role array",
+            "caller members require their actual declared role or owner/members identity",
+            ResolvedType::Unknown,
+            cell.span,
+        )
     }
 
     /// Fixture references of one decoded expression (`s` slots).
