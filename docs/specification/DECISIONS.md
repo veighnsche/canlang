@@ -16693,3 +16693,15 @@ and accessors. This is not shape inference from arbitrary objects or a grant.
 Eight State source checks and normal State/CF builds pass. Actual helper execution
 still needs the compiler's full owning receipt retained instead of its source-only
 query preparation. No new language decision requires JEV consultation.
+
+
+### 2026-10-15 — qualify remaining original event carriers
+
+Frozen0d751ed1 original24 qualification completes in396.54s, exit10,
+complete=true/omitted0:655 diagnostics (629 E6008,26 E6007), no usable artifact.
+All26 consumed source records match the prior666 capture exactly. Full diagnostic
+multiset comparison removes exactly11 declared event input-carrier refusals and
+adds none. These close the remaining original46 carrier occurrences after the
+prior35 owner-path repairs; no ingress/provider/full-workflow acceptance follows.
+The early single E3001 capture was a type regression, now repaired, never665
+backend removals. Continue the actual native helper and other ready root groups.
