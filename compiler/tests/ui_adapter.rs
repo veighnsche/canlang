@@ -928,7 +928,7 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
     use std::process::Command;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     for (body, profile) in [
-        ("  card\n   text \"Body\"\n", "card"),
+        ("  card unknown=true\n   text \"Body\"\n", "unsupported attribute"),
         (
             "  details \"Caption\" display=drawer\n   text \"Body\"\n",
             "details",
@@ -988,7 +988,9 @@ fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
             .unwrap();
         assert!(!output.status.success(), "{profile} unexpectedly published");
         let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        let expected_code = if profile == "bound tab panels" {
+        let expected_code = if profile == "unsupported attribute" {
+            "E1203"
+        } else if profile == "bound tab panels" {
             "E3001"
         } else if profile == "open=" {
             "E3007"
