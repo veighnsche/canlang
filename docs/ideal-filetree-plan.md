@@ -4,6 +4,26 @@ This is the current planning entry for the intended finished Canlang, derived fr
 
 The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/finished-product/target-tree.md), with its [machine allocation](ideal-filetree-plan/finished-product/target-tree.json). The previous current-checkout tree and twelve-package/TS-only recommendation are historical inputs, superseded as the complete intended-product target. Reusable prior source reviews remain at their actual byte/scope pins. Current typed descriptions, forms, receipts, fanout and HTTP serving source supersede blanket historical absence claims only at their observed mechanism scope.
 
+### Standalone release intake — 2026-10-15
+
+Fast-forward local main from `e4a9b4f4` to release candidate/tag `v0.1.1`
+(`97bb83d9`). Reuse the preceding merge reconciliation and account for all 21
+subsequent changed paths once in `standalone_release_reconciliation_20261015`
+of [the existing registry](ideal-filetree-plan/state-machines-20261007.json).
+The changes advance existing lockstep version facts and compiler notice input
+pins, and add native checks of public assets/streamed installation to the existing
+release workflow. No source leaf or defining owner is added or transferred;
+existing target allocations and all retained complete-review gates stay open.
+
+Preflight [run 38799215069](https://github.com/veighnsche/canlang/actions/runs/38799215069)
+passes 21 installed checks on each supported native host. Matching tagged
+[publication run 38800630072](https://github.com/veighnsche/canlang/actions/runs/38800630072)
+passes all nine jobs, publishes the complete seven-asset release through a draft,
+and verifies all five public core URLs plus native streamed installs on both hosts.
+Website synchronization and deployment belong to the website checkout. Complete checkpoints remain unchanged.
+This scoped release intake does not accept other application/provider gates or
+authorize structural implementation. See the [release decision](specification/DECISIONS.md#2026-10-15--publish-the-next-standalone-release-through-existing-gates).
+
 ### Main pull reconciliation — 2026-10-15
 
 Merge local `797b8f3b` with upstream `c3931b71`. Preserve the cleanup

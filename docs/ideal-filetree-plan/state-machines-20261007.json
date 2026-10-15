@@ -69183,5 +69183,127 @@
    "The entry plan complete checkpoint ba838779 and legacy registry checkpoint82493427 are preserved; no new complete checkpoint is selected.",
    "Current original CanCRM nullable URL diagnostic and masked backend baseline remain unchanged."
   ]
+ },
+ "standalone_release_reconciliation_20261015": {
+  "base": "e4a9b4f4b20ec1430e7d2aa9c5201058cbbf9a01",
+  "integrated_source_pin": "97bb83d925ffb7cb5cfb95494b3fd60626337caa",
+  "tag": "v0.1.1",
+  "scope": "Incremental fast-forward intake after the retained 2026-10-15 main reconciliation. Existing lockstep versions, compiler notice input pins and native public-install workflow checks only.",
+  "changed_path_count": 21,
+  "rows": [
+   [
+    "M",
+    ".github/workflows/release.yml",
+    "build/release"
+   ],
+   [
+    "M",
+    "bun.lock",
+    "build/release"
+   ],
+   [
+    "M",
+    "compiler/Cargo.lock",
+    "compiler"
+   ],
+   [
+    "M",
+    "compiler/Cargo.toml",
+    "compiler"
+   ],
+   [
+    "M",
+    "compiler/third-party-notices/manifest.json",
+    "compiler"
+   ],
+   [
+    "M",
+    "docs/specification/DECISIONS.md",
+    "specification"
+   ],
+   [
+    "M",
+    "package.json",
+    "build/release"
+   ],
+   [
+    "M",
+    "packages/cloudflare/package.json",
+    "cloudflare"
+   ],
+   [
+    "M",
+    "packages/cloudflare/src/preparation/host.ts",
+    "cloudflare"
+   ],
+   [
+    "M",
+    "packages/cloudflare/src/release/stamp.ts",
+    "cloudflare"
+   ],
+   [
+    "M",
+    "packages/cloudflare/test/cli.test.ts",
+    "cloudflare"
+   ],
+   [
+    "M",
+    "packages/cloudflare/test/release.test.ts",
+    "cloudflare"
+   ],
+   [
+    "M",
+    "packages/contracts/package.json",
+    "contracts"
+   ],
+   [
+    "M",
+    "packages/identity/package.json",
+    "identity"
+   ],
+   [
+    "M",
+    "packages/interfaces/package.json",
+    "interfaces"
+   ],
+   [
+    "M",
+    "packages/state/package.json",
+    "state"
+   ],
+   [
+    "M",
+    "packages/stdlib/package.json",
+    "stdlib"
+   ],
+   [
+    "M",
+    "packages/testkit/package.json",
+    "testkit"
+   ],
+   [
+    "M",
+    "packages/ui/package.json",
+    "ui"
+   ],
+   [
+    "M",
+    "packages/values/package.json",
+    "values"
+   ],
+   [
+    "M",
+    "packages/work-kernel/package.json",
+    "work-kernel"
+   ]
+  ],
+  "target_disposition": "Existing owning paths and target allocations remain; no new source leaf, owner transfer or structural cutover. Publication and installed qualification are distribution evidence only.",
+  "validation": "Installer/publication tests (19), release stamp tests (12), CLI tests (39), local release packing30 tasks and actionlint pass. Native preflight run 38799215069 passes 21 installed checks on each supported host. Tagged publication/public smoke run 38800630072 passes all nine jobs, including 21 native checks per host, all five public core URLs and both public streamed installs.",
+  "retained_coverage": "Reuse the prior merge_reconciliation_20261015 and every retained source/target gate. These21 paths account for the entire next source interval once. Bookkeeping requires no recursive source registration.",
+  "checkpoint_advanced": false,
+  "remaining_gates": [
+   "Website synchronization/deployment remains owned by the separate website checkout; its installer route still returns HTTP 404. Tagged publication and both public streamed installs are complete.",
+   "All previously retained complete semantic/target-review gates remain unchanged."
+  ]
  }
 }
