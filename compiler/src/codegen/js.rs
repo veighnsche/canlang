@@ -4368,6 +4368,95 @@ impl<'a> Emitter<'a> {
         false
     }
 
+    /// Recorded human/outbound send sinks that admit localized formatted
+    /// text (outcome 7): std mail subject/body and the pinned
+    /// `catch.AlertsV1.notify(value:Alert)` message path (DESIGN §9.1).
+    /// Returned paths are send-args field segments; every other formatted
+    /// position keeps refusing, including mail `to` and send guards.
+    fn outbound_sink_paths(operation: &str) -> Option<&'static [&'static [&'static str]]> {
+        if operation == "std.EmailV1.send" || operation == "std.EmailV1.send_user" {
+            return Some(&[&["subject"], &["body"]]);
+        }
+        let mut parts = operation.rsplit('.');
+        if parts.next() == Some("notify") && parts.next() == Some("AlertsV1") {
+            return Some(&[&["value", "message"]]);
+        }
+        None
+    }
+
+    /// Field-segment paths of formatted values under `expr`, mirroring
+    /// `expr_formatted` conservatively: a tainted shape placed imprecisely
+    /// is reported at its own position (fail closed).
+    fn formatted_positions(&self, expr: &TypedExpr) -> Vec<(Vec<String>, Span)> {
+        let mut out = Vec::new();
+        let mut hidden: HashMap<String, usize> = HashMap::new();
+        let mut path = Vec::new();
+        self.collect_formatted(expr, &mut path, &mut hidden, &mut out);
+        out
+    }
+
+    fn collect_formatted(
+        &self,
+        expr: &TypedExpr,
+        path: &mut Vec<String>,
+        hidden: &mut HashMap<String, usize>,
+        out: &mut Vec<(Vec<String>, Span)>,
+    ) {
+        match &expr.expr {
+            IrExpr::Format { .. } => {
+                out.push((path.clone(), expr.span));
+            }
+            IrExpr::Name(name) => {
+                if hidden.get(name.as_str()).copied().unwrap_or(0) == 0
+                    && self
+                        .formatted_bindings
+                        .iter()
+                        .rev()
+                        .find_map(|scope| scope.get(name))
+                        .copied()
+                        .unwrap_or(false)
+                {
+                    out.push((path.clone(), expr.span));
+                }
+            }
+            IrExpr::Member { base, .. } => self.collect_formatted(base, path, hidden, out),
+            IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                if matches!(target, IrCallTarget::DeriveFn(id) if self.formatted_derives.contains(id))
+                {
+                    if self.expr_formatted(expr) {
+                        out.push((path.clone(), expr.span));
+                    }
+                } else {
+                    for arg in args {
+                        self.collect_formatted(arg, path, hidden, out);
+                    }
+                }
+            }
+            IrExpr::Binary { left, right, .. } => {
+                self.collect_formatted(left, path, hidden, out);
+                self.collect_formatted(right, path, hidden, out);
+            }
+            IrExpr::Unary { operand, .. } => self.collect_formatted(operand, path, hidden, out),
+            IrExpr::Array(items) => {
+                for item in items {
+                    self.collect_formatted(item, path, hidden, out);
+                }
+            }
+            IrExpr::Object(entries) => {
+                for (key, value) in entries {
+                    path.push(key.clone());
+                    self.collect_formatted(value, path, hidden, out);
+                    path.pop();
+                }
+            }
+            _ => {
+                if self.expr_formatted(expr) {
+                    out.push((path.clone(), expr.span));
+                }
+            }
+        }
+    }
+
     fn formatted_refusal(&mut self, sink: &str, span: Span) -> String {
         self.unsupported(sink,
             "localized formatting is presentation-only; this consumer has no admitted presentation sink contract",
@@ -8183,7 +8272,34 @@ impl<'a> Emitter<'a> {
                 std::iter::once(domain).chain(limit.iter()).collect()
             }
         };
-        if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
+        // Recorded human/outbound sends admit localized formatted text at
+        // their classified human-text paths (lowered inline through the
+        // shared formatter, frozen at send construction in authored order).
+        // Guards and every other formatted position keep refusing.
+        if let IrStmt::Send {
+            args,
+            when,
+            operation,
+            ..
+        } = stmt
+        {
+            if let Some(guard) = when.iter().find(|value| self.expr_formatted(value)) {
+                let refused = self.formatted_refusal("formatted business statement", guard.span);
+                return vec![(format!("{pad}{refused};"), guard.span)];
+            }
+            let positions = self.formatted_positions(args);
+            let admitted = Self::outbound_sink_paths(operation).is_some_and(|allowed| {
+                positions.iter().all(|(path, _)| {
+                    allowed.iter().any(|ok| {
+                        ok.len() == path.len() && ok.iter().zip(path).all(|(a, b)| a == b)
+                    })
+                })
+            });
+            if !admitted && let Some((_, span)) = positions.first() {
+                let refused = self.formatted_refusal("formatted business statement", *span);
+                return vec![(format!("{pad}{refused};"), *span)];
+            }
+        } else if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
             let refused = self.formatted_refusal("formatted business statement", value.span);
             return vec![(format!("{pad}{refused};"), value.span)];
         }
