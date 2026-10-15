@@ -167,13 +167,14 @@ gating only the legacy derive-call E6008 gap; new
 `t31_hook_derive_call_native_context` probe passes. The commit also repairs
 three IrModule fixture initializers missing `runtime_bindings` without which
 the codegen test target does not compile at all — verified at base
-(`E0063`, pre-existing). Residual codegen failures (7, e.g. golden
-structures, e2e hook drivers) sit in that previously uncompilable suite;
-per Codex REVIEW-5 the coordinator's earlier "not regressions" inference
-was invalid (an uncompilable baseline proves nothing about those tests), so
-they are recorded as UNCLASSIFIED pending the discriminating check below;
-the broader 76-occurrence scope and native consumer remain open. Codex
-review pending.
+(`E0063`, pre-existing). Residual codegen failures are now classified by the REVIEW-5 discriminating
+check (base + ONLY the three mechanical fixture repairs, no production
+changes, same 7 tests): at base-control 0/7 pass; in the integrated parent
+3/7 pass — both e2e hook drivers and `localized_format` are FIXED by the
+outcome-12 hook lowering. The remaining 4 (`sequence_as_binding`,
+`catalog_factories`, both goldens) fail identically with zero of our source
+changes applied: pre-existing and unrelated to this slice. The broader
+76-occurrence scope and native consumer remain open. Codex review pending.
 
 Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
 slotted groups, selection headers and original payload shapes lower;
