@@ -14877,3 +14877,34 @@ snapshot replay after restoration without rearchiving the current row. Existing
 permission, rollback, protected-form and current-role checks remain passing in
 that same run. Cloudflare TypeScript/build and the CLI build pass. Browser
 qualification remains separately pending; no broader reference acceptance follows.
+
+
+C02/C10 source reconciliation retains all original selected dependencies. The
+recorded twelve operands omitted CanShift and five selected owners; recursively
+supplying the actual defining sources gives 24 operands. Adopt seven additional
+legacy groups under Expense, Success, Contract and Stock, preserving hidden
+originals and every saved association. Their four owner-status checks report no
+issues. Expense's receipt view owns its typed source/merchant/amount/date body;
+Shift's else branch removes only a conjunct comparing a record with the already
+known-null `previous`.
+
+CanRent now uses explicit owning enum cases for colliding `hold`/`no_show` values,
+including its existing example cells. A pure `membership_unit` maps the exact
+closed Resource hour/day domain into Entitlement's hour/day cases; `visit` is not
+introduced and exact-domain compatibility is unchanged. Direct compiled helper
+execution checks both mappings. The original complete composition now has only
+three diagnostics (complete, zero omitted), closing all 64 recorded causes or
+identifying their exact original-source prerequisite. The reproducible 24-source
+invocation is retained in the existing compiler-completion record.
+
+Accept an explicit unsupported disposition for these three remaining original
+requirements under the current language: CanMember page admission's transitive
+membership read, Shift's computed membership-derived coverage value, and Shift's
+arbitrary recipient email lookup. Current page/computed-value purity and
+actor-only directory exposure deliberately refuse them. Do not remove the guard,
+change eligibility, redirect the recipient or omit the notice to produce an
+artifact. Their defining language/directory contracts must be resolved before
+composed emission/native/browser acceptance. This bounded task adds no new
+subsystem or relaxation. Existing C13 account/executor, C14 BDD3 policy and C23
+OUTBOX release holds and the nine broader references remain unchanged; no
+training or dataset generation is authorized by these results.
