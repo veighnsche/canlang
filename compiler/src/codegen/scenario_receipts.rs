@@ -5051,7 +5051,7 @@ fn images_source_values(node: &crate::syntax::SyntaxNode) -> Vec<&crate::syntax:
 
 /// Resolve an original required Contract parameter path. Only declaration-owned
 /// Contract fields extend the slot; stored Model fields remain observed reads.
-fn checked_contract_parameter_path(
+pub(super) fn checked_contract_parameter_source_path(
     ir: &IrProgram,
     owner: &IrItem,
     value: &TypedExpr,
@@ -5140,10 +5140,16 @@ fn checked_contract_parameter_path(
                     if named.span != parameter.span
                         || named.token()?.text(text) != name
                         || crate::analysis::NodeKey::of(named_type) != fact.type_node
-                        || direct_source_path_name(path, text)? != contract.name
                     {
                         return None;
                     }
+                    super::scenario_create_sources::reference_name(
+                        ir,
+                        owner,
+                        *symbol,
+                        direct_source_path_name(path, text)?,
+                        db,
+                    )?;
                     let schema = facts
                         .stored_contracts
                         .as_deref()?
@@ -5249,7 +5255,16 @@ fn checked_contract_parameter_path(
             _ => None,
         }
     }
-    let result = visit(ir, owner, value, db, 0)?;
+    visit(ir, owner, value, db, 0)
+}
+
+fn checked_contract_parameter_path(
+    ir: &IrProgram,
+    owner: &IrItem,
+    value: &TypedExpr,
+    db: Option<&SourceDb>,
+) -> Option<(crate::analysis::SymbolId, String)> {
+    let result = checked_contract_parameter_source_path(ir, owner, value, db)?;
     result.1.contains('/').then_some(result)
 }
 

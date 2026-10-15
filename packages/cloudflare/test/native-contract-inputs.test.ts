@@ -18,7 +18,7 @@ import type { MutationOutcome } from '../src/worker/assembly.js';
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const nodeImport = compileFunction('return import(url)', ['url'], { importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
-const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`);
+const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`), SNAPSHOT = asModel(`${APP}.Snapshot`);
 const SOURCE = `app ContractInputs
 Given
  Customer {active:bool,name:text}
@@ -28,10 +28,12 @@ Given
  Result {location:Location,title:text trim min=1,value:money,notes:text}
  contract Selection {location:Location}
  contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text}
+ Snapshot {input:Lead}
  policy Customer read=members
  policy Contact read=contact_reader
  policy Location read=members
  policy Result read=members
+ policy Snapshot read=contact_reader
 When
  crud Customer by=members fields=active,name
  crud Contact by=members fields=name
@@ -51,6 +53,18 @@ When
  scenario echoCurrency(currency:currency) -> currency by=members
   do
    return currency
+ scenario capture(input:Lead,accept:bool) -> Snapshot by=members
+  do
+   create Snapshot {input} as snapshot
+   require accept
+   return snapshot
+ scenario same(snapshot:Snapshot,input:Lead) -> bool by=members
+  do
+   return snapshot.input==input
+ scenario requireSame(snapshot:Snapshot,input:Lead) -> bool by=members
+  do
+   require snapshot.input==input
+   return true
 Then
 `;
 function object(value: unknown): Record<string, unknown> {
@@ -88,7 +102,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       if (compiled.kind !== 'artifact') throw new Error('Original Contract input source did not compile');
       const artifact: CompileArtifact = compiled.artifact;
       assert.equal(verifyCompilerSources(capture, {complete:true,sources:artifact.sources}).ok, true);
-      for (const name of ['promote', 'select', 'versions', 'echoCurrency']) {
+      for (const name of ['promote', 'select', 'versions', 'echoCurrency', 'capture', 'same', 'requireSame']) {
         const operation = artifact.operations?.find(operation => operation.name === `${APP}.${name}`);
         assert.ok(operation?.result?.disclosure?.returns.length);
       }
@@ -190,6 +204,44 @@ test('native Contract input slots retain normalized values, distinct reference v
       assert.ok(echoedAssociation.intrinsics?.some(value=>value.kind==='admitted-input' && value.wire==='EUR'));
       const echoedCount = batches.length;
       assert.equal(committed(await invoke(echoedInput),'replayed').result,'EUR'); assert.equal(batches.length,echoedCount);
+      // The actual constructor stores the original whole Contract, preserving
+      // typed reference identity rather than serializing hydrated business rows.
+      const originalPayload = structuredClone(payload), snapshotCall = envelope('capture',{input:payload,accept:true});
+      const snapshotId = referenceId(await invoke(snapshotCall));
+      const savedSnapshot = await store.load(SNAPSHOT,asId(snapshotId)); assert.ok(savedSnapshot);
+      const normalizedPayload = {...payload,title:'reviewed'};
+      assert.deepEqual(savedSnapshot.data,{input:normalizedPayload}); assert.deepEqual(payload,originalPayload);
+      const snapshotReceipt = await store.readReceipt(receiptIdentity(snapshotCall)); assert.ok(snapshotReceipt);
+      const snapshotAssociation = readScenarioReceiptAssociation(snapshotReceipt); assert.ok(snapshotAssociation);
+      assert.equal(snapshotAssociation.changed.length,1); assert.equal(snapshotAssociation.changed[0]!.row.id,snapshotId);
+      const snapshotCount = batches.length;
+      assert.equal(referenceId(await invoke(snapshotCall),'replayed'),snapshotId); assert.equal(batches.length,snapshotCount);
+      const compareCall = envelope('same',{snapshot:ref(savedSnapshot),input:payload});
+      assert.equal(committed(await invoke(compareCall)).result,true);
+      const comparisonReceipt = await store.readReceipt(receiptIdentity(compareCall)); assert.ok(comparisonReceipt);
+      const comparisonAssociation = readScenarioReceiptAssociation(comparisonReceipt); assert.ok(comparisonAssociation);
+      assert.deepEqual(comparisonAssociation.changed,[]);
+      assert.ok(comparisonAssociation.observations.some(read=>read.row.id===snapshotId && read.model===SNAPSHOT),JSON.stringify(comparisonAssociation));
+      const comparisonCount = batches.length;
+      assert.equal(committed(await invoke(compareCall),'replayed').result,true); assert.equal(batches.length,comparisonCount);
+      assert.equal(committed(await invoke(envelope('requireSame',{snapshot:ref(savedSnapshot),input:payload}))).result,true);
+      const beforeDifferent = await store.query({model:SNAPSHOT,authority:'owner'});
+      const different = envelope('same',{snapshot:ref(savedSnapshot),input:{...payload,notes:'changed'}});
+      assert.equal(committed(await invoke(different)).result,false);
+      assert.deepEqual(await store.query({model:SNAPSHOT,authority:'owner'}),beforeDifferent);
+      for (const rejectedCall of [
+        envelope('capture',{input:payload,accept:false}),
+        envelope('requireSame',{snapshot:ref(savedSnapshot),input:{...payload,notes:'changed'}}),
+      ]) {
+        const beforeSnapshots = await store.query({model:SNAPSHOT,authority:'owner'}), count = batches.length;
+        const outcome = await invoke(rejectedCall); assert.ok('error' in outcome,JSON.stringify(outcome)); assert.equal(outcome.error.code,'rule_failed');
+        assert.equal(batches.length,count+1);
+        const batch = batches.at(-1)!; assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+        assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+        assert.deepEqual(await store.query({model:SNAPSHOT,authority:'owner'}),beforeSnapshots);
+        const replay = await invoke(rejectedCall); assert.ok('error' in replay); assert.equal(replay.error.code,'rule_failed');
+        assert.equal(batches.length,count+1);
+      }
       // Both CRUD Currency input and a standalone Currency scenario use the
       // installed canonical Values decoder, independently from money wires.
       for (const invalidCurrency of ['NOT','eur',123]) for (const operation of [`${LOCATION}.create`,'echoCurrency']) {
@@ -240,9 +292,16 @@ test('native Contract input slots retain normalized values, distinct reference v
       for (const recovered of [await invoke(input),await invoker.invokeRetainedMutation(input,await current())]) {
         const withheld = committed(recovered,'replayed'); assert.equal(withheld.result,null); assert.deepEqual(withheld.records,[]);
       }
+      for (const call of [snapshotCall,compareCall]) for (const recovered of [
+        await invoke(call),await invoker.invokeRetainedMutation(call,await current()),
+      ]) {
+        const withheld = committed(recovered,'replayed'); assert.equal(withheld.result,null); assert.deepEqual(withheld.records,[]);
+      }
       assert.equal(batches.length,grantCount); assert.deepEqual(await records(),grantRecords);
       await identities.setMembershipRoles(membership.membership_id,contactRoles);
       assert.equal(referenceId(await invoker.invokeRetainedMutation(input,await current()),'replayed'),id);
+      assert.equal(referenceId(await invoker.invokeRetainedMutation(snapshotCall,await current()),'replayed'),snapshotId);
+      assert.equal(committed(await invoker.invokeRetainedMutation(compareCall,await current()),'replayed').result,true);
       assert.equal(batches.length,grantCount);
       assert.deepEqual(await store.load(CONTACT,contact.id),contact);
       assert.deepEqual(await store.load(CONTACT,otherContact.id),otherContact);
@@ -252,12 +311,21 @@ test('native Contract input slots retain normalized values, distinct reference v
       await identities.removeMembership(membership.membership_id);
       const revokedCount = batches.length;
       const withheld = committed(await invoke(selectedInput),'replayed'); assert.equal(withheld.result,null);
+      for (const call of [snapshotCall,compareCall]) {
+        const withheld = committed(await invoke(call),'replayed'); assert.equal(withheld.result,null); assert.deepEqual(withheld.records,[]);
+        const denied = await invoker.invokeRetainedMutation(call,identity); assert.ok('error' in denied); assert.equal(denied.error.code,'forbidden');
+      }
       const denied = await invoker.invokeRetainedMutation(selectedInput,identity); assert.ok('error' in denied); assert.equal(denied.error.code,'forbidden');
       const freshDenied = await invoke(envelope('promote',{input:payload,accept:true})); assert.ok('error' in freshDenied); assert.equal(freshDenied.error.code,'forbidden');
       assert.equal(batches.length,revokedCount);
       await identities.reactivateMembership(membership.membership_id,{is_owner:false,roles:contactRoles});
       assert.equal(referenceId(await invoker.invokeRetainedMutation(selectedInput,await current()),'replayed'),location.id);
+      assert.equal(referenceId(await invoker.invokeRetainedMutation(snapshotCall,await current()),'replayed'),snapshotId);
+      assert.equal(committed(await invoker.invokeRetainedMutation(compareCall,await current()),'replayed').result,true);
       assert.equal(batches.length,revokedCount);
+      assert.deepEqual(await store.load(SNAPSHOT,asId(snapshotId)),savedSnapshot);
+      assert.deepEqual(await store.readReceipt(receiptIdentity(snapshotCall)),snapshotReceipt);
+      assert.deepEqual(await store.readReceipt(receiptIdentity(compareCall)),comparisonReceipt);
       assert.deepEqual(await store.readReceipt(receiptIdentity(input)),physical);
       assert.equal(await readFile(sourcePath,'utf8'),SOURCE); assert.equal(await captureIsCurrent(capture),true);
     } finally {

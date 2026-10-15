@@ -606,13 +606,30 @@ rejected replay, with unchanged inputs/business rows. Pure encoding happens
 before State clones writes; its full schema/default/constraint/hook phases stay
 in place. No fabricated compiler plan is supplied; unsupported committed recovery
 still refuses without execution. Normal Cloudflare build passes; root TypeScript
-retains16 unchanged diagnostics. The actual compiler/selected-row reuse and
-source-receipt consumer remains to qualify. Its first concrete source decline is
-`checked_created_schema` routing the named Lead Contract through Model-only
-identity: both declarations share the internal stored Record type. Reuse the
-existing checked Contract schema/field/source matchers, retaining exact original
-required parameter binding and Model identity checks; copied locals and altered
-source/IR must refuse. No alternate equality or serialization rule is accepted. Direct parameter aliases,
+retains16 unchanged diagnostics. The constructor source join now distinguishes owning Contract declarations from
+Model identity, reusing checked nested schemas/fields/source and the exact
+original required parameter visitor. Existing member-only consumers retain their
+wrapper; checked local/imported type spelling supports explicit aliases.
+All15 affected compiler checks pass, including four substitutions. The generated
+CLI/verified assembly/D1/Identity case1/1 (34.27s) stores the original normalized
+Contract with canonical reference versions and compares its persisted value with
+native input references. The returned equality retains whole Snapshot DATA;
+separate body requirements retain mismatch failure/rejected replay and late
+rollback. Independent-return guard pruning remains unchanged. Independent
+Snapshot read-role loss/restoration with membership intact and ordinary membership
+revocation/recovery withhold/restore saved results without writes; rows/receipts
+remain unchanged. CLI build/formatting/diff pass; root TypeScript retains16 old
+errors. Frozen original24-source validation exits10 after383.29s with the same701
+diagnostics (675 E6008,26 E6007), complete=true, omitted=0, identical source
+inventory, none added/removed and no usable artifact. Original selected-query
+reuse, can_work and the adjacent root pair remain to qualify.
+The pair must preserve the original early Reference return, both root constructors
+and the genuine once-bound first Create reference in the second. Deal's
+`owner:user=actor` computed default and its nested parent/Money/location invariant
+are distinct constructor prerequisites: neither may be skipped to admit the pair.
+Existing shared State staging supplies atomicity; no new batch carrier is implied.
+Other Contract expressions retain explicit source-correspondence bounds; no
+alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
 keys remain their recorded local dependencies. Other hook-context IR failures
 still close whole-cohort fresh preparation;

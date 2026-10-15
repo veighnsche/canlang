@@ -16043,3 +16043,52 @@ inventory and no usable artifact. Exact full diagnostic comparison with the
 preceding contained-parent capture adds/removes none. Existing query-backed
 can_work, whole Contract source/snapshot reuse, adjacent root creates and cohort
 hooks remain ready local work. No full CanCRM or training readiness is inferred.
+
+
+2026-10-15 — C02/C10: authenticate whole Contract parameters at native constructors.
+
+The internal Record type flag also describes named Contracts; it cannot decide
+Model identity. The original constructor schema matcher incorrectly sent every
+such field through Model-only identity. Dispatch by the actual owning declaration:
+Model leaves keep their existing identity proof; Contracts reuse checked schema,
+ordered field, type, constraint and source matching across the nested closure.
+Keep the existing constructor descriptor/default/invariant/lock/unique checks.
+
+The current native producer proves a whole original required Contract parameter
+at its authored Create occurrence. Reuse the existing Contract parameter visitor
+for exact parameter id/owner/index/type/default and source declaration, preserving
+its member-only wrapper for existing consumers. Check both original and lowered
+preceding bindings. Other Contract expressions retain their explicit native
+source-correspondence refusal; this is a backend bound, not a language restriction.
+The shared type-name join now uses existing local/imported declaration spelling
+correspondence, including explicit import aliases. No new carrier, authority,
+source syntax, equality rule or serialization primitive is introduced. These are
+implementation repairs under settled semantics, so no new JEV choice is required.
+
+All15 affected compiler checks pass: the existing13 plus two constructor checks
+covering shorthand/explicit/renamed nested schemas, field reuse, imported aliases,
+late guards and four exact parameter/schema substitutions. The actual captured
+CLI/verified assembly/D1/Identity workflow passes1/1 (34.27s) with frozen inputs:
+whole admitted Contract storage retains normalized values and reference versions;
+the returned equality result retains its whole Snapshot DATA observation and
+true/false outcomes. A separate body requirement preserves mismatch rejection and
+rejected replay. Existing independent-return authorization pruning is unchanged;
+a constant success result is not given a fabricated data dependency. Late failure
+rolls back all domain effects. Saved Snapshot and equality results are withheld
+when their independent read role is revoked with operation membership intact;
+restoration recovers them without writes. Membership loss/recovery and unchanged
+business rows/receipts also pass. Normal CLI build, changed formatting and diff
+checks pass; root TypeScript retains16 errors in four unchanged files.
+
+Frozen original24-source validation exits10 after383.29s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and
+no usable artifact. Exact full diagnostic comparison with the preceding Currency
+capture adds/removes none. Whole CRM query-backed can_work authorization,
+adjacent root-model pair,
+Deal's actor creation default, nested invariant correspondence and cohort hooks
+remain local work. The pair must retain the independent early Reference return,
+ordered once-bound linkage and each constructor's original schema/default/rules;
+existing shared State staging supplies atomicity. Actor remains an overridable
+creation default, distinct from server=actor; no conversion to a protected
+initializer is authorized. This constructor prerequisite does not claim full
+application or training readiness.
