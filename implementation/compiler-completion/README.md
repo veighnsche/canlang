@@ -2,6 +2,16 @@
 
 ## Current remainder and finite completion
 
+**C02 exact native membership occurrence (2026-10-15, implemented/tested prerequisite).**
+The private native membership binding accepts an optional exact sourceCall
+site/call selector in addition to the unchanged physical source/node marker.
+Both indices select within the actual bound census; legacy physical-only markers
+still require one unique match. Fourteen source checks pass, including two
+physical-identical helper occurrences with distinct outer chains, bad/foreign
+selectors, copied contexts and accessor refusals. Normal CF build passes. Compiler
+emission must still issue this selector for the actual current helper chain;
+this receiving change alone does not qualify the original mixed workflow.
+
 **C02 owning Date model rules (2026-10-15, implemented/tested prerequisite).**
 The existing local model-policy classifier accepts direct owning Date comparisons
 and nullable Date presence, retaining checked occurrence/declaration types and

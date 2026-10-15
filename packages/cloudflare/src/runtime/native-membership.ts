@@ -25,9 +25,12 @@ type Handle = ScenarioReceiptMembershipHandle | ReadPolicyMembershipHandle;
 export interface NativeMembershipMarker {
   readonly source: ScenarioReceiptSourceOrigin;
   readonly node: { readonly start: number; readonly end: number };
+  /** Indices in this actual privately bound site's original ordered call census. */
+  readonly sourceCall?: { readonly siteIndex: number; readonly callIndex: number };
 }
 interface Occurrence {
   readonly site: string;
+  readonly siteIndex: number;
   readonly callIndex: number;
   readonly marker: string;
   readonly handle: Handle;
@@ -118,7 +121,15 @@ function ownObject(value: unknown, keys: readonly string[]): Record<string, unkn
   return value as Record<string, unknown>;
 }
 function markerKey(value: unknown): string {
-  const marker = ownObject(value, ['source', 'node']);
+  const selected = typeof value === 'object' && value !== null && Object.hasOwn(value, 'sourceCall');
+  const marker = ownObject(value, ['source', 'node', ...(selected ? ['sourceCall'] : [])]);
+  if (selected) {
+    const selection = ownObject(marker.sourceCall, ['siteIndex', 'callIndex']);
+    if (!Number.isSafeInteger(selection.siteIndex) || (selection.siteIndex as number) < 0 ||
+        !Number.isSafeInteger(selection.callIndex) || (selection.callIndex as number) < 0) {
+      return refuse('exact original site/call indices required.');
+    }
+  }
   const source = ownObject(marker.source, ['path', 'sha256', 'module']);
   const node = ownObject(marker.node, ['start', 'end']);
   if (typeof source.path !== 'string' || source.path.length === 0 || source.path.length > 4096 ||
@@ -134,13 +145,13 @@ function binding(sites: readonly ScenarioReceiptMembershipSite[], handles: reado
   // State has synchronously checked every own-data recipe before this copy.
   const snapshot = JSON.parse(stableStringify(sites)) as ScenarioReceiptMembershipSite[];
   const occurrences: Occurrence[] = []; let handleIndex = 0;
-  for (const site of snapshot) site.calls.forEach((call, callIndex) => {
+  snapshot.forEach((site, siteIndex) => site.calls.forEach((call, callIndex) => {
     if (call.target.kind !== 'builtin' || call.target.id !== 'active_member') return;
     const handle = handles[handleIndex++];
     if (handle === undefined) return refuse('complete checked handle census required.');
-    occurrences.push(Object.freeze({ site: stableStringify(site), callIndex,
+    occurrences.push(Object.freeze({ site: stableStringify(site), siteIndex, callIndex,
       marker: markerKey({ source: call.source, node: call.node }), handle }));
-  });
+  }));
   if (handleIndex !== handles.length) return refuse('complete checked handle census required.');
   return Object.freeze({ sites: snapshot, occurrences: Object.freeze(occurrences) });
 }
@@ -419,7 +430,9 @@ export async function active_member(c: HandlerContext, person: unknown, team: un
       return refuse('owning frozen Values user and exact actual native Team required.');
     }
     const key = markerKey(marker);
-    const matches = frame.binding.occurrences.filter(occurrence => occurrence.marker === key);
+    const selection = Object.hasOwn(marker, 'sourceCall') ? marker.sourceCall : undefined;
+    const matches = frame.binding.occurrences.filter(occurrence => occurrence.marker === key &&
+      (selection === undefined || occurrence.siteIndex === selection.siteIndex && occurrence.callIndex === selection.callIndex));
     if (matches.length !== 1) {
       return refuse(matches.length === 0 ? 'original checked occurrence absent from this actual outer owner/read.' :
         'ambiguous original occurrence: Compiler must lower the exact outer decision and derive call chain into the emitted membership marker.');

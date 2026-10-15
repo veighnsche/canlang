@@ -16669,3 +16669,15 @@ Employee invariant exposed this gap during native setup; original and renamed
 field rules plus six source-owner/type/operator corruptions pass in one focused
 check. Native invariant rollback/helper execution remain pending. No unsettled
 language choice or new permission primitive requires further JEV consultation.
+
+
+### 2026-10-15 — select the exact bound membership occurrence
+
+Accepted implementation repair for repeated helper calls: the physical source/node
+is ambiguous when CanCRM invokes the same can_work helper in leading and body
+Require. Add an optional exact site/call selector against the same private bound
+census, retaining physical source/node/context checks. Legacy markers still require
+a unique occurrence; never choose the first/unconsumed match or create ambient
+call state. Fourteen source controls and normal CF build pass. Compiler selector
+issuance and original mixed-workflow execution remain required. Existing checked
+call chains settle identity; this adds no language or membership authority.

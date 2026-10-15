@@ -28,7 +28,7 @@ const artifact: ArtifactDescriptorSlice = { artifact_version: 1, sources: [{ pat
   callables: [{ id: ROOT, kind: 'operation', module: source.module, export: 'identity', member: ['review'] }], models: [],
   operations: [{ name: ROOT, kind: 'scenario', description: '', inputs: { fields: [] }, result: {
     type: 'void' as CanTypeId, disclosure: { version: 1, source, returns: [{ id: 'done', source, dependencies: [], influences: [] }] } } }] };
-async function world(active = true, membership = true) {
+async function world(active = true, membership = true, sites: readonly ScenarioReceiptMembershipSite[] = [site]) {
   const store = createMemoryStorage();
   await store.commit({ expectedRevision: await store.readRevision(), writes: [], history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
   const def = loadArtifactDescriptors(artifact, { by: 'public' }).registry.get(ROOT);
@@ -41,7 +41,7 @@ async function world(active = true, membership = true) {
       membership_id: 'membership', team_id: teamId, user_id: userId, is_owner: false, roles: [],
       status: 'active', created_at: NOW, updated_at: NOW } as Membership : null;
   } };
-  const input = { source, app: APP, predicate: PREDICATE, sites: membership ? [site] : [], store, memberships,
+  const input = { source, app: APP, predicate: PREDICATE, sites: membership ? sites : [], store, memberships,
     admit: (): ResolvedIdentity => { admissions++; return { actor: null, team, membership: null, binding: { kind: 'none' }, admitted_at: NOW }; } };
   bindNativeDispatchMembership(def, input);
   const context = () => createContext({ caller: { userId: '', roles: [] }, store,
@@ -142,4 +142,79 @@ test('role-only dispatch still requires a real Work lifetime and preserves subje
     const c = w.context(), frame = openNativeDispatchMembershipFrame(c, w.def, PREDICATE, execution, w.team, () => {});
     try { return await nativeReadSubjectRole(c, 'staff', makeUserRef('subject')); } finally { frame.close(); }
   }), /coherent State source-read/);
+});
+
+
+// One helper's physical active_member call is retained under two different
+// original outer decisions. Indices address the checked site/call census,
+// including a preceding derive call rather than the filtered handle ordinal.
+const sharedHelperSites: readonly ScenarioReceiptMembershipSite[] = [
+  { ...site, calls: [{ ...site.calls[0]!, chain: [{ source, node: site.node, derive: 'Membership.helper' }] }] },
+  { ...site, node: { start: 40, end: 60 }, statement: { start: 39, end: 61 }, calls: [
+    { ...site.calls[0]!, node: { start: 41, end: 59 }, target: { kind: 'derive', name: 'Membership.helper' } },
+    { ...site.calls[0]!, chain: [{ source, node: { start: 41, end: 59 }, derive: 'Membership.helper' }] },
+  ] },
+];
+test('native sourceCall selects both exact outer chains of one physical helper occurrence', async () => {
+  const w = await world(true, true, sharedHelperSites);
+  const phase = await w.phase(async execution => {
+    const c = w.context(), frame = openNativeDispatchMembershipFrame(c, w.def, PREDICATE, execution, w.team, () => {});
+    try {
+      for (const sourceCall of [{ siteIndex: 0, callIndex: 0 }, { siteIndex: 1, callIndex: 1 }]) {
+        assert.equal(await active_member(c, makeUserRef('subject'), c.team, { ...marker, sourceCall }), true);
+      }
+      frame.assertCompleted(); return true;
+    } finally { frame.close(); }
+  });
+  assert.equal(phase.result, true); assert.equal(await phase.revalidate(), true);
+  assert.equal(w.admissions, 1); assert.equal(w.reads, 4);
+});
+test('legacy physical marker remains ambiguous without an exact sourceCall', async () => {
+  const w = await world(true, true, sharedHelperSites);
+  await assert.rejects(w.phase(async execution => {
+    const c = w.context(), frame = openNativeDispatchMembershipFrame(c, w.def, PREDICATE, execution, w.team, () => {});
+    try { return await active_member(c, makeUserRef('subject'), c.team, marker); }
+    finally { frame.close(); }
+  }), /ambiguous original occurrence/);
+  assert.equal(w.reads, 0);
+});
+test('sourceCall refuses absent, nonbuiltin, malformed and foreign source selectors before Identity reads', async () => {
+  let getterCalls = 0;
+  const accessor = Object.defineProperty({ siteIndex: 0 }, 'callIndex', { enumerable: true, get() { getterCalls++; return 0; } });
+  const inherited = Object.assign(Object.create({ callIndex: 0 }), { siteIndex: 0 });
+  const cases: unknown[] = [
+    { ...marker, sourceCall: { siteIndex: 2, callIndex: 0 } },
+    { ...marker, sourceCall: { siteIndex: 1, callIndex: 0 } },
+    { ...marker, sourceCall: { siteIndex: 0, callIndex: 1 } },
+    { ...marker, sourceCall: { siteIndex: -1, callIndex: 0 } },
+    { ...marker, sourceCall: { siteIndex: 0, callIndex: 0.5 } },
+    { ...marker, sourceCall: { siteIndex: Number.MAX_SAFE_INTEGER + 1, callIndex: 0 } },
+    { ...marker, sourceCall: { siteIndex: 0 } },
+    { ...marker, sourceCall: { siteIndex: 0, callIndex: 0, extra: true } },
+    { ...marker, sourceCall: undefined },
+    { ...marker, sourceCall: accessor },
+    { ...marker, sourceCall: inherited },
+    { ...marker, source: { ...source, sha256: 'b'.repeat(64) }, sourceCall: { siteIndex: 0, callIndex: 0 } },
+    { ...marker, node: { start: 100, end: 120 }, sourceCall: { siteIndex: 0, callIndex: 0 } },
+    Object.defineProperty({ ...marker }, 'sourceCall', { enumerable: true, get() { getterCalls++; return { siteIndex: 0, callIndex: 0 }; } }),
+  ];
+  for (const invalid of cases) {
+    const w = await world(true, true, sharedHelperSites);
+    await assert.rejects(w.phase(async execution => {
+      const c = w.context(), frame = openNativeDispatchMembershipFrame(c, w.def, PREDICATE, execution, w.team, () => {});
+      try { return await active_member(c, makeUserRef('subject'), c.team, invalid as Parameters<typeof active_member>[3]); }
+      finally { frame.close(); }
+    }));
+    assert.equal(w.reads, 0);
+  }
+  assert.equal(getterCalls, 0);
+});
+test('sourceCall data cannot authorize a copied native execution context', async () => {
+  const w = await world(true, true, sharedHelperSites);
+  await assert.rejects(w.phase(async execution => {
+    const c = w.context(), frame = openNativeDispatchMembershipFrame(c, w.def, PREDICATE, execution, w.team, () => {});
+    try { return await active_member({ ...c }, makeUserRef('subject'), c.team, { ...marker, sourceCall: { siteIndex: 1, callIndex: 1 } }); }
+    finally { frame.close(); }
+  }), /actual installed framework context/);
+  assert.equal(w.reads, 0);
 });
