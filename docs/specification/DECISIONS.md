@@ -15980,3 +15980,35 @@ no usable artifact. Original .can/catalog bytes remain unchanged.
 Currency inventory, original can_work query-backed guards, whole Contract
 snapshot/source joins, adjacent root creates and cohort hooks remain local work.
 No full CRM or training-data readiness is inferred from this prerequisite.
+
+
+2026-10-15 — C02/C10: encode native Contract references before State snapshots writes.
+
+Cloudflare now supplies Values' existing demanded reference callback with the
+exact owning type/schema and original field occurrence. Only genuine private
+native identities at declared Model slots can resolve; aliases, nested Contracts,
+arrays and union arms retain their owning path. Same-id wrong-Model values,
+accessor paths, substitutions and copied views gain no identity. Native identity
+mismatches cannot fall back to wire decoding after Model metadata is erased.
+State still owns reference admission, permissions, lifetime and mutation policy.
+
+State snapshots submitted writes with structuredClone before its late field
+codec. That clone materializes native getters and loses private identity. At the
+existing Cloudflare staging boundary, encode only supplied declared nominal
+Contract/alias field payloads through the existing Values codec before crossing
+that clone. Keep Model presence/unknown/server constraints, defaults, hooks and
+full schema normalization in their existing State phases. No clone relaxation,
+new reference carrier, eager business-field traversal or authority is introduced.
+This is a boundary repair under settled serialization rules, not a new JEV choice.
+
+Normal Cloudflare build and six typed adapter checks pass. The declaration-labelled
+installed State/Identity/native stdlib/storage component passes1/1 (0.18s): nested
+and repeated references persist as canonical id/version values, with unchanged
+inputs/business rows; a same-id/version wrong Model refuses before wire fallback;
+late rule failure rolls back all domain effects and rejected replay does not
+execute again. This component provides no invented compiler receipt plan;
+committed recovery retains its explicit unsupported-association refusal. Root
+TypeScript retains16 diagnostics in four unchanged files. The original24-source
+static capture is unchanged for this runtime-only prerequisite. Compiler source
+qualification of whole Contract construction and original selected-row reuse
+remain separate ready work; full CanCRM execution is not accepted here.

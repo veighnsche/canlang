@@ -588,8 +588,17 @@ reuse the preceding original24-source capture for this runtime prerequisite.
 The corresponding existing encoder now has the same demand-driven reference
 leaf join and canonical readonly path; normal Values build and63 wire checks
 pass with unchanged catalog bytes. Whole Contract storage still requires the
-Cloudflare owning schema/type check before private Model identity is erased;
-the actual selected-row reuse/source-receipt consumer remains to qualify. No
+Cloudflare owning schema/type check before private Model identity is erased.
+That boundary now checks genuine private identities at exact original declared
+Contract/alias/array/union Model occurrences. Six adapter checks and the installed
+State/Identity/native stdlib/storage component1/1 (0.18s) pass: canonical nested
+snapshots, same-id wrong-Model refusal before wire fallback, late rollback and
+rejected replay, with unchanged inputs/business rows. Pure encoding happens
+before State clones writes; its full schema/default/constraint/hook phases stay
+in place. No fabricated compiler plan is supplied; unsupported committed recovery
+still refuses without execution. Normal Cloudflare build passes; root TypeScript
+retains16 unchanged diagnostics. The actual compiler/selected-row reuse and
+source-receipt consumer remains to qualify. No
 alternate equality or serialization rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
 keys remain their recorded local dependencies. Other hook-context IR failures

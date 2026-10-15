@@ -130,6 +130,7 @@ import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { loadOpaqueFileStaging, type RetainedOpaqueFileSource } from './opaque-file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
+import { nativeValueReferenceEncoder, NativeValueReferenceError } from './native-value-schema.js';
 import type { AdmittedCall, ScenarioReceiptCallFrame, ScenarioReceiptCallSite,
   ScenarioReceiptSendGuard, ScenarioReceiptSendGuardFrame, ScenarioReceiptSendProducerInput,
   ScenarioReceiptDeliveryOriginFrame } from '@canlang/state/invocation';
@@ -5169,8 +5170,9 @@ function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, 
   try {
     let wire: unknown;
     try {
-      wire = encodeValue(type, value as CanValue);
-    } catch {
+      wire = encodeValue(type, value as CanValue, nativeValueReferenceEncoder(type, schema, value));
+    } catch (error) {
+      if (error instanceof NativeValueReferenceError) throw error;
       wire = encodeValue(type, decodeCanonicalValue(schema, type, value));
     }
     return schema === undefined ? wire : encodeValue(type, validateValue(schema, type, wire, 'create'));
@@ -7434,6 +7436,24 @@ async function runScenarioExecution(
           data[field.name] = encodeCanonicalField(StateError,
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
             data[field.name], loaded.valueSchema);
+        }
+        // State snapshots submitted writes before its field codec runs. Encode
+        // native identities while their private occurrence bindings still exist;
+        // State retains schema validation, defaults, constraints and hook order.
+        for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
+          if (data === undefined || !Object.hasOwn(data, field.name) || data[field.name] === undefined ||
+              field.valueType === undefined || loaded.valueSchema === undefined ||
+              field.field.kind !== 'nominal' && field.field.kind !== 'other') continue;
+          const type = parseTypeId(field.valueType);
+          if (type.base.kind !== 'nominal' ||
+              !Object.hasOwn(loaded.valueSchema.contracts, type.base.path) &&
+              !(loaded.valueSchema.aliases !== undefined && Object.hasOwn(loaded.valueSchema.aliases, type.base.path))) continue;
+          try {
+            data[field.name] = encodeValue(field.valueType, data[field.name] as CanValue,
+              nativeValueReferenceEncoder(field.valueType, loaded.valueSchema, data[field.name]));
+          } catch (error) {
+            throw new StateError('validation', message(error));
+          }
         }
         if (ownerSession !== undefined) {
           await ownerSession.stage({
