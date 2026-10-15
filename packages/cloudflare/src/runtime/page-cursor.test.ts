@@ -218,9 +218,21 @@ test('explicit hosted page reads bind current query, caller decisions and occurr
       return token;
     } } };
     await assert.rejects(queryPageRowsCanonical({ ...opts, pageReads: revoking, args }), refuses('forbidden'));
-    await assert.rejects(queryPageRowsCanonical({ ...opts,
-      args: { ...args, where: { op: 'eq', field: 'count', value: '999' } } }), {
-      code: 'validation', message: 'Query path "count" is not granted to this caller.',
-    });
+    const revoked = await identities.findMembership(team.team_id, viewer.user_id);
+    assert.equal(revoked?.is_owner, false); assert.deepEqual(revoked?.roles, []);
+    assert.equal(identity.membership?.roles.some(role => role.role === `${app}.auditor`), true,
+      'the request snapshot still has the former role; current Identity must own projection');
+    // Installed source grants admit their declared selector domain, then
+    // project each row under current grants BEFORE comparison (DESIGN §9).
+    // Both a stored match and a nonmatch disappear without count/cursor data;
+    // declaration-only metadata conveys neither a grant nor a stored value.
+    for (const value of ['1', '999']) {
+      const hidden = await queryPageRowsCanonical({ ...opts,
+        args: { ...args, includeCount: true, where: { op: 'eq', field: 'count', value } } });
+      assert.deepEqual(hidden.rows, []); assert.deepEqual(hidden.columns, []);
+      assert.deepEqual(hidden.emptyDeclarations, declarations);
+      assert.equal(hidden.totalCount, 0); assert.equal(hidden.nextCursor, undefined);
+    }
+    assert.deepEqual({ revision: await store.readRevision(), rows: await store.query({ model: model as never, authority: 'owner' }) }, beforeInvalid);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

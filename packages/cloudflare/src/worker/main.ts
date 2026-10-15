@@ -62,6 +62,7 @@
 
 import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort, WorkScope } from "@canlang/contracts";
 import type { IdentityStore } from '@canlang/identity';
+import type { PageCursorCodec, createPageCursorCodec } from '../runtime/page-cursor.js';
 import type { StateTeamBinding, StateTeamBindings } from '../runtime/env-assembly.js';
 import type { PagePreferenceStore, ExportDownloadStore, caughtToBusinessError, isBusinessThrow, jsonErrorResponse,
   httpStatusFor, logInternalError } from '@canlang/interfaces';
@@ -798,6 +799,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
     }
     let ownerStorage: TeamOwnerStorageBoundary | undefined;
+    let pageReads: AssemblyDeps['pageReads'];
     let scope: WorkScope | undefined;
     if (deps.stateTeam !== undefined || deps.stateTeams !== undefined) {
       const selected = deps.stateTeam;
@@ -823,6 +825,22 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       } });
       ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
         app, identities: deps.identityStore as IdentityStore, router });
+      let cursors: PageCursorCodec | undefined;
+      if (env['CAN_FORM_BINDING_KEY'] !== undefined) {
+        const createCodec = await loadSiblingFn<typeof createPageCursorCodec>(
+          '../runtime/page-cursor.js', 'runtime/page-cursor.ts', 'createPageCursorCodec');
+        // The existing codec owns its distinct cryptographic protocol domain.
+        cursors = await createCodec(env['CAN_FORM_BINDING_KEY'] as Uint8Array | string);
+      }
+      const sourceIdentity = sourceFormRevision(staged.artifact);
+      pageReads = identity => {
+        const owner = identity.team?.team_id;
+        if (owner === undefined || !byOwner.has(owner)) {
+          throw { code: 'forbidden', message: 'Page storage binding is unavailable.', retryable: false };
+        }
+        return Object.freeze({ scope: Object.freeze({ app, owner, ownerPackage: app }), sourceIdentity,
+          ...(cursors === undefined ? {} : { cursors }) });
+      };
       if (selected !== undefined) scope = { app, owner: selected.owner, ownerPackage: app };
     }
     const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler');
@@ -836,6 +854,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       store: deps.store,
       identityStore: deps.identityStore,
       ...(ownerStorage === undefined ? {} : { ownerStorage }),
+      ...(pageReads === undefined ? {} : { pageReads }),
       ...(cohorts === undefined ? {} : { cohorts }),
       ...(factory === undefined
         ? null

@@ -1,15 +1,21 @@
 /** Private native UI correspondence bridge. The canonical reader checks the
  * complete source census and binds State; metadata alone grants nothing. */
-import type { RowQueryRunner } from '@canlang/contracts';
+import type { RowQueryRunner, RowView } from '@canlang/contracts';
 import { AssemblyCorrespondenceError } from './assembly-verification.js';
 
 export type NativeUiWhereBinder = (where: Function, whereSource?: unknown) => void | Promise<void>;
-const binders = new WeakMap<RowQueryRunner, NativeUiWhereBinder>();
+export type NativeUiSourceRowDecoder = (row: RowView) =>
+  Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;
+const binders = new WeakMap<RowQueryRunner, {
+  where: NativeUiWhereBinder;
+  sourceRow?: NativeUiSourceRowDecoder;
+}>();
 
 /** Trusted scope producer only; retain the actual request/physical-owner query. */
-export function registerNativeUiQueryBinder(query: RowQueryRunner, binder: NativeUiWhereBinder): void {
+export function registerNativeUiQueryBinder(query: RowQueryRunner, binder: NativeUiWhereBinder,
+  sourceRow?: NativeUiSourceRowDecoder): void {
   if (binders.has(query)) throw new AssemblyCorrespondenceError('Native UI query cannot be rebound.');
-  binders.set(query, binder);
+  binders.set(query, { where: binder, ...(sourceRow === undefined ? {} : { sourceRow }) });
 }
 
 /** Selected-owner scope resolves its original query before any UI delegation. */
@@ -18,11 +24,17 @@ export function forwardNativeUiQueryBinder(
 ): void {
   registerNativeUiQueryBinder(query, async (where, whereSource) => {
     await bindNativeUiWhere(await selectedQuery(), where, whereSource);
+  }, async row => {
+    const decoder = binders.get(await selectedQuery())?.sourceRow;
+    if (decoder === undefined) {
+      throw new AssemblyCorrespondenceError('Native UI source row requires its original canonical query decoder.');
+    }
+    return decoder(row);
   });
 }
 
 export async function bindNativeUiWhere(query: RowQueryRunner, where: Function, whereSource?: unknown): Promise<void> {
-  const bind = binders.get(query);
+  const bind = binders.get(query)?.where;
   if (bind === undefined) throw new AssemblyCorrespondenceError('Native UI where requires its original canonical query scope.');
   await bind(where, whereSource);
 }
@@ -57,6 +69,39 @@ export function wrapNativeUiQueryFactory<T extends (...args: any[]) => any>(fact
           throw new AssemblyCorrespondenceError('Native UI where requires its original factory query.');
         }
         await bindNativeUiWhere(actualQuery, where.value, source?.value);
+      }
+      const decoder = actualQuery === undefined ? undefined : binders.get(actualQuery)?.sourceRow;
+      if (decoder !== undefined && Object.hasOwn(props, 'renderRow')) {
+        const render = Object.getOwnPropertyDescriptor(props, 'renderRow');
+        if (render === undefined || !('value' in render) || typeof render.value !== 'function') {
+          throw new AssemblyCorrespondenceError('Native UI source row requires an original own-data renderRow callback.');
+        }
+        const original = render.value;
+        const descriptors = Object.getOwnPropertyDescriptors(props);
+        // Do not read unrelated getters while wrapping. Preserve their original
+        // receiver as well as the factory/callback receiver and argument order.
+        for (const key of Reflect.ownKeys(descriptors)) {
+          const descriptor = Reflect.get(descriptors, key) as PropertyDescriptor;
+          if (descriptor.get !== undefined) {
+            const get = descriptor.get;
+            descriptor.get = () => Reflect.apply(get, props, []);
+          }
+          if (descriptor.set !== undefined) {
+            const set = descriptor.set;
+            descriptor.set = value => { Reflect.apply(set, props, [value]); };
+          }
+        }
+        let forwarded: object;
+        descriptors.renderRow = { ...render, value: async function (this: unknown, row: RowView, childContext: unknown) {
+          const native = await decoder(row);
+          if (typeof native !== 'object' || native === null || Array.isArray(native)) {
+            throw new AssemblyCorrespondenceError('Native UI source row decoder did not return its checked record.');
+          }
+          return Reflect.apply(original, this === forwarded ? props : this, [row, childContext, native]);
+        } };
+        forwarded = Object.create(Object.getPrototypeOf(props), descriptors) as object;
+        if (!Object.isExtensible(props)) Object.preventExtensions(forwarded);
+        args[0] = forwarded;
       }
     }
     return Reflect.apply(factory, this, args);

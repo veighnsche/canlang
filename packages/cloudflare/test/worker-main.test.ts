@@ -287,6 +287,17 @@ describe("deploy worker main", () => {
       loadAssembleWorker: async () => async (_artifact, _modules, deps) => {
         assembled = true;
         expect(deps.ownerStorage?.app).toBe("TeamTasks");
+        expect(typeof deps.pageReads).toBe("function");
+        if (typeof deps.pageReads !== "function") throw new Error("missing owner page factory");
+        const pageReads = deps.pageReads;
+        const sourceIdentity = pageReads({ team: { team_id: "cedar" } } as never, stubStore()).sourceIdentity;
+        for (const owner of ["cedar", "oak"]) {
+          expect(pageReads({ team: { team_id: owner } } as never, stubStore())).toEqual({
+            scope: { app: "TeamTasks", ownerPackage: "TeamTasks", owner }, sourceIdentity,
+          });
+        }
+        expect(JSON.parse(sourceIdentity).sources).toEqual(staged.artifact.sources);
+        expect(() => pageReads({ team: { team_id: "other" } } as never, stubStore())).toThrow();
         expect(deps.cohorts).toBeUndefined();
         return { fetch: async () => new Response("ready"), pageCount: 0, opCount: 0 };
       },

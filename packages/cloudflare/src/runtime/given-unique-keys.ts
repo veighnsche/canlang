@@ -32,8 +32,8 @@
  */
 
 import { sha256HexBytes } from '@canlang/identity';
-import type { CompileArtifact, ModelName, StateUniqueKeyProducerBinding } from '@canlang/contracts';
-import type { GivenUniqueKeyRule } from '@canlang/state/effects/staging';
+import type { CompileArtifact, ModelName, StateUniqueKeyProducerBinding, StateFieldValidationProducerBinding } from '@canlang/contracts';
+import type { GivenUniqueKeyRule, GivenFieldValidationRule } from '@canlang/state/effects/staging';
 import {
   AssemblyCorrespondenceError,
   importVerifiedAssemblyModule,
@@ -59,9 +59,9 @@ export function givenUnitModulePath(unitId: string): string {
 export async function resolveGivenKeywordExport(
   asm: AssembledModules,
   artifact: CompileArtifact,
-  binding: StateUniqueKeyProducerBinding,
+  binding: Pick<StateUniqueKeyProducerBinding, 'rule' | 'implementation'>,
 ): Promise<GivenUniqueKeyRule['evaluate']> {
-  const where = `Computed-key rule ${JSON.stringify(binding.rule)}`;
+  const where = `Given rule ${JSON.stringify(binding.rule)}`;
   const { unit, export: exportName, fingerprint } = binding.implementation;
   const path = givenUnitModulePath(unit);
   const module = artifact.modules.find((candidate) => candidate.path === path);
@@ -122,6 +122,28 @@ export async function joinGivenUniqueKeys(
     const rule: GivenUniqueKeyRule = { rule: binding.rule, field: binding.field, evaluate };
     if (rules === undefined) byModel.set(binding.model, [rule]);
     else rules.push(rule);
+  }
+  return byModel;
+}
+
+/** Resolve pure field checks through the same verified saved-module boundary. */
+export async function joinGivenFieldValidations(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+  bindings: ReadonlyArray<StateFieldValidationProducerBinding>,
+): Promise<ReadonlyMap<ModelName, ReadonlyArray<GivenFieldValidationRule>>> {
+  const byModel = new Map<ModelName, GivenFieldValidationRule[]>();
+  const resolved = new Map<string, GivenFieldValidationRule['evaluate']>();
+  for (const binding of bindings) {
+    const identity = JSON.stringify(binding.implementation);
+    let evaluate = resolved.get(identity);
+    if (evaluate === undefined) {
+      evaluate = await resolveGivenKeywordExport(asm, artifact, binding) as unknown as GivenFieldValidationRule['evaluate'];
+      resolved.set(identity, evaluate);
+    }
+    const rules = byModel.get(binding.model) ?? [];
+    rules.push({ rule: binding.rule, field: binding.field, evaluate });
+    byModel.set(binding.model, rules);
   }
   return byModel;
 }

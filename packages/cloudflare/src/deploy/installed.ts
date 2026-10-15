@@ -31,7 +31,7 @@ export const KNOWN_CAPABILITIES: readonly string[] = [
   "values.temporal",
   "state",
   "state.machines",
-  "state.parameters",
+  "state.parameters", "state.field-validation",
   "state.cohorts",
   "interfaces.input-choices",
   "d1-batch",

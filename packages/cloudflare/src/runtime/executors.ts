@@ -189,7 +189,12 @@ export function withDispatchProducer(
   meta: DispatchProducerMeta,
 ): StoragePort {
   const historyReadBounded = inner.historyReadBounded;
+  const uniqueOwner = inner.uniqueOwner;
   return {
+    ...(uniqueOwner === undefined ? {} : {
+      uniqueOwner: (...args: Parameters<NonNullable<StoragePort['uniqueOwner']>>) =>
+        uniqueOwner.call(inner, ...args),
+    }),
     ...(historyReadBounded === undefined ? {} : {
       historyReadBounded: (input: Parameters<NonNullable<StoragePort['historyReadBounded']>>[0]) =>
         historyReadBounded.call(inner, input),

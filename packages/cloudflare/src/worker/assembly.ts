@@ -155,7 +155,7 @@ export interface PageRegistry {
 }
 
 /** Mirror of `MutationOutcome` (`packages/interfaces/src/ports.ts:81`). */
-export type MutationOutcome = { result: MutationResult } | { error: BusinessError };
+export type MutationOutcome = { result: MutationResult } | { error: BusinessError; readonly receipt?: 'rejected' };
 
 /** Mirror of `ReadOutcome` (`packages/interfaces/src/ports.ts:82`). */
 export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
@@ -649,8 +649,8 @@ export interface AssemblyDeps {
   now?: () => number;
   cohorts?: CohortTickBinding;
   ownerStorage?: TeamOwnerStorageBoundary;
-  /** Explicit qualified host page binding for its selected physical store. */
-  pageReads?: PageReadsBinding;
+  /** Trusted host assertion, resolved once after selecting this page's physical store. */
+  pageReads?: PageReadsBinding | ((identity: ResolvedIdentity, store: StoragePort) => PageReadsBinding);
   /** Installed owning Work observer for generated selected delivery reads. */
   selectedReceiptObserver?: SelectedReceiptObserverBinding;
   /**
@@ -723,7 +723,7 @@ const T16B_KNOWN_REQUIRES_IDS: ReadonlySet<string> = new Set([
   "canlang.builtins",
   "state",
   "state.machines",
-  "state.parameters",
+  "state.parameters", "state.field-validation",
   "state.cohorts",
   "interfaces.input-choices",
   "values.decimal",
@@ -1123,6 +1123,7 @@ export function buildInvoker(
           error: { ...descriptorLessRefusal(envelope.operation), operation_id: envelope.operation_id },
         };
       }
+      let rejectedReceipt = false;
       try {
         const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
           "../runtime/invoke.js",
@@ -1137,6 +1138,7 @@ export function buildInvoker(
           asm,
           artifact,
           ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
+          observeRejectedReceipt: () => { rejectedReceipt = true; },
           operation: envelope.operation,
           operationId: envelope.operation_id,
           inputs: envelope.inputs,
@@ -1152,7 +1154,8 @@ export function buildInvoker(
         });
         return { result };
       } catch (error) {
-        return { error: toBusinessError(error, envelope.operation_id) };
+        return { error: toBusinessError(error, envelope.operation_id),
+          ...(rejectedReceipt ? { receipt: 'rejected' as const } : {}) };
       }
     };
   return {
@@ -1972,20 +1975,28 @@ export async function assembleWorker(
     const forwardQueryBinder = await loadSiblingFn<
       typeof import("../runtime/native-ui-query.js").forwardNativeUiQueryBinder
     >("../runtime/native-ui-query.js", "runtime/native-ui-query.ts", "forwardNativeUiQueryBinder");
-    const assertPageBinding = (identity: ResolvedIdentity): void => {
-      if (deps.ownerStorage !== undefined && deps.pageReads !== undefined &&
-          (deps.pageReads.scope.app !== appInfo.appId || deps.pageReads.scope.owner !== identity.team?.team_id)) {
+    const assertPageBinding = (identity: ResolvedIdentity, binding: PageReadsBinding | undefined): void => {
+      if (deps.ownerStorage !== undefined && binding !== undefined &&
+          (binding.scope.app !== appInfo.appId || binding.scope.owner !== identity.team?.team_id)) {
         // Cursor bindings assert the exact physical store; selecting a team
         // never changes a trusted host's assertion into a different owner's.
         throw { code: 'forbidden', message: 'Page storage binding is unavailable.', retryable: false };
       }
+    };
+    const assertStaticPageBinding = (identity: ResolvedIdentity): void => {
+      if (typeof deps.pageReads !== 'function') assertPageBinding(identity, deps.pageReads);
+    };
+    const pageBindingFor = (identity: ResolvedIdentity, store: StoragePort): PageReadsBinding | undefined => {
+      const binding = typeof deps.pageReads === 'function' ? deps.pageReads(identity, store) : deps.pageReads;
+      assertPageBinding(identity, binding);
+      return binding;
     };
     const createFileRead = deps.files?.readOptions === undefined ? undefined : await loadSiblingFn<
       typeof import('../runtime/bound-files.js').createBoundFileReadResolver
     >('../runtime/bound-files.js', 'runtime/bound-files.ts', 'createBoundFileReadResolver');
     const scopeFor = (identity: ResolvedIdentity, store: StoragePort, source: PageSourceContext,
       resolveCaller: () => Promise<ResolvedIdentity>): PageReadScope => {
-      assertPageBinding(identity);
+      const pageReads = pageBindingFor(identity, store);
       return createReadScope({
         asm, artifact, identity, store, pageSource: source,
         ...(createFileRead === undefined ? {} : { pageFiles: {
@@ -1998,7 +2009,7 @@ export async function assembleWorker(
         } }),
         ...(deps.deploymentBase === undefined ? {} : { deploymentBase: deps.deploymentBase }),
         memberships: deps.identityStore as CanonicalMembershipReader, now,
-        ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }),
+        ...(pageReads === undefined ? {} : { pageReads }),
         ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
       });
     };
@@ -2025,7 +2036,8 @@ export async function assembleWorker(
         const selected = (): Promise<PageReadScope> => {
           assertOpen();
           return scope ??= (async () => {
-            assertPageBinding(identity);
+            // Preserve static-binding refusal before owner routing can initialize storage.
+            assertStaticPageBinding(identity);
             const selectedStore = await boundary.forIdentity(identity);
             assertOpen();
             const current = scopeFor(identity, selectedStore, source, resolveCaller);
@@ -2100,11 +2112,12 @@ export async function assembleWorker(
       },
       query: async (invocation, model, args) => {
         const identity = invocation as ResolvedIdentity;
-        assertPageBinding(identity);
+        assertStaticPageBinding(identity);
         const store = deps.ownerStorage === undefined ? deps.store : await deps.ownerStorage.forIdentity(identity);
+        const pageReads = pageBindingFor(identity, store);
         return queryRows({ asm, artifact, model, args, identity,
           store, memberships: deps.identityStore as CanonicalMembershipReader, now,
-          ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }) });
+          ...(pageReads === undefined ? {} : { pageReads }) });
       },
     });
   }

@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { MutationEnvelope, ProjectedRecord, ReceiptIdentity, PageDescriptor, PageReadScope, FileValue } from '@canlang/contracts';
+import type { MutationEnvelope, ProjectedRecord, ReceiptIdentity, PageDescriptor, PageReadScope, FileValue, PresentationContext } from '@canlang/contracts';
 import type { UploadDeps, PageHttpDeps } from '@canlang/interfaces';
 import { handlePageRequest, resolveRequestIdentity, buildPageSourceContext } from '@canlang/interfaces';
 import { distribution } from '@canlang/values/distribution';
@@ -206,6 +206,24 @@ test('original compiled File[] text binds only current original page occurrences
     const files = projected[0]!.attachments as FileValue[];
     assert.deepEqual(files.map(file => file.id), [png, jpeg, png]); assert.notEqual(files[0], files[2]);
     const before = { owner: await tables(a), foreign: await tables(b), files: physical.files.listAll() };
+    // The existing File target sink consumes the exact source-bound occurrence,
+    // using the download presenter rather than image preview or a public URL.
+    const { button } = await nodeImport(pathToFileURL(join(root, 'packages/ui/dist/src/index.js')).href) as typeof import('@canlang/ui');
+    const buttonContext: PresentationContext = {
+      preferredLocales: [], appDefaultLocale: 'en',
+      theme: { mode: 'system', accent: 'blue', density: 'comfortable' },
+      path: '/files', isPartial: false, csrfToken: 'unused', principal: null, invocation: null,
+      query: async () => { throw new Error('File button must not query'); }, presentFile: scope.presentFile,
+    };
+    const targetLink = await button({ context: buttonContext, target: files[0]!, caption: 'Open <attachment>' });
+    assert.ok(targetLink.includes(`href="/files/read/${MODEL}/${row.id}/attachments/${png}"`), targetLink);
+    assert.ok(targetLink.includes('Open &lt;attachment&gt;'), targetLink);
+    assert.ok(!targetLink.includes('/files/preview/'), targetLink);
+    const unavailableTarget = await button({ context: buttonContext, target: null, caption: 'Open <attachment>' });
+    const copiedTarget = await button({ context: buttonContext, target: { ...files[0]! }, caption: 'Open <attachment>' });
+    assert.equal(copiedTarget, unavailableTarget);
+    assert.match(unavailableTarget, /disabled aria-disabled="true"/);
+    assert.ok(!unavailableTarget.includes('href=') && !unavailableTarget.includes(png));
     for (const file of files) assert.ok(await scope.presentFile(file));
     assert.equal(await scope.presentFile({ ...files[0]! }), null);
     assert.equal(await scope.presentFile({ kind: 'file', id: png }), null);

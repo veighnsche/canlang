@@ -49,7 +49,10 @@ async function refusesUnassociatedReplay(
   const before = await snapshot();
   assert.equal(before.receipt?.outcome.status, 'committed');
   assert.equal(Object.hasOwn(before.receipt!.outcome, 'scenario'), false);
-  const error = rejected(await invoker.invokeMutation(request, identity), 'validation');
+  const outcome = await invoker.invokeMutation(request, identity);
+  assert.ok('error' in outcome);
+  assert.equal(outcome.receipt, undefined, 'committed replay projection failure is not a rejected receipt');
+  const error = rejected(outcome, 'validation');
   assert.equal(error.message, 'Saved scenario has no supported execution association.');
   assert.equal(error.operation_id, request.operation_id); assert.equal(error.retryable, false);
   assert.deepEqual(await snapshot(), before);
@@ -505,13 +508,21 @@ test('synthetic compatibility: absent result metadata keeps unknown bigint refus
   const legacy = await artifact();
   const descriptor = legacy.operations!.find((op) => op.name === `${APP}.echo`)!;
   delete (descriptor as { result?: unknown }).result;
-  // Narrow synthetic historical variant; the persisted fixture remains compiler output.
+  // Historical untyped handler compatibility, not a mismatched modern capture
+  // handler: a checked receipt helper requires the result association removed
+  // below. Native invocation still owns admission and the active context; the
+  // synthetic handler returns its genuinely decoded native input directly.
+  // The persisted fixture remains genuine compiler output.
   legacy.modules[0]!.js += `
 delete appDefinition.operations["${APP}.echo"].result;
 const originalCanApp = canApp;
 canApp = function() {
   const registry = originalCanApp();
   delete registry.operations.find(operation => operation.name === "${APP}.echo").result;
+  registry["${APP}.echo"] = async function(c, inputs) {
+    if (typeof inputs.value !== "bigint") throw new Error("historical echo lost native input decoding");
+    return inputs.value;
+  };
   return registry;
 };
 `;
