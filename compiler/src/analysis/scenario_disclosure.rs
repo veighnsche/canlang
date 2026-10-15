@@ -617,6 +617,15 @@ pub struct CheckedScenarioCallInput {
     pub ty: ResolvedType,
 }
 
+/// Executed Require field reads remain separate from result disclosure.
+/// Original occurrence identities are evidence, never runtime field grants.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckedRequireConsumption {
+    pub statement: NodeKey,
+    pub condition: NodeKey,
+    pub dependencies: Vec<DisclosureDependency>,
+}
+
 #[derive(Debug, Clone)]
 pub struct CheckedScenarioDisclosure {
     pub source_facts: Option<Box<CheckedScenarioSource>>,
@@ -625,6 +634,7 @@ pub struct CheckedScenarioDisclosure {
     pub source: DisclosureSource,
     pub returns: Vec<DisclosureReturn>,
     pub effects: Vec<DisclosureEffect>,
+    pub(crate) require_consumptions: Vec<CheckedRequireConsumption>,
 }
 
 #[derive(Debug, Clone)]
@@ -689,6 +699,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
         statement_depth: 0,
         authorization: false,
         effect_proofs: Vec::new(),
+        require_consumptions: Vec::new(),
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
@@ -732,6 +743,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
             cx.steps = 0;
             cx.stack.clear();
             cx.effect_proofs.clear();
+            cx.require_consumptions.clear();
             cx.loop_node = None;
             cx.effect_visits = 0;
             cx.result_model = None;
@@ -942,6 +954,7 @@ pub(super) fn analyze_scenario_disclosure_with_catalog<'a>(
                     source,
                     returns,
                     effects: cx.effect_proofs.clone(),
+                    require_consumptions: cx.require_consumptions.clone(),
                 })
             })();
             out.insert(
@@ -1030,6 +1043,7 @@ pub fn checked_read_decision_sites(
         statement_depth: 0,
         authorization: false,
         effect_proofs: Vec::new(),
+        require_consumptions: Vec::new(),
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
@@ -1161,6 +1175,7 @@ pub fn checked_read_predicate_site(
         statement_depth: 0,
         authorization: false,
         effect_proofs: Vec::new(),
+        require_consumptions: Vec::new(),
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
@@ -1235,6 +1250,7 @@ pub fn checked_read_boolean_site(
         statement_depth: 0,
         authorization: false,
         effect_proofs: Vec::new(),
+        require_consumptions: Vec::new(),
         effect_visits: 0,
         loop_node: None,
         complete_children: HashSet::new(),
@@ -1554,6 +1570,7 @@ struct Closure<'a> {
     statement_depth: usize,
     authorization: bool,
     effect_proofs: Vec<DisclosureEffect>,
+    require_consumptions: Vec<CheckedRequireConsumption>,
     effect_visits: usize,
     loop_node: Option<NodeKey>,
     statement_expressions: Option<Vec<CompletedStatementExpression>>,
@@ -5926,6 +5943,7 @@ impl<'a> Closure<'a> {
                 model_result: None,
             }],
             effects: Vec::new(),
+            require_consumptions: Vec::new(),
         }))
     }
 
@@ -14284,6 +14302,69 @@ impl<'a> Closure<'a> {
                                 }).cloned().collect(),
                                 ..ValuePath::default()
                             })?;
+                            // Preserve the existing canonical whole-field read even
+                            // when an independent return prunes the guard lane.
+                            // Emission observes it only at this authored Member.
+                            let dependencies: Vec<_> = admitted_guard.reads.iter().filter(|read| {
+                                matches!(&read.ty, ResolvedType::Record {symbol, ..}
+                                    if self.resolve.symbols.get(symbol.0 as usize)
+                                        .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
+                            }).cloned().collect();
+                            if !dependencies.is_empty() {
+                                let index =
+                                    match self.require_consumptions.iter().position(|entry| {
+                                        entry.statement == effect.node && entry.condition == cond
+                                    }) {
+                                        Some(index) => index,
+                                        None => {
+                                            if self.require_consumptions.len() >= 200 {
+                                                return Err(self.fail(
+                                                    effect.node,
+                                                    "require consumption bound",
+                                                ));
+                                            }
+                                            self.require_consumptions.push(
+                                                CheckedRequireConsumption {
+                                                    statement: effect.node,
+                                                    condition: cond,
+                                                    dependencies: Vec::new(),
+                                                },
+                                            );
+                                            self.require_consumptions.len() - 1
+                                        }
+                                    };
+                                for dependency in dependencies {
+                                    let entry = &self.require_consumptions[index];
+                                    if let Some(previous) = entry
+                                        .dependencies
+                                        .iter()
+                                        .find(|read| read.id == dependency.id)
+                                    {
+                                        if previous != &dependency {
+                                            return Err(self.fail(
+                                                effect.node,
+                                                "conflicting require consumption",
+                                            ));
+                                        }
+                                    } else {
+                                        if self
+                                            .require_consumptions
+                                            .iter()
+                                            .map(|entry| entry.dependencies.len())
+                                            .sum::<usize>()
+                                            >= 200
+                                        {
+                                            return Err(self.fail(
+                                                effect.node,
+                                                "require consumption dependency bound",
+                                            ));
+                                        }
+                                        self.require_consumptions[index]
+                                            .dependencies
+                                            .push(dependency);
+                                    }
+                                }
+                            }
                             path.effect_guards.join(&admitted_guard);
                             if path.executed_effect {
                                 path.writes.join(&admitted_guard);
@@ -16174,6 +16255,7 @@ mod tests {
                 statement_depth: 0,
                 authorization: false,
                 effect_proofs: Vec::new(),
+                require_consumptions: Vec::new(),
                 effect_visits: 0,
                 loop_node: None,
                 complete_children: HashSet::new(),
@@ -16279,6 +16361,7 @@ mod tests {
                 statement_depth: 0,
                 authorization: false,
                 effect_proofs: Vec::new(),
+                require_consumptions: Vec::new(),
                 effect_visits: 0,
                 loop_node: None,
                 complete_children: HashSet::new(),
@@ -16808,6 +16891,7 @@ package crm
                         statement_depth: 0,
                         authorization: false,
                         effect_proofs: Vec::new(),
+                        require_consumptions: Vec::new(),
                         effect_visits: 0,
                         loop_node: None,
                         complete_children: HashSet::new(),
@@ -17215,6 +17299,7 @@ package crm
                     statement_depth: 1,
                     authorization: true,
                     effect_proofs: Vec::new(),
+                    require_consumptions: Vec::new(),
                     effect_visits: 0,
                     loop_node: None,
                     complete_children: HashSet::new(),

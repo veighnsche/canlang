@@ -29,6 +29,26 @@ pub(super) struct PreparedRequireReturns<'a> {
 }
 
 impl<'a> PreparedRequireReturns<'a> {
+    /// Borrow the original complete source proof only for this sealed owner/IR.
+    pub(super) fn checked_scenario(
+        &self,
+        ir: &IrProgram,
+        owner: SymbolId,
+    ) -> Option<&'a CheckedScenarioDisclosure> {
+        if !std::ptr::eq(self.ir, ir) || !self.indices.contains_key(&owner) {
+            return None;
+        }
+        let ScenarioDisclosure::Complete(original) =
+            self.program.scenario_disclosures().get(&owner)?
+        else {
+            return None;
+        };
+        let ScenarioDisclosure::Complete(actual) = ir.scenario_disclosures.get(&owner)? else {
+            return None;
+        };
+        same_disclosure(original, actual).then_some(original)
+    }
+
     pub(super) fn returns(
         &self,
         ir: &IrProgram,
@@ -555,6 +575,7 @@ pub(super) fn same_disclosure(
         && a.node == b.node
         && a.source == b.source
         && a.effects == b.effects
+        && a.require_consumptions == b.require_consumptions
         && a.returns.len() == b.returns.len()
         && !a.returns.is_empty()
         && a.returns.len() <= 1024
