@@ -1,0 +1,13 @@
+app QueueOnly
+context
+ queue Jobs type=text
+Given
+When
+ scenario submit(title:text) by=members
+  do send Jobs.publish {value=title} as queued
+ scenario consume on=Jobs
+  do
+   require actor==null
+   require operation.source=="ingress"
+   require event=="Queued"
+Then

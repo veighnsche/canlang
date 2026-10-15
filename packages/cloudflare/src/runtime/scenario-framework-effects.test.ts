@@ -69,7 +69,7 @@ async function world() {
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) });
   bindScenarioReceiptFrameworkProducer(loaded.registry.get(OP)! as GeneratedOperationDef, {
     source: origin, app: APP, bindings: [{ binding: BINDING, from: FROM, targets: [{ source: TARGET, correlation: 'value' }] }],
-    stage: stageCanonicalSend, read: readCanonicalSendStaging,
+    stage: (input, context) => stageCanonicalSend(input, context), read: readCanonicalSendStaging,
   });
   const seed = await seedRow(physical, MODEL, { id: 'seed', data: { title: 'seed', label: 'seed', token: 'seed secret', run: null } });
   const commits: CommitBatch[] = [];

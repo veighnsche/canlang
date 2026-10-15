@@ -156,7 +156,7 @@ export interface ProductionDeps {
  * `DB`) -> production `{ store, identityStore }`, running the engine
  * schema ensures (T17c: the INTERIM_DDL migrate step was retired).
  */
-export type BuildProductionDepsFn = (env: Record<string, unknown>) => Promise<ProductionDeps>;
+export type BuildProductionDepsFn = (env: Record<string, unknown>, composition?: { readonly store: StoragePort | 'unavailable' }) => Promise<ProductionDeps>;
 
 /** P-C `handleMcpGrant` context: `{ identityStore }`. */
 export interface GrantContext {
@@ -189,10 +189,12 @@ export type AssembleWorkerFn = (
 export type CreateWorkerAppFn = (options: WorkerAppOptions) => WorkerApp;
 
 /** Serving fetch: workerd `(request, env)` shape. */
-export type WorkerFetch = (request: Request, env: Record<string, unknown>) => Promise<Response>;
+export type WorkerFetch = (request: Request, env: Record<string, unknown>, context?: { waitUntil(task: Promise<unknown>): void }) => Promise<Response>;
 export type WorkerScheduled = (controller: { readonly scheduledTime: number; readonly cron: string },
   env: Record<string, unknown>, context: { waitUntil(task: Promise<unknown>): void }) => Promise<void>;
-export interface MainHandlers { readonly fetch: WorkerFetch; readonly scheduled: WorkerScheduled }
+export interface MainHandlers { readonly fetch: WorkerFetch; readonly scheduled: WorkerScheduled;
+  readonly queue: (batch: import('../runtime/resource-host.js').ResourceBatch, env: Record<string, unknown>, context: { waitUntil(task: Promise<unknown>): void }) => Promise<void>;
+}
 export type CreateCohortTickFn = (input: { readonly artifact: CompileArtifact; readonly asm: AssembledModules;
   readonly identities: IdentityStore; readonly ownerStorage: TeamOwnerStorageBoundary;
   readonly scope: WorkScope; readonly now: () => number }) => Promise<CohortTickBinding>;
@@ -368,13 +370,13 @@ async function defaultLoadStagedDeployment(): Promise<StagedDeployment> {
   };
 }
 
-async function defaultLoadProductionDeps(env: Record<string, unknown>): Promise<ProductionDeps> {
+async function defaultLoadProductionDeps(env: Record<string, unknown>, composition?: { readonly store: StoragePort | 'unavailable' }): Promise<ProductionDeps> {
   const build = await loadSiblingFn<BuildProductionDepsFn>(
     ENV_ASSEMBLY_SPECIFIER,
     "runtime/env-assembly.ts",
     "buildProductionDeps",
   );
-  return build(env);
+  return build(env, composition);
 }
 
 async function loadBrowserAssetsHandler(
@@ -721,6 +723,8 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
 
   const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
   const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
+  const originalRequests = new WeakMap<object, Request>();
+  const resourceHostsByEnv = new WeakMap<object, readonly Awaited<ReturnType<typeof import('../runtime/resource-host.js').createResourceHost>>[]>();
 
   const getApp = memoize(async (): Promise<WorkerApp> => {
     const createWorkerApp = await loadEntry();
@@ -743,7 +747,24 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const getOwnerStorageFactory = memoize(() => loadOwnerStorage());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
-    return keyedPromise(prodDepsByEnv, env, loadProdDeps);
+    return keyedPromise(prodDepsByEnv, env, async (selected: Record<string, unknown>) => {
+      const staged = await getStaged();
+      if (!staged.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object')) return loadProdDeps(selected);
+      const { rootExecutionForEnv } = await import('../runtime/root-authority.js');
+      const execution = rootExecutionForEnv(selected);
+      const rootedModels = new Set(staged.artifact.runtimeBindings.filter(binding => binding.kind === 'durable-object').map(binding => binding.key));
+      const models = new Map((staged.artifact.models ?? []).map(model => [model.name, model]));
+      const allRooted = [...models.values()].every(model => {
+        let current: typeof model | undefined = model;
+        const seen = new Set<string>();
+        while (current !== undefined && !seen.has(current.name)) {
+          seen.add(current.name); if (rootedModels.has(current.name)) return true;
+          current = current.parent === undefined ? undefined : models.get(current.parent);
+        }
+        return false;
+      });
+      return loadProdDeps(selected, execution === undefined ? allRooted ? { store: 'unavailable' } : undefined : { store: execution.store });
+    });
   }
 
   async function buildWorker(env: Record<string, unknown>): Promise<AssembledWorker> {
@@ -801,7 +822,31 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     let ownerStorage: TeamOwnerStorageBoundary | undefined;
     let pageReads: AssemblyDeps['pageReads'];
     let scope: WorkScope | undefined;
-    if (deps.stateTeam !== undefined || deps.stateTeams !== undefined) {
+    const rootHost = staged.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object') ?? false;
+    const rootRuntime = rootHost ? await import('../runtime/root-authority.js') : undefined;
+    const rootExecution = rootRuntime?.rootExecutionForEnv(env);
+    if (rootExecution === undefined && rootRuntime !== undefined && !Object.isFrozen(deps.store)) rootRuntime.rejectRootModelsInD1(deps.store, staged.artifact);
+    let rootBoundary: AssemblyDeps['rootBoundary'];
+    if (rootHost) {
+      const entry: unknown = await import(staged.modules.entryUrl);
+      const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
+      if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('Root authority requires its actual declared app.');
+      const original = originalRequests.get(env);
+      const helper = await import('../runtime/root-authority-http.js');
+      if (original !== undefined) rootBoundary = helper.createRootOperationBoundary({ artifact: staged.artifact, app: definition['id'], request: original, env });
+      if (rootExecution !== undefined) {
+        const execution = rootExecution;
+        ownerStorage = Object.freeze({ app: definition['id'],
+          async forIdentity(identity: import('@canlang/contracts').ResolvedIdentity) {
+            const current = helper.rootIdentity(definition['id'] as string, identity);
+            if (current.app !== execution.scope.app || current.owner !== execution.scope.owner || current.principal !== execution.scope.principal) throw new Error('Root identity differs from its authenticated owner.');
+            return execution.store;
+          },
+          async forTrustedScope() { throw new Error('Root scheduled work requires its retained owning invocation.'); },
+        });
+      }
+    }
+    if (rootExecution === undefined && (deps.stateTeam !== undefined || deps.stateTeams !== undefined)) {
       const selected = deps.stateTeam;
       const routes = deps.stateTeams ?? (selected === undefined ? [] : [selected]);
       if (routes.length === 0 || routes.length > 16 || new Set(routes.map(route => route.owner)).size !== routes.length ||
@@ -825,6 +870,42 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       } });
       ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
         app, identities: deps.identityStore as IdentityStore, router });
+      if ((staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
+        const [{ d1FileAuthority, runtimeFileReferenceProducers }, { installNativeFileInventory }] = await Promise.all([
+          import('../runtime/d1-file-inventory.js'), import('../runtime/file-inventory.js'),
+        ]);
+        const hasFiles = staged.artifact.runtimeBindings?.some(binding => binding.kind === 'r2' && binding.owner === app);
+        const fileStoreId = hasFiles ? await (await import('../runtime/r2-files.js')).resolveR2FileStoreIdentity({
+          db: env['DB'] as import('@cloudflare/workers-types').D1Database,
+          bucket: env['FILES'] as import('@cloudflare/workers-types').R2Bucket, namespace: `${app}/FILES`,
+        }) : `no-files:${app}`;
+        const authorities = new Map<string, import('@canlang/contracts').FileRetirementAuthority>();
+        for (const route of routes) {
+          // Pin/verify the configured physical team before installing any declaration metadata.
+          await ownerStorage.forTrustedScope({ app, owner: route.owner, ownerPackage: app }, Date.now());
+          authorities.set(route.owner, await d1FileAuthority(route.db, { app, owner: route.owner, ownerPackage: app }, fileStoreId));
+        }
+        const fileRouter = createRouter({ resolveBinding: requested => {
+          if (requested.app !== app) return null;
+          const route = byOwner.get(requested.owner), authority = authorities.get(requested.owner);
+          return route === undefined || authority === undefined ? null : { app, owner: route.owner, db: route.db,
+            fileRetirementAuthority: authority, fileReferenceProducers: runtimeFileReferenceProducers };
+        } });
+        ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
+          app, identities: deps.identityStore as IdentityStore, router: fileRouter });
+        const declaredOwners = definition['runtimeBindingOwners'];
+        const inventoryOwners = Array.isArray(declaredOwners) ? declaredOwners.filter((owner): owner is string => typeof owner === 'string') : [app];
+        for (const route of routes) {
+          const boundary = ownerStorage;
+          const physical = (await boundary.forTrustedScope({ app, owner: route.owner, ownerPackage: app }, Date.now())).store;
+          for (const ownerPackage of inventoryOwners) await installNativeFileInventory({ artifact: staged.artifact, asm: staged.modules,
+            scope: { app, owner: route.owner, ownerPackage },
+            store: physical as import('@canlang/contracts').FileReferenceStoragePort,
+            authority: authorities.get(route.owner)!, now: Date.now,
+            verifyOwner: async () => { await boundary.forTrustedScope({ app, owner: route.owner, ownerPackage }, Date.now()); },
+          });
+        }
+      }
       let cursors: PageCursorCodec | undefined;
       if (env['CAN_FORM_BINDING_KEY'] !== undefined) {
         const createCodec = await loadSiblingFn<typeof createPageCursorCodec>(
@@ -843,15 +924,87 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       };
       if (selected !== undefined) scope = { app, owner: selected.owner, ownerPackage: app };
     }
-    const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler');
+    let hostStore = rootExecution?.store ?? deps.store;
+    const hasDefaultD1Models = (staged.artifact.models ?? []).some(model => rootRuntime?.modelUsesRoot(staged.artifact, model.name) !== true);
+    if (staged.artifact.models?.length === 0 && (staged.artifact.operations?.length ?? 0) !== 0 && ownerStorage === undefined &&
+        (staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
+      throw new Error('Model-free resource applications require an explicitly configured team State owner; global owner routing is unsupported.');
+    }
+    if (rootExecution === undefined && ownerStorage === undefined && (!rootHost || hasDefaultD1Models) && (staged.artifact.runtimeBindings?.length ?? 0) !== 0) {
+      const entry: unknown = await import(staged.modules.entryUrl);
+      const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
+      if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('State declarations require their actual app.');
+      const app = definition['id'];
+      const [{ d1FileAuthority, runtimeFileReferenceProducers }, { installNativeFileInventory }, { createD1Storage }] = await Promise.all([
+        import('../runtime/d1-file-inventory.js'), import('../runtime/file-inventory.js'), import('@canlang/state/storage/d1'),
+      ]);
+      const db = env['DB'] as import('@cloudflare/workers-types').D1Database;
+      const fileStoreId = staged.artifact.runtimeBindings?.some(binding => binding.kind === 'r2' && binding.owner === app)
+        ? await (await import('../runtime/r2-files.js')).resolveR2FileStoreIdentity({ db,
+            bucket: env['FILES'] as import('@cloudflare/workers-types').R2Bucket, namespace: `${app}/FILES` }) : `no-files:${app}`;
+      const selectedScope = { app, owner: 'app', ownerPackage: app };
+      const authority = await d1FileAuthority(db, selectedScope, fileStoreId);
+      const physical = createD1Storage(db, authority, runtimeFileReferenceProducers);
+      if (rootRuntime !== undefined) rootRuntime.rejectRootModelsInD1(physical, staged.artifact);
+      const owners = definition['runtimeBindingOwners'];
+      for (const ownerPackage of Array.isArray(owners) ? owners as string[] : [app]) await installNativeFileInventory({
+        artifact: staged.artifact, asm: staged.modules, scope: { ...selectedScope, ownerPackage },
+        store: physical, authority, now: Date.now, verifyOwner: async () => {
+          if (env['DB'] !== db) throw new Error('Configured app State binding changed.');
+        },
+      });
+      hostStore = physical;
+    }
+    const files = env['CAN_LOCAL_FILES'] === true
+      ? await (await import('../runtime/worker-files.js')).createWorkerFiles({
+          artifact: staged.artifact, asm: staged.modules, env,
+          store: hostStore, identities: deps.identityStore as IdentityStore,
+          ...(ownerStorage === undefined ? {} : { ownerStorage }),
+          origin: deploymentBase ?? (() => { throw new Error('Local Files require the selected preview origin.'); })(),
+          intentTtlMs: 60 * 60 * 1000,
+          retention: { unattachedHorizonMs: 24 * 60 * 60 * 1000, retentionMs: 24 * 60 * 60 * 1000, retainAttached: true },
+          localLoopback: true,
+        }) : undefined;
+    const queueHandlers = new Set((staged.artifact.runtimeBindings ?? []).flatMap(binding => binding.kind === 'queue' ? binding.handlers : []));
+    const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler' && !queueHandlers.has(callable.id));
     const cohorts = staged.verdict.active && needsTick && ownerStorage !== undefined && scope !== undefined
       ? await (await getCohortTickFactory())({ artifact: staged.artifact, asm: staged.modules,
           identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now,
+          ...(files?.canonical === undefined ? {} : { files: files.canonical }),
           ...(deploymentBase === undefined ? {} : { deploymentBase }) })
       : undefined;
+    const resourceBindings = (staged.artifact.runtimeBindings ?? []).filter(binding => binding.kind === 'queue' || binding.kind === 'analytics-engine');
+    const resourceHosts: Awaited<ReturnType<typeof import('../runtime/resource-host.js').createResourceHost>>[] = [];
+    if (resourceBindings.length !== 0) {
+      const { createResourceHost } = await import('../runtime/resource-host.js');
+      const entry: unknown = await import(staged.modules.entryUrl);
+      const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
+      if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('Resources require the actual declared app.');
+      const app = definition['id'];
+      const routes = deps.stateTeams ?? (deps.stateTeam === undefined ? [] : [deps.stateTeam]);
+      // Root actors recover retained work through their own alarm/system-owner composition.
+      if (rootExecution === undefined && ownerStorage !== undefined && routes.length !== 0) {
+        for (const route of routes) {
+          const selectedScope = { app, owner: route.owner, ownerPackage: app };
+          const selected = await ownerStorage.forTrustedScope(selectedScope, Date.now());
+          resourceHosts.push(await createResourceHost({ artifact: staged.artifact, asm: staged.modules, env,
+            store: selected.store, identities: deps.identityStore as IdentityStore, scope: selectedScope,
+            ...(files?.canonical === undefined ? {} : { files: files.canonical }) }));
+        }
+      } else if (rootExecution === undefined && (!rootHost || hasDefaultD1Models)) {
+        resourceHosts.push(await createResourceHost({ artifact: staged.artifact, asm: staged.modules, env,
+          store: hostStore, identities: deps.identityStore as IdentityStore, scope: { app, owner: 'app', ownerPackage: app },
+          ...(files?.canonical === undefined ? {} : { files: files.canonical }) }));
+      }
+    }
+    resourceHostsByEnv.set(env, resourceHosts);
     const assemblyDeps: AssemblyDeps = {
+      ...(files === undefined ? {} : { files }),
       ...(deploymentBase === undefined ? {} : { deploymentBase }),
-      store: deps.store,
+      store: hostStore,
+      ...(rootBoundary === undefined ? {} : { rootBoundary }),
+      ...(staged.artifact.runtimeBindings === undefined ? {} : { runtimeBindings: 1 as const }),
+      ...(rootExecution === undefined ? {} : { allocateRecordId: rootExecution.allocateId }),
       identityStore: deps.identityStore,
       ...(ownerStorage === undefined ? {} : { ownerStorage }),
       ...(pageReads === undefined ? {} : { pageReads }),
@@ -933,18 +1086,41 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     if (request.method.toUpperCase() === "POST" && url.pathname === GRANTS_PATH) {
       return grantsResponse(request, env);
     }
+    if (url.pathname.startsWith('/files/read/') || url.pathname.startsWith('/files/preview/')) {
+      const staged = await getStaged();
+      if (staged.verdict.active && staged.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object')) {
+        await prodDepsFor(env);
+        const entry: unknown = await import(staged.modules.entryUrl);
+        const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
+        if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('Protected root Files require the actual declared app.');
+        const { routeRootFileRequest } = await import('../runtime/root-authority-http.js');
+        const response = await routeRootFileRequest({ artifact: staged.artifact, app: definition['id'], request, env });
+        if (response !== null) return response;
+      }
+    }
     return assemblyResponse(request, env);
   }
 
-  const fetch: WorkerFetch = async (request, env) => {
-    const safeEnv: Record<string, unknown> = isRecord(env) ? env : {};
+  const fetch: WorkerFetch = async (request, env, context) => {
+    let safeEnv: Record<string, unknown> = isRecord(env) ? env : {};
     let app: WorkerApp;
     try {
+      const staged = await getStaged();
+      if (staged.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object')) {
+        const { rootExecutionForEnv } = await import('../runtime/root-authority.js');
+        if (rootExecutionForEnv(safeEnv) === undefined) safeEnv = { ...safeEnv };
+        originalRequests.set(safeEnv, request.clone());
+      }
       app = await getApp();
     } catch (err) {
       return joinMissingResponse(err);
     }
-    return app.fetch(request, safeEnv);
+    const response = await app.fetch(request, safeEnv);
+    const hosts = resourceHostsByEnv.get(safeEnv) ?? [];
+    const task = Promise.all(hosts.map(host => host.drain()));
+    if (context !== undefined) context.waitUntil(task);
+    else await task;
+    return response;
   };
   const scheduled: WorkerScheduled = async (_controller, env, context) => {
     const safeEnv: Record<string, unknown> = isRecord(env) ? env : {};
@@ -955,13 +1131,50 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     }
     const task = (async () => {
       const worker = await workerFor(safeEnv);
-      if (worker.tick === undefined) throw new Error('The installed worker has no cohort tick binding.');
-      return worker.tick();
+      const hosts = resourceHostsByEnv.get(safeEnv) ?? [];
+      if (worker.tick === undefined && hosts.length === 0) {
+        const staged = await getStaged();
+        if (!staged.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object')) throw new Error('The installed worker has no background work binding.');
+      }
+      if (worker.tick !== undefined) await worker.tick();
+      for (const host of hosts) await host.drain();
     })();
     context.waitUntil(task);
     await task;
   };
-  return { fetch, scheduled };
+  const queue: MainHandlers['queue'] = async (batch, env, context) => {
+    await workerFor(env);
+    const hosts = resourceHostsByEnv.get(env) ?? [];
+    const task = (async () => {
+      for (const message of batch.messages) {
+        const body = message.body;
+        const selected = isRecord(body) ? hosts.find(host => host.scope.app === body['app'] && host.scope.owner === body['owner'] &&
+          JSON.stringify(host.locator) === JSON.stringify(body['locator'])) : undefined;
+        if (selected === undefined && isRecord(body) && isRecord(body['locator'])) {
+          const locator = body['locator'];
+          const staged = await getStaged();
+          const binding = staged.artifact.runtimeBindings?.find(binding => binding.kind === 'durable-object' && binding.binding === locator['binding']);
+          const { rootIdOfRecord } = await import('../runtime/root-authority.js');
+          if (binding === undefined || typeof locator['rootId'] !== 'string' || rootIdOfRecord(locator['rootId']) !== locator['rootId'] ||
+              typeof body['eventId'] !== 'string' || typeof body['source'] !== 'string') throw new Error('Queue root locator is invalid.');
+          const namespace = env[binding.binding] as import('@cloudflare/workers-types').DurableObjectNamespace | undefined;
+          if (namespace === undefined) throw new Error('Queue root namespace is unavailable.');
+          const response = await namespace.get(namespace.idFromName(locator['rootId'])).fetch('http://can-root.internal/resources', {
+            method: 'POST', headers: { 'content-type': 'application/x-can-root-resources+json' },
+            body: JSON.stringify({ eventId: body['eventId'], binding: body['source'].replace(/\.publish$/, ''), rootId: locator['rootId'] }),
+          });
+          if (!response.ok || (await response.json() as { completed?: boolean }).completed !== true) message.retry();
+          else message.ack();
+          continue;
+        }
+        if (selected === undefined) throw new Error('Queue message has no configured physical owner.');
+        await selected.consume({ queue: batch.queue, messages: [message] });
+      }
+    })();
+    context.waitUntil(task);
+    await task;
+  };
+  return { fetch, scheduled, queue };
 }
 
 /** Existing fetch consumers retain the same API and joins. */
@@ -973,3 +1186,78 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
 const workerMain: MainHandlers = createMainHandlers();
 
 export default workerMain;
+
+/** The only production actor export; executes the same original HTTP/MCP main. */
+export class CanRootAuthority {
+  private readonly actor: Promise<{ fetch(request: Request): Promise<Response>; alarm(): Promise<void> }>;
+  constructor(state: import('@cloudflare/workers-types').DurableObjectState, env: Record<string, unknown>) {
+    this.actor = (async () => {
+      const staged = await defaultLoadStagedDeployment();
+      validateStagedDeployment(staged);
+      if (!staged.verdict.active) throw new Error('Root authority activation was refused.');
+      const entry: unknown = await import(staged.modules.entryUrl);
+      const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
+      if (!isRecord(definition) || typeof definition['id'] !== 'string') throw new Error('Root authority requires its actual declared app.');
+      const app = definition['id'];
+      const inventoryOwners: unknown = Object.getOwnPropertyDescriptor(definition, 'runtimeBindingOwners')?.value;
+      if (!Array.isArray(inventoryOwners) || inventoryOwners.length === 0 || inventoryOwners.some(owner => typeof owner !== 'string' || owner === '') ||
+          !inventoryOwners.includes(app) || new Set(inventoryOwners).size !== inventoryOwners.length) throw new Error('Root authority requires its actual selected declaration owners.');
+      const [{ createRootAuthorityClass, createRootRecordAllocator }, { authenticateRootRequest }, { createD1RootDirectory }] = await Promise.all([
+        import('../runtime/root-authority.js'), import('../runtime/root-authority-http.js'), import('../runtime/root-authority-directory.js'),
+      ]);
+      const [{ runtimeFileReferenceProducers }, { installNativeFileInventory }, { createD1IdentityStore }] = await Promise.all([
+        import('../runtime/d1-file-inventory.js'), import('../runtime/file-inventory.js'), import('@canlang/identity'),
+      ]);
+      const fileStoreId = staged.artifact.runtimeBindings?.some(binding => binding.kind === 'r2' && binding.implicit)
+        ? await (await import('../runtime/r2-files.js')).resolveR2FileStoreIdentity({
+            db: env.DB as import('@cloudflare/workers-types').D1Database,
+            bucket: env.FILES as import('@cloudflare/workers-types').R2Bucket, namespace: `${app}/FILES`,
+          }) : `no-files:${app}`;
+      const { parseBoundFileReadRequest } = await import('../runtime/bound-files.js');
+      const Actor = createRootAuthorityClass({ artifact: staged.artifact,
+        locateFile: parseBoundFileReadRequest,
+        fileReferences: {
+          producers: runtimeFileReferenceProducers,
+          authority(_selected, scope, stateId) { return { app: scope.app, stateOwner: scope.app,
+            stateStoreId: `do:${stateId}`, fileStoreId,
+            receiver: { app: scope.app, team: scope.owner, owner: scope.owner } }; },
+          async prepare(selected, store, scope) {
+            const identities = createD1IdentityStore(selected.DB as import('@cloudflare/workers-types').D1Database);
+            for (const ownerPackage of inventoryOwners as string[]) await installNativeFileInventory({ artifact: staged.artifact, asm: staged.modules, store,
+              authority: store.fileRetirementAuthority, scope: { app: scope.app, owner: scope.owner, ownerPackage }, now: Date.now,
+              async verifyOwner() { if ((await identities.findTeamById(scope.owner))?.team_id !== scope.owner) throw new Error('Root declaration inventory requires its current actual Identity owner.'); },
+            });
+          },
+        },
+        authenticate: (request, selected) => authenticateRootRequest(request, selected, app),
+        execute: (request, selected) => workerMain.fetch(request, selected),
+        directory: selected => createD1RootDirectory(selected.DB as import('@cloudflare/workers-types').D1Database),
+        async recover(selected, store, scope, event) {
+          const [{ createResourceHost }, { createD1IdentityStore, resolveIdentity }] = await Promise.all([
+            import('../runtime/resource-host.js'), import('@canlang/identity'),
+          ]);
+          const identities = createD1IdentityStore(selected.DB as import('@cloudflare/workers-types').D1Database);
+          const current = await resolveIdentity(identities, { team_id: scope.owner });
+          if (current.actor !== null || current.team?.team_id !== scope.owner) throw new Error('Root recovery requires its current actual Identity owner.');
+          const files = selected.CAN_LOCAL_FILES === true ? await (await import('../runtime/worker-files.js')).createWorkerFiles({
+            artifact: staged.artifact, asm: staged.modules, env: selected, store, identities,
+            origin: typeof selected.CAN_DEPLOYMENT_BASE === 'string' ? selected.CAN_DEPLOYMENT_BASE : (() => { throw new Error('Root Files require their actual deployment origin.'); })(),
+            intentTtlMs: 3_600_000, retention: { unattachedHorizonMs: 86_400_000, retentionMs: 86_400_000, retainAttached: true }, localLoopback: true,
+          }) : undefined;
+          const host = await createResourceHost({ artifact: staged.artifact, asm: staged.modules, env: selected, store, identities,
+            ...(files?.canonical === undefined ? {} : { files: files.canonical }),
+            scope: { app: scope.app, owner: scope.owner, ownerPackage: scope.app }, locator: { binding: scope.binding, rootId: scope.rootId },
+            createRecordAllocator: (operation, operationId) => createRootRecordAllocator(staged.artifact, scope,
+              { operation, operation_id: operationId, inputs: {} }),
+          });
+          const consumed = event === undefined ? undefined : await host.consumeEvent(event.binding, event.eventId);
+          await host.drain();
+          return { pending: await host.pending(), ...(consumed === undefined ? {} : { completed: consumed.status === 'completed' }) };
+        },
+      });
+      return new Actor(state, env);
+    })();
+  }
+  async fetch(request: Request): Promise<Response> { return (await this.actor).fetch(request); }
+  async alarm(): Promise<void> { return (await this.actor).alarm(); }
+}
