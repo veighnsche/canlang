@@ -42,6 +42,10 @@
       "types": "./dist/src/catalog.d.ts",
       "default": "./dist/src/catalog.js"
     },
+    "./kernel/file-reference-inventory": {
+      "types": "./dist/src/kernel/file-reference-inventory.d.ts",
+      "default": "./dist/src/kernel/file-reference-inventory.js"
+    },
     "./kernel/commands": {
       "types": "./dist/src/kernel/commands.d.ts",
       "default": "./dist/src/kernel/commands.js"

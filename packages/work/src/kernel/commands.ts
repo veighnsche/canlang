@@ -81,7 +81,7 @@ import { isClaimStale } from '../recovery/index.js';
 import {
   RootRecurrenceNotSupportedError,
   everyScopeKey,
-} from '../schedule/every.js';
+} from '../schedule/every-scope.js';
 import type { RecurringScope } from '@canlang/contracts';
 
 import { compareIds, markOriginSuperseded, updateWrite } from './staging-support.js';

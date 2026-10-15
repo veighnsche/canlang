@@ -420,8 +420,8 @@ async function runTest(artifactPath: string, lifetime: LocalCommandLifetime): Pr
   const compilerPath = process.env["CAN_COMPILER_BIN"] ?? join(checkoutRoot, "compiler/target/debug/can");
   const request = prepareLocalPreviewCapture({
     checkoutRoot, appPath: source.path, compilerPath,
-    catalogPath: join(checkoutRoot, "packages/values/dist/catalog.json"),
-    helpIndexPath: join(checkoutRoot, "docs/specification/CONSTRUCT-HELP.md"),
+    catalogPath: process.env.CAN_CATALOG ?? join(checkoutRoot, "packages/values/dist/catalog.json"),
+    helpIndexPath: process.env.CAN_HELP_INDEX ?? join(checkoutRoot, "docs/specification/CONSTRUCT-HELP.md"),
   });
   lifetime.checkpoint("capture preparation");
   const capture = await captureSingleFileSource(request);

@@ -237,6 +237,7 @@ pub struct CompileArtifact {
     pub model_policies: Option<Vec<crate::codegen::model_policies::ModelPolicies>>,
     /// Complete checked committed-model trigger inventory.
     pub committed_changes: Option<Vec<crate::codegen::js::JsCommittedChange>>,
+    pub runtime_bindings: Vec<super::runtime_bindings::RuntimeBinding>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
     /// Lowered migration transitions in source order (B3-I1 registry).
@@ -321,6 +322,10 @@ pub fn assemble(
         .collect();
     let (mut requires, mut require_diags) =
         compute_requires(&ir.catalog_version, &js.stdlib_imports, db);
+    if ir.modules.iter().any(|module| !module.runtime_bindings.is_empty()) {
+        requires.push(ArtifactRequirement { capability: "cloudflare.runtime-bindings".to_string(), min_version: 1 });
+        requires.sort_by(|a, b| a.capability.cmp(&b.capability));
+    }
     if callables
         .iter()
         .any(|callable| callable.input_style.is_some())
@@ -432,6 +437,7 @@ pub fn assemble(
         value_types: js.value_types.clone(),
         model_policies: js.model_policies.clone(),
         committed_changes: js.committed_changes.clone(),
+        runtime_bindings: super::runtime_bindings::inventory(ir),
         pages,
         migrations,
         requires,
@@ -651,6 +657,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
         value_types: artifact.value_types.as_ref(),
         model_policies: artifact.model_policies.as_deref(),
         committed_changes: artifact.committed_changes.as_deref(),
+        runtime_bindings: &artifact.runtime_bindings,
         pages: artifact
             .pages
             .iter()
@@ -730,6 +737,8 @@ struct ArtifactWire<'a> {
     model_policies: Option<&'a [crate::codegen::model_policies::ModelPolicies]>,
     #[serde(rename = "committedChanges", skip_serializing_if = "Option::is_none")]
     committed_changes: Option<&'a [crate::codegen::js::JsCommittedChange]>,
+    #[serde(rename = "runtimeBindings")]
+    runtime_bindings: &'a [super::runtime_bindings::RuntimeBinding],
     pages: Vec<PageWire<'a>>,
     migrations: Vec<MigrationWire<'a>>,
     requires: Vec<RequirementWire<'a>>,

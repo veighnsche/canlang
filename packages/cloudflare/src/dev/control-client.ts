@@ -227,7 +227,7 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
             appPath: resolve(root, source!),
             compilerPath: resolve(root, values.get("--compiler") ?? process.env.CAN_DEV_COMPILER ?? "compiler/target/debug/can"),
             catalogPath: resolve(root, values.get("--catalog") ?? process.env.CAN_CATALOG ?? "packages/values/dist/catalog.json"),
-            helpIndexPath: resolve(root, values.get("--help-index") ?? "docs/specification/CONSTRUCT-HELP.md"),
+            helpIndexPath: resolve(root, values.get("--help-index") ?? process.env.CAN_HELP_INDEX ?? "docs/specification/CONSTRUCT-HELP.md"),
           });
         } catch (error) {
           throw new SessionSocketError("CAPTURE_INCOMPLETE", error instanceof Error ? error.message : "installed preview inputs are unavailable");

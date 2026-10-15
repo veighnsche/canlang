@@ -22,6 +22,7 @@ fn empty() -> CompileArtifact {
         value_types: None,
         model_policies: None,
         committed_changes: None,
+        runtime_bindings: vec![],
         pages: vec![],
         migrations: vec![],
         requires: vec![],
@@ -34,7 +35,7 @@ fn empty_artifact_has_fixed_fields_and_no_newline() {
     let json = to_json(&empty());
     assert_eq!(
         json,
-        r#"{"artifact_version":1,"language_version":"1.0","tool_version":"test","sources":[],"modules":[],"callables":[],"operations":[],"models":[],"pages":[],"migrations":[],"requires":[],"tests":[]}"#
+        r#"{"artifact_version":1,"language_version":"1.0","tool_version":"test","sources":[],"modules":[],"callables":[],"operations":[],"models":[],"runtimeBindings":[],"pages":[],"migrations":[],"requires":[],"tests":[]}"#
     );
     assert!(!json.ends_with('\n'));
 }
@@ -81,6 +82,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         description: "".into(),
         result: None,
         disclosure: None,
+        root_authority: None,
         inputs: vec![
             JsOperationField {
                 min: None,
@@ -179,7 +181,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
     let expected = concat!(
         r#"{"artifact_version":1,"language_version":"1.0","tool_version":"test","sources":[{"path":"z.can","sha256":"zz"},{"path":"a.can","sha256":"aa"}],"modules":[{"path":"app/z.mjs","js":"export const x=\"é😀\";\n\\\t\r\u0008\u000c\u0001","map":{"version":3,"file":"app/z.mjs","sources":["z.can","a.can"],"sourcesContent":["é😀\n",null],"names":["z","a"],"mappings":"AAAA;ACAA"}}],"callables":[{"id":"Z.go","kind":"operation","module":"app/z.mjs","export":"canApp","member":["z","a"]}],"#,
         r#""operations":[{"name":"Z.go","kind":"scenario","description":"","inputs":{"fields":[{"name":"z","field":{"kind":"integer"},"required":false,"nullable":true,"array":{"required":false},"default":{"kind":"literal","value":null},"description":""},{"name":"a","field":{"kind":"string"},"required":true}]}}],"models":[{"name":"Z.Row","fields":[{"name":"amount","field":{"kind":"decimal"},"required":false,"serverOnly":false,"default":{"kind":"literal","value":"12345678901234567890.1200"}}],"deleteMode":"archive","uniqueKeys":["z","a"],"parent":"Z.Parent","scope":"app"}],"#,
-        r#""pages":[{"owner":"Z","path":"/","module":"app/z.mjs","export":"page"}],"migrations":[{"id":"Z@old","owner":"Z","from":"old","body_digest":"digest","directives":[{"kind":"dropOwner"},{"kind":"renameField","from":"","to":"new","model":"Row","handlerContract":"H.v1"}]}],"requires":[{"capability":"state","min_version":18446744073709551615}],"tests":[{"scope":"Z.go","module":{"path":"test/z.mjs","js":"export const x=\"é😀\";\n\\\t\r\u0008\u000c\u0001","map":{"version":3,"file":"test/z.mjs","sources":["z.can","a.can"],"sourcesContent":["é😀\n",null],"names":["z","a"],"mappings":"AAAA;ACAA"}},"fixtures":["z","a"]}]}"#,
+        r#""runtimeBindings":[],"pages":[{"owner":"Z","path":"/","module":"app/z.mjs","export":"page"}],"migrations":[{"id":"Z@old","owner":"Z","from":"old","body_digest":"digest","directives":[{"kind":"dropOwner"},{"kind":"renameField","from":"","to":"new","model":"Row","handlerContract":"H.v1"}]}],"requires":[{"capability":"state","min_version":18446744073709551615}],"tests":[{"scope":"Z.go","module":{"path":"test/z.mjs","js":"export const x=\"é😀\";\n\\\t\r\u0008\u000c\u0001","map":{"version":3,"file":"test/z.mjs","sources":["z.can","a.can"],"sourcesContent":["é😀\n",null],"names":["z","a"],"mappings":"AAAA;ACAA"}},"fixtures":["z","a"]}]}"#,
     );
     let json = to_json(&artifact);
     assert_eq!(json, expected);

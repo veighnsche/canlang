@@ -60,7 +60,12 @@ function callable(value: unknown): FrameworkOpaqueCallable {
   if (array(call.member).length === 0) return refuse('empty callable route.');
   for (const member of array(call.member)) string(member);
   const canonical = closed(data.canonical, ['name', 'kind', 'inputs'], ['result']);
-  const artifact = closed(data.artifact, ['name', 'kind', 'description', 'inputs'], ['result']);
+  const artifact = closed(data.artifact, ['name', 'kind', 'description', 'inputs'], ['result', 'rootAuthority']);
+  if (artifact.rootAuthority !== undefined) {
+    const root = closed(artifact.rootAuthority, ['binding', 'model'], ['createsRoot']);
+    string(root.binding); string(root.model);
+    if (Object.hasOwn(root, 'createsRoot') && root.createsRoot !== true) return refuse('invalid checked root creation marker.');
+  }
   same(canonical.name, call.id, 'canonical callable'); same(artifact.name, call.id, 'artifact callable');
   if (!['read', 'create', 'update', 'delete', 'scenario'].includes(string(canonical.kind)) ||
       typeof artifact.description !== 'string') return refuse('invalid callable descriptor.');
@@ -132,7 +137,7 @@ function event(value: unknown, row: StoredRow, model: ModelName, ownerScope: Dat
   if (input.kind !== 'event-input') return refuse('event input recipe required.');
   same(input.occurrenceId, row.id, 'event occurrence'); string(input.sourceOccurrence);
   const targetKind = object(input.target).kind;
-  const target = closed(input.target, targetKind === 'schedule' ? ['kind'] : ['kind', 'handler']);
+  const target = closed(input.target, targetKind === 'schedule' ? ['kind'] : targetKind === 'queue-publication' ? ['kind', 'intent'] : ['kind', 'handler']);
   const data = row.data as Data;
   if (model === WORK_SCHEDULE_MODEL) {
     if (targetKind !== 'schedule') return refuse('schedule has foreign target.');
@@ -142,6 +147,13 @@ function event(value: unknown, row: StoredRow, model: ModelName, ownerScope: Dat
     const handler = callable(target.handler);
     if (handler.callable.kind !== 'handler') return refuse('handler target required.');
     same(handler.callable.id, data.handler, 'handler target'); same(input.sourceOccurrence, data.sourceOccurrence, 'handler source');
+  } else if (model === WORK_DISPATCH_MODEL) {
+    if (targetKind !== 'queue-publication') return refuse('queue publication has foreign target.');
+    const intent = closed(target.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']);
+    for (const key of ['intentId', 'operation', 'operationId', 'target']) string(intent[key]); integer(intent.occurrenceIndex);
+    same(input.sourceOccurrence, row.id, 'queue publication source'); same(intent.intentId, row.id, 'queue publication intent');
+    same(intent.operationId, data.operationId, 'queue publication operation'); same(intent.target, data.source, 'queue publication target');
+    same(intent.occurrenceIndex, data.occurrenceIndex, 'queue publication ordinal');
   } else return refuse('event input on foreign row.');
   const lineageKind = object(input.lineage).kind;
   const lineage = closed(input.lineage, lineageKind === 'schedule' ? ['kind', 'key', 'replaces'] : ['kind', 'sourceOccurrence']);
@@ -157,7 +169,7 @@ function event(value: unknown, row: StoredRow, model: ModelName, ownerScope: Dat
     declarationKind === 'committed-change' ? ['kind', 'source', 'descriptor', 'change', 'projectionInputsDeclarationId'] :
       ['kind', 'source', 'event', 'providerSource', 'binding', 'from', 'sourceInputsDeclarationId', 'inputsDeclarationId', 'resultDeclarationId', 'delivery']);
   source(declaration.source);
-  if (declarationKind === 'declared-event') { same(declaration.event, data.event, 'declared event'); string(declaration.inputsDeclarationId); }
+  if (declarationKind === 'declared-event') { same(declaration.event, model === WORK_DISPATCH_MODEL ? string(data.source).slice(0, -'.publish'.length) : data.event, 'declared event'); string(declaration.inputsDeclarationId); }
   else if (declarationKind === 'committed-change') {
     const descriptor = closed(declaration.descriptor, ['source', 'model', 'change', 'handlers']);
     same(descriptor.source, data.event, 'committed event'); string(descriptor.model);
@@ -230,10 +242,10 @@ function schemaFieldDescriptor(artifact: unknown, canonical?: unknown): Data {
 export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer['resolveOpaqueField']> = (model, suppliedRow, field, suppliedContext) => {
   const snapshot = snapshotKernelJsonValue({ row: suppliedRow, context: suppliedContext }, 'Work opaque resolution');
   const row = snapshot.row, context = snapshot.context;
-  if (model === WORK_DISPATCH_MODEL ? field !== 'sourceGuard' : model === WORK_OCCURRENCE_MODEL ? field !== 'result' :
+  if (model === WORK_DISPATCH_MODEL ? field !== 'sourceGuard' && field !== 'queuePayload' : model === WORK_OCCURRENCE_MODEL ? field !== 'result' :
       (model !== WORK_SCHEDULE_MODEL && model !== WORK_HANDLER_OCCURRENCE_MODEL) || field !== 'payload') return refuse('unknown exact opaque slot.');
-  const binding = readWorkFilePayloadOrigin(row.data, row, model, field as 'result' | 'payload' | 'sourceGuard',
-    field === 'result' ? 'retained-result' : 'deferred-input');
+  const binding = readWorkFilePayloadOrigin(row.data, row, model, field as 'result' | 'payload' | 'sourceGuard' | 'queuePayload',
+    field === 'result' ? 'retained-result' : 'deferred-input', field === 'queuePayload' ? 'queuePayloadOrigin' : 'filePayloadOrigin');
   if (binding === undefined) return refuse('original payload binding required, including empty/null values.');
   same(context.binding, binding, 'supplied persisted binding');
   const sets = context.installed.inventory.opaqueDeclarationSets;
@@ -268,7 +280,7 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
     values.push({ path, kind: 'result', declarationId: id, presence: absent ? 'no-result' : 'value' });
   };
   const data = row.data as Data, origin = object(binding.origin), ownerScope = scope(binding.scope);
-  if (model === WORK_DISPATCH_MODEL) {
+  if (model === WORK_DISPATCH_MODEL && field === 'sourceGuard') {
     const declared = closed(origin, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
     if (declared.kind !== 'send-guard') return refuse('original SEND guard recipe required.');
     const intent = closed(declared.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']);
@@ -290,6 +302,11 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
     same(selected.profile.artifact.map(input => ({ name: input.name, type: input.valueType })), original.inputs, 'original guard lexical profile');
     same(Object.keys(object(guard.inputs)), array(original.inputs).map(input => object(input).name), 'complete lexical input order');
     projectInputs(['inputs'], selected.id);
+  } else if (model === WORK_DISPATCH_MODEL && field === 'queuePayload') {
+    if (!string(data.source).endsWith('.publish')) return refuse('queue publication requires its original publish target.');
+    const input = event(origin, row, model, ownerScope);
+    if (input.declaration.kind !== 'declared-event') return refuse('queue publication requires its declared event.');
+    projectInputs([], eventDeclarationId(input));
   } else if (model !== WORK_OCCURRENCE_MODEL) {
     same(ownerScope, { app: data.scopeApp, owner: data.scopeOwner, ownerPackage: data.scopeOwnerPackage }, 'input row scope');
     const input = event(origin, row, model, ownerScope);
@@ -357,6 +374,64 @@ export const resolveWorkOpaqueField: NonNullable<FrameworkFileReferenceProducer[
       same(result.event, descriptor.source, 'saved committed event'); same(result.payload, payload, 'saved committed payload');
       same(result.context, attribution, 'saved attribution'); same(result.revision, origin.revision, 'saved source revision');
       same(result.scope, ownerScope, 'saved source scope'); same(result.bounds, savedBounds, 'saved source bounds'); physicalRoutes(result.handlers, admitted);
+    } else if (kind === 'queued-routes') {
+      closed(recipe, ['kind', 'declaration', 'originalIntent', 'originalCommit', 'routes'], ['guard']);
+      const declared = closed(recipe.declaration, ['kind', 'source', 'event', 'inputsDeclarationId']);
+      if (declared.kind !== 'declared-event') return refuse('queue requires its original typed event declaration.');
+      source(declared.source); string(declared.event); string(declared.inputsDeclarationId);
+      const input = declaration(string(declared.inputsDeclarationId), ['inputs']);
+      same(input.source, { kind: 'event', source: declared.source, event: declared.event }, 'queue original event');
+      const result = closed(data.result, ['kind', 'event', 'scope', 'payload', 'origin', 'handlers']);
+      same(result.kind, 'queue-source', 'queue source kind'); same(result.event, declared.event, 'queue event');
+      same(result.scope, ownerScope, 'queue owner scope');
+      const original = closed(result.origin, ['intent', 'originalCommit', 'dispatch']);
+      const intent = closed(original.intent, ['intentId', 'operation', 'operationId', 'target', 'arguments', 'occurrenceIndex'], ['dispatchGuard', 'handlerContract']);
+      for (const key of ['intentId', 'operation', 'operationId', 'target']) string(intent[key]);
+      integer(intent.occurrenceIndex);
+      same(Object.fromEntries(['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex'].map(key => [key, intent[key]])),
+        closed(recipe.originalIntent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex']), 'queue original intent');
+      same(intent.target, `${declared.event}.publish`, 'queue publish source');
+      same(row.id, `queue/v1/${encodeURIComponent(string(intent.intentId))}`, 'queue occurrence identity');
+      const request = closed(intent.arguments, ['binding', 'from', 'arguments']);
+      same(request.binding, declared.event, 'queue request binding'); same(request.from, declared.event, 'queue request origin');
+      same(result.payload, request.arguments, 'queue immutable payload');
+      const stamp = closed(original.originalCommit, ['revision', 'createdAt']);
+      integer(stamp.revision, 1); integer(stamp.createdAt); same(stamp, recipe.originalCommit, 'queue publication stamp');
+      if (integer(stamp.revision, 1) >= integer(origin.revision, 1) || integer(stamp.createdAt) > row.created) return refuse('queue source chronology disagrees.');
+      const dispatch = closed(original.dispatch, ['operationId', 'source', 'occurrenceIndex', 'originOccurrence', 'created', 'createdBy'], ['sourceGuard', 'filePayloadOrigin', 'queuePayload', 'queuePayloadOrigin']);
+      same(dispatch.source, intent.target, 'queue dispatch source'); same(dispatch.occurrenceIndex, intent.occurrenceIndex, 'queue dispatch ordinal');
+      string(dispatch.operationId); string(dispatch.createdBy); integer(dispatch.created);
+      if (dispatch.originOccurrence !== null) string(dispatch.originOccurrence);
+      if (integer(dispatch.created) > integer(stamp.createdAt)) return refuse('queue dispatch chronology disagrees.');
+      if (recipe.guard !== undefined) {
+        const guardOrigin = closed(recipe.guard, ['kind', 'intent', 'declaration', 'inputsDeclarationId']);
+        same(guardOrigin.kind, 'send-guard', 'queue lexical origin');
+        const sourceGuard = closed(dispatch.sourceGuard, ['rule', 'source', 'owner', 'node', 'inputs']);
+        same(closed(guardOrigin.intent, ['intentId', 'operation', 'operationId', 'target', 'occurrenceIndex', 'dispatchGuard']),
+          { ...recipe.originalIntent as Data, dispatchGuard: intent.dispatchGuard }, 'queue guarded intent');
+        const header = readWorkFilePayloadOrigin({ filePayloadOrigin: dispatch.filePayloadOrigin },
+          { id: string(intent.intentId) as StoredRow['id'], created: integer(dispatch.created), createdBy: string(dispatch.createdBy) }, WORK_DISPATCH_MODEL, 'sourceGuard', 'deferred-input');
+        if (header === undefined) return refuse('queue lexical header absent.');
+        same(header.origin, recipe.guard, 'queue retained guard recipe'); same(header.scope, ownerScope, 'queue guard scope');
+        const guardDeclaration = declaration(string(guardOrigin.inputsDeclarationId), ['inputs']);
+        same(guardDeclaration.source, { kind: 'send-guard', ...object(guardOrigin.declaration) }, 'queue original lexical declaration');
+        const controls = object(guardOrigin.declaration);
+        for (const key of ['rule', 'source', 'owner', 'node']) same(sourceGuard[key], controls[key], 'queue lexical control');
+        projectInputs(['origin', 'dispatch', 'sourceGuard', 'inputs'], string(guardOrigin.inputsDeclarationId));
+      } else if (dispatch.sourceGuard !== undefined || dispatch.filePayloadOrigin !== undefined || intent.dispatchGuard !== undefined) return refuse('queue source omitted its original guard.');
+      if (dispatch.queuePayloadOrigin !== undefined || dispatch.queuePayload !== undefined) {
+        const header = readWorkFilePayloadOrigin({ queuePayloadOrigin: dispatch.queuePayloadOrigin },
+          { id: string(intent.intentId) as StoredRow['id'], created: integer(dispatch.created), createdBy: string(dispatch.createdBy) }, WORK_DISPATCH_MODEL, 'queuePayload', 'deferred-input', 'queuePayloadOrigin');
+        if (header?.origin.kind !== 'event-input' || header.origin.target.kind !== 'queue-publication') return refuse('queue publication header absent.');
+        same(header.origin.target.intent, recipe.originalIntent, 'queue publication original intent'); same(header.origin.declaration, recipe.declaration, 'queue publication original event');
+        same(header.scope, ownerScope, 'queue publication owner'); same(dispatch.queuePayload, result.payload, 'queue publication payload');
+        projectInputs(['origin', 'dispatch', 'queuePayload'], string(declared.inputsDeclarationId));
+      }
+      const admitted = routes(recipe.routes, row.id, string(ownerScope.owner), { maxHandlers: 200 });
+      if (admitted.some(route => route.kind !== 'ordinary')) return refuse('queue cannot adopt a fanout route.');
+      physicalRoutes(result.handlers, admitted);
+      projectInputs(['payload'], string(declared.inputsDeclarationId));
+      projectInputs(['origin', 'intent', 'arguments', 'arguments'], string(declared.inputsDeclarationId));
     } else return refuse('unknown source-routing recipe.');
   } else if (origin.kind === 'standard-completion') {
     closed(origin, ['kind', 'occurrenceId', 'declaration', 'originalIntent', 'originalCommit', 'dispatch', 'terminal', 'revision', 'bounds', 'routes']);

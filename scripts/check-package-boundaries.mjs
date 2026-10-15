@@ -2,19 +2,54 @@
 /**
  * Read-only workspace guard. Run after installing and building the producers.
  * Checks JS/TS module edges, known constant module/path expressions, export
- * targets, and the complete local manifest graph (including dev dependencies).
+ * targets, owning dependency declarations, production/development separation,
+ * and the complete local manifest graph (including dev dependencies).
  * --audit lists expressions requiring runtime/context review. This is not a
  * general filesystem, shell, YAML, Rust, or generated-module-string analyzer.
  */
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { builtinModules } from 'node:module';
 import ts from 'typescript';
 
 const OMIT = new Set(['dist', 'node_modules', 'target', '.git', '.turbo']);
 const DEPENDENCIES = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+const PRODUCTION_DEPENDENCIES = DEPENDENCIES.filter(section => section !== 'devDependencies');
+const DEPENDENCY_ERRORS = new Set(['unknown-workspace-dependency', 'workspace-version', 'dependency-cycle',
+  'undeclared-dependency', 'production-dev-dependency', 'unknown-local-package']);
+const BUILTINS = new Set(builtinModules.map(name => name.replace(/^node:/, '')));
 const SOURCE = /\.(?:[cm]?tsx?|[cm]?jsx?)$/;
 const ROOT_AREAS = ['tests', 'tools', 'scripts', '.github'];
+
+// These exact resolver calls discover caller-provided/optional producers. They
+// are not static imports and must retain their existing unavailable/error path.
+// Browser tools are separately provisioned development tools, never an implicit
+// requirement of the production installation.
+export const contextualModuleLocators = [
+  { consumer: 'packages/cloudflare/src/dev/example-runner.ts', specifier: '@canlang/testkit', reason: 'Optional caller/host inline-example producer; a direct dependency would cycle.' },
+  { consumer: 'packages/cloudflare/src/dev/preview-inputs.ts', specifier: '@canlang/testkit', reason: 'Capture the optional caller/host example producer.' },
+  { consumer: 'packages/cloudflare/src/dev/preview-inputs.ts', specifier: '@canlang/testkit/browser/chromium', reason: 'Discover the separately provisioned browser qualification producer.' },
+  { consumer: 'packages/cloudflare/src/dev/preview-inputs.ts', specifier: '@playwright/test', reason: 'Capture the separately provisioned browser driver closure.' },
+  { consumer: 'packages/cloudflare/src/generation/acceptance.ts', specifier: '@playwright/test/cli', reason: 'Mandatory browser acceptance requires explicit development-tool setup and fails when absent.' },
+  { consumer: 'packages/testkit/src/browser/chromium.ts', specifier: '@playwright/test', reason: 'Optional browser producer reports unavailable when the development driver is absent.' },
+  { consumer: 'packages/cloudflare/test/first-profile-browser.integration.test.ts', specifier: '@canlang/testkit/browser/chromium', reason: 'The integration test selects the browser producer from its explicit fixture project.' },
+];
+
+function productionSource(file, consumer, rootPackage) {
+  if (consumer === rootPackage) return false;
+  const relative = path.relative(consumer.directory, file).split(path.sep).join('/');
+  return !relative.split('/').some(part => ['test', 'tests', '__tests__', 'conformance', 'scripts'].includes(part)) &&
+    !/\.(?:test|spec|wasm-test)\.[cm]?[jt]sx?$/.test(relative);
+}
+
+function typeOnlyModule(node) {
+  if (ts.isExportDeclaration(node)) return node.isTypeOnly ||
+    (node.exportClause && ts.isNamedExports(node.exportClause) && node.exportClause.elements.length > 0 && node.exportClause.elements.every(element => element.isTypeOnly));
+  const clause = node.importClause;
+  return clause?.isTypeOnly || (!clause?.name && clause?.namedBindings && ts.isNamedImports(clause.namedBindings) &&
+    clause.namedBindings.elements.length > 0 && clause.namedBindings.elements.every(element => element.isTypeOnly));
+}
 
 // Checkout inputs are deliberately separate from package API exceptions.
 // These registrations document context-dependent release/e2e reads; they do
@@ -123,7 +158,7 @@ function reverseMappedSources(producer, target, config) {
     .filter(source => inside(source, sourceRoot) && config.fileNames.includes(source));
 }
 
-export function checkPackageBoundaries(rootDirectory) {
+export function checkPackageBoundaries(rootDirectory, { dependenciesOnly = false } = {}) {
   const root = realpathSync(rootDirectory);
   const readManifest = directory => ({ directory, file: path.join(directory, 'package.json'), manifest: JSON.parse(readFileSync(path.join(directory, 'package.json'), 'utf8')) });
   const rootPackage = readManifest(root);
@@ -138,6 +173,7 @@ export function checkPackageBoundaries(rootDirectory) {
   const registered = [];
   const seen = new Set();
   const report = (code, file, node, message) => {
+    if (dependenciesOnly && !DEPENDENCY_ERRORS.has(code)) return;
     const source = node?.getSourceFile();
     const position = source && source.getLineAndCharacterOfPosition(node.getStart(source));
     const entry = { code, file: path.relative(root, file).split(path.sep).join('/'), line: position ? position.line + 1 : 1, message };
@@ -215,7 +251,7 @@ export function checkPackageBoundaries(rootDirectory) {
     const builtinObjects = new Map();
     for (const statement of source.statements) if (ts.isImportDeclaration(statement) && ts.isStringLiteralLike(statement.moduleSpecifier)) {
       const module = statement.moduleSpecifier.text.replace(/^node:/, '');
-      if (!['path', 'url', 'fs', 'fs/promises'].includes(module)) continue;
+      if (!['path', 'url', 'fs', 'fs/promises', 'module'].includes(module)) continue;
       if (statement.importClause?.name) builtinObjects.set(statement.importClause.name.text, module);
       const bindings = statement.importClause?.namedBindings;
       if (bindings && ts.isNamespaceImport(bindings)) builtinObjects.set(bindings.name.text, module);
@@ -230,12 +266,38 @@ export function checkPackageBoundaries(rootDirectory) {
       return undefined;
     };
     const dependencies = new Set(DEPENDENCIES.flatMap(section => Object.keys(consumer.manifest[section] ?? {})));
-    function checkSpecifier(specifier, node) {
+    const productionDependencies = new Set(PRODUCTION_DEPENDENCIES.flatMap(section => Object.keys(consumer.manifest[section] ?? {})));
+    const production = productionSource(file, consumer, rootPackage);
+    const requireExpression = expression => {
+      if (ts.isCallExpression(expression)) {
+        const api = builtin(expression.expression);
+        return api?.module === 'module' && api.name === 'createRequire';
+      }
+      if (!ts.isIdentifier(expression)) return false;
+      const declaration = checker.getSymbolAtLocation(expression)?.valueDeclaration;
+      if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) return requireExpression(declaration.initializer);
+      return expression.text === 'require' && !declaration;
+    };
+    function moduleCall(node) {
+      if (!ts.isCallExpression(node)) return undefined;
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword || requireExpression(node.expression)) return 'import';
+      if (node.expression.getText(source) === 'import.meta.resolve' ||
+          (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'resolve' && requireExpression(node.expression.expression))) return 'locator';
+      return undefined;
+    }
+    function checkSpecifier(specifier, node, { typeOnly = false, locator = false } = {}) {
+      typeOnly ||= source.isDeclarationFile;
+      const contextual = locator && contextualModuleLocators.some(entry => entry.consumer === path.relative(root, file).split(path.sep).join('/') && entry.specifier === specifier);
       const name = localSpecifier(specifier);
+      const bare = !specifier.startsWith('.') && !specifier.startsWith('/') && !specifier.startsWith('#') && !specifier.includes(':');
+      const packageName = name ?? (bare ? specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0] : undefined);
+      if (packageName && !BUILTINS.has(specifier) && packageName !== consumer.manifest.name && !contextual) {
+        if (!dependencies.has(packageName)) report('undeclared-dependency', file, node, `${consumer.manifest.name} consumes ${packageName} without declaring an owning dependency.`);
+        else if (production && !typeOnly && !productionDependencies.has(packageName)) report('production-dev-dependency', file, node, `${consumer.manifest.name} production code consumes ${packageName}, declared only in devDependencies.`);
+      }
       const resolved = ts.resolveModuleName(specifier, file, config.options, ts.sys, undefined, undefined, ts.ModuleKind.ESNext).resolvedModule;
       if (name) {
         const producer = byName.get(name);
-        if (consumer !== producer && !dependencies.has(name)) report('undeclared-dependency', file, node, `${consumer.manifest.name} consumes ${name} without declaring a local dependency.`);
         const entry = exportMatch(producer.manifest, specifier === name ? '.' : `.${specifier.slice(name.length)}`);
         if (entry === undefined || entry === null) report('unexported-import', file, node, `${specifier} is not an exported package entry.`);
         else for (const target of targets(entry)) {
@@ -340,14 +402,15 @@ export function checkPackageBoundaries(rootDirectory) {
     }
     function audit(kind, node) { unresolved.push({ kind, file: path.relative(root, file).split(path.sep).join('/'), line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, expression: node.getText(source).slice(0, 180) }); }
     function visit(node) {
-      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) checkSpecifier(node.moduleSpecifier.text, node.moduleSpecifier);
-      if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) checkSpecifier(node.argument.literal.text, node.argument.literal);
-      if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && node.moduleReference.expression) checkSpecifier(node.moduleReference.expression.text, node.moduleReference.expression);
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) checkSpecifier(node.moduleSpecifier.text, node.moduleSpecifier, { typeOnly: typeOnlyModule(node) });
+      if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteralLike(node.argument.literal)) checkSpecifier(node.argument.literal.text, node.argument.literal, { typeOnly: true });
+      if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && node.moduleReference.expression) checkSpecifier(node.moduleReference.expression.text, node.moduleReference.expression, { typeOnly: node.isTypeOnly });
       if (ts.isCallExpression(node)) {
         const name = node.expression.getText(source);
-        if (node.expression.kind === ts.SyntaxKind.ImportKeyword || name === 'require' || name === 'import.meta.resolve') {
+        const kind = moduleCall(node);
+        if (kind) {
           const value = evaluate(node.arguments[0]);
-          if (plain(value) !== undefined) checkSpecifier(plain(value), node.arguments[0]);
+          if (plain(value) !== undefined) checkSpecifier(plain(value), node.arguments[0], { locator: kind === 'locator' });
           else audit('module', node);
         }
         // A local loader may take a specifier parameter to preserve lazy
@@ -359,9 +422,10 @@ export function checkPackageBoundaries(rootDirectory) {
             const bindings = new Map();
             declaration.parameters.forEach((parameter, index) => bindings.set(checker.getSymbolAtLocation(parameter.name), evaluate(node.arguments[index])));
             const inspect = child => {
-              if (ts.isCallExpression(child) && (child.expression.kind === ts.SyntaxKind.ImportKeyword || ['require', 'import.meta.resolve'].includes(child.expression.getText(source)))) {
+              const childKind = moduleCall(child);
+              if (childKind) {
                 const specifier = plain(evaluate(child.arguments[0], bindings));
-                if (specifier !== undefined) checkSpecifier(specifier, node);
+                if (specifier !== undefined) checkSpecifier(specifier, node, { locator: childKind === 'locator' });
               }
               ts.forEachChild(child, inspect);
             };
@@ -391,13 +455,14 @@ export function checkPackageBoundaries(rootDirectory) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const arguments_ = process.argv.slice(2);
-    if (arguments_.some(arg => !['--audit', '--json'].includes(arg))) throw new Error('Usage: node scripts/check-package-boundaries.mjs [--audit] [--json]');
-    const result = checkPackageBoundaries(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
+    if (arguments_.some(arg => !['--audit', '--json', '--dependencies-only'].includes(arg))) throw new Error('Usage: node scripts/check-package-boundaries.mjs [--audit] [--json] [--dependencies-only]');
+    const dependenciesOnly = arguments_.includes('--dependencies-only');
+    const result = checkPackageBoundaries(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), { dependenciesOnly });
     if (arguments_.includes('--json')) console.log(JSON.stringify(result, null, 2));
     else {
       for (const error of result.errors) console.error(`${error.file}:${error.line} [${error.code}] ${error.message}`);
       if (arguments_.includes('--audit')) for (const item of result.unresolved) console.log(`${item.file}:${item.line} [review:${item.kind}] ${item.expression}`);
-      console.log(`Package boundaries: ${result.packages} packages, ${result.files} JS/TS files, ${result.errors.length} violations, ${result.unresolved.length} runtime/context expressions (--audit).`);
+      console.log(`Package ${dependenciesOnly ? 'dependencies' : 'boundaries'}: ${result.packages} packages, ${result.files} JS/TS files, ${result.errors.length} violations, ${result.unresolved.length} runtime/context expressions (--audit).`);
     }
     process.exitCode = result.errors.length ? 1 : 0;
   } catch (error) { console.error(error.message); process.exitCode = 1; }

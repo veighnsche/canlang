@@ -72,6 +72,7 @@ fn operation_order_omissions_and_present_empty_metadata() {
         inputs: vec![input],
         result: None,
         disclosure: None,
+        root_authority: None,
     };
     assert_eq!(
         operations_json(&[operation]),

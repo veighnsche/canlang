@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "direction": {
+      "type": "choice",
+      "choice": "dispatch_payload_pair",
+      "confidence": 0.89,
+      "probabilities": {
+        "dispatch_payload_pair": 0.93,
+        "publication_row": 0.06,
+        "investigate": 0.01
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1095,
+    "output_tokens": 46
+  }
+}

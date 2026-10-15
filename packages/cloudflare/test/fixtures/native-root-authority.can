@@ -1,0 +1,20 @@
+app CalendarDemo
+context
+ binding Schedule DurableObject key=CalendarDemo.Calendar
+Given
+ Calendar at=Schedule {name:text}
+ Booking in Calendar {title:text}
+ policy Calendar read=members
+ policy Booking read=members
+When
+ crud Calendar by=members fields=name
+ crud Booking by=members fields=title
+ scenario newCalendar(name:text) -> Calendar by=members
+  do
+   create Calendar {name} as calendar
+   return calendar
+ scenario renameBoth(left:Calendar,right:Calendar,name:text) by=members
+  do
+   set left {name}
+   set right {name}
+Then

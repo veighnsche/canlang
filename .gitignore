@@ -67,3 +67,12 @@ dist-manifest.json
 /implementation/**/*.stderr
 /implementation/compiler-completion/lsp-support/raw-callers.txt
 /editors/vscode/audit-astra/*tokens.json
+
+# Owned standalone-install assembly and private release-tool dependencies
+/output/install/
+/output/install-tools/
+
+/output/install-inputs/
+/output/resource-runtime-check/
+/output/install-refresh/
+/output/install-previous/
