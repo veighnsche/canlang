@@ -63,6 +63,7 @@ import {
   readDispatchRow,
   readDispatchImageCorrelation,
   readDispatchImageControlPin,
+  readDispatchMailRecipientPin,
   dispatchGenerationTargetProfile,
   DISPATCH_IMAGE_CORRELATION_FIELDS,
   readEverySlotRow,
@@ -337,6 +338,31 @@ export const workDispatchStopPendingCommand: SystemCommandDef = {
       outboxAck: [intentId],
       result: { stopped: true, intentId, receiptRevision: revision },
     };
+  },
+};
+
+/** Pin a private recipient under the original held claim before any provider request. */
+export const workDispatchPinMailRecipientCommand: SystemCommandDef = {
+  name: 'work.dispatch.pin-mail-recipient',
+  async stage(args, ctx) {
+    const what = 'work.dispatch.pin-mail-recipient';
+    checkArgs(args, what);
+    const keys = ['intentId', 'claimId', 'mailRecipientUser', 'mailRecipientTeam', 'mailRecipientEmail'];
+    if (Reflect.ownKeys(args).length !== keys.length || Reflect.ownKeys(args).some(key => !keys.includes(key as string))) {
+      throw new KernelTableError('Private mail pin requires its exact original identity.');
+    }
+    const intentId = argString(args, 'intentId', what), claimId = argString(args, 'claimId', what);
+    const pin = readDispatchMailRecipientPin(args);
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    if (pin === null || row.archivedAt !== null || row.id !== intentId || data.intentId !== intentId ||
+        data.source !== 'std.EmailV1.send_user' || data.state !== 'claimed' || data.claimId !== claimId || data.claimedAtMs === null) {
+      throw new KernelTableError('Private mail pin requires its original held user send.');
+    }
+    const saved = readDispatchMailRecipientPin(data);
+    if (saved !== null && (saved.mailRecipientUser !== pin.mailRecipientUser || saved.mailRecipientTeam !== pin.mailRecipientTeam ||
+        saved.mailRecipientEmail !== pin.mailRecipientEmail)) throw new KernelTableError('Private mail recipient cannot be replaced.');
+    return { ...(saved !== null ? {} : { writes: [updateWrite(row, { ...data, ...pin }, ctx, WORK_DISPATCH_MODEL, what)] }),
+      result: { pinned: true, existing: saved !== null, intentId } };
   },
 };
 
@@ -768,6 +794,7 @@ export const WORK_SYSTEM_COMMANDS: readonly SystemCommandDef[] = [
   workDispatchClaimCommand,
   workDispatchStopPendingCommand,
   workDispatchPinImageControlCommand,
+  workDispatchPinMailRecipientCommand,
   workDispatchRecordAttemptCommand,
   workDispatchRequeueCommand,
   workDispatchReleaseCommand,

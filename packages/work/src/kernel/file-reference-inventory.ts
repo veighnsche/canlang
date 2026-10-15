@@ -32,6 +32,7 @@ const dispatch = {
   availableAtMs: nullableNumber, firstAttemptAtMs: nullableNumber, retryClass: nullableString,
   requestSource: optionalString, requestRevision: optionalString, requestBinding: optionalString,
   requestFrom: optionalString, requestApp: optionalString, requestOwner: optionalString,
+  mailRecipientUser: optionalString, mailRecipientTeam: optionalString, mailRecipientEmail: optionalString,
   originalIntentId: optionalString, observationStartedAtMs: optionalNumber, observationDeadlineMs: optionalNumber,
   sourceGuard: Object.freeze({ ...deferred, optional: true }), filePayloadOrigin: payloadOrigin('sourceGuard'),
 } satisfies Fields<DispatchRowData>;

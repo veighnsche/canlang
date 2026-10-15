@@ -10,7 +10,7 @@ import type { SystemCommandContext, SystemStaging } from '@canlang/state';
 import { enrollSystemCommandCommitCheck, systemCommandStageRevision } from '@canlang/state';
 import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
-  DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, dispatchGenerationTargetProfile,
+  DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, readDispatchMailRecipientPin, dispatchGenerationTargetProfile,
   type DispatchImageCorrelation, type DispatchRowData } from '@canlang/work/kernel/tables';
 import { deriveOutboxId } from '@canlang/work/intent';
 import { assembleDispatchCommands } from '../worker/assembly.js';
@@ -496,11 +496,27 @@ async function createInstalledDispatcher(
     await qualifyGenerationControl(admitted.intent, admitted.admission, ctx, String(args['originalIntentId']));
     return pinOriginal!.stage(args, ctx);
   } };
+  const mailAdapter = options.profile === 'mail' ? options.adapter : null;
+  const mailPins = new Map<string, { readonly intent: OutboxIntent; readonly current: () => Promise<boolean>; readonly email: string }>();
+  const mailPinOriginal = options.workCommands.find(command => command.name === 'work.dispatch.pin-mail-recipient') as SystemCommandDef | undefined;
+  const mailPinCommand: SystemCommandDef = { name: 'work.dispatch.pin-mail-recipient', async stage(args, ctx) {
+    const admitted = mailPins.get(`${String(args['intentId'])}\0${String(args['claimId'])}`);
+    if (admitted === undefined || mailAdapter === null || typeof mailPinOriginal?.stage !== 'function' || !await admitted.current()) {
+      throw new Error('Private mail pin requires its current held recipient admission.');
+    }
+    const recipient = mailAdapter.userRecipient(admitted.intent);
+    if (recipient === null || args['mailRecipientUser'] !== recipient.user || args['mailRecipientTeam'] !== recipient.team || args['mailRecipientEmail'] !== admitted.email) {
+      throw new Error('Private mail pin differs from its original selected recipient.');
+    }
+    enrollSystemCommandCommitCheck(ctx, admitted.current);
+    return mailPinOriginal.stage(args, ctx);
+  } };
   const composedCommands = assembleDispatchCommands({
     l3Commands: producers.l3Commands,
     workCommands: [...options.workCommands.map(command => command.name === claim.name ? claim
       : command.name === record.name ? record
-      : controlAdapter !== null && command.name === pinCommand.name ? pinCommand : command), ...(!rich ? [] : [progressCommand])],
+      : controlAdapter !== null && command.name === pinCommand.name ? pinCommand
+      : mailAdapter !== null && command.name === mailPinCommand.name ? mailPinCommand : command), ...(!rich ? [] : [progressCommand])],
     stageCommands: options.stageCommands,
   });
   const registryForClaim = (selectedClaim: DispatchWorkerCommand): DispatchSystemRegistry =>
@@ -802,7 +818,37 @@ async function createInstalledDispatcher(
                   committedProgress = progress;
                 } finally { progressFiles.delete(heldKey); }
               };
-              if (options.profile === 'mail' || options.profile === 'judgment') answer = await options.adapter.callProvider(selected);
+              if (options.profile === 'mail' && selected.target === 'std.EmailV1.send_user') {
+                const adapter = options.adapter, recipient = adapter.userRecipient(selected);
+                const refused = (): DispatchProviderOutcome => ({ kind: 'failed', cause: {
+                  kind: 'permanent', code: 'recipient_unavailable', message: 'Mail recipient unavailable.' } });
+                if (recipient === null || recipient.team !== input.fence.owner || !await adapter.recipientActive(selected)) answer = refused();
+                else {
+                  const row = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
+                  if (row === null) throw new Error('Private mail recipient lost its original dispatch.');
+                  const saved = readDispatchMailRecipientPin(readDispatchRow(row));
+                  if (saved !== null && (saved.mailRecipientUser !== recipient.user || saved.mailRecipientTeam !== recipient.team)) {
+                    throw new Error('Private mail recipient differs from its original intent.');
+                  }
+                  const email = saved?.mailRecipientEmail ?? await adapter.resolveRecipient(selected);
+                  if (email === null) answer = refused();
+                  else {
+                    const recipientCurrent = async () => Boolean(await current()) && await adapter.recipientActive(selected);
+                    mailPins.set(heldKey, { intent: selected, current: recipientCurrent, email });
+                    try {
+                      await registry.run(mailPinCommand.name, { intentId: selected.intentId, claimId: held.claimId,
+                        mailRecipientUser: recipient.user, mailRecipientTeam: recipient.team, mailRecipientEmail: email },
+                        { actor: input.actor, now: input.nowMs(), operation: input.operation,
+                          operationId: `${held.claimId}:mail-recipient-pin` }, { store });
+                      // The exact persisted pin must survive the commit before transport.
+                      const pinned = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
+                      const pin = pinned === null ? null : readDispatchMailRecipientPin(readDispatchRow(pinned));
+                      if (pin === null || pin.mailRecipientEmail !== email) throw new Error('Private mail recipient pin unavailable.');
+                      answer = await recipientCurrent() ? await adapter.callProvider(selected, pin.mailRecipientEmail) : refused();
+                    } finally { mailPins.delete(heldKey); }
+                  }
+                }
+              } else if (options.profile === 'mail' || options.profile === 'judgment') answer = await options.adapter.callProvider(selected);
               else if (options.profile === 'text') answer = await options.adapter.callProvider(selected, { onProgress: commitProgress });
               else {
                 const original = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);

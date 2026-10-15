@@ -292,6 +292,7 @@ export interface DeliveryObservableDecl {
  * (`services.ts`); observation mechanics stay in `@canlang/work`.
  */
 export const T13A_DELIVERY_OBSERVABLES: readonly DeliveryObservableDecl[] = [
+  { target: 'std.EmailV1.send_user', version: 1, leaves: ['id', 'status', 'result', 'error'] },
   { target: 'std.EmailV1.send', version: 1, leaves: ['id', 'status', 'result', 'error'] },
   { target: 'std.ErrorsV1.report', version: 1, leaves: ['id', 'status', 'result', 'error'] },
   { target: 'std.PaymentsV1.collect', version: 1, leaves: ['id', 'status', 'result', 'error'] },

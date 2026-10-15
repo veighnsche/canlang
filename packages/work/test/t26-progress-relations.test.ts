@@ -31,12 +31,12 @@ describe("t26 progress relations derive from T13 declarations", () => {
     ]);
   });
 
-  it("holds 6 T13a + 10 T13b relations with no duplicates", () => {
-    assert.equal(T13A_DELIVERY_OBSERVABLES.length, 6);
+  it("holds 7 T13a + 10 T13b relations with no duplicates", () => {
+    assert.equal(T13A_DELIVERY_OBSERVABLES.length, 7);
     assert.equal(T13B_DELIVERY_OBSERVABLES.length, 10);
-    assert.equal(T26_PROGRESS_RELATIONS.length, 16);
+    assert.equal(T26_PROGRESS_RELATIONS.length, 17);
     const targets = T26_PROGRESS_RELATIONS.map((decl) => decl.target);
-    assert.equal(new Set(targets).size, 16);
+    assert.equal(new Set(targets).size, 17);
   });
 
   it("shares declaration identity with the T13 tables (no drift)", () => {

@@ -1196,8 +1196,8 @@ impl Catalog {
 // (`packages/contracts/src/services.ts`, `packages/contracts/src/work.ts`,
 // `packages/contracts/src/files.ts`). The TS files are the source of
 // truth; every stamp and shape here must equal them verbatim. T13a adds
-// exactly three `std` capabilities (EmailV1 send-only, ErrorsV1 report,
-// PaymentsV1 collect/refund/cancel/reconcile) plus six delivery
+// exactly three `std` capabilities (EmailV1 address/user sends, ErrorsV1 report,
+// PaymentsV1 collect/refund/cancel/reconcile) plus seven delivery
 // observables. The T13b tables below add the three rich-relation
 // capabilities plus ten delivery observables; only the scoped-out
 // Handbook executable interface keeps returning `None` (`E3019`).
@@ -1280,7 +1280,8 @@ pub struct DeliveryObservable {
 }
 
 /// Canonical `std.EmailV1` contract (`STD_EMAIL_V1_CONTRACT`).
-/// Adapter-backed; `send` is the only contract operation: `reconcile` is
+/// Adapter-backed; address and private user sends share the provider port.
+/// `reconcile` is
 /// a port op that reuses the original delivery id and is never sent from
 /// source, so it has no entry here (a `send` to it stays `E3019`).
 /// `attachments` stays REQUIRED with no default encoded (T13a/B9 record:
@@ -1288,16 +1289,28 @@ pub struct DeliveryObservable {
 pub const STD_EMAIL_V1: StdCapability = StdCapability {
     name: "std.EmailV1",
     version: STD_EMAIL_V1_VERSION,
-    operations: &[StdOperation {
-        name: "send",
-        inputs: &[
-            ("to", "email"),
-            ("subject", "text"),
-            ("body", "text"),
-            ("attachments", "file[]"),
-        ],
-        result: "EmailAccepted",
-    }],
+    operations: &[
+        StdOperation {
+            name: "send",
+            inputs: &[
+                ("to", "email"),
+                ("subject", "text"),
+                ("body", "text"),
+                ("attachments", "file[]"),
+            ],
+            result: "EmailAccepted",
+        },
+        StdOperation {
+            name: "send_user",
+            inputs: &[
+                ("to", "user"),
+                ("subject", "text"),
+                ("body", "text"),
+                ("attachments", "file[]"),
+            ],
+            result: "EmailAccepted",
+        },
+    ],
     events: &[],
 };
 
@@ -1373,12 +1386,17 @@ pub const STD_PAYMENTS_V1: StdCapability = StdCapability {
 /// Nothing else is a T13a `std` capability; T13b members are absent.
 pub const STD_CAPABILITIES: &[StdCapability] = &[STD_EMAIL_V1, STD_ERRORS_V1, STD_PAYMENTS_V1];
 
-/// The six T13a delivery observables (`T13A_DELIVERY_OBSERVABLES`): one
+/// The T13a delivery observables (`T13A_DELIVERY_OBSERVABLES`): one
 /// per T13a send target, each with the closed leaf set
 /// (`id`, `status`, `result`, `error`). The declared typed result per
 /// target lives on its capability operation (`send` -> `EmailAccepted`,
 /// `report` -> `ErrorAccepted`, Payments ops -> `PaymentState`).
 pub const T13A_DELIVERY_OBSERVABLES: &[DeliveryObservable] = &[
+    DeliveryObservable {
+        target: "std.EmailV1.send_user",
+        version: STD_EMAIL_V1_VERSION,
+        leaves: &["id", "status", "result", "error"],
+    },
     DeliveryObservable {
         target: "std.EmailV1.send",
         version: STD_EMAIL_V1_VERSION,
@@ -2309,7 +2327,7 @@ mod t13a_tests {
     }
 
     #[test]
-    fn email_v1_is_send_only_with_required_attachments() {
+    fn email_v1_has_address_and_private_user_sends() {
         let op = std_operation("std.EmailV1", "send").expect("EmailV1.send schema");
         assert_eq!(
             op.inputs,
@@ -2321,6 +2339,10 @@ mod t13a_tests {
             ]
         );
         assert_eq!(op.result, "EmailAccepted");
+        assert_eq!(
+            std_operation("std.EmailV1", "send_user").unwrap().inputs[0],
+            ("to", "user")
+        );
         assert!(STD_EMAIL_V1.events.is_empty());
         // `reconcile` is a port op, never a source-sent contract op.
         assert_eq!(std_operation("std.EmailV1", "reconcile"), None);
@@ -2373,7 +2395,7 @@ mod t13a_tests {
     }
 
     #[test]
-    fn delivery_observables_cover_exactly_the_six_send_targets() {
+    fn delivery_observables_cover_standard_send_targets() {
         let targets: Vec<&str> = T13A_DELIVERY_OBSERVABLES
             .iter()
             .map(|observable| observable.target)
@@ -2381,6 +2403,7 @@ mod t13a_tests {
         assert_eq!(
             targets,
             vec![
+                "std.EmailV1.send_user",
                 "std.EmailV1.send",
                 "std.ErrorsV1.report",
                 "std.PaymentsV1.collect",

@@ -14936,3 +14936,31 @@ PromptLab remainder; the three explicit CanMember/CanShift source refusals and
 existing nine-reference/external release gates remain. Supported reference scope
 is not yet ready for unrestricted training-data authoring; no dataset or training
 work is started and the future 12 GB inference requirement remains unchanged.
+
+
+Accept additive `std.EmailV1.send_user(to:user,subject:text,body:text,
+attachments:file[]=[]) -> EmailAccepted` beside unchanged address `send`.
+The configured mail effect privately resolves the intended current same-team
+active verified account after guard/claim success; it never exposes `user.email`.
+Pin that user/team/address immutably in existing private Work dispatch state
+before transport. An uncertain/reclaimed attempt keeps the original pin and
+provider delivery identity even if the account email changes. Reconcile observes
+the original provider outcome without Identity lookup; fresh attempts still
+recheck current membership. Missing/inactive/unverified recipients fail safely,
+without redirecting the notice or returning addresses. The original Shift guard,
+recipient and Notice association remain intact; only the operation and typed
+association/fixture move to `send_user`. No general lazy SEND argument ABI is
+needed: its user reference and fixed formatted message arguments do not resolve
+the directory.
+
+Three equivalent [recipient consultations](../../design/jev/user-addressed-mail-20261015/1.json)
+and companions 2/3 all chose the additive operation, with probabilities
+.64/.96/.88 and confidence .46/.94/.82. The first request retained meaningful
+uncertainty toward a union input (.26) and separate capability (.10). All options
+needed the same private durable pin; the additive operation preserves the old
+input contract and transport binding without a new union or capability family.
+These language decisions supersede the preceding unsupported dispositions only
+when the corresponding implementation and original-source checks pass. Broader
+reference counts and unrelated external holds remain unchanged.
+
+User-mail implementation acceptance: Contracts/Services/State/Work/Cloudflare emits pass; thirteen contract checks, seven affected Work registry/pin checks and the eight-check target universe pass at their retained scopes. The new durable recipient component and existing ordinary-mail component pass. The actual compiler-to-native user-mail profile passes 1/1, covering source skip, fresh membership, one ACK fence and exact replay. No source directory fields are exposed.

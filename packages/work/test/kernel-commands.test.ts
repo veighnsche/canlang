@@ -52,6 +52,7 @@ import {
   workDispatchClaimCommand,
   workDispatchStopPendingCommand,
   workDispatchPinImageControlCommand,
+  workDispatchPinMailRecipientCommand,
   workDispatchRecordAttemptCommand,
   workDispatchRequeueCommand,
   workDispatchReleaseCommand,
@@ -226,14 +227,14 @@ function dispatchRow(
 }
 
 describe('kernel commands: registry shape', () => {
-  it('exports 11 uniquely named dot-namespaced commands', () => {
-    assert.equal(WORK_SYSTEM_COMMANDS.length, 11);
+  it('exports 12 uniquely named dot-namespaced commands', () => {
+    assert.equal(WORK_SYSTEM_COMMANDS.length, 12);
     assert.equal(portableSchedulePutCommand, workSchedulePutCommand);
     assert.equal(portableScheduleCancelCommand, workScheduleCancelCommand);
     assert.ok(WORK_SYSTEM_COMMANDS.includes(portableSchedulePutCommand));
     assert.ok(WORK_SYSTEM_COMMANDS.includes(portableScheduleCancelCommand));
     const names = WORK_SYSTEM_COMMANDS.map((command) => command.name);
-    assert.equal(new Set(names).size, 11);
+    assert.equal(new Set(names).size, 12);
     for (const name of names) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
@@ -241,11 +242,11 @@ describe('kernel commands: registry shape', () => {
     // alongside (`[...l3Commands, ...WORK_SYSTEM_COMMANDS,
     // ...WORK_DISPATCH_STAGE_COMMANDS]` — the composition helper lives
     // worker-side in `assembly.ts`), so the composed work-side shape is
-    // 13 uniquely named commands including Images pending stop/control pin.
+    // 14 uniquely named commands including Images pending stop/control pin.
     const composed = [...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS];
-    assert.equal(composed.length, 13);
+    assert.equal(composed.length, 14);
     const composedNames = composed.map((command) => command.name);
-    assert.equal(new Set(composedNames).size, 13);
+    assert.equal(new Set(composedNames).size, 14);
     for (const name of composedNames) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
@@ -305,7 +306,7 @@ describe('composed Work registry bounded own JSON admission', () => {
     const shared = Array(10_000).fill(null);
     await expectRefusal({ left: shared, right: shared }, 'limit');
   });
-  it('refuses exotic own data across all thirteen actual commands without invoking getters or toJSON', async () => {
+  it('refuses exotic own data across all fourteen actual commands without invoking getters or toJSON', async () => {
     let calls = 0;
     const getter = Object.defineProperty({}, 'value', { enumerable: true, get() { calls++; return 1; } });
     const inherited = Object.create({ value: 1 });
@@ -2325,4 +2326,25 @@ describe('kernel commands: every.advance-slot', () => {
       RootRecurrenceNotSupportedError,
     );
   });
+});
+
+
+it('pins private mail recipient once under the exact held user-send claim without result disclosure', async () => {
+  const row = dispatchRow('private-mail', { source: 'std.EmailV1.send_user', state: 'claimed', claimId: 'held', claimedAtMs: NOW });
+  const ctx = (entry = row) => fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row: entry }]));
+  const args = { intentId: row.id, claimId: 'held', mailRecipientUser: 'selected', mailRecipientTeam: 'team',
+    mailRecipientEmail: 'selected@example.test' };
+  const staged = await runStage(workDispatchPinMailRecipientCommand.stage, args, ctx());
+  const write = staged.writes?.[0]; assert.ok(write?.kind === 'update');
+  assert.equal(write.expectedVersion, row.version);
+  assert.equal(readDispatchRow(write.row).mailRecipientEmail, args.mailRecipientEmail);
+  assert.deepEqual(staged.result, { pinned: true, existing: false, intentId: row.id });
+  const replay = await runStage(workDispatchPinMailRecipientCommand.stage, args, ctx(structuredClone(write.row)));
+  assert.equal(replay.writes, undefined);
+  assert.deepEqual(replay.result, { pinned: true, existing: true, intentId: row.id });
+  for (const mailRecipientEmail of ['changed@example.test']) await assert.rejects(runStage(workDispatchPinMailRecipientCommand.stage,
+    { ...args, mailRecipientEmail }, ctx(write.row)), /cannot be replaced/);
+  for (const over of [{ source: 'std.EmailV1.send' }, { claimId: 'other' }, { state: 'pending' }]) {
+    await assert.rejects(runStage(workDispatchPinMailRecipientCommand.stage, args, ctx({ ...row, data: { ...row.data, ...over } })), /original held user send/);
+  }
 });

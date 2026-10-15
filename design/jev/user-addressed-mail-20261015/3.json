@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Resolve original CanShift duty_notice to intended event.recipient without exposing arbitrary user.email or weakening source send guard/current permission/recovery. Finite complete mail effect support, no directory-returning primitive or new notification subsystem.",
+      "verified_source": "CanShift trusted duty_notice handler actor=null sends Mail.send {to=event.recipient.email,subject=format(fixed localized message),body=format(fixed localized message)} when=active_member(event.recipient,team) and exact current duty/roster revision/kind/eligibility/conflict/swap predicates; then creates Notice {parent=event.duty,recipient=event.recipient,revision,kind,delivery}. Preserve recipient, dispatch predicate/order, delivery association and Notice.",
+      "verified_mechanisms": [
+        "Canonical std.EmailV1.send accepts to:email,subject:text,body:text,attachments:file[] and EmailAccepted. No source user mail operation currently exists. Identity privately has findUserById; user.email deliberately forbidden except authenticated actor.email. Trusted handler actor is null, so source substitution is invalid.",
+        "Existing bound-mail adapter validates exact emitted binding/capability/version/operation schema and routes to installed Services MailSender. available() is synchronous closed shape/binding admission before guard/claim; it must not resolve directory. Work native dispatcher owns current source guard, claim, revalidation, provider result/unknown handling and canonical delivery identity.",
+        "Ordinary email address is frozen in original durable outbox arguments. Services FrozenMailRequest is ONLY per-call memory; resolving a user email afresh in adapter.send after timeout could reroute an original uncertain send. Reconcile already uses original delivery ID without address/arguments.",
+        "Existing Work dispatch row owns private image/text control pins under held-claim commands; transitions preserve private row data. A named closed user-recipient pin in that existing row, committed immutably under exact held claim after guard success and before network, can freeze intended user/team/address once. Crash before pin => no network, after pin => reuse address; unknown/reconcile retain delivery ID and pinned request. Current membership revalidation gates any new send attempt; reconciliation may observe already accepted outcome after revocation.",
+        "Native source SEND currently constructs ordinary source args eagerly; private directory resolution must therefore occur at guarded dispatch, not in a source to=email helper. Original to=user reference + fixed message formatting have no directory effect. Do not widen arbitrary user field read or add address-returning values. Existing source guard remains authoritative and exact original current-team selected-user membership is additionally required for the private recipient operation. Missing/inactive/foreign/unverified user refuses or yields explicit safe failure before transport, never redirects/omits successful notice."
+      ],
+      "acceptance": "Original notice names exact user target and source guard. False guard makes zero directory/provider calls; legitimate current same-team member resolves privately only after true guard/claim. Missing/unverified/removed/foreign recipient cannot send. No email enters source/Notice/result/error. Immutable private pin and same provider request/delivery survive crash/unknown/email change and reconcile without re-resolution or duplicate wrong recipient. Legacy address send and binding/target/version/refusal checks unchanged. Original CRM24source composition compiles; native pipeline negative/recovery checks pass.",
+      "choice_scope": "Choose source contract form. Every candidate must implement same private Work pin, guard/current-membership, binding, privacy and recovery obligations; none is a typing-only workaround."
+    },
+    "questions": {
+      "recipient_contract": {
+        "type": "choice",
+        "instructions": "How should Can express this required guarded user-recipient mail effect while preserving legacy email sends and freezing the private recipient across recovery?",
+        "criteria": {
+          "separate_user_capability": "Use new explicitly configured UserEmailV1 rather than editing existing EmailV1. Distinct versioned user effect/authority contract; requires new source import/configuration/adapter capability registration in addition to shared private pin.",
+          "union_existing_to": "Keep one send operation by giving to an explicit email|user tagged union and extending existing schema/codec/current contract; user arm privately resolves/pins with same guard and recovery requirements.",
+          "add_user_operation": "Add only explicit send_user(to:user,...) beside unchanged EmailV1.send(to:email,...), reusing EmailV1 installed transport binding. Distinct checked target/result association, private postguard immutable pin and membership checks; no source email access/new notification service."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "recipient_contract": {
+        "type": "choice",
+        "choice": "add_user_operation",
+        "confidence": 0.82,
+        "probabilities": {
+          "separate_user_capability": 0.01,
+          "union_existing_to": 0.11,
+          "add_user_operation": 0.88
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1256,
+      "output_tokens": 51
+    }
+  }
+}

@@ -432,6 +432,7 @@ function sameReceiptError(retained: ReceiptError | null, incoming: unknown): boo
  * silently forking correlation.
  */
 export const T26_KNOWN_RELATION_TARGETS = [
+  'std.EmailV1.send_user',
   'std.EmailV1.send',
   'std.ErrorsV1.report',
   'std.PaymentsV1.collect',
