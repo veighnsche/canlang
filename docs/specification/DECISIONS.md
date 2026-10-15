@@ -17258,3 +17258,10 @@ The existing runtime membership representation supported multiple roles, but the
 Accepted implementation correction: existing source-sealed model rules admit direct owning array counts (including required nonempty arrays), text trimming, text/URL prefix checks, and nullable Model-reference presence. Validate actual selected builtin, overload, effect, argument/slot order and owning field/type/source; preserve lazy Boolean evaluation and existing Values failures. No foreign traversal or query dependency is introduced. Existing required-path subtrees compose only when their dependency analysis is empty; their separate reverse-dependency mechanism remains unchanged. Raw-IR local policy publication stays refused for these new leaves.
 
 Focused generated-predicate and renamed/reused-field/source/selection corruption controls pass1/.46s. Both affected existing required-path/reverse-parent controls pass2/.04s. This qualifies a source component only: original Partner activation still needs its complete Program/Credit and Advocate query invariant rules, affected-row selection and private owner-query receiving. No policy/schema/invariant omission is accepted.
+
+
+## 2026-10-15 — role-array invocation uses the provisioned caller
+
+Accepted implementation correction: the default Cloudflare example runner matches a dense role-array cell against the already resolved row caller's exact ordered roles and uses its existing self/current-team session. Empty arrays match ordinary self membership. This step installs no grants and refuses malformed/order-mismatched/foreign-account selections. Existing scalar selectors and user fixtures keep their existing paths.
+
+The installed Testkit→real actor/session component check passes1/1.340s and normal Cloudflare build passes. Original complete CRM promotion now executes all six cases: five match, including create and all four independently asserted rejections with real write-absence checks; existing retry alone reports validation in the separate first-query receiver. Its source assertions remain unchanged; draft commit/native-six acceptance are still pending that correction.
