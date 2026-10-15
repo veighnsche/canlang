@@ -17210,3 +17210,20 @@ The next authentic full-cohort query gap is mechanical: decision indexing scans
 all365,625 CST nodes against a global200,000-node bound. Preserve the bound and
 full source checks while indexing actual consumed subtrees. No language or
 permission decision changes; the retained full-original report remains656.
+
+
+## 2026-10-15 — index consumed decision syntax within existing bounds
+
+Index original checked decision/helper/default subtrees rather than unrelated
+cohort syntax. Full cohort/source/fresh semantics remain mandatory. Keep the
+existing200k-node/depth256/200-call/16384 semantic-work bounds and Group handling;
+missing/ambiguous anchors and oversized consumed subtrees refuse. Large unrelated
+CST/imported-default/corruption control1/1.54s and existing helper2/1.53s pass;
+locked CLI build passes. Full original24 qualification remains required.
+
+State/CF policy-domain builds and36 State controls pass; originalCRM now reaches
+four forbidden mismatches with no setup failures. Preserve permission checks and
+locate the exact denial before correcting any example context. A mismatch's
+sideEffectsAbsent=false is not a measured write leak. Partner's complete selected
+source/style intake reaches a missing existing Values format reexport in CF; no
+new formatting semantics are proposed. Neither full native workflow is accepted.

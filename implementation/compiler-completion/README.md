@@ -2,6 +2,26 @@
 
 ## Current remainder and finite completion
 
+**C02 consumed decision CST index (2026-10-15, qualified source component).**
+Index exact checked decision/statement/call/argument/default/derive-body subtrees
+with ancestor span/file pruning. Retain complete cohort/fresh source semantics,
+Group normalization and existing200k nodes/depth256/200calls/16384 semantic-work
+bounds. Missing or ambiguous consumed anchors and oversized consumed subtrees
+refuse. Large unrelated CST+imported grouped helper/default and corruption checks
+pass1/1.54s; existing leading/mixed helper checks2/1.53s pass. Locked CLI build
+passes14.80s; frozen binary `/tmp/can-compiler-consumed-index` includes prior
+record-route/footer fixes. Original24 qualification with this binary is next.
+
+The coherent policy-domain runtime closure now normal-builds State+CF and passes
+all36 affected State source-policy/query/predicate controls/.40s. Uninstrumented
+originalCRM6 now has0setup failures,2passes and4forbidden mismatches (26.76s).
+The failed-code sideEffectsAbsent=false is Testkit's mismatch sentinel before
+measurement, not evidence of a write leak; matched rejections1/3 pass real state
+diffs. Locate exact denied model/field before changing source context; preserve
+all grants and independent assertions. Original Partner source/generated-unit
+capture now reaches installed assembly and refuses missing `format` export from
+CF stdlib; canonical Values formatter reuse is the next mechanical leaf.
+
 **C02 compact footer (2026-10-15, qualified source/UI component).**
 The unchanged original CRM footer uses the installed compact footer contract:
 optional localized caption plus ordered nonempty children. Decode that existing

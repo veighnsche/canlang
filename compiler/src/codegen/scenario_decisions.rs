@@ -141,9 +141,29 @@ fn collect_decision_sources_checked(
         steps: 0,
         count: 0,
     };
-    for (_, tree) in trees {
-        cx.index(tree)?;
+    // Only the original consumed anchors need a CST cache. Unrelated source
+    // remains in the checked/fresh cohort without spending this owner's budget.
+    let mut required = HashSet::new();
+    let mut calls = 0usize;
+    if proofs.len() > 200 {
+        return None;
     }
+    for site in proofs {
+        required.extend([site.node, site.statement]);
+        for call in &site.calls {
+            calls += 1;
+            if calls > 200 {
+                return None;
+            }
+            required.insert(call.node);
+            required.extend(call.arguments.iter().map(|(node, _)| *node));
+            required.extend(call.defaults.iter().map(|(_, node)| *node));
+            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
+                required.insert(program.effects.derives.get(&id)?.expr?);
+            }
+        }
+    }
+    cx.index_required(trees, &required)?;
     cx.steps = 0;
     let mut sites = Vec::new();
     for (i, s) in guards.iter().enumerate() {
@@ -184,8 +204,52 @@ struct Consumer<'a> {
     count: usize,
 }
 impl Consumer<'_> {
+    fn index_required(
+        &mut self,
+        trees: &[(crate::source::SourceId, SyntaxNode)],
+        required: &HashSet<NodeKey>,
+    ) -> Option<()> {
+        let contains = |node: &SyntaxNode, key: &NodeKey| {
+            node.span.file == key.file && node.span.start <= key.start && node.span.end >= key.end
+        };
+        for (file, tree) in trees {
+            let keys: Vec<_> = required.iter().filter(|key| key.file == *file).collect();
+            if keys.is_empty() {
+                continue;
+            }
+            let mut pending = vec![(tree, 0usize)];
+            while let Some((node, depth)) = pending.pop() {
+                if depth > 256 {
+                    return None;
+                }
+                if required.contains(&NodeKey::of(node)) {
+                    self.index_at_depth(node, depth)?;
+                    continue;
+                }
+                self.steps += 1;
+                if self.steps > 200000 {
+                    return None;
+                }
+                pending.extend(
+                    node.children
+                        .iter()
+                        .filter(|child| keys.iter().any(|key| contains(child, key)))
+                        .map(|child| (child, depth + 1)),
+                );
+            }
+        }
+        required
+            .iter()
+            .all(|key| self.nodes.contains_key(key))
+            .then_some(())
+    }
+
     fn index(&mut self, root: &SyntaxNode) -> Option<()> {
-        let mut pending = vec![(root, 0usize)];
+        self.index_at_depth(root, 0)
+    }
+
+    fn index_at_depth(&mut self, root: &SyntaxNode, depth: usize) -> Option<()> {
+        let mut pending = vec![(root, depth)];
         while let Some((node, depth)) = pending.pop() {
             self.steps += 1;
             if self.steps > 200000 || depth > 256 {
@@ -202,8 +266,13 @@ impl Consumer<'_> {
                         .map(NodeKey::of)
                 })
                 .flatten();
-            self.nodes
-                .insert(NodeKey::of(node), (node.kind, node.span, grouped));
+            if self
+                .nodes
+                .insert(NodeKey::of(node), (node.kind, node.span, grouped))
+                .is_some()
+            {
+                return None;
+            }
             pending.extend(node.children.iter().map(|child| (child, depth + 1)));
         }
         Some(())
@@ -2657,4 +2726,161 @@ fn collection_lambda(
         return None;
     }
     Some(())
+}
+
+#[cfg(test)]
+mod consumed_index_tests {
+    use super::*;
+    use crate::analysis::catalog::CatalogRequest;
+    use crate::analysis::{check_program, scenario_disclosure::ScenarioDisclosure};
+    use std::path::Path;
+
+    #[test]
+    fn exact_decision_index_ignores_unrelated_cst_and_preserves_consumed_refusals() {
+        let mut db = SourceDb::new();
+        let file = db.add("decision-owner.can".into(), "package Helpers\n Given\n  export derive allowed(value:int=1):bool = ((value>0))\n When\n Then\napp DecisionScope\nuse Helpers {allowed}\nGiven\nWhen\n scenario execute() -> bool by=members\n  require allowed()\n  do return true\nThen\n".into());
+        let noise = db.add(
+            "unrelated.can".into(),
+            format!(
+                "package Noise\n Given\n{} When\n Then\n",
+                "  ## unrelated source\n".repeat(200_001)
+            ),
+        );
+        let (noise_tree, diagnostics) = syntax::parse_source(noise, &db.get(noise).unwrap().text);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(noise_tree.descendants().count() > 200_000);
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let catalog_path = root
+            .parent()
+            .unwrap()
+            .join("packages/values/dist/catalog.json");
+        let (catalog, diagnostics) = crate::analysis::catalog::load_catalog(&CatalogRequest {
+            flag: Some(&catalog_path),
+            env: None,
+            cwd: root,
+            primary: Span::new(file, 0, 0),
+        });
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let catalog = catalog.unwrap();
+        let (program, diagnostics) = check_program(&db, &[file, noise], Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "DecisionScope.execute")
+            .unwrap();
+        let context = FreshSourceContext::prepare(&program, &ir, &db, Some(&catalog)).unwrap();
+        let sites = collect_decision_sources_with_context(&context, owner)
+            .expect("unrelated CST does not consume the original owner's finite index budget");
+        assert_eq!(sites.len(), 1);
+        assert!(sites[0].calls.iter().any(|call| !call.defaults.is_empty()));
+        for mutation in 0..4 {
+            let mut changed = ir.clone();
+            match mutation {
+                0 | 1 => {
+                    let ScenarioDisclosure::Complete(checked) =
+                        changed.scenario_disclosures.get_mut(&owner.id).unwrap()
+                    else {
+                        panic!("original complete owner")
+                    };
+                    let site = &mut checked
+                        .source_facts
+                        .as_mut()
+                        .unwrap()
+                        .decision_sites
+                        .as_mut()
+                        .unwrap()[0];
+                    if mutation == 0 {
+                        site.node.start += 1;
+                    } else {
+                        site.calls
+                            .iter_mut()
+                            .find(|call| !call.defaults.is_empty())
+                            .unwrap()
+                            .defaults[0]
+                            .1
+                            .start += 1;
+                    }
+                }
+                2 => {
+                    let helper = changed
+                        .items
+                        .iter_mut()
+                        .find(|item| item.canonical == "Helpers.allowed")
+                        .unwrap();
+                    let IrItemKind::DeriveFn {
+                        expr: Some(body), ..
+                    } = &mut helper.kind
+                    else {
+                        panic!("helper")
+                    };
+                    body.expr = IrExpr::Bool(true);
+                }
+                _ => {
+                    let parameter = changed
+                        .items
+                        .iter_mut()
+                        .find(|item| item.canonical == "Helpers.allowed.value")
+                        .unwrap();
+                    let IrItemKind::Param {
+                        default: Some(default),
+                        ..
+                    } = &mut parameter.kind
+                    else {
+                        panic!("default")
+                    };
+                    let (IrDefault::Literal(value) | IrDefault::Computed { expr: value, .. }) =
+                        default;
+                    value.expr = IrExpr::Int(2);
+                }
+            }
+            assert!(
+                collect_decision_sources_with_fresh(
+                    &program,
+                    &changed,
+                    &changed.items[owner.id.0 as usize],
+                    &db,
+                    Some(&catalog),
+                    &ir
+                )
+                .is_none(),
+                "consumed source/helper/default mutation {mutation}"
+            );
+        }
+        let make_consumer = || Consumer {
+            program: &program,
+            ir: &ir,
+            db: &db,
+            catalog: Some(&catalog),
+            nodes: HashMap::new(),
+            steps: 0,
+            count: 0,
+        };
+        let (tree, _) = syntax::parse_source(file, &db.get(file).unwrap().text);
+        let key = sites[0].node;
+        let mut missing = key;
+        missing.start += 1;
+        assert!(
+            make_consumer()
+                .index_required(&[(file, tree.clone())], &HashSet::from([missing]))
+                .is_none()
+        );
+        assert!(
+            make_consumer()
+                .index_required(&[(file, tree.clone()), (file, tree)], &HashSet::from([key]))
+                .is_none(),
+            "ambiguous source anchor refuses"
+        );
+        assert!(
+            make_consumer()
+                .index_required(
+                    &[(noise, noise_tree.clone())],
+                    &HashSet::from([NodeKey::of(&noise_tree)])
+                )
+                .is_none(),
+            "the consumed subtree still has its original 200k node bound"
+        );
+    }
 }
