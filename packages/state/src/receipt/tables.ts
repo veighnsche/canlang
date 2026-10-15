@@ -820,7 +820,8 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
     }
     const file = originRecord(fact.file, ['ref', 'receiver', 'provenance', 'contentType', 'sizeBytes', 'bytesDigest', 'finalizedAtMs', 'retention']);
     const receiver = originRecord(file.receiver, ['app', 'team', 'owner', 'principal']);
-    const retention = originRecord(file.retention, ['unattachedHorizonMs', 'retentionMs']);
+    const retainsAttached = typeof file.retention === 'object' && file.retention !== null && Object.hasOwn(file.retention, 'retainAttached');
+    const retention = originRecord(file.retention, ['unattachedHorizonMs', 'retentionMs', ...(retainsAttached ? ['retainAttached'] : [])]);
     const provenanceKind = (file.provenance as { kind?: unknown } | null)?.kind;
     const provenance = originRecord(file.provenance, provenanceKind === 'request' ?
       ['kind', 'app', 'team', 'owner', 'principal', 'adapter', 'deliveryId', 'resultPath'] :
@@ -828,7 +829,8 @@ function receiptOrigin(data: object, row: Pick<StoredRow, 'id' | 'created' | 'cr
     const epoch = (value: unknown): boolean => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
     if (!originString(file.ref) || !originString(file.contentType) || typeof file.bytesDigest !== 'string' ||
         !/^sha256:[0-9a-f]{64}$/.test(file.bytesDigest) || !epoch(file.sizeBytes) || !epoch(file.finalizedAtMs) ||
-        !Object.values(receiver).every(originString) || !Object.values(retention).every(epoch) ||
+        !Object.values(receiver).every(originString) || !epoch(retention.unattachedHorizonMs) || !epoch(retention.retentionMs) ||
+        retainsAttached && retention.retainAttached !== true ||
         !['request', 'event'].includes(String(provenanceKind)) ||
         !Object.entries(provenance).every(([key, value]) => key === 'itemIndex' ? epoch(value) : originString(value))) {
       throw new ReceiptTableError('work.receipt filePayloadOrigin has invalid original File facts.');

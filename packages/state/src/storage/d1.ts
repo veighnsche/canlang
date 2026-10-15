@@ -1248,7 +1248,7 @@ export function createD1Storage(db: D1Database, authority?: FileRetirementAuthor
   };
   if (binding === undefined) return registerFileFrameworkStorage(storage, framework);
   // Reads and bookkeeping recheck the assignment and complete persisted framework inventory.
-  const checkedStorage = Object.fromEntries(Object.entries(storage).map(([name, method]) => [name,
+  const checkedStorage = Object.fromEntries(Object.entries(storage).map(([name, method]) => typeof method !== 'function' ? [name, method] : [name,
     async (...args: unknown[]) => {
       const captured = fileGuardCopy(args);
       await readFileGuard(db, binding, framework);
