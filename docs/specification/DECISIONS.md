@@ -16875,3 +16875,72 @@ feasibility checks pass, with equality/lazy/grouped reuse and altered source/IR/
 field/type/site/census refusals. The feasibility scope alone was retried after a
 transient missing catalog during package rebuild. Emitter/loader/full native
 qualification remains open; no new language decision or authority primitive.
+
+
+### 2026-10-15 — ship a complete production-only standalone Can installation
+
+Accepted implementation for the user's one-command/no-manual-dependencies request:
+assemble a platform archive and checksum from existing owning compiler/runtime
+outputs, with a private Node 24.22.0 and Bun 1.4.2, matching catalog/WASM/browser
+assets, production dependency closure/host native packages, Testkit, headless
+Chromium/ffmpeg and Wrangler 4.116.0. The latter shares the current
+workerd/Miniflare versions. Contributor compilers/build tools, emitted Can tests,
+most declarations/maps, full headed browsers, editor payload and unused native
+preparation helper are excluded. Keep Values integrity declarations, executable
+Interfaces docs, Playwright's runtime test directory, Wrangler TS templates and
+linked construct-help/catalog source metadata. Remove the redundant workerd bin
+copy (114,566,712 bytes saved here). Preserve supplied notices; reconcile the
+compiler's previously stale notice inputs against actual locked target closures.
+
+The installer verifies before unpacking, stages owned versions, activates through
+an atomic symlink, preserves the preceding version on failure and configures PATH.
+`sh output/install/install-local.sh` is the generated one-command local entry.
+Explicit source/compiler/adapter overrides and app-local Testkit/Playwright owners
+retain precedence; only exact package absence permits bundled fallback. Prebuilt
+captures use installed output identities plus shipped authoring metadata; external
+dependency copies have distinct names. Installed generation acceptance stays below
+the app's canonical root, with narrow ESM/CJS Playwright resolution and unchanged
+checkout behavior. Actual Worker staging also exposed/repaired two missing pinned
+runtime members (native-read-boolean and native-value-schema); no language or
+permission behavior was redesigned.
+
+Measured macOS arm64 archive: 221,628,061 compressed bytes; 615,758,803 installed
+file bytes; 667,217,920 nominal allocated bytes here. All 14 direct clean external
+installation checks passed, including four real inline rows, protected preview
+navigation in Chromium and credential-free deploy bundling. Installer 7/7, module
+resolver 3/3 (including real external worker/browser), and focused owner tests pass.
+Evidence, shipped closure and limitations: `implementation/lean-install/README.md`,
+`output/install/{size-report,verification}.json`. The first complete source build
+passed; subsequent unrelated parallel State/Cloudflare changes invalidated a later
+source build. Local qualification uses frozen coherent production outputs plus
+only the install-owned emitted modules. The archive records this input mode; it
+does not claim current moving checkout or clean CI qualification. Existing foreign
+compiler/State edits and outputs were preserved.
+
+Three equivalent independent Choice consultations in `implementation/lean-install/`
+prefer preserving the proven Node/Bun engines for this bounded delivery (each
+returns probability/confidence 1.0). Advice is retained without treating it as
+proof of global size optimality. Proposed separately: consolidate JS engines or
+replace dynamic bundling only after compatibility/output evidence; Homebrew tap;
+public release publication; Linux OS-baseline qualification and any needed browser
+shared-library packaging. Ubuntu 24.04/macOS CI assembly is prepared, not recorded
+as passing. External credentials/authored browser tests and explicitly requested
+Git-revision rollback remain integrations. Public hosting retains the existing
+release authorization gate; no release was published.
+
+
+### 2026-10-15 — connect native Require field observations through verified source
+
+Merge source-proved execution reads into the existing native immediate observation
+map, separate from return plans, and forward their original source-site census
+through the verified loader. Publish that checked decision inventory for Contract
+guards without requiring active_member; retain actual-call membership handle
+validation. A second source registry or unrelated membership prerequisite is
+unnecessary. This implements the accepted guard/result decision rather than a
+new language choice. Actual captured CLI/assembly/D1/Identity check passes1/1 in
+15.71s for root-pair creation, whole-Contract comparison, lazy unreadable operands,
+no-effect failures, commit/replay and independent recovery after owner privilege
+loss; fresh guarded execution refuses. Identity's last-owner rule remains intact
+with a valid second owner in setup. CLI/State/CF builds and scoped checks pass;
+source/State component checks are reused. Original mixed helper plan and full
+CanCRM readiness remain unqualified; latest original24 checkpoint is656 findings.
