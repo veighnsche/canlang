@@ -17227,3 +17227,8 @@ locate the exact denial before correcting any example context. A mismatch's
 sideEffectsAbsent=false is not a measured write leak. Partner's complete selected
 source/style intake reaches a missing existing Values format reexport in CF; no
 new formatting semantics are proposed. Neither full native workflow is accepted.
+
+
+## 2026-10-15 — canonical format runtime export
+
+Accepted: expose the existing Values `format` function directly through the generated-code Cloudflare stdlib facade. This repairs a missing installed export without adding formatting semantics or changing failure identity. Normal isolated Cloudflare build passes; actual installed named-import identity, stable Partner identifier formatting and malformed-input ValueError equivalence pass (1 test, 56ms). Original Partner assembly now passes this import and reaches its separate unsupported model-invariant gate; native Partner behavior remains unqualified.
