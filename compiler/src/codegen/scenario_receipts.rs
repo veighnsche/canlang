@@ -1858,6 +1858,7 @@ pub(super) fn collect_native_scenario_receipt_with_feasibility(
                             | Scalar::Decimal
                             | Scalar::Money
                             | Scalar::Duration
+                            | Scalar::Currency
                             | Scalar::User
                     ) || intrinsic.type_id != scalar.as_str()
                     {
@@ -4248,6 +4249,7 @@ pub(super) fn checked_first_query_predicate(
             | Scalar::Date
             | Scalar::Datetime
             | Scalar::Duration
+            | Scalar::Currency
             | Scalar::User
     ) || dependency.type_id != scalar.as_str()
         || dependency.role != DependencyRole::Control
@@ -4502,6 +4504,7 @@ fn native_result_type(ty: &ResolvedType) -> bool {
                     | Scalar::Date
                     | Scalar::Datetime
                     | Scalar::Duration
+                    | Scalar::Currency
                     | Scalar::User
             )
         )
@@ -4517,7 +4520,16 @@ pub(super) fn supported_type_id(type_id: &str) -> bool {
     let base = base.strip_suffix("[]").unwrap_or(base);
     matches!(
         base,
-        "int" | "text" | "bool" | "decimal" | "money" | "date" | "datetime" | "duration" | "user"
+        "int"
+            | "text"
+            | "bool"
+            | "decimal"
+            | "money"
+            | "date"
+            | "datetime"
+            | "duration"
+            | "currency"
+            | "user"
     ) || base
         .strip_prefix("enum(")
         .and_then(|body| body.strip_suffix(')'))

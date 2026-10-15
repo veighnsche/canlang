@@ -24,7 +24,7 @@ Given
  Customer {active:bool,name:text}
  Contact in Customer {name:text}
  role contact_reader
- Location {title:text}
+ Location {title:text,currency:currency}
  Result {location:Location,title:text trim min=1,value:money,notes:text}
  contract Selection {location:Location}
  contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text}
@@ -35,9 +35,9 @@ Given
 When
  crud Customer by=members fields=active,name
  crud Contact by=members fields=name
- crud Location by=members fields=title
+ crud Location by=members fields=title,currency
  scenario promote(input:Lead,accept:bool) -> Result by=members
-  require input.customer.active and input.alternate.active and input.contact.parent==input.customer and input.value.minor>=0 and input.value.currency==input.value.currency
+  require input.customer.active and input.alternate.active and input.contact.parent==input.customer and input.value.minor>=0 and input.value.currency==input.selection.location.currency
   do
    create Result {location=input.selection.location,title=input.title,value=input.value,notes=input.notes} as result
    require accept
@@ -48,6 +48,9 @@ When
  scenario versions(input:Lead) -> int by=members
   do
    return input.customer.version+input.alternate.version
+ scenario echoCurrency(currency:currency) -> currency by=members
+  do
+   return currency
 Then
 `;
 function object(value: unknown): Record<string, unknown> {
@@ -85,7 +88,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       if (compiled.kind !== 'artifact') throw new Error('Original Contract input source did not compile');
       const artifact: CompileArtifact = compiled.artifact;
       assert.equal(verifyCompilerSources(capture, {complete:true,sources:artifact.sources}).ok, true);
-      for (const name of ['promote', 'select', 'versions']) {
+      for (const name of ['promote', 'select', 'versions', 'echoCurrency']) {
         const operation = artifact.operations?.find(operation => operation.name === `${APP}.${name}`);
         assert.ok(operation?.result?.disclosure?.returns.length);
       }
@@ -125,7 +128,8 @@ test('native Contract input slots retain normalized values, distinct reference v
       const customer = await seed(CUSTOMER,{active:true,name:'member'});
       const blocked = await seed(CUSTOMER,{active:false,name:'blocked'});
       const other = await seed(CUSTOMER,{active:true,name:'other customer'});
-      const location = await seed(LOCATION,{title:'original location'});
+      const location = await seed(LOCATION,{title:'original location',currency:'EUR'});
+      assert.deepEqual(location.data,{title:'original location',currency:'EUR'});
       const ref = (row:typeof customer)=>({id:row.id,version:String(row.version)});
       const contact = await seed(CONTACT,{parent:ref(customer),name:'original contact'});
       const otherContact = await seed(CONTACT,{parent:ref(other),name:'other contact'});
@@ -155,6 +159,12 @@ test('native Contract input slots retain normalized values, distinct reference v
       const parentReads = association.observations.filter(read=>parentIds.has(read.dependencyId));
       assert.equal(parentReads.length,1); assert.deepEqual(parentReads[0]!.row,contact);
       assert.deepEqual(parentReads[0]!.row.parent,{model:CUSTOMER,id:customer.id});
+      const currencyDependencies = association.plan.returns.flatMap(returned=>returned.dependencies)
+        .filter(read=>read.model===LOCATION && read.field==='currency' && read.role==='control' && read.type==='currency');
+      const currencyIds = new Set(currencyDependencies.map(read=>read.id)); assert.equal(currencyIds.size,1);
+      const currencyReads = association.observations.filter(read=>currencyIds.has(read.dependencyId));
+      assert.equal(currencyReads.length,1); assert.deepEqual(currencyReads[0]!.row,location);
+      assert.equal(currencyReads[0]!.row.data.currency,'EUR');
       assert.equal(association.changed.length,1); assert.equal(association.changed[0]!.row.id,id);
       const afterCommit = batches.length, committedRecords = await records(), committedHistory = await store.historyFor(RESULT,asId(id));
       assert.equal(referenceId(await invoke(input),'replayed'),id);
@@ -172,11 +182,36 @@ test('native Contract input slots retain normalized values, distinct reference v
       assert.equal(new Set(versionAssociation.intrinsics?.map(value=>value.dependencyId)).size,2);
       assert.ok(versionAssociation.intrinsics?.every(value=>value.kind==='admitted-reference-version' && value.row.id===customer.id));
 
-      // Original early, parent-correspondence and late guards each fail atomically.
+      const echoedInput = envelope('echoCurrency',{currency:'EUR'});
+      assert.equal(committed(await invoke(echoedInput)).result,'EUR');
+      const echoedReceipt = await store.readReceipt(receiptIdentity(echoedInput)); assert.ok(echoedReceipt);
+      const echoedAssociation = readScenarioReceiptAssociation(echoedReceipt); assert.ok(echoedAssociation);
+      assert.deepEqual(echoedAssociation.changed,[]);
+      assert.ok(echoedAssociation.intrinsics?.some(value=>value.kind==='admitted-input' && value.wire==='EUR'));
+      const echoedCount = batches.length;
+      assert.equal(committed(await invoke(echoedInput),'replayed').result,'EUR'); assert.equal(batches.length,echoedCount);
+      // Both CRUD Currency input and a standalone Currency scenario use the
+      // installed canonical Values decoder, independently from money wires.
+      for (const invalidCurrency of ['NOT','eur',123]) for (const operation of [`${LOCATION}.create`,'echoCurrency']) {
+        const invalidInput = envelope(operation,operation===`${LOCATION}.create`
+          ? {title:'must not persist',currency:invalidCurrency} : {currency:invalidCurrency});
+        const beforeLocations = await store.query({model:LOCATION,authority:'owner'}), beforeResults = await records(), count = batches.length;
+        const outcome = await invoke(invalidInput); assert.ok('error' in outcome,JSON.stringify(outcome));
+        assert.equal(outcome.error.code,'validation');
+        for (const batch of batches.slice(count)) {
+          assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+          assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+        }
+        assert.deepEqual(await store.query({model:LOCATION,authority:'owner'}),beforeLocations);
+        assert.deepEqual(await records(),beforeResults); assert.deepEqual(await store.load(LOCATION,location.id),location);
+      }
+
+      // Original early, parent, Currency correspondence and late guards each fail atomically.
       for (const bad of [
         {input:{...payload,customer:ref(blocked)},accept:true},
         {input:{...payload,contact:ref(otherContact)},accept:true},
         {input:{...payload,customer:ref(other)},accept:true},
+        {input:{...payload,value:{minor:'500',currency:'USD'}},accept:true},
         {input:payload,accept:false},
       ]) {
         const call = envelope('promote',bad), before = await records(), count = batches.length;
@@ -212,6 +247,8 @@ test('native Contract input slots retain normalized values, distinct reference v
       assert.deepEqual(await store.load(CONTACT,contact.id),contact);
       assert.deepEqual(await store.load(CONTACT,otherContact.id),otherContact);
       assert.deepEqual(await store.load(CUSTOMER,customer.id),customer);
+      assert.deepEqual(await store.load(LOCATION,location.id),location);
+      assert.deepEqual((await store.load(LOCATION,location.id))!.data,{title:'original location',currency:'EUR'});
       await identities.removeMembership(membership.membership_id);
       const revokedCount = batches.length;
       const withheld = committed(await invoke(selectedInput),'replayed'); assert.equal(withheld.result,null);

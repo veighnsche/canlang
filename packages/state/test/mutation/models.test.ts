@@ -84,3 +84,20 @@ describe('checked email/timezone model metadata', () => {
     }
   });
 });
+
+it('retains declared Currency types while refusing mismatched stored field markers', () => {
+  for (const array of [false, true]) for (const nullable of [false, true]) {
+    const valueType = `currency${array ? '[]' : ''}${nullable ? '?' : ''}`;
+    const metadata = { required: true, serverOnly: false, valueType, nullable,
+      ...(array ? { array: { required: false } } : {}) };
+    const table = buildModelTable([modelDef('Acme.Location', { fields: { currency: metadata } })]);
+    assert.equal([...table.values()][0]!.fields.currency!.valueType, valueType);
+    assert.throws(() => buildModelTable([modelDef('Acme.Location', { fields: {
+      currency: { ...metadata, nullable: !nullable },
+    } })]), /Invalid valueType/);
+    assert.throws(() => buildModelTable([modelDef('Acme.Location', { fields: {
+      currency: { required: true, serverOnly: false, valueType, nullable,
+        ...(array ? {} : { array: { required: false } }) },
+    } })]), /Invalid valueType/);
+  }
+});

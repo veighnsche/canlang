@@ -107,7 +107,7 @@ function scalarType(type: unknown): CanTypeId {
   try {
     const parsed = parseTypeId(type);
     if (printTypeId(parsed) !== type || parsed.requiredArray ||
-        !(parsed.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(type))) {
+        !(parsed.base.kind === 'enum' || /^(int|datetime|text|bool|decimal|money|date|duration|currency|user)(\[\])?\??$/.test(type))) {
       return invalid(`unsupported disclosure type ${JSON.stringify(type)}; defining composite/lifetime join required.`);
     }
   } catch (error) {
@@ -1097,7 +1097,7 @@ export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef,
 }
 
 function primitiveInputType(type: unknown): type is CanTypeId {
-  return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|user)$/.test(type);
+  return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|currency|user)$/.test(type);
 }
 
 /** Exact required Contract fields from the original same-load input schema.
@@ -1159,7 +1159,7 @@ function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptI
   // producers must supply the exact owning checked type for this new claim.
   const base = types[input.kind], type = input.valueType;
   return base !== undefined && primitiveInputType(type) && type === dependency.type &&
-    (type === base || input.kind === 'string' && type === 'date');
+    (type === base || input.kind === 'string' && (type === 'date' || type === 'currency'));
 }
 
 function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
