@@ -8,6 +8,7 @@ import type {
   FileLinkView,
   TextProps,
 } from "@canlang/contracts";
+import { makeDatetime, makeUserRef, encodeValue, decodeValue } from "@canlang/values";
 import { message } from "../src/messages.js";
 import {
   card,
@@ -184,6 +185,42 @@ describe("renderTextValue", () => {
       renderTextValue({ type: "date", value: "2026-01-02" }, ctx),
       `\u2068${new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(new Date("2026-01-02T00:00:00Z"))}\u2069`,
     );
+  });
+
+  it("renders native user identities and exact datetime values through the canonical scalar formatter", async () => {
+    const actor = makeUserRef("actor<&>");
+    const instant = makeDatetime(1792016096123n);
+    const expected = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" })
+      .format(new Date("2026-10-14T22:14:56.123Z"));
+    assert.equal(encodeValue("datetime", instant), "2026-10-14T22:14:56.123Z");
+    assert.deepEqual(decodeValue("datetime", encodeValue("datetime", instant)), instant);
+    assert.equal(renderTextValue(actor, ctx), "\u2068actor&lt;&amp;&gt;\u2069");
+    assert.equal(renderTextValue(instant, ctx), `\u2068${expected}\u2069`);
+    assert.equal(await text({ context: ctx, values: [actor, instant, null, undefined] }),
+      `<p>\u2068actor&lt;&amp;&gt;\u2069 \u2068${expected}\u2069  </p>`);
+    const nl = makeContext({ preferredLocales: ["nl"] });
+    assert.equal(renderTextValue(instant, nl), `\u2068${new Intl.DateTimeFormat("nl", {
+      dateStyle: "medium", timeStyle: "medium", timeZone: "UTC",
+    }).format(new Date("2026-10-14T22:14:56.123Z"))}\u2069`);
+    for (const ms of [-62135596800000n, 253402300799999n]) {
+      const boundary = makeDatetime(ms);
+      assert.equal(renderTextValue(boundary, ctx), renderTextValue({ type: "datetime", value: boundary }, ctx));
+      assert.deepEqual(decodeValue("datetime", encodeValue("datetime", boundary)), boundary);
+    }
+  });
+
+  it("refuses malformed native objects without stringification or accessor evaluation", () => {
+    let reads = 0;
+    const accessor = Object.defineProperty({ kind: "user" }, "id", { enumerable: true, get() { reads++; return "actor"; } });
+    const inherited = Object.assign(Object.create({ id: "actor" }), { kind: "user" });
+    const arbitrary = { toString() { reads++; return "not a canonical scalar"; } };
+    for (const invalid of [
+      { kind: "user", id: "" }, { kind: "user", id: 1 }, accessor, inherited,
+      { kind: "user", id: "actor", email: "private@example.test" },
+      { kind: "datetime", ms: 1792016096123 }, { kind: "datetime", ms: "1792016096123" },
+      { kind: "datetime", ms: -62135596800001n }, { kind: "datetime", ms: 253402300800000n }, arbitrary,
+    ]) assert.throws(() => renderTextValue(invalid as never, ctx));
+    assert.equal(reads, 0);
   });
 
   it("escapes scalar string values and returns empty for null/undefined", () => {

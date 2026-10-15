@@ -46,6 +46,7 @@ import { BUSINESS_ERROR_CODES, CSRF_FIELD } from "@canlang/contracts";
 import { appearanceClasses } from "./appearance.js";
 
 import { pickAppearance } from "./internal/appearance-props.js";
+import { nativeTextScalar } from "./internal/native-text.js";
 import { escapeAttr, escapeHtml, operationPostPath } from "./escape.js";
 import { collapse } from "./groups.js";
 import {
@@ -276,6 +277,10 @@ function toScalarParam(field: string, value: unknown): MessageParamValue {
   }
   if (typeof value === "number" && Number.isSafeInteger(value)) {
     return { type: "int", value };
+  }
+  if (typeof value === "object" && value !== null) {
+    const native = nativeTextScalar(value);
+    if (native !== undefined) return native;
   }
   throw new TypeError(`history field ${JSON.stringify(field)} is not a scalar`);
 }

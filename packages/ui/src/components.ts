@@ -31,8 +31,10 @@ import {
   GENERATED_VIEW_ATTR,
   assertGeneratedViewInstanceProps,
 } from "@canlang/contracts";
+import { nativeTextScalar } from "./internal/native-text.js";
 import { partitionActionGroups } from "./internal/action-groups.js";
-import { escapeAttr, escapeHtml, isolate, safeHref } from "./escape.js";
+import { checkedFile, checkedFileLink } from "./internal/file-link.js";
+import { escapeAttr, escapeHtml, isolate } from "./escape.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
@@ -51,7 +53,7 @@ function pageLocaleOf(context: PresentationContext): string {
 }
 
 function isMessageDescriptor(
-  value: MessageDescriptor | MessageParamValue | ResolvedMessage,
+  value: object,
 ): value is MessageDescriptor {
   return typeof (value as MessageDescriptor).source === "string";
 }
@@ -70,8 +72,9 @@ function renderResolvedText(value: ResolvedMessage): string {
 /**
  * Render one `text` value to escaped, bidi-isolated HTML text. Sync so
  * collections/forms can reuse it inside row loops. Callers must not re-escape
- * the result. Raw numbers are accepted for safe integers only; decimals and
- * other typed scalars need an explicit {type, value} pair.
+ * the result. Raw numbers are accepted for safe integers only. Native
+ * user/datetime values retain their checked representation; other typed
+ * scalars, including decimals, need an explicit {type, value} pair.
  */
 export function renderTextValue(value: TextValue, context: PresentationContext): string {
   if (value === null || value === undefined) {
@@ -94,6 +97,7 @@ export function renderTextValue(value: TextValue, context: PresentationContext):
     }
     return isolate(formatIntExact(BigInt(value), pageLocaleOf(context)));
   }
+  const scalar = nativeTextScalar(value);
   const formatted = resolvedText(value);
   if (formatted !== undefined) {
     return renderResolvedText(formatted);
@@ -111,7 +115,7 @@ export function renderTextValue(value: TextValue, context: PresentationContext):
   }
   return isolate(
     escapeHtml(
-      formatScalar(value as MessageParamValue, {
+      formatScalar(scalar ?? (value as MessageParamValue), {
         locale: pageLocaleOf(context),
         timeZone: "UTC",
         ...(context.currencyScales !== undefined
@@ -175,46 +179,12 @@ export async function title(props: TitleProps): Promise<string> {
 
 const NO_FILES = message("No files", { nl: "Geen bestanden" });
 const FILE_UNAVAILABLE = message("File unavailable", { nl: "Bestand niet beschikbaar" });
-const OPEN_FILE = message("Open file", { nl: "Bestand openen" });
-
-function checkedTextFile(value: unknown): FileValue {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new TypeError("text File entries must be File values");
-  }
-  const kind = Object.getOwnPropertyDescriptor(value, "kind");
-  const id = Object.getOwnPropertyDescriptor(value, "id");
-  if (kind === undefined || !("value" in kind) || kind.value !== "file" ||
-      id === undefined || !("value" in id) || typeof id.value !== "string" || id.value === "") {
-    throw new TypeError("text File entries must be File values");
-  }
-  return value as FileValue;
-}
 
 function textFileLink(view: FileLinkView | null, context: PresentationContext): string {
   if (view === null) return isolate(escapeHtml(resolveCaption(FILE_UNAVAILABLE, context)));
-  if (typeof view !== "object" || Array.isArray(view)) {
-    throw new TypeError("text File presenter returned an invalid authorized link");
-  }
-  const properties = Object.getOwnPropertyDescriptors(view);
-  for (const key of ["href", "name", "caption", "status"]) {
-    if (properties[key] !== undefined && !("value" in properties[key]!)) {
-      throw new TypeError("text File presenter returned an invalid authorized link");
-    }
-  }
-  const href: unknown = properties.href?.value;
-  const name: unknown = properties.name?.value;
-  const suppliedCaption = properties.caption?.value as FileLinkView["caption"];
-  const suppliedStatus: unknown = properties.status?.value;
-  if (typeof href !== "string" || safeHref(href, "") === "" ||
-      (name !== undefined && typeof name !== "string") ||
-      (suppliedStatus !== undefined && (typeof suppliedStatus !== "string" ||
-        !["pending", "succeeded", "failed", "unknown", "skipped"].includes(suppliedStatus)))) {
-    throw new TypeError("text File presenter returned an invalid authorized link");
-  }
-  const caption = suppliedCaption === undefined ? name ?? resolveCaption(OPEN_FILE, context) :
-    resolveCaption(suppliedCaption, context);
-  const status = suppliedStatus === undefined ? "" : ` <span role="status">${escapeHtml(suppliedStatus)}</span>`;
-  return `<a class="link" href="${escapeAttr(href)}">${isolate(escapeHtml(caption))}</a>${status}`;
+  const { href, caption, status } = checkedFileLink(view, context, "text");
+  const statusHtml = status === undefined ? "" : ` <span role="status">${escapeHtml(status)}</span>`;
+  return `<a class="link" href="${escapeAttr(href)}">${isolate(escapeHtml(caption))}</a>${statusHtml}`;
 }
 
 /** One paragraph of space-joined text and source-bound authorized File links. */
@@ -226,13 +196,13 @@ export async function text(props: TextProps): Promise<string> {
       const files: FileValue[] = [];
       for (let index = 0; index < value.length; index++) {
         if (!Object.hasOwn(value, index)) throw new TypeError("text File arrays cannot be sparse");
-        files.push(checkedTextFile(value[index]));
+        files.push(checkedFile(value[index], "text"));
       }
       return { files };
     }
     if (typeof value === "object" && value !== null &&
         Object.getOwnPropertyDescriptor(value, "kind")?.value === "file") {
-      return { files: [checkedTextFile(value)] };
+      return { files: [checkedFile(value, "text")] };
     }
     return { html: renderTextValue(value as TextValue, props.context) };
   });

@@ -8,6 +8,7 @@ import type {
   RowView,
 } from "@canlang/contracts";
 import { BUSINESS_ERROR_CODES } from "@canlang/contracts";
+import { decodeValue } from "@canlang/values";
 import { message } from "../src/messages.js";
 import { copy, history, tabs } from "../src/panels.js";
 import { loadHtml } from "./harness.js";
@@ -618,6 +619,30 @@ describe("source history", () => {
       assert.ok(outer.querySelector("dd:empty"), "nullable scalar renders blank");
       assert.ok(!html.includes(">null</dd>"), html);
     } finally { await page.close(); }
+  });
+
+  it("formats declared native archive user/datetime values while preserving nulls and refusing raw objects", async () => {
+    const wireTime = "2026-10-15T10:20:30.000Z";
+    const user = decodeValue("user", { id: "archiver<user>" });
+    const time = decodeValue("datetime", wireTime);
+    for (const locale of ["en", "nl"]) {
+      const html = await render(async () => result([makeEntry({
+        before: { archived_by: null, archive_recorded_at: null },
+        after: { archived_by: user, archive_recorded_at: time },
+      })]), [locale]);
+      const expectedTime = new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium", timeStyle: "medium", timeZone: "UTC",
+      }).format(new Date(wireTime));
+      assert.ok(html.includes(">archiver&lt;user&gt;</dd>"), html);
+      assert.ok(html.includes(`>${expectedTime}</dd>`), html);
+      assert.ok(!html.includes(wireTime), "native audit datetime uses localized canonical formatting");
+      assert.ok(!html.includes("archiver<user>"), "native identity retains HTML escaping");
+      assert.equal((html.match(/<dd><\/dd>/g) ?? []).length, 2, "both nullable before values stay blank");
+    }
+    for (const value of [{ id: "untyped-user" }, { kind: "user", id: "" },
+      { kind: "datetime", ms: 1 }, { kind: "user", id: "user", extra: true }]) {
+      await assert.rejects(render(async () => result([makeEntry({ after: { archived_by: value } })])));
+    }
   });
 
   it("distinguishes genuine empty history from absent and known-refused readers without disclosing details", async () => {
