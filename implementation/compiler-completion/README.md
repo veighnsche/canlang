@@ -2,6 +2,20 @@
 
 ## Current remainder and finite completion
 
+**C02 lazy selected Contract guard receiving (2026-10-15, State component qualified).**
+The existing private reference producer accepts a checked Require-site/first-query/
+Member association independently of result disclosure or active_member calls.
+Its actual immediate field observation requires the original first-selected row
+pointer, current owner stage and once-only occurrence; it reuses canonical whole
+Contract validation and current source-field authority/commit guards. Guard-only
+facts never enter persisted observations or saved result queries. First execution
+may be consumed by this exact association with no result influences, without eager
+field checks. Independent Model, scalar and void outputs retain their old meaning.
+All16 focused State checks pass, including skipped unreadable operands, forgery/
+stage/schema controls, late field/membership rollback, commit/replay and independent
+recovery. State noEmit and normal build pass. Compiler issuance, verified loader
+forwarding and the original mixed native workflow remain separate required joins.
+
 **Original24 qualification atab3ec9f5 (2026-10-15).**
 The isolated committed CLI finishes in421.83s: exit10, complete=true, omitted=0,
 no usable artifact,656 diagnostics (630 E6008,26 E6007). All26 consumed source

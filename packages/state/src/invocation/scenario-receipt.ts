@@ -1186,18 +1186,33 @@ export interface ScenarioReceiptReferenceProducer {
    * projection of original SEND model lexicals and reserved row ID dependencies. Bind the framework producer
    * first when SEND lexicals are this definition's only reference consumer. */
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+  /** Verified Require reads of a whole Contract from an original first selection.
+   * These are execution guards, independently of the selected result closure. */
+  readonly executionSites?: readonly ScenarioReceiptMembershipSite[];
+  readonly executionDependencies?: readonly {
+    readonly siteIndex: number; readonly queryId: string;
+    readonly node: { readonly start: number; readonly end: number };
+    readonly dependency: ScenarioResultDisclosurePlan['returns'][number]['dependencies'][number];
+  }[];
 }
-const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptReferenceProducer>();
+type ExecutionDependency = NonNullable<ScenarioReceiptReferenceProducer['executionDependencies']>[number];
+type BoundExecutionDependency = { readonly association: ExecutionDependency; readonly profile: StoredNominalFieldProfile };
+const executedDependencies = new WeakMap<Capture, Set<string>>();
+const referenceProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptReferenceProducer & {
+  readonly boundExecutionDependencies: ReadonlyMap<string, BoundExecutionDependency>;
+}>();
 export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef, producer: ScenarioReceiptReferenceProducer): void {
   const bound = boundPlans.get(def);
   const modelInputs = frameworkModelInputs.get(def);
-  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 &&
+  if (bound === undefined || bound.referenceDependencies.size === 0 && bound.fileDependencies.size === 0 && !Object.hasOwn(producer, 'executionDependencies') &&
       ![...bound.nominalDependencies.values()].some(value => value.profile.hasFiles) && bound.idDependencies.size === 0 && bound.resultModel === undefined &&
       !bound.plan.queries?.some(query => query.parent !== undefined || query.dependencies.some(dep => dep.field === 'parent')) &&
       ![...modelInputs?.values() ?? []].some(inputs => inputs.size !== 0) && !(def.kind === 'scenario' && hasNominalAssignments(bound)) || invokedPlans.has(def) || referenceProducers.has(def)) {
     return invalid('reference producer requires one checked source binding before execution.');
   }
-  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : [])]); origin(producer.source); text(producer.app);
+  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []),
+    ...(Object.hasOwn(producer, 'executionDependencies') ? ['executionDependencies'] : []),
+    ...(Object.hasOwn(producer, 'executionSites') ? ['executionSites'] : [])]); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) {
     return invalid('reference producer differs from its checked source/policy.');
   }
@@ -1256,7 +1271,56 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
   if ([...modelInputs?.values() ?? []].some(inputs => [...inputs.values()].some(model => {
     const read = readPolicies?.get(model.model); return read === undefined || !('grants' in read);
   }))) return invalid('model SEND lexical inputs require their complete original source field grants.');
-  referenceProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy,
+  if (Object.hasOwn(producer, 'executionSites') !== Object.hasOwn(producer, 'executionDependencies') ||
+      Object.hasOwn(producer, 'executionDependencies') && (!Array.isArray(producer.executionDependencies) ||
+        producer.executionDependencies.length === 0 || !Array.isArray(producer.executionSites))) {
+    return invalid('execution Contract dependencies require their original checked source sites.');
+  }
+  const sites = producer.executionSites === undefined ? [] : checkScenarioReceiptMembershipSites(producer.executionSites);
+  if (producer.executionSites !== undefined) {
+    const source = membershipSource(def, bound);
+    assertScenarioReceiptMembershipSource(def, source);
+    if (sites.some(site => site.owner !== def.name || stableStringify(site.source) !== stableStringify(source))) {
+      return invalid('execution Contract sites differ from their exact canonical owner/source.');
+    }
+  }
+  const executions = new Map<string, BoundExecutionDependency>();
+  for (const raw of list(dataCopy(producer.executionDependencies ?? []))) {
+    object(raw, ['siteIndex', 'queryId', 'node', 'dependency']);
+    const value = raw as ExecutionDependency;
+    object(value.node, ['start', 'end']);
+    const dep = value.dependency;
+    object(dep, ['id', 'source', 'role', 'model', 'field', 'type']);
+    text(dep.id); text(dep.model); text(dep.field); origin(dep.source); text(value.queryId);
+    const site = sites[value.siteIndex];
+    const query = bound.plan.queries?.find(query => query.id === value.queryId);
+    if (!Number.isSafeInteger(value.siteIndex) || value.siteIndex < 0 ||
+        site === undefined || site.owner !== def.name || !['leading-require', 'body-require'].includes(site.stage) ||
+        stableStringify(dep.source) !== stableStringify(site.source) ||
+        !Number.isSafeInteger(value.node.start) || !Number.isSafeInteger(value.node.end) ||
+        value.node.start < site.node.start || value.node.end <= value.node.start || value.node.end > site.node.end ||
+        dep.role !== 'control' || query === undefined || query.model !== dep.model ||
+        stableStringify(query.source) !== stableStringify(bound.plan.source) ||
+        executions.has(dep.id) ||
+        bound.plan.returns.some(returned => returned.dependencies.some(other => other.id === dep.id)) ||
+        bound.plan.queries?.some(query => query.dependencies.some(other => other.id === dep.id))) {
+      return invalid('execution Contract dependency requires its exact owning Require, first query and unique occurrence.');
+    }
+    const profile = storedNominalField(bound, dep.model, dep.field, dep.type);
+    if (profile.array || profile.nullable || profile.hasFiles) return invalid('execution dependency requires its singular ordinary whole Contract.');
+    let model: ModelName | undefined = dep.model;
+    const seen = new Set<ModelName>();
+    while (model !== undefined) {
+      const declaration = bound.artifactModels.get(model), read = readPolicies?.get(model);
+      if (seen.has(model) || declaration === undefined || read === undefined || read.parent !== declaration.parent ||
+          !('grants' in read) && (!policy.has(model) || model === dep.model)) {
+        return invalid('execution Contract dependency requires its complete original source field grants.');
+      }
+      seen.add(model); model = declaration.parent as ModelName | undefined;
+    }
+    executions.set(dep.id, Object.freeze({ association: deepFreeze(value), profile }));
+  }
+  referenceProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy, boundExecutionDependencies: executions,
     ...(readPolicies === undefined ? {} : { readPolicies }) }));
 }
 
@@ -2984,11 +3048,14 @@ export async function selectScenarioReceiptQueryFirstRow(call: AdmittedCall, sto
   try {
     object(input, ['query']);
     const query = queryHandles.get(input.query);
-    if (owner === undefined || state.bound.resultModel === undefined || owner.busy || state.pending !== 0 || state.returnId !== null ||
+    const executionFirst = query !== undefined && [...referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies.values() ?? []]
+      .some(value => value.association.queryId === query.plan.id);
+    if (owner === undefined || state.bound.resultModel === undefined && !executionFirst || owner.busy || state.pending !== 0 || state.returnId !== null ||
         owner.executingCall !== call || query === undefined || query.call !== call || query.owner !== owner ||
         query.stage !== owner.stage || !query.complete || query.firstSelected || query.countSelected || query.selectionConsumed || query.anyConsumed ||
         querySelections.get(call.def as GeneratedOperationDef)?.has(query.plan.id) === true ||
-        !state.bound.plan.returns.some(returned => returned.projection === undefined && returnQueryIds(returned).includes(query.plan.id))) {
+        !state.bound.plan.returns.some(returned => returned.projection === undefined && returnQueryIds(returned).includes(query.plan.id)) &&
+        !executionFirst) {
       return invalid('first requires its genuine completed singular-model query at the original owner stage.');
     }
     ownerHealthy(owner);
@@ -3558,14 +3625,15 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
     }
     // Opaque Files observations never pass through JSON/native wire copying.
     const observed = dataCopy({ dependencyId: input.dependencyId, model: input.model, row: input.row, field: input.field });
-    const dependency = state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
+    const execution = referenceProducers.get(call.def as GeneratedOperationDef)?.boundExecutionDependencies.get(observed.dependencyId);
+    const dependency = execution?.association.dependency ?? state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
-    if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
+    if (state.observations.length + state.intrinsics.length + (executedDependencies.get(state)?.size ?? 0) >= MAX_ITEMS) return invalid('observation budget exceeded.');
     const row = checkedRow(observed.row);
     const narrowed = state.bound.narrowedDependencies.get(dependency.id);
     if (narrowed !== undefined) capturedNarrowedControl(call, owner, state, narrowed, input.row);
     const namedEnum = state.bound.namedEnumDependencies.get(dependency.id);
-    const nominal = state.bound.nominalDependencies.get(dependency.id);
+    const nominal = execution === undefined ? state.bound.nominalDependencies.get(dependency.id) : { profile: execution.profile };
     const reference = state.bound.referenceDependencies.get(dependency.id);
     const file = state.bound.fileDependencies.get(dependency.id);
     const id = state.bound.idDependencies.get(dependency.id);
@@ -3627,9 +3695,28 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       }
       if (!owner.busy) { owner.busy = true; acquiredOwner = true; }
     }
+    if (execution !== undefined) {
+      const query = state.queries.find(query => query.plan.id === execution.association.queryId);
+      const selected = query?.selectedIndices[0];
+      if (rowId || owner === undefined || query === undefined || query.call !== call || query.owner !== owner ||
+          query.stage !== owner.stage || !query.complete || !query.firstSelected || query.countSelected ||
+          query.selectionConsumed || query.anyConsumed || selected === undefined ||
+          query.candidates[selected]?.row !== input.row || executedDependencies.get(state)?.has(dependency.id)) {
+        return invalid('execution Contract read requires its once-only original first-selected current-stage owner row.');
+      }
+    }
     if (id !== undefined && owner === undefined && admitted === undefined) return invalid('current row id requires its actual current-stage owner session.');
     state.pending += 1; acquired = true;
     let referenceRevalidate: (() => Promise<void>) | undefined;
+    if (execution !== undefined) {
+      const current = await owner!.session!.views.final.get(observed.model, row.id);
+      if (current === null || !sameModelLifetime(row, current) ||
+          stableStringify(getDataPath(current.data, dependency.field)) !== stableStringify(getDataPath(row.data, dependency.field))) {
+        throw new StateError('forbidden', 'Execution Contract source differs from its original selected field.');
+      }
+      const authority = await observeModelQuerySourceAuthority(call, store, owner!, state, observed.model, current, [dependency.field], 1);
+      referenceRevalidate = () => authority.requireFields([dependency.field]);
+    }
     if (suppliedPosition && admitted !== undefined) {
       const current = await owner!.session!.views.final.get(observed.model, row.id);
       if (current === null || !sameModelLifetime(row, current) ||
@@ -3670,6 +3757,12 @@ async function observeScenarioReceiptDependencyValue(call: AdmittedCall, store: 
       if (owner !== undefined) ownerHealthy(owner);
       if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Source reference final observation moved beyond its admitted revision.');
       capture(call, store); if (owner !== undefined) ownerHealthy(owner);
+    }
+    if (execution !== undefined) {
+      let executed = executedDependencies.get(state);
+      if (executed === undefined) { executed = new Set(); executedDependencies.set(state, executed); }
+      executed.add(dependency.id);
+      return undefined;
     }
     const secrets = state.bound.models.get(observed.model)!.secrets;
     if (secrets.length > MAX_ITEMS) return invalid('original secrecy inventory exceeds its finite budget.');
@@ -4359,7 +4452,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const fileInfluence = storedFiles.length !== 0 || fileFields.some(entry => !/^file(\[\])?\??$/.test(entry.type));
   const modelSourceProducers = [def, ...(association.calls ?? []).map(saved => input.registry.get(saved.target))]
     .flatMap(def => def === undefined ? [] : [referenceProducers.get(def as GeneratedOperationDef)])
-    .filter((producer): producer is ScenarioReceiptReferenceProducer => producer?.app === input.app && producer.readPolicies !== undefined);
+    .filter((producer): producer is NonNullable<typeof producer> => producer?.app === input.app && producer.readPolicies !== undefined);
   const rowIdInfluence = currentBound.idDependencies.size !== 0 || association.calls?.some(saved => {
     const target = input.registry.get(saved.target);
     return target !== undefined && (boundPlans.get(target as GeneratedOperationDef)?.idDependencies.size ?? 0) !== 0;
