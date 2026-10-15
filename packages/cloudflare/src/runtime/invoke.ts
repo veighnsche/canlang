@@ -775,75 +775,78 @@ export function readOperationPolicyEntry(registry: unknown, opName: string): unk
  * refusal, mirroring the loader's engine-local policy channel).
  */
 export function mapCrudPolicyToBy(opName: string, entry: unknown): CanonicalByPredicate {
-  if (entry === undefined || entry === null) return { not: "public" };
-  const where = `t16b: operation ${JSON.stringify(opName)} cannot admit in the T16 core scope (T04b carries generated policy)`;
-  if (!isUnknownRecord(entry)) {
-    throw new Error(`${where}: malformed policy entry (not an object).`);
-  }
-  for (const key of Object.keys(entry)) {
-    if (key !== "by" && key !== "gated" && key !== "when" && key !== "requires") {
-      throw new Error(`${where}: unknown policy member ${JSON.stringify(key)}.`);
-    }
-  }
-  if (entry["gated"] === true) {
-    throw new Error(
-      `${where}: subject/expression/compound gates have no transcribable spelling.`,
-    );
-  }
-  if (entry["when"] === true) {
-    throw new Error(
-      `${where}: crud candidate preconditions are emitted code, not admittable data.`,
-    );
-  }
-  const requires: unknown = entry["requires"];
-  if (typeof requires === "number" && requires > 0) {
-    throw new Error(
-      `${where}: handler-enforced require guards cannot run (the pipeline skips the handler).`,
-    );
-  }
-  const spellings: unknown = entry["by"];
-  if (spellings === undefined) {
-    throw new Error(`${where}: policy entry carries no transcribable by spellings.`);
-  }
-  if (
-    !Array.isArray(spellings) ||
-    spellings.length === 0 ||
-    !spellings.every((s) => typeof s === "string" && s.length > 0)
-  ) {
-    throw new Error(
-      `${where}: malformed by spellings (non-empty array of non-empty strings).`,
-    );
-  }
-  const terms: CanonicalByPredicate[] = [];
-  for (const spelling of spellings as string[]) {
-    if (POLICY_BUILTINS.has(spelling)) {
-      terms.push(spelling as CanonicalByPredicate);
-    } else {
-      terms.push({ role: spelling });
-    }
-  }
-  const first: CanonicalByPredicate | undefined = terms[0];
-  if (first === undefined) {
-    throw new Error(`${where}: malformed by spellings (non-empty array of non-empty strings).`);
-  }
-  return terms.length === 1 ? first : { and: terms };
+  return mapOperationPolicyToBy(opName, entry, false);
 }
 
-/**
- * B7: scenario admission transcription. Same mapping as CRUD
- * (absent -> deny, role-only `by` 1:1, gated/when/malformed loud)
- * EXCEPT the entry's `requires` count is dropped before
- * delegating: scenario leading `require` guards execute inlined in
- * the emitted handler post-admission (interim-exact — the handler
- * runs for scenarios, unlike the CRUD pipeline which skips it),
- * so the outer gate transcribes `by` only. A scenario with no
- * entry at all still denies (missing guard is a defect, S5) —
- * its inlined guards never get to run.
- */
+/** Scenarios retain their original inlined require checks after admission. */
 export function mapScenarioPolicyToBy(opName: string, entry: unknown): CanonicalByPredicate {
-  if (!isUnknownRecord(entry)) return mapCrudPolicyToBy(opName, entry);
-  const { requires: _handlerEnforced, ...admission } = entry;
-  return mapCrudPolicyToBy(opName, admission);
+  return mapOperationPolicyToBy(opName, entry, true);
+}
+
+function mapOperationPolicyToBy(opName: string, entry: unknown, handlerRequires: boolean): CanonicalByPredicate {
+  if (entry === undefined || entry === null) return { not: "public" };
+  const where = `t16b: operation ${JSON.stringify(opName)} cannot admit in the T16 core scope (T04b carries generated policy)`;
+  const refuse = (detail: string): never => { throw new Error(`${where}: ${detail}.`); };
+  const own = (value: unknown, allowed: readonly string[]): Record<string, unknown> => {
+    if (!isUnknownRecord(value)) return refuse('malformed policy data (object required)');
+    const result: Record<string, unknown> = Object.create(null);
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== 'string' || !allowed.includes(key)) return refuse('unknown policy member');
+      const member = Object.getOwnPropertyDescriptor(value, key)!;
+      if (!('value' in member) || !member.enumerable) return refuse('malformed policy data (own enumerable data required)');
+      result[key] = member.value;
+    }
+    return result;
+  };
+  const dense = (value: unknown): unknown[] => {
+    if (!Array.isArray(value)) return refuse('malformed by spellings (non-empty dense array required)');
+    const length = Object.getOwnPropertyDescriptor(value, 'length');
+    if (length === undefined || !('value' in length) || !Number.isSafeInteger(length.value) ||
+        length.value < 1 || length.value > 4096 || Reflect.ownKeys(value).length !== length.value + 1) {
+      return refuse('malformed by spellings (non-empty bounded dense array required)');
+    }
+    const result: unknown[] = [];
+    for (let index = 0; index < length.value; index++) {
+      const member = Object.getOwnPropertyDescriptor(value, String(index));
+      if (member === undefined || !('value' in member) || !member.enumerable) return refuse('malformed by spellings (own data required)');
+      result.push(member.value);
+    }
+    return result;
+  };
+  const policy = own(entry, ['by', 'gated', 'when', 'requires']);
+  for (const flag of ['gated', 'when']) if (policy[flag] !== undefined && typeof policy[flag] !== 'boolean') return refuse(`malformed ${flag}`);
+  if (policy['gated'] === true) return refuse('subject/expression gates have no transcribable spelling');
+  if (policy['when'] === true) return refuse('crud candidate preconditions are emitted code, not admittable data');
+  const requires = policy['requires'];
+  if (requires !== undefined && (typeof requires !== 'number' || !Number.isSafeInteger(requires) || requires < 0)) return refuse('malformed requires count');
+  if (!handlerRequires && typeof requires === 'number' && requires > 0) return refuse('handler-enforced require guards cannot run (the pipeline skips the handler)');
+  if (!Object.hasOwn(policy, 'by')) return refuse('policy entry carries no transcribable by spellings');
+  const active = new Set<object>(); let nodes = 0;
+  const predicate = (value: unknown, depth: number, legacy = false): CanonicalByPredicate => {
+    if (++nodes > 4096 || depth > 64) return refuse('malformed by predicate exceeds its finite bound');
+    if (typeof value === 'string') {
+      if (POLICY_BUILTINS.has(value)) return value as CanonicalByPredicate;
+      if (legacy && value.length > 0) return { role: value };
+      return refuse('malformed by predicate string');
+    }
+    if (typeof value !== 'object' || value === null || active.has(value)) return refuse('malformed or cyclic by predicate');
+    active.add(value);
+    try {
+      const node = own(value, ['role', 'and', 'or', 'not']);
+      const keys = Object.keys(node);
+      if (keys.length !== 1) return refuse('malformed by predicate needs exactly one combinator');
+      const key = keys[0]!;
+      if (key === 'role') {
+        if (typeof node.role !== 'string' || node.role.length === 0) return refuse('malformed role predicate');
+        return { role: node.role };
+      }
+      if (key === 'not') return { not: predicate(node.not, depth + 1) };
+      const terms = dense(node[key]).map(term => predicate(term, depth + 1));
+      return key === 'and' ? { and: terms } : { or: terms };
+    } finally { active.delete(value); }
+  };
+  const terms = dense(policy.by).map(term => predicate(term, 0, true));
+  return terms.length === 1 ? terms[0]! : { and: terms };
 }
 
 interface NativeCrudCandidateBinding {

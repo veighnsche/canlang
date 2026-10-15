@@ -2,6 +2,13 @@
 
 ## Current remainder and finite completion
 
+**C02 role-Boolean admission receiver (2026-10-15, component qualified).**
+Strict own-data transcription reuses State's ordered ByPredicate AST, legacy
+conjunctive top-level strings and scenario/CRUD guard separation. Current roles,
+lazy lookup and failure identity stay. NormalCFbuild/noEmit and5 owning policy
+controls pass/.269s. Compiler source metadata and actual generated native
+scenario/CRUD consumers remain next; all43 source refusals are not yet closed.
+
 **C02 logical URL owner fields (2026-10-15, component qualified).**
 Original Partner setup next exposed two URL fields with only string wire tags.
 Compiler existing valueType metadata now retains url wrappers/source field reuse
