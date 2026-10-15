@@ -471,3 +471,75 @@ fn t35r23_self_import_leaves_canonical_untouched() {
         "no alias under the import alias"
     );
 }
+
+/// Original Membership ingress siblings share field spellings, not identities.
+#[test]
+fn capability_event_fields_retain_their_complete_owning_event_path() {
+    let src = r#"package member_terms
+ Given
+  export capability MembershipIngressV1 version=1
+   event commit { source:text, customer:text }
+   event consume { source:text, customer:text }
+   event release { source:text, customer:text, restore_consumed:bool=false }
+   event reconcile { source:text, customer:text }
+  capability OtherIngressV1 version=1
+   event commit { source:int }
+ When
+ Then
+"#;
+    let (tables, diags) = resolve_src(src);
+    assert!(diags.is_empty(), "resolve clean: {diags:?}");
+    let mut seen_fields = std::collections::HashSet::new();
+    for (capability_name, event_names) in [
+        (
+            "MembershipIngressV1",
+            vec!["commit", "consume", "release", "reconcile"],
+        ),
+        ("OtherIngressV1", vec!["commit"]),
+    ] {
+        let capability_path = format!("member_terms.{capability_name}");
+        let capability_id = tables.by_canonical[&capability_path];
+        let capability = &tables.symbols[capability_id.0 as usize];
+        assert_eq!(capability.canonical, capability_path);
+        let resolve::SymbolKind::Capability { events, .. } = &capability.kind else {
+            panic!("expected owning capability");
+        };
+        assert_eq!(events.len(), event_names.len());
+        for (event_id, event_name) in events.iter().zip(event_names) {
+            let event = &tables.symbols[event_id.0 as usize];
+            let event_path = format!("{capability_path}.{event_name}");
+            assert_eq!(event.canonical, event_path);
+            assert_eq!(tables.by_canonical[&event_path], *event_id);
+            let resolve::SymbolKind::Event { fields } = &event.kind else {
+                panic!("expected capability event");
+            };
+            let names = if capability_name == "OtherIngressV1" {
+                vec!["source"]
+            } else if event_name == "release" {
+                vec!["source", "customer", "restore_consumed"]
+            } else {
+                vec!["source", "customer"]
+            };
+            assert_eq!(fields.len(), names.len());
+            for (field_id, field_name) in fields.iter().zip(names) {
+                let field = &tables.symbols[field_id.0 as usize];
+                let field_path = format!("{event_path}.{field_name}");
+                assert_eq!(field.canonical, field_path);
+                assert_eq!(field.name, field_name);
+                assert_eq!(tables.by_canonical[&field_path], *field_id);
+                assert!(
+                    seen_fields.insert(*field_id),
+                    "sibling fields must be distinct"
+                );
+                assert!(
+                    matches!(field.kind, resolve::SymbolKind::Field { owner, .. } if owner == *event_id)
+                );
+                assert!(
+                    !tables
+                        .by_canonical
+                        .contains_key(&format!("{capability_path}.{field_name}"))
+                );
+            }
+        }
+    }
+}
