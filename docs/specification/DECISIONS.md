@@ -16518,3 +16518,23 @@ from the in-progress query producer. No receiving permission or phase changes.
 This addresses the URL/inline-enum field gaps behind ten of the eleven retained
 event-carrier candidates; removal counts await original24 qualification. The
 separate PaymentState standard nominal-identity gap remains unimplemented.
+
+2026-10-15 — C02: retain helper ANY query source census.
+
+The existing query source inventory now retains leading helper ANY occurrences
+with exact caller/formal/import binding, root Model/alias/predicate proof, ordered
+CONTROL dependencies and original outer call chain. The first User-field read
+is proved compulsory for this private saved-prefix profile. Actual Contract
+reference input and helper-local bindings retain their original nodes/types.
+Local helpers and reordered named arguments use the same proof; original actual
+argument order remains intact and selected slots supply formal correspondence.
+No new carrier, authorization or native query execution is admitted here.
+
+The existing owning source check passes original full Employees.can, aliased
+imports and equivalent local/reordered named calls, including changed query,
+domain, first-read and metadata refusals. Six existing source-seal controls pass.
+Source consumption, transported logical-helper/physical-caller association and
+private native callback integration remain ready local work. Body Require is
+still retained in the original decision census and awaits its own source join.
+Reuse the last original24 qualification at its recorded scope; no diagnostic
+removal or native can_work workflow acceptance follows from this census alone.

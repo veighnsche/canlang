@@ -6007,6 +6007,7 @@ impl<'a> Closure<'a> {
         if !scenario.read {
             let mut first = self.checked_count_query_sources(scenario)?;
             first.extend(self.checked_any_query_sources(scenario)?);
+            first.extend(self.checked_helper_any_query_sources(scenario)?);
             first.extend(
                 self.checked_inline_selection_sources(scenario)?
                     .into_iter()
@@ -6298,6 +6299,352 @@ impl<'a> Closure<'a> {
             count: None,
             influences,
         }])
+    }
+
+    /// Preserve a leading helper's exact root ANY source census.
+    /// This records its lazy candidate reads; it admits no query execution.
+    fn checked_helper_any_query_sources(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<DisclosureQuery>> {
+        if scenario.read || scenario.on.is_some() || self.catalog.is_none() {
+            return Some(Vec::new());
+        }
+        let mut queries = Vec::new();
+        for site in self.checked_decision_sites(scenario)? {
+            if site.stage != CheckedDecisionStage::LeadingRequire {
+                continue;
+            }
+            for call in site.calls.iter().filter(|call| call.chain.is_empty()) {
+                let CheckedDecisionCallTarget::DeriveFn(derive) = call.target else {
+                    continue;
+                };
+                let data = self.effects.derives.get(&derive)?;
+                let body = self.query_group(data.expr?)?;
+                let Some(selected) = self.types.selected_calls.get(&body) else {
+                    continue;
+                };
+                if !matches!(&selected.target, SelectedCallTarget::Builtin { id, .. } if id == "any")
+                    || data.params.len() != 2
+                    || self.types.symbol_types.get(&data.params[0].param)
+                        != Some(&ResolvedType::Scalar(Scalar::User))
+                {
+                    continue;
+                }
+                if call
+                    .slots
+                    .get(1)
+                    .copied()
+                    .flatten()
+                    .and_then(|slot| call.arguments.get(slot))
+                    .and_then(|(argument, _)| {
+                        self.checked_contract_input_reference(*argument, scenario.module)
+                    })
+                    .is_none()
+                {
+                    continue;
+                }
+                queries.push(
+                    self.checked_helper_any_query_source(scenario, &site, call, derive, body)?,
+                );
+                if queries.len() > 200 {
+                    return None;
+                }
+            }
+        }
+        Some(queries)
+    }
+
+    fn checked_helper_any_query_source(
+        &self,
+        scenario: &super::effects::ScenarioData,
+        site: &CheckedDecisionSite,
+        outer: &CheckedDecisionCall,
+        derive: SymbolId,
+        body: NodeKey,
+    ) -> Option<DisclosureQuery> {
+        let data = self.effects.derives.get(&derive)?;
+        let declaration = self.resolve.symbols.get(derive.0 as usize)?;
+        let [person, location] = data.params.as_slice() else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: location_model,
+            stored: true,
+        } = self.types.symbol_types.get(&location.param)?
+        else {
+            return None;
+        };
+        let [Some(actor_slot), Some(location_slot)] = outer.slots.as_slice() else {
+            return None;
+        };
+        if outer.arguments.len() != 2 || actor_slot == location_slot {
+            return None;
+        }
+        let actor = outer.arguments.get(*actor_slot)?;
+        let argument = outer.arguments.get(*location_slot)?;
+        let (parameter, actual_model, _) =
+            self.checked_contract_input_reference(argument.0, scenario.module)?;
+        let location_path = self
+            .nodes
+            .get(&location.type_node)?
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Path)?;
+        let selected = self.types.selected_calls.get(&body)?;
+        let [domain, predicate] = selected.arguments.as_slice() else {
+            return None;
+        };
+        let checked = self.types.checked_queries.get(domain)?;
+        let collection = self.types.checked_collection_calls.get(&body)?;
+        let [alias] = checked.clauses.as_slice() else {
+            return None;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return None;
+        };
+        let model = self.resolve.symbols.get(collection.model.0 as usize)?;
+        let array = ResolvedType::Array {
+            element: Box::new(ResolvedType::Record {
+                symbol: model.id,
+                stored: true,
+            }),
+            ordered: true,
+            nonempty: false,
+        };
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let source = self.source(data.module, body).ok()?;
+        let frame = CheckedDecisionCallFrame {
+            node: outer.node,
+            module: scenario.module,
+            source: outer.source.clone(),
+            derive,
+        };
+        let nested = site.calls.iter().find(|call| {
+            call.node == body && call.chain.as_slice() == std::slice::from_ref(&frame)
+        })?;
+        let call_node = self.nodes.get(&outer.node)?;
+        let head = call_node
+            .children
+            .iter()
+            .find(|child| expression(child.kind))?;
+        let binding = self
+            .resolve
+            .module_scopes
+            .get(scenario.module.0 as usize)?
+            .prod
+            .get(self.word(head)?)?;
+        let matches_owner = match binding {
+            ScopedName::Local(target) => *target == derive && declaration.module == scenario.module,
+            ScopedName::Imported {
+                target,
+                bound: false,
+            } => *target == derive && declaration.exported && declaration.module != scenario.module,
+            _ => false,
+        };
+        let query_node = self.nodes.get(domain)?;
+        let source_domains: Vec<_> = query_node
+            .children
+            .iter()
+            .filter(|child| expression(child.kind))
+            .map(NodeKey::of)
+            .collect();
+        let source_clauses: Vec<_> = query_node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::QueryClause)
+            .map(NodeKey::of)
+            .collect();
+        let alias_words: Vec<_> = self
+            .nodes
+            .get(&alias.node)?
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Name)
+            .map(|child| self.word(child))
+            .collect::<Option<Vec<_>>>()?;
+        if !matches_owner
+            || declaration.module != data.module
+            || data.derive != derive
+            || !matches!(&declaration.kind, SymbolKind::DeriveFn { params, .. } if params.as_slice() == [person.param, location.param])
+            || data.params.iter().any(|formal| formal.default.is_some())
+            || self
+                .db
+                .get(person.type_node.file)?
+                .text
+                .get(person.type_node.start as usize..person.type_node.end as usize)?
+                .trim()
+                != "user"
+            || !matches!(self.resolve.node_typeref.get(&NodeKey::of(location_path)), Some(TypeRef::Symbol(target)) if target == location_model)
+            || actual_model != *location_model
+            || argument.1
+                != (ResolvedType::Record {
+                    symbol: *location_model,
+                    stored: true,
+                })
+            || actor.1 != ResolvedType::Scalar(Scalar::User)
+            || !matches!(
+                self.query_binding(actor.0),
+                Some(Binding::Context(ContextVar::Actor(_)))
+            )
+            || outer.module != scenario.module
+            || outer.source != site.source
+            || !outer.defaults.is_empty()
+            || selected.slots.as_slice() != [Some(0), Some(1)]
+            || collection.node != body
+            || collection.builtin != "any"
+            || collection.query != *domain
+            || collection.model != model.id
+            || nested.target
+                != (CheckedDecisionCallTarget::Builtin {
+                    id: "any".into(),
+                    overload: collection.overload,
+                })
+            || nested.arguments != vec![(*domain, array.clone()), (*predicate, boolean.clone())]
+            || nested.source != source
+            || nested.module != data.module
+            || !nested.defaults.is_empty()
+            || nested.slots.as_slice() != [Some(0), Some(1)]
+            || query_node.kind != SyntaxKind::Query
+            || source_domains != [checked.domain]
+            || source_clauses != [alias.node]
+            || alias_words != ["as", name.as_str()]
+            || self.types.symbol_results.get(&derive) != Some(&Some(boolean.clone()))
+            || checked.node != *domain
+            || checked.domain_type != array
+            || checked.result != array
+            || checked.projection.is_some()
+            || alias.node != collection.alias
+            || !alias.expressions.is_empty()
+            || name.is_empty()
+            || collection
+                .predicate
+                .as_ref()
+                .is_none_or(|value| value.node != *predicate || value.ty != boolean)
+            || !matches!(self.query_binding(checked.domain), Some(Binding::Symbol(target)) if *target == model.id)
+            || !matches!(
+                model.kind,
+                SymbolKind::Model {
+                    owner: ModelOwner::Team | ModelOwner::App,
+                    ..
+                }
+            )
+            || self.types.node_types.get(&body) != Some(&boolean)
+            || self.types.node_types.get(predicate) != Some(&boolean)
+        {
+            return None;
+        }
+        self.checked_created_model(model.id, model.module)?;
+        self.checked_created_model(
+            *location_model,
+            self.resolve.symbols.get(location_model.0 as usize)?.module,
+        )?;
+        for (index, formal) in data.params.iter().enumerate() {
+            if !matches!(self.resolve.symbols.get(formal.param.0 as usize)?.kind,
+                SymbolKind::Param { owner, index: position, type_node } if owner == derive && position == index && type_node == formal.type_node)
+            {
+                return None;
+            }
+        }
+        let mut eager = self.query_group(*predicate)?;
+        for _ in 0..64 {
+            let next = self
+                .query_binary(eager, "and")
+                .or_else(|| self.query_binary(eager, "or"));
+            match next {
+                Some((left, _)) => eager = self.query_group(left)?,
+                None => break,
+            }
+        }
+        let (left, right) = self.query_binary(eager, "==")?;
+        let (first_read, compared) = if self.query_member(left, alias.node, model.id).is_some() {
+            (left, right)
+        } else {
+            (right, left)
+        };
+        let first_field = self.query_member(first_read, alias.node, model.id)?;
+        if self.types.symbol_types.get(&first_field) != Some(&ResolvedType::Scalar(Scalar::User))
+            || !matches!(self.query_binding(self.query_group(compared)?), Some(Binding::Symbol(target)) if *target == person.param)
+        {
+            return None;
+        }
+        let id = self
+            .opaque("query", *domain, &self.key_stamp(outer.node).ok()?)
+            .ok()?;
+        let mut dependencies = Vec::new();
+        let mut pending = vec![*self.nodes.get(predicate)?];
+        let mut visits = 0;
+        while let Some(node) = pending.pop() {
+            visits += 1;
+            if visits > 16384 {
+                return None;
+            }
+            if node.kind == SyntaxKind::Member {
+                let key = NodeKey::of(node);
+                let field = self.query_member(key, alias.node, model.id)?;
+                if self.types.node_types.get(&key) != self.types.symbol_types.get(&field) {
+                    return None;
+                }
+                let mut read = self.query_dependency(
+                    key,
+                    data.module,
+                    model.id,
+                    field,
+                    DependencyRole::Control,
+                    &id,
+                )?;
+                read.calls.push(outer.node);
+                dependencies.push(read);
+            }
+            pending.extend(node.children.iter().rev());
+        }
+        let first_read = self.query_group(first_read)?;
+        if dependencies
+            .first()
+            .is_none_or(|read| read.node != first_read || read.field != first_field)
+        {
+            return None;
+        }
+        let influences = [
+            InfluenceKind::QueryExistence,
+            InfluenceKind::QueryCardinality,
+            InfluenceKind::QueryMembership,
+            InfluenceKind::QueryOrder,
+        ]
+        .into_iter()
+        .map(|kind| {
+            Some(DisclosureInfluence {
+                id: self
+                    .opaque("query-influence", *domain, &format!("{id}:{kind:?}"))
+                    .ok()?,
+                source: source.clone(),
+                node: *domain,
+                kind,
+                query_id: Some(id.clone()),
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+        Some(DisclosureQuery {
+            id,
+            source,
+            node: *domain,
+            domain: checked.domain,
+            model: model.id,
+            model_name: model.canonical.clone(),
+            alias: Some(alias.node),
+            predicate: Some(*predicate),
+            inputs: vec![(argument.0, parameter)],
+            dependencies,
+            order: Vec::new(),
+            limit: None,
+            archived: false,
+            cardinality_guard: None,
+            return_node: scenario.effects.last()?.node,
+            projection: None,
+            first: None,
+            count: None,
+            influences,
+        })
     }
 
     /// The original leading unfinished-Run check has an external predicate.
@@ -7837,6 +8184,9 @@ impl<'a> Closure<'a> {
                     "{}?",
                     self.resolve.symbols.get(symbol.0 as usize)?.canonical
                 )
+            }
+            ResolvedType::Array { .. } if self.reference_operand_type_id(ty).is_some() => {
+                self.reference_operand_type_id(ty)?
             }
             _ => self.field_type_id(node, field, ty).ok()?,
         };
@@ -15979,10 +16329,10 @@ package crm
  Then
 "#;
         let original_employee = include_str!("../../../draft/shared/Employees.can");
-        for renamed in [false, true] {
+        for variant in 0..3 {
             let mut employee = original_employee.to_string();
             let mut caller = caller.to_string();
-            if renamed {
+            if variant == 1 {
                 employee = employee.replace("Location", "Site").replace(
                     "use rent_catalog {Site,test_site}",
                     "use rent_catalog {Location as Site,test_site}",
@@ -15994,6 +16344,27 @@ package crm
                     )
                     .replace("require can_work(", "require allowed(");
             }
+            if variant == 2 {
+                let local = original_employee
+                    .lines()
+                    .find(|line| line.trim_start().starts_with("export derive can_work("))
+                    .unwrap()
+                    .trim_start()
+                    .strip_prefix("export ")
+                    .unwrap();
+                caller = caller
+                    .replace("use employee {can_work}", "use employee {Employee}")
+                    .replace("  contract Input", &format!("  {local}\n  contract Input"))
+                    .replace(
+                        "can_work(actor,input.location)",
+                        "can_work(location=input.location,person=actor)",
+                    )
+                    .replace(
+                        "can_work(actor,existing.deal.location)",
+                        "can_work(location=existing.deal.location,person=actor)",
+                    );
+            }
+            let helper_module = if variant == 2 { "crm" } else { "employee" };
             let mut db = SourceDb::new();
             let files = [
                 db.add("Employees.can".into(), employee),
@@ -16042,7 +16413,7 @@ package crm
             );
             assert!(errors.is_empty(), "{errors:?}");
             let scenario = &effects.scenarios[&resolve.by_canonical["crm.promote"]];
-            let helper = resolve.by_canonical["employee.can_work"];
+            let helper = resolve.by_canonical[&format!("{helper_module}.can_work")];
             let employee_model = resolve.by_canonical["employee.Employee"];
             let location = resolve.by_canonical["rent_catalog.Location"];
             let mut nodes = HashMap::new();
@@ -16111,6 +16482,43 @@ package crm
                         symbol: location,
                         stored: true
                     }));
+            let helper_queries = cx
+                .checked_helper_any_query_sources(scenario)
+                .expect("exact leading helper query census");
+            let [helper_query] = helper_queries.as_slice() else {
+                panic!("one leading helper query, body stage deferred")
+            };
+            assert_eq!(helper_query.model, employee_model);
+            assert_eq!(helper_query.source.module, helper_module);
+            assert_eq!(
+                helper_query
+                    .dependencies
+                    .iter()
+                    .map(|read| read.field_name.as_str())
+                    .collect::<Vec<_>>(),
+                ["user", "active", "operator_wide", "home", "locations"]
+            );
+            assert_eq!(
+                helper_query.dependencies[0].ty,
+                ResolvedType::Scalar(Scalar::User)
+            );
+            assert_eq!(
+                helper_query.dependencies[4].type_id,
+                "rent_catalog.Location[]"
+            );
+            assert!(helper_query.dependencies.iter().all(|read| read.role
+                == DependencyRole::Control
+                && read.source == helper_query.source
+                && read.calls.len() == 1
+                && read.query_id.is_none()));
+            assert_eq!(helper_query.influences.len(), 4);
+            assert!(
+                helper_query
+                    .influences
+                    .iter()
+                    .all(|influence| influence.source == helper_query.source
+                        && influence.query_id.as_ref() == Some(&helper_query.id))
+            );
             let mut query_call = None;
             for site in requires {
                 let outer = site
@@ -16121,16 +16529,25 @@ package crm
                             && call.chain.is_empty()
                     })
                     .unwrap();
-                assert_eq!(outer.arguments[0].1, ResolvedType::Scalar(Scalar::User));
+                let actor = &outer.arguments[outer.slots[0].unwrap()];
+                let location_argument = &outer.arguments[outer.slots[1].unwrap()];
+                assert_eq!(actor.1, ResolvedType::Scalar(Scalar::User));
+                if variant == 2 {
+                    assert_eq!(outer.slots, [Some(1), Some(0)]);
+                    assert_eq!(
+                        outer.arguments[0].0, location_argument.0,
+                        "authored argument order is retained"
+                    );
+                }
                 assert_eq!(
-                    outer.arguments[1].1,
+                    location_argument.1,
                     ResolvedType::Record {
                         symbol: location,
                         stored: true
                     }
                 );
                 let nested = site.calls.iter().find(|call| matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "any")).unwrap();
-                assert_eq!(nested.source.module, "employee");
+                assert_eq!(nested.source.module, helper_module);
                 let [frame] = nested.chain.as_slice() else {
                     panic!("one original helper call frame")
                 };
@@ -16143,8 +16560,27 @@ package crm
                         .is_none(),
                     "source inventory grants no query authorization"
                 );
-                let argument = outer.arguments[1].0;
+                let argument = location_argument.0;
                 if site.stage == CheckedDecisionStage::LeadingRequire {
+                    assert_eq!(
+                        helper_query.inputs,
+                        [(
+                            argument,
+                            scenario
+                                .params
+                                .iter()
+                                .find(|parameter| resolve.symbols[parameter.param.0 as usize].name
+                                    == "input")
+                                .unwrap()
+                                .param
+                        )]
+                    );
+                    assert!(
+                        helper_query
+                            .dependencies
+                            .iter()
+                            .all(|read| read.calls == [outer.node])
+                    );
                     assert_eq!(
                         cx.checked_contract_input_reference(argument, scenario.module)
                             .map(|(_, model, _)| model),
@@ -16192,7 +16628,38 @@ package crm
                     make!(&changed).checked_stored_contracts(scenario).is_none(),
                     "query metadata mutation {mutation} refuses census"
                 );
+                assert!(
+                    make!(&changed)
+                        .checked_helper_any_query_sources(scenario)
+                        .is_none(),
+                    "query metadata mutation {mutation} refuses the helper query producer"
+                );
             }
+            let mut changed = types.clone();
+            changed.symbol_types.insert(
+                helper_query.dependencies[0].field,
+                ResolvedType::Scalar(Scalar::Text),
+            );
+            assert!(
+                make!(&changed)
+                    .checked_helper_any_query_sources(scenario)
+                    .is_none(),
+                "mandatory first User read must retain its original field type"
+            );
+            let mut changed = types.clone();
+            let original_domain = changed.checked_queries[&helper_query.node].domain;
+            changed
+                .checked_queries
+                .get_mut(&helper_query.node)
+                .unwrap()
+                .domain
+                .start = original_domain.start + 1;
+            assert!(
+                make!(&changed)
+                    .checked_helper_any_query_sources(scenario)
+                    .is_none(),
+                "source query domain occurrence cannot be substituted"
+            );
         }
     }
 
