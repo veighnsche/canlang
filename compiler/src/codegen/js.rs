@@ -2776,8 +2776,10 @@ fn is_ui_factory(factory: &str) -> bool {
             | "renderActionScope"
             | "primaryActions"
             | "actions"
+            | "accordion"
             | "alert"
             | "badge"
+            | "board"
             | "breadcrumbs"
             | "button"
             | "calendar"
@@ -2787,9 +2789,12 @@ fn is_ui_factory(factory: &str) -> bool {
             | "collapse"
             | "content"
             | "copy"
+            | "countdown"
             | "deleteRecord"
+            | "diff"
             | "divider"
             | "drawer"
+            | "dropdown"
             | "edit"
             | "fab"
             | "fieldset"
@@ -2807,17 +2812,21 @@ fn is_ui_factory(factory: &str) -> bool {
             | "modal"
             | "pagination"
             | "progress"
+            | "radialProgress"
             | "range"
             | "renderState"
             | "radio"
             | "select"
             | "stat"
             | "status"
+            | "steps"
+            | "swap"
             | "table"
             | "tabs"
             | "text"
             | "textarea"
             | "title"
+            | "toggle"
             | "tooltip"
             | "validator"
     )
@@ -2847,7 +2856,31 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "order"
                 | "search"
                 | "count"
+                | "filter"
+                | "defaults"
         ),
+        "board" => matches!(
+            key,
+            "model"
+                | "parent"
+                | "where"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "columns"
+                | "order"
+                | "search"
+                | "count"
+                | "filter"
+                | "defaults"
+                | "by"
+        ),
+        "copy" => matches!(key, "value" | "label" | "id"),
+        "toggle" => key == "field",
+        "swap" => key == "active",
+        "steps" => key == "items",
+        "countdown" => matches!(key, "value" | "caption"),
+        "radialProgress" => matches!(key, "value" | "max" | "caption"),
         "gallery" => matches!(
             key,
             "model"
@@ -9961,6 +9994,21 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr("unsupported table filter profile");
         }
+        if matches!(node.factory.as_str(), "list" | "board")
+            && node
+                .props
+                .iter()
+                .any(|(key, _)| matches!(key.as_str(), "filter" | "defaults"))
+            && !collection_filter_props_are_valid(self.ir, node)
+        {
+            let what = format!("{} filters", node.factory);
+            self.unsupported(
+                &what,
+                "enum fields and defaults need matching owned declarations and data-only where",
+                node.span,
+            );
+            return self.throw_expr("unsupported collection filter profile");
+        }
         if node.factory == "gallery" && !collection_filter_props_are_valid(self.ir, node) {
             self.unsupported(
                 "gallery",
@@ -9997,7 +10045,7 @@ impl<'a> Emitter<'a> {
                 {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
-                "field" if node.factory == "checkbox" => {
+                "field" if node.factory == "checkbox" || node.factory == "toggle" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
                 }
                 "kind" | "field" if node.factory == "calendar" => {
@@ -10265,6 +10313,8 @@ impl<'a> Emitter<'a> {
                     || node.props.iter().any(|(key, value)| {
                         key == "page" && matches!(value.expr, IrExpr::Bool(true))
                     })))
+            || (node.factory == "board"
+                && node.props.iter().any(|(key, _)| key == "filter"))
         {
             // A URL locator names this source collection occurrence. The
             // owning factory selects only from its fresh authorized result.
@@ -10339,7 +10389,7 @@ impl<'a> Emitter<'a> {
             } else if key == "order"
                 && matches!(
                     node.factory.as_str(),
-                    "list" | "table" | "gallery" | "calendar"
+                    "list" | "table" | "gallery" | "calendar" | "board"
                 )
                 && let Some(dispatched) = self.lower_dispatched_order(value)
             {
@@ -10584,7 +10634,7 @@ impl<'a> Emitter<'a> {
                         })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
-                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer") {
+                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer" | "dropdown" | "swap" | "diff") {
                     // The actual factories consume named slot props, not
                     // children or a standalone slot factory. Keep authored
                     // slot order and evaluate each descendant exactly once.

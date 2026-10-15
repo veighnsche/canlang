@@ -658,6 +658,10 @@ export interface ListProps {
   readonly columns?: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  /** Checked owning enum filter declarations, not granted row metadata. */
+  readonly filter?: readonly ColumnMeta[];
+  /** Initial selections only; explicit request selection or clear wins. */
+  readonly defaults?: Readonly<Record<string, string | null>>;
   readonly order?: readonly string[];
   readonly search?: readonly string[];
   /** One source-owned list summary, outside renderRow. */
@@ -1849,6 +1853,10 @@ export interface BoardProps {
   readonly columns: readonly string[];
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  /** Checked owning enum filter declarations, not granted row metadata. */
+  readonly filter?: readonly ColumnMeta[];
+  /** Initial selections only; explicit request selection or clear wins. */
+  readonly defaults?: Readonly<Record<string, string | null>>;
   readonly limit?: number;
   readonly cursor?: string;
   readonly empty: MessageValue;
@@ -2020,7 +2028,8 @@ export type HistoryProps = {
 export interface CopyProps {
   readonly context: PresentationContext;
   readonly value: string;
-  readonly label: MessageValue;
+  /** Omission labels the value with itself; explicit empty labels throw. */
+  readonly label?: MessageValue;
   readonly id?: string;
 }
 
