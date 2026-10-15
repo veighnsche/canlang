@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { CompileArtifact } from '@canlang/contracts';
+import type { ArtifactRuntimeBinding, CompileArtifact } from '@canlang/contracts';
 import type { SingleFileCapture } from '../src/dev/source-capture.js';
 
 const mocks = vi.hoisted(() => ({ start: vi.fn(), close: vi.fn(), dispose: vi.fn(), activate: vi.fn() }));
@@ -11,14 +11,16 @@ vi.mock('../src/dev/preview-bridge.js', () => ({ startProtectedPreview: async ()
 vi.mock('../src/dev/source-capture.js', () => ({ captureIsCurrent: async () => true,
   verifyCompilerSources: () => ({ ok: true }) }));
 vi.mock('../src/deploy/bundle.js', () => ({ assertLinksResolve: () => {}, assertWorkerdLoadable: () => {},
-  bundleMixedSha256: () => 'mixed', inventorizeAssets: () => [] }));
+  bundleMixedSha256: () => 'mixed', inventorizeAssets: () => [], generatedStyleResources: () => ({}) }));
 import { createLocalPreviewBuilder } from '../src/dev/preview-builder.js';
 
 const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 afterEach(() => vi.clearAllMocks());
 
-async function setup(models: unknown[] | undefined, active = true, operations: unknown[] = [{}], pages: unknown[] = [{}]) {
-  const artifact = { ...(models === undefined ? {} : { models }), sources: [], operations, pages, callables: [], requires: [] } as unknown as CompileArtifact;
+async function setup(models: unknown[] | undefined, active = true, operations: unknown[] = [{}], pages: unknown[] = [{}], runtimeBindings?: ArtifactRuntimeBinding[]) {
+  const sourceBindings = runtimeBindings === undefined ? {} : { runtimeBindings, modules: [{ path: 'app.js', js:
+    `export const appDefinition={id:"Office",runtimeBindingOwners:["Office"],runtimeBindings:${JSON.stringify(runtimeBindings)}};` }] };
+  const artifact = { ...sourceBindings, ...(models === undefined ? {} : { models }), sources: [], operations, pages, callables: [], requires: [] } as unknown as CompileArtifact;
   const capture = { profile: 'local-d1-identity', epochMaterial: 'epoch', inputs:
     ['compiler', 'catalog', 'help-index', 'package:worker'].map(name => ({ name, state: 'present', canonicalPath: '/fixture', sha256: hash('input'), bytes: 5 }))
   } as unknown as SingleFileCapture;
@@ -35,8 +37,12 @@ async function setup(models: unknown[] | undefined, active = true, operations: u
     if (!dbs.has(binding)) dbs.set(binding, { binding });
     return dbs.get(binding);
   });
+  const r2Objects = new Map<string, string>();
+  const bucket = { put: vi.fn(async (key: string, value: string) => { r2Objects.set(key, value); }),
+    get: vi.fn(async (key: string) => r2Objects.has(key) ? { text: async () => r2Objects.get(key)! } : null),
+    delete: vi.fn(async (key: string) => { r2Objects.delete(key); }) };
   const probeReached = new Error('probe reached');
-  mocks.start.mockImplementation(async () => ({ getD1Database, dispose: mocks.dispose,
+  mocks.start.mockImplementation(async () => ({ getD1Database, getR2Bucket: async () => bucket, dispose: mocks.dispose,
     dispatchUrl: () => { throw probeReached; } }));
   // DB readiness is deliberately the first post-activation probe.
   dbs.set('DB', { prepare: () => ({ first: () => { throw probeReached; } }) });
@@ -56,7 +62,7 @@ async function setup(models: unknown[] | undefined, active = true, operations: u
         mixedSha256: 'mixed', mcpBundleBytes: 3, httpOperationsBytes: 3 } as never }),
   });
   const failure = await build(artifact, capture, new TextEncoder().encode(JSON.stringify(artifact))).catch(error => error);
-  return { failure, probeReached, confirm, getD1Database, dbs, owners };
+  return { failure, probeReached, confirm, getD1Database, dbs, owners, bucket, r2Objects };
 }
 
 it('model-free preview configures only global DB and confirms its real activation before probes', async () => {
@@ -174,11 +180,38 @@ it('page-only preview still refuses inactive serving global D1', async () => {
   expect(result.confirm).toHaveBeenCalledTimes(1);
 });
 
-it('an app without any page still refuses before activation or Worker allocation', async () => {
+it('an app without any page or operation refuses before activation or Worker allocation', async () => {
   const result = await setup([], true, [], []);
   expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'PROFILE_UNSUPPORTED' });
   expect(result.failure.message).toContain('at least one page');
   expect(mocks.activate).not.toHaveBeenCalled();
   expect(mocks.start).not.toHaveBeenCalled();
   expect(result.confirm).not.toHaveBeenCalled();
+});
+
+it('an API-only app reaches the real activation and runtime probes without a dummy page', async () => {
+  const result = await setup([], true, [{}], []);
+  expect(result.failure).toBe(result.probeReached);
+  expect(mocks.activate).toHaveBeenCalledOnce();
+  expect(mocks.start).toHaveBeenCalledTimes(2);
+  expect(result.confirm).toHaveBeenCalledOnce();
+});
+
+it('provisions the selected implicit FILES bucket and probes it before offering a preview', async () => {
+  const result = await setup([], true, [], [{}], [{owner:'Office',name:'FILES',binding:'FILES',kind:'r2',implicit:true}]);
+  expect(result.failure).toBe(result.probeReached);
+  const configured = mocks.start.mock.calls[1]![0];
+  expect(configured.r2Buckets).toEqual([{binding:'FILES',id:expect.any(String)}]);
+  expect(configured.r2Persist).toContain('/r2');
+  expect(result.bucket.put).toHaveBeenCalledTimes(1);
+  expect(result.bucket.get).toHaveBeenCalledTimes(2);
+  expect(result.bucket.delete).toHaveBeenCalledTimes(1);
+  expect(result.r2Objects.size).toBe(0);
+});
+
+it('reports a missing real service implementation before activation or Worker allocation', async () => {
+  const result = await setup([], true, [], [{}], [{owner:'Office',name:'Mailer',binding:'Office.Mailer',kind:'service',from:'mail-service',capability:'Mail.send'}]);
+  expect(result.failure).toMatchObject({ code:'SERVICE_IMPLEMENTATION_UNAVAILABLE' });
+  expect(mocks.activate).not.toHaveBeenCalled();
+  expect(mocks.start).not.toHaveBeenCalled();
 });

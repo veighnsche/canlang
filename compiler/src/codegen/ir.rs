@@ -117,6 +117,7 @@ pub struct IrModule {
     pub span: Span,
     /// `use` imports in source order.
     pub imports: Vec<IrImport>,
+    pub runtime_bindings: Vec<super::runtime_bindings::RuntimeBinding>,
     /// Composed-app `uses` member names in source order.
     pub uses: Vec<String>,
     /// Resolved `uses` member names in source order.
@@ -239,6 +240,7 @@ pub enum IrItemKind {
         recipe: Option<IrFixture>,
     },
     Scenario {
+        root_authority: Option<crate::analysis::effects::RootAuthority>,
         params: Vec<SymbolId>,
         trusted: bool,
         /// Checked declared event identity for the ordinary trusted handler.
@@ -1700,9 +1702,13 @@ impl IrDeleteMode {
 }
 
 /// Checked trusted handler identity and finite payload authority.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IrEventSource {
     Declared(String),
+    Queue {
+        source: String,
+        payload: ResolvedType,
+    },
     DeliveryProgressed(String),
     /// Original removed-account payload, separate from removing attribution.
     TeamsMemberRemoved,
@@ -5014,6 +5020,17 @@ impl<'a> Cx<'a> {
                         span: i.span,
                     })
                     .collect(),
+                runtime_bindings: self.program.types.runtime_bindings.get(&m.id).into_iter().flatten().map(|declaration| {
+                    use crate::analysis::types::CheckedRuntimeBinding as Checked;
+                    use super::runtime_bindings::{RuntimeBinding, RuntimeBindingDeclaration as Decl, RuntimeBindingField};
+                    let (name, declaration) = match declaration {
+                        Checked::DurableObject { name, key } => (name.clone(), Decl::DurableObject { key: self.canonical(*key) }),
+                        Checked::Queue { name, payload } => (name.clone(), Decl::Queue { r#type: self.type_id(payload), resolved_type: payload.clone(), handlers: self.program.symbols.iter().filter(|symbol| symbol.module == m.id && self.program.effects.scenarios.get(&symbol.id).is_some_and(|scenario| matches!(&scenario.on, Some(crate::analysis::effects::HandlerSource::Queue { name: queue }) if queue == name))).map(|symbol| symbol.canonical.clone()).collect() }),
+                        Checked::Cache { ttl_milliseconds } => ("KV".to_string(), Decl::Cache { ttl_milliseconds: ttl_milliseconds.to_string() }),
+                        Checked::Analytics { name, fields } => (name.clone(), Decl::Analytics { schema: fields.iter().map(|(name, ty)| RuntimeBindingField { name: name.clone(), r#type: self.type_id(ty) }).collect() }),
+                    };
+                    RuntimeBinding { owner: m.name.clone(), binding: format!("{}.{}", m.name, name), name, declaration }
+                }).collect(),
                 uses: m.uses.clone(),
                 uses_resolved: m
                     .uses_resolved
@@ -5394,6 +5411,12 @@ impl<'a> Cx<'a> {
                     event_source,
                 ) = self.decode_scenario(symbol);
                 IrItemKind::Scenario {
+                    root_authority: self
+                        .program
+                        .effects
+                        .scenarios
+                        .get(&symbol.id)
+                        .and_then(|scenario| scenario.root_authority.clone()),
                     params: params.clone(),
                     trusted: *trusted,
                     event_source,
@@ -9394,7 +9417,7 @@ impl<'a> Cx<'a> {
         IrStmt::Delete { record, mode, span }
     }
 
-    /// Decode a `send` effect (queue/analytics targets have no lowering).
+    /// Decode a `send` effect through the existing staged outbox ABI.
     fn decode_send(
         &mut self,
         scope: &Scope,
@@ -9402,6 +9425,33 @@ impl<'a> Cx<'a> {
         what: &str,
         span: Span,
     ) -> IrStmt {
+        let sink = match &effect.target {
+            Some(crate::analysis::effects::EffectTarget::Queue { queue, op })
+                if op == "publish" =>
+            {
+                Some((queue, op))
+            }
+            Some(crate::analysis::effects::EffectTarget::Analytics { sink, op })
+                if op == "write" =>
+            {
+                Some((sink, op))
+            }
+            _ => None,
+        };
+        if let Some((name, op)) = sink {
+            let owner = &self.program.modules[scope.module.0 as usize].name;
+            return IrStmt::Send {
+                operation: format!("{owner}.{name}.{op}"),
+                deployment_binding: Some(format!("{owner}.{name}")),
+                args: self.effect_args_object(scope, effect),
+                when: effect
+                    .when
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} send guard"))),
+                binding: effect.binding.clone(),
+                span,
+            };
+        }
         let operation = match &effect.target {
             Some(crate::analysis::effects::EffectTarget::Operation(id)) => {
                 Some(self.canonical(*id))
@@ -10006,6 +10056,25 @@ impl<'a> Cx<'a> {
                 .name_types
                 .insert("event".into(), fact.payload.clone());
         }
+        if let Some(crate::analysis::effects::HandlerSource::Queue { name }) = &data.on {
+            if let Some(payload) = self
+                .program
+                .types
+                .runtime_bindings
+                .get(&symbol.module)
+                .into_iter()
+                .flatten()
+                .find_map(|binding| match binding {
+                    crate::analysis::types::CheckedRuntimeBinding::Queue {
+                        name: declared,
+                        payload,
+                    } if declared == name => Some(payload.clone()),
+                    _ => None,
+                })
+            {
+                scope.name_types.insert("event".into(), payload);
+            }
+        }
         // Adapter completions carry the DESIGN §8 envelope even when the
         // member checker does not retain a contextual receiver node.
         if let Some(crate::analysis::effects::HandlerSource::DeliveryCompleted { op, .. }) =
@@ -10050,6 +10119,26 @@ impl<'a> Cx<'a> {
                 }
                 self.standard_completion_source(symbol.id)
             }
+            Some(crate::analysis::effects::HandlerSource::Queue { name }) => self
+                .program
+                .types
+                .runtime_bindings
+                .get(&symbol.module)
+                .into_iter()
+                .flatten()
+                .find_map(|binding| match binding {
+                    crate::analysis::types::CheckedRuntimeBinding::Queue {
+                        name: declared,
+                        payload,
+                    } if declared == name => Some(IrEventSource::Queue {
+                        source: format!(
+                            "{}.{}",
+                            self.program.modules[symbol.module.0 as usize].name, name
+                        ),
+                        payload: payload.clone(),
+                    }),
+                    _ => None,
+                }),
             Some(crate::analysis::effects::HandlerSource::Event(event)) => {
                 if let Some(bind) = data.cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
                     && let SymbolKind::Event { fields } =

@@ -121,9 +121,11 @@ function snapshotReceiver(value: unknown): ReceivingContext | null {
 }
 
 function snapshotRetention(value: unknown): FileRetentionPolicy | null {
-  const record = ownData(value, ['unattachedHorizonMs', 'retentionMs']);
-  if (record === null || !milliseconds(record.unattachedHorizonMs) || !milliseconds(record.retentionMs)) return null;
-  return Object.freeze({ unattachedHorizonMs: record.unattachedHorizonMs, retentionMs: record.retentionMs });
+  const extended = typeof value === 'object' && value !== null && Object.hasOwn(value, 'retainAttached');
+  const record = ownData(value, ['unattachedHorizonMs', 'retentionMs', ...(extended ? ['retainAttached'] : [])]);
+  if (record === null || !milliseconds(record.unattachedHorizonMs) || !milliseconds(record.retentionMs) || extended && record.retainAttached !== true) return null;
+  return Object.freeze({ unattachedHorizonMs: record.unattachedHorizonMs, retentionMs: record.retentionMs,
+    ...(extended ? { retainAttached: true as const } : {}) });
 }
 
 function snapshotProvenance(value: unknown): RetainedFinalizedFile['provenance'] | null {
@@ -164,7 +166,12 @@ function snapshotRetained(value: unknown): RetainedFinalizedFile | null {
 
 function withinFileLifetime(stored: StoredFileRecord, now: number, retention: FileRetentionPolicy): boolean {
   const elapsed = BigInt(now) - BigInt(stored.finalizedAtMs);
-  if (elapsed < 0n || elapsed >= BigInt(retention.retentionMs)) return false;
+  if (elapsed < 0n) return false;
+  const timelyAttachment = stored.state === 'attached' && milliseconds(stored.attachedAtMs) &&
+    stored.attachedAtMs >= stored.finalizedAtMs && stored.attachedAtMs <= now &&
+    BigInt(stored.attachedAtMs) - BigInt(stored.finalizedAtMs) < BigInt(retention.unattachedHorizonMs);
+  if (retention.retainAttached === true && timelyAttachment) return true;
+  if (elapsed >= BigInt(retention.retentionMs)) return false;
   if (elapsed < BigInt(retention.unattachedHorizonMs)) return true;
   // The marker alone cannot prove a timely attachment. Clockless legacy marks
   // and marks made at/after the deadline do not revive an expired file profile.

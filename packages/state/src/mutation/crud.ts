@@ -318,6 +318,8 @@ export function crudExecute(
 
 /** `generatedCrudExecute` wiring: model table and target store (multi-model). */
 export interface GeneratedCrudExecuteInput {
+  /** Trusted physical owner allocator; receipt identity remains unchanged. */
+  readonly allocateRecordId?: (model: string, index: number) => string;
   readonly table: ModelTable;
   readonly store: StoragePort;
   /** Existing late pipeline conversion for checked field associations. */
@@ -555,7 +557,9 @@ function buildGeneratedCrudExecutor(
       generatedCrud: generatedCrudAssociation(write.model, row, secretFields) };
   };
   return async (call: AdmittedCall): Promise<ExecutionEffects> =>
-    executeWrite(call, prepareGeneratedCrudWrite(table, call));
+    executeWrite(call, prepareGeneratedCrudWrite(table, call,
+      input.allocateRecordId !== undefined && isGeneratedOperationDef(call.def) && call.def.descriptor.kind === 'create'
+        ? input.allocateRecordId(generatedCreateModel(call.def, table), 0) as RecordId : undefined));
 }
 
 /** The same admitted target/ref selection serves root and enclosing-owner CRUD. */

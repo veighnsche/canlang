@@ -186,6 +186,28 @@ test("acceptance failure or mutation of frozen/live inputs refuses success and r
   });
 });
 
+test("installed source validation keeps the external app root and selects the installation tooling", async () => {
+  await fixture(async (root, file) => {
+    const installation = join(root, "installed-tooling"), previous = process.env.CAN_INSTALL_ROOT;
+    process.env.CAN_INSTALL_ROOT = installation;
+    try {
+      const ctx = context(root); delete ctx.workspace;
+      let checked = false;
+      ctx.appAcceptance = async input => {
+        assert.equal(input.workspace, installation);
+        assert.equal(input.root, root);
+        assert.ok(relative(root, input.candidateRoot).startsWith(".can/"));
+        checked = true;
+      };
+      const result = await sourceWorkflow(args(file), ctx);
+      assert.equal(result.code, 0, result.envelope); assert.equal(checked, true);
+    } finally {
+      if (previous === undefined) delete process.env.CAN_INSTALL_ROOT;
+      else process.env.CAN_INSTALL_ROOT = previous;
+    }
+  });
+});
+
 test("generation defaults to accepted prepare, retry composes accepted retry, and incomplete candidates fail", async () => {
   await fixture(async (root, file) => {
     for (const retry of [false, true]) {

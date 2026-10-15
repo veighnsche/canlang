@@ -1,5 +1,5 @@
 import type { CompileArtifact, FileRetentionPolicy, RetainedFinalizedFile, RecordVersion, ResolvedIdentity, StoragePort } from '@canlang/contracts';
-import type { FinalizedStorePort, StoredFileRecord } from '@canlang/files/ports';
+import type { StoredFileRecord } from '@canlang/files/ports';
 import { readFinalizedFileObservation } from '@canlang/files/finalize';
 import { StateError } from '@canlang/state';
 import { detectContentType } from '@canlang/files/upload';
@@ -28,6 +28,7 @@ export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?
   const policy = retention === undefined ? undefined : Object.freeze({
     unattachedHorizonMs: retention.unattachedHorizonMs,
     retentionMs: retention.retentionMs,
+    ...(retention.retainAttached === true ? { retainAttached: true as const } : {}),
   });
   const files: CanonicalFileBinding = {
     async observe(ref, identity, app) {
@@ -43,6 +44,10 @@ export function createCanonicalFileBinding(kernel: FileJourneyKernel, retention?
       const receiver = receiverFromIdentity(app, identity);
       const decision = await kernel.authorizeAttach(ref, receiver);
       if (decision.status !== 'authorized' || decision.ref !== ref) return false;
+      if (policy !== undefined) {
+        const current = await kernel.readCurrentSnapshot(ref, receiver, policy);
+        return current?.facts.ref === ref && current.bytes.byteLength === current.facts.sizeBytes;
+      }
       const metadata = await kernel.readProvenance(ref, receiver);
       const bytes = await kernel.readBytes(ref, receiver);
       return metadata?.id === ref && bytes !== null && bytes.byteLength === metadata.sizeBytes;
@@ -94,7 +99,7 @@ export interface BoundFileHandlerOpts {
   readonly clock: { nowMs(): number };
   readonly upload: UploadDeps & { readonly kernel: FileJourneyKernel };
   /** Genuine receiving store; saved receiver facts convey no disclosure grant. */
-  readonly physicalFiles: Pick<FinalizedStorePort, 'get'>;
+  readonly physicalFiles: { get(ref: string): StoredFileRecord | null | Promise<StoredFileRecord | null> };
   readonly retention: FileRetentionPolicy;
   readonly fileReferenceBounds?: { readonly maxRows: number; readonly maxReferences: number };
 }
@@ -175,7 +180,7 @@ export function createBoundFileReadResolver(opts: BoundFileHandlerOpts) {
         app: caller.app, bounds, locator: { model, recordId: id, field, ref: first.id,
           rowVersion: first.version, ...(locator.path === undefined ? {} : { path: locator.path }) } },
         async slot => {
-          const stored = opts.physicalFiles.get(slot.ref);
+          const stored = await opts.physicalFiles.get(slot.ref);
           if (stored?.file.id !== slot.ref || stored.owner.app !== scope.app ||
               stored.owner.team !== scope.team || stored.owner.owner !== scope.owner) return null;
           const checkpoint = physicalCheckpoint(stored);
@@ -187,7 +192,7 @@ export function createBoundFileReadResolver(opts: BoundFileHandlerOpts) {
               (['app', 'team', 'owner', 'principal'] as const).some(key => snapshot.facts.receiver[key] !== receiver[key])) return null;
           // Refuse physical metadata drift across the asynchronous host seam.
           // This checkpoint is neither a cross-store lock nor a deletion fence.
-          const latestPhysical = opts.physicalFiles.get(slot.ref);
+          const latestPhysical = await opts.physicalFiles.get(slot.ref);
           if (latestPhysical === null || physicalCheckpoint(latestPhysical) !== checkpoint) return null;
           physical.facts = snapshot.facts;
           physical.checkpoint = checkpoint;
@@ -203,10 +208,23 @@ export function createBoundFileReadResolver(opts: BoundFileHandlerOpts) {
       const latest = await authorized(latestIdentity);
       if (latest === null || latest.id !== first.id || latest.version !== first.version ||
           latest.revision !== first.revision) return null;
-      const disclosedPhysical = opts.physicalFiles.get(first.id);
+      const disclosedPhysical = await opts.physicalFiles.get(first.id);
       if (disclosedPhysical === null || physicalCheckpoint(disclosedPhysical) !== physical.checkpoint) return null;
       return Object.freeze({ bytes, metadata });
   } });
+}
+
+/** One grammar shared by host root routing and the protected owning handler. No parser result conveys authority. */
+export function parseBoundFileReadRequest(request: Request): { readonly preview: boolean; readonly locator: BoundFileReadLocator } | null {
+  const pathname = new URL(request.url).pathname;
+  const preview = pathname.startsWith('/files/preview/'), prefix = preview ? '/files/preview/' : '/files/read/';
+  if (request.method !== 'GET' || !pathname.startsWith(prefix)) return null;
+  const parts = pathname.slice(prefix.length).split('/');
+  if ((preview ? parts.length !== 4 : parts.length !== 3 && parts.length !== 4) || parts.some(part => part === '')) return null;
+  try {
+    const [model, recordId, field, ref] = parts.map(decodeURIComponent) as [string, string, string, string?];
+    return { preview, locator: { model, recordId, field, ...(ref === undefined ? {} : { ref }) } };
+  } catch { return null; }
 }
 
 /** Native host join; upload routing/authentication remains owned by Interfaces. */
@@ -214,16 +232,11 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
   const resolver = createBoundFileReadResolver(opts);
   return async request => {
     const pathname = new URL(request.url).pathname;
-    const preview = pathname.startsWith('/files/preview/');
-    const prefix = preview ? '/files/preview/' : '/files/read/';
-    if (!preview && !pathname.startsWith(prefix)) return handleUploadRequest(opts.upload, request);
-    if (request.method !== 'GET' || !opts.upload.files.usesFiles(opts.upload.app)) return notFound();
-    const parts = pathname.slice(prefix.length).split('/');
-    if ((preview ? parts.length !== 4 : parts.length !== 3 && parts.length !== 4) ||
-        parts.some(part => part === '')) return notFound();
-    let model: string, id: string, field: string, requestedRef: string | undefined;
-    try { [model, id, field, requestedRef] = parts.map(decodeURIComponent) as [string, string, string, string?]; }
-    catch { return notFound(); }
+    if (!pathname.startsWith('/files/read/') && !pathname.startsWith('/files/preview/')) return handleUploadRequest(opts.upload, request);
+    if (!opts.upload.files.usesFiles(opts.upload.app)) return notFound();
+    const parsed = parseBoundFileReadRequest(request);
+    if (parsed === null) return notFound();
+    const { preview, locator } = parsed;
     const resolveCaller = async (): Promise<ResolvedIdentity> => {
       const bearer = /^Bearer\s+([^\s]+)$/i.exec(request.headers.get('authorization') ?? '');
       if (bearer !== null) {
@@ -237,8 +250,7 @@ export function createBoundFileHandler(opts: BoundFileHandlerOpts): (request: Re
       return resolved.identity;
     };
     try {
-      const resolved = await resolver.read({ model, recordId: id, field,
-        ...(requestedRef === undefined ? {} : { ref: requestedRef }) }, resolveCaller);
+      const resolved = await resolver.read(locator, resolveCaller);
       if (resolved === null) return notFound();
       const { bytes, metadata } = resolved;
       if (preview) {

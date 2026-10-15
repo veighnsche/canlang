@@ -99,12 +99,16 @@ export function checkRetainedScenarioFile(value: unknown): RetainedFinalizedFile
     provenance = { kind, source: text(source['source']), adapter: text(source['adapter']), occurrenceId: text(source['occurrenceId']),
       fieldPath: text(source['fieldPath']), itemIndex: integer(source['itemIndex']) };
   } else return invalid('supported File provenance required.');
-  const policy = object(record['retention'], ['unattachedHorizonMs', 'retentionMs']);
+  const retention = record['retention'];
+  const retainsAttached = typeof retention === 'object' && retention !== null && Object.hasOwn(retention, 'retainAttached');
+  const policy = object(retention, ['unattachedHorizonMs', 'retentionMs', ...(retainsAttached ? ['retainAttached'] : [])]);
+  if (retainsAttached && policy['retainAttached'] !== true) return invalid('retainAttached must be the explicit true policy.');
   const digest = record['bytesDigest'];
   if (typeof digest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(digest)) return invalid('exact File bytes digest required.');
   return deepFreeze({ ref: ref(record['ref']), receiver: receiving, provenance, contentType: text(record['contentType']),
     sizeBytes: integer(record['sizeBytes']), bytesDigest: digest, finalizedAtMs: integer(record['finalizedAtMs']),
-    retention: { unattachedHorizonMs: integer(policy['unattachedHorizonMs']), retentionMs: integer(policy['retentionMs']) } });
+    retention: { unattachedHorizonMs: integer(policy['unattachedHorizonMs']), retentionMs: integer(policy['retentionMs']),
+      ...(retainsAttached ? { retainAttached: true as const } : {}) } });
 }
 
 export function readLiveScenarioFile(observation: unknown, expectedReceiver: FinalizedFileReceiver): RetainedFinalizedFile | null {

@@ -23,14 +23,14 @@ vi.mock("../src/deploy/producer-files.js", () => ({
 vi.mock("node:child_process", async (original) => ({
   ...await original<typeof import("node:child_process")>(),
   execFileSync: (_command: string, args: string[]) => {
-    const phase = args[1]?.includes("mcp-bundle") ? "mcp" : "http";
+    const phase = args[3]?.includes("mcp-bundle") ? "mcp" : "http";
     controls.events.push(phase);
-    const output = args.find((arg) => arg.startsWith("--outfile="))?.slice(10);
+    const output = args[4];
     if (output === undefined) throw new Error("missing output argument");
     controls.directories.push(dirname(output));
     writeFileSync(output, controls.drop === phase ? "" : phase === "mcp"
       ? "createMcpHandler createArtifactRegistry createArtifactCatalog IdentityError"
-      : "handleOperationRequest IdentityError");
+      : "receiverFromIdentity handleOperationRequest handlePageRequest handlePagePreferencePost handleAuthRequest parseJsonBody JSON_BODY_MAX_BYTES SESSION_EXPIRES_MS createSourceFormBindings IdentityError");
   },
 }));
 
@@ -71,7 +71,7 @@ describe("preparation shared defining phases", () => {
   it("keeps MCP before HTTP and returns the same phase object fields", () => {
     expect(runMcpBunPhase()).toEqual({
       mcpHandlerJs: "createMcpHandler createArtifactRegistry createArtifactCatalog IdentityError",
-      httpOperationsJs: "handleOperationRequest IdentityError",
+      httpOperationsJs: "receiverFromIdentity handleOperationRequest handlePageRequest handlePagePreferencePost handleAuthRequest parseJsonBody JSON_BODY_MAX_BYTES SESSION_EXPIRES_MS createSourceFormBindings IdentityError",
     });
     expect(controls.events).toEqual([
       "@canlang/interfaces/mcp/server", "@canlang/cloudflare/runtime/mcp-registry", "mcp",
@@ -79,7 +79,7 @@ describe("preparation shared defining phases", () => {
     ]);
   });
 
-  it("stops at a missing MCP producer before either Bun build", () => {
+  it("stops at a missing MCP producer before either esbuild build", () => {
     controls.missingProducer = true;
     expect(() => runMcpBunPhase()).toThrow("missing producer sentinel");
     expect(controls.events).toEqual(["@canlang/interfaces/mcp/server"]);
@@ -89,7 +89,7 @@ describe("preparation shared defining phases", () => {
     controls.drop = phase;
     expect(() => runMcpBunPhase()).toThrow(phase === "mcp"
       ? "MCP bundle build dropped createMcpHandler"
-      : "HTTP bundle build dropped handleOperationRequest");
+      : "HTTP bundle build dropped receiverFromIdentity");
     expect(controls.events.filter((event) => event === "mcp" || event === "http"))
       .toEqual(phase === "mcp" ? ["mcp"] : ["mcp", "http"]);
   });

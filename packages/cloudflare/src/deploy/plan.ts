@@ -37,6 +37,7 @@ export interface WranglerConfig {
   vars: Record<string, string>;
   d1_databases: { binding: string; database_name: string; database_id: string }[];
   r2_buckets: { binding: string; bucket_name: string }[];
+  kv_namespaces?: { binding: string; id: string }[];
   durable_objects: { bindings: { name: string; class_name: string }[] };
   queues: { producers: { binding: string; queue: string }[] };
   services: { binding: string; service: string }[];
@@ -113,6 +114,9 @@ export function buildDeployPlan(
           binding: requirement.binding,
           bucket_name: requirement.logicalName,
         });
+        break;
+      case "kv":
+        (wrangler.kv_namespaces ??= []).push({ binding: requirement.binding, id });
         break;
       case "durable-object":
         wrangler.durable_objects.bindings.push({

@@ -49,6 +49,7 @@ pub mod model_policies;
 pub mod model_policy_profile;
 pub mod model_unique_conditions;
 mod read_predicates;
+pub mod runtime_bindings;
 pub mod scenario_calls;
 mod scenario_create_sources;
 mod scenario_current_revision;
@@ -340,6 +341,7 @@ fn empty_artifact(db: &SourceDb) -> CompileArtifact {
         value_types: None,
         model_policies: None,
         committed_changes: None,
+        runtime_bindings: Vec::new(),
         pages: Vec::new(),
         migrations: Vec::new(),
         requires: Vec::new(),

@@ -1066,7 +1066,8 @@ export interface FrameworkOpaqueEventInputOrigin {
     | { readonly kind: 'source'; readonly sourceOccurrence: OccurrenceId };
   readonly target:
     | { readonly kind: 'schedule' }
-    | { readonly kind: 'handler'; readonly handler: FrameworkOpaqueCallable };
+    | { readonly kind: 'handler'; readonly handler: FrameworkOpaqueCallable }
+    | { readonly kind: 'queue-publication'; readonly intent: Readonly<Pick<OutboxIntent, 'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'>> };
 }
 
 /** Exact adopted owner cohort forms; the original owner and parent are facts,
@@ -1102,6 +1103,12 @@ export interface FrameworkOpaqueSourceRoutingOrigin {
     | { readonly kind: 'scheduled-routes'; readonly event: FrameworkOpaqueEventInputOrigin;
         readonly bounds: { readonly pageLimit: number; readonly chunkSize: number };
         readonly routes: ReadonlyArray<FrameworkOpaqueSourceRoute> }
+    | { readonly kind: 'queued-routes';
+        readonly declaration: Extract<FrameworkOpaqueEventDeclaration, { kind: 'declared-event' }>;
+        readonly originalIntent: Readonly<Pick<OutboxIntent, 'intentId' | 'operation' | 'operationId' | 'target' | 'occurrenceIndex'>>;
+        readonly originalCommit: OriginalOutboxCommit;
+        readonly guard?: FrameworkOpaqueSendGuardOrigin;
+        readonly routes: ReadonlyArray<Extract<FrameworkOpaqueSourceRoute, { kind: 'ordinary' }>> }
     | { readonly kind: 'committed-model'; readonly source: ScenarioReceiptSourceOrigin;
         readonly descriptor: Readonly<ArtifactCommittedChangeDescriptor>;
         readonly change: { readonly model: ModelName; readonly recordId: RecordId;

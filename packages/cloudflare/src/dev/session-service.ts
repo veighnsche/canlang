@@ -15,7 +15,7 @@ import { ExampleRerunCoordinator, type ExampleRerunResult, type CompletedExample
 import { projectBusinessRefusal, projectCompilerFailure, projectExampleFailure, type FailureProjection } from "./failure-occurrence.js";
 import { ConstructRanker, type ConstructRankerOptions, type JevChoiceTransport, type RankResult } from "./jev-ranker.js";
 import { captureConstructEvidence, validAuthorIntent } from './construct-evidence.js';
-import { installedLocalPreviewInputInventory } from "./preview-inputs.js";
+import { installedRoot, installedLocalPreviewInputInventory } from "./preview-inputs.js";
 import { DevRevisionConflictError, DevSessionCore, type DevCheck, type DevPreview } from "./session-core.js";
 import {
   captureSingleFileSource,
@@ -189,6 +189,7 @@ export interface SessionCheckResponse {
   next_diagnostics: string | null;
   preview: "ready" | "unavailable" | "build_failed";
   preview_reason: string | null;
+  preview_error?: string;
   cleanup_warning?: string;
 }
 
@@ -316,7 +317,7 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
   const compiler = capture.inputs.find(input => input.name === "compiler" && input.state === "present");
   const help = capture.inputs.find(input => input.name === "help-index" && input.state === "present");
   if (!compiler?.sha256 || !help?.sha256) throw new Error("construct help compiler or document input is missing");
-  const grammar = capturedInput(capture, "docs/specification/GRAMMAR.md");
+  const grammar = capturedInput(capture, "docs/specification/GRAMMAR.md", /^extra:grammar$/);
   const values = capturedInput(capture, "packages/values/src/catalog.ts",
     /^extra:source:@canlang\/values@[^/]+\/src\/catalog\.ts$/);
   const ui = capturedInput(capture, "packages/ui/src/catalog.ts",
@@ -333,7 +334,7 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
   const profilePolicy = profileGuards.every(inputs => inputs.length === 1)
     ? { sha256: createHash('sha256').update(JSON.stringify(profileGuards.map(inputs => inputs[0]!.sha256))).digest('hex') }
     : undefined;
-  return loadConstructHelpIndex(capture.root, {
+  return loadConstructHelpIndex(installedRoot() ?? capture.root, {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
     values: { sha256: values.sha256, entries: valuesEntries },
     ui: { sha256: ui.sha256, entries: uiEntries },
@@ -446,6 +447,7 @@ function checkResponse(
     preview_reason: publication.kind === "build_failed"
       ? (hasBuilder ? "preview_build_failed" : "preview_builder_unavailable")
       : !check.passed ? "check_not_passed" : null,
+    ...(publication.kind === "build_failed" ? { preview_error: short(publication.error, MAX_REASON) } : {}),
     ...(publication.kind === "checked" && publication.cleanupError !== undefined
       ? { cleanup_warning: "PREVIOUS_PREVIEW_DISPOSE_FAILED" } : {}),
   };

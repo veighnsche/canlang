@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Window } from "happy-dom";
 import type { CompileArtifact } from "@canlang/contracts";
 import { ARTIFACT_MODULE, HTTP_ASSETS_MODULE, buildDeployBundleWithAssets } from "../src/deploy/bundle.js";
 
@@ -38,6 +39,34 @@ describe("selected browser resource transport", () => {
     expect(first.modules[HTTP_ASSETS_MODULE]).toContain("browser assets: selected resource integrity mismatch");
     expect(first.modules[HTTP_ASSETS_MODULE]).toContain("browser assets: selected page collides");
     for (const key of Object.keys(first.resources)) expect(first.modules[key]).toBeUndefined();
+  }, 30_000);
+
+  it("executes the saved-view browser mount with no Bun or other PATH tools", async () => {
+    const artifact = fixture();
+    artifact.modules.push({ path: "can.generated/tile/view.js", map: artifact.modules[0]!.map,
+      js: 'export function render() { throw new Error("SERVER_ONLY_RENDER"); } export function mount(root) { root.setAttribute("data-mounted", "yes"); return () => root.removeAttribute("data-mounted"); }' });
+    artifact.generatedViews = [{ view: "Tile", module: "can.generated/tile/view.js", renderExport: "render", mountExport: "mount" }];
+    const previousPath = process.env.PATH;
+    let bundle: ReturnType<typeof buildDeployBundleWithAssets>;
+    try {
+      process.env.PATH = "";
+      bundle = buildDeployBundleWithAssets(artifact, { verdict: { active: true }, assets: { browser: true } });
+    } finally {
+      if (previousPath === undefined) delete process.env.PATH;
+      else process.env.PATH = previousPath;
+    }
+    const client = new TextDecoder().decode(bundle.resources["browser/bootstrap.js"]!.bytes);
+    expect(client).not.toContain("SERVER_ONLY_RENDER");
+    const window = new Window({ url: "https://can.test/ordinary" });
+    try {
+      const root = window.document.createElement("div");
+      root.setAttribute("data-can-view", "tile-1");
+      root.setAttribute("data-can-view-presentation", JSON.stringify({ view: "Tile", useId: "tile-1", row: { id: "one", fields: {} } }));
+      window.document.body.append(root);
+      window.eval(client);
+      window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
+      expect(root.getAttribute("data-mounted")).toBe("yes");
+    } finally { await window.happyDOM.close(); }
   }, 30_000);
 
   it("does not manufacture a mount when browser resources are unselected", () => {

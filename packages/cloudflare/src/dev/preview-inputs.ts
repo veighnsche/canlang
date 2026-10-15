@@ -1,9 +1,10 @@
+import { browserToolsRoot } from './browser-tools.js';
 /** Installed, file-level inputs for the portable local preview producer. */
 import type { ChromiumProducer } from "@canlang/contracts/browser/chromium";
 import { accessSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { constants } from "node:fs";
 import { createRequire } from "node:module";
-import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { captureInputs, type CapturedFileIdentity, type NamedInputPath, type SingleFileCaptureRequest } from "./source-capture.js";
 
@@ -28,6 +29,14 @@ const RUNTIME_FILE = /\.(?:js|mjs|cjs|json|wasm|css)$/;
 const SOURCE_FILE = /\.(?:ts|tsx|js|mjs|json|css|rs|wasm)$/;
 const MAX_FILES = 8_000;
 const BROWSER_DRIVER_VERSION = "1.63.0";
+
+export function installedRoot(): string | null {
+  if (process.env.CAN_INSTALL_ROOT === undefined) return null;
+  const root = realpathSync(process.env.CAN_INSTALL_ROOT);
+  const manifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8")) as { kind?: unknown };
+  if (manifest.kind !== "can-install") throw new Error("preview inputs: invalid Can installation manifest");
+  return root;
+}
 
 export interface PrepareLocalPreviewCaptureOptions {
   readonly checkoutRoot: string;
@@ -86,6 +95,7 @@ function walkFiles(root: string, base: string, append: (path: string) => void, a
 /** Recompute this exact installed output closure before a bundle is accepted. */
 export function installedPortableBundleInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const selected = new Map<string, string>();
+  const installation = installedRoot();
   const seenPackages = new Set<string>();
   const externalQueue: Array<{ specifier: string; from: string }> = [];
   const addPackage = (file: string, owned: boolean): void => {
@@ -95,7 +105,8 @@ export function installedPortableBundleInputs(applicationRoot = process.cwd()): 
     const outputRoot = owned ? join(pkg.root, "dist") : pkg.root;
     if (!statSync(outputRoot).isDirectory()) throw new Error(`preview inputs: ${pkg.name} has no installed outputs`);
     const add = (path: string): void => {
-      const name = `${pkg.name}@${pkg.version}/${relative(pkg.root, path).split(sep).join("/")}`;
+      const context = installation !== null && !owned ? `${relative(installation, pkg.root).split(sep).join("/")}/` : "";
+      const name = `${pkg.name}@${pkg.version}/${context}${relative(pkg.root, path).split(sep).join("/")}`;
       const existing = selected.get(name);
       if (existing !== undefined && existing !== path) throw new Error(`preview inputs: duplicate installed file ${name}`);
       selected.set(name, path);
@@ -132,13 +143,21 @@ function resolveOwned(specifier: string, applicationRoot: string): string | null
     // Only absence of the optional package is admitted. Broken exports or an
     // installed package's missing entry remain actionable producer errors.
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
-        error.message.split("\n", 1)[0] === `Cannot find module '${specifier}'`) return null;
+        error.message.split("\n", 1)[0] === `Cannot find module '${specifier}'`) {
+      try { return require.resolve(specifier); }
+      catch (fallbackError) {
+        if (fallbackError instanceof Error && (fallbackError as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
+            fallbackError.message.split("\n", 1)[0] === `Cannot find module '${specifier}'`) return null;
+        throw fallbackError;
+      }
+    }
     throw error;
   }
 }
 
 export function installedOwnedSourceInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const paths = new Map<string, string>();
+  const installation = installedRoot();
   const seen = new Set<string>();
   const installed = installedPortableBundleInputs(applicationRoot);
   for (const specifier of OWNED_EXPORTS) {
@@ -147,6 +166,22 @@ export function installedOwnedSourceInputs(applicationRoot = process.cwd()): rea
     const pkg = packageRoot(entry);
     if (seen.has(pkg.root)) continue;
     seen.add(pkg.root);
+    if (installation !== null) {
+      // Construct help fingerprints the two owning authored catalogs as data;
+      // a release needs neither contributor sources nor source build timestamps.
+      if (pkg.name === "@canlang/values" || pkg.name === "@canlang/ui") {
+        const path = join(installation, "packages", pkg.name.slice("@canlang/".length), "src/catalog.ts");
+        if (!statSync(path).isFile()) throw new Error(`preview inputs: ${pkg.name} catalog source metadata is absent`);
+        paths.set(`source:${pkg.name}@${pkg.version}/src/catalog.ts`, path);
+      }
+      continue;
+    }
+    // Release packages carry built outputs without the author's source tree.
+    try { if (!statSync(join(pkg.root, "src")).isDirectory()) continue; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
     const sourceDirectories = pkg.name === "@canlang/values"
       ? ["src", "scripts", "semantics/src", "bindings/src", "bindings/generated", "conformance/v1"]
       : ["src", "scripts"];
@@ -219,7 +254,9 @@ function browserDriverInputs(kitRoot: string): {
   entryPath: string; coreRoot: string; inputs: readonly NamedInputPath[];
 } | null {
   let entryPath: string;
-  try { entryPath = realpathSync(createRequire(join(kitRoot, "package.json")).resolve("@playwright/test")); }
+  const development = browserToolsRoot();
+  if (installedRoot() !== null && development === null) return null;
+  try { entryPath = realpathSync(createRequire(join(development ?? kitRoot, "package.json")).resolve("@playwright/test")); }
   catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
       error.message.split("\n", 1)[0] === "Cannot find module '@playwright/test'") return null;
@@ -269,7 +306,7 @@ export async function loadInstalledChromium(applicationRoot: string): Promise<{
   const rootEntry = resolveOwned("@canlang/testkit", applicationRoot);
   if (rootEntry === null) return null;
   const kit = packageRoot(rootEntry);
-  const entryPath = realpathSync(createRequire(resolve(applicationRoot, "package.json"))
+  const entryPath = realpathSync(createRequire(join(kit.root, "package.json"))
     .resolve("@canlang/testkit/browser/chromium"));
   if (packageRoot(entryPath).root !== kit.root) throw new Error("preview inputs: foreign browser producer");
   const producerPaths = [{ name: "browser:producer", path: entryPath },
@@ -328,18 +365,34 @@ export async function installedBrowserQualificationInputs(applicationRoot: strin
   return inventory.inputs();
 }
 
-export function bunExecutable(): string {
-  for (const part of (process.env.PATH ?? "").split(delimiter)) {
-    const path = resolve(part || ".", "bun");
-    try { accessSync(path, constants.X_OK); return realpathSync(path); }
-    catch { /* next PATH entry */ }
+/** Capture the host and native producer that the preview bundler will run.
+ * The preview host pins this exact native path through ESBUILD_BINARY_PATH. */
+export function bundlerExecutableInputs(): readonly NamedInputPath[] {
+  let binary = process.env.ESBUILD_BINARY_PATH;
+  if (!binary) {
+    const api = require.resolve("esbuild");
+    const owner = createRequire(api);
+    const pkg = `@esbuild/${process.platform}-${process.arch}`;
+    const subpath = process.platform === "win32" ? "esbuild.exe" : "bin/esbuild";
+    try { binary = owner.resolve(`${pkg}/${subpath}`); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "MODULE_NOT_FOUND") throw error;
+      // esbuild's installer uses this native fallback when optional packages
+      // cannot be installed. Pin it explicitly instead of reselecting in child.
+      binary = join(dirname(api), `downloaded-${pkg.replace("/", "-")}-${basename(subpath)}`);
+    }
   }
-  throw new Error("preview inputs: bun executable is unavailable");
+  const executable = realpathSync(binary);
+  if (executable === "/usr/bin/esbuild") throw new Error("preview inputs: esbuild refuses the reserved /usr/bin/esbuild override");
+  accessSync(executable, constants.X_OK);
+  return [{ name: "node", path: realpathSync(process.execPath) }, { name: "esbuild", path: executable }];
 }
 
 export function compilerSourceInputs(checkoutRoot: string, compilerPath: string): readonly NamedInputPath[] {
   const root = realpathSync(checkoutRoot);
   const executable = realpathSync(resolve(root, compilerPath));
+  const installation = installedRoot();
+  if (installation !== null && executable === realpathSync(join(installation, "libexec", "can"))) return [];
   const target = join(root, "compiler", "target");
   const rel = relative(target, executable);
   if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
@@ -387,6 +440,12 @@ export function assertInstalledCatalog(checkoutRoot: string, selectedPath: strin
   if (selected !== realpathSync(expected)) {
     throw new Error("preview inputs: first profile requires the installed Values catalog");
   }
+  // Extraction/copy order is not source freshness in a prebuilt installation.
+  try { statSync(join(values.root, "src", "catalog.ts")); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
   const catalogTime = statSync(selected).mtimeMs;
   for (const input of [join(values.root, "src", "catalog.ts"), join(values.root, "dist", "src", "catalog.js")]) {
     if (statSync(input).mtimeMs > catalogTime) {
@@ -400,13 +459,15 @@ export function installedLocalPreviewInputInventory(checkoutRoot: string, compil
   packageInputPaths: readonly NamedInputPath[];
   extraInputPaths: readonly NamedInputPath[];
 } {
-  const grammar = join(realpathSync(checkoutRoot), "docs", "specification", "GRAMMAR.md");
+  const installation = installedRoot();
+  const grammar = join(installation ?? realpathSync(checkoutRoot), "docs", "specification", "GRAMMAR.md");
   if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
   return {
     packageInputPaths: installedPortableBundleInputs(checkoutRoot),
     extraInputPaths: [
-      { name: "bun", path: bunExecutable() },
+      ...bundlerExecutableInputs(),
       { name: "grammar", path: grammar },
+      ...(installation === null ? [] : [{ name: "installation-manifest", path: join(installation, "manifest.json") }]),
       ...installedOwnedSourceInputs(checkoutRoot),
       ...compilerSourceInputs(checkoutRoot, compilerPath),
       ...firstProfileQualificationInputs(checkoutRoot),

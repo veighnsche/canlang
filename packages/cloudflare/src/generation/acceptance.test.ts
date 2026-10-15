@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -73,6 +73,50 @@ test("app acceptance fails when its workspace has no installed browser runner", 
     assert.equal(report.ok, false);
     assert.equal(report.checks.some((check: { ok: boolean }) => check.ok), false);
   } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("installed acceptance executes beneath the external application's candidate and refuses escaped candidates", async () => {
+  const scratch = await realpath(await mkdtemp(join(tmpdir(), "can-installed-acceptance-")));
+  const root = join(scratch, "application"), candidateRoot = join(root, ".can/candidate");
+  const previous = process.env.CAN_INSTALL_ROOT;
+  const previousBrowser = process.env.CAN_BROWSER_TOOLS_ROOT;
+  const development = join(scratch, "browser-development");
+  process.env.CAN_INSTALL_ROOT = workspace;
+  process.env.CAN_BROWSER_TOOLS_ROOT = development;
+  try {
+    await mkdir(candidateRoot, { recursive: true });
+    await mkdir(join(development, "node_modules/@playwright"), { recursive: true });
+    await writeFile(join(development, "package.json"), JSON.stringify({ name: "can-browser-development-tools",
+      version: "1.63.0", devDependencies: { "@playwright/test": "1.63.0" } }));
+    await symlink(join(workspace, "node_modules/@playwright/test"), join(development, "node_modules/@playwright/test"));
+    await writeFile(join(root, "Probe.can"), "app Probe\n");
+    await writeFile(join(root, "playwright.config.js"), "export {};\n");
+    const recorded = join(scratch, "command.json"), compiler = join(scratch, "compiler");
+    await writeFile(compiler, `#!${process.execPath}\nconst fs=require('node:fs');fs.writeFileSync(${JSON.stringify(recorded)},JSON.stringify({cwd:process.cwd(),args:process.argv.slice(2),browserRoot:process.env.CAN_ACCEPTANCE_WORKSPACE}));process.stdout.write('invalid artifact');\n`);
+    await chmod(compiler, 0o755);
+    await assert.rejects(runAppAcceptance({ root, candidateRoot, files: ["Probe.can"], compiler,
+      reportDir: join(root, ".can/report"), workspace }), (error: unknown) => {
+      assert.ok(error instanceof AppAcceptanceError);
+      assert.equal(error.stage, "compile");
+      return true;
+    });
+    const command = JSON.parse(await readFile(recorded, "utf8"));
+    assert.equal(command.cwd, candidateRoot);
+    assert.equal(command.browserRoot, candidateRoot);
+    assert.equal(command.args.at(-1), "Probe.can");
+    const outside = join(scratch, "outside"); await mkdir(outside);
+    const alias = join(root, "escaped"); await symlink(outside, alias);
+    for (const escaped of [root, outside, alias]) {
+      await assert.rejects(runAppAcceptance({ root, candidateRoot: escaped, files: ["Probe.can"], compiler,
+        reportDir: join(root, ".can/refused"), workspace }), /candidate must be beneath the application root/);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.CAN_INSTALL_ROOT;
+    else process.env.CAN_INSTALL_ROOT = previous;
+    if (previousBrowser === undefined) delete process.env.CAN_BROWSER_TOOLS_ROOT;
+    else process.env.CAN_BROWSER_TOOLS_ROOT = previousBrowser;
     await rm(scratch, { recursive: true, force: true });
   }
 });

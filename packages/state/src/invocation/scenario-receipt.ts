@@ -984,7 +984,7 @@ export interface ScenarioReceiptFrameworkProducer {
   readonly app: string;
   readonly bindings: readonly { readonly binding: string; readonly from: string;
     readonly targets: readonly { readonly source: string; readonly correlation: 'value' | 'arguments' | null }[] }[];
-  readonly stage: (input: ScenarioReceiptSendProducerInput, context: SystemCommandContext) => Promise<ScenarioReceiptSendStaging>;
+  readonly stage: (input: ScenarioReceiptSendProducerInput, context: SystemCommandContext, call: AdmittedCall) => Promise<ScenarioReceiptSendStaging>;
   readonly read: (value: unknown, input: ScenarioReceiptSendProducerInput, context: SystemCommandContext) => ScenarioReceiptSendStaging | null;
   readonly sendGuards?: readonly ScenarioReceiptSendGuard[];
   /** Literal verified native adapter executes the complete original predicate
@@ -2064,7 +2064,7 @@ export async function stageScenarioReceiptSend(call: AdmittedCall, store: Storag
         ...(sourceGuard === undefined ? {} : { sourceGuard }) });
       const reader = frameworkContext(owner, [DISPATCH_MODEL], call);
       try {
-        const original = await producer.stage(input, reader.context); ownerHealthy(owner);
+        const original = await producer.stage(input, reader.context, call); ownerHealthy(owner);
         const sealed = producer.read(original, input, reader.context); ownerHealthy(owner);
         if (sealed === null) return invalid('send lacks its genuine original one-shot Work carrier.');
         await appendFrameworkWrites(owner, sealed.effects, reader.context, input);

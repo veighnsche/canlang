@@ -48,6 +48,7 @@ export type CapabilityId = string;
 export type ResourceKind =
   | "d1"
   | "r2"
+  | "kv"
   | "durable-object"
   | "queue"
   | "service"

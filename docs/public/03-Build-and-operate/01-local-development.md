@@ -4,9 +4,9 @@ Use the compiler for fast source feedback and a protected local development sess
 
 ## Keep the toolchain together
 
-Complete the [source workspace setup](../01-Getting-started/02-installation.md#set-up-a-complete-source-workspace) first. Run the commands here from the CanLang repository root with the built compiler, runtime packages and catalog. The `CAN_DEV_BIN` override points to `packages/cloudflare/dist/dev/control-cli.js`; `CAN_PLATFORM_BIN` points to `packages/cloudflare/dist/cli/platform.js`.
+Complete [installation](../01-Getting-started/02-installation.md) first. The standalone bundle supplies the matching compiler, catalog and runtime adapters automatically; run the commands here from your own application directory.
 
-If a runtime adapter is missing, `can` reports `E7004`. Confirm the path, run the documented workspace build and retry. The build restores executable modes. A plain compiler installation does not contain those JavaScript adapters.
+For the contributor source-workspace route, use the built repository and its documented `CAN_DEV_BIN` and `CAN_PLATFORM_BIN` overrides. A missing adapter reports `E7004`; a compiler-only installation does not supply the full runtime.
 
 ## Check one small change
 
@@ -41,6 +41,19 @@ Open `result.url` from `preview.open` in your browser. Use the URL exactly as re
 Add a task, open its edit panel and mark it done, then close the panel after saving and archive the task. Check the result after reloading the page. The preview is local, protected and tied to its owning session; it is not a remote deployment or a public sharing URL.
 
 When a declared language or resource requirement is refused, resolve the diagnostic in its owning layer. That refusal is not permission to delete the business requirement.
+
+The complete install supplies the local engine. `can dev` derives D1, Files R2,
+KV, queues, Durable Objects and local analytics from checked declarations; no
+separate Miniflare or runtime installation is needed. API-only apps can preview
+their checked operations without declaring a page. Inspect the check response's
+`preview` and `preview_error` before opening a failed build.
+
+Local upload links expire after one hour, and unattached files after 24 hours.
+Attached files remain available until explicitly deleted. Published-byte cleanup
+still requires the authoritative reference census; deleting an association does
+not promise immediate physical byte reclamation. See the
+[binding scope and limits](https://github.com/veighnsche/canlang/blob/main/implementation/lean-install/local-bindings.md)
+for supported root and queue compositions.
 
 ## Inspect diagnostics at their revision
 

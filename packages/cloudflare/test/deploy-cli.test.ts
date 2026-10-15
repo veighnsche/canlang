@@ -8,16 +8,16 @@ import { runPreparedDeploy } from "../src/preparation/host.js";
 
 
 const directDeploy = vi.hoisted(() => ({
-  elapsedMs: 0, bunAdvanceMs: [] as number[], expireAfterWrite: "", expireFailedCleanup: false, wranglerAdvanceMs: 0, wranglerOptions: null as unknown,
+  elapsedMs: 0, bundleAdvanceMs: [] as number[], expireAfterWrite: "", expireFailedCleanup: false, wranglerAdvanceMs: 0, wranglerOptions: null as unknown,
   beforeWrite: null as ((path: string) => void) | null, physicalWriteFailure: undefined as unknown,
-  bunCalls: 0, bunTimeoutAt: 0, bunStages: [] as Array<{ entry: string; output: string; options: unknown }>, wranglerCalls: 0, wranglerFailure: "", failPath: "", failure: new Error("second sidecar write sentinel"),
+  bundleCalls: 0, bundleTimeoutAt: 0, bundleStages: [] as Array<{ entry: string; output: string; options: unknown }>, wranglerCalls: 0, wranglerFailure: "", failPath: "", failure: new Error("second sidecar write sentinel"),
 }));
 vi.mock("node:fs", async original => {
   const actual = await original<typeof import("node:fs")>();
   return { ...actual, rmSync: (...args: Parameters<typeof actual.rmSync>) => {
     const result = actual.rmSync(...args);
-    if (directDeploy.expireFailedCleanup && directDeploy.bunCalls === directDeploy.bunTimeoutAt &&
-        directDeploy.bunStages.some(stage => dirname(stage.entry) === String(args[0]))) directDeploy.elapsedMs = 10_000;
+    if (directDeploy.expireFailedCleanup && directDeploy.bundleCalls === directDeploy.bundleTimeoutAt &&
+        directDeploy.bundleStages.some(stage => dirname(stage.entry) === String(args[0]))) directDeploy.elapsedMs = 10_000;
     return result;
   }, writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
     if (String(args[0]) === directDeploy.failPath) throw directDeploy.failure;
@@ -44,18 +44,18 @@ vi.mock("node:child_process", async original => {
       }
       return "uploaded";
     }
-    if (command !== "bun") throw new Error(`unexpected direct deploy subprocess ${command}`);
-    directDeploy.bunCalls++;
-    const output = args.find(arg => arg.startsWith("--outfile="))?.slice(10);
-    if (output === undefined) throw new Error("missing mocked Bun output");
-    const entry = args[1];
-    if (entry === undefined) throw new Error("missing mocked Bun entry");
-    directDeploy.bunStages.push({ entry, output, options });
-    if (directDeploy.bunCalls === directDeploy.bunTimeoutAt) {
-      throw Object.assign(new Error("spawn bun ETIMEDOUT"), { code: "ETIMEDOUT" });
+    if (command !== process.execPath) throw new Error(`unexpected direct deploy subprocess ${command}`);
+    directDeploy.bundleCalls++;
+    const output = args[4];
+    if (output === undefined) throw new Error("missing mocked esbuild output");
+    const entry = args[3];
+    if (entry === undefined) throw new Error("missing mocked esbuild entry");
+    directDeploy.bundleStages.push({ entry, output, options });
+    if (directDeploy.bundleCalls === directDeploy.bundleTimeoutAt) {
+      throw Object.assign(new Error("spawn node ETIMEDOUT"), { code: "ETIMEDOUT" });
     }
     writeFileSync(output, "export const createMcpHandler = () => {}; export const createArtifactRegistry = () => {}; export const createArtifactCatalog = () => {}; export class IdentityError extends Error {} export const receiverFromIdentity = () => {}; export const handleOperationRequest = () => {}; export const handlePageRequest = () => {}; export const handlePagePreferencePost = () => {}; export const handleAuthRequest = () => {}; export const SESSION_EXPIRES_MS = 1; export const createSourceFormBindings = () => {}; export const parseJsonBody = async () => ({}); export const JSON_BODY_MAX_BYTES = 1048576; ");
-    directDeploy.elapsedMs += directDeploy.bunAdvanceMs[directDeploy.bunCalls - 1] ?? 0;
+    directDeploy.elapsedMs += directDeploy.bundleAdvanceMs[directDeploy.bundleCalls - 1] ?? 0;
     return "";
   } };
 });
@@ -196,7 +196,7 @@ describe("can-platform deploy/test/build local paths (B5-J3)", () => {
     const second = await runCli(["deploy", "--artifact", artifact, "--env", "prod", "--preview"]);
     expect(second.code).toBe(0);
     expect(envelope(second.stdout)).toMatchObject({ changed: false });
-    // C3: two CLI runs × two bun bundles each (MCP + HTTP op chain)
+    // C3: two CLI runs × two esbuild bundles each (MCP + HTTP op chain)
     // exceed the 5s default under load; bounded explicit timeout.
   }, 30000);
 
@@ -246,15 +246,15 @@ describe("confirmed direct deploy output ownership", () => {
     directDeploy.beforeWrite = null;
     directDeploy.physicalWriteFailure = undefined;
     directDeploy.elapsedMs = directDeploy.wranglerAdvanceMs = 0;
-    directDeploy.bunAdvanceMs = [];
+    directDeploy.bundleAdvanceMs = [];
     directDeploy.expireAfterWrite = "";
     directDeploy.expireFailedCleanup = false;
     directDeploy.wranglerOptions = null;
     directDeploy.failPath = "";
     directDeploy.wranglerFailure = "";
-    directDeploy.bunTimeoutAt = 0;
-    directDeploy.bunStages = [];
-    directDeploy.bunCalls = directDeploy.wranglerCalls = 0;
+    directDeploy.bundleTimeoutAt = 0;
+    directDeploy.bundleStages = [];
+    directDeploy.bundleCalls = directDeploy.wranglerCalls = 0;
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
   });
   const outputNames = ["teamtasks.deploy-plan.json", "teamtasks.wrangler.toml"];
@@ -320,8 +320,8 @@ describe("confirmed direct deploy output ownership", () => {
       expect(existsSync(join(prior, name))).toBe(false);
     }
     expect(existsSync(join(prior, "teamtasks.artifact.json"))).toBe(true);
-    expect(directDeploy.bunCalls).toBe(2);
-    for (const stage of directDeploy.bunStages) expect(existsSync(dirname(stage.entry))).toBe(false);
+    expect(directDeploy.bundleCalls).toBe(2);
+    for (const stage of directDeploy.bundleStages) expect(existsSync(dirname(stage.entry))).toBe(false);
     // The consumed preflight detects this actual replacement. No atomic
     // check-to-write, absolute process-tree, or remote-effect claim follows.
   });
@@ -355,12 +355,12 @@ describe("confirmed direct deploy output ownership", () => {
     expect(existsSync(join(dir, "teamtasks.deploy", "bundle.json"))).toBe(true);
     expect(lstatSync(toml).isDirectory()).toBe(true);
     expect(existsSync(join(dir, "teamtasks.artifact.json"))).toBe(true);
-    for (const stage of directDeploy.bunStages) expect(existsSync(dirname(stage.entry))).toBe(false);
+    for (const stage of directDeploy.bundleStages) expect(existsSync(dirname(stage.entry))).toBe(false);
     // Generated scratch is owner-cleaned; known published files and the
     // caller-owned root remain. The test owns their final removal.
   });
 
-  it("writes real bundle and sidecar bytes with only mocked Bun and Wrangler", async () => {
+  it("writes real bundle and sidecar bytes with only mocked esbuild and Wrangler", async () => {
     const { dir, artifact } = prepare();
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
@@ -371,8 +371,8 @@ describe("confirmed direct deploy output ownership", () => {
     expect(JSON.parse(readFileSync(join(dir, "teamtasks.deploy-plan.json"), "utf8"))).toEqual(result["plan"]);
     expect(readFileSync(join(dir, "teamtasks.wrangler.toml"), "utf8")).toContain("db-123");
     expect(existsSync(join(dir, "teamtasks.deploy", "bundle.json"))).toBe(true);
-    expect(directDeploy.bunCalls).toBe(2);
-    for (const stage of directDeploy.bunStages) expect(stage.options).toEqual({
+    expect(directDeploy.bundleCalls).toBe(2);
+    for (const stage of directDeploy.bundleStages) expect(stage.options).toEqual({
       stdio: 'pipe', timeout: 30_000, killSignal: 'SIGKILL', maxBuffer: 1_048_576,
     });
     expect(directDeploy.wranglerCalls).toBe(1);
@@ -380,11 +380,11 @@ describe("confirmed direct deploy output ownership", () => {
   it("shortens each child timeout to the remaining cumulative command budget", async () => {
     const { artifact } = prepare();
     const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
-    directDeploy.bunAdvanceMs = [6_000, 3_000];
+    directDeploy.bundleAdvanceMs = [6_000, 3_000];
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     try { await runPreparedDeploy(artifact, "prod", false, true, lifetime); } finally { lifetime.dispose(); }
-    expect(directDeploy.bunStages.map(stage => stage.options)).toEqual([
+    expect(directDeploy.bundleStages.map(stage => stage.options)).toEqual([
       { stdio: "pipe", timeout: 10_000, killSignal: "SIGKILL", maxBuffer: 1_048_576 },
       { stdio: "pipe", timeout: 4_000, killSignal: "SIGKILL", maxBuffer: 1_048_576 },
     ]);
@@ -392,16 +392,16 @@ describe("confirmed direct deploy output ownership", () => {
     expect(directDeploy.wranglerCalls).toBe(1);
     expect(envelope(stdout.mock.calls.map(call => String(call[0])).join(""))).toMatchObject({ ok: true, applied: true });
   });
-  it("refuses cumulative expiration after sequential Bun stages before publication", async () => {
+  it("refuses cumulative expiration after sequential esbuild stages before publication", async () => {
     const { dir, artifact } = prepare();
     const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
-    directDeploy.bunAdvanceMs = [6_000, 4_000];
+    directDeploy.bundleAdvanceMs = [6_000, 4_000];
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     try { await expect(runPreparedDeploy(artifact, "prod", false, true, lifetime)).rejects.toBeInstanceOf(LocalCommandInterrupted); } finally { lifetime.dispose(); }
     expect(lifetime.signal.reason).toMatchObject({ code: "command-timeout" });
     expect(stdout).not.toHaveBeenCalled();
-    expect(directDeploy.bunCalls).toBe(2);
-    for (const stage of directDeploy.bunStages) expect(existsSync(dirname(stage.entry))).toBe(false);
+    expect(directDeploy.bundleCalls).toBe(2);
+    for (const stage of directDeploy.bundleStages) expect(existsSync(dirname(stage.entry))).toBe(false);
     expect(existsSync(join(dir, "teamtasks.deploy"))).toBe(false);
     for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
     expect(directDeploy.wranglerCalls).toBe(0);
@@ -439,9 +439,9 @@ describe("confirmed direct deploy output ownership", () => {
     expect(stdout).not.toHaveBeenCalled();
     expect(directDeploy.wranglerCalls).toBe(1);
   });
-  it.each([1, 2])("refuses Bun stage %s timeout before publication and removes generated scratch", async stage => {
+  it.each([1, 2])("refuses esbuild stage %s timeout before publication and removes generated scratch", async stage => {
     const { dir, artifact } = prepare();
-    directDeploy.bunTimeoutAt = stage;
+    directDeploy.bundleTimeoutAt = stage;
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const exit = new Error('observed bundle refusal exit');
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw exit; });
@@ -451,8 +451,8 @@ describe("confirmed direct deploy output ownership", () => {
     expect(result).toMatchObject({ ok: false, command: 'deploy', code: 'bundle-failed' });
     expect(result['detail']).toContain('ETIMEDOUT');
     expect(result['detail']).toContain(stage === 1 ? 'MCP bundle build failed' : 'HTTP bundle build failed');
-    expect(directDeploy.bunCalls).toBe(stage);
-    for (const generated of directDeploy.bunStages) {
+    expect(directDeploy.bundleCalls).toBe(stage);
+    for (const generated of directDeploy.bundleStages) {
       expect(existsSync(generated.entry)).toBe(false);
       expect(existsSync(generated.output)).toBe(false);
       expect(existsSync(dirname(generated.entry))).toBe(false);
@@ -461,13 +461,13 @@ describe("confirmed direct deploy output ownership", () => {
     for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
     expect(directDeploy.wranglerCalls).toBe(0);
   });
-  it.each([1, 2])("preserves Bun stage %s failure when only its awaited scratch cleanup exhausts the budget", async stage => {
+  it.each([1, 2])("preserves esbuild stage %s failure when only its awaited scratch cleanup exhausts the budget", async stage => {
     const { dir, artifact } = prepare();
     const lifetime = createLocalCommandLifetime("deploy", 10_000, () => directDeploy.elapsedMs);
-    directDeploy.bunTimeoutAt = stage;
+    directDeploy.bundleTimeoutAt = stage;
     directDeploy.expireFailedCleanup = true;
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    const exit = new Error("observed operative Bun failure");
+    const exit = new Error("observed operative esbuild failure");
     vi.spyOn(process, "exit").mockImplementation(() => { throw exit; });
     try { await expect(runPreparedDeploy(artifact, "prod", false, true, lifetime)).rejects.toBe(exit); }
     finally { lifetime.dispose(); }
@@ -476,7 +476,7 @@ describe("confirmed direct deploy output ownership", () => {
     expect(result).toMatchObject({ ok: false, command: "deploy", code: "bundle-failed" });
     expect(result["detail"]).toContain("ETIMEDOUT");
     expect(result["detail"]).toContain(stage === 1 ? "MCP bundle build failed" : "HTTP bundle build failed");
-    for (const generated of directDeploy.bunStages) expect(existsSync(dirname(generated.entry))).toBe(false);
+    for (const generated of directDeploy.bundleStages) expect(existsSync(dirname(generated.entry))).toBe(false);
     expect(existsSync(join(dir, "teamtasks.deploy"))).toBe(false);
     for (const name of outputNames) expect(existsSync(join(dir, name))).toBe(false);
     expect(directDeploy.wranglerCalls).toBe(0);
