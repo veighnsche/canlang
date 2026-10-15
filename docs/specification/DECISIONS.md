@@ -17843,3 +17843,9 @@ Files/Services/Work exemptions and contracts schema version. This fixes the
 reported lockstep failure without weakening the release gate. Add native
 post-publication workflow checks for the five public core URLs and default
 streamed installs in disposable shell configurations.
+
+A second hosted assembly built the native Linux compiler, then rejected the
+frozen notice-input hashes because the compiler's own package version changed.
+Refresh those two existing manifest/lock input pins after confirming their only
+delta is the compiler version. Dependency versions, target notice bundles and
+notice-content hashes remain unchanged; both target notice checks pass locally.
