@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 canonical fixture import receiving (2026-10-15, qualified component).**
+Default runner resolves only emitted canonical recipe-only providers, caches one
+recipe/declaration in each live binding context, and supplies the complete graph
+to unchanged Testkit. Distinct declaration keys cannot reuse one raw recipe;
+aliases/diamonds reuse the same key. Missing/ambiguous/cyclic/malformed graphs,
+caller conflicts and foreign recipe replacement refuse before setup. Legacy
+non-import modules retain their path. Direct emitted-JS controls2/38.7ms pass.
+Normal CF build currently fails unrelated concurrent deploy/resource-host/root-
+authority edits; no complete producer/current-input qualification follows.
+Compiler provider emission and all6 original promotion rows remain required.
+
 **C02 original promotion native consumer (2026-10-15, unfinished).**
 The selected original schemas/policies, saved Given and both inline tables emit
 with3 queries. Actual CLI source membership/hashes (including contributed source)

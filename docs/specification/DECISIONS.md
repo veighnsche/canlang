@@ -17032,3 +17032,18 @@ evidence. After checking actual IR and Testkit, corrected independently phrased
 investigate .03/.02/.11. Advice supports the direction, not implementation proof.
 Remaining uncertainty is the exact minimal provider publication/cache join and its
 executable controls. No original native workflow or full-composition credit yet.
+
+
+### 2026-10-15 — receive canonical example fixture imports
+
+The default example runner resolves emitted recipe-only providers using existing
+import tuples and fixture inventory. Cache one raw recipe per canonical key in
+the actual consumer binding context; pass the transitive canonical map to the
+existing Testkit unchanged. Reject missing/ambiguous/cyclic/malformed graphs,
+conflicting caller bindings, foreign recipe replacement and the same raw recipe
+under distinct declaration keys. Legacy modules without import metadata retain
+their existing path. Two direct emitted-JS controls pass (38.7ms), covering diamond/
+same-name identity, live bindings/context isolation and graph refusals. Whole CF
+build is not green: concurrent unrelated deploy/resource-host/root-authority edits
+currently fail typechecking. No original six-row execution credit; compiler
+provider integration and current complete package outputs remain required.
