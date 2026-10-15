@@ -162,10 +162,10 @@ export function storedNominalWire(profile: StoredNominalFieldProfile, wire: unkn
   nominalShape(profile.type, saved);
   try {
     const decoded = validateValue(owner.schema, profile.type, saved, 'create');
-    if (stableStringify(encodeValue(profile.type, decoded)) !== stableStringify(saved)) return invalid('complete canonical stored contract wire required.');
+    if (stableStringify(encodeValue(profile.type, decoded, undefined, owner.schema)) !== stableStringify(saved)) return invalid('complete canonical stored contract wire required.');
     if (owner.constraint !== undefined) {
       const checked = validateValue(owner.constraint.schema, owner.constraint.type, { value: saved }, 'create') as Readonly<Record<string, Parameters<typeof encodeValue>[1]>>;
-      if (stableStringify(encodeValue(profile.type, checked['value']!)) !== stableStringify(saved)) return invalid('stored contract violates receiving normalization.');
+      if (stableStringify(encodeValue(profile.type, checked['value']!, undefined, owner.schema)) !== stableStringify(saved)) return invalid('stored contract violates receiving normalization.');
     }
   } catch (error) { if (error instanceof StateError) throw error; return invalid('stored contract violates its owning Values schema or constraints.'); }
 }

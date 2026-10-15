@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **701 errors**:
-**675 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **703 errors**:
+**677 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -98,7 +98,7 @@ are not independent feature tasks:
 
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
-| Checked source/inventory publication | 3 | Membership and collection-call correspondence; standard inventory/completions publication is closed at its metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
+| Checked source/inventory publication | 5 | Membership and collection-call correspondence plus two explicit Contract equality schema refusals for AcceptedOffer/QuoteDocument. Their validated email leaves are not in the complete checked ordinary value inventory; this is ready local work, not an external hold. Standard inventory/completions publication is closed at its earlier metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
 | Query and predicate lowering | 111 | 91 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
@@ -728,19 +728,36 @@ arguments; use existing checked Contract/required/first-query reference lineage
 for the actual leading/body stages. Policy/CRUD callers retain their own authority
 stages. Whole-cohort hooks and other recorded groups remain local work.
 
-**C02/C03 ready Values consistency gap.** Typed lock work exposed an existing
+**C02/C03 Values consistency repair (implemented and qualified at the recorded scope).** Typed lock work exposed an existing
 collision for declared business Contract kind/id/model/version fields: runtime
 kind dispatch can reject them or mistake them for reference carriers, including
 lossy encoding. ResearchLead has no such business tag, so the native case above
 qualifies its original shape rather than all Contract payloads. Three balanced
 JEV Choice requests prefer exact source-owned schema dispatch over private Contract
 provenance (.89/.93/.72; confidence .78/.86/.44); no rationale, advice only.
-Requests/responses and uncertainty: contract-runtime-kinds/. The proposed correction
-must use the existing equality/encoding primitives across literals, decoded values,
+Requests/responses and uncertainty: contract-runtime-kinds/. The correction uses
+the existing equality/encoding primitives across literals, decoded values,
 normal/hook consumers and nested alias/array/union positions; retain genuine lazy
 native refs, ordinary business fields, malformed-tag refusals, rollback/replay and
-failure order. This is ready local implementation, not an external hold or a
-completed language capability. No new source spelling or global type-name registry.
+failure order. Source-owned generated equality/membership and installed codecs now
+pass the existing checked schema; duplicate root-call Contract encoding is removed.
+Values114, generated-source12, CF9 and additional State80 checks pass. State113/114
+retains one independently reproduced old missing-queryId fixture assertion failure.
+Original24-source validation exits10 in387.27s with703 diagnostics (677 E6008,
+26 E6007), complete=true, omitted=0 and identical sources. None of the earlier701
+is removed; two CanRent comparisons now explicitly refuse missing complete offer
+Contract schema rather than silently dispatch by runtime shape. Native capture
+exposed and closed the matching State composite reference-discovery collision:
+follow owning Contract/array/union positions while preserving reference versions,
+protected-value checks, traversal and budgets. Its38 root/owner checks pass.
+Actual captured CLI/verified assembly/D1/Identity1/1 passes65.41s, retaining all
+original permission, ordering, failure, rollback, replay and recovery assertions
+with ref-shaped business fields at both nested and top positions. Bound Mail4/4
+passes; Judgment durable replay still lacks its compile-time native receipt plan
+and refuses before changed codecs (exact cause and HEAD invoke refusal verified).
+Assertions remain. No new source spelling, global type-name registry or complete
+application claim. Next ready local leaves are complete validated-email offer
+schema publication and the original query-backed can_work source proof.
 
 Reproduce the original closure from the repository root; saved roots derive from
 their owning source operands:

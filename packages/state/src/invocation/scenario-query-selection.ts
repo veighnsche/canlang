@@ -128,13 +128,13 @@ export function scenarioQuerySelectionWire(profile: ScenarioQuerySelectionProfil
         const value = data[field.field];
         if (field.fileProfile !== undefined) scenarioFileWireRefs(field.fileProfile, value);
         const decoded = validateValue(owner.schema, field.type, value, 'create');
-        if (!same(encodeValue(field.type, decoded), value)) return fail('canonical owning selected field required.');
+        if (!same(encodeValue(field.type, decoded, undefined, owner.schema), value)) return fail('canonical owning selected field required.');
         const constraint = owner.constraints[index];
         if (constraint !== undefined) validateValue(constraint.schema, constraint.type, { value }, 'create');
         return [field.name, value];
       }));
     });
-    const encoded = encodeValue(profile.type, validateValue(owner.schema, profile.type, wire, 'create'));
+    const encoded = encodeValue(profile.type, validateValue(owner.schema, profile.type, wire, 'create'), undefined, owner.schema);
     if (!same(encoded, wire)) return fail('canonical owning selection required.');
     return deepFreeze(encoded as unknown[]);
   } catch (error) { if (error instanceof StateError) throw error; return fail('invalid owning selection wire.'); }

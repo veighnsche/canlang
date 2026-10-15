@@ -210,7 +210,7 @@ describe('native rules through the actual owner mutation session', () => {
     const schema = normalizeSchema({ contracts: {
       'Policies.Packet': { fields: { subject: { type: LIMIT }, others: { type: `${LIMIT}[]` },
         title: { type: 'text' }, version: { type: 'text' }, business: { type: 'Policies.Business' } } },
-      'Policies.Business': { fields: { kind: { type: 'text' }, id: { type: 'text' }, version: { type: 'text' } } },
+      'Policies.Business': { fields: { kind: { type: 'text' }, model: { type: 'text' }, id: { type: 'text' }, version: { type: 'text' } } },
     } });
     const table = buildModelTable([
       modelDef(ITEM, { fields: { direct: { ...field(), valueType: LIMIT }, legacy: field(),
@@ -219,7 +219,7 @@ describe('native rules through the actual owner mutation session', () => {
       modelDef(LIMIT, { fields: { cap: field() }, deleteMode: 'remove' }),
     ], { valueSchema: schema });
     const packet = { subject: { id: 'a', version: '1' }, others: [{ id: 'a', version: '1' }, { id: 'b', version: '1' }],
-      title: 'original', version: 'business-version', business: { kind: 'business', id: 'a', version: 'ordinary-version' } };
+      title: 'original', version: 'business-version', business: { kind: 'ref', model: 'business-model', id: 'a', version: 'ordinary-version' } };
     await seedRow(store, ITEM, { id: 'one', data: { direct: { id: 'a', version: '1' }, legacy: { id: 'a', version: '1' }, packet } });
     for (const id of ['a', 'b']) await seedRow(store, LIMIT, { id, data: { cap: 3 } });
     const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor([

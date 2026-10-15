@@ -784,7 +784,7 @@ export async function invokeScenarioReceiptCall(call: AdmittedCall, store: Stora
             ({ string: 'text', integer: 'int', boolean: 'bool', decimal: 'decimal', money: 'money', datetime: 'datetime', duration: 'duration', user: 'user',
               enum: field.kind === 'enum' ? `enum(${field.enumValues?.join(',')})` : undefined } as Record<string, string | undefined>)[field.kind];
           if (type === undefined) return invalid('invocation argument lacks its checked owning value type.');
-          wire = encodeValue(type, value as never);
+          wire = encodeValue(type, value as never, undefined, state.bound.valueSchema);
         }
         Object.defineProperty(prepared, name, { value: wire, enumerable: true, configurable: true, writable: true });
       }
@@ -1398,7 +1398,7 @@ function resultWire(bound: BoundPlan, result: unknown): void {
   if (!bound.plan.returns.some(entry => entry.projection !== undefined)) { scalarWire(bound.type, result); return; }
   if (bound.valueSchema === undefined) return invalid('query result requires its owning loaded Values schema.');
   try {
-    const canonical = encodeValue(bound.type, validateValue(bound.valueSchema, bound.type, result, 'create'));
+    const canonical = encodeValue(bound.type, validateValue(bound.valueSchema, bound.type, result, 'create'), undefined, bound.valueSchema);
     if (stableStringify(canonical) !== stableStringify(result)) return invalid('query result is not canonical owning Values wire.');
   } catch (error) { if (error instanceof StateError) throw error; return invalid('query result disagrees with its owning Values schema.'); }
 }
@@ -1787,7 +1787,7 @@ async function captureSendLexical(call: AdmittedCall, owner: ReceiptOwnerSession
       const wire = dataCopy(inputs[input.name]);
       const value = state.bound.valueSchema === undefined ? decodeValue(input.type, wire)
         : validateValue(state.bound.valueSchema, input.type, wire, 'create');
-      if (stableStringify(encodeValue(input.type, value)) !== stableStringify(wire)) return invalid('SEND lexical input is not canonical owning typed wire.');
+      if (stableStringify(encodeValue(input.type, value, undefined, state.bound.valueSchema)) !== stableStringify(wire)) return invalid('SEND lexical input is not canonical owning typed wire.');
       values[input.name] = wire;
     }
   }
@@ -2059,7 +2059,7 @@ function inputDefaultWire(bound: BoundPlan, field: CanonicalInputDef, wire: unkn
   try {
     const value = bound.valueSchema === undefined ? decodeValue(field.valueType, saved)
       : validateValue(bound.valueSchema, field.valueType, saved, 'create');
-    return dataCopy(encodeValue(field.valueType, value));
+    return dataCopy(encodeValue(field.valueType, value, undefined, bound.valueSchema));
   } catch { return invalid('input default disagrees with its owning Values type/schema.'); }
 }
 

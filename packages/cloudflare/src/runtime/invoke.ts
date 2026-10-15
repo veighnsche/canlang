@@ -5193,12 +5193,12 @@ function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, 
   try {
     let wire: unknown;
     try {
-      wire = encodeValue(type, value as CanValue, nativeValueReferenceEncoder(type, schema, value));
+      wire = encodeValue(type, value as CanValue, nativeValueReferenceEncoder(type, schema, value), schema);
     } catch (error) {
       if (error instanceof NativeValueReferenceError) throw error;
-      wire = encodeValue(type, decodeCanonicalValue(schema, type, value));
+      wire = encodeValue(type, decodeCanonicalValue(schema, type, value), undefined, schema);
     }
-    return schema === undefined ? wire : encodeValue(type, validateValue(schema, type, wire, 'create'));
+    return schema === undefined ? wire : encodeValue(type, validateValue(schema, type, wire, 'create'), undefined, schema);
   } catch (error) {
     throw new StateError("validation", message(error));
   }
@@ -5207,7 +5207,7 @@ function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, 
 /** Incoming CRUD fields must use the declared wire representation. */
 function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown, schema?: NormalizedSchema): unknown {
   try {
-    return encodeValue(type, decodeCanonicalValue(schema, type, value));
+    return encodeValue(type, decodeCanonicalValue(schema, type, value), undefined, schema);
   } catch (error) {
     throw new StateError("validation", message(error));
   }
@@ -5296,7 +5296,7 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
           const value = decodeCanonicalValue(loaded.valueSchema, field.valueType, field.default.value);
           parameters[field.name] = value;
-          if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = encodeValue(field.valueType, value);
+          if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = encodeValue(field.valueType, value, undefined, loaded.valueSchema);
         } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
           if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = null;
@@ -5346,11 +5346,11 @@ function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCano
       if (modelReference === undefined || modelReference.model !== model.name) {
         throw new Error('Model results require an admitted native record of the declared model.');
       }
-      return encodeValue(resultType, modelReference);
+      return encodeValue(resultType, modelReference, undefined, loaded.valueSchema);
     }
-    const wire = encodeValue(resultType, value as CanValue);
+    const wire = encodeValue(resultType, value as CanValue, nativeValueReferenceEncoder(resultType, loaded.valueSchema, value), loaded.valueSchema);
     return loaded.valueSchema === undefined ? wire
-      : encodeValue(resultType, validateValue(loaded.valueSchema, resultType, wire, 'create'));
+      : encodeValue(resultType, validateValue(loaded.valueSchema, resultType, wire, 'create'), undefined, loaded.valueSchema);
   } catch (error) {
     throw new loaded.producers.errors('validation', message(error));
   }
@@ -7540,7 +7540,7 @@ async function runScenarioExecution(
               !(loaded.valueSchema.aliases !== undefined && Object.hasOwn(loaded.valueSchema.aliases, type.base.path))) continue;
           try {
             data[field.name] = encodeValue(field.valueType, data[field.name] as CanValue,
-              nativeValueReferenceEncoder(field.valueType, loaded.valueSchema, data[field.name]));
+              nativeValueReferenceEncoder(field.valueType, loaded.valueSchema, data[field.name]), loaded.valueSchema);
           } catch (error) {
             throw new StateError('validation', message(error));
           }
@@ -7848,7 +7848,8 @@ async function runScenarioExecution(
         if (!isUnknownRecord(inputs) || !isUnknownRecord(payload)) {
           throw new Error('Keyed schedule requires its checked event inputs and an argument object.');
         }
-        const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+        const operationSchema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+        const schema = { ...operationSchema, ...loaded.valueSchema, operations: operationSchema.operations };
         const wire: Record<string, unknown> = Object.create(null);
         for (const [name, value] of Object.entries(payload)) {
           const field = selected.member(inputs, name) as FieldDescriptor | undefined;
@@ -7860,13 +7861,13 @@ async function runScenarioExecution(
           const reserved = binding === undefined ? undefined : reservedVersions.get(stagedKey(binding.model, binding.id));
           const native = binding === undefined ? value : makeRecordRef(binding.model, binding.id,
             reserved === undefined ? (value as Record<string, unknown>)['version'] as bigint : BigInt(reserved));
-          wire[name] = field === undefined || native === undefined ? native : encodeValue(field.type, native as CanValue);
+          wire[name] = field === undefined || native === undefined ? native : encodeValue(field.type, native as CanValue, nativeValueReferenceEncoder(field.type, schema, native), schema);
         }
         const checked = validateOperationInput(schema, event, wire);
         const arguments_: Record<string, unknown> = Object.create(null);
         for (const [name, value] of Object.entries(checked)) {
           const field = selected.member(inputs, name) as FieldDescriptor;
-          arguments_[name] = encodeValue(field.type, value);
+          arguments_[name] = encodeValue(field.type, value, undefined, schema);
         }
         encodeValue('datetime', at);
         const producer = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work keyed schedule producer');
@@ -8010,21 +8011,18 @@ async function runScenarioExecution(
           }
           // Values owns schema admission, omission/default semantics and each
           // native/wire codec. The adapter supplies the exact owning declaration.
-          const schema = normalizeSchema({
-            contracts: member(definition, 'contracts') ?? {},
-            enums: member(definition, 'enums') ?? {},
-            operations: { [source]: { inputs } },
-          } as SchemaDescriptor);
+          const operationSchema = normalizeSchema({ operations: { [source]: { inputs } } } as SchemaDescriptor);
+          const schema = { ...operationSchema, ...loaded.valueSchema, operations: operationSchema.operations };
           const wire: Record<string, unknown> = Object.create(null);
           for (const [name, value] of Object.entries(request)) {
             const field = member(inputs, name) as FieldDescriptor | undefined;
-            wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue);
+            wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue, nativeValueReferenceEncoder(field.type, schema, value), schema);
           }
           const checked = validateOperationInput(schema, source, wire);
           const args: Record<string, unknown> = Object.create(null);
           for (const [name, value] of Object.entries(checked)) {
             const field = member(inputs, name) as FieldDescriptor;
-            args[name] = encodeValue(field.type, value);
+            args[name] = encodeValue(field.type, value, undefined, schema);
           }
           boundRequest = { binding: bindingKey, from, arguments: args };
         }
@@ -8629,7 +8627,7 @@ async function runScenarioExecution(
         wire = value;
       } else {
         if (field.valueType === undefined) throw new StateError('validation', 'Computed default lacks its owning value type.');
-        wire = encodeValue(field.valueType, value as CanValue);
+        wire = encodeValue(field.valueType, value as CanValue, nativeValueReferenceEncoder(field.valueType, loaded.valueSchema, value), loaded.valueSchema);
       }
       if (!receiptAware) resolvedDefaults[field.name] = wire;
       else observeReceiptDefault!(call as AdmittedCall, receiptStore!, { name: field.name, wire });
@@ -9555,16 +9553,16 @@ function checkedCompletionPayload(checked: CheckedStandardCompletion, payload: u
       if (own.result !== null) throw new Error('Void completion carries a result.');
     } else {
       const result = validateValue(checked.normalized, checked.resultType, own.result, 'create');
-      if (stableStringify(encodeValue(checked.resultType, result)) !== stableStringify(own.result)) {
+      if (stableStringify(encodeValue(checked.resultType, result, undefined, checked.normalized)) !== stableStringify(own.result)) {
         throw new Error('Completion result differs from its original canonical declaration.');
       }
     }
   }
   const captured = validateOperationInput(checked.normalized, checked.event, own);
   const inputs = checked.schema.operations![checked.event]!.inputs;
-  const wire = Object.fromEntries(Object.entries(captured).map(([name, value]) => [name, encodeValue(inputs[name]!.type, value)]));
+  const wire = Object.fromEntries(Object.entries(captured).map(([name, value]) => [name, encodeValue(inputs[name]!.type, value, undefined, checked.normalized)]));
   if (stableStringify(wire) !== stableStringify(own)) throw new Error('Completion wire fields differ from their full declared shape.');
-  return { inputs, captured };
+  return { inputs, captured, valueSchema: checked.normalized };
 }
 
 /** Consume the single PRIVATE generated census, paired to actual callable
@@ -9990,7 +9988,7 @@ async function loadCheckedCommittedChanges(asm: AssembledModules, artifact: Comp
   return result;
 }
 
-function checkedSourceEvent(definition: unknown, event: string, payload: unknown) {
+function checkedSourceEvent(definition: unknown, event: string, payload: unknown, valueSchema?: NormalizedSchema) {
   const changes = privateSourceMember(definition, 'committedChanges');
   if (changes !== undefined && nativeCallArray(changes, 200).some(value => privateSourceMember(value, 'source') === event)) {
     const own = localPolicyObject(payload, ['recordId', 'owner', 'version', 'occurrenceId']);
@@ -10013,13 +10011,14 @@ function checkedSourceEvent(definition: unknown, event: string, payload: unknown
     }
     const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
     const captured = validateOperationInput(schema, event, { id: own.recordId, version: String(own.version) });
-    return { inputs, captured };
+    return { inputs, captured, valueSchema: schema };
   }
   const inputs = privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), event), 'inputs');
   if (!isUnknownRecord(inputs)) throw new Error('Private cohort lacks its declared event inputs.');
-  const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+  const operationSchema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+  const schema = { ...operationSchema, ...valueSchema, operations: operationSchema.operations };
   const captured = validateOperationInput(schema, event, payload);
-  return { inputs, captured };
+  return { inputs, captured, valueSchema: schema };
 }
 
 function emittedPrivateCohort(definition: unknown, handler: string, event: string, owner: string, captured: unknown, inputs: unknown) {
@@ -10085,7 +10084,7 @@ async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded:
   const due = await stageDue(opts.due, context);
   if (due.status !== 'ready') return due;
   await resolveDueOwner(opts, now);
-  const { inputs, captured } = checkedSourceEvent(definition, opts.due.event, due.occurrence.payload);
+  const { inputs, captured } = checkedSourceEvent(definition, opts.due.event, due.occurrence.payload, loaded.valueSchema);
   const operations = privateSourceMember(definition, 'operations');
   if (!isUnknownRecord(operations)) throw new Error('Cohort source has no private handler declarations.');
   const handlers = Object.keys(operations).filter(handler =>
@@ -10319,7 +10318,7 @@ export async function createCanonicalIdentityRemovalSource(opts: {
         envelope.membershipRemoval.user.id !== request.member_user_id) {
       throw new AssemblyCorrespondenceError('Original removal differs from its trusted request and namespace.');
     }
-    for (const route of routes) checkedSourceEvent(route.definition, event, identityRemovalPayload(envelope));
+    for (const route of routes) checkedSourceEvent(route.definition, event, identityRemovalPayload(envelope), loaded.valueSchema);
     await verifyHost(now);
     return envelope;
   };
@@ -10655,7 +10654,7 @@ async function readCheckedCommittedSource(loaded: LoadedCanonicalDescriptors, st
         privateSourceMember(value, 'kind') !== (checked.routes[index]!.cohort ? 'fanout' : 'ordinary'))) {
     throw new Error('Committed source receipt differs from its immutable checked routing facts.');
   }
-  checkedSourceEvent(checked.routes[0]!.definition, event, payload);
+  checkedSourceEvent(checked.routes[0]!.definition, event, payload, loaded.valueSchema);
   const bounds = localPolicyObject(localPolicyMember(result, 'bounds'));
   if (!Number.isSafeInteger(bounds.maxMembers) || Number(bounds.maxMembers) < 1 ||
       !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) throw new Error('Committed source lost its saved bounds.');
@@ -10768,7 +10767,7 @@ export async function invokeDueSourceRoutingCanonical(opts: CanonicalDueSchedule
   const fanouts: Array<{ handler: string; fanoutId: string }> = [];
   const handlers: Array<{ handler: string; occurrenceId: string }> = [];
   for (const route of routes) {
-    const { captured, inputs } = checkedSourceEvent(route.definition, opts.due.event, due.occurrence.payload);
+    const { captured, inputs } = checkedSourceEvent(route.definition, opts.due.event, due.occurrence.payload, loaded.valueSchema);
     if (route.cohort) {
       if (producers === undefined) throw new Error('Private source cohort producer is unavailable.');
       const staged = await stagePrivateSourceCohort(opts, loaded, route.definition, route.handler,
@@ -10906,8 +10905,8 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
     source = { occurrenceId: schedule.occurrenceId, event: schedule.event, payload: schedule.payload, scopeOwner: schedule.scopeOwner };
   }
   const checkedCompletion = loaded.standardCompletions?.get(source.event);
-  const { inputs: fields, captured } = checkedCompletion === undefined
-    ? checkedSourceEvent(definition, source.event, source.payload)
+  const { inputs: fields, captured, valueSchema } = checkedCompletion === undefined
+    ? checkedSourceEvent(definition, source.event, source.payload, loaded.valueSchema)
     : checkedCompletionPayload(checkedCompletion, source.payload);
   const declared = emittedPrivateCohort(definition, opts.handler, source.event, source.scopeOwner, captured, fields);
   const privateDescriptors = loaded.producers.registry.loadArtifactDescriptors(
@@ -10949,7 +10948,7 @@ async function createCanonicalSourceCohortBody(opts: Omit<CanonicalDueScheduleOp
       !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) throw new Error('Cohort source lost its admission bounds.');
   const admittedInputs: Record<string, unknown> = Object.create(null);
   for (const [name, value] of Object.entries(captured)) {
-    admittedInputs[name] = encodeValue((fields[name] as FieldDescriptor).type, value);
+    admittedInputs[name] = encodeValue((fields[name] as FieldDescriptor).type, value, undefined, valueSchema);
   }
   for (const field of def.descriptor.inputs) {
     if (field.kind !== 'ref' || field.name === declared.refInput || admittedInputs[field.name] === null || admittedInputs[field.name] === undefined) continue;
@@ -11107,12 +11106,13 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
 
   // Payload stays captured, including observed versions. Only the private
   // admission arguments project reference identity for CURRENT row hydration.
-  const schema = normalizeSchema({ operations: { [opts.due.event]: { inputs } } } as SchemaDescriptor);
+  const operationSchema = normalizeSchema({ operations: { [opts.due.event]: { inputs } } } as SchemaDescriptor);
+  const schema = { ...operationSchema, ...loaded.valueSchema, operations: operationSchema.operations };
   const captured = validateOperationInput(schema, opts.due.event, preflight.occurrence.payload);
   const admittedInputs: Record<string, unknown> = Object.create(null);
   for (const [name, value] of Object.entries(captured)) {
     const field = member(inputs, name) as FieldDescriptor;
-    admittedInputs[name] = encodeValue(field.type, value);
+    admittedInputs[name] = encodeValue(field.type, value, undefined, schema);
   }
   for (const field of privateDef.descriptor.inputs) {
     if (field.kind !== 'ref' || admittedInputs[field.name] === null || admittedInputs[field.name] === undefined) continue;
@@ -11294,13 +11294,13 @@ export async function invokeRetainedHandlerOccurrenceCanonical(opts: CanonicalRe
     await opaque.revalidateSource(retainedFileSource, await opts.store.readRevision(), opts.files);
   }
   const checkedCompletion = loaded.standardCompletions?.get(selector.event);
-  const { inputs: fields, captured } = checkedCompletion === undefined
-    ? checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload)
+  const { inputs: fields, captured, valueSchema } = checkedCompletion === undefined
+    ? checkedSourceEvent(route.definition, selector.event, retained.occurrence.payload, loaded.valueSchema)
     : checkedCompletionPayload(checkedCompletion, retained.occurrence.payload);
   const admittedInputs: Record<string, unknown> = Object.create(null);
   for (const [name, value] of Object.entries(captured)) {
     const field = privateSourceMember(fields, name) as FieldDescriptor;
-    admittedInputs[name] = encodeValue(field.type, value);
+    admittedInputs[name] = encodeValue(field.type, value, undefined, valueSchema);
   }
   for (const field of privateDef.descriptor.inputs) {
     if (field.kind !== 'ref' || admittedInputs[field.name] === null || admittedInputs[field.name] === undefined) continue;

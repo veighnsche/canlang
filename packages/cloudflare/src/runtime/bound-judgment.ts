@@ -51,7 +51,7 @@ function sourceFor(definition: unknown, alias: string, target: string, arguments
   // The freezer admits the original own-data map before Values detaches it for storage.
   const options = runtime ? validateValue(schema!, `${declaration}.options`, supplied, 'create') : undefined;
   return { declaration, from, source, arguments: Object.freeze({ state,
-    ...(runtime ? { options: encodeValue(`${declaration}.options`, options!) } : {}) }) };
+    ...(runtime ? { options: encodeValue(`${declaration}.options`, options!, undefined, schema) } : {}) }) };
 }
 
 /** Authored inputs contain state and declared options, never source or revision. */
@@ -67,7 +67,7 @@ export function freezeBoundJudgmentRequest(input: {
   const { from, source } = checked;
   return Object.freeze({ binding: input.binding, from,
     arguments: checked.arguments,
-    judgment: Object.freeze({ specification: encodeValue('std.JudgmentSpec', source.specification as unknown as CanValue),
+    judgment: Object.freeze({ specification: encodeValue('std.JudgmentSpec', source.specification as unknown as CanValue, undefined, input.valueSchema),
       order: source.order }) });
 }
 
@@ -97,7 +97,7 @@ export function createBoundJudgmentAdapter(options: BoundJudgmentOptions): Bound
       if (checked.declaration !== expected.judgment || checked.from !== expected.deployment || carrier.from !== checked.from ||
           checked.source.specification.version !== expected.version || typeof expected.version !== 'bigint' ||
           expected.account === '' || expected.deployment === '') return null;
-      const original = encodeValue('std.JudgmentSpec', checked.source.specification as unknown as CanValue);
+      const original = encodeValue('std.JudgmentSpec', checked.source.specification as unknown as CanValue, undefined, schema);
       if (JSON.stringify(carrier.judgment.specification) !== JSON.stringify(original) ||
           JSON.stringify(carrier.judgment.order) !== JSON.stringify(checked.source.order)) return null;
       const leaves = valueTypes.contracts.find(contract => contract.name === checked.declaration)?.fields;
@@ -121,7 +121,7 @@ export function createBoundJudgmentAdapter(options: BoundJudgmentOptions): Bound
       const result = value.result;
       if (!record(result) || result.specification_revision !== resolved.source.specification.revision ||
           result.model !== resolved.installed.profile.model) return null;
-      const wire = encodeValue(resolved.context.declaredResult.name, result as unknown as CanValue);
+      const wire = encodeValue(resolved.context.declaredResult.name, result as unknown as CanValue, undefined, resolved.schema);
       validateValue(resolved.schema, resolved.context.declaredResult.name, wire, 'create');
       return { kind: 'delivered', result: wire };
     }

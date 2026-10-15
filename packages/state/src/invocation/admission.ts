@@ -41,7 +41,7 @@ import { hashAdmittedInputs, stableStringify } from './replay.js';
 import { StateError } from '../errors.js';
 import { appendInputArrayLengthErrors } from './prepared-inputs.js';
 import type { OwnerMutationReadView } from '../mutation/pipeline.js';
-import { decodeValue, encodeValue, isRecordRef, isFileValue, isDeliveryRef, isActionRef, isInvocationRef, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
+import { decodeValue, encodeValue, isRecordRef, isFileValue, isDeliveryRef, isActionRef, isInvocationRef, parseTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 
 /** One admitted mutation call with its loaded record rows and fence. */
 export interface AdmittedCall {
@@ -381,32 +381,6 @@ function validateGeneratedInputs(
   return { refs, normalized };
 }
 
-/** The root owns the checked Contract field types. Encode those containers
- * by declaration so ordinary kind/id fields never masquerade as value tags. */
-function encodeRootCallValue(typeId: string, value: Parameters<typeof encodeValue>[1], schema: NormalizedSchema): unknown {
-  if (value === null) return null;
-  const type = parseTypeId(typeId);
-  if (type.array) {
-    const element = printTypeId({ ...type, array: false, nullable: false, requiredArray: false });
-    return Object.freeze((value as readonly Parameters<typeof encodeValue>[1][]).map(item => encodeRootCallValue(element, item, schema)));
-  }
-  if (type.base.kind === 'nominal') {
-    const alias = schema.aliases?.[type.base.path];
-    if (alias !== undefined) return encodeRootCallValue(alias.typeId, value, schema);
-    const contract = schema.contracts[type.base.path];
-    if (contract !== undefined) {
-      const record = value as Record<string, Parameters<typeof encodeValue>[1]>;
-      return Object.freeze(Object.fromEntries(Object.entries(contract.fields).filter(([name]) => Object.hasOwn(record, name))
-        .map(([name, field]) => [name, encodeRootCallValue(field.typeId, record[name]!, schema)])));
-    }
-  }
-  if (type.base.kind === 'union') {
-    const union = value as { type: string; value: Parameters<typeof encodeValue>[1] };
-    return Object.freeze({ type: union.type, value: encodeRootCallValue(union.type, union.value, schema) });
-  }
-  return encodeValue(typeId, value);
-}
-
 /** Normalize once against the owning schema, then discover typed reference
  * occurrences in declaration order. Detached wires never supply model identity. */
 function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref' | 'delivery' }>, value: unknown,
@@ -430,21 +404,29 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
       const decoded = valueSchema === undefined
         ? decodeValue(valueType, value)
         : validateValue(valueSchema, valueType, value, 'create');
-      wire = !ownerStage && valueSchema !== undefined
-        ? encodeRootCallValue(valueType, decoded, valueSchema) : encodeValue(valueType, decoded);
+      wire = encodeValue(valueType, decoded, undefined, valueSchema);
       value = decoded;
     } catch {
       throw new StateError('validation', 'Invalid owner call typed input.');
     }
   }
   const seen = new WeakSet<object>();
-  const inspect = (value: unknown, path: string, depth: number, original: unknown): void => {
+  const inspect = (value: unknown, path: string, depth: number, original: unknown, type?: ReturnType<typeof parseTypeId>): void => {
     if (ownerStage && (++inspected.count > 4096 || depth > 64)) {
       throw new StateError('limit', 'Owner call composite reference inspection exceeds its finite budget.');
     }
     if (typeof value !== 'object' || value === null || seen.has(value)) return;
     seen.add(value);
-    if (isRecordRef(value)) {
+    // Only the exact owning declaration can make kind/model/id ordinary data.
+    // Keep discovery in its existing order, including union metadata visits.
+    let declared = type;
+    while (declared !== undefined && !declared.array && declared.base.kind === 'nominal' &&
+        valueSchema?.aliases?.[declared.base.path] !== undefined) {
+      declared = valueSchema.aliases[declared.base.path]!.type;
+    }
+    const contract = declared !== undefined && !declared.array && declared.base.kind === 'nominal'
+      ? valueSchema?.contracts[declared.base.path] : undefined;
+    if (contract === undefined && isRecordRef(value)) {
       if (field.kind !== 'nominal' || modelNames?.has(value.model) !== true ||
           value.version === undefined || !CANONICAL_VERSION_RE.test(value.version.toString())) {
         throw new StateError('validation', 'Owner calls require checked models and original expected reference versions.');
@@ -458,20 +440,29 @@ function normalizeCallTypedInput(field: Exclude<CanonicalInputDef, { kind: 'ref'
         expectedVersion: Number(value.version) as RecordVersion });
       return;
     }
-    if (ownerStage && Object.hasOwn(value, 'kind') && (value as Record<string, unknown>)['kind'] === 'ref') {
+    if (contract === undefined && ownerStage && Object.hasOwn(value, 'kind') && (value as Record<string, unknown>)['kind'] === 'ref') {
       throw new StateError('validation', 'Owner calls require declared singular reference inputs.');
     }
     const kind = (value as Record<string, unknown>)['kind'];
-    if (ownerStage && (kind === 'file' || kind === 'delivery' || kind === 'action' || kind === 'invocation')) {
+    if (contract === undefined && ownerStage && (kind === 'file' || kind === 'delivery' || kind === 'action' || kind === 'invocation')) {
       throw new StateError('validation', 'Owner calls do not support composite protected value provenance.');
     }
     // Root protected leaves retain their receiving pipeline. Values' typed
     // guards distinguish them from ordinary Contract fields named kind/id.
-    if (!ownerStage && (isFileValue(value) || isDeliveryRef(value) || isActionRef(value) || isInvocationRef(value))) return;
-    for (const [name, nested] of Object.entries(value)) inspect(nested, `${path}/${name}`, depth + 1,
-      typeof original === 'object' && original !== null ? (original as Record<string, unknown>)[name] : undefined);
+    if (contract === undefined && !ownerStage && (isFileValue(value) || isDeliveryRef(value) || isActionRef(value) || isInvocationRef(value))) return;
+    for (const [name, nested] of Object.entries(value)) {
+      const childType = declared?.array
+        ? { ...declared, array: false, requiredArray: false, nullable: false }
+        : contract !== undefined ? contract.fields[name]?.type
+        : declared?.base.kind === 'union' && name === 'value' &&
+          typeof (value as Record<string, unknown>)['type'] === 'string' &&
+          declared.base.arms.includes((value as Record<string, string>)['type']!)
+          ? parseTypeId((value as Record<string, string>)['type']!) : undefined;
+      inspect(nested, `${path}/${name}`, depth + 1,
+        typeof original === 'object' && original !== null ? (original as Record<string, unknown>)[name] : undefined, childType);
+    }
   };
-  inspect(value, field.name, 0, originalValue);
+  inspect(value, field.name, 0, originalValue, valueType === undefined ? undefined : parseTypeId(valueType));
   return { wire, refs: pending };
 }
 

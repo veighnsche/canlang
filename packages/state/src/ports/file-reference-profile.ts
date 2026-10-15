@@ -312,10 +312,10 @@ export function fileReferenceOccurrences(profile: FileReferenceProfile, wire: un
   try {
     const saved = copyScenarioFileData(wire);
     const decoded = validateValue(owner.schema, profile.type, saved, 'create');
-    if (stableStringify(encodeValue(profile.type, decoded)) !== stableStringify(saved)) return invalid('whole canonical stored wire required.');
+    if (stableStringify(encodeValue(profile.type, decoded, undefined, owner.schema)) !== stableStringify(saved)) return invalid('whole canonical stored wire required.');
     if (owner.constraint !== undefined) {
       const checked = validateValue(owner.constraint.schema, owner.constraint.type, { value: saved }, 'create') as Readonly<Record<string, Parameters<typeof encodeValue>[1]>>;
-      if (stableStringify(encodeValue(profile.type, checked['value']!)) !== stableStringify(saved)) return invalid('stored wire violates receiving normalization.');
+      if (stableStringify(encodeValue(profile.type, checked['value']!, undefined, owner.schema)) !== stableStringify(saved)) return invalid('stored wire violates receiving normalization.');
     }
     const found: FileReferenceOccurrence[] = [];
     let nodes = 0;

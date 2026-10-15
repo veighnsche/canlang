@@ -145,6 +145,8 @@ import {
   type TypeBase,
 } from "../types.js";
 
+import type { NormalizedSchema } from "../schema.js";
+
 type Path = ReadonlyArray<string | number>;
 
 /** Internal decode failure marker; the violation is already recorded. */
@@ -1647,7 +1649,20 @@ function encodeStringlike(name: StringLikeName, value: CanValue, path: Path): Wi
   }
 }
 
-function encodeNominal(model: string, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
+function encodeNominal(model: string, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {
+  const contract = schema !== undefined && Object.hasOwn(schema.contracts, model) ? schema.contracts[model] : undefined;
+  if (contract !== undefined) {
+    if (!isWireObject(value)) throw encodeError(`expected a ${model} contract value`, path);
+    const out: Record<string, WireValue> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      const field = Object.hasOwn(contract.fields, key) ? contract.fields[key] : undefined;
+      if (field === undefined) throw encodeError(`unknown ${model} contract field ${JSON.stringify(key)}`, [...path, key]);
+      out[key] = encodeNode(field.type, entry as CanValue, [...path, key], resolveReference, schema);
+    }
+    return Object.freeze(out);
+  }
+  const alias = schema?.aliases !== undefined && Object.hasOwn(schema.aliases, model) ? schema.aliases[model] : undefined;
+  if (alias !== undefined) return encodeNode(alias.type, value, path, resolveReference, schema);
   if (typeof value === "string") {
     return value;
   }
@@ -1669,18 +1684,18 @@ function encodeNominal(model: string, value: CanValue, path: Path, resolveRefere
   throw encodeError(`expected a ${model} value`, path);
 }
 
-function encodeUnion(arms: readonly string[], value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
+function encodeUnion(arms: readonly string[], value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {
   if (!isUnionValue(value)) {
     throw encodeError("expected a union value", path);
   }
   if (!arms.includes(value.type)) {
     throw encodeError(`union branch ${JSON.stringify(value.type)} is not a declared arm`, [...path, "type"]);
   }
-  const inner = encodeNode(parseTypeId(value.type), value.value, [...path, "value"], resolveReference);
+  const inner = encodeNode(parseTypeId(value.type), value.value, [...path, "value"], resolveReference, schema);
   return Object.freeze({ type: value.type, value: inner });
 }
 
-function encodeBase(base: TypeBase, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
+function encodeBase(base: TypeBase, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {
   switch (base.kind) {
     case "scalar":
       return encodeScalar(base.name, value, path);
@@ -1717,15 +1732,15 @@ function encodeBase(base: TypeBase, value: CanValue, path: Path, resolveReferenc
       }
       return value;
     case "nominal":
-      return encodeNominal(base.path, value, path, resolveReference);
+      return encodeNominal(base.path, value, path, resolveReference, schema);
     case "union": {
       const union = value as UnionValue;
-      return encodeUnion(base.arms, union, path, resolveReference);
+      return encodeUnion(base.arms, union, path, resolveReference, schema);
     }
   }
 }
 
-function encodeNode(ast: NormalizedType, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver): WireValue {
+function encodeNode(ast: NormalizedType, value: CanValue, path: Path, resolveReference?: RecordReferenceResolver, schema?: NormalizedSchema): WireValue {
   if (value === null) {
     if (ast.nullable) {
       return null;
@@ -1742,11 +1757,11 @@ function encodeNode(ast: NormalizedType, value: CanValue, path: Path, resolveRef
     const element: NormalizedType = { base: ast.base, array: false, nullable: false, requiredArray: false };
     const out: WireValue[] = [];
     for (let index = 0; index < value.length; index += 1) {
-      out.push(encodeNode(element, value[index] as CanValue, [...path, index], resolveReference));
+      out.push(encodeNode(element, value[index] as CanValue, [...path, index], resolveReference, schema));
     }
     return freezeArray(out);
   }
-  return encodeBase(ast.base, value, path, resolveReference);
+  return encodeBase(ast.base, value, path, resolveReference, schema);
 }
 
 /**
@@ -1754,8 +1769,10 @@ function encodeNode(ast: NormalizedType, value: CanValue, path: Path, resolveRef
  * mismatches (and every secret encode) throw ValueError; a bad type id
  * throws ValueError too. An optional host resolver supplies private record
  * identities at demanded nominal/dynamic candidates; it performs no row reads.
+ * With owning schema context, declared Contracts recurse by field type before
+ * runtime tags and host reference resolution; untyped encoding is unchanged.
  */
-export function encodeValueTsCore(typeId: string, value: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined): WireValue {
+export function encodeValueTsCore(typeId: string, value: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined, schema: NormalizedSchema | undefined = undefined): WireValue {
   const ast = parseTypeId(typeId);
-  return encodeNode(ast, value, [], resolveReference);
+  return encodeNode(ast, value, [], resolveReference, schema);
 }

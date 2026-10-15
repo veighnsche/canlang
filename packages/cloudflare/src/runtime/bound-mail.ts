@@ -106,7 +106,7 @@ export function createBoundMailAdapter(options: BoundMailAdapterOptions): BoundM
       const checked = validateOperationInput(schema, intent.target, request["arguments"]);
       const args: Record<string, unknown> = Object.create(null);
       for (const [name, value] of Object.entries(checked)) {
-        args[name] = encodeValue((inputs[name] as FieldDescriptor).type, value as CanValue);
+        args[name] = encodeValue((inputs[name] as FieldDescriptor).type, value as CanValue, undefined, schema);
       }
       const recipient = intent.target === USER_TARGET ? args["to"] : undefined;
       const recipientUser = closed(recipient, ['id']) && typeof recipient['id'] === 'string' && recipient['id'] !== '' ? recipient['id'] : undefined;

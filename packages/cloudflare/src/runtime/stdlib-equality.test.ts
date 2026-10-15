@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CanValue } from '@canlang/contracts';
-import { makeRecordRef, ValueError } from '@canlang/values';
+import { makeRecordRef, normalizeSchema, ValueError } from '@canlang/values';
 import type { HandlerContext } from './context.js';
 import { bindNativeRecord, nativeRecordReference } from './native-records.js';
 import { equalValue } from './stdlib.js';
@@ -30,4 +30,23 @@ test('native equality preserves ordinary short circuits and original demanded ge
   assert.equal(reads, 0);
   assert.throws(() => equalValue('Input', { field: true }, bad), error => error === original);
   assert.equal(reads, 1);
+});
+
+
+test('owning schema preserves ref-shaped Contract business fields through both equality ABIs', () => {
+  const schema = normalizeSchema({ contracts: { Input: { fields: {
+    kind: { type: 'text' }, model: { type: 'text' }, id: { type: 'text' }, version: { type: 'int' },
+    customer: { type: 'Input.Customer' },
+  } } } });
+  const view = Object.freeze(Object.defineProperty({}, 'kind', { enumerable: true,
+    get: () => assert.fail('native identity must not read business fields') }));
+  bindNativeRecord(view, 'Input.Customer', 'customer', 2);
+  const stored = { kind: 'ref', model: 'business', id: 'business', version: 1n,
+    customer: makeRecordRef('Input.Customer', 'customer', 1n) };
+  const hydrated = { ...stored, customer: view as CanValue };
+  const context = new Proxy({} as HandlerContext, { get: () => assert.fail('equality must not inspect context') });
+  assert.equal(equalValue('Input', stored, hydrated, undefined, schema), true);
+  assert.equal(equalValue(context, 'Input[]', [stored], [hydrated], undefined, schema), true);
+  assert.equal(equalValue('Input', stored, { ...hydrated, version: 2n }, undefined, schema), false);
+  assert.equal(equalValue(context, 'Input', stored, { ...hydrated, model: 'changed' }, undefined, schema), false);
 });
