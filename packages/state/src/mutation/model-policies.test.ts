@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { OWNER_MODEL_POLICY_BINDINGS_MEMBER } from '@canlang/contracts';
+import { normalizeSchema, SchemaError } from '@canlang/values';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../invocation/registry.js';
 import type { CanonicalOwnerModelPolicies, DeleteMode, StoragePort } from '@canlang/contracts';
 import { StateError } from '../errors.js';
@@ -189,6 +190,70 @@ describe('native rules through the actual owner mutation session', () => {
     const next = await begin();
     await assert.rejects(next.stage({ op: 'update', model: ITEM, id: asId('one'), data: { amount: 4 } }, { cause: 'scenario' }), isStateError('rule_failed'));
     assert.equal((await store.load(ITEM, asId('one')))!.data.amount, 3);
+  });
+
+  it('preserves locked scalar wire failure without an optional field codec', async () => {
+    const { store } = createTestMemoryStorage();
+    const table = buildModelTable([modelDef(ITEM, { fields: { amount: { ...field(), valueType: 'int' } } })]);
+    await seedRow(store, ITEM, { id: 'one', data: { amount: '1' } });
+    const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor([
+      { kind: 'lock', id: 'frozen', fields: ['amount'] },
+    ])], bindings: [predicate('frozen', 'lock', () => true)] });
+    const session = await beginOwnerMutation({ table, store, context: context(), bounds: { maxWork: 100, maxRows: 4 }, policies });
+    await assert.rejects(session.stage({ op: 'update', model: ITEM, id: asId('one'), data: { amount: 'invalid' } },
+      { cause: 'scenario' }), isStateError('rule_failed', /Locked/));
+    assert.equal((await store.load(ITEM, asId('one')))!.data.amount, '1');
+  });
+
+  it('locks typed reference identities while retaining Contract scalar and ordered array values', async () => {
+    const { store } = createTestMemoryStorage();
+    const schema = normalizeSchema({ contracts: {
+      'Policies.Packet': { fields: { subject: { type: LIMIT }, others: { type: `${LIMIT}[]` },
+        title: { type: 'text' }, version: { type: 'text' }, business: { type: 'Policies.Business' } } },
+      'Policies.Business': { fields: { kind: { type: 'text' }, id: { type: 'text' }, version: { type: 'text' } } },
+    } });
+    const table = buildModelTable([
+      modelDef(ITEM, { fields: { direct: { ...field(), valueType: LIMIT }, legacy: field(),
+        packet: { ...field(), valueType: 'Policies.Packet' }, label: field() },
+        refs: [{ field: 'direct', model: LIMIT }, { field: 'legacy', model: LIMIT }], deleteMode: 'remove' }),
+      modelDef(LIMIT, { fields: { cap: field() }, deleteMode: 'remove' }),
+    ], { valueSchema: schema });
+    const packet = { subject: { id: 'a', version: '1' }, others: [{ id: 'a', version: '1' }, { id: 'b', version: '1' }],
+      title: 'original', version: 'business-version', business: { kind: 'business', id: 'a', version: 'ordinary-version' } };
+    await seedRow(store, ITEM, { id: 'one', data: { direct: { id: 'a', version: '1' }, legacy: { id: 'a', version: '1' }, packet } });
+    for (const id of ['a', 'b']) await seedRow(store, LIMIT, { id, data: { cap: 3 } });
+    const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor([
+      { kind: 'lock', id: 'frozen', fields: ['direct', 'legacy', 'packet'] },
+    ])], bindings: [predicate('frozen', 'lock', () => true)] });
+    const begin = () => beginOwnerMutation({ table, store, context: context(), bounds: { maxWork: 200, maxRows: 4 }, policies });
+    const refreshed = { ...packet, subject: { id: 'a', version: '9' },
+      others: [{ id: 'a', version: '8' }, { id: 'b', version: '7' }] };
+    const allowed = await begin();
+    await allowed.stage({ op: 'update', model: ITEM, id: asId('one'), data: {
+      direct: { id: 'a', version: '9' }, legacy: { id: 'a', version: '8' }, packet: refreshed, label: 'allowed',
+    } }, { cause: 'scenario' });
+    await commit(store, await allowed.finalize());
+    assert.deepEqual((await store.load(ITEM, asId('one')))!.data.packet, refreshed);
+    const edits = [
+      { direct: { id: 'b', version: '9' } },
+      { legacy: { id: 'b', version: '8' } },
+      { packet: { ...refreshed, subject: { id: 'b', version: '9' } } },
+      { packet: { ...refreshed, title: 'changed' } },
+      { packet: { ...refreshed, others: [...refreshed.others].reverse() } },
+      { packet: { ...refreshed, version: 'changed-business-version' } },
+      { packet: { ...refreshed, business: { ...refreshed.business, version: 'changed-ordinary-version' } } },
+    ];
+    for (const data of edits) {
+      const rejected = await begin();
+      await assert.rejects(rejected.stage({ op: 'update', model: ITEM, id: asId('one'), data }, { cause: 'scenario' }),
+        isStateError('rule_failed', /Locked/));
+    }
+    const copied = await begin();
+    await assert.rejects(copied.stage({ op: 'update', model: ITEM, id: asId('one'), data: {
+      direct: { kind: 'ref', model: LIMIT, id: 'a', version: '9' },
+    } }, { cause: 'scenario' }), error => error instanceof SchemaError &&
+      error.violations.some(violation => violation.code === 'unknown-field' && violation.path.at(-1) === 'kind'));
+    assert.deepEqual((await store.load(ITEM, asId('one')))!.data.packet, refreshed);
   });
 
   it('checks affected own rows once, deduplicates reverse targets and sorts their identities', async () => {

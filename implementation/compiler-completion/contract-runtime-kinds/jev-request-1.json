@@ -1,0 +1,22 @@
+{
+  "state": {
+    "goal": "Keep source-owned typed Contracts usable for ordinary SaaS records with compact authoring, one canonical equality/encoding primitive, no reserved business-field workaround, coherent permissions/order/failure/rollback/recovery. This is an implementation representation choice, not permission to redesign Can.",
+    "required_outcome": "A declared Contract {kind:text,model:text,id:text,version:int} with kind=ref compares and encodes ALL business fields, including version. A declared Model leaf instead compares Model/id identity and ignores concurrency version. Nested Contracts/aliases/arrays/unions, plain source constructors, decoded inputs, locked snapshots, hydration and transport must agree. No extra source syntax. Malformed tagged values outside proven Contract positions must still fail; field spelling alone never grants reference authority. Native reference resolution remains genuine and only demanded by the existing lazy comparison/encoding order; do not eagerly walk values or swallow failures.",
+    "verified_context": [
+      "Values validateContractValue(schema-core.ts700) accepts any declared kind field and returns frozen plain object. equalValue typeId is currently an opaque label; its runtime dispatch checks isRecordRef before Contract fields, then rejects malformed known kind tags. Consequently ref-shaped Contract can ignore business fields, or ordinary kind=ref Contract throws. encodeValue has the same runtime shape collision in encodeDynamic/encodeNominal, so equality-only repair is incomplete.",
+      "Current equalValue has optional native reference resolver as fourth argument; encodeValue has optional demanded path-aware native reference resolver as third. Existing untyped malformed {kind:file} and {kind:ref,id:empty} controls must remain refusals. No value-type interpretation creates a native reference grant.",
+      "State locked field comparison now has exact checked receiving schema through a private actual-field association; CF encodeCanonicalField already receives loaded owning schema, but currently validates after potentially lossy encoding. CF stdlib equality drops c and passes only nativeRecordReference; generated equality in normal and hook code carries type string, no schema. Source-owned module/operation schema delivery must therefore be completed if dispatch uses schemas, without global mutable name lookup.",
+      "Compiler Contract constructions currently lower to plain JS object literals. CF scenario hydration reconstructs Contract containers with Object.freeze(Object.fromEntries(...)); makeUnionValue copies its value; State frozen() uses structuredClone. None preserves a new WeakMap identity automatically. Wire transport must always reacquire type from the exact receiving schema. Adding a validation-only brand is insufficient."
+    ]
+  },
+  "questions": {
+    "representation": {
+      "type": "choice",
+      "instructions": "Which complete representation strategy best satisfies these same declared-value semantics and authority/order guarantees with the least total construction, copying, codegen and maintenance complexity?",
+      "criteria": {
+        "schema_dispatch": "Extend the existing Values equality and encoding dispatch with exact owning schema/type context. Follow declared Contract/alias/array/union positions recursively, use existing Model semantics only at declared Model positions, and retain current runtime fallback/refusals where no structural type is proved. Bind source-owned schema at generated normal/hook equality and native codec consumers; no global type-name lookup or second primitive. This adds explicit context plumbing but covers plain constructors and decoded/cloned values.",
+        "private_provenance": "Attach private provenance to genuine typed Contract values and consult it before runtime-tag dispatch in the existing equality/encoding primitives. Extend typed construction, validation, hydrated reconstruction, union copies and State clones to preserve or reconstruct provenance; revalidate on wire receipt. No enumerable business-field brand or authority grant. This keeps dispatch value-local but requires every construction/copy boundary to participate."
+      }
+    }
+  }
+}

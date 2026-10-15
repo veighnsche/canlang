@@ -18,7 +18,7 @@ import type { MutationOutcome } from '../src/worker/assembly.js';
 const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const nodeImport = compileFunction('return import(url)', ['url'], { importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
 const installed = (path: string) => pathToFileURL(join(root, 'packages/cloudflare/dist', path)).href;
-const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`), SNAPSHOT = asModel(`${APP}.Snapshot`), ASSIGNMENT = asModel(`${APP}.Assignment`), CHECKED = asModel(`${APP}.Checked`);
+const APP = 'ContractInputs', CUSTOMER = asModel(`${APP}.Customer`), CONTACT = asModel(`${APP}.Contact`), LOCATION = asModel(`${APP}.Location`), RESULT = asModel(`${APP}.Result`), SNAPSHOT = asModel(`${APP}.Snapshot`), ASSIGNMENT = asModel(`${APP}.Assignment`), CHECKED = asModel(`${APP}.Checked`), INTAKE = asModel(`${APP}.Intake`);
 const SOURCE = `app ContractInputs
 Given
  Customer {active:bool,name:text}
@@ -30,7 +30,9 @@ Given
  contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text}
  Snapshot {input:Lead}
  Assignment {title:text,owner:user=actor}
- Checked {customer:Customer,contact:Contact,location:Location,value:money}
+ Checked {customer:Customer,contact:Contact,location:Location,value:money,owner:user=actor}
+ Intake {source:text unique,input:Lead,checked:Checked,evidence:text min=1}
+ lock Intake fields=source,input,checked,evidence
  invariant Checked: row.contact.parent==row.customer and row.value.minor>=0 and row.value.currency==row.location.currency
  policy Customer read=members
  policy Contact read=contact_reader
@@ -39,12 +41,14 @@ Given
  policy Snapshot read=contact_reader
  policy Assignment read=contact_reader
  policy Checked read=members
+ policy Intake read=contact_reader
 When
  crud Customer by=members fields=active,name
  crud Contact by=members fields=name
  crud Location by=members fields=title,currency
  crud Assignment by=members fields=title,owner
  crud Checked by=members fields=customer,contact,location,value
+ crud Intake by=members fields=source,input,checked,evidence create=none delete=none
  scenario promote(input:Lead,accept:bool) -> Result by=members
   require input.customer.active and input.alternate.active and input.contact.parent==input.customer and input.value.minor>=0 and input.value.currency==input.selection.location.currency
   do
@@ -75,6 +79,16 @@ When
  scenario check(input:Lead) -> Checked by=members
   do
    create Checked {customer=input.customer,contact=input.contact,location=input.selection.location,value=input.value} as checked
+   return checked
+ scenario upsert(source:text,input:Lead) -> Checked by=members
+  require starts_with(source,"discover:") and source!="discover:"
+  do
+   let existing=first(Intake as intake where intake.source==source)
+   if existing!=null
+    require existing.input==input
+    return existing.checked
+   create Checked {customer=input.customer,contact=input.contact,location=input.selection.location,value=input.value} as checked
+   create Intake {source,input,checked,evidence=input.notes} as intake
    return checked
  scenario assign(title:text,accept:bool) -> Assignment by=members
   do
@@ -122,7 +136,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       if (compiled.kind !== 'artifact') throw new Error('Original Contract input source did not compile');
       const artifact: CompileArtifact = compiled.artifact;
       assert.equal(verifyCompilerSources(capture, {complete:true,sources:artifact.sources}).ok, true);
-      for (const name of ['promote', 'select', 'versions', 'echoCurrency', 'capture', 'same', 'requireSame', 'assign', 'assignOther', 'check']) {
+      for (const name of ['promote', 'select', 'versions', 'echoCurrency', 'capture', 'same', 'requireSame', 'assign', 'assignOther', 'check', 'upsert']) {
         const operation = artifact.operations?.find(operation => operation.name === `${APP}.${name}`);
         assert.ok(operation?.result?.disclosure?.returns.length);
       }
@@ -323,9 +337,61 @@ test('native Contract input slots retain normalized values, distinct reference v
       const checkedCall = envelope('check',{input:payload});
       const checkedId = referenceId(await invoke(checkedCall));
       const checkedRow = await store.load(CHECKED,asId(checkedId)); assert.ok(checkedRow);
-      assert.deepEqual(checkedRow.data,{customer:{id:customer.id},contact:{id:contact.id},location:{id:location.id},value:payload.value});
+      assert.deepEqual(checkedRow.data,{customer:{id:customer.id},contact:{id:contact.id},location:{id:location.id},value:payload.value,owner:{id:user.user_id}});
       const checkedCount = batches.length;
       assert.equal(referenceId(await invoke(checkedCall),'replayed'),checkedId); assert.equal(batches.length,checkedCount);
+      // Two root constructors commit in source order; a new request reuses the original checked row.
+      const pairedCall=envelope('upsert',{source:'discover:paired',input:payload}),pairedBefore=batches.length;
+      const pairedId=referenceId(await invoke(pairedCall));
+      assert.equal(batches.length,pairedBefore+1);
+      const pairedBatch=batches.at(-1)!;
+      assert.deepEqual(pairedBatch.writes.map(write=>write.model),[CHECKED,INTAKE]);
+      assert.equal(pairedBatch.history.length,2);assert.equal(pairedBatch.uniqueClaims?.length,1);
+      const intakeRows=await store.query({model:INTAKE,authority:'owner'});assert.equal(intakeRows.length,1);
+      const intakeRow=intakeRows[0]!;
+      assert.deepEqual(intakeRow.data,{source:'discover:paired',input:normalizedPayload,checked:{id:pairedId},evidence:payload.notes});
+      const pairedReceipt=await store.readReceipt(receiptIdentity(pairedCall));assert.ok(pairedReceipt);
+      const pairedAssociation=readScenarioReceiptAssociation(pairedReceipt);assert.ok(pairedAssociation);
+      assert.deepEqual(Object.values(pairedReceipt.resolvedDefaults),[{id:user.user_id}]);
+      assert.ok(Object.keys(pairedReceipt.resolvedDefaults)[0]!.endsWith('.owner'));
+      assert.deepEqual((await store.load(CHECKED,asId(pairedId)))!.data.owner,{id:user.user_id});
+      assert.deepEqual(new Set(pairedAssociation.changed.map(change=>change.model)),new Set([CHECKED,INTAKE]));
+      assert.deepEqual(pairedAssociation.changed.find(change=>change.model===INTAKE)?.row,intakeRow);
+      // All declared evidence fields remain locked through the canonical CRUD operation.
+      for(const patch of [{source:'discover:changed'},{checked:ref(checkedRow)},{input:{...payload,notes:'changed'}},{evidence:'changed'}]) {
+        const call=envelope(`${INTAKE}.update`,{record:ref(intakeRow),...patch}),before=batches.length;
+        const outcome=await invoke(call);assert.ok('error' in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,'rule_failed');
+        assert.equal(batches.length,before+1);assert.deepEqual(batches.at(-1)!.writes,[]);assert.deepEqual(batches.at(-1)!.history,[]);
+        assert.deepEqual(await store.load(INTAKE,intakeRow.id),intakeRow);
+      }
+      const pairedExistingCall=envelope('upsert',{source:'discover:paired',input:payload}),reuseBefore=batches.length;
+      assert.equal(referenceId(await invoke(pairedExistingCall)),pairedId);
+      assert.equal(batches.length,reuseBefore+1);assert.deepEqual(batches.at(-1)!.writes,[]);assert.deepEqual(batches.at(-1)!.history,[]);
+      const reusedReceipt=await store.readReceipt(receiptIdentity(pairedExistingCall));assert.ok(reusedReceipt);
+      const reusedAssociation=readScenarioReceiptAssociation(reusedReceipt);assert.ok(reusedAssociation);
+      assert.deepEqual(reusedAssociation.changed,[]);
+      const replayBefore=batches.length;
+      assert.equal(referenceId(await invoke(pairedCall),'replayed'),pairedId);
+      assert.equal(referenceId(await invoke(pairedExistingCall),'replayed'),pairedId);assert.equal(batches.length,replayBefore);
+      for(const [source,input,code] of [
+        ['other:paired',payload,'rule_failed'],
+        ['discover:',payload,'rule_failed'],
+        ['discover:paired',{...payload,notes:'different evidence'},'rule_failed'],
+        // Fixture-only required evidence fails in the second constructor after Checked has staged.
+        ['discover:late-invalid',{...payload,notes:''},'validation'],
+      ] as const) {
+        const call=envelope('upsert',{source,input}),before=batches.length;
+        const beforeChecked=await store.query({model:CHECKED,authority:'owner'});
+        const rejected=await invoke(call);assert.ok('error' in rejected,JSON.stringify(rejected));assert.equal(rejected.error.code,code);
+        assert.equal(batches.length,before+1);
+        assert.deepEqual(batches.at(-1)!.writes,[]);assert.deepEqual(batches.at(-1)!.history,[]);
+        assert.deepEqual(batches.at(-1)!.outbox,[]);assert.deepEqual(batches.at(-1)!.schedules,[]);
+        assert.deepEqual(batches.at(-1)!.uniqueClaims??[],[]);
+        assert.deepEqual(await store.query({model:CHECKED,authority:'owner'}),beforeChecked);
+        assert.deepEqual(await store.query({model:INTAKE,authority:'owner'}),intakeRows);
+        const rejectedReplay=await invoke(call);assert.ok('error' in rejectedReplay);assert.equal(rejectedReplay.error.code,code);
+        assert.equal(batches.length,before+1);
+      }
       for(const invalid of [
         {...payload,contact:ref(otherContact)},
         {...payload,value:{minor:'-1',currency:'EUR'}},
@@ -404,6 +470,8 @@ test('native Contract input slots retain normalized values, distinct reference v
       ]) {
         const withheld = committed(recovered,'replayed'); assert.equal(withheld.result,null); assert.deepEqual(withheld.records,[]);
       }
+      const hiddenReuse=committed(await invoker.invokeRetainedMutation(pairedExistingCall,await current()),'replayed');
+      assert.equal(hiddenReuse.result,null);assert.deepEqual(hiddenReuse.records,[]);
       assert.equal(batches.length,grantCount); assert.deepEqual(await records(),grantRecords);
       await identities.setMembershipRoles(membership.membership_id,contactRoles);
       assert.equal(referenceId(await invoker.invokeRetainedMutation(input,await current()),'replayed'),id);
@@ -419,7 +487,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       await identities.removeMembership(membership.membership_id);
       const revokedCount = batches.length;
       const withheld = committed(await invoke(selectedInput),'replayed'); assert.equal(withheld.result,null);
-      for (const call of [snapshotCall,compareCall,assignedCall]) {
+      for (const call of [snapshotCall,compareCall,assignedCall,pairedCall,pairedExistingCall]) {
         const withheld = committed(await invoke(call),'replayed'); assert.equal(withheld.result,null); assert.deepEqual(withheld.records,[]);
         const denied = await invoker.invokeRetainedMutation(call,identity); assert.ok('error' in denied); assert.equal(denied.error.code,'forbidden');
       }
@@ -437,7 +505,25 @@ test('native Contract input slots retain normalized values, distinct reference v
       assert.deepEqual(await store.readReceipt(receiptIdentity(compareCall)),comparisonReceipt);
       assert.deepEqual(await store.readReceipt(receiptIdentity(assignedCall)),assignmentReceipt);
       assert.deepEqual(await store.load(ASSIGNMENT,asId(assignmentId)),assignment);
+      assert.equal(referenceId(await invoker.invokeRetainedMutation(pairedExistingCall,await current()),'replayed'),pairedId);
+      assert.deepEqual(await store.query({model:INTAKE,authority:'owner'}),intakeRows);
+      assert.deepEqual(await store.readReceipt(receiptIdentity(pairedCall)),pairedReceipt);
       assert.deepEqual(await store.readReceipt(receiptIdentity(input)),physical);
+      // Concurrency metadata is not a business reference change in a locked Contract.
+      const metadataCustomer=await seed(CUSTOMER,{active:true,name:'metadata customer'});
+      const metadataContact=await seed(CONTACT,{parent:ref(metadataCustomer),name:'metadata contact'});
+      const metadataPayload={...payload,customer:ref(metadataCustomer),alternate:ref(metadataCustomer),contact:ref(metadataContact)};
+      const metadataPair=envelope('upsert',{source:'discover:metadata',input:metadataPayload});
+      referenceId(await invoke(metadataPair));
+      const metadataIntake=(await store.query({model:INTAKE,authority:'owner'})).find(row=>row.data.source==='discover:metadata');assert.ok(metadataIntake);
+      committed(await invoke(envelope(`${CUSTOMER}.update`,{record:ref(metadataCustomer),name:'refreshed metadata customer'})));
+      const refreshedCustomer=await store.load(CUSTOMER,metadataCustomer.id);assert.ok(refreshedCustomer);
+      const refreshedPayload={...metadataPayload,customer:ref(refreshedCustomer),alternate:ref(refreshedCustomer)};
+      committed(await invoke(envelope(`${INTAKE}.update`,{record:ref(metadataIntake),input:refreshedPayload})));
+      const refreshedIntake=await store.load(INTAKE,metadataIntake.id);assert.ok(refreshedIntake);
+      assert.deepEqual(refreshedIntake.data.input,{...refreshedPayload,title:'reviewed'});
+      assert.deepEqual(refreshedIntake.data.checked,metadataIntake.data.checked);
+
       assert.equal(await readFile(sourcePath,'utf8'),SOURCE); assert.equal(await captureIsCurrent(capture),true);
     } finally {
       await worker?.dispose(); await rm(directory,{recursive:true,force:true});

@@ -16205,3 +16205,84 @@ usable artifact. Exact diagnostic comparison with the actor-default capture
 adds/removes none. This closes the nested invariant prerequisite; original
 adjacent root constructors, query-backed can_work and cohort hook requirements
 remain local work. No full CanCRM or training readiness is claimed.
+
+
+2026-10-15 — C02/C10: retain adjacent root constructors and locked evidence values.
+
+Implement the original promote_research pair through the existing checked Create
+and Reference-result mechanisms: two adjacent distinct Team-root models, an exact
+once-bound first Create reference in the second, independent early existing-row
+return, and final return of the first created row. Preserve every source/schema,
+default, invariant, unique, lock, query and order proof. A checked empty query
+census is valid; missing census evidence still refuses. The established contained
+same-parent/count pair retains its obligations. Ordinary late requirements retain
+shared-owner ordering and rollback. No new transaction carrier or app spelling.
+
+Keep the original starts_with(source,"discover:") guard: selected builtin,
+overload, ordered slots, original operand nodes/types and source all correspond.
+The native facade exports the existing pure Values implementation. This is settled
+text behavior, not a new language choice. Required singular Model/Contract lock
+fields now have exact source/fresh owner and Contract field-order correspondence;
+raw local admission does not acquire that proof. State keeps the owning schema
+privately on real checked fields and decodes selected reference/Contract lock
+operands through the existing Values equality primitive. Model/id identity ignores
+concurrency version metadata; changed business fields, reference identities and
+array order remain locked. No version-key stripping or new equality API. Other
+wire/scalar behavior and error order remain unchanged; a concrete optional-codec
+regression caught and removed unnecessary scalar decoding. Entry lock decisions,
+removal refusal and existing transaction phases are preserved.
+
+Validation:33 affected compiler checks and73 State policy/session checks pass,
+including original/renamed/empty-query pairs, schema/guard/IR corruptions,
+reference-version-only refresh, business version keys and scalar error behavior.
+Normal State/Cloudflare and CLI builds, changed Rust formatting and diff checks
+pass; root TypeScript retains16 old errors in four unchanged files. The captured
+CLI/verified assembly/D1/Identity case1/1 (66.65s) verifies two ordered writes/history
+entries and one unique claim in one commit, exact stored Contract and first-record
+link, both changed receipt rows and actual actor default/receipt in the first constructor,
+no-write existing reuse, all locked-field CRUD
+refusals, exact second-constructor failure rollback and rejected replay, current
+role/membership loss/restoration and a real version-only Contract update. Existing
+current-Revision native1/1 (144.94s) remains qualified; the final scalar correction
+restores its established wire behavior and the pure helper re-export changes no
+existing implementation. The first paired import exposed the missing helper;
+the final frozen case passes with genuine producer export and unchanged assertions.
+
+Frozen original24-source validation exits10 after389.72s with701 diagnostics
+(675 E6008,26 E6007), complete=true, omitted=0, identical source inventory and no
+usable artifact. Exact full comparison with the preceding invariant capture adds/
+removes none. Original query-backed can_work source correspondence and whole-cohort
+hooks still prevent full execution; this closes the root-pair/evidence prerequisite,
+not CanCRM or training readiness.
+
+2026-10-15 — C02/C03: proposed schema-directed Contract kind repair.
+
+The lock work exposes a separate existing Values defect: a declared ordinary
+Contract may use business fields kind/model/id/version. Validation accepts it,
+but equality and encoding inspect runtime kind first. A ref-shaped Contract can
+lose business fields or ignore its business version; a malformed-looking known
+tag can fail instead. ResearchLead does not exercise that tag, so do not infer
+complete Contract support from the preceding native result. Removing guards or
+stripping business keys would weaken existing malformed-value controls.
+
+Proposed implementation direction: extend the existing Values equality/encoding
+primitives with exact owning schema/type context and recursively preserve declared
+Contract/alias/array/union positions. Source-owned generated normal and hook
+consumers must supply that context; State locks and native field codecs already
+have it. No global type-name registry or new authoring syntax. Private Contract
+provenance is a credible alternative, but validation-only branding is insufficient:
+plain compiler literals, hydrated container reconstruction, union copies and
+structuredClone all need explicit propagation/reconstruction, and receiving wire
+still needs its schema. Both completed alternatives can meet the same outcomes.
+
+Three independently worded equivalent JEV Choice requests prefer schema dispatch,
+probabilities .89/.93/.72 and confidence .78/.86/.44. No rationale was returned;
+this is same-model advice, not correctness evidence. Requests/responses and
+uncertainty are retained in implementation/compiler-completion/contract-runtime-kinds/.
+Installed aliases are bounded text; reused Contract fields already emit the actual
+canonical Contract name. No new Contract-alias capability is implied.
+Exact additive API and schema plumbing remain implementation work. Finite acceptance
+must compare/encode every business field in plain and decoded Contracts, preserve
+actual Model identity, lazy genuine native resolution, malformed-tag rejection
+outside proven Contract positions, order/failures, locks, rollback and replay.
+This is a ready local correction, not an external release hold or completed feature.

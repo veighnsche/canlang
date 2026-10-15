@@ -1,0 +1,8 @@
+{
+  "direction": "schema_dispatch",
+  "status": "selected design; implementation and consumer qualification remain open",
+  "advice": "Three equivalent independently worded Choice requests prefer schema_dispatch, probabilities .89/.93/.72 and confidence .78/.86/.44. Same-model advice, no rationale, not runtime evidence.",
+  "rationale": "Both completed alternatives can preserve the same semantics. Existing owning schemas already reach State locks and native codecs; plain literals, hydration, union copies and structured cloning make validation-only private provenance insufficient. Explicit source-owned schema dispatch avoids a new all-construction/copy protocol, but every normal/hook generated equality consumer still needs the exact schema join.",
+  "uncertainty": "Exact additive Values API and source/module schema plumbing remain to implement. Must preserve old malformed-tag refusals outside declared Contract positions, literal/input equivalence, business kind/id/version fields, genuine Model reference identity, demand order, failure identity, native reference authority, locks, rollback and replay. Equality-only repair or State version stripping is incomplete.",
+  "verified_alias_scope": "Installed schema aliases are currently bounded text only; compiler reused Contract fields resolve/emits the actual canonical Contract name. Repair acceptance covers supported aliases and existing reuse; no new Contract-alias capability is implied."
+}

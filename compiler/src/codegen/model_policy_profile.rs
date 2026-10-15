@@ -1199,6 +1199,43 @@ pub(crate) fn local_stored_field_type(
     ) && local_type(program, model, ty)
 }
 
+/// Required nominal lock targets use their owning declarations only after the
+/// caller seals the complete source/fresh Model, Contract and Field tables.
+/// This classifier supplies neither a wire comparator nor native activation.
+pub(crate) fn checked_required_record_lock_target(
+    program: &IrProgram,
+    model: SymbolId,
+    field: SymbolId,
+    name: &str,
+    ty: &ResolvedType,
+) -> bool {
+    if policy_field(program, model, name, ty) != Some(field) {
+        return false;
+    }
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = ty
+    else {
+        return false;
+    };
+    let Some(target) = program.items.get(symbol.0 as usize) else {
+        return false;
+    };
+    let Some(module) = program.modules.get(target.module.0 as usize) else {
+        return false;
+    };
+    target.id == *symbol
+        && module.id == target.module
+        && target.span.file == module.file
+        && contains_span(module.span, target.span)
+        && target.canonical == format!("{}.{}", module.name, target.name)
+        && matches!(
+            target.kind,
+            IrItemKind::Model { .. } | IrItemKind::Contract { .. }
+        )
+}
+
 fn visit(
     program: &IrProgram,
     model: SymbolId,

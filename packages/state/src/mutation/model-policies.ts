@@ -3,10 +3,11 @@ import type {
   CanonicalOwnerModelPolicies, InvocationContext, ModelName, QuerySpec, RecordId, StoredRow,
 } from '@canlang/contracts';
 import { OWNER_MODEL_POLICY_BINDINGS_MEMBER } from '@canlang/contracts';
+import { decodeValue, equalValue, parseTypeId, validateValue } from '@canlang/values';
 import type { LoadedArtifactDescriptors } from '../invocation/registry.js';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import type { InterimHook, InterimHookContext, ModelTable } from './models.js';
+import { getModelFieldValueSchema, type InterimHook, type InterimHookContext, type InterimModelDef, type ModelTable } from './models.js';
 import { assertOwnerMutationHookContext, type OwnerMutationHookContext } from './pipeline.js';
 
 export interface OwnerModelChange {
@@ -82,6 +83,24 @@ function equal(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((v, i) => equal(v, b[i]));
   const ak = Object.keys(a), bk = Object.keys(b);
   return ak.length === bk.length && ak.every(key => Object.hasOwn(b, key) && equal((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+}
+function equalLockedField(def: InterimModelDef, name: string, a: unknown, b: unknown): boolean {
+  // Omitted fields retain the existing absence semantics; they are not defaults.
+  if (a === undefined || b === undefined) return a === b;
+  const field = def.fields[name]!;
+  const reference = def.refs.find(ref => ref.field === name);
+  const type = field.valueType ?? (reference === undefined ? undefined :
+    `${reference.model}${field.array === undefined ? '' : '[]'}${field.nullable === true ? '?' : ''}`);
+  if (type === undefined) return equal(a, b);
+  const schema = getModelFieldValueSchema(field);
+  const parsed = parseTypeId(type);
+  const contract = schema !== undefined && parsed.base.kind === 'nominal' && Object.hasOwn(schema.contracts, parsed.base.path);
+  // The optional codec's legacy scalar wire path is unchanged. Only declared
+  // references and schema-owned Contracts need canonical reference identity.
+  if (reference === undefined && !contract) return equal(a, b);
+  const decode = (value: unknown) => schema === undefined
+    ? decodeValue(type, value) : validateValue(schema, type, value, 'create');
+  return equalValue(type, decode(a), decode(b));
 }
 function frozen<T>(value: T): T { return deepFreeze(structuredClone(value)); }
 
@@ -261,7 +280,8 @@ export function bindOwnerModelPolicies(input: {
         if (d.model !== change.model) continue;
         for (const rule of d.rules) {
           if (rule.kind !== 'lock' || !await predicate(rule.id, change.before, views, 'entry')) continue;
-          if (change.after === null || rule.fields.some(field => !equal(getDataPath(change.before!.data, field), getDataPath(change.after!.data, field)))) {
+          if (change.after === null || rule.fields.some(field => !equalLockedField(input.table.get(d.model)!, field,
+            getDataPath(change.before!.data, field), getDataPath(change.after!.data, field)))) {
             throw new StateError('rule_failed', 'Locked fields cannot change and locked records cannot be removed.');
           }
         }
