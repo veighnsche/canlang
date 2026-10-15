@@ -29,6 +29,8 @@ export interface OwnerModelPolicyViews {
 }
 export interface OwnerRuleContext {
   readonly context: InvocationContext;
+  /** Existing owning transaction completeness bound; no separate rule budget. */
+  readonly maxRows: number;
   /** Entry-only for locks; final-only for invariants. Decision reads confer no grant. */
   readonly read: OwnerModelReadView;
 }
@@ -267,7 +269,7 @@ export function bindOwnerModelPolicies(input: {
     views.consumeWork();
     const binding = bindingMap.get(id)!;
     if (binding.kind !== 'invariant' && binding.kind !== 'lock') return fail('Invalid predicate binding.');
-    const answer = await binding.evaluate(Object.freeze({ context: views.context, read: views[mode] }), frozen(row));
+    const answer = await binding.evaluate(Object.freeze({ context: views.context, maxRows: views.maxRows, read: views[mode] }), frozen(row));
     if (typeof answer !== 'boolean') return fail('Native model predicate did not return bool.');
     return answer;
   };

@@ -17288,3 +17288,15 @@ Normal State/CF builds and all44 affected stored-reference/query/source-policy c
 Accepted implementation correction: fixtureView binds its newly converted view to the actual verified Model and authorized/materialized StoredRow id/version using the existing native record identity mechanism. Both fixture and returned-record observation views follow this boundary. No structural guessing or permissive fallback is added to `same`; copied views remain unbranded and refuse. Operation admission and read policies are unchanged.
 
 Normal Cloudflare build passes. The affected existing real observation check passes1/3.197s: a returned record beyond the first inspection page equals its selected fixture by canonical identity, its independent name observation remains unchanged, and a spread copy refuses. Full original CRM six-case Then validation remains the next consumer once the current compiler/receiver closure is frozen.
+
+
+## 2026-10-15 — retain the owning transaction bound in native rules
+
+Accepted implementation prerequisite for checked query invariants: forward the
+existing owner mutation `views.maxRows` through the private frozen
+`OwnerRuleContext`. Rules query the same bounded entry/final views; this adds no
+query engine, authority or independent budget. CRUD and scenario consumers keep
+their actual limits instead of assuming one shared constant. The owning session
+check passes at bounds 7 and 1000, distinguishes entry locks from final
+invariants and confirms no publication before commit; normal State build passes.
+Partner query qualification and receiving remain unfinished.
