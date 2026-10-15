@@ -15369,3 +15369,36 @@ capture, nine refusals disappear (three async filters, five projections, one
 supplied-array first) and three previously hidden stored-model first refusals
 appear. This closes helper composition at the verified scope; source-census and
 remaining model-query gaps remain local implementation work under the active goal.
+
+2026-10-15 — C02: retain source-owned standard metadata across unrelated lowering refusals.
+
+The original composition's three named OperationOutcome field refusals depend
+on standard-value inventory publication. That publication incorrectly requires
+all executable IR lowering to succeed, including unrelated missing producer
+contracts. Metadata correctness and executable completeness have distinct
+acceptance conditions. Preserve successful-build behavior; on a diagnostic
+branch, freshly check the original cohort/Given/catalog and privately decode the
+same modules, rule metadata and declarations in the same native mode. Compare
+the existing complete StandardValueCensus, including types, owners, defaults,
+constraints, imports and selected standard sends. Require original-CST send
+correspondence on both sides. Only the existing inventory is sealed; actual
+lowering diagnostics and executable/CLI refusal remain unchanged.
+
+This is a compiler association fix, with no new language choice or authority.
+Simply dropping the diagnostic guard was rejected because mutable checked
+metadata must not borrow an original source identity. Reusing the existing census
+avoids a second handwritten metadata inventory; private decoding stops before
+build/sealing and cannot recurse. No source validation, grants or catalog match
+is waived. Six existing source/catalog/selection/runtime checks pass; the
+pre-existing unresolved-inspection CLI assertion remains recorded as failing
+and was not weakened. The new check passes: original Outcome metadata survives
+an unrelated E6007 missing-producer refusal, the CLI still refuses its artifact,
+and altered checked field types/declaration owners cannot borrow the inventory.
+CLI build, formatting and diff checks pass. Final original 24-source validation
+exits 10 with 718 errors (692 E6008, 26 E6007), complete=true, omitted=0 and no
+usable artifact. Exactly 27 diagnostics disappear and none are added: one
+standard-value inventory refusal, one completion-publication refusal, all three
+OperationOutcome field-schema refusals and 22 dependent event-input refusals.
+The existing source-associated inventory enables those consumers through their
+own existing checks; this does not claim remaining handler execution or complete
+CanCRM acceptance. The persistent goal remains active; no push or training.

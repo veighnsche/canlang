@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **745 errors**:
-**719 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **718 errors**:
+**692 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -98,18 +98,18 @@ are not independent feature tasks:
 
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
-| Checked source/inventory publication | 5 | Standard inventory/completions, membership and collection-call correspondence. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
+| Checked source/inventory publication | 3 | Membership and collection-call correspondence; standard inventory/completions publication is closed at its metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
 | Query and predicate lowering | 128 | 85 stored first-query correspondence, ordering/domain/archive profiles; ordinary async any/all, filter/select helper reuse and supplied-array first are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
 | Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
-| Value/type/arithmetic lowering | 3 | Named OperationOutcome event fields await the original composition’s standard-value inventory. Owner retention closes the 19 anonymous type-id refusals; the three current field refusals remain explicit. |
+| Value/type/arithmetic lowering | 0 | The original named OperationOutcome field-schema dependency is closed. Owner retention and source-associated inventory now resolve all recorded occurrences in this group. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
 | Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
 | Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
-| Declared event input carriers | 68 | Complete owning operation-input correspondence. |
+| Declared event input carriers | 46 | Remaining owning operation-input correspondence; 22 dependent refusals close after the complete source-associated standard inventory becomes available. |
 | Hook query/context/derive/effects | 76 | Original event snapshots, clock, query context and atomic effects. |
 | Installed producer contracts | 26 E6007 | 25 missing catalog checks across 17 bound capabilities; one external active_member entry in the supplied Values catalog. No invented bindings. |
 
@@ -239,6 +239,28 @@ one supplied-array first), exposing three stored-model first refusals. No source
 permission or failure assertion was weakened. The next local dependency is the
 standard-value inventory's association with checked declarations despite unrelated
 executable lowering gaps; its source and tamper checks remain mandatory.
+
+**Current C02 batch — standard-value source association (2026-10-15).**
+Metadata publication no longer depends on unrelated executable lowering success.
+The diagnostic branch independently checks the original source/Given/catalog and
+compares the same complete declaration/import/type/default/constraint/selection
+census in the same native mode, preserving original-CST send correspondence.
+No raw/partial IR acquires authority by dropping a guard. The new missing-producer
+control retains exact E6007/CLI artifact refusal while valid Outcome metadata is
+published; altered checked field types and declaration owners cannot borrow it.
+The six existing source/catalog/selection/runtime checks and the new focused
+check pass; the previously reproduced inspection CLI assertion remains failing
+and unchanged. CLI build, formatting and diff checks pass.
+
+The original 24-source capture reports **718** errors (**692 E6008**,
+**26 E6007**), complete=true, omitted=0, exit 10, no usable artifact. Compared
+with 745, exactly **27** disappear and none are added: standard inventory and
+completion-publication refusals (two), Outcome field schemas (three), and
+schema-dependent event-input refusals (22). This proves the metadata dependency
+is closed, not full completion-handler execution. Next ready query group:
+supplied-array ordering (12 occurrences); settle nullable-key placement against
+the existing model contract with JEV before implementing its typed key lowering.
+Keep source correspondence, model recipes, order and failures unchanged.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
