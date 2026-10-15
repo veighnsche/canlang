@@ -208,3 +208,34 @@ fn payment_identity_requires_its_exact_schema_and_original_source_census() {
     );
     refused(&ir, &stale, "changed original event source");
 }
+
+#[test]
+fn provider_changed_event_retains_its_declared_payment_state_owner() {
+    let mut db = SourceDb::new();
+    let source = SOURCE
+        .replace(
+            "use std {PaymentState as State}",
+            "use std {PaymentState as State, PaymentsV1 as Payments}",
+        )
+        .replace(
+            "When\nThen",
+            "When\n scenario receive on=Payments.changed\n  do emit Observed {value=event}\nThen",
+        );
+    let id = db.add("payment-event.can".into(), source);
+    let (checked, diagnostics) = check_program(&db, &[id], None);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let event = checked
+        .types
+        .std_capability_event_handlers
+        .values()
+        .next()
+        .unwrap();
+    assert!(
+        matches!(&event.payload, ResolvedType::StdNominal {name:"PaymentState",fields} if fields.len()==7)
+    );
+    // This checks declared event typing; provider ingress execution has its own gate.
+    let capability = canlang_compiler::analysis::catalog::std_capability("PaymentsV1").unwrap();
+    let schema = canlang_compiler::analysis::catalog::nominal_schema("PaymentState").unwrap();
+    assert_eq!(capability.events[0].payload, Some(schema.name));
+    assert_eq!(capability.events[0].fields, schema.fields);
+}
