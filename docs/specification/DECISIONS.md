@@ -16845,3 +16845,19 @@ correspondence because checked Given omission made its source census Complete.
 Keep this refusal and the original source/permissions; it belongs to the same
 unfinished mixed leading/first/body workflow. No whole-composition improvement
 or readiness is claimed from the independently accepted component fixes.
+
+
+### 2026-10-15 — enforce lazy selected Contract guard authority privately
+
+Implement the accepted guard/result distinction through the existing private
+reference producer and first-query row issuance. A checked Require/Member/first
+association permits an awaited once-only whole-Contract field observation at the
+actual read, retaining existing current source-field and final commit guards.
+Do not authorize the field eagerly during first selection, persist guard-only
+result observations, or require an unrelated membership call/Model result.
+The existing checked site DTO supplies source ownership even with no calls;
+active_member handle safety is unchanged. Sixteen focused State checks, noEmit
+and normal State build pass, including independent Model/scalar/void replay,
+late field/membership rollback and source/pointer/stage/schema refusals. This
+accepts the State receiving component; compiler/loader/full native joins remain
+unqualified. No new language syntax or admitted-Model viewer-read prerequisite.
