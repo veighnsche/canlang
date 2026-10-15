@@ -1528,7 +1528,7 @@ interface Capture {
   readonly intrinsics: IntrinsicObservation[];
   readonly queries: QueryExecution[];
   queryResult: unknown | undefined;
-  modelResult?: { readonly returnId: string; readonly model: ModelName; readonly row: StoredRow; readonly wire: Readonly<{ id: RecordId }> };
+  modelResult?: { readonly existing: boolean; readonly returnId: string; readonly model: ModelName; readonly row: StoredRow; readonly wire: Readonly<{ id: RecordId }> };
   readonly files: Array<ScenarioReceiptFileAssignmentLocator & { readonly file: RetainedFinalizedFile }>;
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
@@ -1597,7 +1597,7 @@ interface ReceiptOwnerSession {
   readonly calls: NonNullable<ScenarioReceiptAssociation['calls']>[number][];
   readonly callGuards: NonNullable<ExecutionEffects['guards']>[number][];
   readonly storedFileChecks: Array<() => Promise<void>>;
-  readonly modelResults: Array<{ readonly model: ModelName; readonly row: StoredRow }>;
+  readonly modelResults: Array<{ readonly existing: boolean; readonly model: ModelName; readonly row: StoredRow }>;
   activeSend: { readonly call: AdmittedCall; readonly guard: ScenarioReceiptSendGuard; readonly stage: number } | null;
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
@@ -3646,9 +3646,18 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
   finally { if (acquired) { state.pending -= 1; if (owner !== undefined) owner.busy = false; } }
 }
 
+function modelResultObservedRow(returned: ScenarioResultDisclosurePlan['returns'][number],
+  observations: ScenarioReceiptAssociation['observations'], model: ModelName, id: RecordId): StoredRow | undefined {
+  const identities = new Set(returned.dependencies.filter(dependency => dependency.role === 'data' &&
+    dependency.model === model && dependency.field === 'id' && dependency.type === 'text').map(dependency => dependency.id));
+  return observations.find(observation => identities.has(observation.dependencyId) && observation.model === model &&
+    observation.row.id === id && observation.row.archivedAt === null)?.row;
+}
+
 /** Bind a once-evaluated stored-model return, not a structural reference or raw
- * native object. The genuine host supplies its exact current owner row. This
- * finite profile uses a newly-created row surviving the enclosing net effects. */
+ * native object. The genuine host supplies its exact current owner row.
+ * A created result survives net effects; an existing result requires the
+ * original data-ID observation and retains that lifetime without a write. */
 export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: StoragePort,
   input: { readonly returnId: string; readonly row: StoredRow }): Promise<Readonly<{ id: RecordId }>> {
   const state = capture(call, store), owner = ownerSessions.get(call);
@@ -3674,7 +3683,14 @@ export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: 
           state.returnId !== null || ownerRows.get(input.row) !== issued) return invalid('model result crossed its actual owning return stage.');
     };
     const previous = await owner.session.views.entry.get(model, row.id); healthy();
-    if (previous !== null) return invalid('existing row result requires its separate defining lifetime profile.');
+    const existing = previous !== null;
+    const observed = modelResultObservedRow(returned, state.observations, model, row.id);
+    if (existing && (observed === undefined || !sameModelLifetime(observed, row))) {
+      return invalid('existing row result requires its separate defining lifetime profile.');
+    }
+    if (existing && !sameModelLifetime(previous, row)) {
+      return invalid('existing model return requires its genuine entry lifetime.');
+    }
     const reader = scenarioReceiptMemberships(owner.call, store), actorUserId = call.context.actor?.userId ?? null,
       teamId = call.context.team?.teamId ?? null;
     const membership = actorUserId === null || teamId === null ? null : await reader.findMembership(teamId, actorUserId); healthy();
@@ -3698,8 +3714,8 @@ export async function bindScenarioReceiptModelResult(call: AdmittedCall, store: 
     if (await store.readRevision() !== call.revision) throw new StateError('conflict', 'Model result moved beyond its original return checkpoint.');
     healthy();
     const wire = Object.freeze({ id: row.id });
-    state.modelResult = { returnId: returned.id, model, row, wire };
-    owner.modelResults.push({ model, row });
+    state.modelResult = { existing, returnId: returned.id, model, row, wire };
+    owner.modelResults.push({ existing, model, row });
     owner.callGuards.push(Object.freeze({ name: `model-result:${call.def.name}:${returned.id}:${stage}`, evaluate: async () => {
       if (owner.finalized === null) return invalid('model result lacks actual final owner effects.');
       const final = owner.finalized;
@@ -3834,6 +3850,12 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   for (const selected of owner?.modelResults ?? []) {
     const write = writes.find(write => write.model === selected.model &&
       (write.kind === 'insert' ? write.row.id : write.id) === selected.row.id);
+    if (selected.existing) {
+      if (write !== undefined && (write.kind !== 'update' || !sameModelLifetime(selected.row, write.row))) {
+        return invalid('existing returned model must preserve its original lifetime through the enclosing effects.');
+      }
+      continue;
+    }
     if (write?.kind !== 'insert' || !sameModelLifetime(selected.row, write.row) ||
         !changed.some(change => change.model === selected.model && change.row.id === selected.row.id &&
           stableStringify(change.row) === stableStringify(write.row))) {
@@ -3841,7 +3863,8 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     }
   }
   return deepFreeze(dataCopy({ kind: 'scenario-result/v1' as const, plan: bound.plan, resultType: bound.type,
-    returnId: state.returnId, observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
+    returnId: state.returnId,
+    observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
     ...(Object.hasOwn(effects, 'fileAssignments') ? { fileAssignments: files } : {}),
     ...(owner === undefined || owner.calls.length === 0 ? {} : { calls: owner.calls }),
     ...(returned.intrinsics === undefined ? {} : { intrinsics }), ...queryAssociations(state, returned), changed }));
@@ -3986,7 +4009,10 @@ function readSavedScenarioAssociation(receipt: Receipt,
   if (resultModel !== undefined) {
     const id = modelResultWire(receipt.outcome.result);
     const matches = witnesses.filter(change => change.model === resultModel && change.row.id === id);
-    if (matches.length !== 1 || matches[0]!.row.archivedAt !== null) return invalid('saved model result lacks its enclosing surviving committed row.');
+    const observed = modelResultObservedRow(returned, observations as ScenarioReceiptAssociation['observations'], resultModel, id);
+    if (matches.length > 0 ? matches.length !== 1 || matches[0]!.row.archivedAt !== null : observed === undefined) {
+      return invalid('saved model result lacks its enclosing surviving committed row.');
+    }
   }
   const assignments = list(value['fileAssignments'] ?? []); const assignmentKeys = new Set<string>();
   for (const raw of assignments) {
@@ -4233,13 +4259,16 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         throw error;
       }
     };
-    const modelResultReadable = async (def: GeneratedOperationDef, bound: BoundPlan, result: unknown) => {
+    const modelResultReadable = async (def: GeneratedOperationDef, bound: BoundPlan, result: unknown,
+      scope: Pick<ScenarioReceiptAssociation, 'plan' | 'returnId' | 'observations'> = association) => {
       if (bound.resultModel === undefined) return true;
       const id = modelResultWire(result), model = bound.resultModel;
-      const witness = association.changed.find(change => change.model === model && change.row.id === id);
+      const returned = scope.plan.returns.find(returned => returned.id === scope.returnId);
+      const witness = association.changed.find(change => change.model === model && change.row.id === id)?.row ??
+        (returned === undefined ? undefined : modelResultObservedRow(returned, scope.observations, model, id));
       const producer = referenceProducers.get(def);
       if (witness === undefined || producer?.app !== input.app || producer.readPolicies === undefined) return false;
-      const current = await currentSavedRow(model, witness.row);
+      const current = await currentSavedRow(model, witness);
       return current !== null && await sourceProjection(producer, model, current) !== null;
     };
     const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[], queryFields: readonly string[] = [], fileFields: readonly string[] = [],
@@ -4450,7 +4479,7 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
         dependenciesReadable = false; continue;
       }
       if (!savedNarrowedControls(current, child.observations)) dependenciesReadable = false;
-      if (!await modelResultReadable(target, current, saved.result)) dependenciesReadable = false;
+      if (!await modelResultReadable(target, current, saved.result, saved.scenario ?? association)) dependenciesReadable = false;
       const returned = child.plan.returns.find(entry => entry.id === child.returnId)!;
       if (!await queryAuthority(target, current, child) || !await savedQueriesReadable(current, child, saved.result, (model, row, secrets, blocked) =>
         savedProjection(model, row, secrets, blocked, current.plan.queries?.filter(query => query.model === model).flatMap(query => query.dependencies.map(dep => dep.field)) ?? [], [], undefined, undefined,

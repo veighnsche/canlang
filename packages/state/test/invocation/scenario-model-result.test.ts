@@ -16,7 +16,7 @@ import type { AdmittedCall } from '../../src/invocation/admission.js';
 import { loadArtifactDescriptors, isGeneratedOperationDef, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { beginScenarioReceiptMutation, bindScenarioReceiptCallProducer, invokeScenarioReceiptCall,
   bindScenarioReceiptReferenceProducer, bindScenarioReceiptModelResult, selectScenarioReceiptReturn,
-  projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
+  projectScenarioReceipt, readScenarioReceiptAssociation, observeScenarioReceiptRowId } from '../../src/invocation/scenario-receipt.js';
 import { field, modelDef } from '../mutation/fixtures.js';
 import { asId, asModel, asRevision, asVersion, FIXED_NOW, makeBatch, makeEnvelope, makeIdentity, makeRow, uuidv7 } from './fixtures.js';
 
@@ -26,7 +26,7 @@ const CREATED = asId('created-run'), cause = { cause: 'scenario' } as const, bou
 const PARENT_ID = asId('created-parent');
 const source = { path: 'model-result.can', sha256: 'c'.repeat(64), module: 'model-result.mjs' };
 let sequence = 93_000;
-function artifact(type = MODEL as CanTypeId, contained = false, presence = false): ArtifactDescriptorSlice {
+function artifact(type = MODEL as CanTypeId, contained = false, presence = false, reference = false): ArtifactDescriptorSlice {
   return { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="ModelResult.start";', map: {
       version: 3, file: source.module, sources: [source.path], sourcesContent: [null], names: [], mappings: '',
@@ -39,15 +39,15 @@ function artifact(type = MODEL as CanTypeId, contained = false, presence = false
       ...(presence && name === FOREIGN ? [{ name: 'note', field: { kind: 'string' as const }, required: false, serverOnly: false }] : []),
     ] })), operations: [ROOT, CHILD].map(name => ({ name, kind: 'scenario' as const, description: '', inputs: { fields: [] },
       result: { type, disclosure: { version: 1 as const, source, returns: [{ id: name === ROOT ? 'root-return' : 'child-return',
-        source, influences: [], dependencies: [] }] } } })),
+        source, influences: [], dependencies: reference ? [{ id: `${name}-result-id`, source, role: 'data' as const, model: MODEL, field: 'id', type: 'text' as CanTypeId }] : [] }] } } })),
   };
 }
-async function world(type = MODEL as CanTypeId, contained = false, presence = false) {
+async function world(type = MODEL as CanTypeId, contained = false, presence = false, reference = false) {
   const memberships = createMemoryIdentityStore({ clock: createFrozenClock(FIXED_NOW) });
   const caller = await memberships.createMembership({ team_id: TEAM, user_id: 'caller', is_owner: false, roles: [] });
   const author = await memberships.createMembership({ team_id: TEAM, user_id: 'author', is_owner: false, roles: [] });
   const parentOwner = await memberships.createMembership({ team_id: TEAM, user_id: 'parent-owner', is_owner: false, roles: [] });
-  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(artifact(type, contained, presence), { by: 'members' });
+  const store = createMemoryStorage(), loaded = loadArtifactDescriptors(artifact(type, contained, presence, reference), { by: 'members' });
   const root = loaded.registry.get(ROOT), child = loaded.registry.get(CHILD);
   assert.ok(root && isGeneratedOperationDef(root)); assert.ok(child && isGeneratedOperationDef(child));
   const table = buildModelTable([MODEL, FOREIGN].map(name => ({ ...modelDef(name, { deleteMode: 'remove', fields: {
@@ -467,5 +467,124 @@ test('borrowed owner parent presence refuses awaited authority loss, concurrent 
       return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
     } }), refuses);
     assert.ok(entered); await unchanged(w); assert.equal(await w.store.load(FOREIGN, PARENT_ID), null);
+  }
+});
+
+
+test('reference model result returns an existing lifetime without business writes and replays current grants', async () => {
+  const w = await world(MODEL as CanTypeId, false, false, true);
+  let receipt: Receipt | undefined, executions = 0;
+  const before = structuredClone(w.old);
+  const input = { ...w, observeCommittedReceipt: (value: Receipt) => { receipt = value; }, execute: async (call: AdmittedCall) => {
+    executions++;
+    const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+    const row = await session.read(MODEL, w.old.id); assert.ok(row);
+    assert.equal(await observeScenarioReceiptRowId(call, w.store, { dependencyId: `${ROOT}-result-id`, model: MODEL, row }), row.id);
+    const wire = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row });
+    return finish(call, w, session, wire);
+  } };
+  const result = await invoke(input); assert.equal(result.status, 'committed');
+  assert.ok(receipt && receipt.outcome.status === 'committed');
+  assert.deepEqual(receipt.outcome.result, { id: w.old.id });
+  assert.deepEqual(receipt.outcome.recordVersions, []);
+  const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+  assert.deepEqual(association.changed, []);
+  assert.equal(association.observations.length, 1);
+  assert.deepEqual(association.observations[0]!.row, before);
+  assert.deepEqual(await w.store.load(MODEL, w.old.id), before);
+  assert.deepEqual(await w.store.historyFor(MODEL, w.old.id), []);
+  assert.deepEqual(await w.store.outboxPending(), []);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: { id: w.old.id }, records: [] });
+  assert.equal((await invoke(input)).status, 'replayed'); assert.equal(executions, 1);
+  w.access.allowed = false;
+  const denied = await invoke(input); assert.equal(denied.status, 'replayed'); assert.equal(executions, 1);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+  w.access.allowed = true;
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: { id: w.old.id }, records: [] });
+  // Existing results reuse their original identity observation without a changed row.
+  for (const mode of ['missing', 'foreign-id', 'foreign-model', 'archived', 'unknown-key'] as const) {
+    const mutant: Receipt = structuredClone(receipt); assert.equal(mutant.outcome.status, 'committed');
+    if (mutant.outcome.status !== 'committed') throw new Error('committed receipt required');
+    const saved = mutant.outcome.scenario! as unknown as { observations: Array<{ model: string; row: typeof w.old; extra?: boolean }> };
+    if (mode === 'missing') saved.observations = [];
+    else if (mode === 'foreign-id') saved.observations[0]!.row = { ...saved.observations[0]!.row, id: asId('different') };
+    else if (mode === 'foreign-model') saved.observations[0]!.model = FOREIGN;
+    else if (mode === 'archived') saved.observations[0]!.row = { ...saved.observations[0]!.row, archivedAt: FIXED_NOW };
+    else saved.observations[0]!.extra = true;
+    assert.throws(() => readScenarioReceiptAssociation(mutant), refuses, mode);
+  }
+});
+
+test('reference model results reject copied rows and roll back removal or late loss of the read grant', async () => {
+  for (const mode of ['copy', 'unobserved', 'remove', 'grant', 'reject'] as const) {
+    const w = await world(MODEL as CanTypeId, false, false, true);
+    const rejected = new StateError('rule_failed', 'Business rejection after reference return binding.');
+    await assert.rejects(invoke({ ...w, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      const row = await session.read(MODEL, w.old.id); assert.ok(row);
+      if (mode !== 'unobserved') await observeScenarioReceiptRowId(call, w.store,
+        { dependencyId: `${ROOT}-result-id`, model: MODEL, row });
+      const wire = await bindScenarioReceiptModelResult(call, w.store,
+        { returnId: 'root-return', row: mode === 'copy' ? structuredClone(row) : row });
+      if (mode === 'remove') await session.stage({ op: 'remove', model: MODEL, id: row.id }, cause);
+      if (mode === 'grant') w.access.allowed = false;
+      if (mode === 'reject') throw rejected;
+      return finish(call, w, session, wire);
+    } }), mode === 'reject' ? error => error === rejected : refuses);
+    await unchanged(w);
+  }
+});
+
+test('reference results reuse existing and provisional parent rows through the canonical child', async () => {
+  for (const preexisting of [false, true]) {
+    const w = await world(MODEL as CanTypeId, false, false, true);
+    const selected = preexisting ? w.old.id : CREATED;
+    let receipt: Receipt | undefined;
+    bindScenarioReceiptCallProducer(w.root, { source, app: APP, registry: w.registry,
+      sites: [{ id: 'child-site', source, kind: 'operation', targets: [{ operation: CHILD, interface: w.child.descriptor }],
+        resultType: w.child.descriptor.result!.type }], prepare: (_def, inputs) => inputs as ClosedInputs,
+      execute: async frame => {
+        const row = await frame.session.read(MODEL, selected); assert.ok(row);
+        await observeScenarioReceiptRowId(frame.call, w.store, { dependencyId: `${CHILD}-result-id`, model: MODEL, row });
+        const wire = await bindScenarioReceiptModelResult(frame.call, w.store, { returnId: 'child-return', row });
+        selectScenarioReceiptReturn(frame.call, w.store, 'child-return'); return wire;
+      } });
+    const result = await invoke({ ...w, observeCommittedReceipt: value => { receipt = value; }, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      if (!preexisting) await session.stage({ op: 'create', model: MODEL, id: CREATED, data: { title: 'Parent created', author: 'author' } }, cause);
+      assert.deepEqual(await child(call, w), { id: selected });
+      const row = await session.read(MODEL, selected); assert.ok(row);
+      await observeScenarioReceiptRowId(call, w.store, { dependencyId: `${ROOT}-result-id`, model: MODEL, row });
+      return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
+    } });
+    assert.equal(result.status, 'committed'); assert.ok(receipt && receipt.outcome.status === 'committed');
+    assert.deepEqual(receipt.outcome.recordVersions.map(row => row.id), preexisting ? [] : [CREATED]);
+    assert.equal(receipt.outcome.scenario!.observations[0]!.row.id, selected);
+    assert.equal(receipt.outcome.scenario!.calls![0]!.scenario!.observations[0]!.row.id, selected);
+    assert.deepEqual((await projectScenarioReceipt({ ...w, receipt })).result, { id: selected });
+  }
+});
+
+
+test('saved existing model results withhold subject and replaced lifetimes through their original identity witness', async () => {
+  for (const mode of ['subject', 'removed', 'recreated'] as const) {
+    const w = await world(MODEL as CanTypeId, false, false, true); let receipt: Receipt | undefined;
+    await invoke({ ...w, observeCommittedReceipt: value => { receipt = value; }, execute: async call => {
+      const session = await beginScenarioReceiptMutation(call, w.store, { table: w.table, bounds });
+      const row = await session.read(MODEL, w.old.id); assert.ok(row);
+      await observeScenarioReceiptRowId(call, w.store, { dependencyId: `${ROOT}-result-id`, model: MODEL, row });
+      return finish(call, w, session, await bindScenarioReceiptModelResult(call, w.store, { returnId: 'root-return', row }));
+    } });
+    assert.ok(receipt);
+    if (mode === 'subject') await w.memberships.removeMembership(w.author.membership_id);
+    else {
+      await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [{ kind: 'remove', model: MODEL,
+        id: w.old.id, expectedVersion: w.old.version }] }));
+      if (mode === 'recreated') await w.store.commit(makeBatch(await w.store.readRevision(), { writes: [{ kind: 'insert', model: MODEL,
+        row: makeRow({ id: w.old.id, created: FIXED_NOW + 1, createdBy: 'different-lifetime', data: { title: 'Recreated', author: 'author' } }) }] }));
+    }
+    const revision = await w.store.readRevision();
+    assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+    assert.equal(await w.store.readRevision(), revision);
   }
 });
