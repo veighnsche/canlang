@@ -95,22 +95,34 @@ async function inspect(db: D1Database): Promise<{ tables: Set<string>; pin: Owne
   // A correctly assigned database can retain its domain/work/migration state.
   const assigned = tables.has(PIN_TABLE) ? await pin(db) : null;
   if (assigned !== null) return { tables, pin: assigned };
+  const refuseLegacy = async (evidence: string): Promise<{ tables: Set<string>; pin: OwnerPin | null }> => {
+    // Inspection uses separate reads. Another initializer may have assigned the
+    // store after our null pin read and written the evidence we just observed.
+    // Return that pin through openBinding's exact app/owner check; never treat
+    // actual unassigned legacy state or database read failures as an assignment.
+    const pinTable = tables.has(PIN_TABLE) || await db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'state_owner_pin'",
+    ).first() !== null;
+    const current = pinTable ? await pin(db) : null;
+    if (current !== null) return { tables, pin: current };
+    throw new Error(`owner-storage: unassigned database has ${evidence}`);
+  };
   const sequence = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_sequence'").first();
   if (sequence !== null && await db.prepare('SELECT 1 FROM sqlite_sequence WHERE seq > 0 LIMIT 1').first() !== null) {
-    throw new Error('owner-storage: unassigned database has legacy sequence evidence');
+    return refuseLegacy('legacy sequence evidence');
   }
   for (const table of tables) {
     if (!KNOWN_TABLES.has(table)) {
-      throw new Error('owner-storage: unassigned database has unknown legacy schema');
+      return refuseLegacy('unknown legacy schema');
     }
     if (table === 'fence') {
       const rows = await db.prepare('SELECT id, revision FROM fence').all<{ id: number; revision: number }>();
       if (rows.results.some(row => row.id !== 1 || row.revision !== 0)) {
-        throw new Error('owner-storage: unassigned database has legacy revision evidence');
+        return refuseLegacy('legacy revision evidence');
       }
     } else {
       const row = await db.prepare(`SELECT 1 AS present FROM ${table} LIMIT 1`).first();
-      if (row !== null) throw new Error('owner-storage: unassigned database has legacy state');
+      if (row !== null) return refuseLegacy('legacy state');
     }
   }
   return { tables, pin: null };

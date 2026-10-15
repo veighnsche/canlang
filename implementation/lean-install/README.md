@@ -66,7 +66,7 @@ The prior verified core was 124,481,988 compressed bytes, 392,285,799 file bytes
 | Wrangler CLI | 17,328,110 | 17,328,110 | Cloudflare deployment CLI |
 | esbuild native binary | 10,573,778 | 10,573,778 | One shared 0.28.1 version for Can and Wrangler |
 
-Native symbol removal uses `strip -x` on owned macOS copies, retains external symbols needed by native addons, then applies/verifies ad-hoc signatures. No machine code is removed. Linux uses conservative `strip --strip-debug`; its size and runtime results remain unqualified here. Removed 918,172 bytes of unexported CSV UMD/IIFE distributions, retaining all package export targets and consumed ESM/CJS modules. Bun's license remains in contributor tooling sources but is no longer part of the core payload.
+Native symbol removal uses `strip -x` on owned macOS copies, retains external symbols needed by native addons, then applies/verifies ad-hoc signatures. No machine code is removed. Linux uses conservative `strip --strip-debug`; its later local qualification is recorded below. Removed 918,172 bytes of unexported CSV UMD/IIFE distributions, retaining all package export targets and consumed ESM/CJS modules. Bun's license remains in contributor tooling sources but is no longer part of the core payload.
 
 MCP handlers, HTTP operations, browser resource transport and generated saved-view clients now build through a Node subprocess using esbuild's JS API. It retains process timeout/output limits, lifetime checkpoints, cleanup/error precedence, whitespace settings and required exports; refuses external imports and uses a stable virtual sourcefile for deterministic output. Pinning Can to Wrangler's existing 0.28.1 avoids adding a second native bundler version. Node-host behavior stays on Node; consolidating onto Bun would require different IPC/module-hook/native-addon qualification and offers no demonstrated compatibility advantage.
 
@@ -79,6 +79,16 @@ All 18 final-archive installed-core checks pass from an external application wit
 The integrated source build passes all 13 packages (26 tasks), with focused Cloudflare rebuilds after the final preview fixes. The archive records `inputMode: built-checkout`; it no longer relies on frozen older JavaScript outputs. The matching Rust release and notices pass with 122 captured compiler/Values inputs unchanged during the build. Installed qualification caught an older compiler's missing caller-fixture dependency; rebuilding the current source fixes all four original Office examples. Complete compiled artifacts for the File-queue and three root fixtures remain identical, so their unchanged qualification is reused. The actual installed root/File and root/queue controls also pass with the bundled tools and clean PATH. Browser add-on results are reused because its private Node, installer and pinned packages are unchanged.
 
 Generated evidence: `output/install/{size-report,verification,browser-development-verification}.json`; archive manifest includes component bytes and package versions. Linux x64/Ubuntu 24.04 CI assembly is prepared, not executed. Linux browser add-on OS libraries remain a separate qualification requirement. Authenticated deployment, public GitHub assets/curl endpoint and Homebrew publication are not complete. Service/provider credentials and authored browser tests remain application inputs; Git is needed only for explicit git-revision rollback.
+
+The subsequent Linux x64 qualification on Rocky Linux 10.2/glibc 2.39 passes all
+21 installed checks, including a real Bash-stdin installation with a utility-only
+PATH, native execution, inline examples, protected preview and automatic
+R2/Durable Objects/queue State. It fixes concurrent owner-pin inspection and
+the preview/native snapshot digest spelling while preserving strict refusal
+controls. The prior macOS measurements above are retained; no new macOS or
+Linux browser add-on run is claimed. See the [installation reference](../../docs/install.md#linux-x64-qualification--2026-10-15)
+for the exact Linux bytes, native versions and glibc 2.39 minimum. CI execution
+and public publication remain pending.
 
 The earlier `jev-{1,2,3}.json` advised preserving both runtimes for the initial bounded assembly. The user's follow-up explicitly authorized consolidation work. Three fresh equivalent Choice requests in `jev-reduction-{1,2,3}.json` favored Node + existing esbuild (probabilities 0.99/1.00/0.99; confidence 0.98/1.00/0.98). There was no directional disagreement. Advice does not establish compatibility: the actual four-family execution and installed archive checks do. Replacing Node host execution with Bun remains separately proposed, not required for this reduction.
 

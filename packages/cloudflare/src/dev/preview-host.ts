@@ -53,7 +53,7 @@ function activationInput(artifact: CompileArtifact, capture: SingleFileCapture, 
       identity: {
         appName: plan.app ?? appName(capture), sourceRevision: capture.sourceRevision,
         languageVersion: artifact.language_version, compilerVersion: artifact.tool_version,
-        contractsVersion: CONTRACTS_VERSION, artifactDigest: digest(JSON.stringify(artifact)),
+        contractsVersion: CONTRACTS_VERSION, artifactDigest: `sha256:${digest(JSON.stringify(artifact))}`,
       },
       requiredCapabilities: artifact.requires.map(item => item.capability),
       resourceBindings: [requirement, ...resources.map(resource => resource.requirement)], secrets: [], schedules: [],

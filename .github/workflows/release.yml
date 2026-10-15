@@ -17,7 +17,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: ubuntu-latest
+          # Match the standalone qualification host so a newer latest image
+          # cannot silently raise the compiler's glibc requirement.
+          - runner: ubuntu-24.04
             name: can-linux-x86_64
             target: x86_64-unknown-linux-gnu
           - runner: macos-latest
@@ -52,6 +54,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
+          if-no-files-found: error
           path: |
             compiler/target/release/can
             compiler/target/release/THIRD-PARTY-NOTICES.txt
@@ -160,9 +163,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: can-install-${{ matrix.platform }}
+          if-no-files-found: error
           path: |
-            output/install/*.tar.gz
-            output/install/*.sha256
+            output/install/can-*-${{ matrix.platform }}.tar.gz
+            output/install/can-*-${{ matrix.platform }}.tar.gz.sha256
             output/install/size-report.json
             output/install/verification.json
             output/install/install.sh

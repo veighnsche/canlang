@@ -14,6 +14,8 @@ import type { D1Database } from '@cloudflare/workers-types';
 import { createD1IdentityStore, ensureIdentitySchema, sha256HexText, deriveCsrfToken } from '@canlang/identity';
 import { mintOperationId } from '@canlang/ui';
 import { distribution } from '@canlang/values/distribution';
+import { captureSingleFileSource } from '../dist/dev/source-capture.js';
+import { localPreviewActivationVerdict } from '../dist/dev/preview-host.js';
 const require = createRequire(import.meta.url);
 
 test('model-free queue commits and replays in configured team State; unsupported global profile refuses precisely', { timeout: 60_000 }, async () => {
@@ -97,5 +99,56 @@ test('model-free queue commits and replays in configured team State; unsupported
       }
       await mf.dispose(); mf = undefined;
     }
+  } finally { await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
+});
+
+
+test('preview activation accepts the exact recovery snapshot and refuses a different digest', { timeout: 60_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'can-queue-preview-snapshot-'));
+  let mf: Miniflare | undefined;
+  try {
+    const fixture = join(dir, 'QueueOnly.can');
+    await writeFile(fixture, await readFile(resolve('packages/cloudflare/test/fixtures/native-queue-only.can'), 'utf8'));
+    const compiler = process.env.CAN_TEST_COMPILER ?? resolve('compiler/target/debug/can');
+    const { stdout } = await promisify(execFile)(compiler, ['compile', '--format=json', '--native-scenario-receipts',
+      `--catalog=${fileURLToPath(distribution.catalog)}`, fixture], { maxBuffer: 32 * 1024 * 1024 });
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const { buildDeployBundle, DEPLOY_MAIN_MODULE } = await import(require.resolve('@canlang/cloudflare/deploy/bundle')) as typeof import('../src/deploy/bundle.js');
+    const bundle = buildDeployBundle(artifact, { verdict: { active: true } });
+    const databases = { DB: 'preview-identity', TEAM_DB: 'preview-team' }, persistence = join(dir, 'd1');
+    mf = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+      script: 'export default {fetch(){return new Response(null,{status:404})}}', d1Databases: databases, d1Persist: persistence });
+    const identityDb = await mf.getD1Database('DB') as unknown as D1Database;
+    await ensureIdentitySchema(identityDb);
+    const team = await createD1IdentityStore(identityDb).createTeam({});
+    await mf.setOptions({ compatibilityDate: '2026-07-15', modulesRoot: '/',
+      modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
+        type: 'ESModule' as const, path: `/${path}`, contents: bundle.modules[path]!,
+      })), d1Databases: databases, d1Persist: persistence,
+      bindings: { CAN_LOCAL_QUEUE_BINDINGS: { jobs: 'QueueOnly.Jobs' }, CAN_STATE_OWNERS: { version: 1,
+        owners: [{ owner: team.team_id, binding: 'TEAM_DB', initializeFresh: true }] } },
+      queueProducers: { 'QueueOnly.Jobs': 'jobs' }, queueConsumers: { jobs: { maxBatchSize: 1, maxBatchTimeout: 0, retryDelay: 0 } },
+    });
+    // Recovery can install the genuine native snapshot before the preview
+    // host confirms activation. Both producers must use the same digest.
+    const worker = await mf.getWorker();
+    assert.equal((await worker.scheduled({ scheduledTime: new Date(), cron: 'can-resource-recovery' })).outcome, 'ok');
+    const ownerDb = await mf.getD1Database('TEAM_DB') as unknown as D1Database;
+    const currentIdentityDb = await mf.getD1Database('DB') as unknown as D1Database;
+    const snapshot = await ownerDb.prepare('SELECT digest FROM snapshots WHERE owner = ?').bind('QueueOnly').first<{ digest: string }>();
+    assert.ok(snapshot);
+    assert.match(snapshot.digest, /^sha256:[a-f0-9]{64}$/);
+    const capture = await captureSingleFileSource({ checkoutRoot: dir, appPath: fixture,
+      profile: 'local-d1-identity', compilerPath: compiler, catalogPath: fileURLToPath(distribution.catalog),
+      helpIndexPath: resolve('docs/specification/CONSTRUCT-HELP.md'),
+      packageInputPaths: [{ name: 'cloudflare', path: require.resolve('@canlang/cloudflare/deploy/bundle') }] });
+    const verdict = await localPreviewActivationVerdict(artifact, capture, ownerDb, databases.TEAM_DB, team.team_id, currentIdentityDb);
+    assert.equal(verdict.active, true, JSON.stringify(verdict));
+    const differentDigest = `sha256:${'0'.repeat(64)}`;
+    await ownerDb.prepare('UPDATE snapshots SET digest = ? WHERE owner = ?').bind(differentDigest, 'QueueOnly').run();
+    const mismatch = await localPreviewActivationVerdict(artifact, capture, ownerDb, databases.TEAM_DB, team.team_id, currentIdentityDb);
+    assert.equal(mismatch.active, false);
+    if (!mismatch.active) assert.ok(mismatch.reasons.some(reason => reason.code === 'digest-mismatch'), JSON.stringify(mismatch));
+    assert.equal(await ownerDb.prepare('SELECT digest FROM snapshots WHERE owner = ?').bind('QueueOnly').first('digest'), differentDigest);
   } finally { await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
 });
