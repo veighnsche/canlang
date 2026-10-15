@@ -100,11 +100,28 @@ Outcome 2 implemented in `b27cd734` (Lane B commit `847798e1`): checker and
 JS emission admit `Nullable(Url)` for link only, static absent-URL marker,
 no href plus shared localized label on null; denied/presenter failures still
 throw; gate/operand/failure order unchanged. Focused
-`compiler/tests/nullable_url_link.rs` passes 3/3. TS render coverage
-(`packages/ui` leaves test, `ui_adapter` absent-URL cases) is authored but
-unrun: the shared main `node_modules` links resolve into main sources, and
-this run authorizes no private install — TS validation awaits a Codex
-decision on install ownership.
+`compiler/tests/nullable_url_link.rs` passes 3/3. TS render coverage now
+also runs via the Codex-authorized task-owned symlink overlay (root and
+per-package `node_modules` link externals to the compatible main cache and
+`@canlang/*` to integration owners; unchanged Values/Cloudflare `dist`
+reused read-only after zero-diff source verification; changed Contracts/UI
+built into owned integration `dist`; draft pinned at `4990400` from the
+local main copy after the remote ref fetch failed): `leaves.test.js`
+69/69 pass including the 3 absent-URL cases (no href, shared EN/NL
+unavailable label, authored caption, File caption default), and
+`ui_adapter nullable_url_link_destinations_render_present_and_absent_states`
+passes (present + absent states, one static marker per link). Overlay and
+owned-output cleanup owner is the coordinator; shared cache never written.
+
+Codex CHECK-RELEASE-1 acceptance (2026-10-15): independent outcome-1 probes
+PASS 5/5 at `35ca092e` (canonical flags/shared target, CLI exit 0; named
+required/unrelated defaults clean, named explicit default rejects E3011,
+eager unused helper actual rejects E3011, two reversed-named explicit-default
+arguments reject two E3011). Evidence at
+`/Users/vince/.codex/muse-runs/can-conformance-20261015/evidence/codex-boundary-probes/outcome.json`
+plus source/result siblings;
+scope is static admission availability. No further outcome-1 finding; the
+reserved cargo slot is released and compiler/package work resumed.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
