@@ -857,9 +857,9 @@ pub struct TypeTable {
     pub(crate) ui_order_selectors: HashMap<NodeKey, String>,
     /// Additional unbound names found by the types pass (pass 2 `E2001`).
     pub unresolved_names: Vec<NodeKey>,
-    /// Unbound names the types pass claimed as unique-expected-enum
-    /// cases (or covered with a precise `E3xxx`): pass 2 `E2001` skips
-    /// these.
+    /// Checked enum case expressions: unbound expected cases and explicit
+    /// declaration.field.case members (or names covered by precise `E3xxx`).
+    /// Pass 2 `E2001` skips claimed names; IR lowers checked cases as literals.
     pub resolved_cases: HashSet<NodeKey>,
     /// Member failures from type-owned positions (pass 2 `E2013`).
     pub unresolved_members: Vec<UnresolvedMember>,
@@ -6622,7 +6622,9 @@ impl<'a> Typer<'a> {
     fn is_const_default(&self, node: &SyntaxNode) -> bool {
         match node.kind {
             SyntaxKind::Literal | SyntaxKind::MessageValue => true,
-            SyntaxKind::NameRef => self.types.resolved_cases.contains(&NodeKey::of(node)),
+            SyntaxKind::NameRef | SyntaxKind::Member => {
+                self.types.resolved_cases.contains(&NodeKey::of(node))
+            }
             SyntaxKind::Group => kids(node)
                 .iter()
                 .filter(|n| is_expression(n.kind))
@@ -14165,6 +14167,48 @@ impl<'a> Typer<'a> {
         let Some(name) = name_text(name_node, cx.text) else {
             return ResolvedType::Error;
         };
+        // An explicit case is a checked declaration path, never a runtime
+        // field read. Resolve the root through the ordinary lexical binding.
+        if !safe && receiver.kind == SyntaxKind::Member {
+            let field_parts = kids(receiver);
+            if field_parts.len() == 3
+                && is_punct(field_parts[1], cx.text, ".")
+                && let Some(owner) = self.symbol_receiver(cx, field_parts[0])
+                && matches!(
+                    self.tables.symbols[owner.0 as usize].kind,
+                    SymbolKind::Model { .. } | SymbolKind::Contract { .. }
+                )
+                && let Some(field_name) = name_text(field_parts[2], cx.text)
+            {
+                let Some(field) = self.record_field_named(owner, field_name) else {
+                    self.unknown_member(
+                        cx,
+                        receiver,
+                        field_parts[2],
+                        field_name,
+                        "enum case owner",
+                    );
+                    return ResolvedType::Error;
+                };
+                let ty = self.decl_type(field);
+                let ResolvedType::Enum { cases, .. } = &ty else {
+                    self.unknown_member(
+                        cx,
+                        node,
+                        name_node,
+                        name,
+                        "singular nonnullable enum field",
+                    );
+                    return ResolvedType::Error;
+                };
+                if !cases.iter().any(|case| case == name) {
+                    self.unknown_member(cx, node, name_node, name, "enum field");
+                    return ResolvedType::Error;
+                }
+                self.types.resolved_cases.insert(NodeKey::of(node));
+                return ty;
+            }
+        }
         if name == "callback_diagnostics" {
             let base = self.expr(cx, receiver, None);
             if matches!(base, ResolvedType::Error | ResolvedType::Null) {

@@ -14829,3 +14829,28 @@ list within the same collapse; its query, guard and action order are unchanged.
 Both saved CanCRM associations remain retained. The original twelve-source
 compile now reports 64 diagnostics, with all four CanCRM diagnostics closed.
 The remaining dependency diagnostics do not reopen the accepted File mechanism.
+
+Accept explicit checked `Owner.field.case` enum expressions for visible model or
+contract declarations with a singular nonnullable enum field. Ordinary lexical
+and import-alias resolution appoints the owner; a bound value keeps ordinary
+member semantics. The complete checked expression carries enum-case provenance
+and lowers to the existing enum string literal without reading a record,
+changing grants or introducing runtime APIs. Missing fields/cases and invalid
+field wrappers refuse; safe access retains ordinary member refusal. Exact enum
+domains and existing bare-binding precedence remain unchanged. Qualified cases
+also count as context-free defaults.
+
+The three equivalent JEV requests in
+[qualified-enum-cases-20261015](../../design/jev/qualified-enum-cases-20261015/1.json)
+(and companion 2/3) favor qualification over changing canonical operation IDs or
+holding the required workflow (confidence .95/.92/.88; selected probabilities
+.97/.95/.92). This is advice; native checker/emission/execution now supplies the
+implementation evidence. Four focused refusal/default checks and one actual
+compiled execution check pass, including imported aliases, model/contract cases,
+exact-domain rejection, hidden owners and value-root shadowing. The existing
+compiled local enum-shadowing regression also passes. A fixture-only callable
+collision and safe-access diagnostic expectations were corrected during those
+checks; no binding exception was added. Source changes qualify CanRent's
+colliding hold/no_show values and its existing example row while preserving the
+operation identities. The separate pure hour/day membership-unit conversion and
+actual composed-source acceptance remain pending at this entry.

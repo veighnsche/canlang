@@ -551,3 +551,15 @@ fn enum_local_shadowing_keeps_resolved_slots_in_compiled_scenario() {
         "{returned}"
     );
 }
+
+#[test]
+fn qualified_enum_cases_compile_and_execute_without_reading_the_owner() {
+    let scratch = Scratch::new();
+    let source = "app Qualified uses=[values,consumer]\npackage values\n Given\n  export contract Outcome {kind:enum(hold,booking)}\n  Booking {status:enum(held,no_show)=held}\n  contract Leaf {hold:int}\n  contract Value {kind:Leaf}\n  derive hold():int = 1\n  derive no_show():int = 2\n  export derive held_value():Outcome.kind = Outcome.kind.hold\n  export derive absent():Booking.status = Booking.status.no_show\n  export derive ordinary(Outcome:Value):int = Outcome.kind.hold\n When\n Then\npackage consumer\n use values {Outcome as Imported}\n Given\n  export derive aliased():Imported.kind = Imported.kind.booking\n When\n Then\n";
+    let artifact = compile(scratch.0.path(), source, "qualified");
+    execute(
+        scratch.0.path(),
+        &[("qualified", artifact)],
+        "const fn=await load('qualified');assert.equal(await fn('held_value')(context),'hold');assert.equal(await fn('absent')(context),'no_show');assert.equal(await fn('aliased')(context),'booking');assert.equal(await fn('ordinary')(context,{kind:{hold:17n}}),17n);",
+    );
+}

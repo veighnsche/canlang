@@ -6538,6 +6538,19 @@ impl<'a> Cx<'a> {
     /// Decode member access, wrapping delivery-typed bases in the sole
     /// observation helper shape (`DeliveryRead`).
     fn decode_member(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> TypedExpr {
+        if self
+            .program
+            .types
+            .resolved_cases
+            .contains(&NodeKey::of(node))
+            && is_enum_ty(ty)
+        {
+            let name = kids(node)
+                .get(2)
+                .and_then(|part| name_text(self.db, part))
+                .expect("checked qualified enum case");
+            return TypedExpr::new(IrExpr::Text(name), ty.clone(), node.span);
+        }
         if let Some(observation) = self
             .program
             .types
