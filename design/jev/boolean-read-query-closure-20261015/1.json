@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Complete only original Member page admission and Shift Coverage.met boolean through actual queried/ref dependencies without weakening read/field policy, current membership, source proof or lazy evaluation. Previous JEV selected reuse State bool read observation; new verified missing query/ref consumers require concrete closure choice.",
+      "verified": [
+        "Original Member guard calls customer has_role(person,row,role), which queries CompanyRole, and employee.can_work, which queries Employee and active_member. Original Shift coverage_met queries roster.Commitment/Duty/Availability and traverses commitment.location.active and commitment.employee.active/role/skills before can_work. Simple active_member(row.author) witness alone cannot qualify these exact sources.",
+        "Current createSourceReadPolicyAdapter deliberately refuses canonical.readRecords/readModel. Native projected records only hydrate parent navigation, not business refs. New original bool wrappers therefore need actual query/ref evaluation, not only typer admission.",
+        "State has withinInstalledReadObservation lease with same store/revision/context/membership/fence and one actual navigation target; projectInstalledSourceRowAndAncestors supports fenced current viewer single-row projection under owningObservation. runAuthorizedQuery/queryRecordsObserved already perform viewer field/row policies before filters and carry complete coherent membership snapshot. No leased collection child exists yet. Nested ordinary invoker would fabricate a separate snapshot; not acceptable.",
+        "Spec DESIGN311 requires user query permissions before filter/order/count/relationship and readable data dependencies for a derived value. A membership bool is never a stored-read grant. Source read-policy predicates are authorization controls and already execute original checked policy on actual owning row; giving their internal helper queries viewer filtering naively can recurse: Employee read=members and staff(actor), staff itself queries Employee. This policy dependency requires explicit checked control authority rather than pretending UI query grants.",
+        "Possible extension reuses private current read observation for leased collection children and lazy referenced-record reads. Viewer-data path keeps projection before where/count/access, same live context and revision and membership replay; original installed read-policy controls may observe same-owner rows solely to decide original Boolean grants, never release raw rows. This context distinction must be appointed by exact installed policy vs predicate/derived consumer, not public markers/options or app-authored bypass. All calls/callee/default/source graph remains compiler authenticated. Parent/business reference field must itself be granted; target row/field grants then apply. Async compiler-owned ref accessor preserves branch short circuit; do not eagerly hydrate private graphs.",
+        "No new tables, default guards, event mirrors, global raw storage, metadata grants, generic arbitrary callback evaluation, or extra source authority annotation requested. Existing directory/membership revocation boundary remains snapshot+recheck, not fictitious cross-store atomicity."
+      ],
+      "acceptance": "Exact original Member role/work-location graph and Shift coverage graph execute on real current storage/Identity. Positive branches and false coverage values correct; unauthorized root/dependency fields and refs withhold/refuse; lazy false branches never issue skipped query/ref reads; revocation/revision mutation before release retries/refuses; uninstalled/foreign fn/subject/source refuses. Same query/read-policy instance cannot forge new authority. Original CRM24source semantic/compile validation honestly separates unrelated existing codegen gaps.",
+      "options_equal_outcomes": "All options must preserve same original source and authority/policy, data dependency and current fencing obligations; options are implementation architectures, not permission relaxations."
+    },
+    "questions": {
+      "query_closure": {
+        "type": "choice",
+        "instructions": "Which smallest complete backend closes these verified original Boolean query/reference dependencies while preserving the stated control/data authority boundaries?",
+        "criteria": {
+          "extend_existing_observation": "Add only private borrowed collection/ref readers to current installed State read observation. Reuse authorized query/projection with same parent context/fence; exact installed policy-control callbacks use same-owner control reads solely for grant decisions, while page/derived data dependencies stay viewer projected. Compiler emits lazy ref access and exact source-owned bool/queries; no public authority flag or new table.",
+          "dedicated_graph_engine": "Build separate exact-source Boolean read graph executor for page and derived consumers. It owns distinct policy-control vs viewer-data evaluation, current query/ref/dependency observations and graph revalidation, and feeds existing result release. Cleaner explicit graph semantics but duplicates State read/query traversal and authority tracking.",
+          "compile_finite_graph_plans": "Compile the original role/work-location/coverage structural expression shapes into finite source-sealed native query plans, executing existing fenced owner-control and viewer-data readers with specialized plan consumers. Can tightly bound required sources but adds specialized shape matching/plan protocols rather than reusing general read helpers."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "query_closure": {
+        "type": "choice",
+        "choice": "extend_existing_observation",
+        "confidence": 1.0,
+        "probabilities": {
+          "extend_existing_observation": 1.0,
+          "dedicated_graph_engine": 0.0,
+          "compile_finite_graph_plans": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1294,
+      "output_tokens": 57
+    }
+  }
+}

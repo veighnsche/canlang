@@ -7627,11 +7627,8 @@ impl<'a> Typer<'a> {
         for root in roots {
             let mut pending = vec![&root];
             while let Some(node) = pending.pop() {
-                if let Some(SelectedCall {
-                    target: SelectedCallTarget::DeriveFn(id),
-                    ..
-                }) = self.types.selected_calls.get(&NodeKey::of(node))
-                    && self.derive_reads_membership(*id)
+                if let Some(id) = self.membership_derive_at(node)
+                    && self.derive_reads_membership(id)
                     && reported.insert(NodeKey::of(node))
                 {
                     let span = tight_span(self.text(node.span.file), node);
@@ -7641,6 +7638,42 @@ impl<'a> Typer<'a> {
                 pending.extend(kids(node).into_iter().rev());
             }
         }
+    }
+
+    /// Both calls and computed-field access retain their transitive read effect.
+    /// Admitting a contextual bool field must not smuggle membership into a
+    /// default or other strict pure consumer through a member read.
+    fn membership_derive_at(&self, node: &SyntaxNode) -> Option<SymbolId> {
+        if let Some(SelectedCall {
+            target: SelectedCallTarget::DeriveFn(id),
+            ..
+        }) = self.types.selected_calls.get(&NodeKey::of(node))
+        {
+            return Some(*id);
+        }
+        if node.kind != SyntaxKind::Member {
+            return None;
+        }
+        let parts = kids(node);
+        let receiver = parts.first()?;
+        let mut ty = self.types.node_types.get(&NodeKey::of(receiver))?;
+        if let ResolvedType::Nullable(inner) = ty {
+            ty = inner;
+        }
+        let ResolvedType::Record {
+            symbol,
+            stored: true,
+        } = ty
+        else {
+            return None;
+        };
+        let name = name_text(parts.last()?, self.text(node.span.file))?;
+        let field = self.record_field_named(*symbol, name)?;
+        matches!(
+            self.tables.symbols[field.0 as usize].kind,
+            SymbolKind::DeriveField { .. }
+        )
+        .then_some(field)
     }
 
     fn derive_reads_membership(&self, id: SymbolId) -> bool {
@@ -7658,12 +7691,8 @@ impl<'a> Typer<'a> {
                 if self.checked_membership_call(node) {
                     return true;
                 }
-                if let Some(SelectedCall {
-                    target: SelectedCallTarget::DeriveFn(callee),
-                    ..
-                }) = self.types.selected_calls.get(&NodeKey::of(node))
-                {
-                    functions.push(*callee);
+                if let Some(callee) = self.membership_derive_at(node) {
+                    functions.push(callee);
                 }
                 pending.extend(kids(node).into_iter().rev());
             }
@@ -7989,7 +8018,10 @@ impl<'a> Typer<'a> {
         let membership_function = matches!(
             self.tables.symbols[id.0 as usize].kind,
             SymbolKind::DeriveFn { .. }
-        );
+        ) || matches!(
+            self.tables.symbols[id.0 as usize].kind,
+            SymbolKind::DeriveField { .. }
+        ) && expected == ResolvedType::Scalar(Scalar::Bool);
         let forbidden_calls = if membership_function {
             self.membership_derive_bodies.insert(id, value.clone());
             self.bounded_membership_effectful_calls(value, text)
@@ -8705,6 +8737,28 @@ impl<'a> Typer<'a> {
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         self.check_action_panel_targets(&cx, node);
+        // Only record-bound top-level page admission has an actual model read
+        // subject for the checked boolean-read owner. Container gates and
+        // unbound page guards retain their strict pure contract.
+        if node
+            .descendants()
+            .any(|part| part.kind == SyntaxKind::RouteRecord)
+        {
+            for child in kids(node) {
+                if child.kind == SyntaxKind::Require
+                    || child.kind == SyntaxKind::UiLeaf
+                        && kids(child).iter().find_map(|part| name_text(part, text))
+                            == Some("require")
+                {
+                    if let Some(pred) = kids(child)
+                        .into_iter()
+                        .find(|part| is_expression(part.kind))
+                    {
+                        self.membership_page_guards.insert(NodeKey::of(pred));
+                    }
+                }
+            }
+        }
         let Some(title) = attribute_value(node, "title", text) else {
             self.diags.push(Diagnostic::error(
                 "E3001",
@@ -9481,7 +9535,12 @@ impl<'a> Typer<'a> {
                 if let Some(pred) = domain {
                     let ty = self.expr(cx, pred, None);
                     self.expect_bool(cx, tight_span(cx.text, pred), &ty, "`require`");
-                    for (name, span) in self.effectful_calls(pred, cx.text) {
+                    let forbidden = if self.membership_page_guards.contains(&NodeKey::of(pred)) {
+                        self.bounded_membership_effectful_calls(pred, cx.text)
+                    } else {
+                        self.effectful_calls(pred, cx.text)
+                    };
+                    for (name, span) in forbidden {
                         self.diags.push(Diagnostic::error(
                             "E3010",
                             format!("page require must be pure; '{name}' is not allowed here"),
@@ -9926,7 +9985,13 @@ impl<'a> Typer<'a> {
                         // skipped below. Standalone page/form require leaves
                         // retain the same pure gate, including helper closures.
                         if require_leaf {
-                            for (name, span) in self.effectful_calls(child, cx.text) {
+                            let forbidden =
+                                if self.membership_page_guards.contains(&NodeKey::of(child)) {
+                                    self.bounded_membership_effectful_calls(child, cx.text)
+                                } else {
+                                    self.effectful_calls(child, cx.text)
+                                };
+                            for (name, span) in forbidden {
                                 self.diags.push(Diagnostic::error(
                                     "E3010",
                                     format!(
@@ -11908,6 +11973,7 @@ struct Typer<'a> {
     /// Existing strict purity sites retain their source roots for helper closure.
     strict_purity_roots: Vec<SyntaxNode>,
     membership_derive_bodies: HashMap<SymbolId, SyntaxNode>,
+    membership_page_guards: HashSet<NodeKey>,
 }
 
 impl<'a> Typer<'a> {
@@ -11952,6 +12018,7 @@ impl<'a> Typer<'a> {
             judgment_messages: HashMap::new(),
             strict_purity_roots: Vec::new(),
             membership_derive_bodies: HashMap::new(),
+            membership_page_guards: HashSet::new(),
         }
     }
 

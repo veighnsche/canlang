@@ -697,6 +697,21 @@ function compareRowsForOrder(
   return left.id < right.id ? -1 : 1;
 }
 
+/** Private native source consumer, after its original where and lazy field
+ * checks. Reuse the engine's exact numeric order and id tie break. */
+export function orderSourceReadRecords(records: readonly ProjectedRecord[], model: CanonicalModelDescriptor,
+  order: readonly OrderTerm[] = DEFAULT_ORDER): readonly ProjectedRecord[] {
+  if (order.some(term => typeof term.field !== 'string' || !['asc', 'desc'].includes(term.direction))) {
+    throw new StateError('validation', 'Source query requires its checked field order.');
+  }
+  const types = numericOrderTypes(model, model.name, order);
+  if (types.arrays.length !== 0) throw new StateError('validation', 'Source query order requires singular fields.');
+  const rows = [...records];
+  const numeric = decodeNumericOrder(rows, types.types);
+  rows.sort((left, right) => compareRowsForOrder(left, right, order, numeric));
+  return Object.freeze(rows);
+}
+
 /** True for stored money-shaped values (currency/minor checked by callers). */
 function isMoneyShaped(value: unknown): boolean {
   return (
@@ -1213,6 +1228,7 @@ async function runAuthorizedQuery(
         // reads join this complete domain's coherent authority observation.
         matches.push(await evaluateInstalledReadPredicate(predicate!, detached, {
           context: current, row: { ...row, data: cleanCopy(projected.data) as StoredRow['data'] }, revision, fence: input.fence,
+          sourcePresence: Object.freeze(Object.keys(row.data)),
         }, input.store));
         if (await input.store.readRevision() !== revision) {
           throw new StateError('conflict', 'Source predicate moved beyond its original State revision.');

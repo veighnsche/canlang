@@ -1,0 +1,48 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Complete only original Member page admission and Shift Coverage.met boolean through actual queried/ref dependencies without weakening read/field policy, current membership, source proof or lazy evaluation. Previous JEV selected reuse State bool read observation; new verified missing query/ref consumers require concrete closure choice.",
+      "verified": [
+        "Original Member guard calls customer has_role(person,row,role), which queries CompanyRole, and employee.can_work, which queries Employee and active_member. Original Shift coverage_met queries roster.Commitment/Duty/Availability and traverses commitment.location.active and commitment.employee.active/role/skills before can_work. Simple active_member(row.author) witness alone cannot qualify these exact sources.",
+        "Current createSourceReadPolicyAdapter deliberately refuses canonical.readRecords/readModel. Native projected records only hydrate parent navigation, not business refs. New original bool wrappers therefore need actual query/ref evaluation, not only typer admission.",
+        "State has withinInstalledReadObservation lease with same store/revision/context/membership/fence and one actual navigation target; projectInstalledSourceRowAndAncestors supports fenced current viewer single-row projection under owningObservation. runAuthorizedQuery/queryRecordsObserved already perform viewer field/row policies before filters and carry complete coherent membership snapshot. No leased collection child exists yet. Nested ordinary invoker would fabricate a separate snapshot; not acceptable.",
+        "Spec DESIGN311 requires user query permissions before filter/order/count/relationship and readable data dependencies for a derived value. A membership bool is never a stored-read grant. Source read-policy predicates are authorization controls and already execute original checked policy on actual owning row; giving their internal helper queries viewer filtering naively can recurse: Employee read=members and staff(actor), staff itself queries Employee. This policy dependency requires explicit checked control authority rather than pretending UI query grants.",
+        "Possible extension reuses private current read observation for leased collection children and lazy referenced-record reads. Viewer-data path keeps projection before where/count/access, same live context and revision and membership replay; original installed read-policy controls may observe same-owner rows solely to decide original Boolean grants, never release raw rows. This context distinction must be appointed by exact installed policy vs predicate/derived consumer, not public markers/options or app-authored bypass. All calls/callee/default/source graph remains compiler authenticated. Parent/business reference field must itself be granted; target row/field grants then apply. Async compiler-owned ref accessor preserves branch short circuit; do not eagerly hydrate private graphs.",
+        "No new tables, default guards, event mirrors, global raw storage, metadata grants, generic arbitrary callback evaluation, or extra source authority annotation requested. Existing directory/membership revocation boundary remains snapshot+recheck, not fictitious cross-store atomicity."
+      ],
+      "acceptance": "Exact original Member role/work-location graph and Shift coverage graph execute on real current storage/Identity. Positive branches and false coverage values correct; unauthorized root/dependency fields and refs withhold/refuse; lazy false branches never issue skipped query/ref reads; revocation/revision mutation before release retries/refuses; uninstalled/foreign fn/subject/source refuses. Same query/read-policy instance cannot forge new authority. Original CRM24source semantic/compile validation honestly separates unrelated existing codegen gaps.",
+      "options_equal_outcomes": "All options must preserve same original source and authority/policy, data dependency and current fencing obligations; options are implementation architectures, not permission relaxations."
+    },
+    "questions": {
+      "query_closure": {
+        "type": "choice",
+        "instructions": "Choose the finite implementation for the newly verified Member/Shift query/ref closure, under identical source proof, viewer-data permissions and current observation requirements.",
+        "criteria": {
+          "compile_finite_graph_plans": "Recognize the needed authorization/coverage graph patterns structurally and emit exact finite plans over current State readers, retaining dependencies and permission modes. Bounded source support with more pattern profiles/source correspondence joins.",
+          "extend_existing_observation": "Extend existing State installed-read lifetime with private child collection reads and lazy ref loads, sharing observation revision/context/membership/fence. Current viewer policies protect data queries/fields; only actual installed policy controls get same-owner decision reads, with no raw output or external mode selector. Reuse current mechanisms and full source proof.",
+          "dedicated_graph_engine": "Introduce an independent source-read graph runtime for these booleans, including query/reference authorization and coherent current membership/revision. Makes purposes explicit at expense of another executor/observation protocol."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "query_closure": {
+        "type": "choice",
+        "choice": "extend_existing_observation",
+        "confidence": 0.95,
+        "probabilities": {
+          "compile_finite_graph_plans": 0.03,
+          "extend_existing_observation": 0.97,
+          "dedicated_graph_engine": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1261,
+      "output_tokens": 57
+    }
+  }
+}

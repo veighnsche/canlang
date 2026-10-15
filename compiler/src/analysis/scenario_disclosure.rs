@@ -1170,6 +1170,117 @@ pub fn checked_read_predicate_site(
     })
 }
 
+/// Complete original callable census for a checked Boolean page requirement or
+/// derived field. The codegen consumer independently authenticates its owner.
+#[allow(clippy::too_many_arguments)]
+pub fn checked_read_boolean_site(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    resolve: &ResolveTables,
+    types: &TypeTable,
+    effects: &EffectTables,
+    module: ModuleId,
+    owner: SymbolId,
+    predicate: NodeKey,
+    statement: NodeKey,
+) -> Option<CheckedDecisionSite> {
+    if types.node_types.get(&predicate) != Some(&ResolvedType::Scalar(Scalar::Bool)) {
+        return None;
+    }
+    let mut nodes = HashMap::new();
+    let mut pending = trees
+        .iter()
+        .map(|(_, tree)| (tree, 0usize))
+        .collect::<Vec<_>>();
+    while let Some((node, depth)) = pending.pop() {
+        if nodes.len() >= 200000 || depth > 256 {
+            return None;
+        }
+        nodes.insert(NodeKey::of(node), node);
+        pending.extend(node.children.iter().map(|child| (child, depth + 1)));
+    }
+    let cx = Closure {
+        catalog: None,
+        db,
+        resolve,
+        types,
+        effects,
+        nodes,
+        stack: HashSet::new(),
+        steps: 0,
+        depth: 0,
+        statement_depth: 0,
+        authorization: false,
+        effect_proofs: Vec::new(),
+        effect_visits: 0,
+        loop_node: None,
+        complete_children: HashSet::new(),
+        complete_model_children: HashMap::new(),
+        result_model: None,
+        statement_expressions: None,
+        source_facts: RefCell::new(ImmutableSourceFacts::default()),
+    };
+    let mut calls = Vec::new();
+    cx.checked_decision_expression(
+        predicate,
+        module,
+        &[],
+        &mut HashSet::new(),
+        &mut calls,
+        &mut 0,
+        &mut 0,
+        0,
+    )?;
+    Some(CheckedDecisionSite {
+        owner,
+        source: cx.source(module, predicate).ok()?,
+        node: predicate,
+        statement,
+        stage: CheckedDecisionStage::ReadPredicate,
+        position: Vec::new(),
+        calls,
+    })
+}
+
+/// Finite membership dependency through the selected derive calls, including
+/// calls in argument defaults. This grants no execution authority.
+pub fn expression_reads_membership(
+    types: &TypeTable,
+    effects: &EffectTables,
+    root: NodeKey,
+) -> bool {
+    let mut pending = vec![root];
+    let mut seen = HashSet::new();
+    while let Some(key) = pending.pop() {
+        if !seen.insert(key) {
+            continue;
+        }
+        if seen.len() > 4096 {
+            return false;
+        }
+        for (node, selected) in &types.selected_calls {
+            if node.file != key.file || node.start < key.start || node.end > key.end {
+                continue;
+            }
+            match &selected.target {
+                SelectedCallTarget::Builtin { id, .. } if id == "active_member" => return true,
+                SelectedCallTarget::DeriveFn(id) => {
+                    if let Some(data) = effects.derives.get(id) {
+                        pending.extend(data.expr);
+                        for (param, slot) in data.params.iter().zip(&selected.slots) {
+                            if slot.is_none() {
+                                pending.extend(param.default);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
 fn checked_source_type(ty: &ResolvedType) -> bool {
     let mut pending = vec![(ty, 0usize)];
     let mut steps = 0usize;

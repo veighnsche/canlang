@@ -1,0 +1,70 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Resolve original CanMember page guard and CanShift Coverage.met bool derived-field membership reads without altering authored guards, eligibility, lazy order, read permissions or revocation. Smallest complete finite implementation, no audit or general effect system.",
+      "verified_sources": {
+        "member": "page /companies/{Customer.id}/membership-access require actor!=null and (has_role(actor,row,administrator) or (member_manager and any(row.locations as location,can_work(actor,location))))",
+        "shift": "derive Coverage.met:bool=coverage_met(row.parent,row,null). coverage_met queries Duty/Commitment and calls eligible, then employee.can_work -> active_member(person,team). Existing source profiles preserve those guards and current work/location membership."
+      },
+      "verified_mechanisms": [
+        "active_member is a checked StateRead builtin, current supplied-user/verified-team membership, not a read grant. Membership-reading DeriveFn is admitted for bounded current decision/read sites; strict pure contexts transitively refuse it. Page Require currently adds entire predicate to strict_purity_roots; DeriveField unconditionally strict pure. This produces exactly two of three original CRM24source diagnostics.",
+        "Compiler prepares exact original source/call/argument slot/default/derive-chain membership recipes against fresh source+IR; markers/public metadata alone never authorize. Native runtime active_member requires a private installed frame and actual State call/read observation with exact live user/Team captured; no global fallback is allowed.",
+        "Existing State installed source boolean predicate path supports read-policy/read-predicate stages, binds exact installed callable and complete checked sites before execution, then observes current membership. createSourceReadPolicyAdapter builds permission-aware native navigation, runs predicate once in a fresh read frame, preserves lazy evaluation, revalidates navigation and membership alongside State revision/lifetime fencing. This path does not grant stored rows through membership alone.",
+        "Current page descriptor.admit(c,routeBindings) directly evaluates guard; HTTP calls it without State observation. Current derived emitter is async(c,row), callable kind Pure; nativeProjectedRecord exposes stored fields/metadata/navigation only and does not evaluate derived fields. Merely allowing typing would leave both native contexts unsupported.",
+        "An internal compiler-owned boolean predicate wrapper for each original page guard/derived bool could reuse actual existing State source read observation. Must retain exact original callable/source and complete dependency census, actual owning subject/revision, current read/field policy, lazy order, invocation-lifetime closure and revalidation. Native loader grants no metadata authority. Bool met is finite; generic nonbool membership-derived values, defaults, captions, invariants and retention remain outside this fix."
+      ],
+      "acceptance": "Original Member guard denies nonmanager/nonadministrator, accepts correct current manager/work-location or administrator branch, preserves short circuit and field policies, refuses after revocation/change. Original Coverage.met bool preserves coverage calculation/current eligible employee membership; read field remains withheld without owning read authority, no stale value/replay/foreign source bypass. Original CRM composition compiles; targeted native integration exercises both consumers and negative controls.",
+      "alternatives": "All options below must satisfy same original-source/native/current-authority and no-cached-grant outcomes. A typing-only relaxation, dropping source guard/derive or replacing current membership with stored snapshot is incomplete and not an option."
+    },
+    "questions": {
+      "page": {
+        "type": "choice",
+        "instructions": "How should this original page admission expression gain current membership evaluation without widening permissions or requiring a general effects redesign?",
+        "criteria": {
+          "general_contextual_effects": "Design an effect-aware expression system for context-dependent StateRead functions/fields and corresponding runtime owners, including page guards. Broader common abstraction, more implementation/qualification than original two bool consumers.",
+          "reuse_boolean_read": "Reuse existing State boolean source predicate observation for exact original page guards, with compiler-authenticated page/route/subject+call closure and private loader binding. Preserve current-authorized row/field navigation, current membership/revision fencing, source order/laziness and bool admission only.",
+          "dedicated_page_observer": "Implement dedicated page membership observation/consumer with independent exact page subject/source recipes and coherent authorized read/membership lifetime. Clearer separate semantic type, new observer/validation paths similar to existing boolean predicates."
+        }
+      },
+      "derived_bool": {
+        "type": "choice",
+        "instructions": "How should the original computed coverage boolean read current eligible memberships under its real field/row permissions without broadly relaxing pure language sites?",
+        "criteria": {
+          "dedicated_field_observer": "Add an explicitly separate computed-bool observation profile proving exact source/field/row/calls and current read grants/membership/revision before result release. Fully preserves source but requires another State/native protocol.",
+          "general_contextual_effects": "Infer effect through all derived values and define complete current read observation for their consumers; solves this bool with a wider new language system.",
+          "reuse_boolean_read": "Use original checked boolean derived-field callable in existing source-read observer, privately bound to actual model field and currently authorized row. Complete original call/default/source provenance and current membership/revision/lifetime checks stay; new contextual bool consumer does not relax ordinary pure defaults/invariants/etc."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "page": {
+        "type": "choice",
+        "choice": "reuse_boolean_read",
+        "confidence": 1.0,
+        "probabilities": {
+          "general_contextual_effects": 0.0,
+          "reuse_boolean_read": 1.0,
+          "dedicated_page_observer": 0.0
+        }
+      },
+      "derived_bool": {
+        "type": "choice",
+        "choice": "reuse_boolean_read",
+        "confidence": 1.0,
+        "probabilities": {
+          "dedicated_field_observer": 0.0,
+          "general_contextual_effects": 0.0,
+          "reuse_boolean_read": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1443,
+      "output_tokens": 102
+    }
+  }
+}

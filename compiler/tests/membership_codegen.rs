@@ -406,3 +406,234 @@ for(const props of globalThis.originalWhereProps)assert.equal(entry.canReadPredi
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn checked_boolean_observers_emit_original_predicates_and_async_derived_reads() {
+    let source = include_str!("../../packages/cloudflare/test/fixtures/native-read-boolean.can");
+    let (db, catalog, program) = checked_source(source);
+    let mut result = DiagnosticResult::new("membership", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    assert!(
+        diagnostics.iter().all(|d| d.code == "E6007"),
+        "{diagnostics:?}"
+    );
+    let text = &artifact.modules[0].js;
+    assert!(
+        text.contains("export function canReadBooleanSource"),
+        "{text}"
+    );
+    assert!(text.contains("routeBindings[\"Item.id\"]"), "{text}");
+    assert!(
+        text.contains("await nativeReadBoolean(c,$can$boolean$"),
+        "{text}"
+    );
+    assert!(text.contains("async(c,row)=>"), "{text}");
+    assert!(!text.contains("type:\"unknown\""), "{text}");
+    // Parse and consume actual emitted functions; substitute only the runtime
+    // boundary, recording the exact original function/subject it receives.
+    let (_, generic_diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options: EmitOptions::new(),
+        },
+    );
+    assert!(
+        generic_diagnostics.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("native Boolean observation backend required")),
+        "{generic_diagnostics:?}"
+    );
+    let route_render_source = source.replace("text \"Allowed\"", "text row.author");
+    let (route_db, route_catalog, route_program) = checked_source(&route_render_source);
+    let mut route_result = DiagnosticResult::new("route", LANGUAGE_VERSION, SCHEMA_VERSION);
+    route_result.add_sources(&route_db);
+    route_result.complete = true;
+    let mut route_options = EmitOptions::new();
+    route_options.native_scenario_receipts = true;
+    let (_, route_diagnostics) = emit(
+        &route_program,
+        &EmitSources {
+            db: &route_db,
+            result: &route_result,
+            catalog: Some(&route_catalog),
+            options: route_options,
+        },
+    );
+    assert!(
+        route_diagnostics.iter().any(|d| d.code == "E6008"
+            && d.message
+                .contains("authorized route row render binding is unavailable")),
+        "{route_diagnostics:?}"
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let runner = scratch.path().join("boolean.mjs");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    std::fs::write(scratch.path().join("entry.js"), text).unwrap();
+    let script = format!(
+        r#"
+import assert from 'node:assert/strict';
+import {{createRequire}} from 'node:module';
+import {{readFileSync,writeFileSync}} from 'node:fs';
+import {{pathToFileURL}} from 'node:url';
+const require=createRequire({root});
+const stdlib=pathToFileURL(require.resolve('@canlang/stdlib')).href;
+const ui=pathToFileURL(require.resolve('@canlang/ui')).href;
+writeFileSync(new URL('trap.mjs',import.meta.url),`export * from ${{JSON.stringify(stdlib)}};
+export async function nativeReadBoolean(c,f,subject){{globalThis.seen.push({{f,subject}});return f(c,typeof subject==='string'?{{author:'person',enabled:false}}:subject);}}
+export async function nativeReadReference(c,value){{return value;}}
+export async function active_member(){{throw Error('lazy membership operand executed');}}`);
+const entry=readFileSync(new URL('entry.js',import.meta.url),'utf8').replaceAll('"@canlang/stdlib"',JSON.stringify(new URL('trap.mjs',import.meta.url).href)).replaceAll('"@canlang/ui"',JSON.stringify(ui));
+writeFileSync(new URL('entry.mjs',import.meta.url),entry);
+const {{appDefinition,canApp,canReadBooleanSource,canReadPredicateSource}}=await import(new URL('entry.mjs',import.meta.url));
+const seen=globalThis.seen=[];
+const derived=canApp().derives['NativeBoolean.Item.met'];
+assert.equal(await derived({{}},{{enabled:false}}),false);
+assert.equal(canReadBooleanSource(seen[0].f).kind,'derived-field');
+assert.equal(canReadBooleanSource(seen[0].f).field,'met');
+assert.deepEqual(Object.keys(canReadPredicateSource(seen[0].f)).sort(),['node','owner','source','statement']);
+assert.equal(canReadBooleanSource(async()=>true),null);
+const marker=canReadBooleanSource(seen[0].f); marker.kind='foreign';
+assert.equal(canReadBooleanSource(seen[0].f).kind,'derived-field');
+const page=appDefinition.pages.find(page=>page.path.endsWith('/access'));
+await assert.rejects(()=>page.admit({{actor:null}},{{'Item.id':'one'}}),error=>error.code==='forbidden');
+assert.equal(seen.at(-1).subject,'one');
+assert.equal(canReadBooleanSource(seen.at(-1).f).kind,'page-require');
+"#,
+        root = serde_json::to_string(&root.join("package.json").to_string_lossy()).unwrap(),
+    );
+    std::fs::write(&runner, script).unwrap();
+    let output = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn boolean_callee_queries_await_lazy_reference_reads_without_changing_ordinary_helpers() {
+    let source = "app Closure\nGiven\n Target {active:bool}\n Item {author:user,target:Target,enabled:bool}\n derive allowed(item:Item):bool = item.enabled and active_member(item.author,team) and any(Item as candidate,candidate.enabled and candidate.target.active)\n derive Item.met:bool = allowed(row)\n policy Target read=members\n policy Item read=members\nWhen\nThen\n page /items title=\"Items\"\n  list Item as item\n   text row.met\n";
+    let (db, catalog, program) = checked_source(source);
+    let mut result = DiagnosticResult::new("closure", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    assert!(
+        diagnostics.iter().all(|d| d.code == "E6007"),
+        "{diagnostics:?}"
+    );
+    let text = &artifact.modules[0].js;
+    assert!(text.contains("nativeReadReference(c,"), "{text}");
+    assert!(
+        text.contains("const $verdict=await $predicate($item)"),
+        "{text}"
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    std::fs::write(scratch.path().join("entry.js"), text).unwrap();
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let script = format!(
+        r#"
+import assert from 'node:assert/strict';
+import {{createRequire}} from 'node:module';
+import {{readFileSync,writeFileSync}} from 'node:fs';
+import {{pathToFileURL}} from 'node:url';
+const require=createRequire({root});
+const stdlib=pathToFileURL(require.resolve('@canlang/stdlib')).href;
+const ui=pathToFileURL(require.resolve('@canlang/ui')).href;
+writeFileSync(new URL('trap.mjs',import.meta.url),`export * from ${{JSON.stringify(stdlib)}};
+export async function nativeReadBoolean(c,f,row){{return f(c,row);}}
+export async function nativeReadReference(c,row){{globalThis.visits.push(row);if(row.denied)throw Error('withheld target');return row;}}
+export async function active_member(){{globalThis.members++;return true;}}
+export async function records(c,model,query){{globalThis.queries++;return globalThis.rows;}}`);
+const text=readFileSync(new URL('entry.js',import.meta.url),'utf8').replaceAll('"@canlang/stdlib"',JSON.stringify(new URL('trap.mjs',import.meta.url).href)).replaceAll('"@canlang/ui"',JSON.stringify(ui));
+writeFileSync(new URL('entry.mjs',import.meta.url),text);
+const entry=await import(new URL('entry.mjs',import.meta.url));
+const derived=entry.canApp().derives['Closure.Item.met'];
+globalThis.visits=[];globalThis.members=0;globalThis.queries=0;
+assert.equal(await derived({{}},{{enabled:false}}),false);
+assert.equal(globalThis.members,0);assert.equal(globalThis.queries,0);
+const skipped={{enabled:false,get target(){{throw Error('unreached reference');}}}};
+globalThis.rows=[skipped,{{enabled:true,target:{{active:true}}}}];
+assert.equal(await derived({{}},{{enabled:true,author:'person'}}),true);
+assert.equal(globalThis.members,1);assert.equal(globalThis.queries,1);
+globalThis.rows=[{{enabled:true,target:{{denied:true}}}}];
+await assert.rejects(()=>derived({{}},{{enabled:true,author:'person'}}),/withheld target/);
+"#,
+        root = serde_json::to_string(&root.join("package.json").to_string_lossy()).unwrap()
+    );
+    let runner = scratch.path().join("closure.mjs");
+    std::fs::write(&runner, script).unwrap();
+    let output = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn original_query_reference_boolean_graph_emits_both_observers() {
+    let source =
+        include_str!("../../packages/cloudflare/test/fixtures/native-read-boolean-graph.can");
+    let (db, catalog, program) = checked_source(source);
+    let mut result = DiagnosticResult::new("graph", LANGUAGE_VERSION, SCHEMA_VERSION);
+    result.add_sources(&db);
+    result.complete = true;
+    let mut options = EmitOptions::new();
+    options.native_scenario_receipts = true;
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: Some(&catalog),
+            options,
+        },
+    );
+    assert!(
+        diagnostics.iter().all(|d| d.code == "E6007"),
+        "{diagnostics:?}"
+    );
+    let text = &artifact.modules[0].js;
+    assert!(
+        text.contains("export function canReadBooleanSource"),
+        "{text}"
+    );
+    assert!(text.contains("routeBindings[\"Customer.id\"]"), "{text}");
+    assert!(text.contains("nativeReadReference(c,"), "{text}");
+    assert!(
+        text.contains("const $verdict=await $predicate($item)"),
+        "{text}"
+    );
+}

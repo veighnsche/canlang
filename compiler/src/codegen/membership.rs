@@ -168,6 +168,23 @@ pub(super) fn prepare_with_context(
         }
         pages.entry(site.owner.clone()).or_default().push(site);
     }
+    // Require the complete fresh checked and IR seal before accepting Boolean
+    // observers, including unrelated edits to the surrounding execution closure.
+    let _sealed = super::read_predicates::prepare_with_context(context)?;
+    for (span, identity, source) in super::scenario_decisions::serialize_read_booleans(context)? {
+        let mut predicate = identity.clone();
+        let object = predicate.as_object_mut()?;
+        object.remove("model");
+        object.remove("kind");
+        object.remove("field");
+        if predicates.insert(span, predicate).is_some() {
+            return None;
+        }
+        pages
+            .entry(source.first()?.owner.clone())
+            .or_default()
+            .extend(source);
+    }
     for (owner, source) in pages {
         if source.iter().any(|site| site.calls.iter().any(|call| {
             matches!(&call.target, super::scenario_decisions::SerialDecisionTarget::Builtin { id, .. }

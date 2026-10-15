@@ -1,0 +1,70 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Resolve original CanMember page guard and CanShift Coverage.met bool derived-field membership reads without altering authored guards, eligibility, lazy order, read permissions or revocation. Smallest complete finite implementation, no audit or general effect system.",
+      "verified_sources": {
+        "member": "page /companies/{Customer.id}/membership-access require actor!=null and (has_role(actor,row,administrator) or (member_manager and any(row.locations as location,can_work(actor,location))))",
+        "shift": "derive Coverage.met:bool=coverage_met(row.parent,row,null). coverage_met queries Duty/Commitment and calls eligible, then employee.can_work -> active_member(person,team). Existing source profiles preserve those guards and current work/location membership."
+      },
+      "verified_mechanisms": [
+        "active_member is a checked StateRead builtin, current supplied-user/verified-team membership, not a read grant. Membership-reading DeriveFn is admitted for bounded current decision/read sites; strict pure contexts transitively refuse it. Page Require currently adds entire predicate to strict_purity_roots; DeriveField unconditionally strict pure. This produces exactly two of three original CRM24source diagnostics.",
+        "Compiler prepares exact original source/call/argument slot/default/derive-chain membership recipes against fresh source+IR; markers/public metadata alone never authorize. Native runtime active_member requires a private installed frame and actual State call/read observation with exact live user/Team captured; no global fallback is allowed.",
+        "Existing State installed source boolean predicate path supports read-policy/read-predicate stages, binds exact installed callable and complete checked sites before execution, then observes current membership. createSourceReadPolicyAdapter builds permission-aware native navigation, runs predicate once in a fresh read frame, preserves lazy evaluation, revalidates navigation and membership alongside State revision/lifetime fencing. This path does not grant stored rows through membership alone.",
+        "Current page descriptor.admit(c,routeBindings) directly evaluates guard; HTTP calls it without State observation. Current derived emitter is async(c,row), callable kind Pure; nativeProjectedRecord exposes stored fields/metadata/navigation only and does not evaluate derived fields. Merely allowing typing would leave both native contexts unsupported.",
+        "An internal compiler-owned boolean predicate wrapper for each original page guard/derived bool could reuse actual existing State source read observation. Must retain exact original callable/source and complete dependency census, actual owning subject/revision, current read/field policy, lazy order, invocation-lifetime closure and revalidation. Native loader grants no metadata authority. Bool met is finite; generic nonbool membership-derived values, defaults, captions, invariants and retention remain outside this fix."
+      ],
+      "acceptance": "Original Member guard denies nonmanager/nonadministrator, accepts correct current manager/work-location or administrator branch, preserves short circuit and field policies, refuses after revocation/change. Original Coverage.met bool preserves coverage calculation/current eligible employee membership; read field remains withheld without owning read authority, no stale value/replay/foreign source bypass. Original CRM composition compiles; targeted native integration exercises both consumers and negative controls.",
+      "alternatives": "All options below must satisfy same original-source/native/current-authority and no-cached-grant outcomes. A typing-only relaxation, dropping source guard/derive or replacing current membership with stored snapshot is incomplete and not an option."
+    },
+    "questions": {
+      "page": {
+        "type": "choice",
+        "instructions": "For the unchanged Member page require, choose the smallest complete source-to-native membership observation design under the same authority/laziness constraints.",
+        "criteria": {
+          "dedicated_page_observer": "Keep original source page guard and add a new specific State/native page-admission observer proving exact source/route subject, ordered membership calls, current authorized navigation, revision and membership. Isolates this stage but repeats existing read-observer behavior.",
+          "general_contextual_effects": "Infer a general StateRead effect through values and every consuming context, then implement owning runtime observations for page admission and others. Extensible but spans more supported contexts and dependencies than this finite requirement.",
+          "reuse_boolean_read": "Retain original page require and issue exact compiler-checked boolean read predicate wrappers over its route-bound subject. Execute via existing private State source-read observation, current-authorized navigation and membership frame, with exact source/call/slot/lifetime checks; admission does not release records. New page binding, reused read backend."
+        }
+      },
+      "derived_bool": {
+        "type": "choice",
+        "instructions": "Choose the smallest complete native ownership for the unchanged membership-dependent Coverage.met boolean computed field, including revocation and field access.",
+        "criteria": {
+          "general_contextual_effects": "General effectful computed values across scalar/model result types and consumers, each with complete observation and policy contracts. Broader language foundation but more changes than these original bool requirements.",
+          "reuse_boolean_read": "Treat original membership-derived Coverage.met bool as an exact source-owned read predicate at field evaluation. Reuse private State observation and authorized navigation, bind source/field/actual row/revision/call-chain, honor current row/field read grant and revocation, and prevent strict-pure sinks borrowing it.",
+          "dedicated_field_observer": "Create a computed-field-specific native/State observation channel retaining original source and exact field subject with current permission/membership/revision revalidation. Distinct stage semantics with extra owner/profile code rather than reuse boolean predicate backend."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "page": {
+        "type": "choice",
+        "choice": "reuse_boolean_read",
+        "confidence": 0.98,
+        "probabilities": {
+          "dedicated_page_observer": 0.01,
+          "general_contextual_effects": 0.0,
+          "reuse_boolean_read": 0.99
+        }
+      },
+      "derived_bool": {
+        "type": "choice",
+        "choice": "reuse_boolean_read",
+        "confidence": 1.0,
+        "probabilities": {
+          "general_contextual_effects": 0.0,
+          "reuse_boolean_read": 1.0,
+          "dedicated_field_observer": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1479,
+      "output_tokens": 102
+    }
+  }
+}

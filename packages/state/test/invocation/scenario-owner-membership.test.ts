@@ -355,6 +355,12 @@ test('recipe checker preserves exact transitive source/default/type vocabulary, 
     chain: [{ source: source(), node: { start: 10, end: 12 }, derive: 'Membership.helper' }] }] };
   const checked = checkScenarioReceiptMembershipSites([transitive]);
   assert.deepEqual(checked, [transitive]); assert.ok(Object.isFrozen(checked[0]!.calls[0]!.defaults));
+  const literalNull = { ...transitive, calls: [{ ...transitive.calls[0]!,
+    arguments: [{ node: { start: 10, end: 11 }, type: 'null' }] }, transitive.calls[1]!] };
+  assert.deepEqual(checkScenarioReceiptMembershipSites([literalNull]), [literalNull], 'actual null arguments retain their intrinsic type');
+  const nestedCollection = { ...transitive, calls: [{ ...transitive.calls[0]!,
+    arguments: [{ node: { start: 10, end: 11 }, type: 'datetime[][]' }] }, transitive.calls[1]!] };
+  assert.deepEqual(checkScenarioReceiptMembershipSites([nestedCollection]), [nestedCollection], 'flatten actual arguments retain their nested expression type');
   const condition = recipe(ROOT, 'body-condition');
   const readPolicy: ScenarioReceiptMembershipSite = { ...recipe('Membership.Task.read:0', 'read-policy'), position: [] };
   assert.deepEqual(checkScenarioReceiptMembershipSites([condition, readPolicy]), [condition, readPolicy]);
@@ -363,6 +369,10 @@ test('recipe checker preserves exact transitive source/default/type vocabulary, 
     { ...readPolicy, position: [{ kind: 'body', index: 0 }] },
     { ...site, calls: [{ ...site.calls[0], slots: [0, 0] }] },
     { ...site, calls: [{ ...site.calls[0], arguments: [{ node: { start: 11, end: 12 }, type: 'user?' }, site.calls[0]!.arguments[1]] }] },
+    { ...site, calls: [{ ...site.calls[0], arguments: [{ node: { start: 11, end: 12 }, type: 'null' }, site.calls[0]!.arguments[1]] }] },
+    { ...transitive, calls: [{ ...transitive.calls[0], defaults: [{ ...transitive.calls[0]!.defaults[0], type: 'null' }] }, transitive.calls[1]!] },
+    { ...transitive, calls: [{ ...transitive.calls[0], defaults: [{ ...transitive.calls[0]!.defaults[0], type: 'datetime[][]' }] }, transitive.calls[1]!] },
+    { ...transitive, calls: [{ ...transitive.calls[0], defaults: [{ ...transitive.calls[0]!.defaults[0], type: 'datetime[][]garbage' }] }, transitive.calls[1]!] },
     { ...site, calls: [{ ...site.calls[0], arguments: [site.calls[0]!.arguments[0], { ...site.calls[0]!.arguments[1], type: 'team' }] }] },
     { ...site, calls: [{ ...site.calls[0], defaults: [{ parameter: 'x', source: source(), node: { start: 1, end: 2 }, type: 'Team' }] }] },
     { ...site, calls: [{ ...site.calls[0], chain: Array.from({ length: 17 }, (_, index) => ({ source: source(), node: { start: index, end: index + 1 }, derive: `Helper.${index}` })) }] },

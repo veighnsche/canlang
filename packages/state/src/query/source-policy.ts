@@ -7,7 +7,7 @@ import { checkedMembershipFact, observeRowGrantAuthority } from '../policy/membe
 import { isEqualOrUnder, isMetadataPath, withPolicyRow, type ByContext, type PolicyTable } from '../policy/grants.js';
 import { evaluateBy, validateByPredicate } from '../policy/roles.js';
 import { FenceConflictError } from '../storage/port.js';
-import { captureInstalledSourceOwnerRows, evaluateInstalledReadPolicy, withinInstalledReadObservation, type InstalledSourceOwnerRows } from '../receipt/read-policy-membership.js';
+import { captureInstalledSourceOwnerRows, evaluateInstalledReadPolicy, withinInstalledReadObservation, withinInstalledSourceReadQuery, type InstalledSourceOwnerRows } from '../receipt/read-policy-membership.js';
 import { projectCurrentRecordForViewerPolicy, projectSourceRowFields,
   type BaseQueryInput, type ViewerPageParentPolicy } from './engine.js';
 
@@ -16,6 +16,8 @@ export interface ViewerGenerationCallbackReadObservation {
   readonly row: StoredRow;
   readonly revision: Revision;
   readonly fence: BaseQueryInput['fence'];
+  /** Private same-load field presence; names disclose no values or grants. */
+  readonly sourcePresence?: readonly string[];
 }
 /** Reader-local adaptation of verified original ordinary read declarations.
  * Every callable evaluates its exact source rule, including where, in ordinal order.
@@ -292,4 +294,62 @@ export async function projectCurrentRecordForViewerSourcePolicies(input: Current
   if (actual !== revision) throw new FenceConflictError(revision, actual);
   if (fence !== undefined && fence.revision !== revision) throw new FenceConflictError(fence.revision, revision);
   return output;
+}
+
+/** Private source-expression input, never a request or an independent read
+ * capability. The actual live observation selects policy-control authority. */
+export interface SourceObservationRecordsInput {
+  readonly observation: Readonly<ViewerGenerationCallbackReadObservation>;
+  readonly store: StoragePort;
+  readonly model: ModelName;
+  readonly id?: RecordId;
+  readonly parent?: Readonly<{ model: ModelName; id: RecordId }>;
+  readonly readPolicies: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
+  readonly policy: PolicyTable;
+}
+export interface SourceObservationRecord {
+  readonly record: ProjectedRecord;
+  readonly sourcePresence: readonly string[];
+}
+
+/** Borrow one installed decision's original store, Identity context and R.
+ * Viewer expressions receive current policy-projected values before any source
+ * filtering/counting. Original installed policy predicates may inspect their
+ * same-owner decision inputs without recursively requiring the policy they are
+ * deciding; those values remain confined to that bool-returning lifetime. */
+export async function readRecordsAtSourceObservation(input: SourceObservationRecordsInput): Promise<readonly SourceObservationRecord[]> {
+  const { observation, store } = input;
+  const model = text(input.model) as ModelName;
+  const id = input.id === undefined ? undefined : text(input.id) as RecordId;
+  const parent = input.parent === undefined ? undefined : Object.freeze({ model: text(input.parent.model) as ModelName, id: text(input.parent.id) as RecordId });
+  return withinInstalledSourceReadQuery(observation, { store, model }, async (checkpoint, loadRow, ownerRows, control) => {
+    const reads = captureSourceReadPolicies(input.readPolicies), policy = new Map(input.policy), read = reads.get(model);
+    if (read === undefined) invalid();
+    if (ownerRows !== undefined && id === undefined) throw new StateError('validation', 'Source collection needs its original committed query domain.');
+    await checkpoint();
+    const single = id === undefined ? undefined : await loadRow(model, id);
+    const candidates = id === undefined ? await store.query({ model, authority: 'viewer', order: [{ field: 'id', direction: 'asc' }], archived: 'exclude',
+      ...(parent === undefined ? {} : { parent }) }) : single === null ? [] : [single!];
+    await checkpoint();
+    const rows = new Map<string, StoredRow>();
+    for (const row of candidates) rows.set(`${model}\0${row.id}`, row);
+    const result: SourceObservationRecord[] = [];
+    for (const row of candidates) {
+      if (id !== undefined && row.id !== id) invalid();
+      if (row.archivedAt !== null || parent !== undefined && (row.parent?.model !== parent.model || row.parent.id !== parent.id)) continue;
+      const projected = control
+        ? 'grants' in read ? projectSourceRowFields(row, [{ fields: read.fields }], read.secretFields) : null
+        : (await projectInstalledSourceRowAndAncestors({ model, row, readPolicies: reads, policy, context: observation.context,
+          revision: observation.revision, fence: observation.fence, store, rows, owningObservation: observation,
+          ...(ownerRows === undefined ? {} : { ownerRows }) })).record;
+      if (projected !== null) {
+        observation.fence?.enroll({ kind: 'record', model, id: row.id, version: row.version });
+        result.push(deepFreeze({ record: projected, sourcePresence: Object.keys(row.data) }));
+      }
+      await checkpoint();
+    }
+    observation.fence?.enroll({ kind: 'query', model, authority: 'viewer' });
+    await checkpoint();
+    return Object.freeze(result);
+  });
 }
