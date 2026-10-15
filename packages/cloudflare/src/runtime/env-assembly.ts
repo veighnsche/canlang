@@ -426,6 +426,7 @@ export function validateDeploymentBase(value: unknown): string {
  */
 export async function buildProductionDeps(
   env: Record<string, unknown>,
+  composition?: { readonly store: StoragePort | 'unavailable' },
 ): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; exportDownloads: ExportDownloadStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration; deploymentBase?: string }> {
   const configuredBase = Object.getOwnPropertyDescriptor(env, 'CAN_DEPLOYMENT_BASE');
   if (configuredBase !== undefined && !('value' in configuredBase)) throw new Error('deployment-configuration: CAN_DEPLOYMENT_BASE requires own configuration data');
@@ -459,17 +460,17 @@ export async function buildProductionDeps(
       (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
     throw new Error('owner-storage: STATE_DB/fresh assignment requires explicit CAN_STATE_OWNER');
   }
-  if (stateTeams !== undefined) {
+  if (stateTeams !== undefined || composition !== undefined) {
     const identity = await loadIdentityD1();
     await identity.ensureIdentitySchema(db);
     await ensurePagePreferencesSchema(db as D1Database);
     await ensureExportDownloadsSchema(db as D1Database);
     const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
       limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
-    return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(),
+    return { ...(deploymentBase === undefined ? {} : { deploymentBase }), ...(auth === undefined ? {} : { auth }), store: composition === undefined || composition.store === 'unavailable' ? unavailableGlobalStore() : composition.store,
       identityStore: identity.createD1IdentityStore(db), preferences: createD1PagePreferenceStore(db as D1Database),
       exportDownloads: createD1ExportDownloadStore(db as D1Database),
-      stateTeams };
+      ...(stateTeams === undefined ? {} : { stateTeams }) };
   }
   if (selectedOwner !== undefined) {
     if (typeof selectedOwner !== 'string' || selectedOwner === '' || selectedOwner === 'app') {

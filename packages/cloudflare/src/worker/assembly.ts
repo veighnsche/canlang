@@ -1,3 +1,4 @@
+import type { RootOperationBoundary } from '../runtime/root-authority-http.js';
 /**
  * B1 worker assembly: `CompileArtifact` + assembled modules -> serving worker.
  *
@@ -565,6 +566,9 @@ export interface InterimFileKernel {
  */
 export interface InterimFilesBinding {
   readonly usesFiles: boolean;
+  readonly intentsUrl?: string;
+  /** Persisted correspondence of the real physical Files metadata and byte allocation. */
+  readonly fileStoreId?: string;
   readonly kernel: InterimFileKernel;
   /** Selected real host transport, including current-grant finalized reads. */
   readonly fetch?: (request: Request) => Promise<Response>;
@@ -643,6 +647,9 @@ export interface CohortTickBinding {
 }
 
 export interface AssemblyDeps {
+  readonly rootBoundary?: RootOperationBoundary;
+  readonly allocateRecordId?: (model: string, index: number) => string;
+  readonly runtimeBindings?: 1;
   /** Explicit installed host root base; never request or authentication derived. */
   readonly deploymentBase?: string;
   store: StoragePort;
@@ -721,6 +728,7 @@ const KNOWN_CALLABLE_KINDS: ReadonlySet<string> = new Set([
  * (`assertRequiresFulfilled`) and must stay in sync with this set.
  */
 const T16B_KNOWN_REQUIRES_IDS: ReadonlySet<string> = new Set([
+  "cloudflare.runtime-bindings",
   "canlang.builtins",
   "state",
   "state.machines",
@@ -781,7 +789,7 @@ function assertArtifactCompatible(artifact: CompileArtifact): void {
       throw new Error(
         `assembly: artifact requires unknown capability ${JSON.stringify(requirement.capability)} ` +
           `(min_version ${requirement.min_version}); known: ` +
-          `canlang.builtins, state, state.machines, state.parameters, values.decimal, values.int64, values.money, values.temporal`,
+          [...T16B_KNOWN_REQUIRES_IDS].sort().join(", "),
       );
     }
   }
@@ -989,7 +997,9 @@ export async function createTeamOwnerStorageBoundary<TStore extends StoragePort 
 }): Promise<TeamOwnerStorageBoundary<TStore>> {
   const { app, identities, router } = input;
   const models = input.artifact.models;
-  if (models === undefined || models.length === 0) throw new Error('assembly: owner routing requires declared team models');
+  if (models === undefined || models.length === 0 && (input.artifact.runtimeBindings?.length ?? 0) === 0) {
+    throw new Error('assembly: owner routing requires declared team models or checked resource bindings');
+  }
   const byName = new Map(models.map(model => [model.name, model]));
   if (byName.size !== models.length) throw new Error('assembly: owner routing requires unique declared models');
   const complete = new Set<string>();
@@ -1020,7 +1030,12 @@ export async function createTeamOwnerStorageBoundary<TStore extends StoragePort 
       throw new StateError('forbidden', 'A current team is required.');
     }
     try {
-      return await router.ownerScopedStoragePort({ app, owner: teamId });
+      const port = await router.ownerScopedStoragePort({ app, owner: teamId });
+      if (input.artifact.runtimeBindings?.some(binding => binding.kind === 'durable-object')) {
+        const { rejectRootModelsInD1 } = await import('../runtime/root-authority.js');
+        rejectRootModelsInD1(port, input.artifact);
+      }
+      return port;
     } catch {
       // Trusted host configuration may refuse an unknown or incorrectly pinned
       // route. Never expose its storage details or fall back to another owner.
@@ -1054,6 +1069,9 @@ export async function createTeamOwnerStorageBoundary<TStore extends StoragePort 
 }
 
 export interface CanonicalInvokerOpts {
+  readonly rootBoundary?: RootOperationBoundary;
+  readonly allocateRecordId?: (model: string, index: number) => string;
+  readonly runtimeBindings?: 1;
   /** Explicit installed host root base; never request or authentication derived. */
   readonly deploymentBase?: string;
   /**
@@ -1126,6 +1144,8 @@ export function buildInvoker(
       }
       let rejectedReceipt = false;
       try {
+        const routed = await opts.rootBoundary?.mutation(envelope, identity);
+        if (routed != null) return routed;
         const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
           "../runtime/invoke.js",
           "runtime/invoke.ts",
@@ -1140,6 +1160,7 @@ export function buildInvoker(
           artifact,
           ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
           observeRejectedReceipt: () => { rejectedReceipt = true; },
+          ...(opts.allocateRecordId === undefined ? {} : { allocateRecordId: opts.allocateRecordId }),
           operation: envelope.operation,
           operationId: envelope.operation_id,
           inputs: envelope.inputs,
@@ -1153,10 +1174,14 @@ export function buildInvoker(
           ...(opts.selectedReceiptObserver === undefined ? {} : { observer: opts.selectedReceiptObserver }),
           ...(opts.files === undefined ? {} : { files: opts.files }),
         });
-        return { result };
+        const outcome = { result };
+        opts.rootBoundary?.complete(outcome);
+        return outcome;
       } catch (error) {
-        return { error: toBusinessError(error, envelope.operation_id),
+        const outcome: MutationOutcome = { error: toBusinessError(error, envelope.operation_id),
           ...(rejectedReceipt ? { receipt: 'rejected' as const } : {}) };
+        opts.rootBoundary?.complete(outcome);
+        return outcome;
       }
     };
   return {
@@ -1172,6 +1197,8 @@ export function buildInvoker(
         return { error: descriptorLessRefusal(envelope.operation) };
       }
       try {
+        const routed = await opts.rootBoundary?.read(envelope, identity);
+        if (routed != null) return routed;
         const invokeCanonical = await loadSiblingFn<InvokeReadCanonical>(
           "../runtime/invoke.js",
           "runtime/invoke.ts",
@@ -1198,9 +1225,13 @@ export function buildInvoker(
           memberships: opts.memberships as CanonicalMembershipReader,
           ...(opts.selectedReceiptObserver === undefined ? {} : { observer: opts.selectedReceiptObserver }),
         });
-        return { result };
+        const outcome = { result };
+        opts.rootBoundary?.complete(outcome);
+        return outcome;
       } catch (error) {
-        return { error: toBusinessError(error) };
+        const outcome: ReadOutcome = { error: toBusinessError(error) };
+        opts.rootBoundary?.complete(outcome);
+        return outcome;
       }
     },
   };
@@ -1352,6 +1383,9 @@ async function loadAppInfo(artifact: CompileArtifact, asm: AssembledModules): Pr
  * carries both.
  */
 interface InterimDispatchContext {
+  readonly rootBoundary?: RootOperationBoundary;
+  readonly allocateRecordId?: (model: string, index: number) => string;
+  readonly runtimeBindings?: 1;
   /** Explicit installed host root base; never request or authentication derived. */
   readonly deploymentBase?: string;
   readonly app: AppInfo;
@@ -1435,6 +1469,8 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       appInfo: ctx.app,
       now,
       ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
+      ...(ctx.rootBoundary === undefined ? {} : { rootBoundary: ctx.rootBoundary }),
+      ...(ctx.allocateRecordId === undefined ? {} : { allocateRecordId: ctx.allocateRecordId }),
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
       ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
@@ -1446,7 +1482,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       },
       intentsUrl: (_app: unknown): string => {
         void _app;
-        return INTERIM_MCP_INTENTS_URL;
+        return ctx.files?.intentsUrl ?? INTERIM_MCP_INTENTS_URL;
       },
     },
     identity: {
@@ -1538,6 +1574,8 @@ async function buildHttpTransportDeps(ctx: InterimDispatchContext): Promise<Http
       appInfo: ctx.app,
       now,
       ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
+      ...(ctx.rootBoundary === undefined ? {} : { rootBoundary: ctx.rootBoundary }),
+      ...(ctx.allocateRecordId === undefined ? {} : { allocateRecordId: ctx.allocateRecordId }),
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
       ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
@@ -1840,7 +1878,7 @@ export function assembleFanoutServingSurface<TSegments extends FanoutServingSegm
  * artifact-universal); fixtures with empty `requires[]` pass
  * trivially.
  */
-async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin, cohorts?: CohortTickBinding): Promise<void> {
+async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin, cohorts?: CohortTickBinding, runtimeBindings?: 1): Promise<void> {
   const loadVersions = await loadSiblingFn<LoadContractVersions>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -1859,6 +1897,7 @@ async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin
   const versions = await loadVersions();
   assertPins(versions);
   assertRequires(artifact.requires, { state: versions.state, values: versions.values,
+    ...(runtimeBindings === 1 ? { runtimeBindings: 1 } : {}),
     ...(cohorts?.version === 1 && typeof cohorts.tick === 'function' ? { cohorts: 1 } : {}),
     ...(http?.createOperationHandler?.inputChoicesVersion === undefined ? {} :
       { inputChoices: http.createOperationHandler.inputChoicesVersion }) });
@@ -1933,7 +1972,7 @@ export async function assembleWorker(
   if (cohorts !== undefined && (cohorts.version !== 1 || typeof cohorts.tick !== 'function')) {
     throw new Error('assembly: cohort tick needs its actual v1 binding.');
   }
-  await assertServingContracts(artifact, deps.http, cohorts);
+  await assertServingContracts(artifact, deps.http, cohorts, deps.runtimeBindings);
   const generatedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -2152,6 +2191,8 @@ export async function assembleWorker(
     store: deps.store,
     identityStore: deps.identityStore,
     ...(deps.ownerStorage === undefined ? {} : { ownerStorage: deps.ownerStorage }),
+    ...(deps.rootBoundary === undefined ? {} : { rootBoundary: deps.rootBoundary }),
+    ...(deps.allocateRecordId === undefined ? {} : { allocateRecordId: deps.allocateRecordId }),
     ...(deps.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: deps.selectedReceiptObserver }),
     mcp: deps.mcp,
     http: deps.http,

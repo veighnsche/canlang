@@ -1,0 +1,26 @@
+app RootQueue
+context
+ binding Schedule DurableObject key=RootQueue.Calendar
+ queue Jobs type=BookingJob
+Given
+ Calendar at=Schedule {name:text,processed:int=0}
+ Booking in Calendar {title:text}
+ contract BookingJob {calendar:Calendar,title:text}
+ policy Calendar read=members
+ policy Booking read=members
+When
+ crud Calendar by=members fields=name
+ crud Booking by=members fields=title
+ scenario submit(calendar:Calendar,title:text,accept:bool) by=members
+  do
+   send Jobs.publish {value=BookingJob {calendar,title}} as queued
+   require accept
+ scenario consume on=Jobs
+  do
+   require actor==null
+   require operation.source=="ingress"
+   create Booking {parent=event.calendar,title=event.title} as booking
+   set event.calendar {processed=event.calendar.processed+1}
+ scenario status(calendar:Calendar) read=true -> int by=members
+  do return calendar.processed
+Then

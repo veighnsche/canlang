@@ -1,0 +1,15 @@
+app RootFiles
+context
+ binding Vault DurableObject key=RootFiles.Folder
+Given
+ Folder at=Vault {name:text,attachment:file?}
+ policy Folder read=members fields=name
+ policy Folder read=owner fields=attachment
+When
+ crud Folder by=members fields=name
+ scenario attach(folder:Folder,attachment:file,accept:bool) -> bool by=owner
+  do
+   set folder {attachment}
+   require accept
+   return true
+Then
