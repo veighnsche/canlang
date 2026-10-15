@@ -16973,3 +16973,16 @@ closure and saved Given emit zero diagnostics through authentic intake (1.46s).
 Probe removed. Noncreated Given carriers and actual native invocation remain
 unqualified. The preceding isolated6ef5d02c original24 run remains656 findings,
 complete/omitted0 with unchanged26 source records/catalog and no multiset change.
+
+
+### 2026-10-15 — absent optional File fixture resources
+
+An absent/null optional singular File carries no resource to materialize. Let the
+existing canonical fixture session validate that value; keep nonnull File, File
+arrays, nested resources and Delivery behind their explicit resource profile.
+Recheck finalized rows before commit so omission cannot retain or default a
+resource. Normal Cloudflare build and focused seven-mode native fixture check
+pass (1 test/7.84s), including requiredness and invariant refusals. This repairs
+fixture setup only; original CRM native workflow remains unqualified. Original24
+at isolated c1cec0c6 finishes428.83s with656 findings, complete/omitted0, unchanged
+source records/catalog and zero multiset changes.
