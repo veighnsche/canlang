@@ -297,70 +297,7 @@ pub(super) fn checked_created_schema(
         matcher.optional(modifiers.max.as_ref(), maximum)?;
     }
     for original_field in &definition.contributed {
-        let field = ir.items.get(original_field.field.0 as usize)?;
-        let expected = &original_field.value;
-        let IrItemKind::Field {
-            owner: field_owner,
-            ty: IrType::Known(ty),
-            required_array,
-            default,
-            server,
-            modifiers,
-            description,
-            ..
-        } = &field.kind
-        else {
-            return None;
-        };
-        if field.id != original_field.field
-            || *field_owner != model.id
-            || field.module != model.module
-            || field.canonical != original_field.canonical
-            || field.name != expected.name
-            || field.canonical != format!("{}.{}", model.canonical, expected.name)
-            || field.span != original_field.span
-            || ty != &original_field.ty
-            || ir.value_constraints.get(&field.id) != original_field.constraints.as_ref()
-            || *required_array
-            || server.is_some()
-            || description.is_some()
-            || modifiers.trim != expected.trim
-            || modifiers.unique
-            || modifiers.machine
-        {
-            return None;
-        }
-        source(ir, &original_field.source, field.span, db)?;
-        let value = expected.default.as_deref()?;
-        let IrDefault::Literal(actual) = default.as_ref()? else {
-            return None;
-        };
-        let expected_default = super::ir::given_constant_expr(value, ty, field.span);
-        if actual.ty != expected_default.ty
-            || actual.span != field.span
-            || literal_json(actual)? != literal_json(&expected_default)?
-        {
-            return None;
-        }
-        let bound_type = super::ir::given_bound_type(ty);
-        for (actual, expected) in [
-            (&modifiers.min, &expected.min),
-            (&modifiers.max, &expected.max),
-        ] {
-            match (actual, expected) {
-                (None, None) => {}
-                (Some(actual), Some(expected)) => {
-                    let expected = super::ir::given_constant_expr(expected, &bound_type, field.span);
-                    if actual.ty != expected.ty
-                        || actual.span != field.span
-                        || literal_json(actual)? != literal_json(&expected)?
-                    {
-                        return None;
-                    }
-                }
-                _ => return None,
-            }
-        }
+        checked_contributed_field(ir, model, original_field, db)?;
     }
     let prefix = ir_model_rule_prefix(ir, model);
     if invariants.len() != declaration.invariants.len()
@@ -717,6 +654,81 @@ pub(super) fn checked_create_expression(
         membership_call: None,
     }
     .expression(actual, node, 0)
+}
+
+/// Match the same original Given field for construction and stored disclosure.
+/// Its span names the checked attachment, never an invented Field syntax node.
+pub(super) fn checked_contributed_field(
+    ir: &IrProgram,
+    model: &IrItem,
+    original_field: &crate::analysis::scenario_disclosure::CheckedScenarioContributedField,
+    db: &SourceDb,
+) -> Option<()> {
+    let field = ir.items.get(original_field.field.0 as usize)?;
+    let expected = &original_field.value;
+    let IrItemKind::Field {
+        owner: field_owner,
+        ty: IrType::Known(ty),
+        required_array,
+        default,
+        server,
+        modifiers,
+        description,
+        ..
+    } = &field.kind
+    else {
+        return None;
+    };
+    if field.id != original_field.field
+        || *field_owner != model.id
+        || field.module != model.module
+        || field.canonical != original_field.canonical
+        || field.name != expected.name
+        || field.canonical != format!("{}.{}", model.canonical, expected.name)
+        || field.span != original_field.span
+        || ty != &original_field.ty
+        || ir.value_constraints.get(&field.id) != original_field.constraints.as_ref()
+        || *required_array
+        || server.is_some()
+        || description.is_some()
+        || modifiers.trim != expected.trim
+        || modifiers.unique
+        || modifiers.machine
+    {
+        return None;
+    }
+    source(ir, &original_field.source, field.span, db)?;
+    let value = expected.default.as_deref()?;
+    let IrDefault::Literal(actual) = default.as_ref()? else {
+        return None;
+    };
+    let expected_default = super::ir::given_constant_expr(value, ty, field.span);
+    if actual.ty != expected_default.ty
+        || actual.span != field.span
+        || literal_json(actual)? != literal_json(&expected_default)?
+    {
+        return None;
+    }
+    let bound_type = super::ir::given_bound_type(ty);
+    for (actual, expected) in [
+        (&modifiers.min, &expected.min),
+        (&modifiers.max, &expected.max),
+    ] {
+        match (actual, expected) {
+            (None, None) => {}
+            (Some(actual), Some(expected)) => {
+                let expected = super::ir::given_constant_expr(expected, &bound_type, field.span);
+                if actual.ty != expected.ty
+                    || actual.span != field.span
+                    || literal_json(actual)? != literal_json(&expected)?
+                {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    Some(())
 }
 
 fn source(ir: &IrProgram, original: &DisclosureSource, at: Span, db: &SourceDb) -> Option<()> {
@@ -3079,7 +3091,7 @@ mod tests {
             CheckedTraitApplication, CheckedTraitContract, GivenContractTables,
             GivenContributedField,
         };
-        let source = "app GivenCreate\nGiven\n role curator\n trait marked $\"Add archived evidence.\"\n Item {title:text} marked\n Other {title:text}\n policy Item read=members\nWhen\n crud Item by=curator fields=title\n scenario pick(title:text) by=curator -> Item\n  do\n   create Item {title} as item\n   return item\nThen\n";
+        let source = "app GivenCreate\nGiven\n role curator\n trait marked $\"Add archived evidence.\"\n Item {title:text} marked\n Other {title:text}\n policy Item read=members\nWhen\n crud Item by=curator fields=title\n scenario pick(title:text) by=curator -> Item\n  do\n   create Item {title} as item\n   return item\n scenario archive(item:Item) by=curator\n  require not item.archived\n  do set item {archived=true,archived_by=actor,archive_recorded_at=now}\n scenario restore(item:Item) by=curator\n  require item.archived\n  do set item {archived=false,archived_by=null,archive_recorded_at=null}\nThen\n";
         let mut db = SourceDb::new();
         let file = db.add("given-create.can".into(), source.into());
         let start = source.find(" marked\n").unwrap() + 1;
@@ -3099,15 +3111,22 @@ mod tests {
                     span: attachment,
                     order: 0,
                 }],
-                contributed_fields: vec![GivenContributedField {
-                    name: "archived".into(),
-                    type_name: "bool".into(),
-                    default: Some("false".into()),
+                contributed_fields: [
+                    ("archived", "bool", "false"),
+                    ("archived_by", "user?", "null"),
+                    ("archive_recorded_at", "datetime?", "null"),
+                ]
+                .into_iter()
+                .map(|(name, ty, default)| GivenContributedField {
+                    name: name.into(),
+                    type_name: ty.into(),
+                    default: Some(default.into()),
                     trim: false,
                     min: None,
                     max: None,
                     label: None,
-                }],
+                })
+                .collect(),
             }],
             keywords: vec![],
         };
@@ -3140,7 +3159,29 @@ mod tests {
             .find(|item| item.canonical == "GivenCreate.Other")
             .unwrap()
             .id;
-        let accepts = |candidate: &IrProgram| {
+        let owners = [
+            "GivenCreate.pick",
+            "GivenCreate.archive",
+            "GivenCreate.restore",
+        ]
+        .map(|canonical| {
+            ir.items
+                .iter()
+                .find(|item| item.canonical == canonical)
+                .unwrap()
+                .id
+        });
+        for owner in owners {
+            assert!(
+                matches!(
+                    ir.scenario_disclosures[&owner],
+                    ScenarioDisclosure::Complete(_)
+                ),
+                "original contributed read/write plan: {:?}",
+                ir.scenario_disclosures[&owner]
+            );
+        }
+        let accepts_one = |candidate: &IrProgram, owner: crate::analysis::SymbolId| {
             let models = Emitter::source_models(candidate, &db).unwrap();
             super::super::scenario_receipts::collect_native_scenario_receipt(
                 candidate,
@@ -3156,8 +3197,18 @@ mod tests {
             )
             .is_some()
         };
-        assert!(accepts(&ir));
-        for change in ["default", "type", "owner", "attachment", "order", "role"] {
+        assert!(owners.iter().all(|owner| accepts_one(&ir, *owner)));
+        for change in [
+            "default",
+            "type",
+            "owner",
+            "attachment",
+            "order",
+            "role",
+            "bounds",
+            "nullable-user",
+            "nullable-time",
+        ] {
             let mut changed = ir.clone();
             match change {
                 "default" => {
@@ -3193,6 +3244,34 @@ mod tests {
                     };
                     fields.reverse();
                 }
+                "bounds" => {
+                    let IrItemKind::Field { modifiers, .. } =
+                        &mut changed.items[field.0 as usize].kind
+                    else {
+                        panic!()
+                    };
+                    modifiers.max = Some(TypedExpr::new(
+                        IrExpr::Int(1),
+                        ResolvedType::Scalar(Scalar::Int),
+                        attachment,
+                    ));
+                }
+                "nullable-user" | "nullable-time" => {
+                    let (name, scalar) = if change == "nullable-user" {
+                        ("archived_by", Scalar::User)
+                    } else {
+                        ("archive_recorded_at", Scalar::Datetime)
+                    };
+                    let member = changed
+                        .items
+                        .iter_mut()
+                        .find(|item| item.canonical == format!("GivenCreate.Item.{name}"))
+                        .unwrap();
+                    let IrItemKind::Field { ty, .. } = &mut member.kind else {
+                        panic!()
+                    };
+                    *ty = IrType::Known(ResolvedType::Scalar(scalar));
+                }
                 "role" => {
                     let IrItemKind::Scenario { by, .. } = &mut changed.items[owner.0 as usize].kind
                     else {
@@ -3202,10 +3281,16 @@ mod tests {
                 }
                 _ => unreachable!(),
             }
-            assert!(
-                !accepts(&changed),
-                "changed {change} must not retain original disclosure"
-            );
+            for candidate in owners {
+                if change == "role" && candidate != owner {
+                    continue;
+                }
+                assert!(
+                    !accepts_one(&changed, candidate),
+                    "changed {change} must not retain original disclosure for {:?}",
+                    candidate
+                );
+            }
         }
     }
 

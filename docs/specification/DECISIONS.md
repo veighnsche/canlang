@@ -14854,3 +14854,26 @@ checks; no binding exception was added. Source changes qualify CanRent's
 colliding hold/no_show values and its existing example row while preserving the
 operation identities. The separate pure hour/day membership-unit conversion and
 actual composed-source acceptance remain pending at this entry.
+
+
+Accept the existing checked Given contribution proof for stored-field disclosure,
+including the complete model census and exact source/attachment/owner/type,
+default and bounds matching already used for construction. Do not fabricate an
+authored field AST or infer authority from captions. Archive invocation facts
+`actor` and `now` retain their checked contextual binding and exact scalar type;
+they grant no stored-read authority. The existing State receipt projection owns
+current viewer permission and retained changed snapshots.
+
+The three saved [stored-field advice requests](../../design/jev/given-stored-field-disclosure-20261015/1.json)
+and companions 2/3 unanimously favor this reuse (confidence/probability 1.0;
+4,255 total input/output tokens). Their advice is now accepted with implementation
+validation: the focused constructor/archive/restore proof check passes, refusing
+changed owner, attachment, field order, default, bounds, type, nullable attribution
+leaves and role. Initial failures exposed missing contextual facts and a missing
+set-schema order join; both are repaired without weakening the assertions.
+The current-source actual PromptLab native test passes 1/1, now additionally
+checking Entry and Tag archive/restore actor/time disclosure and original archive
+snapshot replay after restoration without rearchiving the current row. Existing
+permission, rollback, protected-form and current-role checks remain passing in
+that same run. Cloudflare TypeScript/build and the CLI build pass. Browser
+qualification remains separately pending; no broader reference acceptance follows.

@@ -288,7 +288,7 @@ pub struct CheckedScenarioCreatedModel {
     pub(crate) contributed: Vec<CheckedScenarioContributedField>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CheckedScenarioContributedField {
     pub field: SymbolId,
     pub canonical: String,
@@ -500,6 +500,8 @@ pub(crate) struct CheckedStoredContractField {
     pub required_array: bool,
     pub declared: String,
     pub constraints: Option<super::resolve::CheckedValueConstraints>,
+    /// Original checked Given attachment, never a fabricated authored Field.
+    pub contributed: Option<CheckedScenarioContributedField>,
     /// Actual checked reusable field identity, separate from inherited bounds.
     pub reuse: Option<SymbolId>,
     pub trim: bool,
@@ -2610,6 +2612,27 @@ impl<'a> Closure<'a> {
             Some(SymbolKind::Field { owner, .. }) => *owner,
             _ => return Err(self.fail(key, "missing stored field owner")),
         };
+        if self.types.given_fields.contains_key(&field) {
+            let module = self
+                .resolve
+                .symbols
+                .get(owner.0 as usize)
+                .ok_or_else(|| self.fail(key, "missing contributed field owner"))?
+                .module;
+            let definition = self
+                .checked_created_model(owner, module)
+                .ok_or_else(|| self.fail(key, "unestablished contributed field schema"))?;
+            let original = definition
+                .contributed
+                .iter()
+                .find(|candidate| candidate.field == field)
+                .ok_or_else(|| self.fail(key, "missing checked contributed field"))?;
+            if &original.ty != ty {
+                return Err(self.fail(key, "contributed field type mismatch"));
+            }
+            return exact_type_id(ty, self.resolve)
+                .ok_or_else(|| self.fail(key, "unsupported contributed stored field type"));
+        }
         let declaration = self
             .effects
             .models
@@ -4951,6 +4974,36 @@ impl<'a> Closure<'a> {
                 if member.id != *field || *owner != id || member.module != declaration.module {
                     return None;
                 }
+                if model && self.types.given_fields.contains_key(field) {
+                    let definition = self.checked_created_model(id, declaration.module)?;
+                    let contributed = definition
+                        .contributed
+                        .iter()
+                        .find(|candidate| candidate.field == *field)?
+                        .clone();
+                    if contributed.ty != *ty || !result_type(ty) {
+                        return None;
+                    }
+                    let declared = exact_type_id(ty, self.resolve)?;
+                    fields.push(CheckedStoredContractField {
+                        id: *field,
+                        canonical: member.canonical.clone(),
+                        name: member.name.clone(),
+                        owner: id,
+                        span: member.span,
+                        source: contributed.source.clone(),
+                        ty: ty.clone(),
+                        required_array: false,
+                        declared,
+                        constraints: contributed.constraints.clone(),
+                        trim: contributed.value.trim,
+                        contributed: Some(contributed),
+                        reuse: None,
+                        min: None,
+                        max: None,
+                    });
+                    continue;
+                }
                 let data = self
                     .effects
                     .models
@@ -5083,6 +5136,7 @@ impl<'a> Closure<'a> {
                     required_array: data.required_array,
                     declared,
                     constraints,
+                    contributed: None,
                     reuse: self.types.field_reuse_sources.get(field).copied(),
                     trim,
                     min,
@@ -7736,6 +7790,19 @@ impl<'a> Closure<'a> {
                         .find_map(|n| self.resolve.node_binding.get(&NodeKey::of(n)))
                 });
                 match binding {
+                    // Invocation facts carry no stored-read authority. Preserve
+                    // their checked lexical binding and exact scalar identity;
+                    // lowering is matched against the same source occurrence.
+                    Some(Binding::Context(ContextVar::Actor(_)))
+                        if ty == &ResolvedType::Scalar(Scalar::User) =>
+                    {
+                        Ok(vec![ValuePath::default()])
+                    }
+                    Some(Binding::Context(ContextVar::Now))
+                        if ty == &ResolvedType::Scalar(Scalar::Datetime) =>
+                    {
+                        Ok(vec![ValuePath::default()])
+                    }
                     Some(Binding::Symbol(id))
                         if matches!(
                             self.resolve

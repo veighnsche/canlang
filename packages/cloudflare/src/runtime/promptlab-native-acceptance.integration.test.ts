@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import type { CommitBatch, ModelName, MutationResult, OperationId, RecordId, ResolvedIdentity, RowView, StoragePort } from '@canlang/contracts';
+import type { CommitBatch, ModelName, MutationResult, OperationId, ProjectedRecord, RecordId, ResolvedIdentity, RowView, StoragePort } from '@canlang/contracts';
 import { buildSessionCookie, resolveIdentity, setMemberRole, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
@@ -178,7 +178,28 @@ test('actual PromptLab enforces member note boundaries, rolls back computed keys
     assert.equal(batches.length, beforeBatches, 'replay performs no second commit');
     assert.equal((await store.query({ model: model('Entry'), authority: 'owner' })).filter(row => row.data.code === 'Carol').length, 1);
 
+    const evidence = (result: MutationResult, id: RecordId, archived: boolean) => {
+      assert.equal(result.records?.length, 1, 'authorized changed record is disclosed');
+      const row = result.records![0] as ProjectedRecord;
+      assert.equal(row.id, id);
+      assert.equal(row.data.archived, archived);
+      assert.deepEqual(row.data.archived_by, archived ? { id: curator.user.user_id } : null);
+      assert.equal(row.data.archive_recorded_at, archived ? new Date(now).toISOString() : null);
+      assert.equal(row.updatedBy, curator.user.user_id);
+      assert.equal(row.updated, now);
+    };
+    const archiveId = operationId(now), archiveInput = { entry: await ref('Entry', entry) };
+    const archivedReceipt = await committed('archive_entry', archiveInput, curator.identity, archiveId);
+    evidence(archivedReceipt, entry, true);
+    evidence(await committed('restore_entry', { entry: await ref('Entry', entry) }), entry, false);
+    const archiveReplay = await invoke('archive_entry', archiveInput, curator.identity, archiveId);
+    assert.ok('result' in archiveReplay, JSON.stringify(archiveReplay));
+    assert.equal(archiveReplay.result.status, 'replayed');
+    assert.deepEqual(archiveReplay.result.records, archivedReceipt.records, 'replay retains original changed snapshot');
+    assert.equal((await store.load(model('Entry'), entry))?.data.archived, false, 'replay does not rearchive current row');
     await committed('archive_entry', { entry: await ref('Entry', entry) });
+    evidence(await committed('archive_tag', { tag: await ref('Tag', tag) }), tag, true);
+    evidence(await committed('restore_tag', { tag: await ref('Tag', tag) }), tag, false);
     await refused('Note.create', { parent: await ref('Entry', entry), body: 'Archived new note' }, 'rule_failed');
     await refused('Note.update', { record: await ref('Note', ownNote), body: 'Archived edit' }, 'rule_failed');
     await refused('Note.delete', { record: await ref('Note', ownNote) }, 'rule_failed');
