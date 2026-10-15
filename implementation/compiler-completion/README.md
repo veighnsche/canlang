@@ -61,7 +61,7 @@ membership typing, code generation and final source-census checks each pass
 actual compiler/native profile **1/1** and the retained contract/Work checks.
 JEV requests/responses and uncertainty are retained in the decision entry.
 
-**Current C02/C10 batch — module-member ownership (2026-10-15).** Correct the
+**C02/C10 module-member ownership (2026-10-15).** Correct the
 IR builder's module index: nested fields/parameters/operations cannot replace a
 module role, model or scenario. Retain the resolver's exact lexical mutation-head
 binding before consulting module declarations. This implements the existing
@@ -81,12 +81,13 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **909 errors**:
-**883 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
-Relative to the retained 926-error run, this closes all three E6006 example
-omissions, eleven admission-lowering refusals and four lexical record-target
-refusals. Retaining the formerly omitted Leave sequence exposes one expression
-query-order refusal. Error counts alone are not workflow acceptance.
+The current original **24-source** command below exits **10**, with **898 errors**:
+**872 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The preceding module-ownership batch closed the E6006 omissions and its
+recorded admission/lexical-target refusals. The duration batch removes exactly
+eleven diagnostics relative to that 909-error capture: six division, four
+remainder and one int-times-duration. No diagnostics are added. Error counts
+alone are not workflow acceptance.
 
 Remaining report families are grouped by their defining mechanism; occurrences
 are not independent feature tasks:
@@ -99,7 +100,7 @@ are not independent feature tasks:
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
 | Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
-| Value/type/arithmetic lowering | 37 | Structural value/type profiles and admitted scalar operators; eleven duration operations already have Values implementations. |
+| Value/type/arithmetic lowering | 26 | Remaining structural value/type profiles and scalar operators; the eleven duration operations are closed below. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
 | Scenario/handler/authority emission | 93 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
@@ -108,15 +109,23 @@ are not independent feature tasks:
 | Hook query/context/derive/effects | 76 | Original event snapshots, clock, query context and atomic effects. |
 | Installed producer contracts | 26 E6007 | 25 missing catalog checks across 17 bound capabilities; one external active_member entry in the supplied Values catalog. No invented bindings. |
 
-**Next ready candidate, proposed only:** lower the three already admitted duration
-operator shapes to existing Values helpers: duration/duration division (six
-occurrences), duration remainder (four) and int-times-duration (one). Preserve
-left-to-right evaluation, exact result types, sign, zero-divisor and overflow
-behavior, then recheck the original composition. This is a finite compiler/facade
-batch, not a new arithmetic design or a requirement to finish every numeric form.
-It is not implemented by the module-ownership change.
+**Current C02/C10 batch — duration operators (2026-10-15).** Lower the
+already admitted duration/duration division, duration remainder and
+int-times-duration shapes to existing Values helpers. DESIGN §3 and the checked
+types already settle the language semantics; no new JEV decision is needed.
+Generated operands evaluate once, left-to-right, including awaited calls and
+operand failures. Scalar-first multiplication captures authored arguments before
+calling the duration-first helper. The native facade exposes these helpers and
+the existing datetime-difference helper required by the original expressions.
 
-These results close the declared module-lookup batch at its producer/guard scope,
+The complete-emission/native-facade runtime check passes **1/1** for rounding,
+signed remainder, exact bounds/error codes, zero divisors, construction failures,
+single evaluation, async order, thrown-error identity and composed datetime
+differences. Existing arithmetic helper checks pass **7/7**; native package emit,
+CLI build, formatting and diff checks pass. Original source permissions and
+workflow bodies are unchanged. Other numeric forms remain separately gated.
+
+These results close the declared module-lookup and duration batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope
 is **not ready for unrestricted training-data authoring**. Existing broader
 reference and external release holds remain unchanged. No training, dataset
