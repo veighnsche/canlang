@@ -9739,12 +9739,16 @@ impl<'a> Typer<'a> {
                 let valid = if name == "target" {
                     // Accepted destination types remain valid source;
                     // URL/File emission needs its separate native profile.
+                    // Only `link` accepts a nullable URL destination; a
+                    // button keeps its existing non-nullable profile.
                     matches!(
                         ty,
                         ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
                             | ResolvedType::Error
                     ) || matches!(&ty, ResolvedType::Nullable(inner)
-                        if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+                        if inner.as_ref() == &ResolvedType::Scalar(Scalar::File)
+                            || (word == "link"
+                                && inner.as_ref() == &ResolvedType::Scalar(Scalar::Url)))
                 } else {
                     (word == "link" && ty == ResolvedType::Scalar(Scalar::Url))
                         || matches!(
@@ -9761,7 +9765,11 @@ impl<'a> Typer<'a> {
                         format!(
                             "{word} {name} needs {}",
                             if name == "target" {
-                                "text, url, file or nullable file"
+                                if word == "link" {
+                                    "text, url, nullable url, file or nullable file"
+                                } else {
+                                    "text, url, file or nullable file"
+                                }
                             } else {
                                 "text or a message descriptor"
                             }
