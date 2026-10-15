@@ -17,6 +17,7 @@ import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
 import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
 import { decodeValue, encodeValue, validateValue, parseTypeId, printTypeId, isUserRef, isDatetime, isRecordRef, type NormalizedSchema } from "@canlang/values";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
+import { resolveExampleFixtureImports } from "./example-fixture-imports.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
 import { invokeReadCanonical, loadCanonicalDescriptors, materializeCanonicalExampleSnapshots } from "../runtime/invoke.js";
@@ -1002,8 +1003,10 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       let observationScope: CanonicalEffectsScope | undefined;
       let evaluationScope: ExampleRowScope | undefined;
       const rowUserRefs = new WeakMap<ExampleRowScope, Readonly<Record<string, unknown>>>();
+      let imported: unknown = authoredBindings.imported;
       const bindings = new Proxy(authoredBindings, {
         get: (target, property, receiver) => {
+          if (property === "imported") return imported;
           if (property === "operation") {
             const operation = observationScope === undefined || evaluationScope === undefined
               ? undefined : tableOperations.get(evaluationScope);
@@ -1077,6 +1080,8 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
           scope, fixtures: stashed.fixtures,
         })),
       };
+      imported = await withCancellation(input.signal, () =>
+        resolveExampleFixtureImports(artifact.tests, asm.moduleUrls, test, bindings));
       const suite = asLoadedSuite(await withCancellation(input.signal, () => loadSuite(url, bindings, hooks)), test.scope);
       if (suite.rows.length === 0) {
         // Compiler fixture declarations can have their own test-only
