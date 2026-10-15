@@ -444,15 +444,29 @@ failure rollback. These are State component checks, not an actual selected-row
 native consumer. Reuse the unchanged original **701**-diagnostic static capture;
 compiler/source/catalog inputs are unchanged.
 
+**Completed C02/C10 native bridge prerequisite — observed owner reference identity (2026-10-15).**
+Cloudflare's existing required-reference bridge now accepts its genuine owner
+source view after the original getter/field observation; it no longer requires
+that source to be an admitted parameter. The receiving host admits the canonical
+data-ID target metadata alternative without an authored field or ID field grant.
+Private getter binding, current owner/stage, source/target/post-navigation/final
+authority and saved recovery remain. Local Cloudflare build and **16/16** frame/
+promotion checks pass, including noninput owner source, zero-write existing model
+return, replay, substitutions, stage/lifetime failures and source/target/ancestor/
+related-Identity loss/restoration. These use handbound component metadata and the
+real State receiver; actual compiler/native invocation qualification remains.
+Reuse the retained original **701**-diagnostic static result for this CF-only
+change; no compiler/source/catalog repair is implied by these component checks.
+
 **Current C02/C10 leaf — selected-reference result and branch correspondence.**
 The unchanged CRM lookup expression now has a bounded source-inventory check. Its early
 `return existing.deal` still needs promotion of the genuine selected row's
 stored reference, a target ID observation and model-result binding; its later
 created Deal return must retain creation provenance. Both actual branch returns
 must join their original source paths rather than one final-return node. The
-next native bridge output is the same required-reference call with genuine
-observed owner source capture and its reserved target-ID leaf: Cloudflare still
-requires an admitted parameter source and authored scalar target field. Existing
+next compiler output is the same required-reference call with genuine observed
+owner source capture and its reserved target-ID leaf. The runtime bridge and
+State receiver are ready at their component scopes. Existing
 private owner/query/reference mechanisms are the defining owners. Direct model
 parameter aliases also retain a local result-provenance gap. Unrelated hook
 context IR failures still close whole-cohort fresh preparation; that local gate

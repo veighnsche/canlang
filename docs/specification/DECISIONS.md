@@ -15697,3 +15697,26 @@ TypeScript builds). This is a State component prerequisite, not first-selected
 native/CRM qualification. Cloudflare's admitted-input-only source capture and
 authored-scalar-only target validation, plus compiler reference/branch source
 joins, are the next local owners; they need no new runtime API.
+
+2026-10-15 — C02: join required reference identity through the genuine native owner view.
+
+Cloudflare reuses its private original getter/field observation and genuine
+current owner-row capture for a required reference source, including a noninput
+owner row. Admitted parameter status is not a separate read authority. The host
+accepts canonical DATA id:text metadata as a target leaf without a fabricated
+field descriptor or field grant. Preserve original private reference binding,
+pending/stage/source/pair checks, target source/ancestor/Identity authority,
+post-navigation refresh and final/saved checks. Nullable promotion is unchanged.
+No public signature, descriptor or carrier is added. This implements the settled
+reference/identity contract; no unresolved language decision needs JEV.
+
+Local Cloudflare build and16 promotion/frame tests pass. New checks exercise a
+nonadmitted genuine owner source, actual State target receiver, separate ID
+observation, zero-write existing-result binding and replay; original getter/
+copy/marker/pair/stage/lifetime/pending refusals remain. Post-navigation and
+final/saved source/target/ancestor/related-Identity loss and restoration remain
+checked; final authority loss refuses before receipt commit. This is handbound
+State/frame component qualification. The receiving invoke metadata alternative
+compiles; actual generated consumer qualification waits for compiler reference/
+branch joins. Reuse the retained701-diagnostic original static capture for this
+CF-only change; full CanCRM remains unfinished.

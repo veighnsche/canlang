@@ -8232,11 +8232,13 @@ async function runScenarioExecution(
           return refuseRecordBinding('Stored reference promotion requires its exact original native field binding.');
         }
         const declaration = opts.artifact.models?.find(model => model.name === origin.sourceModel)?.fields.find(field => field.name === origin.field);
-        const scalar = loaded.models.find(model => model.name === leaf.model)?.fields[leaf.field];
+        const target = loaded.models.find(model => model.name === leaf.model), scalar = target?.fields[leaf.field];
+        const targetId = leaf.role === 'data' && leaf.field === 'id' && leaf.type === 'text' &&
+          target !== undefined && !Object.hasOwn(target.fields, 'id');
         const type = parseTypeId(leaf.type);
         if (declaration?.field.kind !== 'ref' || declaration.field.model !== leaf.model || !declaration.required ||
             declaration.array !== undefined || declaration.nullable === true ||
-            scalar?.valueType !== leaf.type || type.array || type.nullable || type.requiredArray || type.base.kind === 'nominal') {
+            !targetId && scalar?.valueType !== leaf.type || type.array || type.nullable || type.requiredArray || type.base.kind === 'nominal') {
           return refuseRecordBinding('Stored reference promotion differs from its required singular declaration and scalar leaf.');
         }
         const sourceRow = captureSource(origin.sourceView, origin.sourceModel, origin.field, origin.wire);

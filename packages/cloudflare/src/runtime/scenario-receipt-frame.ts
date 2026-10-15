@@ -545,12 +545,9 @@ export function readScenarioReceiptStoredReference(c: HandlerContext, originalRe
         if (observed?.dependencyId !== source.id || observed.model !== model || stableStringify(observed.wire) !== stableStringify(wire)) {
           return refuse('Stored reference promotion requires its successful original field observation.');
         }
-        const admitted = frame.call.recordRefs.find(reference => {
-          if (reference.model !== model) return false;
-          try { return captureNativeScenarioReceiptReference(view, frame.owner, reference.param) === reference; }
-          catch { return false; }
-        });
-        if (admitted === undefined) return refuse('Stored reference source is not its original admitted native parameter.');
+        // The original getter may belong to an admitted input or another
+        // genuine owner-issued row, including the completed first selection.
+        // State still joins this exact row to its observed source and stage.
         const row = captureNativeScenarioReceiptRow(view, frame.owner, model);
         if (sourceView !== undefined && (sourceView !== view || originalSource !== row)) {
           return refuse('Stored reference source changed during promotion.');
