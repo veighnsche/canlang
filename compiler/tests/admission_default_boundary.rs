@@ -30,6 +30,18 @@ fn direct_by_on_explicit_default_is_rejected() {
     let src = "app T\nGiven\nWhen\n scenario gated(allowed:bool=true) by=allowed\n  do\n   let x = 1\nThen\n";
     let diags = check(src);
     assert_eq!(codes(&diags), vec!["E3011"], "{diags:?}");
+    assert!(
+        diags[0]
+            .message
+            .contains("keep authorization on admission-available inputs")
+            && diags[0]
+                .message
+                .contains("only business validation needing resolved defaults")
+            && diags[0]
+                .message
+                .contains("`by=false` is forbidden, `require=false` is rule_failed"),
+        "authorization stays in by, only business validation moves: {diags:?}"
+    );
 }
 
 /// Helper-transitive dependence: passing the explicit-default
@@ -39,6 +51,10 @@ fn helper_transitive_by_on_explicit_default_is_rejected() {
     let src = "app T\nGiven\n derive allow(x:bool):bool = x\nWhen\n scenario gated(allowed:bool=true) by=allow(allowed)\n  do\n   let x = 1\nThen\n";
     let diags = check(src);
     assert_eq!(codes(&diags), vec!["E3011"], "{diags:?}");
+    assert!(
+        diags[0].message.contains("'allowed'"),
+        "names the offending parameter: {diags:?}"
+    );
 }
 
 /// Required inputs stay available to `by=`, directly and via helpers.

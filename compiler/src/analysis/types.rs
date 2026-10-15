@@ -5138,7 +5138,7 @@ impl<'a> Typer<'a> {
                 self.diags.push(Diagnostic::error(
                     "E3011",
                     format!(
-                        "`by=` cannot use explicit-default parameter '{}'; checks needing resolved defaults belong in leading `require`",
+                        "`by=` cannot use explicit-default parameter '{}': `by` runs before defaults; keep authorization on admission-available inputs, and put only business validation needing resolved defaults in leading `require` (`by=false` is forbidden, `require=false` is rule_failed)",
                         self.tables.symbols[target.0 as usize].name
                     ),
                     tight_span(text, current),
