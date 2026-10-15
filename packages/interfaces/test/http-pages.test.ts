@@ -1133,3 +1133,131 @@ test('full and partial page dispatch consume direct render parts once and preser
   assert.equal(partsCalls, 2);
   assert.equal(legacyCalls, 0);
 });
+
+test('dynamic page admission and render share one lazy authorized source reader and private bindings', async () => {
+  for (const partial of [false, true]) {
+    const selected: PageRecordsQuery = { where: { id: 'route-item' }, archived: 'exclude' };
+    const row = Object.freeze({ id: 'route-item', version: 1n, title: 'Readable', parent: Object.freeze({ id: 'readable-parent' }) });
+    const rows = Object.freeze([row]);
+    let scopes = 0, closes = 0, reads = 0, hooks = 0;
+    let boundSource: PageSourceContext | undefined, retainedReader: PageRecordsReader | undefined;
+    let scope: PageReadScope;
+    const page = helloPage({ path: '/items/{Item.id}',
+      admit: async (context, route) => {
+        const source = context as PageSourceContext;
+        assert.equal(source, boundSource); assert.ok(Object.isFrozen(source.canonical));
+        assert.equal(route?.['Item.id'], row.id);
+        retainedReader = source.canonical.readRecords; assert.ok(retainedReader);
+        assert.equal(scopes, 0, 'scope remains lazy until the original source read');
+        const [first, second] = await Promise.all([retainedReader('TestApp.Item', selected), retainedReader('TestApp.Item', selected)]);
+        assert.equal(first, rows); assert.equal(second, rows); assert.equal(scopes, 1);
+        return { row: first[0] };
+      },
+      render: async (context, bindings) => {
+        assert.equal(bindings.row, row, 'the exact admitted private row reaches render');
+        assert.equal(context.canonical?.readRecords, scope.readRecords);
+        assert.equal((await context.canonical!.readRecords!('TestApp.Item', selected))[0], row);
+        return '<p>Readable</p>';
+      },
+    });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest({ ...deps,
+      query: async () => { assert.fail('source reads must not fall back to collections'); },
+      bindSourceReadContext: (_identity, source) => { boundSource = source; },
+      createReadScope: (principal, source) => {
+        scopes++; assert.equal(source, boundSource); assert.equal(principal.actor?.user_id, identity.userId);
+        scope = { query: async () => ({ rows: [], columns: [] }),
+          onQueryBound: () => { hooks++; }, close: () => { closes++; },
+          readRecords: async function (model, query) {
+            assert.equal(model, 'TestApp.Item'); assert.equal(query, selected);
+            reads++; return rows;
+          } };
+        return scope;
+      },
+    }, testRequest(`/items/${row.id}?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(response.status, 200); assert.match(await response.text(), /Readable/);
+    assert.equal(scopes, 1); assert.equal(closes, 1); assert.equal(hooks, 1); assert.equal(reads, 3);
+    await assert.rejects(retainedReader!('TestApp.Item', selected), IdentityError);
+    assert.equal(reads, 3, 'closed source wrappers cannot invoke a retained reader');
+  }
+});
+
+test('dynamic admission closes its initialized scope on owner refusal, page denial, cancellation and render failure', async () => {
+  for (const mode of ['forbidden', 'conflict', 'validation', 'guard', 'cancel', 'render'] as const) {
+    let scopes = 0, closes = 0, reads = 0, renders = 0;
+    const cancellation = new AbortController();
+    const page = helloPage({ path: '/items/{Item.id}', admit: async context => {
+      const source = context as PageSourceContext;
+      await source.canonical.readRecords!('TestApp.Item', { where: { id: 'route-item' } });
+      if (mode === 'guard') throw buildBusinessError('forbidden', 'Original page guard denied.');
+      return {};
+    }, render: async () => { renders++; if (mode === 'render') throw buildBusinessError('conflict', 'Render checkpoint moved.'); return '<p>unreachable</p>'; } });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const request = testRequest('/items/route-item', { cookie: identity.cookie });
+    const response = await handlePageRequest({ ...deps, createReadScope: () => {
+      scopes++; return { query: async () => ({ rows: [], columns: [] }), close: () => { closes++; },
+        readRecords: async () => {
+          reads++;
+          if (mode === 'cancel') cancellation.abort();
+          if (mode === 'forbidden' || mode === 'conflict' || mode === 'validation') throw buildBusinessError(mode, 'Original owner refusal.');
+          return [];
+        } };
+    } }, new Request(request, { signal: cancellation.signal }));
+    assert.equal(response.status, mode === 'validation' ? 400 : mode === 'conflict' || mode === 'render' ? 409 : 403, mode);
+    assert.equal(scopes, 1); assert.equal(closes, 1); assert.equal(reads, 1);
+    assert.equal(renders, mode === 'render' ? 1 : 0);
+  }
+});
+
+test('dynamic admission keeps skipped reads lazy and refuses missing or independently denying source owners', async () => {
+  for (const mode of ['skip', 'missing', 'foreign-model'] as const) {
+    let scopes = 0, reads = 0, closes = 0;
+    const page = helloPage({ path: '/items/{Item.id}', admit: async context => {
+      if (mode === 'skip') throw buildBusinessError('forbidden', 'Earlier guard denied.');
+      await (context as PageSourceContext).canonical.readRecords!('Foreign.Item', { authority: 'owner' });
+      return {};
+    }, render: async () => { assert.fail('a page guard cannot grant source authority'); } });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest({ ...deps,
+      query: async () => { assert.fail('absent source ownership must not fall back to collection reads'); },
+      createReadScope: () => {
+        scopes++;
+        return { query: async () => ({ rows: [], columns: [] }), close: () => { closes++; },
+          ...(mode === 'missing' ? {} : { readRecords: async (model: string, query: PageRecordsQuery) => {
+            reads++; assert.equal(model, 'Foreign.Item'); assert.equal(query.authority, 'owner');
+            throw buildBusinessError('forbidden', 'Independent model/source owner denied.');
+          } }) };
+      },
+    }, testRequest('/items/route-item', { cookie: identity.cookie }));
+    assert.equal(response.status, mode === 'missing' ? 400 : 403);
+    assert.equal(scopes, mode === 'skip' ? 0 : 1); assert.equal(closes, scopes);
+    assert.equal(reads, mode === 'foreign-model' ? 1 : 0);
+  }
+});
+
+test('dynamic render reads preserve the same owner current-field and revision refusals after admission', async () => {
+  for (const code of ['forbidden', 'conflict'] as const) {
+    let reads = 0, scopes = 0, closes = 0;
+    const selected: PageRecordsQuery = { where: { id: 'route-item' } };
+    const page = helloPage({ path: '/items/{Item.id}', admit: async context => {
+      const rows = await (context as PageSourceContext).canonical.readRecords!('TestApp.Item', selected);
+      return { row: rows[0] };
+    }, render: async context => {
+      await context.canonical!.readRecords!('TestApp.Item', selected);
+      return '<p>unreachable</p>';
+    } });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    const response = await handlePageRequest({ ...deps, createReadScope: () => {
+      scopes++;
+      return { query: async () => ({ rows: [], columns: [] }), close: () => { closes++; }, readRecords: async (_model, query) => {
+        assert.equal(query, selected); reads++;
+        if (reads === 2) throw buildBusinessError(code, 'Current owner observation refused.');
+        return [Object.freeze({ id: 'route-item', title: 'Original readable field' })];
+      } };
+    } }, testRequest('/items/route-item', { cookie: identity.cookie }));
+    assert.equal(response.status, code === 'forbidden' ? 403 : 409);
+    assert.equal((await jsonBody(response)).message, 'Current owner observation refused.');
+    assert.equal(scopes, 1); assert.equal(reads, 2); assert.equal(closes, 1);
+  }
+});

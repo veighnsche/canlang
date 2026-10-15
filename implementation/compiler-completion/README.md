@@ -2,6 +2,18 @@
 
 ## Current remainder and finite completion
 
+**C02 typed record-route reader lifecycle (2026-10-15, qualified prerequisite).**
+All5 dynamic normalization refusals are single Model record routes;66 row-render
+refusals consume that same missing binding. Existing canonical.readRecords now
+lazily opens one matched dynamic admission/read scope shared with rendering;
+reader authority remains independent of page admission. Concurrent calls open
+once, skipped reads remain lazy, every initialized terminal path closes it and
+retained wrappers refuse after close. Static lifecycle remains unchanged. Normal
+Interfaces build and all49 HTTP-page controls pass7.15s (4 new). No new carrier,
+predicate rerun, Boolean candidate-row reuse or stronger publication hook. Exact
+typed route producer/authorized admitted row binding and original Partner guard/
+render/action native witness remain local ready work; no5/66 closure credit yet.
+
 **C02 canonical fixture import receiving (2026-10-15, qualified component).**
 Default runner resolves only emitted canonical recipe-only providers, caches one
 recipe/declaration in each live binding context, and supplies the complete graph

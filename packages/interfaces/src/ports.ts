@@ -214,7 +214,8 @@ export interface PageHttpDeps {
   /** Host-only binding of the exact frozen source before authored admission. */
   readonly bindSourceReadContext?: (identity: ResolvedIdentity, source: PageSourceContext) => void | Promise<void>;
   /**
-   * Construct once after verified page admission. The owner binds collection,
+   * Construct once on the first matched dynamic admission read, or after
+   * verified admission when no such read occurs. The owner binds collection,
    * native source-expression and receipt reads to the same current authority,
    * checked source and physical-store snapshot. No storage/mutation scope escapes.
    * source is the same frozen, preference-bearing context used for admission;
