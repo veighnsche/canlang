@@ -62,7 +62,7 @@ import type {
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext, NativeSendWhen } from './context.js';
 import { app_url as appUrlProducer, equalValue as equalValueProducer, ValueError } from '@canlang/values';
-import { sameNativeReference } from './native-records.js';
+import { nativeRecordReference, sameNativeReference } from './native-records.js';
 import { hasRole as stateCallerRole, type HandlerRoleContext } from '@canlang/state/effects/guards';
 import { nativeReadSubjectRole } from './native-membership.js';
 
@@ -116,8 +116,8 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean;
 export function equalValue(c: HandlerContext, typeId: string, a: CanValue, b: CanValue): boolean;
 export function equalValue(typeOrContext: string | HandlerContext, typeOrA: string | CanValue, aOrB: CanValue, b?: CanValue): boolean {
   return typeof typeOrContext === 'string'
-    ? equalValueProducer(typeOrContext, typeOrA as CanValue, aOrB)
-    : equalValueProducer(typeOrA as string, aOrB, b as CanValue);
+    ? equalValueProducer(typeOrContext, typeOrA as CanValue, aOrB, nativeRecordReference)
+    : equalValueProducer(typeOrA as string, aOrB, b as CanValue, nativeRecordReference);
 }
 
 /** Input for {@link create}: explicit id plus data (crud interim convention). */

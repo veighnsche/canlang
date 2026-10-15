@@ -574,9 +574,13 @@ can close it. Required contained-parent access from `input.contact` can reuse th
 checked Contract slot and containment path; `Scalar::Currency` stored reads need
 a separate receipt inventory join. The second root constructor's whole hydrated
 Contract snapshot must also rejoin canonical RecordRefs for storage/equality:
-Values cannot infer Cloudflare's private native-view identity. Existing generic
-Contract equality remains the semantic owner, with native conversion still to
-qualify; no alternate equality rule is accepted. Direct parameter aliases,
+Values cannot infer Cloudflare's private native-view identity. Canonical equality
+now has a demand-driven private reference-leaf join:46 Values checks and two
+native ABI controls pass after normal builds, retaining null/length/key/union/
+earlier-field short circuits and original errors. Catalog bytes are unchanged;
+reuse the preceding original24-source capture for this runtime prerequisite.
+Whole Contract storage and the actual selected-row reuse/source-receipt consumer
+remain to qualify; no alternate equality rule is accepted. Direct parameter aliases,
 nonboolean observer/unbound page-entry support and four computed/reference order
 keys remain their recorded local dependencies. Other hook-context IR failures
 still close whole-cohort fresh preparation;

@@ -72,6 +72,8 @@ import {
 import { equalMoney } from "./money.js";
 import { compareDate, compareInstant } from "./temporal.js";
 
+type RecordReferenceResolver = (value: CanValue) => RecordRef | undefined;
+
 type RefKind = "user" | "member" | "ref" | "file" | "delivery" | "action" | "invocation";
 
 /** Classifies well-formed refs; malformed or non-ref values yield null. */
@@ -125,6 +127,10 @@ function hasKnownKindTag(value: object): boolean {
  * unequal (false); non-ref inputs are `invalid-construction`.
  */
 export function same(a: CanValue, b: CanValue): boolean {
+  return sameReferences(a, b);
+}
+
+function sameReferences(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
   const kindA = refKindOf(a);
   const kindB = refKindOf(b);
   if (kindA === null || kindB === null) {
@@ -161,7 +167,7 @@ export function same(a: CanValue, b: CanValue): boolean {
         if (bindingLeft === undefined || bindingRight === undefined) {
           return false;
         }
-        if (!same(bindingLeft, bindingRight)) {
+        if (!sameReferences(bindingLeft, bindingRight, resolveReference)) {
           return false;
         }
       }
@@ -184,7 +190,7 @@ export function same(a: CanValue, b: CanValue): boolean {
         if (argLeft === undefined || argRight === undefined) {
           return false;
         }
-        if (!equalNested(argLeft, argRight)) {
+        if (!equalNested(argLeft, argRight, resolveReference)) {
           return false;
         }
       }
@@ -194,11 +200,11 @@ export function same(a: CanValue, b: CanValue): boolean {
 }
 
 /** Null-safe structural comparison used for nested values. */
-function equalNested(a: CanValue, b: CanValue): boolean {
+function equalNested(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
   if (a === null || b === null) {
     return a === b;
   }
-  return equalInner(a, b);
+  return equalInner(a, b, resolveReference);
 }
 
 /**
@@ -206,7 +212,13 @@ function equalNested(a: CanValue, b: CanValue): boolean {
  * and money currencies are decidable value differences (false); malformed
  * values and mismatched runtime kinds are `invalid-construction`.
  */
-function equalInner(a: CanValue, b: CanValue): boolean {
+function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReferenceResolver): boolean {
+  // Resolve only a value demanded by the original recursive comparison. The
+  // host supplies private identity metadata, never row reads or permissions.
+  if (resolveReference !== undefined) {
+    a = resolveReference(a) ?? a;
+    b = resolveReference(b) ?? b;
+  }
   if (typeof a === "bigint" || typeof b === "bigint") {
     if (typeof a === "bigint" && typeof b === "bigint") {
       return a === b;
@@ -265,7 +277,7 @@ function equalInner(a: CanValue, b: CanValue): boolean {
       if (itemA === undefined || itemB === undefined) {
         throw new ValueError("invalid-construction", "array elements must be Can values");
       }
-      if (!equalNested(itemA, itemB)) {
+      if (!equalNested(itemA, itemB, resolveReference)) {
         return false;
       }
     }
@@ -275,7 +287,7 @@ function equalInner(a: CanValue, b: CanValue): boolean {
     if (!isUnionValue(a) || !isUnionValue(b)) {
       throw new ValueError("invalid-construction", "cannot compare a union with a non-union value");
     }
-    return a.type === b.type && equalNested(a.value, b.value);
+    return a.type === b.type && equalNested(a.value, b.value, resolveReference);
   }
   const refA = refKindOf(a);
   const refB = refKindOf(b);
@@ -283,7 +295,7 @@ function equalInner(a: CanValue, b: CanValue): boolean {
     if (refA === null || refB === null) {
       throw new ValueError("invalid-construction", "cannot compare a reference with a non-reference value");
     }
-    return same(a, b);
+    return sameReferences(a, b, resolveReference);
   }
   if (isSecretValue(a) || isSecretValue(b)) {
     if (!isSecretValue(a) || !isSecretValue(b)) {
@@ -311,7 +323,7 @@ function equalInner(a: CanValue, b: CanValue): boolean {
       if (fieldA === undefined || fieldB === undefined) {
         throw new ValueError("invalid-construction", "contract fields must be Can values");
       }
-      if (!equalNested(fieldA, fieldB)) {
+      if (!equalNested(fieldA, fieldB, resolveReference)) {
         return false;
       }
     }
@@ -329,9 +341,11 @@ function equalInner(a: CanValue, b: CanValue): boolean {
  * by their comparators; arrays ordered elementwise; contracts fieldwise;
  * unions by branch plus value; refs by `same` identity; files by id; actions
  * by target plus bindings identity; invocations by target plus structural
- * arg equality; secrets by identical reference only.
+ * arg equality; secrets by identical reference only. An optional host resolver
+ * supplies original record identities only at demanded comparison values;
+ * omitting it retains the canonical pure behavior and short-circuit order.
  */
-export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean {
+export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined): boolean {
   if (typeof typeId !== "string") {
     throw new ValueError("invalid-construction", "equalValue needs a canonical type id string");
   }
@@ -361,11 +375,11 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean {
       if (itemA === undefined || itemB === undefined) {
         throw new ValueError("invalid-construction", "array elements must be Can values");
       }
-      if (!equalValue(element, itemA, itemB)) {
+      if (!equalValue(element, itemA, itemB, resolveReference)) {
         return false;
       }
     }
     return true;
   }
-  return equalInner(a, b);
+  return equalInner(a, b, resolveReference);
 }

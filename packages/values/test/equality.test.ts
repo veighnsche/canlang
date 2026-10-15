@@ -456,3 +456,67 @@ describe("same (reference identity)", () => {
     }
   });
 });
+
+describe('equalValue optional host record-reference resolver', () => {
+  it('uses genuine supplied identities for demanded Contract/array leaves with the original model/id semantics', () => {
+    const identities = new WeakMap<object, ReturnType<typeof makeRecordRef>>();
+    const native = (id: string, version = 2n, model = 'Input.Customer') => {
+      const value = Object.freeze(Object.defineProperty({}, 'kind', {
+        enumerable: true, get: () => assert.fail('genuine reference metadata must bypass business getters'),
+      }));
+      identities.set(value, makeRecordRef(model, id, version)); return value as CanValue;
+    };
+    const resolve = (value: CanValue) => typeof value === 'object' && value !== null ? identities.get(value) : undefined;
+    const customer = native('customer'), old = makeRecordRef('Input.Customer', 'customer', 1n);
+    assert.equal(equalValue('Input', { customer, repeated: [customer, customer] }, { customer: old, repeated: [old, old] }, resolve), true);
+    assert.equal(equalValue('Input.Customer[]', [customer], [old], resolve), true);
+    assert.equal(equalValue('Input', { customer }, { customer: native('other') }, resolve), false);
+    assert.equal(equalValue('Input', { customer }, { customer: native('customer', 2n, 'Other.Customer') }, resolve), false);
+    const copy = Object.freeze({}); assert.equal(resolve(copy), undefined);
+    assertValueError(() => equalValue('Input.Customer', customer, copy, resolve), 'invalid-construction');
+    const left = { kind: 'invocation', target: 'Input.run', args: { customer } } as CanValue,
+      right = makeInvocation('Input.run', { customer: old });
+    assert.equal(equalValue('invocation', left, right, resolve), true);
+  });
+
+  it('never resolves values skipped by canonical null, array, key, union or prior-field short circuits', () => {
+    const forbidden = Object.freeze({ unused: true }), visited: CanValue[] = [];
+    const resolve = (value: CanValue) => { visited.push(value); assert.notEqual(value, forbidden); return undefined; };
+    const forbiddenWasVisited = () => visited.includes(forbidden);
+    assert.equal(equalValue('Input', null, forbidden, resolve), false); assert.deepEqual(visited, []);
+    assert.equal(equalValue('Input[]', [], [forbidden], resolve), false); assert.deepEqual(visited, []);
+    assert.equal(equalValue('Input', { a: forbidden }, {}, resolve), false);
+    assert.equal(equalValue('Input', { a: forbidden }, { b: forbidden }, resolve), false);
+    assert.equal(equalValue('Input', { first: false, last: forbidden }, { first: true, last: forbidden }, resolve), false);
+    assert.equal(equalValue('A|B', makeUnionValue('A', forbidden), makeUnionValue('B', forbidden), resolve), false);
+    assert.equal(forbiddenWasVisited(), false);
+    const undefinedValue = undefined as unknown as CanValue;
+    visited.length = 0;
+    assertValueError(() => equalValue('Input[]', [undefinedValue], [forbidden], resolve), 'invalid-construction');
+    assert.deepEqual(visited, [], 'the existing undefined-element error precedes leaf resolution');
+  });
+
+  it('retains ordinary outcomes, canonical brands and exact original thrown errors with a nonmatching resolver', () => {
+    assert.equal(equalValue.length, 3);
+    const resolve = () => undefined;
+    const secret = { kind: 'secret' } as SecretValue;
+    const operands: [string, CanValue, CanValue][] = [
+      ['decimal', new Decimal(10n, 1), new Decimal(100n, 2)],
+      ['money', makeMoney(100n, 'EUR'), makeMoney(100n, 'USD')],
+      ['secret', secret, secret], ['secret', secret, { kind: 'secret' } as SecretValue],
+      ['Input', null, { kind: 'file' } as CanValue], ['Input[]', [], [{ kind: 'file' } as CanValue]],
+    ];
+    for (const [type, left, right] of operands) assert.equal(equalValue(type, left, right, resolve), equalValue(type, left, right));
+    const original = new Error('Original demanded getter failure');
+    const input = Object.defineProperty({}, 'field', { enumerable: true, get: () => { throw original; } }) as CanValue;
+    assert.throws(() => equalValue('Input', input, { field: true }, resolve), error => error === original);
+    const resolverFailure = new Error('Original resolver failure');
+    assert.throws(() => equalValue('Input', {}, {}, () => { throw resolverFailure; }), error => error === resolverFailure);
+    for (const bad of [{ kind: 'file' }, { kind: 'ref', id: '' }, undefined] as unknown as CanValue[]) {
+      const originalFailure = (() => { try { equalValue('Input', bad, {}); } catch (error) { return error; } return undefined; })();
+      assert.ok(originalFailure instanceof ValueError);
+      assert.throws(() => equalValue('Input', bad, {}, resolve), error => error instanceof ValueError &&
+        error.constructor === originalFailure.constructor && error.code === originalFailure.code && error.message === originalFailure.message);
+    }
+  });
+});
