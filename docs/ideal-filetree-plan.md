@@ -4,6 +4,25 @@ This is the current planning entry for the intended finished Canlang, derived fr
 
 The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/finished-product/target-tree.md), with its [machine allocation](ideal-filetree-plan/finished-product/target-tree.json). The previous current-checkout tree and twelve-package/TS-only recommendation are historical inputs, superseded as the complete intended-product target. Reusable prior source reviews remain at their actual byte/scope pins. Current typed descriptions, forms, receipts, fanout and HTTP serving source supersede blanket historical absence claims only at their observed mechanism scope.
 
+### Specification and installer documentation merge — 2026-10-15
+
+Merge installer commit `02470b74` into canonical `main` at `a70921e3`.
+Preserve the complete specification/implicit-behavior reconciliation and its
+18-outcome execution view, alongside standalone-first installation and the
+optional contributor guide. The only conflict appends independent decisions;
+retain both entries without changing either accepted contract. Canonical checkout
+stays on `main`; the running Muse implementation checkout remains separate.
+
+Reuse all accumulated coverage through `97bb83d9` and the subsequent release
+handoff. Account for the complete subsequent documentation interval in
+`spec_installer_merge_reconciliation_20261015` of the existing registry. Source
+semantics stay with Specification; user/contributor guidance with Documentation;
+release handoff with its existing distribution owner. No compiler/runtime/package
+source or owner changes. The new contributor page belongs beside the existing
+public installation guide. All complete semantic/target-review gates remain open;
+the complete checkpoint is unchanged. The merge decision records focused link,
+content-preservation and whitespace checks; no runtime requalification is needed.
+
 ### Standalone release intake — 2026-10-15
 
 Fast-forward local main from `e4a9b4f4` to release candidate/tag `v0.1.1`

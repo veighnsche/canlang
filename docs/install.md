@@ -1,8 +1,6 @@
 # Install `can`
 
-`can` is a single binary for compiler and authoring commands. Platform commands
-also require the TypeScript `can-platform` runtime (see below). Use the complete standalone distribution for application development.
-The compiler-only routes below remain available for compiler consumers:
+Install the complete standalone distribution for application development. It supplies the `can` compiler, matching catalog, runtime adapters and private runtime together. The compiler-only and source-build routes later in this reference are optional paths for contributors and specialized compiler consumers.
 
 ## Complete standalone installation
 
@@ -11,18 +9,15 @@ runtime, production runtime dependencies, workerd, inline-example tooling
 and the Cloudflare deployment CLI. Chrome, Chromium and Playwright are excluded. Users do not install Rust, Node, Bun
 or npm dependencies separately.
 
-The public entry point is prepared for the SodaOS website:
+Run the same installation command on either supported platform:
 
 ```sh
 curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 ```
 
-**Website deployment pending:** the standalone [v0.1.1 release](https://github.com/veighnsche/canlang/releases/tag/v0.1.1)
-is published and verified. The website installer route still returns HTTP 404 as
-of the release checks on 2026-10-15. Its owner must deploy the static installer
-before the website command is usable. The website serves only the script; it
-downloads the appropriate archive and SHA-256 checksum from that one resolved
-GitHub release tag.
+The public website serves the byte-identical installer from the qualified [v0.1.1 release](https://github.com/veighnsche/canlang/releases/tag/v0.1.1). It detects macOS Apple Silicon or Linux x86-64 with glibc, resolves one release version, and downloads the matching archive and SHA-256 checksum from that tag. The v0.1.1 Linux bundle requires glibc 2.39 or newer.
+
+The installer configures your shell PATH. Open a new terminal, then run `can --version`. Write and run applications in your own folder; no source checkout, catalog build or runtime overrides are required. Follow the [first application tutorial](public/01-Getting-started/02-installation.md) and [local development guide](public/03-Build-and-operate/01-local-development.md).
 The script supports pinned versions with `bash -s -- --version VERSION` after
 the pipe. See the [website agent handoff](../implementation/lean-install/website-handoff.md)
 for the exact source, publication gates and copy-ready deployment prompt.
@@ -61,8 +56,9 @@ spaces; Bash or Zsh sources the newly written shell configuration and runs
 `can --version`. The installed manifest confirms exact version/platform and
 private Node execution. The temporary directories are removed afterward.
 The public installer is byte-identical to the tagged canonical source and passes
-`bash -n`. Website synchronization and deployment remain a separate external gate;
-no website files or deployment were changed here.
+`bash -n`. The website deployed its static copy on 2026-10-15; an unauthenticated GET returns HTTP 200, the bytes match the pinned asset with `cmp`, and `bash -n` passes on the downloaded public script.
+
+### Optional local artifact installation (contributors)
 
 From a downloaded standalone artifact set, run:
 
@@ -144,11 +140,7 @@ remain intact; macOS and the Linux browser add-on were not rerun here.
 
 ### Optional browser development tools
 
-Browser automation is a separate opt-in installation, using Can's private Node:
-
-```sh
-sh output/install/install-browser-tools.sh
-```
+Browser automation is a separate opt-in installation, using Can's private Node. Core checks, inline examples and previews need no browser tooling and no manual Node, Bun or npm installation.
 
 Public releases supply these sidecars in the separate
 `can-browser-development-tools-VERSION.tar.gz` archive and its `.sha256` checksum.
@@ -168,14 +160,16 @@ executable is required. Set `CAN_BROWSER_TOOLS_ROOT` to select another separatel
 
 Core check/build, inline examples and local preview work without this add-on.
 Mandatory browser acceptance reports missing development tools and stays failed
-until they are installed; it never silently skips browser checks.
+until they are installed; it never silently skips browser checks. Contributors working with a locally assembled artifact set can use `sh output/install/install-browser-tools.sh` instead of downloading the sidecars.
 Service credentials and authored browser tests remain application inputs.
 Git is needed only for explicitly requested `git:<revision>` rollback.
 
 See [the bounded shipping audit](../implementation/lean-install/README.md) for
 retained files, dependency choices, verification and release gates.
 
-## Compiler-only release artifact
+## Optional compiler-only release artifact
+
+This advanced route omits the full application runtime. Use the single-command standalone installation above for ordinary application work.
 
 1. Download your platform's artifact from the `release` workflow run
    (`can-linux-x86_64` or `can-macos-aarch64`): the `can` binary plus its
@@ -189,7 +183,7 @@ retained files, dependency choices, verification and release gates.
 4. Check: `can --version` prints
    `can 0.1.1 (commit 97bb83d; language 1.0; schema 1)`.
 
-## From source
+## Optional compiler build from source (contributors)
 
 Needs Rust 1.99+ (see `compiler/Cargo.toml` `rust-version`):
 
@@ -200,7 +194,9 @@ cargo build --release --locked
 install -m 755 target/release/can ~/.local/bin/can
 ```
 
-## Source workspace and release verification
+## Optional source workspace and release verification (contributors)
+
+These instructions build and check CanLang itself. They are not prerequisites for using the standalone release. The [contributor guide](public/01-Getting-started/03-contributor-setup.md) covers complete source setup.
 
 From the repository root, use Bun 1.4.2 and Node.js 22+ (Node 24 is the
 verified runtime test profile):
@@ -255,7 +251,7 @@ renderer uses the app default locale plus source fallback
 (`can docs --help` lists the full contract). Like the other thin
 lane-7 entries, `can docs` needs the `can-platform` runtime on `PATH`
 (or `CAN_PLATFORM_BIN`); a missing runtime is a truthful `E7004` tool
-error, never silent output.
+error, never silent output. The standard standalone installation already supplies this adapter; users do not install runtime packages separately.
 
 ## Environment
 

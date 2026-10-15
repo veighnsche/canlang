@@ -32,6 +32,14 @@ Use CanLang where typed records, explicit authority and reusable business behavi
 
 ## Your first steps
 
+Install the complete toolchain with one command:
+
+```sh
+curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
+```
+
+It automatically selects macOS Apple Silicon or Linux x86-64 with glibc and includes its own runtime and language catalog. Open a new terminal after installation. No source build or manual Rust, Node, Bun, npm or browser installation is required. Browser automation is separately optional.
+
 [Install the tools and write Tasks](02-installation.md), then learn [how source ownership works](../02-Language/01-source-and-composition.md). Begin with a small complete workflow, including a permitted user, a denied user and a stale update. Expand it as the company's real rules become clear.
 
 ## Handbook chapters
@@ -47,3 +55,4 @@ Use CanLang where typed records, explicit authority and reusable business behavi
 - [Testing](../03-Build-and-operate/02-testing.md)
 - [Deployment and maintenance](../03-Build-and-operate/03-deployment.md)
 - [CLI and language reference](../04-Reference/01-cli.md)
+- [Optional contributor setup](03-contributor-setup.md)

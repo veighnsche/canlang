@@ -69305,5 +69305,120 @@
    "Website synchronization/deployment remains owned by the separate website checkout; its installer route still returns HTTP 404. Tagged publication and both public streamed installs are complete.",
    "All previously retained complete semantic/target-review gates remain unchanged."
   ]
+ },
+ "spec_installer_merge_reconciliation_20261015": {
+  "retained_coverage": "standalone_release_reconciliation_20261015 through97bb83d9; all earlier accumulated coverage/open review gates reused",
+  "parents": [
+   "a70921e3519f28c51015fffb01a09ea0915ef8eb",
+   "02470b7483c1993fc68357860f727111edeb7b2a"
+  ],
+  "changed_path_count": 20,
+  "rows": [
+   [
+    "README.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "design/jev/spec-implicit-contract-20261015/1.json",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "design/jev/spec-implicit-contract-20261015/2.json",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "design/jev/spec-implicit-contract-20261015/3.json",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/ideal-filetree-plan.md",
+    "planning",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/ideal-filetree-plan/state-machines-20261007.json",
+    "planning",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/install.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/01-Getting-started/01-index.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/01-Getting-started/02-installation.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/01-Getting-started/03-contributor-setup.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/03-Build-and-operate/01-local-development.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/03-Build-and-operate/02-testing.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/03-Build-and-operate/03-deployment.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/public/04-Reference/01-cli.md",
+    "documentation",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/specification/DECISIONS.md",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/specification/DESIGN.md",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/specification/GRAMMAR.md",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "docs/specification/REQUIREMENTS.md",
+    "specification",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "implementation/compiler-completion/README.md",
+    "compiler-completion",
+    "retain owning allocation; documentation-only interval"
+   ],
+   [
+    "implementation/lean-install/website-handoff.md",
+    "distribution-docs",
+    "retain owning allocation; documentation-only interval"
+   ]
+  ],
+  "resolution": "Retain both DECISIONS append blocks; all specification files unchanged from a70921e3 and installer/public pages unchanged from02470b74. Add current merge bookkeeping only.",
+  "validation": "Exact parent-content preservation, focused local links/anchors and diff whitespace. No runtime source changes or repeated runtime qualifications.",
+  "target_disposition": "Existing specification/completion/documentation/distribution owners unchanged; new optional contributor guide allocated alongside public installation guide. No implementation authorized by bookkeeping.",
+  "checkpoint_advanced": false,
+  "remaining_gates": "All inherited complete semantic/target review and18finite conformance outcomes remain at recorded scope; obsolete historical website404 does not override later installer-deployment evidence."
  }
 }
