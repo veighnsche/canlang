@@ -3397,7 +3397,7 @@ fn construct_fixtures_and_recipes() {
     // (CanCheck.mjs oracle is flat here; per the file rule above the
     // normative text wins.)
     assert!(
-        js.contains("return {fixtures:{[\"job\"]:$can$f$6a6f62,[\"worker\"]:$can$f$776f726b6572,[\"attempt\"]:$can$f$617474656d7074},examples:[]};"),
+        js.contains("return {fixtures:{...imported,[\"job\"]:$can$f$6a6f62,[\"worker\"]:$can$f$776f726b6572,[\"attempt\"]:$can$f$617474656d7074},examples:[]};"),
         "return shape:\n{js}"
     );
 }
@@ -8713,18 +8713,25 @@ Then
         .find(|suite| suite.scope == "FixtureOwners.note")
         .expect("unconsumed Note fixture remains emitted and checked");
     let js = &orphan.module.js;
-    let catalog_at = js.find("const $can$f$636174616c6f67=").unwrap();
-    let alice_at = js.find("const $can$f$616c696365=").unwrap();
-    let note_at = js.find("const $can$f$6e6f7465=").unwrap();
-    assert!(catalog_at < alice_at && alice_at < note_at, "{js}");
-    assert!(js.contains("parent:s.catalog"), "{js}");
+    assert!(
+        js.contains("provider:\"FixtureOwners\",member:\"alice\",alias:\"FixtureOwners.alice\""),
+        "{js}"
+    );
+    assert!(
+        js.contains("provider:\"FixtureOwners\",member:\"editor\",alias:\"FixtureOwners.editor\""),
+        "{js}"
+    );
+    assert!(js.contains("parent:s[\"FixtureOwners.alice\"]"), "{js}");
     let table = artifact
         .tests
         .iter()
         .find(|suite| suite.scope == "FixtureOwners.echo")
         .unwrap();
     assert!(
-        table.module.js.contains("catalog:s.catalog"),
+        table
+            .module
+            .js
+            .contains("catalog:s[\"FixtureOwners.catalog\"]"),
         "{}",
         table.module.js
     );
@@ -8742,31 +8749,34 @@ Then
     let modules = artifact
         .tests
         .iter()
-        .map(|suite| suite.module.js.as_str())
+        .map(|suite| (&suite.scope, suite.module.js.as_str()))
         .collect::<Vec<_>>();
     let payload = serde_json::to_string(&modules).unwrap();
     let script = r#"import assert from 'node:assert/strict';
-const modules = __MODULES__;
-for (const js of modules) {
- const module = await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
- const factory = () => module.exampleFixtures({self:'self',other:'other',imported:{}});
+const modules=new Map();
+for(const [key,js]of __MODULES__)modules.set(key,await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64')));
+function instantiate(key){const cache=new Map();
+ function link(module){const linked={};for(const dep of module.exampleImports??[])Object.assign(linked,provide(dep.alias));return linked;}
+ function provide(key){if(cache.has(key))return cache.get(key);const module=modules.get(key);const linked=link(module);const result=module.exampleFixtures({self:'self',other:'other',imported:linked});for(const [id,value]of Object.entries(linked))assert.equal(result.fixtures[id],value);cache.set(key,result.fixtures);return result.fixtures;}
+ const module=modules.get(key);return module.exampleFixtures({self:'self',other:'other',imported:link(module)});}
+for(const [key]of modules){const factory=()=>instantiate(key);
  const first = factory(), second = factory();
  for (const [name,recipe] of Object.entries(first.fixtures)) {
   assert.notEqual(recipe,second.fixtures[name]);
-  for (const dep of recipe.dependencies) assert.ok(Object.values(first.fixtures).includes(dep));
+  for (const dep of recipe.dependencies) assert.ok(Object.values(first.fixtures).includes(dep),JSON.stringify({key,name,dependency:dep,keys:Object.keys(first.fixtures)}));
  }
- const a={catalog:{name:'first'},alice:{code:'Alice'},editor:{id:'editor-a'},result:{code:'Alice'}};
- const b={catalog:{name:'second'},alice:{code:'Bob'},editor:{id:'editor-b'},result:{code:'Bob'}};
+ const a={'FixtureOwners.catalog':{name:'first'},'FixtureOwners.alice':{code:'Alice'},'FixtureOwners.editor':{id:'editor-a'},result:{code:'Alice'}};
+ const b={'FixtureOwners.catalog':{name:'second'},'FixtureOwners.alice':{code:'Bob'},'FixtureOwners.editor':{id:'editor-b'},result:{code:'Bob'}};
  for (const scope of [a,b]) {
-  if(first.fixtures.alice) assert.equal((await first.fixtures.alice.value({},scope)).parent,scope.catalog);
-  if(first.fixtures.note) {
-   const value=await first.fixtures.note.value({},scope);
-   assert.equal(value.parent,scope.alice); assert.equal(value.author,scope.editor);
+  if(first.fixtures['FixtureOwners.alice']) assert.equal((await first.fixtures['FixtureOwners.alice'].value({},scope)).parent,scope['FixtureOwners.catalog']);
+  if(first.fixtures['FixtureOwners.note']) {
+   const value=await first.fixtures['FixtureOwners.note'].value({},scope);
+   assert.equal(value.parent,scope['FixtureOwners.alice']); assert.equal(value.author,scope['FixtureOwners.editor']);
   }
  }
  for(const example of first.examples) {
-  assert.equal((await example.inputs({},a)).catalog,a.catalog);
-  assert.equal((await example.inputs({},b)).catalog,b.catalog);
+  assert.equal((await example.inputs({},a)).catalog,a['FixtureOwners.catalog']);
+  assert.equal((await example.inputs({},b)).catalog,b['FixtureOwners.catalog']);
   assert.equal(await example.observations[0]({},a),'Alice');
   assert.equal(await example.observations[0]({},b),'Bob');
   assert.deepEqual(await example.rows[0].values({self:'self'},a),['self']);
@@ -9018,12 +9028,22 @@ package consumer
     let suites = artifact
         .tests
         .iter()
-        .map(|suite| suite.module.js.clone())
+        .map(|suite| (&suite.scope, suite.module.js.clone()))
         .collect::<Vec<_>>();
-    assert_eq!(suites.len(), 2, "both original sequences remain present");
+    assert_eq!(
+        suites.len(),
+        6,
+        "two original sequence modules plus four canonical providers"
+    );
     let node = find_node().expect("Node is required for generated fixture/sequence checks");
     let script = r#"import assert from 'node:assert/strict';
-const modules=__MODULES__;
+const modules=new Map();
+for(const [key,js]of __MODULES__)modules.set(key,await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64')));
+function instantiate(key){const cache=new Map();
+ function link(module){const linked={};for(const dep of module.exampleImports??[])Object.assign(linked,provide(dep.alias));return linked;}
+ function provide(key){if(cache.has(key))return cache.get(key);const module=modules.get(key);const result=module.exampleFixtures({self:{id:'self'},other:{id:'other'},imported:link(module)});cache.set(key,result.fixtures);return result.fixtures;}
+ const module=modules.get(key);return module.exampleFixtures({self:{id:'self'},other:{id:'other'},imported:link(module)});}
+
 const entryText=__ENTRY__.replaceAll('"@canlang/stdlib"',JSON.stringify(import.meta.resolve('@canlang/cloudflare/runtime/stdlib')));
 const entry=await import('data:text/javascript;base64,'+Buffer.from(entryText).toString('base64'));
 const handler=entry.canApp()['expense.request'];
@@ -9032,10 +9052,12 @@ await handler({memberships:['expense.reviewer']},{value:'authorized'});
 for(const memberships of [[],['reviewer'],['expense.Claim.reviewer'],['consumer.approval_role']]) {
  await assert.rejects(()=>handler({memberships},{value:'denied'}),/forbidden/);
 }
-for (const js of modules) {
- const module=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
- const value=module.exampleFixtures({self:{id:'self'},other:{id:'other'},imported:{}});
- const user=value.fixtures.reviewer_user ?? value.fixtures.aliased_user;
+let sequenceCount=0;
+for(const [key]of modules){
+ const value=instantiate(key);
+ if(value.examples.length===0)continue;
+ sequenceCount++;
+ const user=value.fixtures['expense.reviewer_user'] ?? value.fixtures['consumer.aliased_user'];
  assert.deepEqual(await user.user({},{}),{roles:['expense.reviewer']});
  assert.equal(value.examples.length,1);
  const example=value.examples[0];
@@ -9044,20 +9066,21 @@ for (const js of modules) {
  assert.ok(enclosing.operation==='expense.finish'||enclosing.operation==='consumer.exercise');
  assert.equal(call.operation,'expense.request');
  const caller={id:'selected reviewer'};
- const scope={reviewer_user:caller,aliased_user:caller,claim:{id:'claim'}};
+ const scope={'expense.reviewer_user':caller,'consumer.aliased_user':caller,'expense.claim':{id:'claim'}};
  assert.equal(await call.by({},scope,{}),caller);
  const input=await call.inputs({},scope,{});
  assert.ok(input.value==='original'||input.value==='imported');
- if(enclosing.operation==='expense.finish') assert.equal((await enclosing.inputs({},scope,{})).request,scope.claim);
+ if(enclosing.operation==='expense.finish') assert.equal((await enclosing.inputs({},scope,{})).request,scope['expense.claim']);
  const retained=await binding.value({},scope,{});
  assert.equal(retained,input.value);
  assert.deepEqual(await assertion.observations({},scope,{retained}),[retained]);
  assert.deepEqual(await assertion.expected({},scope,{}),[retained]);
- if(value.fixtures.sheet) {
-  assert.equal(value.fixtures.sheet.model,'expense.Claim');
-  assert.deepEqual(await value.fixtures.sheet.value({},scope),{reviewer:caller,request:'unchanged'});
+ if(value.fixtures['consumer.sheet']) {
+  assert.equal(value.fixtures['consumer.sheet'].model,'expense.Claim');
+  assert.deepEqual(await value.fixtures['consumer.sheet'].value({},scope),{reviewer:caller,request:'unchanged'});
  }
 }
+assert.equal(sequenceCount,2,'both original sequences remain present');
 "#.replace("__MODULES__", &serde_json::to_string(&suites).unwrap())
         .replace("__ENTRY__", &serde_json::to_string(&artifact.modules[0].js).unwrap());
     let output = std::process::Command::new(node)

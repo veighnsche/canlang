@@ -78,7 +78,7 @@ pub fn emit_suite(
         Err(diagnostic) => return (
             BddModule {
                 scope: suite.scope.clone(),
-                fixtures: suite.fixtures.iter().map(|fixture| fixture.canonical.clone()).collect(),
+                fixtures: suite.fixtures.iter().map(|fixture| fixture.name.clone()).collect(),
                 module: JsModule {
                     path: format!("tests/{}.mjs", binding_ident("t", &suite.scope)),
                     js: "export function exampleFixtures(){throw new Error(\"cannot lower cyclic fixture recipes\");}\n".to_string(),
@@ -115,6 +115,17 @@ pub fn emit_suite(
         Some("exampleFixtures".to_string()),
         "export function exampleFixtures({self,other,imported}){",
     );
+    for import in &suite.imported {
+        body.push(
+            suite.span,
+            Some(import.alias.clone()),
+            &format!(
+                "const {}=imported[{}];",
+                binding_ident("f", &import.alias),
+                js_string(&import.alias)
+            ),
+        );
+    }
     for fixture in &fixtures {
         let recipe = lower_recipe(&mut emitter, fixture);
         body.push(
@@ -147,7 +158,7 @@ pub fn emit_suite(
         suite.span,
         Some("exampleFixtures".to_string()),
         &format!(
-            "return {{fixtures:{{{}}},examples:[{}]}};",
+            "return {{fixtures:{{...imported,{}}},examples:[{}]}};",
             names.join(","),
             examples.join(",")
         ),
@@ -263,7 +274,15 @@ fn complete_table_fixture_bindings(
         .collect();
     let by_name: HashMap<&str, &IrFixture> = recipes
         .iter()
-        .map(|recipe| (recipe.name.as_str(), *recipe))
+        .flat_map(|recipe| {
+            [
+                (recipe.name.as_str(), *recipe),
+                (
+                    recipe.canonical.rsplit('.').next().unwrap_or(&recipe.name),
+                    *recipe,
+                ),
+            ]
+        })
         .collect();
     let mut needed: HashSet<String> = suite
         .fixtures
@@ -278,10 +297,10 @@ fn complete_table_fixture_bindings(
                 if let IrExpr::Name(name) = &value.expr
                     && by_name.contains_key(name.as_str())
                 {
-                    aliases.insert(name.clone(), name.clone());
-                    needed.insert(name.clone());
-                    if !table.dependencies.contains(name) {
-                        table.dependencies.push(name.clone());
+                    aliases.insert(name.clone(), by_name[name.as_str()].name.clone());
+                    needed.insert(by_name[name.as_str()].name.clone());
+                    if !table.dependencies.contains(&by_name[name.as_str()].name) {
+                        table.dependencies.push(by_name[name.as_str()].name.clone());
                     }
                 }
             }
@@ -303,7 +322,13 @@ fn complete_table_fixture_bindings(
     loop {
         let before = needed.len();
         for name in needed.clone() {
-            if let Some(recipe) = by_name.get(name.as_str()) {
+            // A linked provider owns its complete transitive closure. Never
+            // clone one of its local dependencies over the imported object.
+            if suite.imported.iter().any(|import| import.alias == name) {
+                continue;
+            }
+
+            if let Some(recipe) = recipes.iter().find(|recipe| recipe.name == name) {
                 needed.extend(recipe.dependencies.iter().cloned());
             }
         }
@@ -314,6 +339,10 @@ fn complete_table_fixture_bindings(
     let mut fixtures = suite.fixtures.clone();
     for recipe in recipes {
         if needed.contains(&recipe.name)
+            && !suite
+                .imported
+                .iter()
+                .any(|import| import.alias == recipe.name)
             && !fixtures.iter().any(|fixture| fixture.name == recipe.name)
         {
             fixtures.push(recipe.clone());
@@ -764,6 +793,96 @@ mod string_tests {
         assert_eq!(
             js_string("\"\\/é😀\u{2028}\u{2029}"),
             "\"\\\"\\\\/é😀\u{2028}\u{2029}\""
+        );
+    }
+}
+
+#[cfg(test)]
+mod canonical_fixture_tests {
+    use super::*;
+
+    #[test]
+    fn aliases_diamonds_and_same_named_owners_link_one_canonical_recipe() {
+        let source = r#"package A
+ Given
+  export Thing {label:text}
+  export fixture same=Thing {label="A"}
+ When
+ Then
+package B
+ use A {Thing,same as upstream}
+ Given
+  export fixture same=Thing {label="B"}
+  export fixture branch=Thing {label=upstream.label}
+ When
+ Then
+app Link
+use A {Thing,same as left,same as left_again}
+use B {same as right,branch}
+Given
+ Local {left:Thing,right:Thing,again:Thing,branch:Thing}
+ fixture local=Local {left=left,right=right,again=left_again,branch=branch}
+When
+ scenario inspect(value:Local) read=true -> text by=members
+  do return value.left.label
+  examples seed=[branch] value=local
+   as -> value.left.label
+   self -> "A"
+Then
+"#;
+        let mut db = crate::source::SourceDb::new();
+        let file = db.add("fixture-links.can".into(), source.into());
+        let (program, diagnostics) = crate::analysis::check_program(&db, &[file], None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let operation = ir
+            .suites
+            .iter()
+            .find(|suite| suite.scope == "Link.inspect")
+            .unwrap();
+        assert!(operation.fixtures.is_empty());
+        assert_eq!(operation.imported.len(), 4);
+        let mut payload = Vec::new();
+        for suite in &ir.suites {
+            let (module, diagnostics, _) = emit_suite(&ir, suite);
+            assert!(diagnostics.is_empty(), "{}: {diagnostics:?}", suite.scope);
+            if suite.scope != "Link.inspect" {
+                assert_eq!(suite.fixtures.len(), 1);
+                assert_eq!(suite.fixtures[0].canonical, suite.scope);
+            }
+            for import in &suite.imported {
+                assert_eq!(
+                    import.alias,
+                    format!("{}.{}", import.provider, import.member)
+                );
+            }
+            payload.push((module.scope, module.module.js));
+        }
+        let payload = serde_json::to_string(&payload).unwrap();
+        let script=r#"import assert from 'node:assert/strict';
+const modules=new Map();
+for(const [scope,js] of __PAYLOAD__) modules.set(scope,await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64')));
+const cache=new Map(),pending=new Set();
+function imports(module){const out={};for(const dependency of module.exampleImports??[]){load(dependency.alias);for(const [key,value] of cache)out[key]=value;}return out;}
+function load(key){if(cache.has(key))return cache.get(key);assert.ok(!pending.has(key),'cycle');pending.add(key);const module=modules.get(key);assert.ok(module,'dedicated provider');const linked=imports(module);const result=module.exampleFixtures({self:'self',other:'other',imported:linked});for(const [key,value]of Object.entries(linked))assert.equal(result.fixtures[key],value);assert.ok(result.fixtures[key]);cache.set(key,result.fixtures[key]);pending.delete(key);return cache.get(key);}
+const operation=modules.get('Link.inspect');const linked=imports(operation);const suite=operation.exampleFixtures({self:'self',other:'other',imported:linked});
+assert.equal(Object.keys(suite.fixtures).length,4);
+assert.equal(suite.fixtures['Link.local'],cache.get('Link.local'));
+assert.notEqual(cache.get('A.same'),cache.get('B.same'));
+const local=cache.get('Link.local');assert.equal(new Set(local.dependencies).size,3);assert.ok(local.dependencies.includes(cache.get('A.same')));assert.ok(local.dependencies.includes(cache.get('B.same')));
+assert.equal(cache.get('B.branch').dependencies[0],cache.get('A.same'));
+const scope={'A.same':{label:'A'},'B.same':{label:'B'},'B.branch':{label:'branch'}};
+const value=await local.value({},scope);assert.equal(value.left,scope['A.same']);assert.equal(value.again,value.left);assert.equal(value.right,scope['B.same']);assert.equal((await cache.get('B.branch').value({},scope)).label,'A');
+"#.replace("__PAYLOAD__",&payload);
+        let output = std::process::Command::new("node")
+            .args(["--input-type=module", "--eval", &script])
+            .output()
+            .expect("Node executes actual emitted factories");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
         );
     }
 }

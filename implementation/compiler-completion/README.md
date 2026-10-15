@@ -2,6 +2,20 @@
 
 ## Current remainder and finite completion
 
+**C02 canonical fixture provider emission (2026-10-15, qualified component).**
+Resolved fixture reads/dependencies use canonical declaration keys. One provider
+per checked declaration imports direct seed providers; operations link those
+objects. Completion stops at imported providers instead of cloning/overwriting
+their shared transitive dependencies. Source spelling, roles and independent
+example/sequence expectations remain unchanged. Frozen isolated producer passes
+8 focused checks (new actual-source/Node identity1/.13s; existing fixture/role/
+order5/.30s; tables1; sequences1) and locked CLI build. Retained compiler binary
+`/tmp/can-compiler-canonical-fixtures`; compatible shared target reused. Actual
+six promotion rows still await whole current runtime/catalog inputs. A later
+selected emission lost its catalog during failed package output replacement,
+so supplied no additional source/native qualification. No original24 removals
+are claimed from this fixture-only component.
+
 **C02 typed record-route reader lifecycle (2026-10-15, qualified prerequisite).**
 All5 dynamic normalization refusals are single Model record routes;66 row-render
 refusals consume that same missing binding. Existing canonical.readRecords now

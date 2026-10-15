@@ -17064,3 +17064,25 @@ Interfaces normal build and all49 owning HTTP-page tests pass (7.15s), including
 the runtime prerequisite, not typed-route compiler emission or original Partner.
 Original5 route diagnostics and66 related row renders remain the shared defining
 producer/consumer group; whole-composition counts are unchanged.
+
+
+### 2026-10-15 — emit canonical fixture recipe providers
+
+Checked fixture reads, table/sequence dependencies and recipe keys now retain the
+canonical declaration identity. Emit one recipe-only provider per declaration,
+with direct checked seed imports; operation suites link providers rather than
+clone recipes. Existing local fixture completion stops at imported providers,
+so it cannot overwrite a shared transitive recipe. Uniform provider publication
+removes claimed/provider-subset bookkeeping and the extra lexical runtime alias
+layer; source names, aliases, user roles, examples and independent expectations
+remain intact. No production import or permission changes.
+
+Frozen isolated4faedd60 source plus this patch passes8 focused producer checks:
+new checked-source/actual Node alias/diamond/same-name/local-provider identity
+1/.13s, existing fixture/role/sequence-order controls5/.30s, tables1, sequences1.
+Locked CLI build passes; retained binary `/tmp/can-compiler-canonical-fixtures`.
+Shared compatible Cargo target reused, no new target/dependency install; isolated
+source excludes concurrent foreign Rust work. A catalog removed by a failed
+concurrent package build invalidated the later selected emitter attempt; it adds
+no native credit. Actual original six rows remain required with complete current
+package outputs, not manual replacement fixture modules.
