@@ -577,3 +577,33 @@ Then
   }
   assert.equal(JSON.stringify(artifact), unchangedArtifact, "compiled source, modules and tests remain unchanged");
 });
+
+test('canonical fixture snapshots allow only absent or null optional singular Files while preserving schema and invariants', async () => {
+  for (const mode of ['absent', 'null', 'nonnull', 'required-missing', 'required-null', 'array', 'invariant'] as const) {
+    const type = mode.startsWith('required-') ? 'file' : mode === 'array' ? 'file[]' : 'file?';
+    const artifact = compiled(`app RunnerProbe
+Given
+ Employee {name:text,document:${type}}
+ policy Employee read=members fields=name
+ invariant Employee: row.name!="invalid"
+When
+ scenario inspect(entry:Employee) by=members
+  do require entry.name!=""
+Then
+`);
+    const fields = { name: mode === 'invariant' ? 'invalid' : 'Employee',
+      ...(mode === 'null' || mode === 'required-null' ? { document: null }
+        : mode === 'nonnull' ? { document: 'fabricated-file' }
+        : mode === 'array' ? { document: [] } : {}) };
+    artifact.tests = [testModule('RunnerProbe.inspect', `
+const entry={model:"RunnerProbe.Employee",dependencies:[],value:async()=>(${JSON.stringify(fields)})};
+export function exampleFixtures(){return {fixtures:{entry},examples:[{operation:"RunnerProbe.inspect",
+ dependencies:[entry],inputs:async(_b,s)=>({entry:s.entry}),selectors:["as"],
+ observations:[async(_b,s)=>s.entry.name],rows:[{dependencies:[entry],values:async()=>["members"],expected:async()=>["Employee"]}]}]};}
+`)];
+    const result = await runCompiledExamples(await input(artifact));
+    assert.equal(result.ok, mode === 'absent' || mode === 'null', `${mode}: ${JSON.stringify(result.report)}`);
+    assert.equal(result.executed, 1);
+    if (mode === 'array') assert.match(JSON.stringify(result.report), /explicit resource materialization profile/);
+  }
+});

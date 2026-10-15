@@ -2,6 +2,22 @@
 
 ## Current remainder and finite completion
 
+**C02 optional File fixture setup (2026-10-15, qualified component).**
+Absent/null optional singular File values now pass the existing canonical fixture
+session; nonnull/required/array File and Delivery still require their resource
+profile. Finalized rows are rechecked before commit, preserving defaults and
+invariant validation. Normal CF build passes; seven-mode focused native fixture
+check passes1/7.84s. Original promotion native execution remains required. Nested
+Contract fixture/row-cell controls currently expose an unexpected success-row
+rule_failed and are not accepted yet.
+
+**Original24 qualification atc1cec0c6 (2026-10-15).**
+Isolated CLI428.83s, exit10, complete=true/omitted0:656 findings (630 E6008,
+26 E6007), no artifact. All26 consumed source records and supplied Values catalog
+remain unchanged; exact multiset removes0/adds0 versus6ef5d02c. Retained outputs:
+`/tmp/cancrm-given-nullable-20261015-{compile,result}.json`. The selected source
+acceptance above does not establish whole-composition or native acceptance.
+
 **C02 exact promotion source correspondence (2026-10-15, source qualified).**
 The unchanged selected original workflow + original saved Given now emits zero
 diagnostics through authentic CLI intake (1.46s). Two concrete joins blocked it:
@@ -11,7 +27,7 @@ ordinary-bound fallback. Root-pair correspondence also now accepts the checker's
 existing text→nullable-text and null→nullable assignments (original Deal.notes),
 retaining exact source/IR input correspondence. Title field reuse already worked.
 Three focused source/reuse/refusal checks pass. The temporary probe was removed;
-CLI rebuild and actual native inline examples remain required. Other noncreated
+Primary CLI rebuild passes (14.63s); actual native inline examples remain required. Other noncreated
 Given fields have no new carrier/profile acceptance from this repair.
 
 **Original24 qualification at6ef5d02c (2026-10-15).**

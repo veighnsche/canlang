@@ -6754,6 +6754,17 @@ export async function materializeCanonicalExampleSnapshots(input: {
     return contract !== undefined ? Object.values(contract.fields).some(field => resourceType(field.typeId, next))
       : alias !== undefined && resourceType(alias.typeId, next);
   };
+  const checkResources = (model: CanonicalModelDescriptor, data: Readonly<Record<string, unknown>>): void => {
+    for (const [name, field] of Object.entries(model.fields)) {
+      if (field.delivery === undefined && (field.valueType === undefined || !resourceType(field.valueType))) continue;
+      const type = field.valueType === undefined ? undefined : parseTypeId(field.valueType);
+      // An absent optional File carries no resource authority. The canonical
+      // session still validates its declaration, defaults and nullable value.
+      if (field.delivery === undefined && type?.base.kind === 'file' && type.nullable && !type.array &&
+          field.required === false && (!Object.hasOwn(data, name) || data[name] === null)) continue;
+      throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
+    }
+  };
   for (const snapshot of input.snapshots) {
     localPolicyObject(snapshot, ['model', 'id', 'data', 'parent']);
     localPolicyObject(snapshot.data);
@@ -6763,9 +6774,7 @@ export async function materializeCanonicalExampleSnapshots(input: {
       throw new StateError('validation', 'Fixture snapshots require distinct declared model identities and domain data.');
     }
     seen.add(key);
-    if (Object.values(model.fields).some(field => field.delivery !== undefined || field.valueType !== undefined && resourceType(field.valueType))) {
-      throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
-    }
+    checkResources(model, snapshot.data);
     const before = await input.store.load(snapshot.model, snapshot.id);
     if (before !== null && (before.version !== 1 || before.archivedAt !== null ||
         snapshot.parent !== undefined && (before.parent?.model !== snapshot.parent.model || before.parent.id !== snapshot.parent.id))) {
@@ -6794,6 +6803,8 @@ export async function materializeCanonicalExampleSnapshots(input: {
     }
     const result = new Map<string, StoredRow>();
     for (const write of effects.writes) if (write.kind === 'insert' || write.kind === 'update') {
+      // Omission must not retain a prior resource or acquire one from defaults.
+      checkResources(loaded.models.find(model => model.name === write.model)!, write.row.data);
       result.set(stagedKey(write.model, write.row.id), write.row);
     }
     if (result.size !== seen.size) throw new StateError('validation', 'Fixture setup did not retain every requested snapshot.');
