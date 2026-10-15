@@ -16595,3 +16595,23 @@ binary/committed CLI is reused while another worker owns lib-only builds.
 These are component/legacy qualifications. Compiler issuance of the private
 getter and exact Query/Lambda→queryId proof remain unfinished; no original
 can_work native acceptance is claimed from hand-built verifier metadata.
+
+2026-10-15 — C02: consume the original leading helper query source.
+
+Leading authorization can consume the exact retained helper query at its actual
+caller occurrence. Explicit arguments traverse in authored order; the required
+Contract Model slot retains its original ParameterMember origin. Candidate field
+reads and membership remain query-owned, with no eager predicate execution or
+private-policy authority. The sealed source matcher verifies helper formals,
+imports/local binding, selected slots, Query/Lambda body, ordered CONTROL census,
+first User read and original call-chain/influence identities before producing the
+existing query proof. Ordinary fallback remains closed for altered source.
+
+The owning analysis check and seven source/seal checks pass, including aliases,
+reordered named arguments and tampered proofs. The positive initially exposed
+that direct Employee.locations was absent from the stored schema census. Retain
+only the exact Model-reference arrays authenticated as helper-query CONTROL;
+other reusable-array bounds remain unchanged, and this grants no read or write.
+Temporary diagnostics are removed. Native query plan/emission and actual callback
+issuance remain unfinished, as does the later BodyRequire/first-query reference
+consumer. No original can_work execution or diagnostic reduction is claimed.
