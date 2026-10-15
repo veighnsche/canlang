@@ -2,6 +2,42 @@
 
 ## Current remainder and finite completion
 
+**C02 next dependency-ordered implementation (2026-10-15).**
+Current execution remains this record. Promotion caller-array lowering owns the
+next native6 retry; no original expected values change. Partner activation then
+needs checked local pure-call/nullable-Model-presence invariant leaves, followed
+by its actual checked Credit/Advocate query rules and complete affected-row
+selection, then the existing owner final-query adapter. Keep all six original
+invariants/locks; all-or-none policy publication explains its misleading first
+Employee activation refusal. Existing State owner-rule final views/bounds and
+atomic pipeline remain the consumers, not a new engine.
+
+The90 first-query refusals span67handlers/18operations/5derives. The first
+Customer.accept example separately needs contained CompanyRole domain, compound
+User/enum predicate, and execution independent of a new-record return. The next
+reusable batch removes only the return-shape dependency from the existing
+unscoped single-equality profile, retaining genuine query handles, exact source
+census and current field authority. Void/scalar/Model outputs do not invent
+result influence; selected result disclosure keeps its distinct source join.
+Original Purchase.receive supplies a scalar-parameter/current-selection witness;
+its other workflow prerequisites stay open.
+
+**C02 explicit promotion caller context (2026-10-15, source correction pending compiler).**
+Exact native diagnostics identify `customer.Contact.parent` as the denied leading
+read: salesperson-only membership lacks the required Customer ancestor grant.
+Three independently worded JEV requests prefer an explicit existing
+`[salesperson,customer_reader]` caller over adding a stronger company-admin
+fixture (probabilities .87/.91/.93; advice retained in
+`crm-example-authority-jev.json`). Export/import the existing reader role and
+change only five salesperson caller cells; keep the members denial, production
+policies, fixtures and all six expectations unchanged. Genuine native intake
+now stops before execution:10E6008 role-reference failures inside caller arrays
+(2.82s). Checker and Testkit already support role arrays. Exact caller-only canonical
+role lowering now passes its owning CLI/emitted/Testkit test1/.94s, including
+import aliases and invalid-member refusals; tested snapshot
+`/tmp/can-compiler-example-role-arrays`. Native6 retry is running before draft
+commit; no native acceptance is inferred from the component check.
+
 **C02 consumed decision CST index (2026-10-15, qualified source component).**
 Index exact checked decision/statement/call/argument/default/derive-body subtrees
 with ancestor span/file pruning. Retain complete cohort/fresh source semantics,
@@ -35,8 +71,8 @@ caption formatting. No UI API or language rule changes. Three owning controls
 pass: original source→CLI→installed UI EN/NL/escaping/order/denied gate1/.82s;
 empty/multiple-caption/unknown-option/slotted/mixed refusals1/.58s; collection
 row binding and skipped child1/.01s. Slotted footer production stays unsupported,
-without flattening authored slots. The last full-original count remains656 and
-predates this component; no whole UI/application qualification follows.
+without flattening authored slots. Latest582 capture closes this footer refusal;
+no whole UI/application qualification follows.
 
 **C02 next full-cohort decision gate (2026-10-15, diagnosed).**
 Authentic query-only preparation now passes owner diagnostic closure, exact
@@ -46,7 +82,8 @@ against a global200,000-node bound. Actual nextgate inspector1/184.54s and
 parse-only count1/.13s confirm this; all temporary probes restored. The finite
 repair is exact consumed decision/helper/default subtree indexing with the same
 node/depth/call/semantic-work bounds and complete cohort/source checks, not a
-larger global cap. It remains under implementation.
+larger global cap. This source repair is now qualified by232b15db above;
+90 other first-query correspondence refusals remain for the next defining join.
 
 **C02 checked record-route producer (2026-10-15, compiler component qualified).**
 Publish the resolver's existing RouteRecord Model in the existing checked node
@@ -699,8 +736,11 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **656 errors**:
-**630 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The latest frozen original **24-source** qualification (232b15db,442.73s) exits
+**10**, with **582 errors**: **556 E6008**, **26 E6007**, `complete=true`,
+`omitted=0`, and no usable artifact. Source records/input bytes stayed unchanged.
+The pending explicit reader-role source correction is newer and currently stops
+at the separate example caller-array lowering gap before native execution.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -716,15 +756,15 @@ are not independent feature tasks:
 
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
-| Checked source/inventory publication | 3 | Membership and collection-call correspondence. AcceptedOffer/QuoteDocument now publish their validated-email closure; standard inventory/completions publication is closed at its earlier metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
-| Query and predicate lowering | 111 | 91 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
-| UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
+| Checked source/inventory publication | 5 | Membership and collection-call correspondence. AcceptedOffer/QuoteDocument now publish their validated-email closure; standard inventory/completions publication is closed at its earlier metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
+| Query and predicate lowering | 110 | 90 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| UI/server factory profiles | 197 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
-| Dynamic route normalization | 5 | Original typed route descriptors. |
-| Authorized route-row rendering | 68 | Carry the admitted current row into rendering without widening grants or emitting unbound JavaScript. |
+| Dynamic route normalization | 0 | Checked typed record routes now normalize; actual native Partner workflow remains separately gated by its complete invariant closure. |
+| Authorized route-row rendering | 0 | Admitted current row now reaches rendering/action bindings. Six producer controls pass; full native Partner acceptance remains open. |
 | Value/type/arithmetic lowering | 0 | The original named OperationOutcome field-schema dependency is closed. Owner retention and source-associated inventory now resolve all recorded occurrences in this group. |
 | Expression operation admission | 43 | Original expression gates in operation members, preserving permission semantics. |
-| Scenario/handler/authority emission | 65 | Original trigger/authority profiles and owning execution context. |
+| Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
 | Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
 | Declared event input carriers | 0 | Exact capability-event owners, URL/inline enum inventory and declared PaymentState identity close all46 recorded carrier occurrences. Event ingress execution remains a distinct workflow gate. |
