@@ -43,11 +43,15 @@ interface BoundRead {
 export interface InstalledSourceOwnerRows {
   readonly read: (model: ModelName, id: RecordId) => Promise<StoredRow | null>;
   readonly assertHealthy: () => void;
+  /** Exact bounded root domain supplied by the same owning stage, never a store scan. */
+  readonly query?: (model: ModelName) => Promise<readonly StoredRow[]>;
 }
 export function captureInstalledSourceOwnerRows(scope: InstalledSourceOwnerRows): InstalledSourceOwnerRows {
-  const value = object(scope, ['read', 'assertHealthy']);
-  if (typeof value.read !== 'function' || typeof value.assertHealthy !== 'function') return fail('owning row closure required.');
-  return Object.freeze({ read: value.read, assertHealthy: value.assertHealthy }) as InstalledSourceOwnerRows;
+  const value = object(scope, ['read', 'assertHealthy', ...(Object.hasOwn(scope, 'query') ? ['query'] : [])]);
+  if (typeof value.read !== 'function' || typeof value.assertHealthy !== 'function' ||
+      Object.hasOwn(value, 'query') && typeof value.query !== 'function') return fail('owning row closure required.');
+  return Object.freeze({ read: value.read, assertHealthy: value.assertHealthy,
+    ...(Object.hasOwn(value, 'query') ? { query: value.query } : {}) }) as InstalledSourceOwnerRows;
 }
 interface ReadLifetime {
   readonly ownerRows: InstalledSourceOwnerRows | undefined;
@@ -336,7 +340,8 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
       }
       healthyLifetime(parent); parentNavigation = parent.navigation;
       if (capturedOwnerRows !== undefined && (parent.ownerRows === undefined ||
-          capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy)) {
+          capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy ||
+          capturedOwnerRows.query !== parent.ownerRows.query)) {
         return fail('child source read cannot replace its owning row closure.');
       }
       if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||

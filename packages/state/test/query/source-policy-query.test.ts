@@ -4,9 +4,9 @@ import { test } from 'node:test';
 import type { ModelName, StoredRow } from '@canlang/contracts';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { queryRecords, queryRecordsPage } from '../../src/query/engine.js';
-import { readRecordsAtSourceObservation, type ViewerGenerationCallbackReadObservation,
+import { projectInstalledSourceRow, readRecordsAtSourceObservation, type ViewerGenerationCallbackReadObservation,
   type ViewerGenerationCallbackSourceReadPolicy, type ViewerSourceReadPolicy } from '../../src/query/source-policy.js';
-import { bindInstalledSourceQueryPredicate, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
+import { bindInstalledSourceQueryPredicate, type InstalledSourceOwnerRows, type InstalledSourceQueryPredicate } from '../../src/receipt/read-policy-membership.js';
 import { StateError } from '../../src/errors.js';
 import { FenceConflictError } from '../../src/storage/port.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
@@ -192,4 +192,47 @@ test('actual data source collection lease projects before source use and expires
   assert.ok(original);
   await assert.rejects(readRecordsAtSourceObservation({ observation: original, store: s.store, model: MODEL,
     readPolicies: s.reads, policy: s.input.policy }), refuses);
+});
+
+
+test('owner source collections require the exact private control domain and never fall back to a store scan', async () => {
+  for (const mode of ['valid', 'missing', 'foreign', 'scoped', 'copied', 'concurrent', 'accessor', 'failure'] as const) {
+    const s = await setup(), domain = await s.store.query({ model: MODEL, authority: 'owner' });
+    const row = domain[0]!; let scans = 0, getters = 0, queries = 0;
+    let original: ViewerGenerationCallbackReadObservation | undefined;
+    const exactFailure = new Error('original control-domain failure');
+    const store = { ...s.store, async query() { scans++; throw new Error('owner domain cannot fall back to physical query'); } };
+    const read: SourcePolicy = { fields: s.current.fields, secretFields: ['settings.token'], grants: [{ fields: ['title'], read: async observation => {
+      original = observation;
+      const input = { observation: mode === 'copied' ? { ...observation } : observation, store,
+        model: mode === 'foreign' ? ROOT : MODEL, readPolicies: s.reads, policy: s.input.policy,
+        ...(mode === 'scoped' ? { parent: { model: PARENT, id: asId('project') } } : {}) };
+      const pending = readRecordsAtSourceObservation(input);
+      if (mode === 'concurrent') { const outcomes = await Promise.allSettled([pending, readRecordsAtSourceObservation(input)]);
+        assert.ok(outcomes.some(outcome => outcome.status === 'rejected')); return true; }
+      const values = await pending;
+      assert.equal(values[0]!.record.data.private_prompt, 'PRIVATE', 'control data remains confined to this bool decision');
+      assert.equal(Object.hasOwn(values[0]!.record.data.settings as object, 'token'), false);
+      return true;
+    } }] };
+    s.reads.set(MODEL, read);
+    const query = async (model: ModelName) => { queries++;
+      if (mode === 'failure') throw exactFailure;
+      if (model !== MODEL) throw new StateError('validation', 'Source collection needs its original committed query domain.');
+      return domain;
+    };
+    const scope: InstalledSourceOwnerRows = { read: (model, id) => s.store.load(model, id), assertHealthy() {},
+      ...(mode === 'missing' ? {} : { query }) };
+    if (mode === 'accessor') Object.defineProperty(scope, 'query', { enumerable: true, get() { getters++; return query; } });
+    const projection = projectInstalledSourceRow({ read, store, ownerRows: scope, observation: {
+      context: { ...s.input.context, membership: s.caller, memberships: s.memberships }, row,
+      revision: await s.store.readRevision(), fence: undefined,
+    } });
+    if (mode === 'valid') {
+      assert.deepEqual((await projection).record!.data, { title: row.data.title });
+      assert.equal(queries, 1); assert.ok(original);
+      await assert.rejects(readRecordsAtSourceObservation({ observation: original, store, model: MODEL, readPolicies: s.reads, policy: s.input.policy }), StateError);
+    } else await assert.rejects(projection, error => mode === 'failure' ? error === exactFailure : error instanceof StateError);
+    assert.equal(scans, 0); assert.equal(getters, 0);
+  }
 });

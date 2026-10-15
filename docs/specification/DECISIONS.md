@@ -16718,3 +16718,33 @@ crm.promote_research (26sources,0diagnostics,2creates,3queries,192 conservative
 return paths). Native field-trait default/constraint correspondence and feasible
 model-return guard consumption remain separate ready joins; Complete alone is
 no native or12/8-influence acceptance. No new language choice calls for JEV here.
+
+
+### 2026-10-15 — own the public CanLang handbook in the language repository
+
+Accepted user-requested documentation outcome: publish a complete CanLang handbook
+as a sibling of the Soda OS handbook at `/docs/canlang`. `docs/public/` owns
+user-facing content in this repository; the website owns routing and presentation
+and exports a pinned snapshot from a committed revision. Its README records the
+numbered-page, link and page-structure contract. Normative syntax, semantics and
+construct-help catalog ownership remain with their existing sources; the handbook
+adds tutorials and user instructions rather than a second help-card registry.
+CanLang remains a standalone language. Machine-readable `llms.txt` work is deferred
+by the user. No language, platform or product capability changes are implied.
+
+
+### 2026-10-15 — retain complete helper execution and scoped policy query domains
+
+Accepted implementation: source-only query preparation must not replace a complete
+owner receipt with empty effect/derive-call maps. For original nested staff policy
+queries, extend the same private owner-row lease with its captured bounded root
+domain. Stage/original guards use intermediate rows; final authority overlays actual
+later writes/inserts/removes. Preserve lease identity, source bool-only control,
+id order/archive filtering, row bounds and missing/foreign/scoped refusal; never
+scan a live store to substitute a different domain. Thirty-one State checks and
+normal State/CF builds pass. Actual original Employee declarations/policies/helper/
+CRUD/deactivate captured native journey passes1/1 in57.73s, including lazy prefix,
+field privacy, invariant/guard rollback, replay, inactive/current membership loss.
+The fixture's stored edge expectation was corrected to id-only without altering
+input admission versions. Full original mixed CRM and cross-file native source
+association remain unqualified; no permission or invocation primitive changed.
