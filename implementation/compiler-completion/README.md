@@ -194,6 +194,14 @@ source-filter factory extended to list/board with table/gallery pipeline,
 69/69, `collections` 124/124, `panels` 35/35 pass against owned rebuilt
 dists. Outcome 6 is implemented (checker + render, Codex review pending).
 
+Outcome 11 test map in parent (Lane A commit, 5/5 join positives +
+refusal surface incl. E3005 recursion): all 7 original calls die at
+`ScenarioDisclosure::Declined` via gates D1-D8 (param eligibility, void
+return profile, supplied-type/Member provenance, CallAs consumption,
+root-occurrence, member-domain for, effect-closure arm) — M1-M4 refuted by
+instrumented run; fix belongs to the disclosure slice now owned by Lane C.
+Outcome 11 stays OPEN pending that slice.
+
 Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
 statements to std EmailV1 + AlertsV1 notify lower formatted values inline
 through the shared formatter, frozen at send construction in authored
