@@ -30,8 +30,7 @@ use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEffectCallTarget, IrEventSource, IrExpr,
     IrFieldLabel, IrGuard, IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated,
     IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, IrViewUse,
-    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_async_without_derives, expr_uses_async,
-    is_structural, scalar_family,
+    ReferencedBuiltin, ScalarFamily, TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
 use crate::diagnostic::Diagnostic;
@@ -4358,39 +4357,28 @@ impl<'a> Emitter<'a> {
         format!("(() => {{ throw new Error({}); }})()", js_string(message))
     }
 
-    /// Boundary refusal for async predicates that lower through a derive
-    /// body or a capability grant: those paths keep the pinned verbatim
-    /// "Values any/all require a synchronous predicate" refusal, while
-    /// builtin-only async predicates may lower to the awaited loop.
-    /// Returns the throwing placeholder when the refusal fires.
-    fn refuse_derive_async_predicate(
-        &mut self,
+    /// Source predicates remain equivalent when an expression is extracted
+    /// into an async emitted helper. Checked calls select async execution;
+    /// installed boolean-read modes also account for their lazy record loads.
+    fn async_scoped_predicate(
+        &self,
         target: &IrCallTarget,
         args: &[TypedExpr],
-        span: Span,
-    ) -> Option<String> {
-        if self.boolean_body || self.boolean_helper {
-            return None;
+        slots: Option<&[Option<usize>]>,
+    ) -> bool {
+        if !matches!(target, IrCallTarget::Builtin { id, .. } if id == "any" || id == "all") {
+            return false;
         }
-        let IrCallTarget::Builtin { id, .. } = target else {
-            return None;
+        let predicate = match slots {
+            Some(slots) => slots
+                .get(1)
+                .copied()
+                .flatten()
+                .and_then(|index| args.get(index)),
+            None => args.get(1),
         };
-        if id != "any" && id != "all" {
-            return None;
-        }
-        let predicate = args.get(1)?;
-        let IrExpr::Lambda { body, .. } = &predicate.expr else {
-            return None;
-        };
-        if !expr_uses_async(body) || expr_async_without_derives(body) {
-            return None;
-        }
-        self.unsupported(
-            "scoped predicate",
-            "Values any/all require a synchronous predicate",
-            span,
-        );
-        Some(self.throw_expr("Values any/all require a synchronous predicate"))
+        matches!(predicate, Some(TypedExpr { expr: IrExpr::Lambda { body, .. }, .. })
+            if expr_uses_async(body) || self.boolean_body || self.boolean_helper)
     }
 
     /// Whether hook lowering is active.
@@ -6093,9 +6081,6 @@ impl<'a> Emitter<'a> {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
-        if let Some(refusal) = self.refuse_derive_async_predicate(target, args, span) {
-            return refusal;
-        }
         if let Some(call) = self.lower_native_any(target, args, None, span, result) {
             return call;
         }
@@ -6112,8 +6097,16 @@ impl<'a> Emitter<'a> {
             let query = self.lower_expr(&args[0]);
             return format!("await countQuery(c,{query})");
         }
+        let async_scoped = self.async_scoped_predicate(target, args, None);
         let parts: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
-        self.lower_call_rendered(target, &parts, args.first().map(|arg| &arg.ty), span, true)
+        self.lower_call_rendered(
+            target,
+            &parts,
+            args.first().map(|arg| &arg.ty),
+            span,
+            true,
+            async_scoped,
+        )
     }
 
     /// Source values evaluate left to right outside a synchronous capture.
@@ -6129,9 +6122,6 @@ impl<'a> Emitter<'a> {
         if args.iter().any(|arg| self.expr_formatted(arg)) {
             return self.formatted_refusal("formatted call argument", span);
         }
-        if let Some(refusal) = self.refuse_derive_async_predicate(target, args, span) {
-            return refusal;
-        }
         if let Some(call) = self.lower_native_any(target, args, Some(slots), span, result) {
             return call;
         }
@@ -6140,6 +6130,7 @@ impl<'a> Emitter<'a> {
             return refusal;
         }
         let native_count = self.native_count_query(target, args, Some(slots), span, result);
+        let async_scoped = self.async_scoped_predicate(target, args, Some(slots));
         let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         let capture = binding_ident("a", &self.binding_seq.to_string());
         self.binding_seq += 1;
@@ -6163,12 +6154,11 @@ impl<'a> Emitter<'a> {
             self.stdlib.insert("countQuery".into());
             format!("countQuery(c,{})", ordered[0])
         } else {
-            self.lower_call_rendered(target, &ordered, domain_type, span, false)
+            self.lower_call_rendered(target, &ordered, domain_type, span, false, async_scoped)
         };
         let awaited = native_first
             || native_count
-            || ((self.boolean_body || self.boolean_helper)
-                && matches!(target,IrCallTarget::Builtin{id,..} if id=="any"||id=="all"))
+            || async_scoped
             || matches!(
                 target,
                 IrCallTarget::Builtin { awaited: true, .. }
@@ -6255,17 +6245,16 @@ impl<'a> Emitter<'a> {
         domain_type: Option<&ResolvedType>,
         span: Span,
         await_result: bool,
+        async_scoped: bool,
     ) -> String {
         match target {
             IrCallTarget::Builtin { id, awaited } => {
-                if (self.boolean_body || self.boolean_helper)
-                    && matches!(id.as_str(), "any" | "all")
-                    && parts.len() == 2
-                {
+                if async_scoped && matches!(id.as_str(), "any" | "all") && parts.len() == 2 {
+                    self.stdlib.insert("ValueError".to_string());
                     let stop = if id == "any" { "true" } else { "false" };
                     let end = if id == "any" { "false" } else { "true" };
                     return format!(
-                        "{}(async($domain,$predicate)=>{{for(const $item of $domain){{const $verdict=await $predicate($item);if(typeof $verdict!==\"boolean\")throw new TypeError(\"predicate must return Boolean\");if($verdict==={stop})return {stop};}}return {end};}})({},{})",
+                        "{}(async($domain,$predicate)=>{{if(!Array.isArray($domain))throw new ValueError(\"invalid-construction\",\"{id} domain must be an array\");if(typeof $predicate!==\"function\")throw new ValueError(\"invalid-construction\",\"{id} predicate must be a function\");for(const $item of $domain){{const $verdict=await $predicate($item);if(typeof $verdict!==\"boolean\")throw new ValueError(\"invalid-construction\",\"{id} predicate must return a boolean\");if($verdict==={stop})return {stop};}}return {end};}})({},{})",
                         if await_result { "await " } else { "" },
                         parts[0],
                         parts[1]

@@ -15294,3 +15294,40 @@ rules, so their narrower earlier JEV answers are reused only as advice alongside
 this product-level rationale. Mechanical results are reused. The conversion's
 indirect first/filter expression may use the existing pure choose primitive;
 that is a bounded authoring simplification, not another enum mechanism.
+
+2026-10-15 — C02/C10: preserve ordinary async predicate helper equivalence.
+
+The bounded review produced a concrete failure: pure supplied-array predicates
+compile inline, but extracting the same expression into an ordinary named derive
+caused E6008 because the emitted helper is async. This violates reusable authoring
+without any State/authority distinction. Select the existing sequential awaited
+any/all loop from the checked predicate body and call binding, including ordinary
+helper calls; retain installed lazy-read modes where their field loading also
+requires awaits. Do not condition ordinary predicate support on use by a private
+boolean observer. Synchronous predicates still use the existing Values API.
+
+Bound arguments evaluate once in their written order before formal-slot
+selection. Await each predicate before the next element, retaining empty-domain
+results and first-verdict short-circuiting. Invalid domains and predicate values
+use the same ValueError code/message as Values any/all; original operand errors
+are neither swallowed nor reclassified. Native query/receipt recipes keep
+priority and all source/authority checks. This corrects lowering of an existing
+language rule; no new JEV choice is required.
+
+The focused complete-emission/native-facade check fails on the prior compiler and
+passes after correction. It compares inline/extracted predicates, nested helpers,
+empty and mixed domains, sequential single reads, skipped later rows, exact
+thrown-error identity, and malformed-input failures against the synchronous
+Values path. All eight membership codegen checks pass after the relevant edit;
+private source markers, caller grants and existing observer refusals remain.
+CLI build, formatting and diff checks pass. Other async filter/projection and
+observer entry-point gaps remain implementation work, not permission to reject
+otherwise equivalent helper refactoring as a language rule.
+
+Final original 24-source check: exit 10, 751 errors (725 E6008, 26 E6007),
+complete=true, omitted=0, no usable artifact. Compared with the retained
+846-error outcome-owner capture, exactly 95 scoped-predicate refusals disappear
+and none are added. The query/predicate group falls to 134. This accepts ordinary
+any/all helper equivalence at its verified scope, not completion of remaining
+filter/projection/observer profiles or full CanCRM execution. Continue those
+ready mechanisms under the active persistent goal; no push or training occurs.
