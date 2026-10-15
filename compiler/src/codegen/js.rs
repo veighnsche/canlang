@@ -4987,9 +4987,18 @@ impl<'a> Emitter<'a> {
                 for returned in &returns {
                     if let Some(read) = &returned.reference_result {
                         selection.push_str(&format!(
-                            "if($receiptReturns[0]==={}){{$receiptModelView=await readScenarioReceiptStoredReference(c,$receiptValue,{},{});await observeScenarioReceiptDependency(c,{},$receiptModelView,\"id\",{});}}",
-                            js_string(&returned.id), js_string(read.source_dependency_id.as_deref()?),
-                            js_string(&read.id), js_string(&read.model), js_string(&read.id),
+                            "if($receiptReturns[0]==={}){{",
+                            js_string(&returned.id)
+                        ));
+                        if let Some(source) = &read.source_dependency_id {
+                            selection.push_str(&format!(
+                                "$receiptModelView=await readScenarioReceiptStoredReference(c,$receiptValue,{},{});",
+                                js_string(source), js_string(&read.id),
+                            ));
+                        }
+                        selection.push_str(&format!(
+                            "await observeScenarioReceiptDependency(c,{},$receiptModelView,\"id\",{});}}",
+                            js_string(&read.model), js_string(&read.id),
                         ));
                     }
                 }
