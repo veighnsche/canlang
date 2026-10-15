@@ -635,6 +635,16 @@ describe("T16b version fulfillment (pins + requires)", () => {
     );
   });
 
+  it("requires the actual installed runtime binding consumer at exactly v1", () => {
+    const requirements = [{ capability: "cloudflare.runtime-bindings", min_version: 1 }];
+    const provided = { state: 1, values: 1 };
+    assert.throws(() => assertRequiresFulfilled(requirements, provided), /installed consumer is unavailable or incompatible/);
+    assert.throws(() => assertRequiresFulfilled(requirements, { ...provided, runtimeBindings: 0 }), /installed consumer is unavailable or incompatible/);
+    assertRequiresFulfilled(requirements, { ...provided, runtimeBindings: 1 });
+    assert.throws(() => assertRequiresFulfilled([{ capability: "cloudflare.runtime-bindings", min_version: 2 }], { ...provided, runtimeBindings: 1 }), /installed consumer is unavailable or incompatible/);
+    assert.throws(() => assertRequiresFulfilled(requirements, { ...provided, runtimeBindings: 2 }), /installed consumer is unavailable or incompatible/);
+  });
+
   it("fulfills pin-mapped requires exactly; unknown ids and drift reject", () => {
     const provided = { state: 1, values: 1 };
     assertRequiresFulfilled([], provided);

@@ -27,7 +27,7 @@ sh install-local.sh
 The installer verifies the bundled archive checksum, installs under `~/.can`,
 and configures your shell PATH. Open a new terminal, then run `can --version`.
 You do not need to install Rust, Node, Bun or npm packages. The complete bundle
-includes the local Worker engine. Chrome and Playwright are excluded.
+includes the local Worker engine. Chrome, Chromium and Playwright are excluded.
 For browser automation, download and checksum-verify the separate
 `can-browser-development-tools-VERSION.tar.gz` release archive, extract it into
 an empty directory, and run `sh install-browser-tools.sh` there after installing
@@ -37,11 +37,14 @@ lives outside the core installation; ordinary preview and inline examples do not
 need it. Required browser acceptance fails with installation guidance when the
 add-on is absent.
 
-Release status: the macOS arm64 bundle is locally verified. Public download
+Release status: macOS arm64 and Linux x64 bundles are locally verified. Linux
+passed all 21 installed checks on Rocky Linux 10.2 x86_64 with glibc 2.39; this
+local archive requires glibc 2.39 or newer. Other Linux distributions and CPU
+generations are not qualified. Public download
 hosting and Homebrew publication are still pending. The checkout's generated
 bundle can be installed with `sh output/install/install-local.sh`; this command
-uses prebuilt files and performs no source build. Linux x64 qualification is
-prepared for Ubuntu 24.04 CI and has not run here. See the repository's
+uses prebuilt files and performs no source build. The Ubuntu 24.04 release CI
+job remains unexecuted here. See the repository's
 [installation reference](https://github.com/veighnsche/canlang/blob/main/docs/install.md)
 for the exact measured sizes and current release scope.
 

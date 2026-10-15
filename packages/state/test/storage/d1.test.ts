@@ -383,6 +383,72 @@ describe('d1 adapter proofs', () => {
 });
 
 
+it('rechecks concurrently assigned owner pins after null or missing pin reads', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'can-owner-pin-read-race-'));
+  const host = new Miniflare({ modules: true,
+    script: 'export default { fetch() { return new Response("ok"); } }',
+    d1Databases: { NULL_SAME: 'null-same', NULL_OWNER: 'null-owner', NULL_APP: 'null-app',
+      MISSING_SAME: 'missing-same', MISSING_OWNER: 'missing-owner', MISSING_APP: 'missing-app' },
+    d1Persist: directory });
+  try {
+    const requested = { app: 'shop', owner: 'team-a' };
+    for (const [name, initialPinTable, concurrentScope] of [
+      ['NULL_SAME', true, requested],
+      ['NULL_OWNER', true, { app: 'shop', owner: 'team-b' }],
+      ['NULL_APP', true, { app: 'other-app', owner: 'team-a' }],
+      ['MISSING_SAME', false, requested],
+      ['MISSING_OWNER', false, { app: 'shop', owner: 'team-b' }],
+      ['MISSING_APP', false, { app: 'other-app', owner: 'team-a' }],
+    ] as const) {
+      const database = await host.getD1Database(name);
+      await ensureSchema(database);
+      if (initialPinTable) await database.exec('CREATE TABLE state_owner_pin (id INTEGER PRIMARY KEY CHECK(id = 1), app TEXT NOT NULL, owner TEXT NOT NULL)');
+      const concurrent = createD1OwnerRouter({ resolveBinding: scope => ({ ...scope, db: database, initializeFresh: true }) });
+      let assigned = false;
+      const inspected = new Proxy(database, { get(target, key) {
+        if (key === 'prepare') return (sql: string) => {
+          const statement = target.prepare(sql);
+          const selected = initialPinTable ? sql === 'SELECT app, owner FROM state_owner_pin WHERE id = 1' :
+            sql.startsWith("SELECT name FROM sqlite_master WHERE type = 'table' AND substr(name");
+          if (!selected) return statement;
+          return new Proxy(statement, { get(prepared, method) {
+            const value = Reflect.get(prepared, method);
+            if (method === (initialPinTable ? 'first' : 'all')) return async (...args: unknown[]) => {
+              const result = await Reflect.apply(value, prepared, args);
+              if (!assigned) {
+                if (initialPinTable) assert.equal(result, null);
+                assigned = true;
+                const store = await concurrent.ownerScopedStoragePort(concurrentScope);
+                // A newly assigned worker can already have retained State data.
+                await store.commit(makeBatch(1, { writes: [{ kind: 'insert', model: asModel('shop.Doc'),
+                  row: makeRow({ id: 'concurrent' }) }] }));
+              }
+              return result;
+            };
+            return typeof value === 'function' ? value.bind(prepared) : value;
+          } });
+        };
+        const value = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      } });
+      const router = createD1OwnerRouter({ resolveBinding: scope => ({ ...scope, db: inspected, initializeFresh: true }) });
+      if (concurrentScope.app === requested.app && concurrentScope.owner === requested.owner) {
+        const store = await router.ownerScopedStoragePort(requested);
+        assert.equal(await store.readRevision(), 2);
+        assert.notEqual(await store.load(asModel('shop.Doc'), asId('concurrent')), null);
+      } else {
+        await assert.rejects(router.ownerScopedStoragePort(requested), /persisted app\/owner pin mismatch/);
+      }
+      assert.equal(assigned, true);
+      assert.deepEqual(await database.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first(), concurrentScope);
+      assert.equal(await createD1Storage(database).readRevision(), 2);
+    }
+  } finally {
+    await host.dispose();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 it('routes fresh pinned owner D1 stores and refuses aliases and unassigned legacy state', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'can-owner-d1-'));
   const options = {
