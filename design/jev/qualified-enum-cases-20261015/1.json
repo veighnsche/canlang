@@ -1,0 +1,53 @@
+{
+  "request": {
+    "model": "jev-latest",
+    "state": {
+      "goal": "Close original CanRent16 while preserving current canonical operation IDs, business outcome codes, bare-name binding precedence, exact enum domains, permissions and evaluation/failure order. Select the smallest complete language/source approach; advice only, not implementation proof.",
+      "facts": [
+        "Original frozen 12-source compile has16 CanRent errors. Five are explicit incompatibility between Resource.price_unit enum(hour,day) and imported Entitlement.unit=Benefit.unit enum(hour,day,visit): assignments195/207 and equality572/1274/1288. Current checker requires exact anonymous case sets for assignment/equality. A separate pure hour/day to Entitlement.unit converter is proposed; do not widen either domain.",
+        "Eleven are collisions: local scenario hold at426 blocks enum case hold at923/1009 (ReservationOfferOutcome.kind); exported scenario no_show at1081 blocks Booking.status case no_show at998/1084/1090/1191/1224/1278/1355/1356/1519. no_show is imported by fulfillment at1732. Operation IDs are checked package+declared name, so renaming changes API identities even if labels/workflows and all known source references migrate.",
+        "DESIGN281 says visible lexical binding wins before expected enum case. types.rs13840+ obeys it. Existing compiled local-shadowing tests require preserving resolved values, not replacing them with string cases. Current checker has builtin-only contextual enum exception; scenario bindings are real operations and must not gain that exception.",
+        "Checked explicit member lookup is not already enum qualification: types.rs14158 type_member routes a model symbol to model_member14698, which admits only enabled create/update/delete. Contract/event symbols are not value receivers (symbol_value_type13990). member_lookup has no enum case projection. Existing type annotations permit Model.field and Contract.field to reuse checked field types, but this is a separate type position. No supported generic enum cast/constructor or qualified enum-case expression was found; quoted case claiming15320 is only exact standard callback domains, not ordinary enums.",
+        "Parser already parses dotted member expressions. Bare enum expressions currently lower to ordinary string IrExpr::Text after checked resolved_cases annotation (ir.rs6169). A new explicit checked case could lower the same way with no runtime API, getter, record read, query, grant or wire change. Need explicit checker provenance for the complete expression, not arbitrary stringification.",
+        "Finite proposed syntax A: Booking.status.no_show and ReservationOfferOutcome.kind.hold, using a visible resolved model/contract declaration plus actual singular nonnullable enum field plus existing exact case. Normal import alias/package visibility and lexical root shadowing remain authoritative. Do not infer type paths from strings, accept arbitrary records, or reinterpret existing bound values as enum cases. Missing field/case, nonenum field, wrong owner/unimported owner and bound-value roots must refuse or retain ordinary member meaning.",
+        "User requires preserving original canonical operation IDs; no implementation authorized yet. Existing source renaming is technically available but violates that outcome unless user accepts an API migration. Holding source refused preserves safety and IDs but does not close original16. No alternative existing typed construction has been verified, so none is represented as an available API."
+      ],
+      "costs_and_limits": {
+        "A": "Adds one checked expression meaning over existing member grammar; touches resolution/type provenance, IR constant lowering, docs and focused native tests. Must avoid ambiguity with runtime field navigation, preserve lexical root bindings, and maintain import visibility. Does not introduce enum subtyping or a new runtime carrier.",
+        "B": "No language feature; rename hold/no_show scenario APIs and migrate all known source/import/form/call/examples references, retaining labels and bodies. Can close case collisions using bare cases, but public canonical operation IDs change and external consumers may break.",
+        "C": "Retain exact refusal, defer original Rent qualification until an explicit-case design is approved; no new parser/runtime behavior and no API migration, but required original workflow remains blocked."
+      }
+    },
+    "questions": {
+      "resolution": {
+        "type": "choice",
+        "instructions": "Which option is the smallest complete approach for the stated original CanRent outcome, considering verified current syntax, compatibility, bounded implementation cost, and all required preservation constraints equally?",
+        "criteria": {
+          "qualified_case": "A: implement explicit checked declaration.field.case expression using existing member grammar, keep operation IDs and bare binding precedence; apply separate explicit unit converter.",
+          "rename_api": "B: rename colliding scenario operations and fully migrate known references, accepting canonical API identity changes; apply separate explicit unit converter.",
+          "hold_refusal": "C: keep current typing/source unchanged and explicitly defer this required qualification rather than introduce syntax or change IDs."
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "resolution": {
+        "type": "choice",
+        "choice": "qualified_case",
+        "confidence": 0.95,
+        "probabilities": {
+          "qualified_case": 0.97,
+          "rename_api": 0.0,
+          "hold_refusal": 0.03
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1350,
+      "output_tokens": 43
+    }
+  },
+  "uncertainty": "Advice only. No implementation or native evaluation performed. Explicit-case expression/root ambiguity and source default/converter typing require focused tests; no existing generic enum constructor was verified."
+}

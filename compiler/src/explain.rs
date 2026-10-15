@@ -474,7 +474,7 @@ const CATALOG: [CodeInfo; 119] = [
         code: "E2013",
         title: "unknown-member",
         severity: Severity::Error,
-        explanation: "Member access names no field of the base record (or no member of the base value): models, contracts, events, preferences and query rows expose only their declared fields. There is no fallback search through unrelated records. Check the spelling against the declaration.",
+        explanation: "Member access names no field of the base record (or no member of the base value): models, contracts, events, preferences and query rows expose only their declared fields. Explicit Owner.field.case enum values require a visible model/contract declaration, a singular nonnullable enum field, and one of its declared cases. There is no fallback search through unrelated records. Check the spelling against the declaration.",
         example_valid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n scenario s(t:Todo) by=members\n  require t.title != \"\"\n  do\n   let x = 1\nThen\n",
         example_invalid: "app T\nGiven\n Todo { title:text }\n policy Todo read=members\nWhen\n scenario s(t:Todo) by=members\n  require t.nope == 1\n  do\n   let x = 1\nThen\n",
     },
