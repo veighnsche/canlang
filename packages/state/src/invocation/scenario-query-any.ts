@@ -100,7 +100,8 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
   if (query === undefined || query.parent !== undefined || query.order.length !== 0 || query.limit !== null ||
       query.archived !== 'exclude' ||
       !same(input.dependencyIds, query.dependencies.map(dependency => dependency.id))) return fail('exact root predicate query and ordered CONTROL census required.');
-  if (Object.hasOwn(input, 'sourceCall')) checkPredicateSourceCall(bound, query, input.sourceCall, sources);
+  const ownerRequire = Object.hasOwn(input, 'sourceCall');
+  if (ownerRequire) checkPredicateSourceCall(bound, query, input.sourceCall, sources);
   else if (!same(query.source, bound.plan.source)) return fail('imported predicate requires its actual owner source-call association.');
   const model = bound.artifactModels.get(query.model), canonical = bound.canonicalModels.find(model => model.name === query.model);
   if (model === undefined || canonical === undefined || model.parent !== undefined) return fail('declared root query model required.');
@@ -127,7 +128,9 @@ function bindPredicateAny(bound: Bound, metadata: Extract<ScenarioQueryAnyMetada
     }
   }
   const consumers = bound.plan.returns.filter(returned => returned.influences.some(influence => influence.queryId === query.id));
-  if (consumers.length === 0 || bound.plan.returns.some(returned => returned.projection?.queryId === query.id) ||
+  // A verified owning Require consumes execution authority independently of
+  // result disclosure. Legacy metadata still requires an actual return consumer.
+  if (consumers.length === 0 && !ownerRequire || bound.plan.returns.some(returned => returned.projection?.queryId === query.id) ||
       consumers.some(returned => returned.dependencies.some(dependency => dependency.queryId === query.id && dependency.role === 'data'))) return fail('predicate requires actual CONTROL influence without projection.');
   const profile = deepFreeze({ kind: 'predicate' as const, queryId: query.id, dependencyIds: [...metadata.dependencyIds],
     model: query.model, source: query.source, query: copyScenarioFileData(query) as ScenarioReceiptQueryPlan });
