@@ -167,15 +167,22 @@ pub fn emit(
             )
         });
     let source_preparation = needs_source_context.then(|| {
-        scenario_decisions::FreshSourceContext::prepare(program, &ir, sources.db, sources.catalog)
+        scenario_decisions::FreshSourceContext::prepare_queries(
+            program,
+            &ir,
+            sources.db,
+            sources.catalog,
+        )
     });
-    let source_context = source_preparation
+    let query_context = source_preparation
         .as_ref()
         .and_then(|result| result.as_ref().ok());
+    // Existing policy/membership consumers retain their strict full-IR gate.
+    let source_context = query_context.filter(|context| !context.has_ir_errors());
     let query_preparation = sources
         .options
         .native_scenario_receipts
-        .then(|| source_context.map(scenario_queries::PreparedQuerySources::from_context))
+        .then(|| query_context.map(scenario_queries::PreparedQuerySources::from_context))
         .flatten();
     let feasibility = query_preparation
         .as_ref()
@@ -236,7 +243,10 @@ pub fn emit(
             .as_ref()
             .expect("native source preparation was attempted")
         {
-            Ok(context) => send_guards::prepare_with_context(context),
+            Ok(context) if !context.has_ir_errors() => send_guards::prepare_with_context(context),
+            Ok(_) => Err(send_guards::source_preparation_gap(
+                scenario_decisions::SourcePreparationGap::Ir,
+            )),
             Err(error) => Err(send_guards::source_preparation_gap(*error)),
         }
     });

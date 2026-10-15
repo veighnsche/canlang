@@ -189,8 +189,9 @@ fn prepare_owner(
         fresh,
         ir.items.get(owner.id.0 as usize)?,
     )?;
-    let sites =
-        super::scenario_decisions::collect_decision_sources(program, ir, owner, db, catalog)?;
+    let sites = super::scenario_decisions::collect_decision_sources_with_fresh(
+        program, ir, owner, db, catalog, fresh,
+    )?;
     // Accepted bounded native profiles keep their original transport inventory.
     // Projection is needed only for the demonstrated oversized source closure
     // or a nullable stored reference narrowed by its compulsory requirements.

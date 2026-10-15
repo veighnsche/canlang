@@ -30,9 +30,119 @@ pub(super) struct PreparedQuerySources<'a> {
     db: &'a SourceDb,
     catalog: Option<&'a Catalog>,
     fresh: std::borrow::Cow<'a, IrProgram>,
-    has_diagnostics: bool,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
     returns: Option<super::scenario_feasibility::PreparedRequireReturns<'a>>,
     source_context: Option<&'a super::scenario_decisions::FreshSourceContext<'a>>,
+}
+
+/// Backend gaps remain diagnostics on the complete artifact. They cannot stand
+/// in for missing correspondence inside this owner's original source closure.
+fn checked_query_diagnostics(
+    program: &CheckedProgram,
+    owner: &IrItem,
+    diagnostics: &[crate::diagnostic::Diagnostic],
+) -> Option<()> {
+    use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
+    let source = program
+        .scenario_disclosures()
+        .get(&owner.id)?
+        .source_facts()?;
+    let mut spans = vec![owner.span];
+    let mut declaration = |id: SymbolId| -> Option<()> {
+        spans.push(program.symbols.get(id.0 as usize)?.span);
+        Some(())
+    };
+    fn type_declarations(
+        ty: &ResolvedType,
+        declaration: &mut impl FnMut(SymbolId) -> Option<()>,
+    ) -> Option<()> {
+        match ty {
+            ResolvedType::Record { symbol, .. } | ResolvedType::Message(symbol) => {
+                declaration(*symbol)?
+            }
+            ResolvedType::Enum {
+                owner: Some(owner), ..
+            } => declaration(*owner)?,
+            ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
+                type_declarations(element, declaration)?
+            }
+            _ => {}
+        }
+        Some(())
+    }
+    for parameter in &source.parameters {
+        declaration(parameter.parameter)?;
+        type_declarations(&parameter.ty, &mut declaration)?;
+        if let Some(alias) = parameter.constraints.as_ref().and_then(|value| value.alias) {
+            declaration(alias)?;
+        }
+    }
+    for call in &source.calls {
+        declaration(call.operation)?;
+    }
+    for site in source.decision_sites.as_ref()? {
+        for call in &site.calls {
+            if let CheckedDecisionCallTarget::DeriveFn(id) = call.target {
+                declaration(id)?;
+            }
+            for frame in &call.chain {
+                declaration(frame.derive)?;
+            }
+            for (id, _) in &call.defaults {
+                declaration(*id)?;
+            }
+        }
+    }
+    for query in source.queries.as_ref()? {
+        declaration(query.model)?;
+    }
+    for schema in source.stored_contracts.iter().flatten() {
+        declaration(schema.id)?;
+        if let Some(parent) = schema.parent {
+            declaration(parent)?;
+        }
+        for field in &schema.fields {
+            declaration(field.id)?;
+            type_declarations(&field.ty, &mut declaration)?;
+            if let Some(alias) = field.constraints.as_ref().and_then(|value| value.alias) {
+                declaration(alias)?;
+            }
+            if let Some(reuse) = field.reuse {
+                declaration(reuse)?;
+            }
+        }
+    }
+    for create in source.creates.iter().flatten() {
+        declaration(create.model)?;
+        for field in &create.definition.fields {
+            declaration(field.field)?;
+            type_declarations(&field.ty, &mut declaration)?;
+            if let Some(alias) = field.constraints.as_ref().and_then(|value| value.alias) {
+                declaration(alias)?;
+            }
+            for (data, _, _, _, _) in &field.modifier_sources {
+                declaration(data.field)?;
+            }
+        }
+    }
+    let overlaps = |a: Span, b: Span| a.file == b.file && a.start <= b.end && b.start <= a.end;
+    for diagnostic in diagnostics {
+        if diagnostic.severity != crate::diagnostic::Severity::Error {
+            continue;
+        }
+        if !matches!(diagnostic.code, "E6007" | "E6008")
+            || spans.iter().any(|span| {
+                overlaps(*span, diagnostic.primary)
+                    || diagnostic
+                        .related
+                        .iter()
+                        .any(|related| overlaps(*span, related.span))
+            })
+        {
+            return None;
+        }
+    }
+    Some(())
 }
 
 pub(super) enum CollectedQueryPlan {
@@ -56,10 +166,9 @@ impl<'a> PreparedQuerySources<'a> {
     ) -> Option<Self> {
         program.validate_cohort(db, catalog).ok()?;
         let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-        let returns = if diagnostics
-            .iter()
-            .any(|d| d.severity == crate::diagnostic::Severity::Error)
-        {
+        let returns = if diagnostics.iter().any(|d| {
+            d.severity == crate::diagnostic::Severity::Error && !matches!(d.code, "E6007" | "E6008")
+        }) {
             None
         } else {
             super::scenario_feasibility::prepare_with_fresh(program, ir, db, catalog, &fresh)
@@ -70,7 +179,7 @@ impl<'a> PreparedQuerySources<'a> {
             db,
             catalog,
             fresh: std::borrow::Cow::Owned(fresh),
-            has_diagnostics: !diagnostics.is_empty(),
+            diagnostics,
             returns,
             source_context: None,
         })
@@ -89,7 +198,7 @@ impl<'a> PreparedQuerySources<'a> {
             db,
             catalog,
             fresh: std::borrow::Cow::Borrowed(context.fresh()),
-            has_diagnostics: context.has_ir_diagnostics(),
+            diagnostics: context.ir_diagnostics().to_vec(),
             returns: super::scenario_feasibility::prepare_with_fresh(
                 program,
                 ir,
@@ -107,7 +216,13 @@ impl<'a> PreparedQuerySources<'a> {
         self.returns.as_ref()
     }
 
+    fn checked_owner(&self, owner: &IrItem) -> Option<()> {
+        checked_query_diagnostics(self.program, owner, &self.diagnostics)?;
+        same_scenario_semantics(self.program, self.ir, &self.fresh, owner)
+    }
+
     fn decisions(&self, owner: &IrItem) -> Option<()> {
+        self.checked_owner(owner)?;
         if let Some(context) = self.source_context {
             super::scenario_decisions::collect_decision_sources_with_context(context, owner)?;
         } else {
@@ -359,15 +474,11 @@ fn serialize_query_any_prepared(
         return None;
     }
     let fresh = if let Some(prepared) = prepared {
-        if prepared.has_diagnostics {
-            return None;
-        }
+        prepared.checked_owner(owner)?;
         std::borrow::Cow::Borrowed(prepared.fresh.as_ref())
     } else {
         let (fresh, diagnostics) = super::ir::build(program, db, catalog);
-        if !diagnostics.is_empty() {
-            return None;
-        }
+        checked_query_diagnostics(program, owner, &diagnostics)?;
         std::borrow::Cow::Owned(fresh)
     };
     same_scenario_semantics(program, ir, &fresh, owner)?;
@@ -386,7 +497,9 @@ fn serialize_query_any_prepared(
         if let Some(prepared) = prepared {
             prepared.decisions(owner)?;
         } else {
-            super::scenario_decisions::serialize_decision_sources(program, ir, owner, db, catalog)?;
+            super::scenario_decisions::serialize_decision_sources_with_fresh(
+                program, ir, owner, db, catalog, &fresh,
+            )?;
         }
         use crate::analysis::scenario_disclosure::{
             CheckedDecisionCallTarget, CheckedDecisionStage,
@@ -694,9 +807,7 @@ fn collect_complete_query_receipt_prepared(
                 return None;
             }
         }
-        if prepared.has_diagnostics {
-            return None;
-        }
+        prepared.checked_owner(owner)?;
         let fresh = prepared.fresh.as_ref();
         let mut native_returns = Vec::new();
         let selected_returns = prepared.returns.as_ref()?.returns(ir, owner.id)?;
@@ -760,9 +871,7 @@ fn collect_complete_query_receipt_prepared(
     let [query] = queries.as_slice() else {
         return None;
     };
-    if prepared.has_diagnostics {
-        return None;
-    }
+    prepared.checked_owner(owner)?;
     let fresh = prepared.fresh.as_ref();
     for disclosure in [
         original,
@@ -1171,9 +1280,7 @@ fn checked_inline_selection_query_plan(
     prepared: &PreparedQuerySources<'_>,
 ) -> Option<ReceiptDisclosurePlan> {
     prepared.decisions(owner)?;
-    if prepared.has_diagnostics {
-        return None;
-    }
+    prepared.checked_owner(owner)?;
     let fresh = prepared.fresh.as_ref();
     same_scenario_semantics(program, ir, fresh, owner)?;
     let source = super::scenario_calls::checked_source(ir, owner, db)?;
@@ -1373,9 +1480,7 @@ fn checked_transcript_query_plan(
     use crate::analysis::scenario_disclosure::{DisclosureIntrinsicKind, ScenarioDisclosure};
     use crate::analysis::{ResolvedType, Scalar};
     prepared.decisions(owner)?;
-    if prepared.has_diagnostics {
-        return None;
-    }
+    prepared.checked_owner(owner)?;
     let fresh = prepared.fresh.as_ref();
     same_scenario_semantics(program, ir, fresh, owner)?;
     same_scenario_semantics(program, ir, fresh, ir.items.get(owner.id.0 as usize)?)?;
@@ -2661,6 +2766,7 @@ mod helper_any_plan_tests {
             };
             let mut db = SourceDb::new();
             let file = db.add("mixed-query.can".into(), source);
+            let sibling = db.add("unsupported-sibling.can".into(), "app BtnNoRow\nGiven\n Todo {title:text}\n policy Todo read=public\nWhen\n crud Todo by=public fields=title\n scenario reopen(task:Todo) by=public label=\"Reopen\"\n  do let supplied=task\nThen\n page / title=\"T\"\n  button action=reopen\n".into());
             let root = Path::new(env!("CARGO_MANIFEST_DIR"));
             let path = root
                 .parent()
@@ -2674,18 +2780,41 @@ mod helper_any_plan_tests {
             });
             assert!(diagnostics.is_empty(), "{diagnostics:?}");
             let catalog = catalog.unwrap();
-            let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+            let (program, diagnostics) = check_program(&db, &[file, sibling], Some(&catalog));
             assert!(diagnostics.is_empty(), "{diagnostics:?}");
             let (ir, diagnostics) = super::super::ir::build(&program, &db, Some(&catalog));
-            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "E6008"
+                        && diagnostic.primary.file == sibling),
+                "{diagnostics:?}"
+            );
+            assert!(
+                super::super::scenario_decisions::FreshSourceContext::prepare(
+                    &program,
+                    &ir,
+                    &db,
+                    Some(&catalog)
+                )
+                .is_err(),
+                "strict consumers retain whole-IR refusal"
+            );
+            let context = super::super::scenario_decisions::FreshSourceContext::prepare_queries(
+                &program,
+                &ir,
+                &db,
+                Some(&catalog),
+            )
+            .expect("nongrant query source association retains unrelated diagnostics");
+            assert!(context.has_ir_diagnostics());
             let owner = ir
                 .items
                 .iter()
                 .find(|item| item.canonical == "QueryConsumer.pick")
                 .unwrap();
             let module = super::super::js::module_path("QueryConsumer");
-            let prepared =
-                PreparedQuerySources::standalone(&program, &ir, &db, Some(&catalog)).unwrap();
+            let prepared = PreparedQuerySources::from_context(&context);
             let selected = prepared
                 .returns
                 .as_ref()
@@ -2700,6 +2829,44 @@ mod helper_any_plan_tests {
             let plan = prepared
                 .plan(owner, &module)
                 .expect("source-owned mixed plan");
+            // Errors intersecting the owner, actual imported helper, or schema
+            // remain refusals even if the unaffected lowered values look equal.
+            for canonical in [
+                "QueryConsumer.pick",
+                if renamed {
+                    "People.permitted"
+                } else {
+                    "People.allowed"
+                },
+                "QueryConsumer.Input",
+            ] {
+                let affected = program
+                    .symbols
+                    .iter()
+                    .find(|symbol| symbol.canonical == canonical)
+                    .unwrap();
+                let mut blocked = PreparedQuerySources::from_context(&context);
+                blocked
+                    .diagnostics
+                    .push(crate::diagnostic::Diagnostic::error(
+                        "E6008",
+                        "affected checked producer unavailable".into(),
+                        affected.span,
+                    ));
+                assert!(blocked.plan(owner, &module).is_none(), "{canonical}");
+            }
+            let mut blocked = PreparedQuerySources::from_context(&context);
+            blocked
+                .diagnostics
+                .push(crate::diagnostic::Diagnostic::error(
+                    "E6006",
+                    "missing checked metadata".into(),
+                    Span::new(sibling, 0, 0),
+                ));
+            assert!(
+                blocked.plan(owner, &module).is_none(),
+                "unchecked gaps remain global refusals"
+            );
             assert_eq!(plan.queries.len(), 3);
             assert_eq!(plan.returns.len(), selected.len());
             for (returned, original) in plan.returns.iter().zip(&selected) {
@@ -2787,6 +2954,28 @@ mod helper_any_plan_tests {
                     "source mutant {mutation}"
                 );
             }
+            let mut changed_schema = ir.clone();
+            let field = changed_schema
+                .items
+                .iter_mut()
+                .find(|item| item.canonical == "QueryConsumer.Input.title")
+                .unwrap();
+            let IrItemKind::Field { ty, .. } = &mut field.kind else {
+                panic!("Contract field")
+            };
+            *ty = IrType::Known(ResolvedType::Scalar(crate::analysis::Scalar::Bool));
+            assert!(
+                checked_query_plan(
+                    &program,
+                    &changed_schema,
+                    &changed_schema.items[owner.id.0 as usize],
+                    &db,
+                    Some(&catalog),
+                    &module
+                )
+                .is_none(),
+                "actual consumed schema mutation refuses source association"
+            );
             let mut changed = ir.clone();
             let helper = changed
                 .items
