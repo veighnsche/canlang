@@ -49,7 +49,7 @@ import {
 import { RELEASE_VERSION, assertLockstep, readLockstepInputs } from "../release/stamp.js";
 
 export const PLATFORM_CLI_NAME = "can-platform";
-export const PLATFORM_CLI_VERSION = "0.1.0";
+export const PLATFORM_CLI_VERSION = "0.1.1";
 
 export const COMMANDS = ["run", "test", "build", "deploy", "activate", "docs"] as const;
 export type PlatformCommand = (typeof COMMANDS)[number];

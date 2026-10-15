@@ -29,7 +29,7 @@
     },
     "packages/cloudflare": {
       "name": "@canlang/cloudflare",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "bin": {
         "can-platform": "./dist/cli/platform.js",
         "can-dev": "./dist/dev/control-cli.js",
@@ -69,7 +69,7 @@
     },
     "packages/contracts": {
       "name": "@canlang/contracts",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@types/node": "24.19.1",
         "vitest": "^3.2.4",
@@ -97,7 +97,7 @@
     },
     "packages/identity": {
       "name": "@canlang/identity",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/contracts": "workspace:*",
         "@scure/base": "2.4.0",
@@ -110,7 +110,7 @@
     },
     "packages/interfaces": {
       "name": "@canlang/interfaces",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/contracts": "workspace:*",
         "@canlang/identity": "workspace:*",
@@ -138,7 +138,7 @@
     },
     "packages/state": {
       "name": "@canlang/state",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/contracts": "workspace:*",
         "@canlang/files": "workspace:*",
@@ -155,7 +155,7 @@
     },
     "packages/stdlib": {
       "name": "@canlang/stdlib",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/state": "workspace:*",
         "@canlang/values": "workspace:*",
@@ -167,7 +167,7 @@
     },
     "packages/testkit": {
       "name": "@canlang/testkit",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/cloudflare": "workspace:*",
         "@canlang/contracts": "workspace:*",
@@ -187,7 +187,7 @@
     },
     "packages/ui": {
       "name": "@canlang/ui",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/contracts": "workspace:*",
         "@canlang/values": "workspace:*",
@@ -203,7 +203,7 @@
     },
     "packages/values": {
       "name": "@canlang/values",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/contracts": "workspace:*",
       },
@@ -232,7 +232,7 @@
     },
     "packages/work-kernel": {
       "name": "@canlang/work-kernel",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@canlang/contracts": "workspace:*",
       },
