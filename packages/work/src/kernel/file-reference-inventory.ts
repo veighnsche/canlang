@@ -34,6 +34,7 @@ const dispatch = {
   requestFrom: optionalString, requestApp: optionalString, requestOwner: optionalString,
   mailRecipientUser: optionalString, mailRecipientTeam: optionalString, mailRecipientEmail: optionalString,
   originalIntentId: optionalString, observationStartedAtMs: optionalNumber, observationDeadlineMs: optionalNumber,
+  queuePayload: Object.freeze({ ...deferred, optional: true }), queuePayloadOrigin: payloadOrigin('queuePayload'),
   sourceGuard: Object.freeze({ ...deferred, optional: true }), filePayloadOrigin: payloadOrigin('sourceGuard'),
 } satisfies Fields<DispatchRowData>;
 const occurrence = { occurrenceId: string, status: string, result, code: nullableString,

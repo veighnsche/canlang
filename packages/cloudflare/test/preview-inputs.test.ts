@@ -12,8 +12,13 @@ vi.mock('node:module', async importOriginal => {
   return { ...actual, createRequire: (from: string | URL) => {
     const real = actual.createRequire(from);
     return { resolve: (specifier: string) => {
-      if (specifier === '@canlang/testkit' || specifier.startsWith('@canlang/testkit/') ||
-          ['@playwright/test', 'playwright', 'playwright-core'].some(name=>specifier===name || specifier.startsWith(`${name}/`))) return real.resolve(specifier);
+      if (specifier === 'esbuild' || specifier.startsWith('@esbuild/') || specifier === '@canlang/testkit' || specifier.startsWith('@canlang/testkit/') ||
+          ['@playwright/test', 'playwright', 'playwright-core'].some(name=>specifier===name || specifier.startsWith(`${name}/`))) {
+        if (specifier === '@canlang/testkit' && String(from).endsWith('/src/dev/preview-inputs.ts')) {
+          return actual.createRequire(join(fixture.root, 'bundled/package.json')).resolve(specifier);
+        }
+        return real.resolve(specifier);
+      }
       // Required producers are finite installed fixtures; optional Testkit is
       // resolved by Node from the actual invoking application's node_modules.
       const request = specifier.replace(/\/package\.json$/, '');
@@ -22,7 +27,7 @@ vi.mock('node:module', async importOriginal => {
     } };
   } };
 });
-import { installedOwnedSourceInputs, installedPortableBundleInputs } from '../src/dev/preview-inputs.js';
+import { assertInstalledCatalog, bundlerExecutableInputs, compilerSourceInputs, installedLocalPreviewInputInventory, installedOwnedSourceInputs, installedPortableBundleInputs } from '../src/dev/preview-inputs.js';
 
 // Run the actual installed Node module and its content-qualified imports in
 // one native loader; Vitest's transformed export accessors are not host evidence.
@@ -41,7 +46,7 @@ async function acquisitionCalls(leaf: string): Promise<number> {
 }
 
 let root = '';
-afterEach(async () => { if (root) await rm(root, { recursive: true, force: true }); });
+afterEach(async () => { vi.unstubAllEnvs(); if (root) await rm(root, { recursive: true, force: true }); });
 async function prepare() {
   root = await realpath(await mkdtemp(join(tmpdir(), 'can-preview-inputs-')));
   fixture.root = root;
@@ -80,6 +85,69 @@ it('absent optional Testkit admits inventory and a later installation changes it
   await writeFile(join(kit, 'dist', 'index.js'), 'export {};');
   expect(installedPortableBundleInputs(root).some(input => input.name === '@canlang/testkit@1.0.0/dist/index.js')).toBe(true);
   expect(installedOwnedSourceInputs(root).some(input => input.name === 'source:@canlang/testkit@1.0.0/src/index.ts')).toBe(true);
+});
+
+it('captures bundled Testkit when the application has none and permits packages without source', async () => {
+  await prepare();
+  const kit = join(root, 'bundled/node_modules/@canlang/testkit');
+  await mkdir(join(kit, 'dist'), { recursive: true });
+  await writeFile(join(kit, 'package.json'), JSON.stringify({ name: '@canlang/testkit', version: '1.0.0', main: './dist/index.js' }));
+  await writeFile(join(kit, 'dist/index.js'), 'export {};');
+  expect(installedPortableBundleInputs(root).some(input => input.name === '@canlang/testkit@1.0.0/dist/index.js')).toBe(true);
+  expect(installedOwnedSourceInputs(root)).toEqual([]);
+  const values = join(root, 'required', encodeURIComponent('@canlang/values'), 'dist');
+  await writeFile(join(values, 'catalog.json'), '{}');
+  await mkdir(join(values, 'src'));
+  await writeFile(join(values, 'src/catalog.js'), 'export {};');
+  expect(() => assertInstalledCatalog(root, join(values, 'catalog.json'))).not.toThrow();
+});
+
+it('admits only the manifest-owned packaged compiler without checkout source', async () => {
+  await prepare();
+  await mkdir(join(root, 'libexec'));
+  await writeFile(join(root, 'libexec/can'), 'packaged compiler');
+  await writeFile(join(root, 'manifest.json'), JSON.stringify({ kind: 'can-install' }));
+  await mkdir(join(root, 'docs/specification'), { recursive: true });
+  await writeFile(join(root, 'docs/specification/GRAMMAR.md'), 'installed grammar');
+  for (const name of ['values', 'ui']) {
+    await mkdir(join(root, 'packages', name, 'src'), { recursive: true });
+    await writeFile(join(root, 'packages', name, 'src/catalog.ts'), 'export {};');
+  }
+  await mkdir(join(root, 'application'));
+  const previous = process.env.CAN_INSTALL_ROOT;
+  process.env.CAN_INSTALL_ROOT = root;
+  vi.stubEnv('PATH', '');
+  try {
+    expect(compilerSourceInputs(root, 'libexec/can')).toEqual([]);
+    const inventory = installedLocalPreviewInputInventory(join(root, 'application'), join(root, 'libexec/can'));
+    for (const executable of bundlerExecutableInputs()) expect(inventory.extraInputPaths).toContainEqual(executable);
+    expect(inventory.extraInputPaths.some(input => input.name === 'bun')).toBe(false);
+    expect(inventory.extraInputPaths).toContainEqual({ name: 'grammar', path: join(root, 'docs/specification/GRAMMAR.md') });
+    expect(inventory.extraInputPaths).toContainEqual({ name: 'installation-manifest', path: join(root, 'manifest.json') });
+    await writeFile(join(root, 'foreign-can'), 'foreign compiler');
+    expect(() => compilerSourceInputs(root, 'foreign-can')).toThrow(/checkout compiler target/);
+    await writeFile(join(root, 'manifest.json'), JSON.stringify({ kind: 'foreign-install' }));
+    expect(() => compilerSourceInputs(root, 'libexec/can')).toThrow(/invalid Can installation manifest/);
+  } finally {
+    if (previous === undefined) delete process.env.CAN_INSTALL_ROOT;
+    else process.env.CAN_INSTALL_ROOT = previous;
+  }
+});
+
+it('captures the Node host and native esbuild without PATH tools and honors a selected binary', async () => {
+  await prepare();
+  vi.stubEnv('PATH', '');
+  vi.stubEnv('ESBUILD_BINARY_PATH', '');
+  const selected = bundlerExecutableInputs();
+  expect(selected[0]).toEqual({ name: 'node', path: await realpath(process.execPath) });
+  expect(selected[1]!.name).toBe('esbuild');
+  expect(selected[1]!.path).not.toMatch(/\.js$/);
+  const override = join(root, 'selected-esbuild');
+  await symlink(selected[1]!.path, override);
+  vi.stubEnv('ESBUILD_BINARY_PATH', override);
+  expect(bundlerExecutableInputs()).toEqual(selected);
+  vi.stubEnv('ESBUILD_BINARY_PATH', join(root, 'missing-esbuild'));
+  expect(() => bundlerExecutableInputs()).toThrow(/ENOENT/);
 });
 
 it('does not treat installed Testkit exports errors as package absence', async () => {
@@ -139,8 +207,9 @@ export async function acquireChromium(){acquireCalls++;throw new Error('discover
   return {kit,leaf,driverRoot,playwrightRoot,coreRoot,installation,executable,resource};
 }
 
-it('keeps absent browser support optional but refuses broken installed leaf exports', async () => {
-  await prepare(); expect(await browserQualificationInputs(root)).toEqual([]);
+it('uses the bundled browser producer for an empty application but refuses broken installed leaf exports', async () => {
+  await prepare();
+  expect((await browserQualificationInputs(root)).some(input => input.name === 'browser:producer' && !input.path.startsWith(root))).toBe(true);
   await rm(root,{recursive:true,force:true});
   const browser = await prepareBrowser({driver:false});
   expect(await browserQualificationInputs(root)).toEqual([{name:'browser:producer',path:browser.leaf}]);

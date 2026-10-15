@@ -1,0 +1,8 @@
+{
+  "name": "can-install-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "wrangler": "4.116.0"
+  }
+}

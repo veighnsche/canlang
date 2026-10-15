@@ -80,6 +80,7 @@ export const REQUIRES_CAPABILITY_MAP: Readonly<Record<string, readonly string[]>
   "state.field-validation": ["state.field-validation"],
   "state.cohorts": ["state.cohorts"],
   "interfaces.input-choices": ["interfaces.input-choices"],
+  "cloudflare.runtime-bindings": ["cloudflare.runtime-bindings"],
 };
 
 /**

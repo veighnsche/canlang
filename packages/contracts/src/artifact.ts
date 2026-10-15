@@ -393,6 +393,8 @@ export interface ArtifactModel {
  * immutable); root-model creates carry none.
  */
 export interface ArtifactOperation {
+  /** Inferred single root storage authority for the checked mutation closure. */
+  rootAuthority?: { binding: string; model: string; createsRoot?: true };
   /** Canonical operation identity, e.g. `expenses.approve`. */
   name: string;
   kind: ArtifactOperationKind;
@@ -677,7 +679,25 @@ export interface ArtifactGeneratedView {
 }
 
 /** Root artifact emitted by `can compile` for one program. */
+/** Source-declared host resources. Select the app's runtime owner closure before
+ * provisioning; merely sharing a source file never selects another app. */
+export type ArtifactRuntimeBinding = {
+  owner: string;
+  name: string;
+  /** Canonical logical source binding; implicit R2 uses FILES. */
+  binding: string;
+} & (
+  | { kind: "durable-object"; key: string }
+  | { kind: "queue"; type: string; handlers: string[] }
+  | { kind: "kv"; ttlMilliseconds: string }
+  | { kind: "analytics-engine"; schema: { name: string; type: string }[] }
+  | { kind: "service"; from: string; capability: string }
+  | { kind: "r2"; implicit: true }
+);
+
 export interface CompileArtifact {
+  /** Same source inventory as entry appDefinition.runtimeBindings. Omission is legacy. */
+  runtimeBindings?: ArtifactRuntimeBinding[];
   artifact_version: typeof ARTIFACT_VERSION;
   language_version: string;
   tool_version: string;

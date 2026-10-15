@@ -50,7 +50,7 @@ function closedData(value: unknown, required: readonly string[], optional: reado
   const result: Record<string, unknown> = {};
   for (const key of keys as string[]) {
     const descriptor = descriptors[key];
-    if (!('value' in descriptor) || !descriptor.enumerable) return cleanupRefuse('own enumerable data required');
+    if (descriptor === undefined || !('value' in descriptor) || !descriptor.enumerable) return cleanupRefuse('own enumerable data required');
     result[key] = descriptor.value;
   }
   return result;
@@ -69,8 +69,10 @@ function cleanupReceiver(value: unknown) {
     owner: cleanupText(row.owner), principal: cleanupText(row.principal) });
 }
 function cleanupRetention(value: unknown): FileRetentionPolicy {
-  const row = closedData(value, ['unattachedHorizonMs', 'retentionMs']);
-  return Object.freeze({ unattachedHorizonMs: cleanupTime(row.unattachedHorizonMs), retentionMs: cleanupTime(row.retentionMs) });
+  const row = closedData(value, ['unattachedHorizonMs', 'retentionMs'], ['retainAttached']);
+  if (Object.hasOwn(row, 'retainAttached') && row.retainAttached !== true) return cleanupRefuse('invalid attached retention');
+  return Object.freeze({ unattachedHorizonMs: cleanupTime(row.unattachedHorizonMs), retentionMs: cleanupTime(row.retentionMs),
+    ...(row.retainAttached === true ? { retainAttached: true as const } : {}) });
 }
 /** Closed detached correspondence facts only; this does not authenticate State. */
 export function checkedFileCleanupAuthority(value: unknown): FileRetirementAuthority {
@@ -148,7 +150,7 @@ function cleanupDecision(value: unknown): FinalizedFileRetirement {
   if (retiredRevision !== censusRevision + 1 || installedRevision > censusRevision || retiredAtMs < file.finalizedAtMs ||
       row.disposition !== 'orphaned' && row.disposition !== 'expired') return cleanupRefuse('original decision/revision mismatch');
   const elapsed = BigInt(retiredAtMs) - BigInt(file.finalizedAtMs);
-  if (elapsed < BigInt(row.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
+  if (retention.retainAttached === true && row.disposition === 'expired' || elapsed < BigInt(row.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
     return cleanupRefuse('original retirement is not due');
   }
   return Object.freeze({ retirementId: cleanupText(row.retirementId), authority: checkedFileCleanupAuthority(row.authority), file,
@@ -223,7 +225,7 @@ export function createFinalizedFileCleanup(
       if (decision.file.sizeBytes > policy.maxBytes || !policy.types.includes(decision.file.contentType)) {
         return cleanupRefuse('current content policy refuses');
       }
-      if (now < decision.retiredAtMs || BigInt(now) - BigInt(decision.file.finalizedAtMs) <
+      if (retention.retainAttached === true && decision.disposition === 'expired' || now < decision.retiredAtMs || BigInt(now) - BigInt(decision.file.finalizedAtMs) <
           BigInt(decision.disposition === 'expired' ? retention.retentionMs : retention.unattachedHorizonMs)) {
         return cleanupRefuse('current retirement is not due');
       }
@@ -272,6 +274,7 @@ export interface RetentionDeps {
 }
 
 export interface RetentionConfig {
+  readonly retainAttached?: true;
   /** Horizon after which unattached finalized bytes are collected. */
   readonly unattachedHorizonMs: number;
   /** Retention after which records expire and bytes redact. */
@@ -415,7 +418,10 @@ function sweepFile(
     deps.blobs.remove(blobKeyForFile(stored.file.id));
     return;
   }
-  if (retentionElapsed) {
+  if (retentionElapsed && !(config.retainAttached === true && stored.state === 'attached' &&
+      typeof stored.attachedAtMs === 'number' && Number.isSafeInteger(stored.attachedAtMs) &&
+      stored.attachedAtMs >= stored.finalizedAtMs && stored.attachedAtMs <= nowMs &&
+      stored.attachedAtMs - stored.finalizedAtMs < config.unattachedHorizonMs)) {
     stored.state = 'expired';
     deps.files.put(stored);
     deps.blobs.remove(blobKeyForFile(stored.file.id));

@@ -16,7 +16,7 @@ import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 export interface RetainedOpaqueFileSource {
   readonly model: ModelName;
   readonly row: StoredRow;
-  readonly field: 'payload' | 'result' | 'sourceGuard';
+  readonly field: 'payload' | 'result' | 'sourceGuard' | 'queuePayload';
   readonly binding: FrameworkFilePayloadOrigin;
 }
 
@@ -107,7 +107,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     await current(revision);
     if (structural(observed) !== installedBytes) refuse('installed original declaration inventory changed');
   };
-  if (installed.authority.app !== scope.app || installed.authority.stateOwner !== inventoryOwner ||
+  if (!equal(installed.authority, store.fileRetirementAuthority) || installed.authority.app !== scope.app ||
       installed.authority.receiver.app !== scope.app || installed.authority.receiver.owner !== scope.owner ||
       installed.authority.receiver.team !== scope.owner || installed.inventory.owner !== inventoryOwner) {
     refuse('installed inventory differs from the original source owner');
@@ -255,7 +255,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     const loadedRow = await store.load(source.model, source.row.id);
     const row = loadedRow === null ? null : captureData(loadedRow);
     await current(revision);
-    if (row === null || !equal(row, source.row) || !equal(own(row.data, 'filePayloadOrigin'), source.binding)) {
+    if (row === null || !equal(row, source.row) || !equal(own(row.data, source.field === 'queuePayload' ? 'queuePayloadOrigin' : 'filePayloadOrigin'), source.binding)) {
       refuse('retained source is not its exact current physical row/header');
     }
     const header = source.binding;
@@ -303,13 +303,14 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     readonly expectedRevision: Revision; readonly model: ModelName; readonly row: StoredRow; readonly field: string;
     readonly scope: FrameworkFilePayloadOrigin['scope']; readonly origin: FrameworkFilePayloadOrigin['origin'];
     readonly projection: FrameworkOpaqueValueProjection; readonly value: unknown;
+    readonly additional?: ReadonlyArray<{ readonly projection: FrameworkOpaqueValueProjection; readonly value: unknown; readonly retainedSource?: RetainedOpaqueFileSource }>;
     readonly identity: ResolvedIdentity; readonly files?: CanonicalFileBinding;
     readonly retainedSource?: RetainedOpaqueFileSource;
   }): Promise<FrameworkFilePayloadOrigin> => {
     // Pin only persisted metadata; binding/identity and observations keep their actual issuers.
     const captured = captureData({ expectedRevision: request.expectedRevision, model: request.model,
       row: request.row, field: request.field, scope: request.scope, origin: request.origin,
-      projection: request.projection, value: request.value });
+      projection: request.projection, value: request.value, ...(request.additional === undefined ? {} : { additional: request.additional }) });
     const retainedSource = request.retainedSource === undefined ? undefined : captureSource(request.retainedSource);
     request = { ...captured, identity: request.identity, ...(request.files === undefined ? {} : { files: request.files }),
       ...(retainedSource === undefined ? {} : { retainedSource }) };
@@ -319,17 +320,29 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
     // Static Generation projections borrow only the verified original source
     // header. Fresh request/result File enrollment needs its owning producer;
     // an absent original header continues to refuse rather than be fabricated.
-    const found = occurrences(request.projection, request.value, request.retainedSource?.binding);
+    if ((request.additional?.length ?? 0) > 3) refuse('payload exceeds its bounded typed projection join');
+    const found = [{ projection: request.projection, value: request.value }, ...request.additional ?? []].flatMap(entry => {
+      const original = ('retainedSource' in entry ? entry.retainedSource : undefined) ?? request.retainedSource;
+      const transferredGuard = entry.projection.kind === 'inputs' && original?.binding.origin.kind === 'send-guard' &&
+        original.field === 'sourceGuard' && entry.projection.declarationId === original.binding.origin.inputsDeclarationId &&
+        equal(entry.projection.path, ['origin', 'dispatch', 'sourceGuard', 'inputs']);
+      if (transferredGuard && !equal(entry.value, own(own(original!.row.data, 'sourceGuard'), 'inputs'))) refuse('copied guard inputs differ from their exact retained source');
+      const projection = transferredGuard ? { ...entry.projection, path: ['inputs'] } : entry.projection;
+      return occurrences(projection, entry.value, original?.binding).map(occurrence => ({ ...occurrence, path: [...entry.projection.path, ...occurrence.path], source: original }));
+    });
     const files = request.files, observe = found.length === 0 ? undefined : files?.observe;
-    if (found.length !== 0 && (files === undefined || request.retainedSource === undefined &&
+    if (found.length !== 0 && (files === undefined || found.some(occurrence => occurrence.source === undefined) &&
         (typeof observe !== 'function' || request.identity.actor === null))) {
       refuse('typed File payload requires its genuine authenticated observer');
     }
     await current(request.expectedRevision);
-    const retained = request.retainedSource === undefined ? undefined :
-      await checkSource(request.retainedSource, request.expectedRevision);
+    const sources = new Map<RetainedOpaqueFileSource, readonly RetainedFinalizedFile[]>();
+    for (const source of [request.retainedSource, ...found.map(occurrence => occurrence.source)]) {
+      if (source !== undefined && !sources.has(source)) sources.set(source, await checkSource(source, request.expectedRevision));
+    }
     const observations: { path: readonly (string | number)[]; observation: unknown }[] = [];
     for (const occurrence of found) {
+      const retained = occurrence.source === undefined ? undefined : sources.get(occurrence.source);
       let observation: unknown;
       if (retained === undefined) {
         if (files!.observe !== observe) refuse('original receiving observer changed');
@@ -340,13 +353,13 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
           refuse('target File has no unique genuine original source facts');
         }
         observation = await observeRetainedCanonicalFile(files!, matches[0]!, async () => {
-          await checkSource(request.retainedSource!, request.expectedRevision);
+          await checkSource(occurrence.source!, request.expectedRevision);
         });
-        await checkSource(request.retainedSource!, request.expectedRevision);
+        await checkSource(occurrence.source!, request.expectedRevision);
       }
       await current(request.expectedRevision);
       if (retained === undefined && files!.observe !== observe || observation === null) refuse('original File observation refused or changed');
-      observations.push({ path: [...request.projection.path, ...occurrence.path], observation });
+      observations.push({ path: occurrence.path, observation });
     }
     const origin = await prepareFrameworkFilePayloadOrigin(store, {
       expectedRevision: request.expectedRevision, inventoryOwner, declarationSetId: selectedId,
@@ -354,7 +367,7 @@ export async function loadOpaqueFileStaging(input: OpaqueFileStagingInput) {
       files: observations,
     });
     await current(request.expectedRevision);
-    if (request.retainedSource !== undefined) await checkSource(request.retainedSource, request.expectedRevision);
+    for (const source of sources.keys()) await checkSource(source, request.expectedRevision);
     return origin;
   };
   const prepareControl = async (request: {

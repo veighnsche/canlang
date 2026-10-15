@@ -840,6 +840,7 @@ impl JsOperationField {
 /// `OperationDescriptor`: `{name, kind, description, inputs, result?}`).
 #[derive(Debug, Clone)]
 pub struct JsOperation {
+    pub root_authority: Option<crate::analysis::effects::RootAuthority>,
     /// Canonical operation identity (`Shop.approve`, `Shop.Gadget.create`).
     pub name: String,
     /// MCP operation kind.
@@ -1290,8 +1291,10 @@ impl Serialize for JsOperation {
             #[serde(skip_serializing_if = "Option::is_none")]
             disclosure: Option<&'a serde_json::Value>,
         }
-        let mut state =
-            serializer.serialize_struct("Operation", 4 + usize::from(self.result.is_some()))?;
+        let mut state = serializer.serialize_struct(
+            "Operation",
+            4 + usize::from(self.result.is_some()) + usize::from(self.root_authority.is_some()),
+        )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("kind", self.kind.as_str())?;
         state.serialize_field("description", &self.description)?;
@@ -1309,6 +1312,9 @@ impl Serialize for JsOperation {
                     disclosure: self.disclosure.as_ref(),
                 },
             )?;
+        }
+        if let Some(authority) = &self.root_authority {
+            state.serialize_field("rootAuthority", authority)?;
         }
         state.end()
     }
@@ -11311,6 +11317,10 @@ impl<'a> Emitter<'a> {
                     .join(",")
             ),
         ];
+        members.push(format!(
+            "runtimeBindingOwners:{}",
+            descriptor_json(&super::runtime_bindings::owners(self.ir, &entry_name))
+        ));
         if let Some(locale) = entry
             .map(|id| self.ir.module(id))
             .and_then(|module| module.app_default_locale.as_deref())
@@ -11339,7 +11349,11 @@ impl<'a> Emitter<'a> {
                     .map_or_else(String::new, |locale| {
                         format!(",appDefaultLocale:{}", js_string(locale))
                     });
-                format!("{}:{{uses:[{uses}]{locale}}}", js_string(&m.name))
+                let owners = descriptor_json(&super::runtime_bindings::owners(self.ir, &m.name));
+                format!(
+                    "{}:{{uses:[{uses}]{locale},runtimeBindingOwners:{owners}}}",
+                    js_string(&m.name)
+                )
             })
             .collect();
         if !compositions.is_empty() {
@@ -11356,6 +11370,10 @@ impl<'a> Emitter<'a> {
         }
         members.push(self.emit_packages_member(entry));
         members.push(self.emit_bindings_member());
+        members.push(format!(
+            "runtimeBindings:{}",
+            descriptor_json(&super::runtime_bindings::inventory(self.ir))
+        ));
         if let Some(judgments) = self.emit_judgments_member() {
             members.push(judgments);
         }
@@ -11625,6 +11643,23 @@ impl<'a> Emitter<'a> {
             published.insert(item.canonical.clone());
         }
         if kinds.contains(&"Event") {
+            // A Queue declaration owns its complete typed event profile even
+            // when this program has no local handler for the published value.
+            for module in &ir.modules {
+                for binding in &module.runtime_bindings {
+                    let super::runtime_bindings::RuntimeBindingDeclaration::Queue {
+                        resolved_type, ..
+                    } = &binding.declaration else { continue };
+                    let Some(field) = self.queue_event_input(resolved_type) else {
+                        self.unsupported("queue event payload", "declared queue type has no supported original event input carrier", module.span);
+                        continue;
+                    };
+                    let Some(type_id) = field.value_type.as_deref() else { continue };
+                    records.push(format!("{}:{{inputs:{{value:{{type:{}}}}},inputFields:{}}}",
+                        js_string(&binding.binding), js_string(type_id), descriptor_json(&vec![field])));
+                    published.insert(binding.binding.clone());
+                }
+            }
             // Owning lifecycle events are checked IR sources, not authored
             // event declarations. Publish their private payload schema once
             // per identity so the existing owning input gate can admit it.
@@ -11637,6 +11672,7 @@ impl<'a> Emitter<'a> {
                     continue;
                 };
                 let (identity, input_count) = match source {
+                    IrEventSource::Queue { source, .. } => (source.as_str(), 1),
                     IrEventSource::DeliveryProgressed(identity) => (identity.as_str(), 1),
                     IrEventSource::StandardCompleted { source, .. } => (source.as_str(), 4),
                     IrEventSource::DeliveryCompleted { source, .. } => (source.as_str(), 4),
@@ -12479,6 +12515,46 @@ impl<'a> Emitter<'a> {
         format!("{}:{{{members}}}", object_key(&field.name))
     }
 
+    fn operation_root_authority(
+        &self,
+        item: &IrItem,
+    ) -> Option<crate::analysis::effects::RootAuthority> {
+        match &item.kind {
+            IrItemKind::Scenario { root_authority, .. } => root_authority.clone(),
+            IrItemKind::CrudOp { model, op, .. } => {
+                let original_model = *model;
+                let mut model = *model;
+                let mut seen = HashSet::new();
+                while seen.insert(model) {
+                    match self.ir.items.get(model.0 as usize)?.kind {
+                        IrItemKind::Model {
+                            owner: IrOwner::ChildOf(parent),
+                            ..
+                        } => model = parent,
+                        _ => break,
+                    }
+                }
+                let creates_root = *op == CrudOp::Create && original_model == model;
+                let model = &self.ir.items.get(model.0 as usize)?.canonical;
+                self.ir
+                    .modules
+                    .iter()
+                    .flat_map(|module| &module.runtime_bindings)
+                    .find_map(|binding| match &binding.declaration {
+                        super::runtime_bindings::RuntimeBindingDeclaration::DurableObject {
+                            key,
+                        } if key == model => Some(crate::analysis::effects::RootAuthority {
+                            binding: binding.binding.clone(),
+                            model: model.clone(),
+                            creates_root,
+                        }),
+                        _ => None,
+                    })
+            }
+            _ => None,
+        }
+    }
+
     /// Emit the `operations` member: scenario metadata (handler, `by`,
     /// `read`, inputs, result, captions) and generated CRUD entries
     /// (handler, kind, model, field allowlists, `when`, captions).
@@ -12506,6 +12582,9 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(authority) = self.operation_root_authority(item) {
+                        members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
+                    }
                     if let Some(dependencies) = self.execution_dependencies.get(&item.canonical) {
                         members.push(format!(
                             "executionDependencies:{}",
@@ -12590,6 +12669,7 @@ impl<'a> Emitter<'a> {
                         let identity = match event {
                             IrEventSource::Declared(identity)
                             | IrEventSource::DeliveryProgressed(identity) => Some(identity.clone()),
+                            IrEventSource::Queue { source, .. } => Some(source.clone()),
                             IrEventSource::StandardCompleted { source, .. }
                             | IrEventSource::DeliveryCompleted { source, .. }
                             | IrEventSource::MailboxReceived { source, .. } => Some(source.clone()),
@@ -12611,6 +12691,8 @@ impl<'a> Emitter<'a> {
                         }
                         if let Some(invocation) = self.private_event_invocation(item, event) {
                             members.push(format!("invocation:{}", invocation.to_json()));
+                        } else if matches!(event, IrEventSource::Queue { .. }) {
+                            self.unsupported("queue handler payload", "declared queue type has no supported private invocation input carrier", item.span);
                         }
                     }
                     if let Some(by) = self.by_member(by, item.span) {
@@ -12674,6 +12756,9 @@ impl<'a> Emitter<'a> {
                         "read:false".to_string(),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(authority) = self.operation_root_authority(item) {
+                        members.push(format!("rootAuthority:{}", descriptor_json(&authority)));
+                    }
                     if let Some(by) = self.by_member(by, item.span) {
                         members.push(format!("by:{by}"));
                     }
@@ -13506,6 +13591,18 @@ impl<'a> Emitter<'a> {
 
     /// Private trusted admission reuses original event inputs and separately
     /// appends handler-owned cohort arguments to its `{event}` envelope.
+    fn queue_event_input(&self, payload: &ResolvedType) -> Option<JsOperationField> {
+        let ty = IrType::Known(payload.clone());
+        let (field, is_array) = self.mcp_field_for_type(&ty, false)?;
+        Some(JsOperationField {
+            min: None, max: None, name: "value".into(), field,
+            value_type: Some(self.operation_input_value_type(&ty)?), required: true,
+            nullable: matches!(payload, ResolvedType::Nullable(_)),
+            array_required: is_array.then_some(false), computed_default: false,
+            default: None, description: None, choices: None,
+        })
+    }
+
     fn private_event_invocation(
         &self,
         handler: &IrItem,
@@ -13539,6 +13636,7 @@ impl<'a> Emitter<'a> {
                 scalar_input("user", JsMcpField::User, "user"),
             ],
             IrEventSource::Declared(_) => Vec::new(),
+            IrEventSource::Queue { payload, .. } => vec![self.queue_event_input(payload)?],
             IrEventSource::MailboxReceived { .. } => {
                 vec![self.standard_completion_input("value", "IncomingEmail")?]
             }
@@ -13652,6 +13750,7 @@ impl<'a> Emitter<'a> {
             inputs,
             result: checked_scenario_result(result.as_ref()),
             disclosure: None,
+            root_authority: self.operation_root_authority(handler),
         })
     }
 
@@ -13714,6 +13813,7 @@ impl<'a> Emitter<'a> {
                 .collect(),
             result: None,
             disclosure: None,
+            root_authority: None,
         }
     }
 
@@ -13830,6 +13930,7 @@ impl<'a> Emitter<'a> {
                         inputs: Vec::new(),
                         result: None,
                         disclosure: None,
+                        root_authority: None,
                     });
                 }
                 IrItemKind::Scenario {
@@ -13999,6 +14100,7 @@ impl<'a> Emitter<'a> {
                         inputs,
                         result: published_result,
                         disclosure,
+                        root_authority: self.operation_root_authority(item),
                     });
                 }
                 IrItemKind::CrudOp {
@@ -14212,6 +14314,7 @@ impl<'a> Emitter<'a> {
                         inputs,
                         result: None,
                         disclosure: None,
+                        root_authority: self.operation_root_authority(item),
                     });
                 }
                 _ => {}

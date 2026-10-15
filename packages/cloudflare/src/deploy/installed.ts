@@ -34,6 +34,7 @@ export const KNOWN_CAPABILITIES: readonly string[] = [
   "state.parameters", "state.field-validation",
   "state.cohorts",
   "interfaces.input-choices",
+  "cloudflare.runtime-bindings",
   "d1-batch",
   "do-alarms",
 ];

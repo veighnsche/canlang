@@ -1,7 +1,9 @@
+import { browserToolsRoot, browserToolsExecutable } from '@canlang/cloudflare/dev/browser-tools';
 /** Optional Node browser producer. Deliberately absent from the portable/root entry. */
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { join } from "node:path";
 import type { BrowserType } from "@playwright/test";
 import type { AcquireChromiumOptions, ChromiumAvailability, ChromiumProducerIdentity, OwnedChromium } from "@canlang/contracts/browser/chromium";
 export type { AcquireChromiumOptions, ChromiumAvailability, ChromiumProducerIdentity, ChromiumProducer, OwnedChromium } from "@canlang/contracts/browser/chromium";
@@ -23,8 +25,11 @@ interface InstalledChromium {
 
 async function installedChromium(): Promise<InstalledChromium | null> {
   let driverEntryPath: string;
+  const development = browserToolsRoot();
+  if (process.env.CAN_INSTALL_ROOT !== undefined && development === null) return null;
+  if (development !== null) process.env.PLAYWRIGHT_BROWSERS_PATH ??= join(development, "browsers");
   try {
-    driverEntryPath = require.resolve(DRIVER);
+    driverEntryPath = (development === null ? require : createRequire(join(development, "package.json"))).resolve(DRIVER);
   } catch (error) {
     // Only the absent optional package is unavailable. Broken exports/entries
     // or import-time failures remain producer errors, never a UI success.
@@ -40,7 +45,7 @@ async function installedChromium(): Promise<InstalledChromium | null> {
   if (chromium === undefined || typeof chromium.launch !== "function" || typeof chromium.executablePath !== "function") {
     throw new Error("Chromium producer: installed driver has no Chromium API");
   }
-  const executablePath = chromium.executablePath();
+  const executablePath = development === null ? chromium.executablePath() : browserToolsExecutable(development);
   if (typeof executablePath !== "string" || executablePath.length === 0) {
     throw new Error("Chromium producer: installed driver has no executable path");
   }
