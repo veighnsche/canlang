@@ -16705,3 +16705,16 @@ adds none. These close the remaining original46 carrier occurrences after the
 prior35 owner-path repairs; no ingress/provider/full-workflow acceptance follows.
 The early single E3001 capture was a type regression, now repaired, never665
 backend removals. Continue the actual native helper and other ready root groups.
+
+
+### 2026-10-15 — include checked Given defaults in create omission census
+
+Accepted mechanical correction: a field default already validated in the owning
+Given tables makes omission legal for create-source census, as in the checker
+and existing IR/default lowering. No new pair-create or app-name rule. The full
+sixteen-field original/renamed focused workflow passes; removing the checked
+default refuses omission. Authentic original24 saved intake now yields Complete
+crm.promote_research (26sources,0diagnostics,2creates,3queries,192 conservative
+return paths). Native field-trait default/constraint correspondence and feasible
+model-return guard consumption remain separate ready joins; Complete alone is
+no native or12/8-influence acceptance. No new language choice calls for JEV here.
