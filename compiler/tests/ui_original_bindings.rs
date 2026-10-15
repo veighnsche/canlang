@@ -50,6 +50,15 @@ fn assert_lowers(source: &str) {
     assert!(diags.is_empty(), "unexpected diagnostics: {diags:?}");
 }
 
+fn assert_refuses(source: &str, code: &str, fragment: &str) {
+    let diags = emit_all(source);
+    assert!(
+        diags.iter().any(|d| d.starts_with(&format!("{code}:")))
+            && diags.iter().any(|d| d.contains(fragment)),
+        "expected {code} containing {fragment:?}, got: {diags:?}"
+    );
+}
+
 const ITEM: &str = "app Probe\nGiven\n Item { title:text, href:url?, doc:file?, state:enum(open,closed)=open, urgent:bool=false, stamp:date?, note:text? }\n policy Item read=public\nWhen\nThen\n";
 
 // -- Links (nullable/file destinations narrowed by guards) -------------------
@@ -121,6 +130,55 @@ fn stat_slotted_value_and_title() {
     assert_lowers(&format!(
         "{ITEM} page / title=\"Page\"\n  list Item\n   stat\n    slot value\n     text row.title\n    slot title\n     text \"Title\"\n"
     ));
+}
+
+// -- Bare page-level payload leaves: admitted shapes lower, empty/suite
+// shapes refuse (twin coverage for the ui_adapter expectation update) ------
+
+#[test]
+fn metrics_bare_constant_at_page_level() {
+    assert_lowers("app Probe\nGiven\nWhen\nThen\n page / title=\"Page\"\n  metrics 1\n");
+}
+
+#[test]
+fn metrics_without_value_expressions_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\nWhen\nThen\n page / title=\"Page\"\n  metrics\n",
+        "E1215",
+        "expected value expression",
+    );
+}
+
+#[test]
+fn metrics_with_content_suite_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\nWhen\nThen\n page / title=\"Page\"\n  metrics 1\n   text \"Body\"\n",
+        "E1200",
+        "metrics cannot own an indented suite",
+    );
+}
+
+#[test]
+fn copy_bare_text_value_at_page_level() {
+    assert_lowers("app Probe\nGiven\nWhen\nThen\n page / title=\"Page\"\n  copy \"Value\"\n");
+}
+
+#[test]
+fn copy_non_text_value_refuses() {
+    assert_refuses(
+        "app Probe\nGiven\nWhen\nThen\n page / title=\"Page\"\n  copy 1\n",
+        "E6008",
+        "copy takes text values",
+    );
+}
+
+#[test]
+fn copy_two_value_headers_refuse() {
+    assert_refuses(
+        "app Probe\nGiven\nWhen\nThen\n page / title=\"Page\"\n  copy \"a\",\"b\"\n",
+        "E1201",
+        "unexpected token",
+    );
 }
 
 // -- Content ------------------------------------------------------------------
