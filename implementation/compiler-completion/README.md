@@ -11,6 +11,15 @@ lexical captures and source-chain verification. First State slice retains
 same-source refusal; imported helper admission remains dependent on actual
 compiler/verified-factory correspondence, never copied source metadata alone.
 
+**C02 imported query-helper inventory (2026-10-15, implemented/tested).**
+Original checked decision chains now retain the helper declaration/expression
+types and exact Employee query Model schema for leading and body Require. The
+full unchanged Employees.can and aliased-import control preserve both caller
+argument origins (`input.location`, prior-query `existing.deal.location`). New
+owning source check, existing optional import, six source seals and six existing
+authorization source/native controls pass14. This grants no query execution;
+actual argument consumption and source/runtime integration remain ready work.
+
 **C02 query-source prerequisite (2026-10-15, implemented/tested).** Stored-query
 derive bodies now retain their original query/alias/predicate/schema source seal,
 including bodies without membership. Six source and six existing authorization

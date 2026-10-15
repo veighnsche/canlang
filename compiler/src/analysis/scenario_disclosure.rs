@@ -4390,17 +4390,32 @@ impl<'a> Closure<'a> {
                 anchors.push(transcript.declaration);
             }
         }
-        for site in self.checked_decision_sites(owner).unwrap_or_default() {
-            if site.stage != CheckedDecisionStage::LeadingRequire {
+        for site in self.checked_decision_sites(owner)? {
+            if !matches!(
+                site.stage,
+                CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+            ) {
                 continue;
             }
             for call in site.calls {
-                if let Some((derive, _, _, _)) =
-                    self.checked_authorization_derive(call.node, owner.module)
-                {
-                    let anchor = self.effects.derives.get(&derive)?.node;
-                    if !anchors.contains(&anchor) {
-                        anchors.push(anchor);
+                if let CheckedDecisionCallTarget::DeriveFn(derive) = call.target {
+                    let data = self.effects.derives.get(&derive)?;
+                    let declaration = self.resolve.symbols.get(derive.0 as usize)?;
+                    let body = data.expr?;
+                    if data.derive != derive
+                        || declaration.id != derive
+                        || declaration.module != data.module
+                        || !matches!(declaration.kind, SymbolKind::DeriveFn { .. })
+                        || self.source(data.module, data.node).ok()?
+                            != self.source(data.module, body).ok()?
+                        || body.file != data.node.file
+                        || body.start < data.node.start
+                        || body.end > data.node.end
+                    {
+                        return None;
+                    }
+                    if !anchors.contains(&data.node) {
+                        anchors.push(data.node);
                     }
                 }
             }
@@ -4422,7 +4437,7 @@ impl<'a> Closure<'a> {
         if retained.len() > 16384 {
             return None;
         }
-        retained.sort_by_key(|(node, _)| (node.start, node.end, node.kind));
+        retained.sort_by_key(|(node, _)| (node.file, node.start, node.end, node.kind));
         Some(retained)
     }
 
@@ -5293,6 +5308,113 @@ impl<'a> Closure<'a> {
                 pending.push((profile, true));
             }
             expressions.extend(node.children.iter());
+        }
+        // Retain the owning Model census of actual helper query calls. These
+        // original source facts supply no query execution or reference grant.
+        // The call chain keeps caller Require occurrences separate from the
+        // query and predicate in their defining helper source.
+        for site in self.checked_decision_sites(scenario)? {
+            if !matches!(
+                site.stage,
+                CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+            ) {
+                continue;
+            }
+            for call in site.calls {
+                if call.chain.is_empty() {
+                    continue;
+                }
+                let CheckedDecisionCallTarget::Builtin { ref id, overload } = call.target else {
+                    continue;
+                };
+                if !matches!(id.as_str(), "any" | "all" | "count" | "first") {
+                    continue;
+                }
+                let (domain, domain_type) = call.arguments.get(call.slots.first().copied()??)?;
+                if self.nodes.get(domain)?.kind != SyntaxKind::Query {
+                    continue;
+                }
+                let query = self.types.checked_queries.get(domain)?;
+                let stored = matches!(&query.domain_type, ResolvedType::Array { element, .. }
+                    if matches!(element.as_ref(), ResolvedType::Record { stored: true, .. }));
+                let collection = self.types.checked_collection_calls.get(&call.node);
+                if !stored && collection.is_none() {
+                    continue;
+                }
+                let collection = collection?;
+                let model = collection.model;
+                let row = ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                };
+                let array = ResolvedType::Array {
+                    element: Box::new(row),
+                    ordered: true,
+                    nonempty: false,
+                };
+                let alias = query
+                    .clauses
+                    .iter()
+                    .find(|clause| clause.node == collection.alias)?;
+                let CheckedQueryClauseKind::As { name } = &alias.kind else {
+                    return None;
+                };
+                let owner = self.resolve.symbols.get(model.0 as usize)?;
+                let source = self.source(call.module, call.node).ok()?;
+                let query_node = self.nodes.get(domain)?;
+                let clauses: Vec<_> = query_node
+                    .children
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::QueryClause)
+                    .map(NodeKey::of)
+                    .collect();
+                let domains: Vec<_> = query_node
+                    .children
+                    .iter()
+                    .filter(|child| expression(child.kind))
+                    .map(NodeKey::of)
+                    .collect();
+                if collection.node != call.node
+                    || collection.builtin != *id
+                    || collection.overload != overload
+                    || collection.query != *domain
+                    || query.node != *domain
+                    || query.domain_type != array
+                    || query.result != array
+                    || *domain_type != array
+                    || self.types.node_types.get(domain) != Some(&array)
+                    || self.types.node_types.get(&query.domain) != Some(&array)
+                    || !alias.expressions.is_empty()
+                    || name.is_empty()
+                    || clauses
+                        != query
+                            .clauses
+                            .iter()
+                            .map(|clause| clause.node)
+                            .collect::<Vec<_>>()
+                    || domains != [query.domain]
+                    || call.source != source
+                    || self.source(call.module, *domain).ok()? != source
+                    || !matches!(owner.kind, SymbolKind::Model { .. })
+                    || owner.id != model
+                    || self.checked_created_model(model, owner.module).is_none()
+                    || !call.defaults.is_empty()
+                    || collection
+                        .predicate
+                        .as_ref()
+                        .map(|predicate| (predicate.node, predicate.ty.clone()))
+                        != call
+                            .slots
+                            .get(1)
+                            .copied()
+                            .flatten()
+                            .and_then(|slot| call.arguments.get(slot))
+                            .cloned()
+                {
+                    return None;
+                }
+                pending.push((model, true));
+            }
         }
         for query in self.checked_count_query_sources(scenario)? {
             pending.push((query.model, true));
@@ -15832,6 +15954,248 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn imported_query_helper_require_source_closure_retains_original_owners() {
+        use super::super::catalog::{CatalogRequest, load_catalog};
+        let caller = r#"app IntakeApp uses=[crm]
+package crm
+ use employee {can_work}
+ use rent_catalog {Location}
+ Given
+  contract Input {location:Location}
+  Deal {location:Location}
+  Intake {source:text unique,input:Input,deal:Deal}
+ When
+  scenario promote(source:text,input:Input) -> Deal by=members
+   require can_work(actor,input.location)
+   do
+    let existing=first(Intake as prior where prior.source==source)
+    if existing!=null
+     require can_work(actor,existing.deal.location)
+     return existing.deal
+    create Deal {location=input.location} as deal
+    create Intake {source,input,deal} as intake
+    return deal
+ Then
+"#;
+        let original_employee = include_str!("../../../draft/shared/Employees.can");
+        for renamed in [false, true] {
+            let mut employee = original_employee.to_string();
+            let mut caller = caller.to_string();
+            if renamed {
+                employee = employee.replace("Location", "Site").replace(
+                    "use rent_catalog {Site,test_site}",
+                    "use rent_catalog {Location as Site,test_site}",
+                );
+                caller = caller
+                    .replace(
+                        "use employee {can_work}",
+                        "use employee {can_work as allowed}",
+                    )
+                    .replace("require can_work(", "require allowed(");
+            }
+            let mut db = SourceDb::new();
+            let files = [
+                db.add("Employees.can".into(), employee),
+                db.add("Locations.can".into(), "package rent_catalog\n Given\n  export Location {name:text}\n  export fixture test_site=Location {name=\"Main\"}\n When\n Then\n".into()),
+                db.add("Intake.can".into(), caller),
+            ];
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            let catalog_path = root
+                .parent()
+                .unwrap()
+                .join("packages/cloudflare/dist/native-catalog.json");
+            let (catalog, errors) = load_catalog(&CatalogRequest {
+                flag: Some(&catalog_path),
+                env: None,
+                cwd: root,
+                primary: crate::source::Span::new(files[0], 0, 0),
+            });
+            assert!(errors.is_empty(), "{errors:?}");
+            let catalog = catalog.unwrap();
+            let trees: Vec<_> = files
+                .into_iter()
+                .map(|file| {
+                    let (tree, errors) = crate::syntax::parse(&db, file);
+                    assert!(errors.is_empty(), "{errors:?}");
+                    (file, tree)
+                })
+                .collect();
+            let mut errors = Vec::new();
+            let resolve =
+                super::super::resolve::resolve_program(&db, &trees, Some(&catalog), &mut errors);
+            let types = super::super::types::check_types(
+                &db,
+                &trees,
+                Some(&catalog),
+                &resolve,
+                &mut errors,
+            );
+            super::super::resolve::emit_unresolved(&db, &resolve, &types, &mut errors);
+            let effects = super::super::effects::check_effects(
+                &db,
+                &trees,
+                &resolve,
+                &types,
+                Some(&catalog),
+                &mut errors,
+            );
+            assert!(errors.is_empty(), "{errors:?}");
+            let scenario = &effects.scenarios[&resolve.by_canonical["crm.promote"]];
+            let helper = resolve.by_canonical["employee.can_work"];
+            let employee_model = resolve.by_canonical["employee.Employee"];
+            let location = resolve.by_canonical["rent_catalog.Location"];
+            let mut nodes = HashMap::new();
+            let mut pending = trees.iter().map(|(_, tree)| tree).collect::<Vec<_>>();
+            while let Some(node) = pending.pop() {
+                nodes.insert(NodeKey::of(node), node);
+                pending.extend(node.children.iter());
+            }
+            macro_rules! make {
+                ($types:expr) => {
+                    Closure {
+                        catalog: Some(&catalog),
+                        db: &db,
+                        resolve: &resolve,
+                        types: $types,
+                        effects: &effects,
+                        nodes: nodes.clone(),
+                        stack: HashSet::new(),
+                        steps: 0,
+                        depth: 0,
+                        statement_depth: 0,
+                        authorization: false,
+                        effect_proofs: Vec::new(),
+                        effect_visits: 0,
+                        loop_node: None,
+                        complete_children: HashSet::new(),
+                        complete_model_children: HashMap::new(),
+                        result_model: None,
+                        statement_expressions: None,
+                        source_facts: RefCell::new(ImmutableSourceFacts::default()),
+                    }
+                };
+            }
+            let cx = make!(&types);
+            let sites = cx.checked_decision_sites(scenario).unwrap();
+            let requires: Vec<_> = sites
+                .iter()
+                .filter(|site| {
+                    matches!(
+                        site.stage,
+                        CheckedDecisionStage::LeadingRequire | CheckedDecisionStage::BodyRequire
+                    )
+                })
+                .collect();
+            assert_eq!(requires.len(), 2);
+            let body = effects.derives[&helper].expr.unwrap();
+            let expressions = cx
+                .checked_create_expression_types(scenario.node, scenario.module)
+                .unwrap();
+            assert!(
+                expressions
+                    .iter()
+                    .any(|(node, ty)| *node == body && *ty == ResolvedType::Scalar(Scalar::Bool))
+            );
+            let inventory = cx
+                .checked_stored_contracts(scenario)
+                .expect("helper stored query declaration census");
+            let schema = inventory
+                .iter()
+                .find(|schema| schema.id == employee_model)
+                .expect("Employee query owner retained");
+            assert_eq!(schema.source.module, "employee");
+            assert!(schema.fields.iter().any(|field| field.name == "home"
+                && field.ty
+                    == ResolvedType::Record {
+                        symbol: location,
+                        stored: true
+                    }));
+            let mut query_call = None;
+            for site in requires {
+                let outer = site
+                    .calls
+                    .iter()
+                    .find(|call| {
+                        call.target == CheckedDecisionCallTarget::DeriveFn(helper)
+                            && call.chain.is_empty()
+                    })
+                    .unwrap();
+                assert_eq!(outer.arguments[0].1, ResolvedType::Scalar(Scalar::User));
+                assert_eq!(
+                    outer.arguments[1].1,
+                    ResolvedType::Record {
+                        symbol: location,
+                        stored: true
+                    }
+                );
+                let nested = site.calls.iter().find(|call| matches!(&call.target, CheckedDecisionCallTarget::Builtin { id, .. } if id == "any")).unwrap();
+                assert_eq!(nested.source.module, "employee");
+                let [frame] = nested.chain.as_slice() else {
+                    panic!("one original helper call frame")
+                };
+                assert_eq!(frame.node, outer.node);
+                assert_eq!(frame.source.module, "crm");
+                assert_eq!(frame.derive, helper);
+                query_call = Some(nested.node);
+                assert!(
+                    cx.checked_authorization_derive(outer.node, scenario.module)
+                        .is_none(),
+                    "source inventory grants no query authorization"
+                );
+                let argument = outer.arguments[1].0;
+                if site.stage == CheckedDecisionStage::LeadingRequire {
+                    assert_eq!(
+                        cx.checked_contract_input_reference(argument, scenario.module)
+                            .map(|(_, model, _)| model),
+                        Some(location)
+                    );
+                } else {
+                    assert_eq!(
+                        cx.checked_required_model_reference(argument, scenario.module)
+                            .map(|(_, _, model)| model),
+                        Some(location)
+                    );
+                }
+            }
+            let query_call = query_call.unwrap();
+            for mutation in 0..4 {
+                let mut changed = types.clone();
+                match mutation {
+                    0 => {
+                        changed.checked_collection_calls.remove(&query_call);
+                    }
+                    1 => {
+                        changed
+                            .checked_collection_calls
+                            .get_mut(&query_call)
+                            .unwrap()
+                            .model = location;
+                    }
+                    2 => {
+                        changed
+                            .checked_collection_calls
+                            .get_mut(&query_call)
+                            .unwrap()
+                            .overload += 1;
+                    }
+                    _ => {
+                        changed
+                            .checked_collection_calls
+                            .get_mut(&query_call)
+                            .unwrap()
+                            .alias
+                            .start += 1;
+                    }
+                }
+                assert!(
+                    make!(&changed).checked_stored_contracts(scenario).is_none(),
+                    "query metadata mutation {mutation} refuses census"
+                );
+            }
+        }
+    }
+
     #[test]
     fn original_optional_model_input_seals_null_guard_and_imported_authorization() {
         use super::super::catalog::{CatalogRequest, load_catalog};
