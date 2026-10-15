@@ -8621,14 +8621,19 @@ impl<'a> Cx<'a> {
             {
                 return None;
             }
-        } else if field != "id"
-            || ty != ResolvedType::Scalar(Scalar::Text)
-            || !matches!(
-                self.program.symbols.get(model.0 as usize)?.kind,
-                SymbolKind::Model { .. }
-            )
-        {
+        } else if !matches!(
+            (field.as_str(), &ty),
+            ("id", ResolvedType::Scalar(Scalar::Text))
+                | ("created", ResolvedType::Scalar(Scalar::Datetime))
+        ) || !matches!(
+            self.program.symbols.get(model.0 as usize)?.kind,
+            SymbolKind::Model { .. }
+        ) {
             return None;
+        } else {
+            // Both metadata keys already belong to the native record order
+            // contract. This does not admit arbitrary stored temporal fields.
+            return Some(IrOrder { field, descending });
         }
         let ty = ty.nullable_inner().unwrap_or(&ty);
         if !matches!(

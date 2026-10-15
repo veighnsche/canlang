@@ -15481,3 +15481,36 @@ the retained 718-error inventory capture, exactly twelve value-order refusals
 disappear and none are added. Original .can operands and Values catalog remain
 unchanged. The remaining model-order metadata/temporal/computed-key dependencies
 stay explicit; no full CanCRM execution or training-data readiness is claimed.
+
+2026-10-15 — C02: admit explicit own-row created metadata ordering.
+
+The original composition has three expression-order refusals for the same
+existing `created,id` metadata contract. Recognize checked `created:datetime`
+metadata on the actual query model alias, alongside existing `id:text` metadata.
+Retain exact alias/model ownership and direction checks. No arbitrary stored
+temporal field, computed expression, referenced row or unsealed first-query
+recipe is admitted. State and all three native query receivers already serve
+created metadata; their ordering, viewer projection, limit, revision and ID-tie
+behavior is unchanged. This is a missing compiler lowering under the settled
+record-order rule, with no new language decision requiring JEV.
+
+The native test consumes the exact CLI artifact bytes and actual D1/Identity
+receiver. It passes out-of-ID chronological ASC/DESC order, ascending ID ties in
+both directions, anonymous empty results and unchanged State revision/rows.
+Foreign-row and computed keys still refuse. The other three ordering checks
+pass, retaining direct-field alias/type refusals. An old ordinary created-first
+refusal becomes a positive emission check; native-receipt mode still refuses
+that exact created-first occurrence without its own source recipe. No source
+correspondence check is removed. Native harness corrections use the owning
+installed Miniflare dependency and canonical read-result envelope; a serde
+reserialization that reordered the artifact was replaced with the original
+producer bytes, without changing the runtime receiver or its assertions.
+CLI build, formatting and diff checks pass. Frozen original 24-source validation
+exits 10 after 378.15s with 705 diagnostics (679 E6008, 26 E6007), complete=true,
+omitted=0 and no usable artifact. Against the retained 706-error capture, exactly
+three expression-order refusals disappear and two CanPurchase stored-first
+correspondence refusals are exposed. The CanRefer occurrence clears; native
+CanPurchase first-query recipes remain a local dependency. Original sources and
+catalog are unchanged. Remaining temporal direct fields require typed receiver
+decoding, while computed/reference keys need a distinct observation-owned
+evaluator. Those local dependencies remain open.
