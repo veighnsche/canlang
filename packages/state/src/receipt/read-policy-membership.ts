@@ -45,13 +45,18 @@ export interface InstalledSourceOwnerRows {
   readonly assertHealthy: () => void;
   /** Exact bounded root domain supplied by the same owning stage, never a store scan. */
   readonly query?: (model: ModelName) => Promise<readonly StoredRow[]>;
+  /** Reached original installed-policy decision inputs, confined to its bool lifetime. */
+  readonly policyQuery?: (model: ModelName, parent?: Readonly<{model: ModelName; id: RecordId}>) => Promise<readonly StoredRow[]>;
 }
 export function captureInstalledSourceOwnerRows(scope: InstalledSourceOwnerRows): InstalledSourceOwnerRows {
-  const value = object(scope, ['read', 'assertHealthy', ...(Object.hasOwn(scope, 'query') ? ['query'] : [])]);
+  const value = object(scope, ['read', 'assertHealthy', ...(Object.hasOwn(scope, 'query') ? ['query'] : []),
+    ...(Object.hasOwn(scope, 'policyQuery') ? ['policyQuery'] : [])]);
   if (typeof value.read !== 'function' || typeof value.assertHealthy !== 'function' ||
-      Object.hasOwn(value, 'query') && typeof value.query !== 'function') return fail('owning row closure required.');
+      Object.hasOwn(value, 'query') && typeof value.query !== 'function' ||
+      Object.hasOwn(value, 'policyQuery') && typeof value.policyQuery !== 'function') return fail('owning row closure required.');
   return Object.freeze({ read: value.read, assertHealthy: value.assertHealthy,
-    ...(Object.hasOwn(value, 'query') ? { query: value.query } : {}) }) as InstalledSourceOwnerRows;
+    ...(Object.hasOwn(value, 'query') ? { query: value.query } : {}),
+    ...(Object.hasOwn(value, 'policyQuery') ? { policyQuery: value.policyQuery } : {}) }) as InstalledSourceOwnerRows;
 }
 interface ReadLifetime {
   readonly ownerRows: InstalledSourceOwnerRows | undefined;
@@ -341,7 +346,7 @@ async function evaluateInstalledRead(read: InstalledRead, stage: ReadStage,
       healthyLifetime(parent); parentNavigation = parent.navigation;
       if (capturedOwnerRows !== undefined && (parent.ownerRows === undefined ||
           capturedOwnerRows.read !== parent.ownerRows.read || capturedOwnerRows.assertHealthy !== parent.ownerRows.assertHealthy ||
-          capturedOwnerRows.query !== parent.ownerRows.query)) {
+          capturedOwnerRows.query !== parent.ownerRows.query || capturedOwnerRows.policyQuery !== parent.ownerRows.policyQuery)) {
         return fail('child source read cannot replace its owning row closure.');
       }
       if (input.revision !== parent.observation.revision || input.fence !== parent.observation.fence ||

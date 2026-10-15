@@ -236,3 +236,48 @@ test('owner source collections require the exact private control domain and neve
     assert.equal(scans, 0); assert.equal(getters, 0);
   }
 });
+
+test('owner policy domains borrow only the installed control lifetime and exact declared parent', async () => {
+  for (const mode of ['valid', 'wrong-parent', 'copied', 'accessor', 'failure'] as const) {
+    const s = await setup(true), domain = await s.store.query({model: MODEL, authority: 'owner'});
+    const rootDomain = await s.store.query({model: ROOT, authority: 'owner'});
+    let calls = 0, scans = 0, getters = 0;
+    let original: ViewerGenerationCallbackReadObservation | undefined;
+    const authored = new Error('exact source policy domain failure');
+    const store = {...s.store, async query() { scans++; throw new Error('no physical scan'); }};
+    const read: SourcePolicy = {parent: PARENT, fields: s.current.fields, secretFields: ['settings.token'],
+      grants: [{fields: ['title'], read: async observation => {
+        original = observation;
+        const child = await readRecordsAtSourceObservation({observation: mode === 'copied' ? {...observation} : observation,
+          store, model: MODEL, parent: {model: mode === 'wrong-parent' ? ROOT : PARENT, id: asId('project')},
+          readPolicies: s.reads, policy: s.input.policy});
+        assert.deepEqual(child.map(value => value.record.id), ['a', 'b']);
+        assert.equal(child[0]!.record.data.private_prompt, 'PRIVATE');
+        assert.equal(Object.hasOwn(child[0]!.record.data.settings as object, 'token'), false);
+        const roots = await readRecordsAtSourceObservation({observation, store, model: ROOT,
+          readPolicies: s.reads, policy: s.input.policy});
+        return roots[0]!.record.data.title === 'Space';
+      }}]};
+    s.reads.set(MODEL, read);
+    const policyQuery: NonNullable<InstalledSourceOwnerRows['policyQuery']> = async (model, parent) => {
+      calls++;
+      if (mode === 'failure') throw authored;
+      if (model === MODEL) { assert.deepEqual(parent, {model: PARENT, id: asId('project')}); return domain; }
+      assert.equal(model, ROOT); assert.equal(parent, undefined); return rootDomain;
+    };
+    const scope: InstalledSourceOwnerRows = {read: (model, id) => s.store.load(model, id), assertHealthy() {}, policyQuery};
+    if (mode === 'accessor') Object.defineProperty(scope, 'policyQuery', {enumerable: true, get() {getters++; return policyQuery;}});
+    const pending = projectInstalledSourceRow({read, store, ownerRows: scope, observation: {
+      context: {...s.input.context, membership: s.caller, memberships: s.memberships}, row: domain[0]!,
+      revision: await s.store.readRevision(), fence: undefined,
+    }});
+    if (mode === 'valid') {
+      assert.deepEqual((await pending).record!.data, {title: 'Alpha'}); assert.equal(calls, 2);
+      assert.ok(original);
+      await assert.rejects(readRecordsAtSourceObservation({observation: original, store, model: ROOT,
+        readPolicies: s.reads, policy: s.input.policy}), StateError);
+    } else await assert.rejects(pending, error => mode === 'failure' ? error === authored : error instanceof StateError);
+    assert.equal(scans, 0); assert.equal(getters, 0);
+    if (mode === 'wrong-parent' || mode === 'copied' || mode === 'accessor') assert.equal(calls, 0);
+  }
+});

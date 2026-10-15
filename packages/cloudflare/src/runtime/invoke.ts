@@ -5791,6 +5791,7 @@ async function createContainmentNavigation(input: {
   readonly sourceReadOpts?: Pick<CanonicalReadOpts, 'asm' | 'artifact' | 'identity' | 'source' | 'now'>;
   /** Actual private owner-session rows, while the query retains the physical store. */
   readonly sourceOwnerRows?: Readonly<{ read(model: ModelName, id: RecordId): Promise<StoredRow | null>;
+    policyQuery(model: ModelName, parent?: Readonly<RecordParent>): Promise<readonly StoredRow[]>;
     assertHealthy(): void }>;
   /** Callback authorization stays inside State's complete Identity observation. */
   readonly coherentContext?: import('@canlang/state/policy/grants').ByContext;
@@ -7193,9 +7194,29 @@ async function runScenarioExecution(
     throw new StateError('validation', 'Child parent observations require their actual root execution.');
   }
   const sourceRows = new Map<string, StoredRow | null>();
+  const sourceDomains = new Map<string, {model: ModelName; parent?: Readonly<RecordParent>; rows: readonly StoredRow[]}>();
   let sourceRowsFinal = false;
   let refreshingSourceRows = false;
+  const sourcePolicyQuery = async (model: ModelName, parent?: Readonly<RecordParent>): Promise<readonly StoredRow[]> => {
+    const key = JSON.stringify([model, parent ?? null]);
+    if (sourceRowsFinal) {
+      const domain = sourceDomains.get(key);
+      if (domain === undefined) throw new StateError('validation', 'Final parent observation cannot acquire a new policy domain.');
+      return domain.rows;
+    }
+    if (sourceDomains.size >= SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows && !sourceDomains.has(key)) {
+      throw new StateError('limit', 'Source policy collection domain budget exceeded.');
+    }
+    const session = refreshingSourceRows ? navigationOwner!.session : ownerSession!;
+    const records = await session.views.final.query({model, authority: 'owner', archived: 'exclude',
+      order: [{field: 'id', direction: 'asc'}], limit: session.views.maxRows,
+      ...(parent === undefined ? {} : {parent})});
+    const captured = Object.freeze(records.map(row => structuredClone(row)));
+    sourceDomains.set(key, {model, ...(parent === undefined ? {} : {parent}), rows: captured});
+    return captured;
+  };
   const sourceOwnerRows = ownerSession === undefined ? undefined : Object.freeze({
+    policyQuery: sourcePolicyQuery,
     assertHealthy: () => {
       if (receiptEngineFailure !== undefined) throw receiptEngineFailure;
       if (!sourceRowsFinal) (refreshingSourceRows ? navigationOwner!.session : ownerSession).views.consumeWork(0);
@@ -7226,6 +7247,7 @@ async function runScenarioExecution(
     navigationOwner!.finalizers.add({ refresh: async () => {
       refreshingSourceRows = true;
       try {
+        for (const domain of sourceDomains.values()) await sourcePolicyQuery(domain.model, domain.parent);
         await viewerNavigation.revalidate();
         for (const key of sourceRows.keys()) {
           const split = key.indexOf('\0');
@@ -7233,6 +7255,17 @@ async function runScenarioExecution(
         }
       } finally { refreshingSourceRows = false; }
     }, seal: writes => {
+      for (const domain of sourceDomains.values()) for (const write of writes) {
+        if (write.model !== domain.model) continue;
+        const row = write.kind === 'remove' ? undefined : write.row;
+        const id = write.kind === 'remove' ? write.id : write.row.id;
+        const expected = row !== undefined && row.archivedAt === null && (domain.parent === undefined ||
+          row.parent?.model === domain.parent.model && row.parent.id === domain.parent.id) ? row : undefined;
+        const actual = domain.rows.find(row => row.id === id);
+        if (JSON.stringify(expected) !== JSON.stringify(actual)) {
+          throw new StateError('validation', 'Final source policy domain differs from the actual owner effects.');
+        }
+      }
       for (const write of writes) {
         const id = write.kind === 'insert' || write.kind === 'update' ? write.row.id : write.id;
         const key = stagedKey(write.model, id);
