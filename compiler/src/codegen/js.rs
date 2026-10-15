@@ -6897,8 +6897,9 @@ impl<'a> Emitter<'a> {
     /// helpers (`addMoney`, `subtractMoney`, `multiplyMoney`, `divideMoney`),
     /// the decimal helpers (`addDecimal`, `subtractDecimal`,
     /// `multiplyDecimal`, `divideDecimal`), `durationBetween`, `addDuration`
-    /// and `subtractDuration`. Decimal operands mix with `int` exactly (the
-    /// helpers take `int|decimal`); scalar-first money products normalize to
+    /// and `subtractDuration`, plus checked duration ratio/remainder/scaling.
+    /// Decimal operands mix with `int` exactly (helpers take `int|decimal`);
+    /// scalar-first money products normalize to
     /// `multiplyMoney(money, factor)`; a `money`/`money` ratio is
     /// `divideDecimal`. Shapes with no verified helper stay `E6008`.
     fn lower_arithmetic(
@@ -7048,6 +7049,23 @@ impl<'a> Emitter<'a> {
                     self.throw_expr("datetime arithmetic has no lowering")
                 }
             },
+            (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration))
+                if matches!(op, IrBinOp::Div | IrBinOp::Mod) =>
+            {
+                let name = if op == IrBinOp::Div {
+                    "divideDurationMs"
+                } else {
+                    "remainderDuration"
+                };
+                self.stdlib.insert(name.to_string());
+                format!("{name}({l},{r})")
+            }
+            (Some(ScalarFamily::Int), Some(ScalarFamily::Duration)) if op == IrBinOp::Mul => {
+                self.stdlib.insert("multiplyDuration".to_string());
+                // Capture authored operands once, left-to-right (including
+                // awaits/throws), before normalizing the helper's argument order.
+                format!("(($factor,$duration)=>multiplyDuration($duration,$factor))({l},{r})")
+            }
             (Some(ScalarFamily::Datetime), Some(ScalarFamily::Duration))
             | (Some(ScalarFamily::Duration), Some(ScalarFamily::Duration)) => match op {
                 IrBinOp::Add | IrBinOp::Sub => {

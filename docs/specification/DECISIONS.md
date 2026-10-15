@@ -15085,3 +15085,43 @@ record groups the remaining report families and separates source-census cascades
 from owning implementation/catalog gaps. The eleven admitted duration operations
 are a proposed next finite batch using existing Values semantics; they remain
 unimplemented here. No complete-app, broader-reference or training release follows.
+
+2026-10-15 — C02/C10: lower the admitted duration operator batch.
+
+Implement duration/duration division with `divideDurationMs`, duration remainder
+with `remainderDuration`, and int-times-duration with `multiplyDuration`.
+These are already specified by DESIGN §3, accepted by the type checker and
+implemented by Values; no new language decision or repeated JEV consultation
+is needed. Division returns the existing rounded decimal ratio; remainder
+retains truncation toward zero and the dividend's sign. Values owns zero-divisor,
+construction and checked-bound failures. No native JavaScript numeric coercion
+or alternate error contract is introduced.
+
+Generated operands evaluate once, left-to-right, including awaited derives.
+For int-times-duration, an ordinary arrow captures the integer and then the
+duration before calling the duration-first helper. Swapping emitted operands
+directly would reorder evaluation and failures. Operand exceptions propagate
+unchanged and prevent later operand evaluation; helper validation occurs after
+both values are captured. Expose the three existing helpers through the native
+facade, plus the existing `durationBetween` helper required by original Member
+and Rent datetime-difference expressions. Permissions, original source operands
+and workflow bodies are unchanged. Other numeric shapes remain outside this
+finite batch.
+
+The complete-emission runtime check passes 1/1 through the installed native
+facade, covering decimal rounding, signed remainder, bounds, zero divisors,
+invalid construction, exact error identity, single evaluation, async order,
+nested scaling/ratio and datetime-difference composition. Seven existing
+arithmetic helper checks pass; the native package emit, CLI build, formatting
+and diff checks pass. Previously recorded unrelated form golden failures remain
+at their retained scope; this is no aggregate compiler-suite claim.
+
+Final original 24-source composition validation: exit 10, 898 errors
+(872 E6008, 26 E6007), complete=true, omitted=0, no usable artifact. Comparing
+complete diagnostics with the retained module-ownership capture removes exactly
+six duration divisions, four remainders and one int-times-duration, with no
+added diagnostic. Remaining value/type/arithmetic refusals drop from 37 to 26;
+other root-cause groups and catalog holds remain as recorded in
+compiler-completion. The finite eleven-operation batch is closed. Complete
+CanCRM native/browser acceptance and unrestricted training-data authoring remain
+gated on those remaining requirements. No push or training was performed.
