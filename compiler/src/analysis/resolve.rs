@@ -2626,6 +2626,7 @@ impl<'a> Resolver<'a> {
                 }
                 ops.push(member_id);
             } else {
+                let event_owner = format!("{name}.{op_name}");
                 self.tables.symbols.push(Symbol {
                     id: member_id,
                     canonical: format!("{module_name}.{name}.{op_name}"),
@@ -2635,7 +2636,8 @@ impl<'a> Resolver<'a> {
                     span: op_span,
                     exported: false,
                 });
-                let fields = self.index_fields(text, member_id, child, &name, "field", diags)?;
+                let fields =
+                    self.index_fields(text, member_id, child, &event_owner, "field", diags)?;
                 if let SymbolKind::Event { fields: slot } =
                     &mut self.tables.symbols[member_id.0 as usize].kind
                 {

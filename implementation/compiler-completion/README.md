@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 capability-event ownership (2026-10-15, implemented/tested).**
+Nested event fields now include the event in their defining canonical path;
+strict emitter correspondence remains unchanged. New resolver regression plus
+ten existing checks pass; one judgment-specification E2013 reproduces with the
+previous resolver. Fresh CLI/captured-module checks preserve sibling input types
+and release defaults. Original24-source capture is pending; the 37 candidate
+occurrences are not yet credited as removed or as ingress workflow acceptance.
+
 **C02 lazy ANY binding (2026-10-15, accepted direction; implementation pending).**
 Use the installed producer's once-consumed exact active callback capture at the
 existing State receipt query boundary. Three equivalent JEV requests/responses

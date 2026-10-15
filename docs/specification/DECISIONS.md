@@ -16443,3 +16443,19 @@ refusals. Existing optional imported authorization, six derive-source and six
 authorization source/CLI/verified-factory/State checks also pass (14 total).
 Actual source argument consumption, query admission and native runtime join
 remain unfinished; reuse the last original24-source capture at its prior scope.
+
+2026-10-15 — C02: keep capability-event fields under their owning event.
+
+Nested declared-event indexing incorrectly used the capability's canonical path
+for each event field. Include the event member in that path, retaining its exact
+Field.owner, ordered fields and defaults. The emitter's strict event/field owner
+correspondence remains unchanged. This repairs an existing identity rule; no
+new language choice or JEV consultation is required.
+
+The new resolver regression and ten other resolver checks pass. The remaining
+judgment specification test fails with the identical E2013 against the previous
+resolver and its assertion is preserved. A fresh CLI build and captured emitted
+module check pass: sibling events retain separate string/integer inputs and the
+release boolean default. Original24-source qualification follows this checkpoint;
+37 report occurrences share the faulty owner path, but no removal count is
+claimed before that capture. This does not qualify event ingress execution.
