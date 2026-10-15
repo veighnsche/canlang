@@ -2,6 +2,13 @@
 
 ## Current remainder and finite completion
 
+**C02 query-invariant row bound (2026-10-15, prerequisite qualified).**
+The existing private owner-rule context now forwards the actual mutation
+transaction maxRows. Its owning session check passes at7/1000, preserving lock
+entry/invariant final views and no publication before commit; normal State build
+passes. Partner checked query/source/dependency and receiving closure remains
+ready implementation work; no whole Partner acceptance is claimed.
+
 **C02 stored policy-domain readers (2026-10-15, engine component qualified).**
 The original existing-deal branch lost installed-policy collection domains in
 the stored source/target conjunction and row-id return authority. Both now reuse
@@ -9,10 +16,17 @@ the existing private stage/retained-final owner domains; no extra grant or data
 query capability. State/CF normal builds pass; all44 affected source/reference
 controls pass/.46s, including late-authority rollback. Original6 now matches all
 operation outcomes; existing retry alone fails its unchanged `result==prospect`
-Then with noncanonical input to `same`. Fix that observation boundary next,
-preserving reference identity and all assertions before draft acceptance.
-Full24 capture with frozen d4eb297b CLI is live18272; original draft/catalog
-bytes stay frozen. Runtime/next compiler edits do not alter its input closure.
+Then with noncanonical input to `same`. The observation boundary now brands
+only actual verified fixture/returned rows and passes its existing independent
+name/equality/copied-view-refusal check1/3.197s plus normalCFbuild (92768b83).
+Final original6 retry awaits the current scalar-Require compiler closure; no
+authored assertion changed and draft acceptance remains pending.
+Frozen d4eb297b original24 qualification is terminal411.34s: exit10,
+complete=true/omitted0,582 diagnostics (556E6008+26E6007), no artifact. All
+inputs stayed unchanged during capture;26 source records, only the two intended
+reader-role source records differ from232b15db. Diagnostic message counts are
+identical. Exact argv/result/diagnostics: `/tmp/cancrm-role-context-20261015-*`.
+The next scalar-Require compiler change needs its own later applicable capture.
 
 **C02 result-independent first prerequisite (2026-10-15, native component qualified).**
 Existing unscoped single primitive-equality first retains query/alias/field/order

@@ -125,6 +125,31 @@ describe('owning model-policy loader', () => {
 });
 
 describe('native rules through the actual owner mutation session', () => {
+  it('forwards the same transaction row bound to entry locks and final invariants', async () => {
+    for (const maxRows of [7, 1_000]) {
+      const { store } = createTestMemoryStorage(); const table = tableFor();
+      await seedRow(store, ITEM, { id: 'one', data: { label: 'entry', amount: 1 } });
+      const seen: unknown[] = [];
+      const check = (kind: 'lock' | 'invariant') => predicate(kind, kind, async owner => {
+        assert.ok(Object.isFrozen(owner));
+        assert.equal(owner.maxRows, maxRows);
+        const rows = await owner.read.query({ model: ITEM, authority: 'owner', limit: owner.maxRows });
+        seen.push([kind, owner.maxRows, rows.map(row => row.data.label)]);
+        return kind === 'invariant';
+      });
+      const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor([
+        { kind: 'lock', id: 'lock', fields: ['amount'] },
+        { kind: 'invariant', id: 'invariant', dependencies: [] },
+      ])], bindings: [check('lock'), check('invariant')] });
+      const session = await beginOwnerMutation({ table, store, context: context(),
+        bounds: { maxRows, maxWork: 100 }, policies });
+      await session.stage({ op: 'update', model: ITEM, id: asId('one'), data: { label: 'final' } }, { cause: 'scenario' });
+      await session.finalize();
+      assert.deepEqual(seen, [['lock', maxRows, ['entry']], ['invariant', maxRows, ['final']]]);
+      assert.equal((await store.load(ITEM, asId('one')))!.data.label, 'entry');
+    }
+  });
+
   it('evaluates final invariants in source order and returns the first error', async () => {
     const { store } = createTestMemoryStorage(); const table = tableFor(); const calls: string[] = [];
     const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor([
