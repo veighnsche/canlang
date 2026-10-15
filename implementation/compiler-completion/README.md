@@ -168,9 +168,21 @@ gating only the legacy derive-call E6008 gap; new
 three IrModule fixture initializers missing `runtime_bindings` without which
 the codegen test target does not compile at all — verified at base
 (`E0063`, pre-existing). Residual codegen failures (7, e.g. golden
-structures, e2e hook drivers) sit in that previously uncompilable suite and
-are not regressions of this slice; the broader 76-occurrence scope and
-native consumer remain open. Codex review pending.
+structures, e2e hook drivers) sit in that previously uncompilable suite;
+per Codex REVIEW-5 the coordinator's earlier "not regressions" inference
+was invalid (an uncompilable baseline proves nothing about those tests), so
+they are recorded as UNCLASSIFIED pending the discriminating check below;
+the broader 76-occurrence scope and native consumer remain open. Codex
+review pending.
+
+Outcome 6 checker slice in `b164788b` (recovered B2 commit `4cab6503`):
+slotted groups, selection headers and original payload shapes lower;
+`ui_original_bindings` 25/25 pass. UI `list`/`board` render kinds remain
+open (B2's TS edits do not typecheck: unadmitted kinds, exact errors
+recorded for the successor). One `ui_adapter` case now fails: bare
+`metrics 1` publishes while B2's suite admits only row-bound metrics —
+stale expectation vs over-admission is UNDECIDED and routed to the B-lane
+successor with this analysis. Full outcome 6 stays OPEN.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
