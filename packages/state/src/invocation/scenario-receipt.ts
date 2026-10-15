@@ -1260,6 +1260,10 @@ export function bindScenarioReceiptReferenceProducer(def: GeneratedOperationDef,
     ...(readPolicies === undefined ? {} : { readPolicies }) }));
 }
 
+export type ScenarioReceiptAnyPredicate = (candidate: {
+  readonly slot: ScenarioReceiptQuerySlot; readonly record: ProjectedRecord;
+}) => boolean | Promise<boolean>;
+
 /** Loader-only policy wiring, bound to the same checked source and app. */
 export interface ScenarioReceiptQueryProducer {
   readonly source: ScenarioResultDisclosurePlan['source'];
@@ -1269,15 +1273,19 @@ export interface ScenarioReceiptQueryProducer {
    * Functions receive State's actual current observation, never a root actor fallback. */
   readonly readPolicies?: ReadonlyMap<ModelName, ViewerSourceReadPolicy>;
   readonly selections?: readonly ScenarioQuerySelectionMetadata[];
-  /** Literal source-verified stored-bool ANY occurrences; not generic lambdas. */
+  /** Literal checked stored-bool or finite first-read predicate ANY profiles. */
   readonly any?: readonly ScenarioQueryAnyMetadata[];
+  /** Verified host consumes the exact active source closure synchronously.
+   * Captures include the original once-evaluated outer arguments; metadata
+   * or a copied function cannot create this call/query execution lifetime. */
+  readonly captureAnyPredicate?: (call: AdmittedCall, queryId: string) => ScenarioReceiptAnyPredicate;
 }
 const queryProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptQueryProducer>();
 const querySelections = new WeakMap<GeneratedOperationDef, ReadonlyMap<string, ScenarioQuerySelectionProfile>>();
 export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, producer: ScenarioReceiptQueryProducer): void {
   const bound = boundPlans.get(def);
   if (bound === undefined || !bound.plan.queries?.length || invokedPlans.has(def) || queryProducers.has(def)) return invalid('query producer requires one checked source binding before execution.');
-  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []), ...(Object.hasOwn(producer, 'selections') ? ['selections'] : []), ...(Object.hasOwn(producer, 'any') ? ['any'] : [])]); origin(producer.source); text(producer.app);
+  object(producer, ['source', 'app', 'policy', ...(Object.hasOwn(producer, 'readPolicies') ? ['readPolicies'] : []), ...(Object.hasOwn(producer, 'selections') ? ['selections'] : []), ...(Object.hasOwn(producer, 'any') ? ['any'] : []), ...(Object.hasOwn(producer, 'captureAnyPredicate') ? ['captureAnyPredicate'] : [])]); origin(producer.source); text(producer.app);
   if (stableStringify(dataCopy(producer.source)) !== stableStringify(bound.plan.source) || !(producer.policy instanceof Map)) return invalid('query producer differs from its checked source/policy.');
   const policies = [...producer.policy].map(([model, value]) => {
     const copied = dataCopy(value);
@@ -1322,10 +1330,14 @@ export function bindScenarioReceiptQueryProducer(def: GeneratedOperationDef, pro
         readPolicies === undefined || !('grants' in readPolicies.get(profile.model)!)) return invalid('ANY requires its contained created-model consumer and original source grants.');
     anyQueries.set(profile.queryId, profile);
   }
+  const predicates = [...anyQueries.values()].some(profile => profile.kind === 'predicate');
+  if (predicates && typeof producer.captureAnyPredicate !== 'function' ||
+      !predicates && Object.hasOwn(producer, 'captureAnyPredicate')) return invalid('predicate ANY requires its installed source capture producer.');
   bound.anyQueries = anyQueries;
   querySelections.set(def, selections);
   queryProducers.set(def, Object.freeze({ source: bound.plan.source, app: producer.app, policy,
-    ...(readPolicies === undefined ? {} : { readPolicies }) }));
+    ...(readPolicies === undefined ? {} : { readPolicies }),
+    ...(producer.captureAnyPredicate === undefined ? {} : { captureAnyPredicate: producer.captureAnyPredicate }) }));
 }
 /** Query source authority comes from its exact installed consumer. Legacy
  * reference producer behavior remains when no query-owned map supplies it. */
@@ -1365,6 +1377,7 @@ const querySlots = new WeakMap<ScenarioReceiptQuerySlot, { execution: QueryExecu
  * The saved snapshot and selected result always retain the private plain row. */
 function queryPredicateRecord(execution: QueryExecution, index: number, store: StoragePort): ProjectedRecord {
   const candidate = execution.candidates[index]!, data: Record<string, unknown> = {};
+  const predicate = capture(execution.call, store).bound.anyQueries.get(execution.plan.id)?.kind === 'predicate';
   const read = (field: string, value: () => unknown): unknown => {
     try {
       const state = capture(execution.call, store), owner = execution.owner;
@@ -1375,13 +1388,19 @@ function queryPredicateRecord(execution: QueryExecution, index: number, store: S
       }
       if (candidate.pendingRead !== null) return invalid('query field read omitted its immediate source marker.');
       if (!execution.plan.dependencies.some(dep => dep.role === 'control' && dep.field === field)) return invalid('query predicate read is outside its checked control closure.');
+      if (predicate && !Object.hasOwn(candidate.record.data, field)) {
+        throw new StateError('forbidden', 'Executed predicate CONTROL field is not readable.');
+      }
       const observed = value();
       candidate.pendingRead = field;
       candidate.reads.set(field, (candidate.reads.get(field) ?? 0) + 1);
       return observed;
     } catch (error) { execution.owner.capture.poisoned = true; throw error; }
   };
-  for (const field of Object.keys(candidate.record.data)) Object.defineProperty(data, field, {
+  const fields = predicate ? [...new Set([...Object.keys(candidate.record.data),
+    ...execution.plan.dependencies.filter(dependency => dependency.role === 'control').map(dependency => dependency.field)])]
+    : Object.keys(candidate.record.data);
+  for (const field of fields) Object.defineProperty(data, field, {
     enumerable: true, get: () => read(field, () => candidate.record.data[field]),
   });
   const record = { ...candidate.record, data: Object.freeze(data) };
@@ -2717,6 +2736,11 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
     const anyProfile = state.bound.anyQueries.get(input.queryId);
     if (plan === undefined || producer === undefined || producer.app !== call.context.app || state.queries.some(query => query.plan.id === plan.id)) return invalid('one actual execution per checked query occurrence required.');
     if (any !== (anyProfile !== undefined)) return invalid('query execution must match its exact source-bound ANY occurrence.');
+    const predicate = input.predicate;
+    if (anyProfile?.kind === 'predicate') {
+      const captured = producer.captureAnyPredicate?.(call, plan.id);
+      if (captured !== predicate) return invalid('predicate ANY requires its exact once-captured active source callback.');
+    }
     const execution: QueryExecution = { call, owner, stage: owner.stage, plan, handle: Object.freeze({}), candidates: [],
       selectedIndices: [], activeSlot: null, complete: false, firstSelected: false, countSelected: false, anyConsumed: false, selectionConsumed: false, selectionSlot: null };
     queryHandles.set(execution.handle, execution); state.queries.push(execution);
@@ -2761,7 +2785,7 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         if (any) { candidate.matched = true; return true; }
         execution.activeSlot = slot;
         try {
-          const accepted = await input.predicate(Object.freeze({ slot, record: queryPredicateRecord(execution, execution.candidates.length - 1, store) }));
+          const accepted = await predicate(Object.freeze({ slot, record: queryPredicateRecord(execution, execution.candidates.length - 1, store) }));
           capture(call, store); ownerHealthy(owner);
           if (typeof accepted !== 'boolean') return invalid('query predicate requires an actual boolean.');
           if (candidate.pendingRead !== null || [...candidate.reads].some(([field, count]) => candidate.markers.get(field) !== count)) return invalid('query predicate omitted an executed control source marker.');
@@ -2786,14 +2810,26 @@ async function executeScenarioReceiptQueryMode(call: AdmittedCall, store: Storag
         for (const [index, candidate] of execution.candidates.entries()) {
           execution.activeSlot = candidate.slot;
           try {
-            // Source policy must grant this evaluated field before exposing it.
-            await sourceAuthorities[index]!.requireFields([anyProfile!.field]);
-            const accepted = await input.predicate(Object.freeze({ slot: candidate.slot, record: queryPredicateRecord(execution, index, store) }));
+            const profile = anyProfile!;
+            // Every value comes from the viewer-projected record. Stored-bool
+            // retains its exact verdict check; predicate capture authenticates
+            // source while immediate markers retain only actually read fields.
+            if (profile.kind !== 'predicate') await sourceAuthorities[index]!.requireFields([profile.field]);
+            const accepted = await predicate(Object.freeze({ slot: candidate.slot, record: queryPredicateRecord(execution, index, store) }));
             stageHealthy();
-            if (typeof accepted !== 'boolean' || accepted !== candidate.record.data[anyProfile!.field] ||
-                candidate.pendingRead !== null || candidate.reads.size !== 1 || candidate.reads.get(anyProfile!.field) !== 1 ||
-                candidate.markers.get(anyProfile!.field) !== 1 || candidate.dependencies.size !== 1 ||
-                !candidate.dependencies.has(anyProfile!.dependencyId)) return invalid('ANY requires its one actual stored-bool read, immediate marker and exact verdict.');
+            if (profile.kind === 'predicate') {
+              const first = plan.dependencies[0]!;
+              if (typeof accepted !== 'boolean' || candidate.pendingRead !== null ||
+                  candidate.reads.keys().next().value !== first.field ||
+                  [...candidate.dependencies][0] !== profile.dependencyIds[0] ||
+                  [...candidate.reads].some(([field, count]) => candidate.markers.get(field) !== count) ||
+                  [...candidate.dependencies].some(id => !profile.dependencyIds.includes(id))) return invalid('predicate ANY requires its proved first read and exact executed CONTROL markers.');
+              await sourceAuthorities[index]!.requireFields(plan.dependencies.filter(dependency => candidate.dependencies.has(dependency.id)).map(dependency => dependency.field));
+              stageHealthy();
+            } else if (typeof accepted !== 'boolean' || accepted !== candidate.record.data[profile.field] ||
+                candidate.pendingRead !== null || candidate.reads.size !== 1 || candidate.reads.get(profile.field) !== 1 ||
+                candidate.markers.get(profile.field) !== 1 || candidate.dependencies.size !== 1 ||
+                !candidate.dependencies.has(profile.dependencyId)) return invalid('ANY requires its one actual stored-bool read, immediate marker and exact verdict.');
             await sourceAuthorities[index]!.revalidate(); stageHealthy();
             candidate.matched = accepted;
             if (accepted) { selected.push(index); break; }

@@ -16459,3 +16459,31 @@ module check pass: sibling events retain separate string/integer inputs and the
 release boolean default. Original24-source qualification follows this checkpoint;
 37 report occurrences share the faulty owner path, but no removal count is
 claimed before that capture. This does not qualify event ingress execution.
+
+2026-10-15 — C02: implement finite captured-predicate receipt ANY receiving.
+
+State now requires the installed producer to synchronously consume the exact
+active callback for its admitted call/query before executing the new predicate
+profile. The private profile retains the same-source root query, exact ordered
+CONTROL census and owning bool/User/Model/Model-array types. Imported helper
+source mismatches still refuse. Metadata alone supplies no executable authority.
+The source producer must prove the first declared CONTROL read on every visited
+candidate; this uses the existing saved-prefix representation without inventing
+a new receipt carrier. It is a backend profile, not a new Can authoring rule.
+
+The full viewer domain precedes lazy predicate execution; first true skips the
+remaining predicates. Only reached fields demand grants; a reached withheld
+field throws forbidden rather than supplying undefined. Immediate read markers,
+current source grants/membership and final domain validation remain required.
+The old stored-bool profile retains its exact independent verdict check.
+
+Normal State build passes. Four new execution/profile tests pass, with ten
+unchanged stored-bool execution/plan checks retained from the preceding run.
+Coverage includes empty/all-false/first-true prefixes, unvisited private suffix,
+reached private fields, forged/wrong-call/store/query/closed/repeated callbacks,
+markers, first read, source/type/census drift, accessor refusal, exact authored
+failure, late field/membership loss and saved receipt revalidation. The copied
+call/store controls preserve the existing forbidden error. Compiler/CF original
+factory and imported source-chain integration remain unfinished; no original
+can_work native acceptance is claimed. The original24 static capture is running
+against the already frozen compiler closure and does not consume this runtime.
