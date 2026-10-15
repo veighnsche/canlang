@@ -143,6 +143,10 @@ async function nativeHelperCase(splitFiles: boolean) {
       assert.ok(queryPlan.dependencies.length >= 5);
       assert.ok(queryPlan.dependencies.every(dependency => dependency.role === 'control'));
       assert.deepEqual(new Set(queryPlan.dependencies.map(dependency => dependency.field)), new Set(['user', 'active', 'operator_wide', 'home', 'locations']));
+      const memberMarkers = artifact.modules.flatMap(module => [...module.js.matchAll(/active_member\(c,[^,\n]+,c\.team,(\{[^\n]+?\})\)/g)]
+        .map(match => object(JSON.parse(match[1]!))));
+      assert.ok(memberMarkers.some(marker => Object.hasOwn(marker, 'sourceCall')),
+        'the actual emitted helper must issue an occurrence selector, rather than relying on a unique physical node');
       const asm = await assembleModules({ artifact, sourcePath }, { workDir: join(directory, 'modules'), stdlibUrl: installed('runtime/stdlib.js') });
       worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
         script: 'export default { fetch() { return new Response("ok"); } }',

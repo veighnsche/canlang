@@ -16820,3 +16820,16 @@ Four focused checks pass, including 192 original rows reduced to two borrowed
 existing/new paths, source/IR corruption refusals and unchanged independent int
 results. Formatting/diff checks pass. No permission or language change; full
 original mixed native query execution remains a separate required consumer.
+
+
+### 2026-10-15 — issue exact helper membership occurrence selectors
+
+Join the selected native predicate query's original derive chain to its canonical
+owner-only membership site and active_member call. Emit the existing private
+sourceCall selector; reject ambiguous or missing proof rather than choosing an
+occurrence by execution count. The genuine cross-file CLI/assembly/D1/Identity
+journey passes1/1 in61.21s with an assertion requiring actual selector issuance;
+existing receiving-selector controls and unchanged same-file result are reused.
+CLI build/diff checks pass. No ambient call stack, source-argument reevaluation,
+permission change or new language primitive. Mixed two-helper invocation native
+plans remain unqualified.
