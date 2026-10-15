@@ -965,6 +965,40 @@ fn visit(
     fields: &mut Vec<SymbolId>,
     duration_operand: bool,
 ) -> Option<()> {
+    // Presence of an owning nullable audit field needs no dereference or
+    // additional owner dependency. Keep this distinct from scalar equality,
+    // nullable arithmetic and navigation through a user/reference value.
+    if let IrExpr::Binary {
+        op: IrBinOp::Eq | IrBinOp::Ne,
+        left,
+        right,
+    } = &expr.expr
+        && (matches!(left.expr, IrExpr::Null) || matches!(right.expr, IrExpr::Null))
+    {
+        if duration_operand || expr.ty != ResolvedType::Scalar(Scalar::Bool) {
+            return None;
+        }
+        let (read, null) = if matches!(left.expr, IrExpr::Null) {
+            (right, left)
+        } else {
+            (left, right)
+        };
+        if null.ty != ResolvedType::Null
+            || !matches!(&read.ty, ResolvedType::Nullable(inner)
+                if matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User | Scalar::Datetime)))
+        {
+            return None;
+        }
+        let IrExpr::Member { field, .. } = &read.expr else {
+            return None;
+        };
+        let id = policy_field(program, model, field, &read.ty)?;
+        policy_row_member(read, model, field, &read.ty)?;
+        if !fields.contains(&id) {
+            fields.push(id);
+        }
+        return Some(());
+    }
     if duration_operand {
         if expr.ty != ResolvedType::Scalar(Scalar::Duration)
             || !matches!(expr.expr, IrExpr::Member { .. } | IrExpr::DurationMs(_))

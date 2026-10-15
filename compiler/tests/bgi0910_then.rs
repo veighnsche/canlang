@@ -115,6 +115,43 @@ fn action_primitives_have_opaque_bindings_and_canonical_metadata() {
 }
 
 #[test]
+fn buttons_keep_source_bindings_and_nested_action_metadata() {
+    let text = wrap(
+        " view Tile(row:Todo) $\"Arrange checked bindings.\"\n  require row.title != \"\"\n  text row.title\n  content row.title\n  history\n  button action=x\n  button target=\"/archive\" caption=\"Archive\"\n  card row.title\n   require row.title != \"Hidden\"\n   card \"Details\"\n    button action=x arguments={t=row}\n    text row.title\n",
+    );
+    let tree = parse(&text);
+    let lowering = lower_then_views(&tree, &text);
+    assert!(
+        lowering.diagnostics.is_empty(),
+        "{:?}",
+        lowering.diagnostics
+    );
+    let view = &lowering.views[0];
+    assert_eq!(
+        view.binding_names
+            .iter()
+            .map(|(_, name)| name.as_str())
+            .collect::<Vec<_>>(),
+        ["text", "content", "history", "button", "button", "card"],
+        "nested descendants remain inside the one opaque card binding"
+    );
+    assert_eq!(
+        view.controls,
+        [
+            ThenControl::Action {
+                operation: "x".into()
+            },
+            ThenControl::Action {
+                operation: "x".into()
+            }
+        ],
+        "direct and nested action buttons each contribute once; navigation grants no operation"
+    );
+    assert_eq!(view.gates, ["row.title != \"\""], "card gate stays local");
+    assert_eq!(view.leaves, ["text", "content", "history", "card"]);
+}
+
+#[test]
 fn action_primitives_refuse_missing_bindings_old_suites_and_design_overrides() {
     for source in [
         "secondary\n delete",
@@ -758,6 +795,63 @@ fn compile_without_then_units_diagnoses_units_and_actions() {
 }
 
 #[test]
+fn compile_saved_view_keeps_button_names_after_protected_form_lowering() {
+    let source = wrap(
+        " view Tile(row:Todo) $\"Arrange checked bindings.\"\n  require row.title != \"\"\n  button action=x\n  button target=\"/archive\" caption=\"Archive\"\n  card row.title\n   require row.title != \"Hidden\"\n   button action=x arguments={t=row}\n   text row.title\n page / title=\"Tasks\"\n  list Todo\n   show Tile {row=row}\n",
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = then_write(dir.path(), "app.can", &source);
+    let unit = then_bind(
+        &root,
+        &file,
+        &source,
+        GenerationKind::ViewDefinition,
+        "Tile",
+    );
+    then_write(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        "export function render({bindings}) { return bindings.button + bindings.button2 + bindings.card; }\n",
+    );
+    let catalog = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("packages/values/dist/catalog.json");
+    let compiled = then_dispatch(&then_argv(&[
+        "compile",
+        "--format=json",
+        &format!("--catalog={}", catalog.display()),
+        &file,
+    ]));
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = then_envelope(&compiled.stdout);
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    let action_button = js
+        .find("{name:\"button\",html:")
+        .expect("source button binding");
+    let navigation_button = js
+        .find("{name:\"button2\",html:")
+        .expect("second source button binding");
+    let card = js
+        .find("{name:\"card\",html:")
+        .expect("opaque card binding");
+    assert!(action_button < navigation_button && navigation_button < card);
+    assert!(
+        !js.contains("{name:\"form\",html:"),
+        "protected lowering must retain button identity"
+    );
+    assert!(
+        !js.contains("{name:\"button3\",html:"),
+        "card descendants are not separate bindings"
+    );
+    assert!(
+        js.contains("prepareForm"),
+        "action buttons retain canonical preparation"
+    );
+}
+
+#[test]
 fn inline_root_style_suffix_lowers_without_replacing_renderer_prompt() {
     let source = wrap(
         " view Tile(row:Todo) $\"Arrange admitted title.\" $\"Readable root.\"\n  edit fields=title\n",
@@ -937,4 +1031,149 @@ assert.deepEqual([...String(await page.render(context,{{}})).matchAll(/data-can-
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn composed_packages_keep_same_named_view_owners_through_saved_emission() {
+    let source = r#"app Composed uses=[one,two]
+package one
+ Given
+  Item {title:text}
+ When
+ Then
+  view Tile(row:Item) $"Arrange the first package's opaque card."
+   card row.title
+    text row.title
+  page /one title="One"
+   list Item
+    show Tile {row=row}
+package two
+ Given
+  Item {title:text}
+ When
+ Then
+  view Tile(row:Item) $"Arrange the second package's opaque card."
+   card row.title
+    text row.title
+  page /two title="Two"
+   list Item
+    show Tile {row=row}
+"#;
+    let tree = parse(source);
+    let lowering = lower_then_views(&tree, source);
+    assert!(
+        lowering.diagnostics.is_empty(),
+        "{:?}",
+        lowering.diagnostics
+    );
+    assert_eq!(
+        lowering
+            .views
+            .iter()
+            .map(|view| view.anchor.as_str())
+            .collect::<Vec<_>>(),
+        ["one:view:Tile:Item", "two:view:Tile:Item"]
+    );
+    let discovery = discover_generation(&tree, source);
+    assert!(
+        discovery.diagnostics.is_empty(),
+        "{:?}",
+        discovery.diagnostics
+    );
+    let edges = walk_generation_uses(&tree, source, &discovery.descriptors);
+    assert_eq!(edges.len(), 2);
+    for edge in &edges {
+        assert_eq!(
+            edge.definition_anchor,
+            format!("{}:view:Tile:Item", edge.owner)
+        );
+        let view = lowering
+            .views
+            .iter()
+            .find(|view| view.anchor == edge.definition_anchor)
+            .unwrap();
+        assert!(edge.use_span.start > view.span.end);
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = then_write(dir.path(), "app.can", source);
+    let revision = then_sha256(source.as_bytes());
+    let mut units = Vec::new();
+    for owner in ["one", "two"] {
+        let descriptor = discovery
+            .descriptors
+            .iter()
+            .find(|descriptor| {
+                descriptor.kind == GenerationKind::ViewDefinition && descriptor.owner == owner
+            })
+            .unwrap();
+        let bound = then_dispatch(&then_argv(&[
+            "gen",
+            "bind",
+            &root,
+            &file,
+            &descriptor.span.start.to_string(),
+            &descriptor.span.end.to_string(),
+            &revision,
+            "new",
+        ]));
+        assert_eq!(bound.code, 0, "{}", bound.stderr);
+        let unit = bound.stdout.split_whitespace().nth(1).unwrap().to_string();
+        then_write(
+            dir.path(),
+            &format!("can.generated/{unit}/implementation.js"),
+            "export function render({bindings}) { return bindings.card; }\n",
+        );
+        units.push((owner, unit));
+    }
+    let compiled = then_compile(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = then_envelope(&compiled.stdout);
+    let modules = artifact["modules"].as_array().unwrap();
+    // The composed app entry owns every joined page and its renderer imports;
+    // package modules carry identities, rather than duplicate page runtimes.
+    let entry = &modules[0];
+    assert_eq!(entry["path"], "$can$m$436f6d706f736564.mjs");
+    let js = entry["js"].as_str().unwrap();
+    let binding = |domain: &str, identity: &str| {
+        format!(
+            "$can${domain}${}",
+            identity
+                .bytes()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        )
+    };
+    for (owner, unit) in &units {
+        assert!(
+            js.contains(&format!("from \"./can.generated/{unit}/view.js\"")),
+            "{js}"
+        );
+        let render = binding("p", &format!("{owner}:render:/{owner}"));
+        let page = js
+            .lines()
+            .find(|line| line.starts_with(&format!("export async function {render}(")))
+            .expect("each composed package keeps its own page runtime");
+        assert!(
+            page.contains(&format!("rowModel:\"{owner}.Item\"")),
+            "{page}"
+        );
+        assert!(page.contains("{name:\"card\",html:"), "{page}");
+        assert!(
+            page.contains(&format!("render:{}", binding("v", unit))),
+            "{page}"
+        );
+        let other = units
+            .iter()
+            .find(|(candidate, _)| candidate != owner)
+            .unwrap();
+        assert!(
+            !page.contains(&format!("render:{}", binding("v", &other.1))),
+            "{page}"
+        );
+        assert!(
+            !page.contains(&format!("rowModel:\"{}.Item\"", other.0)),
+            "{page}"
+        );
+    }
 }

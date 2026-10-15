@@ -1024,13 +1024,13 @@ fn is_predicate_spelling(name: &str) -> bool {
     matches!(name, "members" | "owner" | "authenticated" | "public")
 }
 
-/// Whether `name` is a provisioned example account (factory parameter).
+/// Whether `name` is a provisioned example account (live evaluation context).
 fn is_test_account(name: &str) -> bool {
-    matches!(name, "self" | "other")
+    matches!(name, "self" | "other" | "outsider")
 }
 
 /// Duration literal slice (`5s`, `300ms`, ...) to milliseconds.
-fn duration_millis(slice: &str) -> Option<i128> {
+pub(super) fn duration_millis(slice: &str) -> Option<i128> {
     let (digits, factor) = ["ms", "s", "m", "h", "d"].iter().find_map(|suffix| {
         slice
             .strip_suffix(suffix)
@@ -1394,10 +1394,8 @@ pub enum IrExpr {
         /// Checked formal-to-source bindings, never reconstructed from names.
         descriptor_index: usize,
         locale_index: usize,
-        /// Source language of the descriptor's owning declaration/module.
-        source_lang: String,
-        /// (parameter name, canonical checked type, Values presentation tag).
-        param_types: Vec<(String, String, String)>,
+        /// Finite checked leaf schemas; the evaluated descriptor selects one.
+        schemas: Vec<IrFormatSchema>,
     },
     /// Role gate in expression position (subject predicate or bare gate
     /// over the caller) → `hasRole(c, role)` / `hasRole(c, role, person)`.
@@ -1611,8 +1609,9 @@ pub struct IrQuery {
     pub domain: IrQueryDomain,
     /// Containment parent value, if any (model domains only).
     pub parent: Option<Box<TypedExpr>>,
-    /// Row predicate over `row` (model domains) or the value alias
-    /// (value domains), if any.
+    /// Lexical parameter of the query predicate, preserving outer `row`.
+    pub where_param: String,
+    /// Row predicate over the query parameter, if any.
     pub where_pred: Option<Box<TypedExpr>>,
     /// Whether the predicate needs `async` (delivery reads, service calls).
     pub where_async: bool,
@@ -3742,6 +3741,14 @@ pub enum IrStmt {
     },
 }
 
+/// One allowed localized-format schema, derived solely from a checked leaf.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrFormatSchema {
+    pub source_lang: String,
+    /// (parameter name, canonical checked type, Values presentation tag).
+    pub param_types: Vec<(String, String, String)>,
+}
+
 /// Display message with its checked owning source locale and typed parameters.
 #[derive(Debug, Clone)]
 pub struct IrMessage {
@@ -5470,8 +5477,8 @@ impl<'a> Cx<'a> {
 /// Decode scope: module plus example bindings.
 ///
 /// `bindings` maps example input names (`record`, `expense`, ...) to the
-/// fixture they are bound to. `row_rewrite` maps a query `as` alias to
-/// `row` inside one anchored expression. `example_values` selects the
+/// fixture they are bound to. `row_rewrite` tracks lexical row aliases
+/// inside one anchored expression. `example_values` selects the
 /// example-cell name fallback (unresolvable bare names are enum-case
 /// text, never dangling identifiers).
 #[derive(Debug, Clone)]
@@ -5479,6 +5486,9 @@ struct Scope {
     module: ModuleId,
     bindings: HashMap<String, SymbolId>,
     row_rewrite: HashMap<String, String>,
+    /// Distinct lexical queried records, including shadowed ancestors. Aliases
+    /// of the same row occupy one entry; forms may infer only a unique model.
+    enclosing_records: Vec<(SymbolId, String)>,
     example_values: bool,
     /// Declared operation result type, for `result` roots in tables.
     result_ty: Option<ResolvedType>,
@@ -5512,6 +5522,7 @@ impl Scope {
             module,
             bindings: HashMap::new(),
             row_rewrite: HashMap::new(),
+            enclosing_records: Vec::new(),
             example_values: false,
             result_ty: None,
             sequence_lets: HashSet::new(),
@@ -5674,11 +5685,41 @@ impl<'a> Cx<'a> {
         }
     }
 
+    /// A generated literal caption uses the receiving logical source's locale
+    /// and the same message/field-label carrier as an authored caption.
+    fn decode_given_field_label(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<IrFieldLabel> {
+        let source = self
+            .program
+            .types
+            .given_fields
+            .get(&symbol.id)?
+            .label
+            .clone()?;
+        Some(IrFieldLabel {
+            text: IrMessage {
+                source,
+                source_lang: self.checked_message_source_lang(symbol.module, symbol.span),
+                variants: Vec::new(),
+                params: Vec::new(),
+            },
+            values: Vec::new(),
+        })
+    }
+
     fn decode_declared_field_label_parts(
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
         owner: SymbolId,
     ) -> Option<DecodedFieldLabel> {
+        if let Some(label) = self.decode_given_field_label(symbol) {
+            return Some(DecodedFieldLabel {
+                text: Some(label.text),
+                values: label.values,
+            });
+        }
         let key =
             self.program
                 .effects
@@ -6221,7 +6262,7 @@ impl<'a> Cx<'a> {
             _ => {}
         }
         if is_test_account(name) {
-            return IrExpr::Name(name.to_string());
+            return member_of("c", name, &ResolvedType::Scalar(Scalar::User), span);
         }
         if is_predicate_spelling(name) {
             return IrExpr::Unsupported {
@@ -6241,6 +6282,7 @@ impl<'a> Cx<'a> {
                         contract_collection_call: None,
                         domain: IrQueryDomain::Model(self.canonical(id)),
                         parent: None,
+                        where_param: "row".to_string(),
                         where_pred: None,
                         where_async: false,
                         order: Vec::new(),
@@ -6285,11 +6327,34 @@ impl<'a> Cx<'a> {
 
     /// Fixture symbol for `name` visible in `module` (tables only).
     fn fixture_in_scope(&self, module: ModuleId, name: &str) -> Option<SymbolId> {
-        let (id, _) = self.resolve_member(module, name)?;
-        match self.program.symbols.get(id.0 as usize).map(|s| &s.kind) {
-            Some(SymbolKind::Fixture { .. }) => Some(id),
-            _ => None,
+        // The generic by_name index also contains record fields and scenario
+        // parameters. Those declarations cannot mask a module's fixture inside
+        // an example recipe; actual lexical locals were handled before lookup.
+        let local = |module, name: &str| {
+            self.program
+                .symbols
+                .iter()
+                .find(|symbol| {
+                    symbol.module == module
+                        && symbol.name == name
+                        && matches!(symbol.kind, SymbolKind::Fixture { .. })
+                })
+                .map(|symbol| symbol.id)
+        };
+        if let Some(id) = local(module, name) {
+            return Some(id);
         }
+        for import in &self.program.modules.get(module.0 as usize)?.imports {
+            for member in &import.members {
+                if member.alias == name
+                    && let Some(provider) = self.modules_by_name.get(&import.provider)
+                    && let Some(id) = local(*provider, &member.name)
+                {
+                    return Some(id);
+                }
+            }
+        }
+        None
     }
 
     /// Declared type of a fixture reference, from its recipe target.
@@ -6523,6 +6588,7 @@ impl<'a> Cx<'a> {
                     contract_collection_call: None,
                     domain: IrQueryDomain::Model(self.canonical(child)),
                     parent: Some(Box::new(parent)),
+                    where_param: "row".to_string(),
                     where_pred: None,
                     where_async: false,
                     order: Vec::new(),
@@ -7611,10 +7677,6 @@ impl<'a> Cx<'a> {
             .get(&descriptor_key)
             .copied()
             .unwrap_or(descriptor_key);
-        let origin_inline = self
-            .node(&origin)
-            .is_some_and(|node| node.kind == SyntaxKind::MessageValue);
-        let anonymous = self.program.types.anonymous_messages.get(&origin).cloned();
         let args: Vec<_> = arguments
             .iter()
             .enumerate()
@@ -7630,7 +7692,7 @@ impl<'a> Cx<'a> {
                 }
             })
             .collect();
-        let (source_lang, param_types) = match &args[descriptor_index].ty {
+        let schemas = match &args[descriptor_index].ty {
             ResolvedType::Message(id) => {
                 let Some(data) = self.program.effects.messages.get(id) else {
                     return unsupported("checked message owner is unavailable");
@@ -7651,25 +7713,50 @@ impl<'a> Cx<'a> {
                         tag.to_string(),
                     ));
                 }
-                (data.source_lang.clone(), params)
+                vec![IrFormatSchema {
+                    source_lang: data.source_lang.clone(),
+                    param_types: params,
+                }]
             }
-            ResolvedType::InlineMessage if origin_inline || anonymous.is_some() => {
+            ResolvedType::InlineMessage => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
                 let source_lang = module.source_lang.clone();
-                let mut params = Vec::new();
-                if let Some(binding) = anonymous {
-                    for (name, _, ty) in binding.arguments {
-                        let Some(tag) = Self::format_param_tag(&ty) else {
-                            return unsupported(
-                                "checked anonymous argument has no Values presentation tag",
-                            );
-                        };
-                        params.push((name, self.type_id(&ty), tag.to_string()));
+                let leaves = self
+                    .program
+                    .types
+                    .anonymous_message_choices
+                    .get(&origin)
+                    .cloned()
+                    .unwrap_or_else(|| vec![origin]);
+                let mut schemas = Vec::new();
+                for leaf in leaves {
+                    let mut params = Vec::new();
+                    if let Some(binding) = self.program.types.anonymous_messages.get(&leaf) {
+                        for (name, _, ty) in &binding.arguments {
+                            let Some(tag) = Self::format_param_tag(ty) else {
+                                return unsupported(
+                                    "checked anonymous argument has no Values presentation tag",
+                                );
+                            };
+                            params.push((name.clone(), self.type_id(ty), tag.to_string()));
+                        }
+                    } else if !self
+                        .node(&leaf)
+                        .is_some_and(|node| node.kind == SyntaxKind::MessageValue)
+                    {
+                        return unsupported("descriptor leaf has no checked inline schema");
+                    }
+                    let schema = IrFormatSchema {
+                        source_lang: source_lang.clone(),
+                        param_types: params,
+                    };
+                    if !schemas.contains(&schema) {
+                        schemas.push(schema);
                     }
                 }
-                (source_lang, params)
+                schemas
             }
             _ => return unsupported("descriptor has no checked message owner or inline schema"),
         };
@@ -7677,8 +7764,7 @@ impl<'a> Cx<'a> {
             args,
             descriptor_index,
             locale_index,
-            source_lang,
-            param_types,
+            schemas,
         }
     }
 
@@ -7965,17 +8051,81 @@ impl<'a> Cx<'a> {
         let mut select = None;
         let mut select_param = None;
         let value_domain = model.is_none();
-        // Alias scope: model predicates rewrite the alias to `row` (the
-        // `records()` lambda parameter); value lambdas bind the alias
-        // itself, shadowing same-named fixtures/symbols either way. The
-        // lambda parameter carries the item type for clause lowering.
+        // Existing native source correspondence uses `row` for model query
+        // parameters. Keep that shape unless it would capture an authored
+        // outer `row`; the checked explicit alias then needs its own binding.
+        fn captures_normalized_row(
+            db: &SourceDb,
+            node: &SyntaxNode,
+            scope: &Scope,
+            bound: &HashSet<String>,
+        ) -> bool {
+            let parts = kids(node);
+            if node.kind == SyntaxKind::NameRef {
+                return parts
+                    .iter()
+                    .find_map(|part| name_text(db, part))
+                    .is_some_and(|name| {
+                        !bound.contains(&name)
+                            && scope.row_rewrite.get(&name).unwrap_or(&name) == "row"
+                    });
+            }
+            let query_alias = (node.kind == SyntaxKind::Query).then(|| {
+                parts
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::QueryClause)
+                    .find_map(|part| {
+                        let names: Vec<_> = kids(part)
+                            .iter()
+                            .filter_map(|name| name_text(db, name))
+                            .collect();
+                        (names.first().map(String::as_str) == Some("as"))
+                            .then(|| names.get(1).cloned())
+                            .flatten()
+                    })
+                    .unwrap_or_else(|| "row".to_string())
+            });
+            parts.iter().any(|part| {
+                if let Some(alias) = &query_alias
+                    && part.kind == SyntaxKind::QueryClause
+                {
+                    let keyword = kids(part).iter().find_map(|name| name_text(db, name));
+                    if matches!(keyword.as_deref(), Some("where" | "order" | "select")) {
+                        let mut nested = bound.clone();
+                        nested.insert(alias.clone());
+                        return captures_normalized_row(db, part, scope, &nested);
+                    }
+                }
+                captures_normalized_row(db, part, scope, bound)
+            })
+        }
+        let authored_param = alias.clone().unwrap_or_else(|| "row".to_string());
+        let bound = HashSet::from([authored_param.clone()]);
+        let captures_row = !value_domain
+            && clauses.iter().any(|clause| {
+                let parts = kids(clause);
+                parts
+                    .iter()
+                    .find_map(|part| name_text(self.db, part))
+                    .as_deref()
+                    == Some("where")
+                    && parts
+                        .iter()
+                        .filter(|part| is_expression(part.kind))
+                        .any(|part| captures_normalized_row(self.db, part, scope, &bound))
+            });
+        let where_param = if value_domain {
+            authored_param.clone()
+        } else if captures_row && authored_param == "row" {
+            format!("$query$row${}", node.span.start)
+        } else if captures_row {
+            authored_param.clone()
+        } else {
+            "row".to_string()
+        };
         let mut inner = scope.clone();
         if let Some(alias) = &alias {
-            let target = if value_domain {
-                alias.clone()
-            } else {
-                "row".to_string()
-            };
+            let target = where_param.clone();
             inner.row_rewrite.insert(alias.clone(), target.clone());
             if value_domain {
                 let element = value_base
@@ -7994,8 +8144,11 @@ impl<'a> Cx<'a> {
             }
         } else if let Some(id) = model_id {
             // Clauses without `as` still read the default `row`.
+            inner
+                .row_rewrite
+                .insert("row".to_string(), where_param.clone());
             inner.name_types.insert(
-                "row".to_string(),
+                where_param.clone(),
                 ResolvedType::Record {
                     symbol: id,
                     stored: true,
@@ -8140,6 +8293,7 @@ impl<'a> Cx<'a> {
             contract_collection_call: None,
             domain,
             parent,
+            where_param,
             where_pred,
             where_async,
             order,
@@ -8961,7 +9115,9 @@ impl<'a> Cx<'a> {
         IrStmt::Create {
             model: self.canonical(model),
             input: self.effect_args_object(scope, effect),
-            when: self.crud_when_key(model),
+            // Only generated CRUD wrappers own CRUD candidate admission.
+            // Authored effects retain their explicit guards and native rules.
+            when: None,
             binding: effect.binding.clone(),
             span,
         }
@@ -9023,16 +9179,11 @@ impl<'a> Cx<'a> {
             return unsupported_stmt("set statement", "no record path is published", span);
         };
         let record = self.decode_record_path(scope, &record_node);
-        let model = match &effect.target {
-            Some(crate::analysis::effects::EffectTarget::Record { model }) => *model,
-            Some(crate::analysis::effects::EffectTarget::PendingRecord { model }) => Some(*model),
-            _ => None,
-        };
         let _ = what;
         IrStmt::Set {
             record,
             changes: self.effect_args_object(scope, effect),
-            when: model.and_then(|id| self.crud_when_key(id)),
+            when: None,
             span,
         }
     }
@@ -9304,15 +9455,6 @@ impl<'a> Cx<'a> {
             })
             .collect();
         TypedExpr::new(IrExpr::Object(entries), ResolvedType::Unknown, span)
-    }
-
-    /// `crudWhen` registry key for `model` (its local name), when the
-    /// model's `crud` row carries a `when=` predicate.
-    fn crud_when_key(&self, model: SymbolId) -> Option<String> {
-        let crud = self.crud_for_model(model)?;
-        let data = self.program.effects.cruds.get(&crud)?;
-        data.when.as_ref()?;
-        Some(self.local_name(model))
     }
 
     /// `Crud` symbol for `model`, if one is declared.
@@ -9944,14 +10086,7 @@ impl<'a> Cx<'a> {
                 .default
                 .as_ref()
                 .map(|value| IrDefault::Literal(given_constant_expr(value, &ty, symbol.span)));
-            let bound_ty = if matches!(
-                ty,
-                ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)
-            ) {
-                ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)
-            } else {
-                ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
-            };
+            let bound_ty = given_bound_type(&ty);
             let modifiers = IrModifiers {
                 trim: field.trim,
                 min: field
@@ -9964,7 +10099,8 @@ impl<'a> Cx<'a> {
                     .map(|value| given_constant_expr(value, &bound_ty, symbol.span)),
                 ..IrModifiers::default()
             };
-            return (false, default, None, modifiers, None, None);
+            let label = self.decode_given_field_label(symbol);
+            return (false, default, None, modifiers, label, None);
         }
         let data = self
             .program
@@ -10086,16 +10222,13 @@ impl<'a> Cx<'a> {
             return;
         };
         let symbol = &self.program.symbols[field.0 as usize];
-        let ty = if matches!(
-            self.program.types.symbol_types.get(&field),
-            Some(ResolvedType::Scalar(
-                crate::analysis::types::Scalar::Decimal
-            ))
-        ) {
-            ResolvedType::Scalar(crate::analysis::types::Scalar::Decimal)
-        } else {
-            ResolvedType::Scalar(crate::analysis::types::Scalar::Int)
-        };
+        let ty = self
+            .program
+            .types
+            .symbol_types
+            .get(&field)
+            .map(given_bound_type)
+            .unwrap_or(ResolvedType::Scalar(crate::analysis::types::Scalar::Int));
         for constraint in constraints {
             modifiers.trim |= constraint.trim;
             for (slot, value, minimum) in [
@@ -13433,6 +13566,8 @@ impl<'a> Cx<'a> {
                 stored: true,
             },
         );
+        owned.row_rewrite.insert("row".into(), "row".into());
+        owned.enclosing_records.push((model, "row".into()));
         let children =
             self.decode_ui_children(&owned, &declaration, Some((model, "row".to_string())));
         // A definition-level require gates its whole expansion using the bound row.
@@ -15377,6 +15512,9 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
+        if let Some(op) = operation_target {
+            self.bind_form_records(scope, op, node.span, &mut props);
+        }
         if !has_submit
             && let Some(operation) = operation_target
                 .and_then(|op| self.program.effects.crud_ops.get(&op))
@@ -15479,6 +15617,88 @@ impl<'a> Cx<'a> {
             gate,
             span: node.span,
         })
+    }
+
+    /// DESIGN's enclosing-record rule is lexical: no queries, name preference,
+    /// or nearest-row fallback resolve an ambiguous model. Authored arguments
+    /// win independently for each input, and unknown object shapes stay loud.
+    fn bind_form_records(
+        &self,
+        scope: &Scope,
+        op: SymbolId,
+        span: Span,
+        props: &mut Vec<(String, TypedExpr)>,
+    ) {
+        let mut expected = Vec::new();
+        match &self.program.symbols[op.0 as usize].kind {
+            SymbolKind::Scenario { params, .. } | SymbolKind::CapabilityOp { params, .. } => {
+                for param in params {
+                    if let Some(ty) = self.program.types.symbol_types.get(param)
+                        && let ResolvedType::Record {
+                            symbol,
+                            stored: true,
+                        } = ty.nullable_inner().unwrap_or(ty)
+                    {
+                        expected
+                            .push((self.program.symbols[param.0 as usize].name.clone(), *symbol));
+                    }
+                }
+            }
+            SymbolKind::CrudOp { model, op } => match op {
+                CrudOp::Update | CrudOp::Delete => expected.push(("record".into(), *model)),
+                CrudOp::Create => {
+                    if let SymbolKind::Model {
+                        owner: ModelOwner::ChildOf(parent),
+                        ..
+                    } = self.program.symbols[model.0 as usize].kind
+                    {
+                        expected.push(("parent".into(), parent));
+                    }
+                }
+            },
+            _ => return,
+        }
+        let authored = props.iter().position(|(name, _)| name == "arguments");
+        let mut arguments = match authored {
+            Some(index) => match &props[index].1.expr {
+                IrExpr::Object(fields) => fields.clone(),
+                _ => return,
+            },
+            None => Vec::new(),
+        };
+        let authored_count = arguments.len();
+        for (name, model) in expected {
+            if arguments.iter().any(|(bound, _)| bound == &name) {
+                continue;
+            }
+            let mut matches = scope
+                .enclosing_records
+                .iter()
+                .filter(|(id, _)| *id == model);
+            if let Some((_, row)) = matches.next()
+                && matches.next().is_none()
+            {
+                arguments.push((
+                    name,
+                    TypedExpr::new(
+                        IrExpr::Name(row.clone()),
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                        span,
+                    ),
+                ));
+            }
+        }
+        if arguments.len() == authored_count {
+            return;
+        }
+        let value = TypedExpr::new(IrExpr::Object(arguments), ResolvedType::Unknown, span);
+        match authored {
+            Some(index) => props[index].1 = value,
+            None => props.push(("arguments".into(), value)),
+        }
     }
 
     /// Resolve a `Model.op`/`scenario`/`Cap.op` operation reference to
@@ -15961,6 +16181,64 @@ impl<'a> Cx<'a> {
             ResolvedType::Scalar(Scalar::Text),
             value?.span,
         ))
+    }
+
+    /// A paged owning Bool field is already the complete stable data filter.
+    /// Resolve the actual stored declaration; no derive, path traversal,
+    /// nullable field, captured expression or caller predicate enters it.
+    fn checked_page_bool_predicate(
+        &self,
+        model: SymbolId,
+        alias: &str,
+        body: &TypedExpr,
+    ) -> Option<IrExpr> {
+        let IrExpr::Member { base, field } = &body.expr else {
+            return None;
+        };
+        if body.ty != ResolvedType::Scalar(Scalar::Bool)
+            || !matches!(&base.expr, IrExpr::Name(name) if name == alias)
+            || !matches!(&base.ty, ResolvedType::Record { symbol, stored: true } if *symbol == model)
+        {
+            return None;
+        }
+        let field_id = *self.fields.get(&(model, field.clone()))?;
+        let owner = self.program.symbols.get(model.0 as usize)?;
+        let declaration = self.program.symbols.get(field_id.0 as usize)?;
+        if !matches!(&owner.kind, SymbolKind::Model { fields, .. } if fields.contains(&field_id))
+            || !matches!(declaration.kind, SymbolKind::Field { owner, .. } if owner == model)
+            || declaration.module != owner.module
+            || declaration.name != *field
+            || self.program.types.symbol_types.get(&field_id)
+                != Some(&ResolvedType::Scalar(Scalar::Bool))
+        {
+            return None;
+        }
+        Some(IrExpr::Object(vec![
+            (
+                "op".into(),
+                TypedExpr::new(
+                    IrExpr::Text("eq".into()),
+                    ResolvedType::Scalar(Scalar::Text),
+                    body.span,
+                ),
+            ),
+            (
+                "field".into(),
+                TypedExpr::new(
+                    IrExpr::Text(field.clone()),
+                    ResolvedType::Scalar(Scalar::Text),
+                    body.span,
+                ),
+            ),
+            (
+                "value".into(),
+                TypedExpr::new(
+                    IrExpr::Bool(true),
+                    ResolvedType::Scalar(Scalar::Bool),
+                    body.span,
+                ),
+            ),
+        ]))
     }
 
     fn checked_page_time_predicate(
@@ -17052,7 +17330,18 @@ impl<'a> Cx<'a> {
                 && !kids(marker)
                     .iter()
                     .any(|child| is_expression(child.kind) || is_ui_node(child.kind));
+            let source_alias = as_name.as_deref().unwrap_or("row");
             for (key, value) in &mut props {
+                if source_marker_supported
+                    && key == "where"
+                    && let Some(model) = model_id
+                    && let IrExpr::Lambda { param, body } = &value.expr
+                    && param == source_alias
+                    && let Some(predicate) =
+                        self.checked_page_bool_predicate(model, source_alias, body)
+                {
+                    value.expr = predicate;
+                }
                 if key == "where"
                     && let IrExpr::PageTimePredicate(predicate) = &mut value.expr
                 {
@@ -17075,7 +17364,14 @@ impl<'a> Cx<'a> {
         // Both source spellings refer to this checked row. Use a named
         // query alias as the actual binding so nested `row` shadowing cannot
         // erase the enclosing explicit alias.
-        let row_name = as_name.clone().unwrap_or_else(|| "row".to_string());
+        let source_row = as_name.clone().unwrap_or_else(|| "row".to_string());
+        // Preserve a shadowed ancestor's actual lexical binding for automatic
+        // form arguments. The private name cannot collide with source names.
+        let row_name = if scope.row_rewrite.contains_key(&source_row) {
+            format!("$row:{}:{}", node.span.file.0, node.span.start)
+        } else {
+            source_row.clone()
+        };
         let row_ctx = model_id.map(|id| (id, row_name.clone()));
         // A collection scope ends field placement unless a nested owner
         // re-establishes it.
@@ -17097,9 +17393,11 @@ impl<'a> Cx<'a> {
             unowned
                 .row_rewrite
                 .insert(row_name.clone(), row_name.clone());
+            unowned.row_rewrite.insert(source_row, row_name.clone());
             unowned
                 .row_rewrite
                 .insert("row".to_string(), row_name.clone());
+            unowned.enclosing_records.push((model, row_name.clone()));
         }
         let children: Vec<IrUi> = child_nodes
             .iter()
@@ -18363,7 +18661,7 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a sequence `by=` caller: fixtures resolve to their `s`
-    /// scope slot, provisioned accounts stay bare, roles lower to their
+    /// scope slot, provisioned accounts use the live context, roles lower to their
     /// canonical identity, anything else stays a spelling.
     fn decode_caller(&mut self, module: ModuleId, name: &str, span: Span) -> TypedExpr {
         if let Some(id) = self.fixture_in_scope(module, name) {
@@ -18373,7 +18671,7 @@ impl<'a> Cx<'a> {
         }
         if is_test_account(name) {
             return TypedExpr::new(
-                IrExpr::Name(name.to_string()),
+                member_of("c", name, &ResolvedType::Scalar(Scalar::User), span),
                 ResolvedType::Scalar(Scalar::User),
                 span,
             );
@@ -18607,6 +18905,15 @@ impl<'a> Cx<'a> {
         let mut observations = Vec::new();
         let mut refs: Vec<SymbolId> = table.seeds.clone();
         refs.extend(binding_fixtures.iter().copied());
+        // Only fixtures actually seeded for every row are table dependencies.
+        // `refs` below also collects observations and earlier rows for module
+        // recipe availability; that union cannot provision a later row.
+        let table_deps: HashSet<SymbolId> = table
+            .seeds
+            .iter()
+            .chain(binding_fixtures.iter())
+            .copied()
+            .collect();
         for cell in header_obs {
             let expr = self.decode_expr(&scope, cell);
             refs.extend(self.s_refs(module, &expr));
@@ -18651,7 +18958,6 @@ impl<'a> Cx<'a> {
                 ))
             };
             // Row dependencies are fixtures beyond the table level.
-            let table_deps: HashSet<SymbolId> = refs.iter().copied().collect();
             let dependencies: Vec<String> = {
                 let mut names: Vec<String> = row_refs
                     .iter()
@@ -18716,7 +19022,11 @@ impl<'a> Cx<'a> {
             return TypedExpr::new(member_of("s", &fixture_name, &ty, span), ty, span);
         }
         if is_test_account(&name) {
-            return TypedExpr::new(IrExpr::Name(name), ResolvedType::Scalar(Scalar::User), span);
+            return TypedExpr::new(
+                member_of("c", &name, &ResolvedType::Scalar(Scalar::User), span),
+                ResolvedType::Scalar(Scalar::User),
+                span,
+            );
         }
         if let Some((id, _)) = self.resolve_member(module, &name)
             && matches!(
@@ -18961,6 +19271,8 @@ pub struct GivenTraitInstanceIr {
     pub order: usize,
     /// Application span.
     pub span: Span,
+    /// Exact optional field-check implementation closure.
+    pub validation_fingerprint: Option<String>,
 }
 
 /// One lowered contributed field: the typed leaf a trait adds.
@@ -19042,8 +19354,17 @@ pub struct GivenContractIr {
     pub keywords: Vec<GivenKeywordRuleIr>,
 }
 
+pub(super) fn given_bound_type(ty: &ResolvedType) -> ResolvedType {
+    use crate::analysis::types::Scalar;
+    match ty {
+        ResolvedType::Nullable(inner) => given_bound_type(inner),
+        ResolvedType::Scalar(scalar) if !scalar.is_string_like() => ty.clone(),
+        _ => ResolvedType::Scalar(Scalar::Int),
+    }
+}
+
 /// Decode a constant already admitted by the Given field owner checker.
-fn given_constant_expr(value: &str, ty: &ResolvedType, span: Span) -> TypedExpr {
+pub(super) fn given_constant_expr(value: &str, ty: &ResolvedType, span: Span) -> TypedExpr {
     use crate::analysis::types::Scalar;
     let text = value.trim();
     let expr = if text == "null" {
@@ -19069,6 +19390,9 @@ fn given_constant_expr(value: &str, ty: &ResolvedType, span: Span) -> TypedExpr 
                 IrExpr::Int(text.parse().expect("checked Given integer"))
             }
             ResolvedType::Scalar(Scalar::Decimal) => IrExpr::Decimal(text.to_string()),
+            ResolvedType::Scalar(Scalar::Duration) => {
+                IrExpr::DurationMs(duration_millis(text).expect("checked Given duration"))
+            }
             ResolvedType::Scalar(Scalar::Date) => {
                 IrExpr::Date(serde_json::from_str(text).unwrap_or_else(|_| text.to_string()))
             }
@@ -19133,6 +19457,7 @@ pub fn lower_given_contracts(
                     })
                     .collect(),
                 fingerprint: contract.fingerprint.clone(),
+                validation_fingerprint: contract.validation_fingerprint.clone(),
                 order: app.order,
                 span: app.span,
             });

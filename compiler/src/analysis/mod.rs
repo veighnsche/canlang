@@ -123,6 +123,8 @@ pub struct CheckedProgram {
     pub(crate) standard_completion_handlers: Vec<CheckedStandardCompletionHandler>,
     mailbox_handlers: Vec<CheckedMailboxHandler>,
     cohort: cohort::CheckedCohort,
+    // Original check input, independent of editable public analysis tables.
+    original_given: Option<types::GivenContractTables>,
 }
 
 /// Source declarations retained before the public analysis tables can be
@@ -171,6 +173,10 @@ pub(crate) struct CheckedMailboxHandler {
 }
 
 impl CheckedProgram {
+    pub(crate) fn original_given(&self) -> Option<&types::GivenContractTables> {
+        self.original_given.as_ref()
+    }
+
     pub(crate) fn mailbox_handlers(&self) -> &[CheckedMailboxHandler] {
         &self.mailbox_handlers
     }
@@ -236,30 +242,34 @@ pub(crate) fn check_program_with_given(
             diagnostics.extend(found.diagnostics);
         }
     }
-    let resolve_tables = match resolve::try_resolve_program_with_given(db, &trees, catalog, given, &mut diagnostics) {
-        Ok(tables) => tables,
-        Err(diagnostic) => {
-            diagnostics.push(diagnostic);
-            let mut diagnostics = check::dedup_diagnostics(diagnostics);
-            check::sort_diagnostics(&mut diagnostics);
-            return (
-                CheckedProgram {
-                    modules: Vec::new(),
-                    symbols: Vec::new(),
-                    types: TypeTable::default(),
-                    effects: EffectTables::default(),
-                    examples: ExampleTables::default(),
-                    catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
-                    scenario_disclosures: std::collections::HashMap::new(),
-                    committed_handlers: Vec::new(),
-                    standard_completion_handlers: Vec::new(),
-                    mailbox_handlers: Vec::new(),
-                    cohort: cohort::CheckedCohort::new(db, files, catalog),
-                },
-                diagnostics,
-            );
-        }
-    };
+    let resolve_tables =
+        match resolve::try_resolve_program_with_given(db, &trees, catalog, given, &mut diagnostics)
+        {
+            Ok(tables) => tables,
+            Err(diagnostic) => {
+                diagnostics.push(diagnostic);
+                let mut diagnostics = check::dedup_diagnostics(diagnostics);
+                check::sort_diagnostics(&mut diagnostics);
+                return (
+                    CheckedProgram {
+                        modules: Vec::new(),
+                        symbols: Vec::new(),
+                        types: TypeTable::default(),
+                        effects: EffectTables::default(),
+                        examples: ExampleTables::default(),
+                        catalog_version: catalog
+                            .map_or_else(String::new, |c| c.version().to_string()),
+                        scenario_disclosures: std::collections::HashMap::new(),
+                        committed_handlers: Vec::new(),
+                        standard_completion_handlers: Vec::new(),
+                        mailbox_handlers: Vec::new(),
+                        cohort: cohort::CheckedCohort::new(db, files, catalog),
+                        original_given: given.cloned(),
+                    },
+                    diagnostics,
+                );
+            }
+        };
     let types = types::check_types(db, &trees, catalog, &resolve_tables, &mut diagnostics);
     resolve::emit_unresolved(db, &resolve_tables, &types, &mut diagnostics);
     let effects = effects::check_effects(
@@ -423,6 +433,7 @@ pub(crate) fn check_program_with_given(
         standard_completion_handlers,
         mailbox_handlers,
         cohort: cohort::CheckedCohort::new(db, files, catalog),
+        original_given: given.cloned(),
     };
     (program, diagnostics)
 }

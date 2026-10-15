@@ -1661,71 +1661,93 @@ impl ThenBuildJoin {
         let mut files: Vec<FileThen> = Vec::new();
         for (id, source) in db.iter() {
             let (tree, _) = crate::syntax::parse_source(id, &source.text);
-            let found = discover_generation(&tree, &source.text);
-            let lowering = super::then_views::lower_then_views(&tree, &source.text);
-            let edges =
-                super::then_views::walk_generation_uses(&tree, &source.text, &found.descriptors);
-            let mut view_spans = Vec::new();
-            let mut show_refs = Vec::new();
-            let mut style_hosts = Vec::new();
-            let mut owner = String::new();
-            for node in tree.descendants() {
-                for suffix in node
-                    .children
-                    .iter()
-                    .filter(|child| child.kind == crate::syntax::SyntaxKind::StyleSuffix)
-                {
-                    style_hosts.push((suffix.span, node.span));
-                }
-                if matches!(
-                    node.kind,
-                    crate::syntax::SyntaxKind::App | crate::syntax::SyntaxKind::Package
-                ) {
-                    let ns: Vec<String> = node
+            // Keep the existing collection scoped to a logical module, rather
+            // than assigning all definitions and uses the file's last owner.
+            let modules: Vec<_> = tree
+                .children
+                .iter()
+                .filter(|node| {
+                    matches!(
+                        node.kind,
+                        crate::syntax::SyntaxKind::App | crate::syntax::SyntaxKind::Package
+                    )
+                })
+                .collect();
+            let modules = if modules.is_empty() {
+                vec![&tree]
+            } else {
+                modules
+            };
+            for tree in modules {
+                let found = discover_generation(&tree, &source.text);
+                let lowering = super::then_views::lower_then_views(&tree, &source.text);
+                let edges = super::then_views::walk_generation_uses(
+                    &tree,
+                    &source.text,
+                    &found.descriptors,
+                );
+                let mut view_spans = Vec::new();
+                let mut show_refs = Vec::new();
+                let mut style_hosts = Vec::new();
+                let mut owner = String::new();
+                for node in tree.descendants() {
+                    for suffix in node
                         .children
                         .iter()
-                        .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
-                        .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
-                        .collect();
-                    if ns.len() >= 2 {
-                        owner = ns[1].clone();
+                        .filter(|child| child.kind == crate::syntax::SyntaxKind::StyleSuffix)
+                    {
+                        style_hosts.push((suffix.span, node.span));
                     }
-                } else if node.kind == crate::syntax::SyntaxKind::View {
-                    let name = node
-                        .children
-                        .iter()
-                        .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
-                        .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
-                        .nth(1)
-                        .unwrap_or_default();
-                    view_spans.push((name, node.span));
-                } else if node.kind == crate::syntax::SyntaxKind::Show {
-                    let name = node
-                        .children
-                        .iter()
-                        .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
-                        .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
-                        .nth(1)
-                        .unwrap_or_default();
-                    show_refs.push((name, node.span));
+                    if matches!(
+                        node.kind,
+                        crate::syntax::SyntaxKind::App | crate::syntax::SyntaxKind::Package
+                    ) {
+                        let ns: Vec<String> = node
+                            .children
+                            .iter()
+                            .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
+                            .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
+                            .collect();
+                        if ns.len() >= 2 {
+                            owner = ns[1].clone();
+                        }
+                    } else if node.kind == crate::syntax::SyntaxKind::View {
+                        let name = node
+                            .children
+                            .iter()
+                            .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
+                            .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
+                            .nth(1)
+                            .unwrap_or_default();
+                        view_spans.push((name, node.span));
+                    } else if node.kind == crate::syntax::SyntaxKind::Show {
+                        let name = node
+                            .children
+                            .iter()
+                            .filter(|c| c.kind == crate::syntax::SyntaxKind::Name)
+                            .filter_map(|c| c.token().map(|t| t.text(&source.text).to_string()))
+                            .nth(1)
+                            .unwrap_or_default();
+                        show_refs.push((name, node.span));
+                    }
                 }
+                if owner.is_empty() {
+                    owner = found
+                        .descriptors
+                        .first()
+                        .map(|d| d.owner.clone())
+                        .unwrap_or_default();
+                }
+                files.push(FileThen {
+                    owner,
+                    descriptors: found.descriptors,
+                    views: lowering.views,
+                    edges,
+                    view_spans,
+                    show_refs,
+                    style_hosts,
+                });
             }
-            if owner.is_empty() {
-                owner = found
-                    .descriptors
-                    .first()
-                    .map(|d| d.owner.clone())
-                    .unwrap_or_default();
-            }
-            files.push(FileThen {
-                owner,
-                descriptors: found.descriptors,
-                views: lowering.views,
-                edges,
-                view_spans,
-                show_refs,
-                style_hosts,
-            });
         }
         // A view is consumed when some `show` names it (prompted views
         // through their checked edges, unprompted ones through raw
@@ -4419,17 +4441,25 @@ impl<'a> Emitter<'a> {
         }
         if self.localized_format {
             lines.push(format!(
-            "function {}(c,d,locale,sourceLang,signature){{\n\
+            "function {}(c,d,locale,schemas){{\n\
              if(typeof c?.formatting?.appDefault!==\"string\")throw new ValueError(\"invalid-construction\",\"message formatting requires checked selected-app scope\");\n\
              const timeZone=c.team===null?\"UTC\":c.team?.timezone;\n\
              if(typeof timeZone!==\"string\")throw new ValueError(\"invalid-construction\",\"message formatting requires admitted team timezone\");\n\
              if(typeof d!==\"object\"||d===null)throw new ValueError(\"invalid-construction\",\"message formatting requires a descriptor\");\n\
+             const alternatives=[],seen=new Map();\n\
+             for(const [source,signature] of schemas){{const sourceLang={}(source);const ordered=[...signature].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);const key=JSON.stringify([sourceLang,ordered.map(([name,canonical])=>[name,canonical])]);const mapping=JSON.stringify(ordered);if(seen.has(key)){{if(seen.get(key)!==mapping)throw new ValueError(\"invalid-construction\",\"ambiguous checked message signature\");continue;}}seen.set(key,mapping);alternatives.push([sourceLang,signature]);}}\n\
+             const supplied=d.params===undefined?{{}}:d.params;\n\
+             if(typeof supplied!==\"object\"||supplied===null||Array.isArray(supplied))throw new ValueError(\"invalid-construction\",\"message parameters differ from checked signature\");\n\
+             const entries=Object.getOwnPropertyDescriptors(supplied),names=Reflect.ownKeys(entries);\n\
+             const matched=alternatives.find(([sourceLang,signature])=>sourceLang===d.sourceLocale&&names.length===signature.length&&signature.every(([name,canonical])=>{{const entry=entries[name];if(!Object.hasOwn(entries,name)||!Object.hasOwn(entry,\"value\")||typeof entry.value!==\"object\"||entry.value===null)return false;const type=Object.getOwnPropertyDescriptor(entry.value,\"type\");return type!==undefined&&Object.hasOwn(type,\"value\")&&type.value===canonical;}}));\n\
+             if(matched===undefined)throw new ValueError(\"invalid-construction\",\"message parameters differ from checked signature\");\n\
+             const [sourceLang,signature]=matched;\n\
              const params=Object.create(null);\n\
-             for(const [name,canonical,type] of signature){{const p=d.params?.[name];if(p?.type!==canonical)throw new ValueError(\"invalid-construction\",\"message parameter differs from checked signature: \"+name);params[name]={{type,value:p.value}};}}\n\
-             if(Object.keys(d.params??{{}}).length!==signature.length)throw new ValueError(\"invalid-construction\",\"message parameters differ from checked signature\");\n\
+             for(const [name,,type] of signature){{const value=Object.getOwnPropertyDescriptor(entries[name].value,\"value\");if(value===undefined||!Object.hasOwn(value,\"value\"))throw new ValueError(\"invalid-construction\",\"message parameter differs from checked signature: \"+name);params[name]={{type,value:value.value}};}}\n\
              return format(makeMessageDescriptor(d.source,d.variants,signature.length?params:undefined),{{locale,appDefault:c.formatting.appDefault,sourceLang,timeZone}});\n\
              }}",
-            binding_ident("h", "localized_format")
+            binding_ident("h", "localized_format"),
+            binding_ident("u", "normalizeTag")
             ));
         }
         lines
@@ -5547,8 +5577,7 @@ impl<'a> Emitter<'a> {
                 args,
                 descriptor_index,
                 locale_index,
-                source_lang,
-                param_types,
+                schemas,
             } => {
                 if self.in_hook() {
                     return self.hook_gap(
@@ -5560,26 +5589,34 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("format".to_string());
                 self.stdlib.insert("makeMessageDescriptor".to_string());
                 self.stdlib.insert("ValueError".to_string());
+                self.ui.insert("normalizeTag".to_string());
                 self.localized_format = true;
                 let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
                 let capture = binding_ident("a", &self.binding_seq.to_string());
                 self.binding_seq += 1;
-                let schema = param_types
+                let schemas = schemas
                     .iter()
-                    .map(|(name, canonical, presentation)| {
-                        format!(
-                            "[{},{},{}]",
-                            js_string(name),
-                            js_string(canonical),
-                            js_string(presentation)
-                        )
+                    .map(|schema| {
+                        let params = schema
+                            .param_types
+                            .iter()
+                            .map(|(name, canonical, presentation)| {
+                                format!(
+                                    "[{},{},{}]",
+                                    js_string(name),
+                                    js_string(canonical),
+                                    js_string(presentation)
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",");
+                        format!("[{},[{params}]]", js_string(&schema.source_lang))
                     })
                     .collect::<Vec<_>>()
                     .join(",");
                 format!(
-                    "(({capture})=>{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],{},[{schema}]))([{}])",
+                    "(({capture})=>{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],[{schemas}]))([{}])",
                     binding_ident("h", "localized_format"),
-                    js_string(source_lang),
                     values.join(",")
                 )
             }
@@ -7027,7 +7064,7 @@ impl<'a> Emitter<'a> {
                 // supplied bound remains in the per-candidate predicate.
                 let parent = self.lower_expr(parent);
                 self.enter_scope();
-                let row = self.bind("row");
+                let row = self.bind(&query.where_param);
                 let predicate = self.lower_expr(predicate);
                 self.exit_scope();
                 self.enter_scope();
@@ -7056,7 +7093,7 @@ impl<'a> Emitter<'a> {
                 if original_scan || contained_count {
                     self.stdlib.insert("executeScenarioReceiptQuery".into());
                     self.enter_scope();
-                    let row = self.bind("row");
+                    let row = self.bind(&query.where_param);
                     let predicate = query
                         .where_pred
                         .as_ref()
@@ -7103,7 +7140,7 @@ impl<'a> Emitter<'a> {
                 }
                 if let Some(pred) = &query.where_pred {
                     self.enter_scope();
-                    let row = self.bind("row");
+                    let row = self.bind(&query.where_param);
                     let body = self.lower_expr(pred);
                     self.exit_scope();
                     if self.native_source_predicates {
@@ -8416,6 +8453,43 @@ impl<'a> Emitter<'a> {
             .and_then(|row| row.binding.clone())
     }
 
+    /// Static source operation admission can omit a control before any of its
+    /// arguments or captions evaluate. Input/subject-dependent rules are not
+    /// evaluated with unbound form parameters.
+    fn control_role_admission(&mut self, node: &IrUi) -> Option<String> {
+        if !matches!(node.factory.as_str(), "form" | "deleteRecord") {
+            return None;
+        }
+        let operation = form_prop_text(node, "operation")?;
+        let item = self
+            .ir
+            .items
+            .iter()
+            .find(|item| item.canonical == operation)?;
+        let by = match &item.kind {
+            IrItemKind::Scenario { by, .. } | IrItemKind::CrudOp { by, .. } => by,
+            _ => return None,
+        };
+        fn role_only(guard: &IrGuard) -> bool {
+            match guard {
+                IrGuard::Role(_) => true,
+                IrGuard::And(guards) | IrGuard::Or(guards) => guards.iter().all(role_only),
+                IrGuard::Not(inner) => role_only(inner),
+                IrGuard::Subject { .. } | IrGuard::Expr(_) => false,
+            }
+        }
+        if by.is_empty() || !by.iter().all(role_only) {
+            return None;
+        }
+        let by = by.clone();
+        Some(
+            by.iter()
+                .map(|guard| format!("({})", self.lower_guard_bool(guard)))
+                .collect::<Vec<_>>()
+                .join(" && "),
+        )
+    }
+
     /// Emit one prompted `show` site as a saved-renderer call: the
     /// declaration children pre-render as named bindings (canonical
     /// control kind or leaf factory in declaration order, repeats
@@ -8556,13 +8630,32 @@ impl<'a> Emitter<'a> {
         prepared_form: Option<&str>,
         view_scope: bool,
     ) -> String {
+        self.lower_ui_occurrence_admitted(node, ctx, occurrences, prepared_form, view_scope, false)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn lower_ui_occurrence_admitted(
+        &mut self,
+        node: &IrUi,
+        ctx: &str,
+        occurrences: &[String],
+        prepared_form: Option<&str>,
+        view_scope: bool,
+        control_admitted: bool,
+    ) -> String {
         let style = self
             .then_join
             .as_ref()
             .and_then(|join| join.style_at(&node.span))
             .cloned();
-        let html =
-            self.lower_ui_occurrence_unstyled(node, ctx, occurrences, prepared_form, view_scope);
+        let html = self.lower_ui_occurrence_unstyled(
+            node,
+            ctx,
+            occurrences,
+            prepared_form,
+            view_scope,
+            control_admitted,
+        );
         if let Some(unit) = style {
             self.ui.insert("styledComponent".to_string());
             let helper = binding_ident("u", "styledComponent");
@@ -8582,6 +8675,7 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn lower_ui_occurrence_unstyled(
         &mut self,
         node: &IrUi,
@@ -8589,6 +8683,7 @@ impl<'a> Emitter<'a> {
         occurrences: &[String],
         prepared_form: Option<&str>,
         view_scope: bool,
+        control_admitted: bool,
     ) -> String {
         // Settle earlier children before later siblings cross a source await.
         let sequence_children = node.children.iter().any(ui_immediate_uses_async)
@@ -8816,17 +8911,29 @@ impl<'a> Emitter<'a> {
                 .gate
                 .as_ref()
                 .map(|gate| self.lower_business_expr(gate, "action menu gate"));
+            let admission = if node.children.len() == 1 {
+                self.control_role_admission(&node.children[0])
+            } else {
+                None
+            };
+            let admitted = admission.is_some();
+            let gate = match (gate, admission) {
+                (Some(authored), Some(admission)) => Some(format!("({authored}) && ({admission})")),
+                (gate, None) => gate,
+                (None, admission) => admission,
+            };
             let children = node
                 .children
                 .iter()
                 .map(|child| {
                     sequence_ui_child(
-                        self.lower_ui_occurrence(
+                        self.lower_ui_occurrence_admitted(
                             child,
                             ctx,
                             occurrences,
                             prepared_form,
                             view_scope,
+                            admitted,
                         ),
                         sequence_children,
                     )
@@ -9161,7 +9268,11 @@ impl<'a> Emitter<'a> {
                         | ResolvedType::Message(_)
                 ),
                 "target" if node.factory == "button" => {
-                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text | Scalar::Url))
+                    matches!(
+                        value.ty,
+                        ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
+                    ) || matches!(&value.ty, ResolvedType::Nullable(inner)
+                            if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
                 }
                 "regionId" | "target" | "opens" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
@@ -9203,6 +9314,16 @@ impl<'a> Emitter<'a> {
             .gate
             .as_ref()
             .map(|g| self.lower_business_expr(g, "formatted UI gate"));
+        let admission = if control_admitted {
+            None
+        } else {
+            self.control_role_admission(node)
+        };
+        let gate = match (gate, admission) {
+            (Some(authored), Some(admission)) => Some(format!("({authored}) && ({admission})")),
+            (gate, None) => gate,
+            (None, admission) => admission,
+        };
         self.ui.insert(node.factory.clone());
         if node.factory == "form" {
             // Await preparation once before authored children. The request
@@ -9609,8 +9730,14 @@ impl<'a> Emitter<'a> {
                         "{{...{row}.fields,id:{row}.id,version:{row}.version===undefined?undefined:BigInt({row}.version)}}"
                     )
                 };
+                // The private native UI bridge supplies a separate lazy source
+                // record. The first argument remains the original wire RowView
+                // for history, File binding and generated-view mount transport.
+                // Direct generic factories retain their two-argument fallback.
+                let native_row =
+                    binding_ident("sr", &format!("{}:{}", node.span.file.0, node.span.start));
                 props.push(format!(
-                    "renderRow:{prefix}({row},{child_ctx})=>{{{preserve_row}{row}={fields};return [{children}];}}"
+                    "renderRow:{prefix}({row},{child_ctx},{native_row})=>{{{preserve_row}{row}={native_row}===undefined?{fields}:{native_row};return [{children}];}}"
                 ));
                 self.exit_scope();
             }
@@ -10020,10 +10147,18 @@ fn sequence_ui_child(value: String, sequence: bool) -> String {
     }
 }
 
+/// Only File destinations add asynchronous presentation to an ordinary button.
+fn ui_has_file_destination(node: &IrUi) -> bool {
+    node.factory == "button" && node.props.iter().any(|(key, value)| key == "target" &&
+        (value.ty == ResolvedType::Scalar(Scalar::File) ||
+         matches!(&value.ty, ResolvedType::Nullable(inner) if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))))
+}
+
 /// Whether rendering this node evaluates an await in the current callback.
 /// Form and collection descendants execute under their own deferred callbacks.
 fn ui_immediate_uses_async(node: &IrUi) -> bool {
-    node.view.is_some()
+    ui_has_file_destination(node)
+        || node.view.is_some()
         || matches!(
             node.factory.as_str(),
             "callbackValueList"
@@ -10045,7 +10180,8 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
 
 /// Whether a UI subtree awaits (form preparation or state-read calls).
 fn ui_uses_async(node: &IrUi) -> bool {
-    node.view.is_some()
+    ui_has_file_destination(node)
+        || node.view.is_some()
         || matches!(
             node.factory.as_str(),
             "callbackValueList"

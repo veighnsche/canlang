@@ -5685,12 +5685,15 @@ fn field_shape(text: &str, field: &SyntaxNode) -> FieldShape {
         i += 3;
     }
     while let Some(part) = parts.get(i) {
-        // Description spellings sit between modifiers and `label=`
-        // (`desc=` first, the legacy annotation trailing); neither is a
-        // modifier, so both are skipped, never decoded here.
+        // Trait attachments own separate checked contributions; they do not
+        // end the field's authored metadata. Continue to trailing descriptions
+        // and labels. Description spellings themselves are decoded separately.
         if matches!(
             part.kind,
-            SyntaxKind::DescriptionValue | SyntaxKind::Annotation
+            SyntaxKind::TraitApp
+                | SyntaxKind::TraitDef
+                | SyntaxKind::DescriptionValue
+                | SyntaxKind::Annotation
         ) {
             i += 1;
             continue;

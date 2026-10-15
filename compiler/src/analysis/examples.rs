@@ -572,8 +572,8 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// Anonymous localized-format descriptors have the same empty parameter
-    /// schema consumed by IR. Select their authored arguments from checked slots.
+    /// Every raw leaf at a localized-format sink has an empty parameter schema.
+    /// Follow only checked choose leaves and existing immutable alias origins.
     fn inline_format_descriptors(&self, tree: &SyntaxNode) -> HashSet<NodeKey> {
         let mut descriptors = HashSet::new();
         for call in tree
@@ -638,8 +638,20 @@ impl<'a> Checker<'a> {
                 };
                 descriptor = authored;
             }
-            if descriptor.kind == SyntaxKind::MessageValue {
-                descriptors.insert(NodeKey::of(descriptor));
+            let origin = NodeKey::of(descriptor);
+            for leaf in self
+                .types
+                .anonymous_message_choices
+                .get(&origin)
+                .map(Vec::as_slice)
+                .unwrap_or(std::slice::from_ref(&origin))
+            {
+                if tree
+                    .descendants()
+                    .any(|node| NodeKey::of(node) == *leaf && node.kind == SyntaxKind::MessageValue)
+                {
+                    descriptors.insert(*leaf);
+                }
             }
         }
         descriptors
@@ -3278,6 +3290,12 @@ impl IcuType {
     }
 }
 
+/// Validate a static generated caption with no runtime parameters, reusing
+/// the ordinary ICU parser instead of admitting an unchecked display pattern.
+pub(crate) fn static_caption_icu_error(template: &str) -> Option<String> {
+    icu_error(template, Some(&HashMap::new()), true)
+}
+
 /// First ICU profile violation in `template`, if any.
 ///
 /// Accepts the bounded DESIGN §9.1 profile: named `{name}` arguments,
@@ -3285,7 +3303,6 @@ impl IcuType {
 /// to full styles, and nested plural/selectordinal/select with a
 /// mandatory `other` branch. Rejects offsets, choice/skeleton styles,
 /// duplicate branches, `#` outside a plural and unbalanced patterns.
-/// The profile is implementation-defined pending a DESIGN ruling.
 /// Named-message coverage stays the types pass (`E3016`). Selected anonymous
 /// format descriptors additionally require their empty parameter schema.
 fn icu_error(

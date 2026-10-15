@@ -58,11 +58,14 @@ Implemented modules:
   Recurring scope analysis follows executed create-field server initializers
   and omitted ordinary defaults through their checked declarations. An explicit
   ordinary-default override and unused model defaults add no dependencies.
-  Selected anonymous localized-format descriptors use their checked empty
+  Raw anonymous leaves selected for localized formatting use their checked empty
   parameter schema: undeclared variables fail with E5007 at the source or
   translated literal, including declaration defaults and grouped operands.
-  Named-message parameter checking and other descriptor profiles retain their
-  existing contracts.
+  Builtin `choose`, nested/grouped choices and immutable aliases retain each
+  anonymous descriptor's checked schema, including differing bound parameter
+  types. Formatting uses the selected descriptor's already captured values;
+  all reachable leaves are checked. Named-message checking and other descriptor
+  profiles retain their existing contracts.
 - `src/syntax/`: lossless recoverable CST parser for the full GRAMMAR.md
   (lexer, layout/descriptions, CST, parser, E1xxx diagnostics). Parses the
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.
@@ -79,11 +82,15 @@ Implemented modules:
   and main/action children for FAB. Forms go through the runtime's
   `prepareForm`, awaiting preparation once before authored children; collection
   row rendering carries the same asynchronous preparation. `list`/`table` carry
-  named model and query scope. Catalog
-  availability alone does not make a word or profile authorable: unsupported
+  named model and query scope. Bare `history` is supported for an original
+  queried row, including provenance-preserving reusable-view bindings. It calls
+  the installed current-authorized history reader with the original projected
+  model/row/version; see `tests/row_history.rs` and its fixture. History without
+  a row, explicit `history row`, options such as `history limit=1`, and a view
+  row transformed through a function remain refused. Catalog availability alone
+  does not make a word or profile authorable: unsupported
   source-to-factory shapes fail with E6008. The generic catalog fallback and
-  incomplete legacy `action`, `actions`, `edit`, `history`, `copy`, `metrics`,
-  `breadcrumbs`, and `pagination` profiles are rejected explicitly; structural
+  unsupported component/option combinations are rejected explicitly; structural
   `slot` and tab-item carriers are not imported as standalone factories.
   Unsupported attributes, header shapes and child forms are diagnosed instead
   of being dropped. This bounded surface does not qualify whole-app generation,

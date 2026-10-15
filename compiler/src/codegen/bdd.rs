@@ -73,6 +73,22 @@ pub fn emit_suite(
 ) {
     let mut emitter = Emitter::new(ir);
     let (fixtures, tables) = complete_table_fixture_bindings(ir, suite);
+    let fixtures = match order_fixture_recipes(fixtures) {
+        Ok(fixtures) => fixtures,
+        Err(diagnostic) => return (
+            BddModule {
+                scope: suite.scope.clone(),
+                fixtures: suite.fixtures.iter().map(|fixture| fixture.canonical.clone()).collect(),
+                module: JsModule {
+                    path: format!("tests/{}.mjs", binding_ident("t", &suite.scope)),
+                    js: "export function exampleFixtures(){throw new Error(\"cannot lower cyclic fixture recipes\");}\n".to_string(),
+                    lines: Vec::new(),
+                },
+            },
+            vec![diagnostic],
+            Vec::new(),
+        ),
+    };
     let mut body = JsWriter::new();
     if !suite.imported.is_empty() {
         let imports = suite
@@ -177,6 +193,37 @@ pub fn emit_suite(
         diags,
         builtins,
     )
+}
+
+/// Recipe objects eagerly reference their dependencies. Complete the graph
+/// first, then emit dependencies before consumers with source order as the
+/// stable tie-breaker. A malformed late graph refuses instead of emitting TDZ.
+fn order_fixture_recipes(mut fixtures: Vec<IrFixture>) -> Result<Vec<IrFixture>, Diagnostic> {
+    fixtures.sort_by_key(|fixture| (fixture.span.file.0, fixture.span.start));
+    let local: HashSet<_> = fixtures
+        .iter()
+        .map(|fixture| fixture.name.clone())
+        .collect();
+    let mut ordered = Vec::new();
+    let mut emitted = HashSet::new();
+    while !fixtures.is_empty() {
+        let Some(next) = fixtures.iter().position(|fixture| {
+            fixture
+                .dependencies
+                .iter()
+                .all(|dependency| !local.contains(dependency) || emitted.contains(dependency))
+        }) else {
+            return Err(Diagnostic::error(
+                "E6008",
+                "cannot lower fixture dependency cycle".to_string(),
+                fixtures[0].span,
+            ));
+        };
+        let fixture = fixtures.remove(next);
+        emitted.insert(fixture.name.clone());
+        ordered.push(fixture);
+    }
+    Ok(ordered)
 }
 
 /// A table's common `name=fixture` binding can share its spelling with the
@@ -568,7 +615,16 @@ fn lower_table(emitter: &mut Emitter<'_>, table: &IrTable) -> String {
     let observations = table
         .observations
         .iter()
-        .map(|o| format!("async(c,s)=>{}", emitter.lower_expr(o)))
+        .map(|observation| {
+            let mut observation = observation.clone();
+            // The table callback receives live observation values through s;
+            // source `result` is not an ambient JavaScript identifier.
+            rewrite_fixture_names(
+                &mut observation,
+                &HashMap::from([("result".to_string(), "result".to_string())]),
+            );
+            format!("async(c,s)=>{}", emitter.lower_expr(&observation))
+        })
         .collect::<Vec<_>>()
         .join(",");
     let rows = table

@@ -242,7 +242,10 @@ fn keyword_unit_validates_for_workerd() {
     assert!(checks.iter().all(|c| c["ok"] == true));
     // Validation binds to captured inputs and current bytes: the exact
     // consumed closure is in the envelope for promotion comparison.
-    assert_eq!(body["inputs"]["source"]["path"], serde_json::json!("app.can"));
+    assert_eq!(
+        body["inputs"]["source"]["path"],
+        serde_json::json!("app.can")
+    );
     assert_eq!(
         body["inputs"]["source"]["revision"],
         serde_json::json!(sha256_hex(GIVEN_APP.as_bytes()))
@@ -314,12 +317,231 @@ fn trait_unit_validates_through_checked_contributions() {
         body["fingerprint"],
         serde_json::json!(sha256_hex(TRAIT_CARRIER.as_bytes()))
     );
+    let carrier_path = format!("can.generated/{unit}/contributions.can");
+    let files = validate_files(&root, dir.path(), "files.json", &[&carrier_path]);
+    assert_eq!(
+        files.code, 0,
+        "Given-only file validation: {}",
+        files.stdout
+    );
+    for malformed in [
+        "app Tasks\nWhen\nThen\n",
+        "app Tasks\nGiven\n completable {done:bool=}\n",
+    ] {
+        write_file(dir.path(), &carrier_path, malformed);
+        let files = validate_files(&root, dir.path(), "bad-files.json", &[&carrier_path]);
+        assert_eq!(files.code, 4, "{}", files.stdout);
+        assert!(files.stdout.contains("does not parse"), "{}", files.stdout);
+    }
+    for invalid in [
+        "app Tasks\nGiven\n wrong_template {done:bool=false}\n",
+        "app Tasks\nGiven\n completable {done:bool=\"bad\"}\n",
+        "app Tasks\nGiven\n completable {done:bool=false}\nWhen\n scenario injected() by=public\n  do let supplied=1\nThen\n",
+    ] {
+        write_file(dir.path(), &carrier_path, invalid);
+        let unit_result = validate_unit(&root, dir.path(), "bad-unit.json", &unit);
+        assert_eq!(
+            unit_result.code, 4,
+            "unit contract must refuse invalid/effectful contribution: {}",
+            unit_result.stdout
+        );
+    }
 }
 
 #[test]
-fn trait_unit_with_saved_js_refuses() {
-    // BGI-07 admits no saved JavaScript for trait units in v1; the
-    // validator passes the stray module through to that refusal.
+fn field_trait_checks_validate_pack_and_reuse_the_checked_import_closure() {
+    use canlang_compiler::analysis::types::given_closure_fingerprint;
+    let source = "app FieldChecks\nGiven\n trait budget $\"Check the UTF-8 byte budget.\"\n Item {code:text budget,label:text budget,barcode:text trait $\"Check thirteen ASCII digits.\"}\nWhen\nThen\n";
+    let named_carrier = "app FieldChecks\nGiven\n budget {value:text}\n";
+    let inline_carrier = "app FieldChecks\nGiven\n Item {barcode:text}\n";
+    let named_js = "import {limit} from './limit.js';\nexport function check(value) { return new TextEncoder().encode(value).length <= limit; }\n";
+    let helper = "export const limit = 128;\n";
+    let inline_js = "export function check(value) { return /^[0-9]{13}$/.test(value); }\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let named = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::NamedTrait,
+        Some("budget"),
+    );
+    let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
+    for (unit, carrier, js) in [
+        (&named, named_carrier, named_js),
+        (&inline, inline_carrier, inline_js),
+    ] {
+        write_file(
+            dir.path(),
+            &format!("can.generated/{unit}/contributions.can"),
+            carrier,
+        );
+        write_file(
+            dir.path(),
+            &format!("can.generated/{unit}/implementation.js"),
+            js,
+        );
+    }
+    // The named check consumes its actual local helper, never a fabricated bound.
+    write_file(
+        dir.path(),
+        &format!("can.generated/{named}/limit.js"),
+        helper,
+    );
+    let inline_validated = validate_unit(&root, dir.path(), "inline.json", &inline);
+    assert_eq!(inline_validated.code, 0, "{}", inline_validated.stdout);
+    assert_eq!(
+        envelope(&inline_validated.stdout)["runtime_targets"],
+        serde_json::json!(["check", "workerd"])
+    );
+    let validated = validate_unit(&root, dir.path(), "named.json", &named);
+    assert_eq!(validated.code, 0, "{}", validated.stdout);
+    let validated = envelope(&validated.stdout);
+    assert_eq!(
+        validated["runtime_targets"],
+        serde_json::json!(["check", "workerd"])
+    );
+    let fingerprint = given_closure_fingerprint(
+        named_carrier.as_bytes(),
+        &[
+            ("implementation.js", named_js.as_bytes()),
+            ("limit.js", helper.as_bytes()),
+        ],
+    );
+    assert_eq!(validated["fingerprint"], fingerprint);
+    let js_path = format!("can.generated/{named}/implementation.js");
+    let files = validate_files(&root, dir.path(), "files.json", &[&js_path]);
+    assert_eq!(files.code, 0, "{}", files.stdout);
+    let files = envelope(&files.stdout);
+    for expected in [
+        "app.can".to_string(),
+        format!("can.generated/{named}/contributions.can"),
+        format!("can.generated/{named}/limit.js"),
+    ] {
+        assert!(
+            files["inputs"]["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|entry| entry["path"] == expected),
+            "{expected}: {files}"
+        );
+    }
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = envelope(&compiled.stdout);
+    assert_eq!(
+        artifact["requires"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|requirement| requirement["capability"] == "state.field-validation")
+            .collect::<Vec<_>>(),
+        vec![&serde_json::json!({"capability":"state.field-validation","min_version":1})]
+    );
+    let traits = artifact["givenContracts"]["traits"].as_array().unwrap();
+    assert_eq!(traits.len(), 3);
+    let validation_fingerprint =
+        given_closure_fingerprint(named_js.as_bytes(), &[("limit.js", helper.as_bytes())]);
+    for instance in traits.iter().filter(|instance| instance["unitId"] == named) {
+        assert_eq!(
+            instance["fingerprint"],
+            sha256_hex(named_carrier.as_bytes())
+        );
+        assert_eq!(
+            instance["validation"],
+            serde_json::json!({
+                "producer":"state.field-validation@1","export":"check","lifecycle":"validate-fields",
+                "input":{"name":"value","type":"text"},"result":{"type":"bool"},
+                "reads":[],"effects":[],"authority":[],"fingerprint":validation_fingerprint
+            })
+        );
+        assert!(instance["fields"][0].get("min").is_none());
+        assert!(instance["fields"][0].get("max").is_none());
+    }
+    let modules = artifact["modules"].as_array().unwrap();
+    for (path, js) in [
+        (format!("can.generated/{named}/server.js"), named_js),
+        (format!("can.generated/{named}/limit.js"), helper),
+        (format!("can.generated/{inline}/server.js"), inline_js),
+    ] {
+        let packed = modules
+            .iter()
+            .filter(|module| module["path"] == path)
+            .collect::<Vec<_>>();
+        assert_eq!(packed.len(), 1, "{path}");
+        assert_eq!(packed[0]["js"], js);
+    }
+    let changed = "export const limit = 64;\n";
+    write_file(
+        dir.path(),
+        &format!("can.generated/{named}/limit.js"),
+        changed,
+    );
+    let changed = validate_unit(&root, dir.path(), "changed.json", &named);
+    assert_eq!(changed.code, 0, "{}", changed.stdout);
+    assert_ne!(
+        envelope(&changed.stdout)["fingerprint"],
+        validated["fingerprint"]
+    );
+    std::fs::remove_file(dir.path().join(format!("can.generated/{named}/limit.js"))).unwrap();
+    let missing = validate_unit(&root, dir.path(), "missing.json", &named);
+    assert_eq!(missing.code, 4, "{}", missing.stdout);
+    assert!(missing.stdout.contains("limit.js"));
+    let missing = compile_json(dir.path(), &file);
+    assert_eq!(missing.code, 10, "{}", missing.stdout);
+    assert!(envelope(&missing.stdout).get("modules").is_none());
+}
+
+#[test]
+fn field_trait_checks_refuse_unowned_exports_and_imports() {
+    let source = "app FieldChecks\nGiven\n trait budget $\"Check bytes.\"\n Item {code:text budget}\nWhen\nThen\n";
+    for (js, needle) in [
+        (
+            "export function unrelated(value) { return true; }\n",
+            "check",
+        ),
+        (
+            "import '../outside.js';\nexport function check(value) { return true; }\n",
+            "..",
+        ),
+        (
+            "import 'node:fs';\nexport function check(value) { return true; }\n",
+            "node:fs",
+        ),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_string_lossy().to_string();
+        let file = write_file(dir.path(), "app.can", source);
+        let unit = bind_new(
+            &root,
+            &file,
+            source,
+            GenerationKind::NamedTrait,
+            Some("budget"),
+        );
+        write_file(
+            dir.path(),
+            &format!("can.generated/{unit}/contributions.can"),
+            "app FieldChecks\nGiven\n budget {value:text}\n",
+        );
+        let js_path = format!("can.generated/{unit}/implementation.js");
+        write_file(dir.path(), &js_path, js);
+        let validated = validate_unit(&root, dir.path(), "unit.json", &unit);
+        assert_eq!(validated.code, 4, "{}", validated.stdout);
+        assert!(validated.stdout.contains(needle), "{}", validated.stdout);
+        let files = validate_files(&root, dir.path(), "files.json", &[&js_path]);
+        assert_eq!(files.code, 4, "{}", files.stdout);
+        let compiled = compile_json(dir.path(), &file);
+        assert_eq!(compiled.code, 10, "{}", compiled.stdout);
+        assert!(envelope(&compiled.stdout).get("modules").is_none());
+    }
+}
+
+#[test]
+fn model_trait_unit_with_saved_check_refuses() {
+    // A pure field check cannot turn a model attachment into runtime authority.
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", GIVEN_APP);
@@ -333,12 +555,12 @@ fn trait_unit_with_saved_js_refuses() {
     write_file(
         dir.path(),
         &format!("can.generated/{unit}/contributions.can"),
-        TRAIT_CARRIER,
+        "app Tasks\nGiven\n completable {value:text=\"\"}\n",
     );
     write_file(
         dir.path(),
         &format!("can.generated/{unit}/implementation.js"),
-        "export function hook() {}\n",
+        "export function check(value) { return value.length <= 128; }\n",
     );
     let result = validate_unit(&root, dir.path(), "v.json", &unit);
     assert_eq!(result.code, 4, "stdout: {}", result.stdout);
@@ -346,6 +568,14 @@ fn trait_unit_with_saved_js_refuses() {
     assert_eq!(code, "validation-failure");
     assert!(message.contains("E4056"), "{message}");
     assert!(message.contains(&unit), "{message}");
+    let files = validate_files(
+        &root,
+        dir.path(),
+        "files.json",
+        &[&format!("can.generated/{unit}/implementation.js")],
+    );
+    assert_eq!(files.code, 4, "{}", files.stdout);
+    assert!(files.stdout.contains("E4056"), "{}", files.stdout);
 }
 
 #[test]
@@ -384,7 +614,12 @@ fn style_unit_validates_and_owned_assets_resolve() {
     assert!(message.contains("assets/bg.png"), "{message}");
     let png = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=").unwrap();
     std::fs::create_dir_all(dir.path().join(format!("can.generated/{unit}/assets"))).unwrap();
-    std::fs::write(dir.path().join(format!("can.generated/{unit}/assets/bg.png")), png).unwrap();
+    std::fs::write(
+        dir.path()
+            .join(format!("can.generated/{unit}/assets/bg.png")),
+        png,
+    )
+    .unwrap();
     let present = validate_unit(&root, dir.path(), "v3.json", &unit);
     assert_eq!(present.code, 0, "stdout: {}", present.stdout);
     let body = envelope(&present.stdout);
@@ -476,6 +711,47 @@ fn view_unit_validates_render_and_mount_for_both_targets() {
     assert_eq!(code, "validation-failure");
     assert!(message.contains(&unit), "{message}");
     assert!(message.contains("render"), "{message}");
+}
+
+#[test]
+fn view_validation_requires_real_action_owners() {
+    for (children, valid) in [
+        ("  primary \"Browse\" target=\"/\"\n", false),
+        (
+            "  card row.title\n   require row.title != \"Hidden\"\n   text row.title\n   primary \"Browse\" target=\"/\"\n",
+            true,
+        ),
+    ] {
+        let source = format!(
+            "app Tasks\nGiven\n Todo {{title:text}}\nWhen\nThen\n view Tile(row:Todo) $\"Arrange checked bindings.\"\n{children}"
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_string_lossy().to_string();
+        let file = write_file(dir.path(), "app.can", &source);
+        let unit = bind_new(
+            &root,
+            &file,
+            &source,
+            GenerationKind::ViewDefinition,
+            Some("Tile"),
+        );
+        write_file(
+            dir.path(),
+            &format!("can.generated/{unit}/implementation.js"),
+            "export function render({bindings}) { return bindings.card ?? ''; }\n",
+        );
+        let result = validate_unit(&root, dir.path(), "validate.json", &unit);
+        if valid {
+            assert_eq!(result.code, 0, "{}", result.stdout);
+            assert_eq!(envelope(&result.stdout)["state"], "validated");
+        } else {
+            assert_eq!(result.code, 4, "{}", result.stdout);
+            let (code, message) = error_of(&result.stdout);
+            assert_eq!(code, "validation-failure");
+            assert!(message.contains("owning card"), "{message}");
+            assert!(message.contains(&unit), "{message}");
+        }
+    }
 }
 
 // ## Missing/incompatible inputs diagnose.
@@ -1059,13 +1335,19 @@ fn packing_refuses_mismatch_empty_and_non_js_kinds() {
     assert!(pack_saved_unit(UnitKind::Keyword, owner(), js.as_bytes(), &"0".repeat(64)).is_err());
     // Empty bytes refuse.
     assert!(pack_saved_unit(UnitKind::Keyword, owner(), b"", &sha256_hex(b"")).is_err());
-    // Style and trait units never pack JavaScript modules.
+    // Style units never pack JavaScript modules; checked field traits use the
+    // same server path as the other checked Given implementations.
     let mut style_owner = owner();
     style_owner.kind = "style".to_string();
     assert!(pack_saved_unit(UnitKind::Style, style_owner, js.as_bytes(), &sha).is_err());
     let mut trait_owner = owner();
     trait_owner.kind = "named-trait".to_string();
-    assert!(pack_saved_unit(UnitKind::NamedTrait, trait_owner, js.as_bytes(), &sha).is_err());
+    assert_eq!(
+        pack_saved_unit(UnitKind::NamedTrait, trait_owner, js.as_bytes(), &sha)
+            .unwrap()
+            .path,
+        "can.generated/u3/server.js"
+    );
     // The owner link must name a unit of the packed kind.
     let mut wrong_kind = owner();
     wrong_kind.kind = "view".to_string();
@@ -1614,10 +1896,24 @@ fn saved_model_trait_fields_check_before_when_and_then_bodies() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", source);
-    let named = bind_new(&root, &file, source, GenerationKind::NamedTrait, Some("completable"));
+    let named = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::NamedTrait,
+        Some("completable"),
+    );
     let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
-    write_file(dir.path(), &format!("can.generated/{named}/contributions.can"), "app Tasks\nGiven\n completable {done:bool=false}\n");
-    write_file(dir.path(), &format!("can.generated/{inline}/contributions.can"), "app Tasks\nGiven\n Note {pinned:bool=false}\n");
+    write_file(
+        dir.path(),
+        &format!("can.generated/{named}/contributions.can"),
+        "app Tasks\nGiven\n completable {done:bool=false}\n",
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{inline}/contributions.can"),
+        "app Tasks\nGiven\n Note {pinned:bool=false}\n",
+    );
     // Unit preparation is independent of ordinary consumers of sibling fields.
     let validated = validate_unit(&root, dir.path(), "validation.json", &named);
     assert_eq!(validated.code, 0, "{}", validated.stdout);
@@ -1625,22 +1921,62 @@ fn saved_model_trait_fields_check_before_when_and_then_bodies() {
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     let artifact = envelope(&compiled.stdout);
     let models = artifact["models"].as_array().unwrap();
-    let catalog = dir.path().join("catalog.json").to_string_lossy().to_string();
-    let checked = dispatch(&argv(&["check", "--format=json", &format!("--catalog={catalog}"), &file]));
+    let catalog = dir
+        .path()
+        .join("catalog.json")
+        .to_string_lossy()
+        .to_string();
+    let checked = dispatch(&argv(&[
+        "check",
+        "--format=json",
+        &format!("--catalog={catalog}"),
+        &file,
+    ]));
     assert_eq!(checked.code, 0, "{}", checked.stdout);
-    assert!(envelope(&checked.stdout).get("modules").is_none(), "check emits no JS artifact");
-    let note = models.iter().find(|model| model["name"] == "Tasks.Note").unwrap();
+    assert!(
+        envelope(&checked.stdout).get("modules").is_none(),
+        "check emits no JS artifact"
+    );
+    let note = models
+        .iter()
+        .find(|model| model["name"] == "Tasks.Note")
+        .unwrap();
     let fields = note["fields"].as_array().unwrap();
-    assert_eq!(fields.iter().filter(|field| field["name"] == "done").count(), 1);
-    assert_eq!(fields.iter().filter(|field| field["name"] == "pinned").count(), 1);
-    assert!(artifact["modules"][0]["js"].as_str().unwrap().contains("done:true"));
+    assert_eq!(
+        fields
+            .iter()
+            .filter(|field| field["name"] == "done")
+            .count(),
+        1
+    );
+    assert_eq!(
+        fields
+            .iter()
+            .filter(|field| field["name"] == "pinned")
+            .count(),
+        1
+    );
+    assert!(
+        artifact["modules"][0]["js"]
+            .as_str()
+            .unwrap()
+            .contains("done:true")
+    );
     // A real unresolved field still refuses; successful contributions cannot hide it.
-    let broken = source.replace("columns=title,done,pinned", "columns=title,done,pinned,absent");
+    let broken = source.replace(
+        "columns=title,done,pinned",
+        "columns=title,done,pinned,absent",
+    );
     write_file(dir.path(), "app.can", &broken);
     let refused = compile_json(dir.path(), &file);
     assert_eq!(refused.code, 10, "{}", refused.stdout);
     assert!(refused.stdout.contains("absent"), "{}", refused.stdout);
-    let refused = dispatch(&argv(&["check", "--format=json", &format!("--catalog={catalog}"), &file]));
+    let refused = dispatch(&argv(&[
+        "check",
+        "--format=json",
+        &format!("--catalog={catalog}"),
+        &file,
+    ]));
     assert_eq!(refused.code, 10, "{}", refused.stdout);
     assert!(refused.stdout.contains("absent"), "{}", refused.stdout);
 }
@@ -1651,9 +1987,23 @@ fn reused_keyword_keeps_two_rules_and_stages_one_owned_implementation_closure() 
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", source);
-    let unit = bind_new(&root, &file, source, GenerationKind::KeywordDefinition, Some("canonical_identity"));
-    write_file(dir.path(), &format!("can.generated/{unit}/implementation.js"), JOIN_ROOT_JS);
-    write_file(dir.path(), &format!("can.generated/{unit}/fold.js"), JOIN_FOLD_JS);
+    let unit = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::KeywordDefinition,
+        Some("canonical_identity"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        JOIN_ROOT_JS,
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/fold.js"),
+        JOIN_FOLD_JS,
+    );
     let compiled = compile_json(dir.path(), &file);
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     let artifact = envelope(&compiled.stdout);
@@ -1661,32 +2011,79 @@ fn reused_keyword_keeps_two_rules_and_stages_one_owned_implementation_closure() 
     assert_eq!(rules.len(), 2);
     assert!(rules.iter().all(|rule| rule["unitId"] == unit));
     let modules = artifact["modules"].as_array().unwrap();
-    assert_eq!(modules.iter().filter(|module| module["path"] == format!("can.generated/{unit}/server.js")).count(), 1);
-    assert_eq!(modules.iter().filter(|module| module["path"] == format!("can.generated/{unit}/fold.js")).count(), 1);
+    assert_eq!(
+        modules
+            .iter()
+            .filter(|module| module["path"] == format!("can.generated/{unit}/server.js"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        modules
+            .iter()
+            .filter(|module| module["path"] == format!("can.generated/{unit}/fold.js"))
+            .count(),
+        1
+    );
 }
 
 #[test]
 fn existing_field_trait_defaults_allow_omission_and_preserve_authored_labels_and_defaults() {
-    let source = "app Tasks\nGiven\n trait pending_review $\"Default boolean to true.\"\n Item {title:text,hidden:bool pending_review label=\"Hidden\",pinned:bool trait $\"Default pinned to true.\" label=\"Pinned\",locked:bool=false label=\"Locked\"}\nWhen\n scenario add() by=members\n  do create Item {title=\"New\"} as created\n crud Item by=members fields=title\nThen\n page / title=\"Tasks\"\n  form Item.create fields=title\n";
+    let source = "app Tasks\nGiven\n trait pending_review $\"Default boolean to true.\"\n Item {title:text,hidden:bool pending_review desc=\"Hidden source description\" label=\"Hidden\"@{nl=\"Verborgen\"},pinned:bool trait $\"Default pinned to true.\" desc=\"Pinned source description\" label=\"Pinned\",locked:bool=false label=\"Locked\"}\nWhen\n scenario add() by=members\n  do create Item {title=\"New\"} as created\n crud Item by=members fields=title\nThen\n page / title=\"Tasks\"\n  form Item.create fields=title\n";
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", source);
-    let named = bind_new(&root, &file, source, GenerationKind::NamedTrait, Some("pending_review"));
+    let named = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::NamedTrait,
+        Some("pending_review"),
+    );
     let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
-    write_file(dir.path(), &format!("can.generated/{named}/contributions.can"), "app Tasks\nGiven\n pending_review {value:bool=true}\n");
-    write_file(dir.path(), &format!("can.generated/{inline}/contributions.can"), "app Tasks\nGiven\n Item {pinned:bool=true}\n");
+    write_file(
+        dir.path(),
+        &format!("can.generated/{named}/contributions.can"),
+        "app Tasks\nGiven\n pending_review {value:bool=true label=\"Template hidden\"}\n",
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{inline}/contributions.can"),
+        "app Tasks\nGiven\n Item {pinned:bool=true label=\"Template pinned\"}\n",
+    );
     let compiled = compile_json(dir.path(), &file);
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     let generated = envelope(&compiled.stdout);
+    let entry = generated["modules"][0]["js"].as_str().unwrap();
+    assert!(entry.contains("\"Hidden\",{nl:\"Verborgen\"}"), "{entry}");
+    assert!(entry.contains("\"Pinned\""), "{entry}");
+    assert!(
+        !entry.contains("Template hidden") && !entry.contains("Template pinned"),
+        "{entry}"
+    );
     let fields = generated["models"][0]["fields"].as_array().unwrap();
     for (name, expected) in [("hidden", true), ("pinned", true), ("locked", false)] {
         let field = fields.iter().find(|field| field["name"] == name).unwrap();
         assert_eq!(field["default"]["value"], expected, "{field}");
         assert_eq!(field["required"], false, "{field}");
+        if name != "locked" {
+            assert_eq!(
+                field["description"],
+                if name == "hidden" {
+                    "Hidden source description"
+                } else {
+                    "Pinned source description"
+                }
+            );
+        }
     }
-    let direct = source.replace(" trait pending_review $\"Default boolean to true.\"\n", "")
+    let direct = source
+        .replace(" trait pending_review $\"Default boolean to true.\"\n", "")
         .replace("hidden:bool pending_review", "hidden:bool=true")
-        .replace("pinned:bool trait $\"Default pinned to true.\"", "pinned:bool=true")
+        .replace(
+            "pinned:bool trait $\"Default pinned to true.\"",
+            "pinned:bool=true",
+        )
         .replace("locked:bool=false pending_review", "locked:bool=false");
     write_file(dir.path(), "app.can", &direct);
     let compiled = compile_json(dir.path(), &file);
@@ -1702,25 +2099,53 @@ fn saved_field_traits_reach_model_and_crud_input_constraints() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", source);
-    let named = bind_new(&root, &file, source, GenerationKind::NamedTrait, Some("clean"));
+    let named = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::NamedTrait,
+        Some("clean"),
+    );
     let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
-    write_file(dir.path(), &format!("can.generated/{named}/contributions.can"), "app Tasks\nGiven\n clean {value:text trim min=1 max=80}\n");
-    write_file(dir.path(), &format!("can.generated/{inline}/contributions.can"), "app Tasks\nGiven\n Item {handle:text trim min=1 max=40}\n");
+    write_file(
+        dir.path(),
+        &format!("can.generated/{named}/contributions.can"),
+        "app Tasks\nGiven\n clean {value:text trim min=1 max=80}\n",
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{inline}/contributions.can"),
+        "app Tasks\nGiven\n Item {handle:text trim min=1 max=40}\n",
+    );
     let compiled = compile_json(dir.path(), &file);
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     let artifact = envelope(&compiled.stdout);
-    let item = artifact["models"].as_array().unwrap().iter().find(|model| model["name"] == "Tasks.Item").unwrap();
+    let item = artifact["models"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|model| model["name"] == "Tasks.Item")
+        .unwrap();
     for (name, maximum) in [("title", 80), ("handle", 40)] {
-        let field = item["fields"].as_array().unwrap().iter().find(|field| field["name"] == name).unwrap();
+        let field = item["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
         assert_eq!(field["trim"], true);
         assert_eq!(field["min"], 1);
         assert_eq!(field["max"], maximum);
     }
     // Compare the existing admission split fairly with equivalent authored fields:
     // canonical model decoding owns scalar normalization/bounds, not the input schema.
-    let handwritten = source.replace(" trait clean $\"Trim text with length bounds.\"\n", "")
+    let handwritten = source
+        .replace(" trait clean $\"Trim text with length bounds.\"\n", "")
         .replace("title:text clean", "title:text trim min=1 max=80")
-        .replace("handle:text trait $\"Trim and bound the handle.\"", "handle:text trim min=1 max=40")
+        .replace(
+            "handle:text trait $\"Trim and bound the handle.\"",
+            "handle:text trim min=1 max=40",
+        )
         .replace("body:text clean", "body:text trim min=1 max=80");
     write_file(dir.path(), "app.can", &handwritten);
     let direct = compile_json(dir.path(), &file);
@@ -1734,28 +2159,59 @@ fn saved_field_traits_reach_model_and_crud_input_constraints() {
 fn saved_binding_relocates_without_old_source_or_ai() {
     let old = tempfile::tempdir().unwrap();
     let root = old.path().to_string_lossy().to_string();
-    let source = GIVEN_APP.replace(" trait completable $\"Add done:bool=false with Open/Done labels.\"\n", "")
+    let source = GIVEN_APP
+        .replace(
+            " trait completable $\"Add done:bool=false with Open/Done labels.\"\n",
+            "",
+        )
         .replace("} completable", "}")
         .replace(" trait $\"Add pinned:bool=false.\"", "");
     let file = write_file(old.path(), "app.can", &source);
-    let unit = bind_new(&root, &file, &source, GenerationKind::KeywordDefinition, Some("canonical_identity"));
-    write_file(old.path(), &format!("can.generated/{unit}/implementation.js"), KEYWORD_JS);
-    let record: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(old.path().join(format!("can.generated/{unit}/unit.json"))).unwrap()).unwrap();
+    let unit = bind_new(
+        &root,
+        &file,
+        &source,
+        GenerationKind::KeywordDefinition,
+        Some("canonical_identity"),
+    );
+    write_file(
+        old.path(),
+        &format!("can.generated/{unit}/implementation.js"),
+        KEYWORD_JS,
+    );
+    let record: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(old.path().join(format!("can.generated/{unit}/unit.json")))
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(record["source"]["path"], "app.can");
     let fresh = tempfile::tempdir().unwrap();
-    for name in ["app.can".to_string(), format!("can.generated/{unit}/unit.json"), format!("can.generated/{unit}/implementation.js")] {
+    for name in [
+        "app.can".to_string(),
+        format!("can.generated/{unit}/unit.json"),
+        format!("can.generated/{unit}/implementation.js"),
+    ] {
         let target = fresh.path().join(&name);
         std::fs::create_dir_all(target.parent().unwrap()).unwrap();
         std::fs::copy(old.path().join(&name), target).unwrap();
     }
     drop(old);
     let fresh_root = fresh.path().to_string_lossy().to_string();
-    let status = dispatch(&argv(&["gen", "status", "--format=json", &fresh_root, "app.can"]));
+    let status = dispatch(&argv(&[
+        "gen",
+        "status",
+        "--format=json",
+        &fresh_root,
+        "app.can",
+    ]));
     assert_eq!(status.code, 0, "{}", status.stdout);
     assert!(status.stdout.contains("\"retained\""), "{}", status.stdout);
     let validated = validate_unit(&fresh_root, fresh.path(), "validate.json", &unit);
     assert_eq!(validated.code, 0, "{}", validated.stdout);
-    let compiled = compile_json(fresh.path(), &fresh.path().join("app.can").to_string_lossy());
+    let compiled = compile_json(
+        fresh.path(),
+        &fresh.path().join("app.can").to_string_lossy(),
+    );
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     assert!(compiled.stdout.contains("givenContracts"));
 }
@@ -1766,26 +2222,267 @@ fn owned_css_assets_pack_checked_bytes_and_encoded_routes_only() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_string_lossy().to_string();
     let file = write_file(dir.path(), "app.can", source);
-    let unit = bind_new(&root, &file, source, GenerationKind::StyleDefinition, Some("Surface"));
-    write_file(dir.path(), &format!("can.generated/{unit}/style.css"), "section {background:url(\"asset with space.bin?rev=2#texture\");}\n");
+    let unit = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::StyleDefinition,
+        Some("Surface"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/style.css"),
+        "section {background:url(\"asset with space.bin?rev=2#texture\");}\n",
+    );
     let png = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=").unwrap();
-    std::fs::write(dir.path().join(format!("can.generated/{unit}/asset with space.bin")), &png).unwrap();
-    std::fs::write(dir.path().join(format!("can.generated/{unit}/unused.bin")), b"unused").unwrap();
+    std::fs::write(
+        dir.path()
+            .join(format!("can.generated/{unit}/asset with space.bin")),
+        &png,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join(format!("can.generated/{unit}/unused.bin")),
+        b"unused",
+    )
+    .unwrap();
     let validated = validate_unit(&root, dir.path(), "validate.json", &unit);
     assert_eq!(validated.code, 0, "{}", validated.stdout);
     let compiled = compile_json(dir.path(), &file);
     assert_eq!(compiled.code, 0, "{}", compiled.stdout);
     let artifact = envelope(&compiled.stdout);
     let sheet = &artifact["stylesheets"][0];
-    assert!(sheet["css"].as_str().unwrap().contains(&format!("/assets/can.generated/{unit}/asset%20with%20space.bin?rev=2#texture")));
+    assert!(sheet["css"].as_str().unwrap().contains(&format!(
+        "/assets/can.generated/{unit}/asset%20with%20space.bin?rev=2#texture"
+    )));
     let assets = sheet["assets"].as_array().unwrap();
     assert_eq!(assets.len(), 1);
-    assert_eq!(assets[0]["path"], format!("can.generated/{unit}/asset with space.bin"));
+    assert_eq!(
+        assets[0]["path"],
+        format!("can.generated/{unit}/asset with space.bin")
+    );
     assert_eq!(assets[0]["contentType"], "image/png");
     assert_eq!(assets[0]["sha256"], sha256_hex(&png));
-    assert_eq!(base64::Engine::decode(&base64::engine::general_purpose::STANDARD, assets[0]["contentBase64"].as_str().unwrap()).unwrap(), png);
-    std::fs::write(dir.path().join(format!("can.generated/{unit}/asset with space.bin")), b"<html>not an image</html>").unwrap();
+    assert_eq!(
+        base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            assets[0]["contentBase64"].as_str().unwrap()
+        )
+        .unwrap(),
+        png
+    );
+    std::fs::write(
+        dir.path()
+            .join(format!("can.generated/{unit}/asset with space.bin")),
+        b"<html>not an image</html>",
+    )
+    .unwrap();
     let refused = validate_unit(&root, dir.path(), "invalid.json", &unit);
     assert_eq!(refused.code, 4, "{}", refused.stdout);
-    assert!(refused.stdout.contains("unsupported or mismatched owned asset type"));
+    assert!(
+        refused
+            .stdout
+            .contains("unsupported or mismatched owned asset type")
+    );
+}
+
+#[test]
+fn contributed_field_labels_reach_app_definition_and_prepared_forms() {
+    let source = r#"app Captions source="nl"
+Given
+ trait archive_evidence $"Add archive fields with clear labels."
+ Entry {title:text} archive_evidence
+ Tag {name:text} archive_evidence
+ Note {body:text} trait $"Add pinned with its caption."
+When
+ crud Entry by=members fields=title,archive_recorded_at
+ crud Tag by=members fields=name,archive_recorded_at
+ crud Note by=members fields=body,pinned
+Then
+ page / title="Entries"
+  form Entry.create fields=title,archive_recorded_at
+  form Tag.create fields=name,archive_recorded_at
+  form Note.create fields=body,pinned
+"#;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let named = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::NamedTrait,
+        Some("archive_evidence"),
+    );
+    let inline = bind_new(&root, &file, source, GenerationKind::InlineTrait, None);
+    for (unit, carrier) in [
+        (
+            &named,
+            "app Captions\nGiven\n archive_evidence {archive_recorded_at:datetime?=null label=\"Archive time\"}\n",
+        ),
+        (
+            &inline,
+            "app Captions\nGiven\n Note {pinned:bool=false label=\"Pinned\"}\n",
+        ),
+    ] {
+        write_file(
+            dir.path(),
+            &format!("can.generated/{unit}/contributions.can"),
+            carrier,
+        );
+        let validated = validate_unit(&root, dir.path(), &format!("{unit}.json"), unit);
+        assert_eq!(validated.code, 0, "{}", validated.stdout);
+    }
+    let compiled = compile_json(dir.path(), &file);
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let artifact = envelope(&compiled.stdout);
+    let entry = artifact["modules"][0]["js"].as_str().unwrap();
+    let message = "$can$h$636865636b65645f6d657373616765";
+    let archive = format!("{message}(\"Archive time\",{{}},undefined,\"nl\")");
+    let pinned = format!("{message}(\"Pinned\",{{}},undefined,\"nl\")");
+    assert_eq!(
+        entry.matches(&format!("label:{archive}")).count(),
+        2,
+        "{entry}"
+    );
+    assert_eq!(
+        entry.matches(&format!("label:{pinned}")).count(),
+        1,
+        "{entry}"
+    );
+    for (operation, name, caption) in [
+        ("Entry.create", "archive_recorded_at", &archive),
+        ("Tag.create", "archive_recorded_at", &archive),
+        ("Note.create", "pinned", &pinned),
+    ] {
+        let request = entry
+            .split_once(&format!("prepareForm({{operation:\"Captions.{operation}\""))
+            .expect("canonical prepared form")
+            .1
+            .split_once(",labels:")
+            .expect("contributed caption request")
+            .1;
+        assert!(
+            request.starts_with(&format!("{{{name}:{caption}}}")),
+            "{request}"
+        );
+    }
+    write_file(
+        dir.path(),
+        &format!("can.generated/{inline}/contributions.can"),
+        "app Captions\nGiven\n Note {pinned:bool=false label=\"Pinned {value}\"}\n",
+    );
+    let refused = validate_unit(&root, dir.path(), "bad-caption.json", &inline);
+    assert_eq!(refused.code, 4, "{}", refused.stdout);
+    assert!(
+        refused.stdout.contains("invalid contributed field label"),
+        "{}",
+        refused.stdout
+    );
+    let refused = compile_json(dir.path(), &file);
+    assert_eq!(refused.code, 10, "{}", refused.stdout);
+    assert!(envelope(&refused.stdout).get("modules").is_none());
+}
+
+#[test]
+fn contributed_defaults_and_bounds_match_authored_exact_wire_values() {
+    let fields = "count:int=9223372036854775807 min=1 max=9223372036854775807, ratio:decimal=1.50 min=1.25 max=2.00, maybe:decimal?=null min=1.25 max=2.00, words:text[]=[\"a  b\",\"x,y\"] min=1 max=3, choices:enum(open,done)[]=[open,done], delay:duration=2s min=1s max=3s, at:datetime=\"2026-10-14T12:00:00+02:00\"";
+    let source = "app Tasks\nGiven\n trait marked $\"Add exact native defaults.\"\n Item {title:text} marked\nWhen\n crud Item by=members fields=title\nThen\n page / title=\"Tasks\"\n  form Item.create fields=title\n";
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let file = write_file(dir.path(), "app.can", source);
+    let catalog = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("packages/values/dist/catalog.json");
+    let compile = || {
+        dispatch(&argv(&[
+            "compile",
+            "--format=json",
+            &format!("--catalog={}", catalog.display()),
+            &file,
+        ]))
+    };
+    let unit = bind_new(
+        &root,
+        &file,
+        source,
+        GenerationKind::NamedTrait,
+        Some("marked"),
+    );
+    write_file(
+        dir.path(),
+        &format!("can.generated/{unit}/contributions.can"),
+        &format!("app Tasks\nGiven\n marked {{{fields}}}\n"),
+    );
+    let compiled = compile();
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let generated = envelope(&compiled.stdout);
+    let model_fields = generated["models"][0]["fields"].as_array().unwrap();
+    for (name, expected) in [
+        ("count", serde_json::json!("9223372036854775807")),
+        ("ratio", serde_json::json!("1.50")),
+        ("maybe", serde_json::Value::Null),
+        ("words", serde_json::json!(["a  b", "x,y"])),
+        ("choices", serde_json::json!(["open", "done"])),
+        ("delay", serde_json::json!("2000")),
+        ("at", serde_json::json!("2026-10-14T10:00:00.000Z")),
+    ] {
+        let field = model_fields
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
+        assert_eq!(field["default"]["value"], expected, "{field}");
+    }
+    let direct_fields = fields.replace(
+        "at:datetime=\"2026-10-14T12:00:00+02:00\"",
+        "at:datetime=datetime(\"2026-10-14T12:00:00+02:00\")",
+    );
+    let direct = source
+        .replace(" trait marked $\"Add exact native defaults.\"\n", "")
+        .replace(
+            "Item {title:text} marked",
+            &format!("Item {{title:text, {direct_fields}}}"),
+        );
+    write_file(dir.path(), "app.can", &direct);
+    let compiled = compile();
+    assert_eq!(compiled.code, 0, "{}", compiled.stdout);
+    let authored = envelope(&compiled.stdout);
+    assert_eq!(generated["models"], authored["models"]);
+    assert_eq!(generated["operations"], authored["operations"]);
+}
+
+#[test]
+fn actual_promptlab_create_results_keep_checked_saved_disclosure() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let result = dispatch(&[
+        "can".into(),
+        "compile".into(),
+        "--format=json".into(),
+        "--native-scenario-receipts".into(),
+        format!(
+            "--catalog={}",
+            root.join("packages/cloudflare/dist/native-catalog.json")
+                .display()
+        ),
+        root.join("draft/apps/CanPromptLab/CanPromptLab.can")
+            .display()
+            .to_string(),
+    ]);
+    assert_eq!(result.code, 0, "{} {}", result.stdout, result.stderr);
+    let artifact = envelope(&result.stdout);
+    for name in ["prompt_lab.add_entry", "prompt_lab.add_tag"] {
+        let operation = artifact["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["name"] == name)
+            .unwrap();
+        assert!(
+            operation["result"]["disclosure"].is_object(),
+            "{name}: {operation}"
+        );
+    }
 }

@@ -195,6 +195,34 @@ fn ordinary_strings_are_not_generation_prompts() {
     assert!(found.descriptors.is_empty(), "{:?}", found.descriptors);
 }
 
+#[test]
+fn prompted_views_accept_canonical_cards_and_presentation_leaves() {
+    let src = wrap(
+        " Todo {title:text}\n",
+        "",
+        " view Tile(row:Todo) $\"Arrange checked presentation.\"\n  require row.title != \"\"\n  card row.title\n   require row.title != \"Hidden\"\n   card \"Details\"\n    text row.title\n  text row.title\n  content row.title\n  history\n  button target=\"/archive\" caption=\"Archive\"\n",
+    );
+    let (tree, diags) = parse(&src);
+    assert!(diags.is_empty(), "{diags:?}");
+    assert_eq!(
+        tree.descendants()
+            .filter(|node| node.kind == SyntaxKind::Card)
+            .count(),
+        2,
+        "both authored card levels remain in the parsed view"
+    );
+    let found = discover_generation(&tree, &src);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    assert_eq!(
+        found
+            .descriptors
+            .iter()
+            .filter(|descriptor| descriptor.kind == GenerationKind::ViewDefinition)
+            .count(),
+        1
+    );
+}
+
 fn expect_parse_err(src: &str, needle: &str) {
     let (_t, diags) = parse(src);
     assert!(
@@ -304,14 +332,23 @@ fn negative_parse_diagnostics() {
         ),
         "view requires one nonnullable",
     );
-    // Forbidden prompted-view children: arbitrary group, slot, nested show.
+    // A canonical card is admitted; arbitrary direct grouping is not.
     expect_parse_err(
         &wrap(
             " Todo {title:text}\n",
             "",
-            " view Tile(row:Todo) $\"Render.\"\n  card \"Nope\"\n   text row.title\n",
+            " view Tile(row:Todo) $\"Render.\"\n  join\n   text row.title\n",
         ),
-        "prompted view accepts only canonical controls",
+        "prompted view accepts only canonical cards",
+    );
+    // Slots remain forbidden even inside an otherwise admitted card.
+    expect_parse_err(
+        &wrap(
+            " Todo {title:text}\n",
+            "",
+            " view Tile(row:Todo) $\"Render.\"\n  card \"Task\"\n   slot content\n    text row.title\n",
+        ),
+        "view does not accept slots",
     );
     expect_parse_err(
         &wrap(
@@ -319,7 +356,7 @@ fn negative_parse_diagnostics() {
             "",
             " view Tile(row:Todo) $\"Render.\"\n  show OtherTile {row=row}\n view OtherTile(row:Other)\n  text row.x\n",
         ),
-        "prompted view accepts only canonical controls",
+        "prompted view accepts only canonical cards",
     );
     // Catalog `button` controls are admitted in prompted views: resolve,
     // check, and codegen all support them (draft `button action=` shape).
@@ -375,6 +412,34 @@ fn named_field_trait_targets_are_distinguished() {
     assert_eq!(apps[0].target.as_deref(), Some("Item.a"));
     assert_eq!(apps[1].target.as_deref(), Some("Item.b"));
     assert_ne!(apps[0].anchor, apps[1].anchor);
+    // Multiple named field traits retain the same source-order composition
+    // as model traits, including after native numeric bounds and before labels.
+    let combined = wrap(
+        " trait clean $\"Clean.\"\n trait budget $\"Budget.\"\n Item {a:text min=1 max=100 clean budget label=\"Code\"}\n",
+        "",
+        " page / title=\"T\"\n  text \"hi\"\n",
+    );
+    let (tree, diags) = parse(&combined);
+    assert!(diags.is_empty(), "{diags:?}");
+    let combined = discover_generation(&tree, &combined);
+    assert!(
+        combined.diagnostics.is_empty(),
+        "{:?}",
+        combined.diagnostics
+    );
+    let names: Vec<_> = combined
+        .descriptors
+        .iter()
+        .filter(|d| d.kind == GenerationKind::TraitApplication)
+        .map(|d| (d.label.as_deref(), d.target.as_deref()))
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            (Some("clean"), Some("Item.a")),
+            (Some("budget"), Some("Item.a"))
+        ]
+    );
     // Refusal: an unknown field trait still diagnoses.
     expect_discovery_err(
         &wrap(
@@ -694,4 +759,53 @@ fn style_leaf_wrapper_and_multiple_suffixes_refuse() {
             "unexpected admission: {source}"
         );
     }
+}
+
+#[test]
+fn generation_ownership_and_name_lookup_follow_modules_within_one_file() {
+    let source = "app Composed uses=[first,second]\npackage first\n Given\n  trait clean $\"First clean.\"\n  Item {name:text clean}\n When\n Then\n  style Surface $\"First surface.\"\n  page /first title=\"First\" $Surface\n   text \"one\"\npackage second\n Given\n  trait clean $\"Second clean.\"\n  Item {name:text clean}\n When\n Then\n  style Surface $\"Second surface.\"\n  page /second title=\"Second\" $Surface\n   text \"two\"\n";
+    let (tree, diags) = parse(source);
+    assert!(diags.is_empty(), "{diags:?}");
+    let found = discover_generation(&tree, source);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    assert_eq!(
+        found
+            .descriptors
+            .iter()
+            .filter(|d| d.kind == GenerationKind::NamedTrait)
+            .map(|d| d.owner.as_str())
+            .collect::<Vec<_>>(),
+        vec!["first", "second"]
+    );
+    for descriptor in found
+        .descriptors
+        .iter()
+        .filter(|d| d.has_generation_identity)
+    {
+        assert!(
+            descriptor
+                .selector
+                .as_deref()
+                .unwrap()
+                .starts_with(&format!("[\"{}\"", descriptor.owner))
+        );
+        assert!(
+            descriptor
+                .anchor
+                .starts_with(&format!("{}:", descriptor.owner))
+        );
+    }
+    let unknown = source.replace(
+        "Item {name:text clean}\n When",
+        "Item {name:text missing}\n When",
+    );
+    let (tree, _) = parse(&unknown);
+    assert_eq!(
+        discover_generation(&tree, &unknown)
+            .diagnostics
+            .iter()
+            .filter(|d| d.message.contains("unknown trait"))
+            .count(),
+        2
+    );
 }

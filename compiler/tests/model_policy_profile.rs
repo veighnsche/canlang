@@ -50,6 +50,39 @@ fn rule_with_fields(
 }
 
 #[test]
+fn owning_nullable_audit_presence_collects_exact_stored_fields() {
+    let (program, model) = rule_with_fields(
+        "",
+        "(not row.enabled and row.account==null and row.recorded==null) or (row.enabled and null!=row.account and row.recorded!=null)",
+        ",account:user?,recorded:datetime?",
+    );
+    let fields = local_rule_fields(&program, model, &program.invariants[0].pred).unwrap();
+    assert_eq!(
+        fields
+            .iter()
+            .map(|id| program.item(*id).name.as_str())
+            .collect::<Vec<_>>(),
+        ["enabled", "account", "recorded"]
+    );
+    for predicate in [
+        "row.account==actor",
+        "row.recorded==now",
+        "row.account!=null and row.account.id!=\"\"",
+        "row.optional==null",
+    ] {
+        let (program, model) = rule_with_fields(
+            "",
+            predicate,
+            ",account:user?,recorded:datetime?,optional:int?",
+        );
+        assert!(
+            local_rule_fields(&program, model, &program.invariants[0].pred).is_none(),
+            "{predicate}"
+        );
+    }
+}
+
+#[test]
 fn checked_primitive_rules_collect_first_observed_stored_fields() {
     let (program, model) = rule(
         "",

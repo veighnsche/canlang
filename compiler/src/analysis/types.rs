@@ -832,6 +832,9 @@ pub struct TypeTable {
     /// bound anonymous call or typed named message. Carries provenance, never
     /// copied operands.
     pub(crate) message_descriptor_references: HashMap<NodeKey, NodeKey>,
+    /// Finite anonymous descriptor leaves of a checker-selected builtin choose.
+    /// Immutable aliases retain this origin without copying or replaying values.
+    pub(crate) anonymous_message_choices: HashMap<NodeKey, Vec<NodeKey>>,
     /// Subject-domain labels checked for individual finite-enum match arms.
     pub enum_match_cases: HashMap<NodeKey, String>,
     /// Match statements with complete, unique checked subject-domain coverage.
@@ -9306,6 +9309,10 @@ impl<'a> Typer<'a> {
             parent,
             None,
             matches!(parent, SyntaxKind::Form | SyntaxKind::Edit),
+            matches!(
+                parent,
+                SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel
+            ),
             if parent == SyntaxKind::Page {
                 UiActionOwner::Page
             } else {
@@ -9316,6 +9323,7 @@ impl<'a> Typer<'a> {
 
     /// A bound tabs owner supplies its exact enum only to direct tab headers.
     /// Body/gate scopes and lexical name resolution remain the ordinary UI walk.
+    #[allow(clippy::too_many_arguments)]
     fn walk_ui_page_with_tab_case(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -9323,6 +9331,7 @@ impl<'a> Typer<'a> {
         parent: SyntaxKind,
         tab_case: Option<&ResolvedType>,
         form_owner: bool,
+        submit_owner: bool,
         action_owner: UiActionOwner,
     ) {
         let word = kids(node)
@@ -9500,7 +9509,8 @@ impl<'a> Typer<'a> {
                     let _ = self.expr(cx, domain, None);
                 }
                 if let Some(open) = attribute_value(node, "open", cx.text) {
-                    let _ = self.expr(cx, open, None);
+                    let ty = self.expr(cx, open, None);
+                    self.expect_bool(cx, tight_span(cx.text, open), &ty, "`details open=`");
                 }
                 // `display=` base values are unspecified (only the
                 // drawer exception is documented): no check.
@@ -9879,7 +9889,8 @@ impl<'a> Typer<'a> {
                                     ty,
                                     ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
                                         | ResolvedType::Error
-                                )
+                                ) || matches!(&ty, ResolvedType::Nullable(inner)
+                                    if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
                             };
                             if !valid {
                                 self.diags.push(Diagnostic::error(
@@ -9929,6 +9940,28 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if word == "button" {
+                    let bindings = ["action", "submit", "target", "opens"]
+                        .iter()
+                        .filter(|name| attribute_value(node, name, cx.text).is_some())
+                        .count();
+                    if bindings != 1 {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "button requires exactly one of action, submit, target or opens".into(),
+                            node.span,
+                        ));
+                    }
+                    if !submit_owner && let Some(submit) = attribute_value(node, "submit", cx.text)
+                    {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "button submit requires an owning canonical form, edit or preferences panel"
+                                .into(),
+                            tight_span(cx.text, submit),
+                        ));
+                    }
+                }
                 if word == "tooltip"
                     && node.descendants().any(|child| {
                         matches!(child.kind, SyntaxKind::Form | SyntaxKind::UiLeaf)
@@ -9950,7 +9983,8 @@ impl<'a> Typer<'a> {
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("collapse")
                     && let Some(open) = attribute_value(node, "open", cx.text)
                 {
-                    let _ = self.expr(cx, open, None);
+                    let ty = self.expr(cx, open, None);
+                    self.expect_bool(cx, tight_span(cx.text, open), &ty, "`collapse open=`");
                 }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("button")
                     && (attribute_value(node, "target", cx.text).is_some()
@@ -9968,7 +10002,8 @@ impl<'a> Typer<'a> {
                                 ty,
                                 ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
                                     | ResolvedType::Error
-                            )
+                            ) || matches!(&ty, ResolvedType::Nullable(inner)
+                                if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
                         } else {
                             matches!(
                                 ty,
@@ -9984,7 +10019,7 @@ impl<'a> Typer<'a> {
                                 format!(
                                     "button {name} needs {}",
                                     if name == "target" {
-                                        "text, url or file"
+                                        "text, url, file or nullable file"
                                     } else {
                                         "text or a message descriptor"
                                     }
@@ -10176,6 +10211,11 @@ impl<'a> Typer<'a> {
                     None
                 },
                 form_owner || matches!(node.kind, SyntaxKind::Form | SyntaxKind::Edit),
+                submit_owner
+                    || matches!(
+                        node.kind,
+                        SyntaxKind::Form | SyntaxKind::Edit | SyntaxKind::PreferencePanel
+                    ),
                 child_action_owner,
             );
         }
@@ -18114,6 +18154,33 @@ impl<'a> Typer<'a> {
                     &ordered_types,
                     result,
                 );
+                if id == "choose"
+                    && result == ResolvedType::InlineMessage
+                    && !self.diags[diagnostic_start..]
+                        .iter()
+                        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+                    && let [_, yes, no] = ordered_args.as_slice()
+                    && let Some(yes) = self.checked_message_descriptor_origin(yes.value)
+                    && let Some(no) = self.checked_message_descriptor_origin(no.value)
+                {
+                    let mut leaves = Vec::new();
+                    for origin in [yes, no] {
+                        for leaf in self
+                            .types
+                            .anonymous_message_choices
+                            .get(&origin)
+                            .map(Vec::as_slice)
+                            .unwrap_or(std::slice::from_ref(&origin))
+                        {
+                            if !leaves.contains(leaf) {
+                                leaves.push(*leaf);
+                            }
+                        }
+                    }
+                    self.types
+                        .anonymous_message_choices
+                        .insert(NodeKey::of(node), leaves);
+                }
                 if !result.is_error()
                     && !self.diags[diagnostic_start..]
                         .iter()
@@ -18826,7 +18893,10 @@ impl<'a> Typer<'a> {
             current = kids(current).into_iter().find(|n| is_expression(n.kind))?;
         }
         let key = NodeKey::of(current);
-        if is_message_descriptor(current) || self.types.anonymous_messages.contains_key(&key) {
+        if is_message_descriptor(current)
+            || self.types.anonymous_messages.contains_key(&key)
+            || self.types.anonymous_message_choices.contains_key(&key)
+        {
             Some(key)
         } else {
             self.types.message_descriptor_references.get(&key).copied()
@@ -20940,7 +21010,10 @@ pub const GIVEN_UNIQUE_KEY_LIFECYCLE: &str = "commit-keys";
 /// Unknown ids refuse (`E3023`): generated code selects from this
 /// registry, it never invents producers.
 pub fn given_producer_known(producer: &str) -> bool {
-    matches!(producer, GIVEN_PRODUCER_UNIQUE_KEY)
+    matches!(
+        producer,
+        GIVEN_PRODUCER_UNIQUE_KEY | GIVEN_PRODUCER_FIELD_VALIDATION
+    )
 }
 
 /// Owner-visible structured claims of one saved keyword unit: the
@@ -20964,6 +21037,11 @@ pub struct GivenSavedDeclaration {
 
 /// Fixed export in the source-derived initial pure producer contract.
 pub const GIVEN_UNIQUE_KEY_EXPORT: &str = "canonicalKey";
+
+/// Fixed, source-derived field-trait validation seam.
+pub const GIVEN_PRODUCER_FIELD_VALIDATION: &str = "state.field-validation@1";
+pub const GIVEN_FIELD_VALIDATION_EXPORT: &str = "check";
+pub const GIVEN_FIELD_VALIDATION_LIFECYCLE: &str = "validate-fields";
 
 /// Derive the admitted v1 pure binding from the owning source signature.
 /// Other producers require explicit compiler/owner admission; generated code
@@ -21070,6 +21148,9 @@ pub struct GivenFieldSchema {
 /// One field contributed by a trait template to its applications.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GivenContributedField {
+    /// Checked static literal caption. Generated descriptors and references
+    /// are not admitted; authored field-constraint captions remain authoritative.
+    pub label: Option<String>,
     /// Contributed field name.
     pub name: String,
     /// Checked contributed type text.
@@ -21123,6 +21204,8 @@ pub struct CheckedTraitContract {
     /// SHA-256 over the contributions carrier bytes; direct edits
     /// change it and need downstream re-activation.
     pub fingerprint: String,
+    /// Exact saved check implementation closure, separate from carrier identity.
+    pub validation_fingerprint: Option<String>,
 }
 
 /// One checked keyword application: a standalone use bound to the
@@ -21258,17 +21341,12 @@ fn given_normalized(node: &SyntaxNode, text: &str) -> String {
         .join(" ")
 }
 
-/// Source text of a constant expression: JSON string literals keep
-/// their exact quoted spelling (escapes included); anything else is
-/// whitespace-collapsed for stable comparison.
+/// Source text of a constant expression, retaining quoted whitespace even
+/// inside arrays. Whitespace normalization must never change literal values.
 fn given_const_text(node: &SyntaxNode, text: &str) -> String {
-    if node.token().is_some_and(|t| t.kind == TokenKind::String) {
-        return node
-            .token()
-            .map(|t| t.text(text).to_string())
-            .unwrap_or_default();
-    }
-    given_normalized(node, text)
+    text[node.span.start as usize..node.span.end as usize]
+        .trim()
+        .to_string()
 }
 
 /// First `Name` leaf text of a node (model/field/section heads).
@@ -21279,9 +21357,9 @@ fn given_first_name<'a>(node: &SyntaxNode, text: &'a str) -> Option<&'a str> {
         .find_map(|c| c.token().map(|t| t.text(text)))
 }
 
-/// Whether `const_text` inhabits the contributed `type_text`: strict
-/// for bool/int/decimal/text/enum/array leaves, shallow (one JSON
-/// string or bare token) for the remaining scalars.
+/// Constants use the ordinary scalar shape/range validators and the exact
+/// Values decimal owner. No ambient expression or nominal handle can become
+/// a source default through a string/bare-token fallback.
 fn given_const_matches_type(type_text: &str, const_text: &str) -> bool {
     let value = const_text.trim();
     if let Some(inner) = type_text.strip_suffix('?') {
@@ -21292,12 +21370,10 @@ fn given_const_matches_type(type_text: &str, const_text: &str) -> bool {
             return false;
         }
         let inner = &value[1..value.len().saturating_sub(1)];
-        if inner.trim().is_empty() {
-            return true;
-        }
-        return split_given_consts(inner)
-            .iter()
-            .all(|el| given_const_matches_type(elem, el));
+        return inner.trim().is_empty()
+            || split_given_consts(inner)
+                .iter()
+                .all(|el| given_const_matches_type(elem, el));
     }
     if let Some(cases) = type_text
         .strip_prefix("enum(")
@@ -21308,21 +21384,49 @@ fn given_const_matches_type(type_text: &str, const_text: &str) -> bool {
     match type_text {
         "bool" | "boolean" => matches!(value, "true" | "false"),
         "int" | "integer" => value.parse::<i64>().is_ok(),
-        "decimal" => value.parse::<f64>().is_ok(),
-        "text" => serde_json::from_str::<String>(value).is_ok(),
-        _ => {
-            // Remaining scalars (email/url/date/...) and nominal spellings:
-            // one JSON string or one bare token. Deeper codec validation
-            // stays with the owning Values semantics at admission.
-            serde_json::from_str::<String>(value).is_ok()
-                || (!value.is_empty()
-                    && !value.contains(|c: char| c.is_whitespace())
-                    && value.parse::<f64>().is_ok())
-                || (!value.is_empty()
-                    && value
-                        .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b == b'_'))
+        "decimal" => given_decimal(value).is_some(),
+        "duration" => duration_millis(value).is_some(),
+        "text" | "email" | "timezone" | "date" | "datetime" => {
+            let Ok(text) = serde_json::from_str::<String>(value) else {
+                return false;
+            };
+            match type_text {
+                "text" => true,
+                "email" => validated_shape(Scalar::Email, &text).is_none(),
+                "timezone" => validated_shape(Scalar::Timezone, &text).is_none(),
+                "date" => valid_date(&text).is_ok(),
+                _ => valid_datetime(&text).is_ok(),
+            }
         }
+        // These native leaves remain available with explicit nullable/array
+        // defaults, but source constants cannot manufacture their values.
+        _ => false,
+    }
+}
+
+/// Reuse exact native decimal parsing; never round a checked constant via f64.
+fn given_decimal(value: &str) -> Option<values_semantics::representations::numeric::Value> {
+    use values_semantics::numeric::decimal::parse_decimal;
+    use values_semantics::representations::numeric::Value;
+    parse_decimal(&Value::Str(value.to_string()))
+        .ok()
+        .map(Value::Decimal)
+}
+
+/// Bound shapes mirror ordinary fields. Native Money constants need their
+/// constructor/owner, which the finite contributed-constant path cannot carry.
+fn given_bound_matches_type(type_text: &str, value: &str) -> bool {
+    let leaf = type_text.strip_suffix('?').unwrap_or(type_text);
+    if leaf.ends_with("[]") || matches!(leaf, "text" | "email" | "timezone") {
+        return value
+            .parse::<u64>()
+            .is_ok_and(|n| n <= 9_007_199_254_740_991);
+    }
+    match leaf {
+        "int" | "integer" => value.parse::<i64>().is_ok(),
+        "decimal" => given_decimal(value).is_some(),
+        "duration" => duration_millis(value).is_some(),
+        _ => false,
     }
 }
 
@@ -21382,24 +21486,28 @@ fn given_authored_models(
     db: &SourceDb,
     program: &super::CheckedProgram,
 ) -> HashMap<String, GivenAuthoredModel> {
-    let mut owners: HashMap<SourceId, String> = HashMap::new();
-    for module in &program.modules {
-        owners
-            .entry(module.file)
-            .or_insert_with(|| module.name.clone());
-    }
     let mut out: HashMap<String, GivenAuthoredModel> = HashMap::new();
     for &file in program.checked_files() {
-        let (Some(source), Some(owner)) = (db.get(file), owners.get(&file)) else {
-            continue;
-        };
+        let Some(source) = db.get(file) else { continue };
         let text = source.text.as_str();
         let (tree, _) = crate::syntax::parse(db, file);
         for node in tree.descendants() {
             if node.kind != SyntaxKind::Model {
                 continue;
             }
-            let Some(model) = given_first_name(node, text) else {
+            let Some(model) = super::generation::model_name(node, text) else {
+                continue;
+            };
+            let Some(owner) = program
+                .modules
+                .iter()
+                .find(|module| {
+                    module.file == file
+                        && module.span.start <= node.span.start
+                        && module.span.end >= node.span.end
+                })
+                .map(|module| &module.name)
+            else {
                 continue;
             };
             let canonical = format!("{owner}.{model}");
@@ -21450,6 +21558,7 @@ fn given_authored_models(
 /// One contributed field read structurally from a carrier.
 #[derive(Debug, Clone)]
 struct GivenCarrierField {
+    label: Option<SyntaxNode>,
     name: String,
     type_text: String,
     default: Option<String>,
@@ -21514,6 +21623,23 @@ fn given_carrier_refused_kind(kind: SyntaxKind) -> Option<&'static str> {
     }
 }
 
+/// Parse the accepted Given-only saved contribution carrier. Unit checking
+/// separately enforces its declarations, types and absence of effects.
+pub(crate) fn parse_given_carrier(file: SourceId, text: &str) -> (SyntaxNode, Vec<Diagnostic>) {
+    let (tree, diagnostics) = crate::syntax::parse_source(file, text);
+    // Only missing When/Then section notes are expected for this profile.
+    // Missing Given and every real syntax error must still be reported.
+    let diagnostics = diagnostics
+        .into_iter()
+        .filter(|d| {
+            !(d.code == "E1204"
+                && d.message.starts_with("package is missing")
+                && !d.message.contains("Given"))
+        })
+        .collect();
+    (tree, diagnostics)
+}
+
 /// Read one contributions carrier: model-shaped declarations plus one
 /// refusal per unadmitted declaration kind. `##` comments and ordinary
 /// descriptions never participate (the parser keeps them out of
@@ -21548,6 +21674,7 @@ fn given_read_carrier(
             };
             let parts = field_parts(child, text);
             let mut carrier = GivenCarrierField {
+                label: parts.label.cloned(),
                 name: field.to_string(),
                 type_text: parts
                     .type_node
@@ -21588,27 +21715,25 @@ fn given_read_carrier(
     (models, refusals)
 }
 
-/// Whether a contributed type spelling is a well-formed leaf: scalars,
-/// `enum(...)`, nullable/array wrappers. Model-typed contributions need
-/// explicit integration (a bare default cannot inhabit them), so they
-/// refuse here rather than guessing.
+/// Whether a contribution has an existing native State/Values leaf:
+/// supported scalars or `enum(...)`, at most one array wrapper, and
+/// optional outer nullability. Other types need explicit owner integration;
+/// recognizing their spelling alone does not establish native admission.
 fn given_wellformed_leaf(type_text: &str) -> bool {
     let mut rest = type_text;
     if let Some(inner) = rest.strip_suffix('?') {
         rest = inner;
     }
-    while let Some(elem) = rest.strip_suffix("[]") {
+    if let Some(elem) = rest.strip_suffix("[]") {
         rest = elem;
     }
     if rest.starts_with("enum(") && rest.ends_with(')') {
         let cases = &rest["enum(".len()..rest.len() - 1];
-        return !cases.trim().is_empty()
-            && cases.split(',').all(|c| {
-                !c.trim().is_empty()
-                    && c.trim()
-                        .bytes()
-                        .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-            });
+        let mut seen = HashSet::new();
+        return cases.split(',').all(|case| {
+            let case = case.trim();
+            is_placeholder_key(case) && seen.insert(case)
+        });
     }
     matches!(
         rest,
@@ -21619,56 +21744,44 @@ fn given_wellformed_leaf(type_text: &str) -> bool {
             | "decimal"
             | "text"
             | "email"
-            | "url"
-            | "locale"
             | "date"
             | "datetime"
             | "duration"
             | "timezone"
-            | "currency"
             | "money"
             | "user"
-            | "member"
             | "file"
-            | "secret"
-            | "json"
-            | "bytes"
     )
 }
 
-/// Numeric bound comparison: both sides parse as i64 (text lengths and
-/// int values share this shape) or both parse as f64.
-fn given_bound_numbers(bound: &str) -> Option<f64> {
-    bound
-        .trim()
-        .parse::<i64>()
-        .map(|n| n as f64)
-        .ok()
-        .or_else(|| bound.trim().parse::<f64>().ok())
+/// Parse an exact numeric/duration bound through the existing scalar owners.
+fn given_bound_number(bound: &str) -> Option<values_semantics::representations::numeric::Value> {
+    given_decimal(bound.trim()).or_else(|| {
+        duration_millis(bound.trim()).and_then(|value| given_decimal(&value.to_string()))
+    })
 }
 
-/// Merged min/max contradiction: the strongest min exceeds the
-/// strongest max. Unparseable bounds compare textually (differing
-/// spellings contradict; identical spellings agree).
+/// Compare every admitted min/max pair exactly. Symbolic authored bounds
+/// retain the existing conservative textual contradiction rule.
 fn given_bounds_contradict(mins: &[&str], maxes: &[&str]) -> bool {
-    let numbers: Vec<f64> = mins.iter().filter_map(|m| given_bound_numbers(m)).collect();
-    let max_numbers: Vec<f64> = maxes
+    use values_semantics::numeric::decimal::compare_decimal;
+    let numbers: Option<Vec<_>> = mins.iter().map(|bound| given_bound_number(bound)).collect();
+    let max_numbers: Option<Vec<_>> = maxes
         .iter()
-        .filter_map(|m| given_bound_numbers(m))
+        .map(|bound| given_bound_number(bound))
         .collect();
-    if numbers.len() == mins.len() && max_numbers.len() == maxes.len() {
-        let strongest_min = numbers.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let strongest_max = max_numbers.iter().cloned().fold(f64::INFINITY, f64::min);
-        if !numbers.is_empty() && !max_numbers.is_empty() {
-            return strongest_min > strongest_max;
-        }
-        return false;
+    if let (Some(numbers), Some(max_numbers)) = (numbers, max_numbers) {
+        return numbers.iter().any(|min| {
+            max_numbers
+                .iter()
+                .any(|max| compare_decimal(min, max).is_ok_and(|order| order > 0))
+        });
     }
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = HashSet::new();
     for bound in mins.iter().chain(maxes.iter()) {
-        seen.insert(bound.trim().to_string());
+        seen.insert(bound.trim());
     }
-    seen.len() > 1 && (!mins.is_empty() && !maxes.is_empty())
+    seen.len() > 1 && !mins.is_empty() && !maxes.is_empty()
 }
 
 /// Check one trait definition's saved template and instantiate it at
@@ -21712,14 +21825,11 @@ fn given_check_trait_definition(
         failed = true;
         diags.push(d);
     };
-    if unit
-        .implementation_js
-        .as_deref()
-        .is_some_and(|js| !js.trim().is_empty())
-    {
+    let has_check = unit.implementation_js.is_some();
+    if unit.declaration.is_some() {
         fail(super::effects::refuse_given_authority(
-            "saved JavaScript",
-            "is not admitted by a v1 trait contract (fields, constraints and defaults only)",
+            "trait declaration sidecar",
+            "cannot select a producer or authority; field checks derive their contract from source",
             def.span,
         ));
     }
@@ -21739,18 +21849,7 @@ fn given_check_trait_definition(
         ));
         return None;
     };
-    let (carrier_tree, parse_diags) = crate::syntax::parse_source(carrier_id, &carrier.text);
-    // Carriers are Given-only by design: a "missing When/Then" shape
-    // note is expected, never an error. Every other parse diagnostic
-    // (including a missing Given) propagates truthfully.
-    let parse_diags: Vec<Diagnostic> = parse_diags
-        .into_iter()
-        .filter(|d| {
-            !(d.code == "E1204"
-                && d.message.starts_with("package is missing")
-                && !d.message.contains("Given"))
-        })
-        .collect();
+    let (carrier_tree, parse_diags) = parse_given_carrier(carrier_id, &carrier.text);
     if !parse_diags.is_empty() {
         diags.extend(parse_diags);
         return None;
@@ -21806,6 +21905,30 @@ fn given_check_trait_definition(
     // and required checked defaults.
     let mut template_fields: Vec<GivenContributedField> = Vec::new();
     for field in &template.fields {
+        // Generated captions are static literals only. Retain their checked
+        // text for the ordinary label pipeline; never resolve ambient names
+        // or silently drop a descriptor/table that this contract cannot carry.
+        let label = if let Some(node) = &field.label {
+            let Some(text) = string_literal_value(node) else {
+                fail(Diagnostic::error(
+                    "E3016",
+                    "contributed field label must be a static text literal; generated descriptor, reference and table captions are not admitted".to_string(),
+                    node.span,
+                ));
+                continue;
+            };
+            if let Some(problem) = super::examples::static_caption_icu_error(&text) {
+                fail(Diagnostic::error(
+                    "E5007",
+                    format!("invalid contributed field label: {problem}"),
+                    node.span,
+                ));
+                continue;
+            }
+            Some(text)
+        } else {
+            None
+        };
         if field.unique {
             fail(super::effects::refuse_given_authority(
                 &format!("contributed field `{}`", field.name),
@@ -21836,7 +21959,7 @@ fn given_check_trait_definition(
             fail(given_target_mismatch(
                 &format!("contributed field `{}`", field.name),
                 &format!(
-                    "has type `{}`; v1 trait contributions are scalar/enum/array leaves",
+                    "has type `{}`; v1 trait contributions require supported native scalar/enum leaves with at most one array and optional outer nullability",
                     field.type_text
                 ),
                 field.span,
@@ -21853,6 +21976,38 @@ fn given_check_trait_definition(
             ));
             continue;
         }
+        if field.trim
+            && !matches!(
+                field.type_text.trim_end_matches('?'),
+                "text" | "email" | "timezone"
+            )
+        {
+            fail(given_bad_value(
+                &format!("contributed field `{}`", field.name),
+                "trim requires a string-like native field",
+                field.span,
+            ));
+            continue;
+        }
+        if let Some((which, value)) = [("min", &field.min), ("max", &field.max)]
+            .into_iter()
+            .find_map(|(which, value)| {
+                value
+                    .as_deref()
+                    .filter(|value| !given_bound_matches_type(&field.type_text, value))
+                    .map(|value| (which, value))
+            })
+        {
+            fail(given_bad_value(
+                &format!("contributed field `{}`", field.name),
+                &format!(
+                    "{which} bound `{value}` is not a supported native bound for `{}`",
+                    field.type_text
+                ),
+                field.span,
+            ));
+            continue;
+        }
         if let (Some(min), Some(max)) = (field.min.as_deref(), field.max.as_deref())
             && given_bounds_contradict(&[min], &[max])
         {
@@ -21864,6 +22019,7 @@ fn given_check_trait_definition(
             continue;
         }
         template_fields.push(GivenContributedField {
+            label,
             name: field.name.clone(),
             type_name: field.type_text.clone(),
             default: field.default.clone(),
@@ -21871,6 +22027,13 @@ fn given_check_trait_definition(
             min: field.min.clone(),
             max: field.max.clone(),
         });
+    }
+    if has_check && (template_fields.len() != 1 || template_fields[0].type_name != "text") {
+        fail(given_target_mismatch(
+            &format!("trait `{label}` field check"),
+            "requires one nonnullable native text field template",
+            def.span,
+        ));
     }
     // Applications in explicit source order. Inline attachments apply
     // once at their own target; named traits apply at every written use.
@@ -21934,6 +22097,13 @@ fn given_check_trait_definition(
         let authored_model = authored.get(&model_canonical);
         match (&app.target_field, authored_model) {
             (None, _) => {
+                if has_check {
+                    fail(super::effects::refuse_given_authority(
+                        "saved JavaScript on a model trait",
+                        "is not admitted; pure checks attach only to nonnullable native text fields",
+                        app.span,
+                    ));
+                }
                 for field in &template_fields {
                     if field.default.is_none() {
                         fail(given_bad_value(
@@ -22044,6 +22214,14 @@ fn given_check_trait_definition(
         applications: apps,
         contributed_fields: template_fields,
         fingerprint: sha256_hex(carrier.text.as_bytes()),
+        validation_fingerprint: unit.implementation_js.as_ref().map(|js| {
+            let imports: Vec<(&str, &[u8])> = unit
+                .implementation_imports
+                .iter()
+                .map(|import| (import.rel_path.as_str(), import.bytes.as_slice()))
+                .collect();
+            given_closure_fingerprint(js.as_bytes(), &imports)
+        }),
     })
 }
 
@@ -22113,11 +22291,11 @@ fn given_check_keyword_definition(
         ));
         return None;
     };
-    if !given_producer_known(&declaration.producer) {
+    if declaration.producer != GIVEN_PRODUCER_UNIQUE_KEY {
         fail(given_producer_refused(
             &format!("keyword `{label}`"),
             &format!(
-                "selects unknown producer `{}`; generated code never self-registers producers",
+                "selects unknown producer `{}` for this keyword contract; generated code never self-registers producers",
                 declaration.producer
             ),
             def.span,

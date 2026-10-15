@@ -750,13 +750,13 @@ fn golden_teamtasks_structure() {
         "unavailable filter option is refused"
     );
     assert!(
-        entry.contains("renderRow:async($can$l$313a7461736b,$can$l$323a726f7756696577)=>"),
+        entry.contains("renderRow:async($can$l$313a7461736b,$can$l$323a726f7756696577,$can$sr$"),
         "protected edit preparation awaits inside the owning row scope"
     );
     assert!(entry.contains(".prepareForm({operation:\"TeamTasks.Todo.update\",arguments:{record:$can$l$313a7461736b},fields:[\"title\",\"done\",\"assignee\"]"),
         "bare task edit keeps its allowed update fields and excludes server-created fields");
     assert!(
-        entry.contains("renderRow:async($can$l$333a726f77,$can$l$343a726f7756696577)=>")
+        entry.contains("renderRow:async($can$l$333a726f77,$can$l$343a726f7756696577,$can$sr$")
             && entry.contains(".prepareForm({operation:\"TeamNotes.Note.update\",arguments:{record:$can$l$333a726f77},fields:[\"title\",\"content\"]")
             && !entry.contains("$can$u$65646974({")
             && !diags.iter().any(|d| d.code == "E6008" && d.message.starts_with("cannot lower edit:")),
@@ -890,7 +890,7 @@ fn golden_teamtasks_structure() {
         "checked caller, changes, and wire-envelope channels:\n{suite}"
     );
     assert!(
-        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],\"en\",[[\"n\",\"int\",\"int\"]]))"),
+        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],[[\"en\",[[\"n\",\"int\",\"int\"]]]]))"),
         "checked localized observation preserves the descriptor signature:\n{suite}"
     );
     assert!(
@@ -1294,7 +1294,7 @@ fn golden_expenseflow_structure() {
         "submit guard"
     );
     assert!(
-        entry.contains("await set(c,$can$l$323a657870656e7365,{status:\"submitted\"},{when:crudWhen[\"Expense\"]});"),
+        entry.contains("await set(c,$can$l$323a657870656e7365,{status:\"submitted\"});"),
         "submit effect"
     );
     assert!(
@@ -1302,7 +1302,7 @@ fn golden_expenseflow_structure() {
         "approve body"
     );
     assert!(
-        entry.contains("await set(c,$can$l$333a657870656e7365,{status:\"approved\",decision_note:$can$l$343a6e6f7465,decided_by:c.actor,decided_at:c.now},{when:crudWhen[\"Expense\"]});"),
+        entry.contains("await set(c,$can$l$333a657870656e7365,{status:\"approved\",decision_note:$can$l$343a6e6f7465,decided_by:c.actor,decided_at:c.now});"),
         "approve effect"
     );
     assert!(
@@ -1503,7 +1503,7 @@ fn golden_expenseflow_structure() {
         "reviewer recipe:\n{submit}"
     );
     assert!(
-        submit.contains("const $can$f$70656e64696e67={model:\"expenses.Expense\",dependencies:[],value:async(c,s)=>({purpose:\"Travel\",amount:money(25n,\"EUR\"),submitted_by:other,status:\"submitted\"})};"),
+        submit.contains("const $can$f$70656e64696e67={model:\"expenses.Expense\",dependencies:[],value:async(c,s)=>({purpose:\"Travel\",amount:money(25n,\"EUR\"),submitted_by:c.other,status:\"submitted\"})};"),
         "pending recipe"
     );
     assert!(
@@ -1527,7 +1527,7 @@ fn golden_expenseflow_structure() {
         "member inequality"
     );
     assert!(
-        submit.contains("values:async(c,s)=>([other,\"draft\"])"),
+        submit.contains("values:async(c,s)=>([c.other,\"draft\"])"),
         "submit row"
     );
     // G12 in suites: `money` is pure, so recipe values stay synchronous.
@@ -1541,15 +1541,15 @@ fn golden_expenseflow_structure() {
     // caller/inputs/request/error, `let` bindings through `b`, and
     // assertions with §13 type ids.
     assert!(
-        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
+        approve.contains("{operation:\"expenses.Expense.create\",by:async(c,s,b)=>(c.other),inputs:async(c,s,b)=>({purpose:\"Travel\",amount:money(25n,\"EUR\")})}"),
         "sequence create uses checked money call"
     );
     assert!(
-        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,other)})))}"),
+        approve.contains("{let:\"draft_claim\",value:async(c,s,b)=>(await first(await records(c,\"expenses.Expense\",{where:($can$l$303a726f77)=>same($can$l$303a726f77.submitted_by,c.other)})))}"),
         "sequence binding consumes checked first/query facts:\n{approve}"
     );
     assert!(
-        approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
+        approve.contains("{operation:\"expenses.submit\",by:async(c,s,b)=>(c.other),inputs:async(c,s,b)=>({expense:b.draft_claim})}"),
         "sequence submit call"
     );
     assert!(
@@ -1584,7 +1584,7 @@ fn golden_expenseflow_structure() {
         "summarize selectors"
     );
     assert!(
-        summarize.contains("async(c,s)=>result.count"),
+        summarize.contains("async(c,s)=>s.result.count"),
         "result observation"
     );
     assert!(
@@ -2324,6 +2324,7 @@ fn construct_scalars_per_op() {
             contract_collection_call: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
+            where_param: "row".to_string(),
             where_pred: Some(Box::new(binary(
                 IrBinOp::Eq,
                 typed(
@@ -2897,8 +2898,10 @@ fn construct_messages_and_format() {
             ],
             descriptor_index: 0,
             locale_index: 1,
-            source_lang: "en".to_string(),
-            param_types: vec![],
+            schemas: vec![canlang_compiler::codegen::ir::IrFormatSchema {
+                source_lang: "en".to_string(),
+                param_types: vec![],
+            }],
         },
         ResolvedType::Scalar(Scalar::Text),
     );
@@ -2909,6 +2912,70 @@ fn construct_messages_and_format() {
     ));
     let (diags, _, _, _) = emitter.finish();
     assert!(diags.is_empty());
+}
+
+#[test]
+fn localized_format_matches_only_checked_own_schemas() {
+    let ir = fixture_ir();
+    let mut emitter = Emitter::new(&ir);
+    emitter.lower_expr(&typed(
+        IrExpr::Format {
+            args: vec![
+                text_lit("descriptor"),
+                typed(IrExpr::Null, ResolvedType::Null),
+            ],
+            descriptor_index: 0,
+            locale_index: 1,
+            schemas: vec![canlang_compiler::codegen::ir::IrFormatSchema {
+                source_lang: "FR".into(),
+                param_types: vec![("n".into(), "int".into(), "int".into())],
+            }],
+        },
+        ResolvedType::Scalar(Scalar::Text),
+    ));
+    let support = emitter.support_lines().join("\n");
+    let script = format!(
+        r#"import assert from 'node:assert/strict';
+import {{format,makeMessageDescriptor,ValueError}} from '@canlang/stdlib';
+import {{message,normalizeTag as $can$u$6e6f726d616c697a65546167}} from '@canlang/ui';
+{support}
+const context={{formatting:{{appDefault:'fr'}},team:null}};
+const run=(descriptor,schemas)=>$can$h$6c6f63616c697a65645f666f726d6174(context,descriptor,null,schemas);
+const schemas=[['FR',[['n','int','int']]],['fr',[['label','text','text']]],['fr',[['n','int','int']]]];
+const number=message('{{n}}',{{}},{{n:{{type:'int',value:7n}}}},'fr');
+const label=message('{{label}}',{{}},{{label:{{type:'text',value:'task'}}}},'fr');
+assert.deepEqual(run(number,schemas),{{text:'7',locale:'fr'}});
+assert.deepEqual(run(label,schemas),{{text:'task',locale:'fr'}});
+assert.deepEqual(run(message('Hello',{{}},undefined,'en'),[['en',[]]]),{{text:'Hello',locale:'en'}});
+const rejected=callback=>assert.throws(callback,error=>error.code==='invalid-construction');
+rejected(()=>run(number,[['fr',[['n','int','int']]],['FR',[['n','int','decimal']]]]));
+for(const params of [
+ {{n:{{type:'text',value:'7'}}}},
+ {{n:{{type:'int',value:7n}},extra:{{type:'text',value:'extra'}}}},
+ Object.create({{n:{{type:'int',value:7n}}}}),
+ {{n:Object.assign(Object.create({{type:'int'}}),{{value:7n}})}},
+ Object.defineProperty({{n:{{type:'int',value:7n}}}},'hidden',{{value:{{type:'text',value:'extra'}}}}),
+ Object.assign({{n:{{type:'int',value:7n}}}},{{[Symbol('extra')]:{{type:'text',value:'extra'}}}}),
+ {{n:{{get type(){{throw new Error('type accessor must not run')}},value:7n}}}},
+ {{n:{{type:'int',get value(){{throw new Error('value accessor must not run')}}}}}},
+]) rejected(()=>run({{source:'{{n}}',variants:{{}},sourceLocale:'fr',params}},schemas));
+rejected(()=>run({{...number,sourceLocale:'de'}},schemas));
+"#
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let result = std::process::Command::new("node")
+        .args(["--input-type=module", "--eval", &script])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
 }
 
 /// UI: lowercase server factories with one props object plus children
@@ -3884,7 +3951,7 @@ fn catalog_factories_lower_from_source() {
         "{entry}"
     );
     assert!(
-        entry.contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>"),
+        entry.contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577,$can$sr$"),
         "nested form preparation awaits inside the row callback:\n{entry}"
     );
     let form_token = src.find("form Item.update").expect("source update form");
@@ -3953,6 +4020,106 @@ fn action_primitives_preserve_canonical_controls_and_source_scope() {
     assert!(
         js.contains("JSON.stringify([$can$l$303a726f77.id]).split('')"),
         "{js}"
+    );
+}
+
+#[test]
+fn canonical_controls_gate_role_admission_before_props_and_preserve_member_controls() {
+    let source = r#"app RoleControls
+Given
+ role curator
+ role backup
+ role blocked
+ Todo {title:text,show:bool=true}
+ Note {body:text}
+ policy Todo read=members
+ policy Note read=members
+When
+ crud Todo by=curator or backup fields=title
+ crud Note by=members fields=body
+ scenario finish(task:Todo) by=curator and not blocked
+  do set task {title="Done"}
+Then
+ page / title="Controls"
+  form Todo.create fields=title
+  list Todo
+   form Todo.update arguments={record=row} submit=row.title fields=title
+    require row.show
+   edit fields=title
+   delete
+   button action=finish
+   primary "Finish" action=finish arguments={task=row}
+   secondary "Archive" action=Todo.delete arguments={record=row}
+  list Note
+   form Note.create fields=body
+"#;
+    let mut db = SourceDb::new();
+    let file = db.add("role-controls.can".into(), source.into());
+    let (catalog, catalog_path) = golden_catalog();
+    let (program, result) = check_example(&db, file, Some(&catalog));
+    assert!(!result.has_errors(), "{:?}", result.diagnostics);
+    let (ir, diagnostics) = canlang_compiler::codegen::ir::build(&program, &db, Some(&catalog));
+    std::fs::remove_file(catalog_path).unwrap();
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut emitter = Emitter::new(&ir);
+    let expressions = ir.modules[0].pages[0]
+        .render
+        .iter()
+        .map(|node| emitter.lower_ui(node))
+        .collect::<Vec<_>>()
+        .join(",");
+    let (diagnostics, _, _, _) = emitter.finish();
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let scratch = tempfile::tempdir().unwrap();
+    let runner = scratch.path().join("roles.mjs");
+    std::fs::write(&runner, format!(r#"
+import assert from 'node:assert/strict';
+const prepared=[],deleted=[],reads=[];
+const c={{path:'/',roles:new Set(['members']),async prepareForm(request){{prepared.push(request.operation);return {{status:'unavailable',message:request.operation}};}}}};
+let denied=true;
+const row={{}};
+for(const field of ['title','id','version'])Object.defineProperty(row,field,{{get(){{reads.push(field);if(denied)throw Error(`denied prop read: ${{field}}`);return field==='version'?1n:field;}}}});
+Object.defineProperty(row,'show',{{get(){{reads.push('gate');return true;}}}});
+const roleReads=[];
+const hasRole=(context,role)=>{{roleReads.push(role);return context.roles.has(role);}};
+const $can$u$6c697374=async props=>(await Promise.all(await props.renderRow({{id:'wire',version:'1',fields:{{}}}},c,props.model.endsWith('.Todo')?row:{{body:'note'}}))).filter(Boolean).join('');
+const $can$u$74657874=props=>props.values.join('');
+const $can$u$7072696d617279416374696f6e73=async props=>(await Promise.all(props.children)).filter(Boolean).join('');
+const $can$u$616374696f6e4d656e75=$can$u$7072696d617279416374696f6e73;
+const $can$u$64656c6574655265636f7264=props=>{{deleted.push(props.operation);return props.operation;}};
+let nonceMints=0;
+const $can$u$6d696e744f7065726174696f6e4964=()=>{{nonceMints++;return 'test-control-nonce';}};
+const render=async()=>Promise.all([{}]);
+await render();
+assert.deepEqual(prepared,['RoleControls.Note.create']);
+assert.deepEqual(deleted,[]);assert.equal(nonceMints,0);assert.deepEqual(reads,['gate']);
+prepared.length=0;reads.length=0;roleReads.length=0;denied=false;c.roles.add('RoleControls.curator');
+await render();
+assert.equal(prepared.filter(value=>value==='RoleControls.Todo.create').length,1);
+assert.equal(prepared.filter(value=>value==='RoleControls.Todo.update').length,2,JSON.stringify(prepared));
+assert.equal(prepared.filter(value=>value==='RoleControls.finish').length,2);
+assert.equal(prepared.filter(value=>value==='RoleControls.Note.create').length,1);
+assert.equal(deleted.length,2);assert.equal(nonceMints,2);
+assert.equal(reads.filter(value=>value==='gate').length,1);
+assert.equal(roleReads.filter(role=>role==='RoleControls.curator').length,7,'each canonical control admission runs once, including priority wrappers');
+assert.equal(roleReads.filter(role=>role==='RoleControls.blocked').length,2);
+// Current facts are consulted again; no render-time admission cache survives.
+prepared.length=0;deleted.length=0;reads.length=0;nonceMints=0;denied=true;c.roles.delete('RoleControls.curator');
+await render();assert.deepEqual(prepared,['RoleControls.Note.create']);assert.deepEqual(deleted,[]);assert.deepEqual(reads,['gate']);assert.equal(nonceMints,0);
+"#, expressions)).unwrap();
+    let output = std::process::Command::new("node")
+        .arg(runner)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        format!(
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            expressions
+        )
     );
 }
 
@@ -4321,7 +4488,7 @@ fn construct_ui_gate_ternary() {
     assert!(
         emitter
             .lower_ui(&list)
-            .contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>{"),
+            .contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577,$can$sr$"),
         "async gate propagates"
     );
     let (diags, _, _, _) = emitter.finish();
@@ -4355,6 +4522,7 @@ fn construct_value_query() {
                 alias: "expense".to_string(),
             },
             parent: None,
+            where_param: "row".to_string(),
             where_pred: None,
             where_async: false,
             order: vec![],
@@ -4379,6 +4547,7 @@ fn construct_value_query() {
             contract_collection_call: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
+            where_param: "row".to_string(),
             where_pred: None,
             where_async: false,
             order: vec![],
@@ -4399,6 +4568,7 @@ fn construct_value_query() {
                 alias: "row".to_string(),
             },
             parent: None,
+            where_param: "row".to_string(),
             where_pred: Some(Box::new(typed(
                 IrExpr::Binary {
                     op: IrBinOp::Gt,
@@ -7304,6 +7474,7 @@ fn t31_hook_expr_gaps() {
             contract_collection_call: None,
             domain: IrQueryDomain::Model("demo.Widget".to_string()),
             parent: None,
+            where_param: "row".to_string(),
             where_pred: None,
             where_async: false,
             order: Vec::new(),
@@ -7328,8 +7499,10 @@ fn t31_hook_expr_gaps() {
             args: vec![text_lit("m"), typed(IrExpr::Null, ResolvedType::Null)],
             descriptor_index: 0,
             locale_index: 1,
-            source_lang: "en".to_string(),
-            param_types: vec![],
+            schemas: vec![canlang_compiler::codegen::ir::IrFormatSchema {
+                source_lang: "en".to_string(),
+                param_types: vec![],
+            }],
         },
         ResolvedType::Scalar(Scalar::Text),
     );
@@ -8490,4 +8663,285 @@ fn a2b_require_desugars_to_admit_and_gate() {
         "page require gates admission:\n{js}"
     );
     assert!(!js.contains("require({"), "require never renders:\n{js}");
+}
+
+#[test]
+fn emitted_fixture_factories_order_dependencies_and_bind_scope_values() {
+    let source = r#"app FixtureOwners
+Given
+ Catalog {name:text}
+ Entry in Catalog {code:text}
+ Note in Entry {body:text,author:user}
+ fixture editor=user {roles=[]}
+ fixture catalog=Catalog {name="Reading room"}
+ fixture alice=Entry {parent=catalog,code="Alice"}
+ fixture note=Note {parent=alice,body="Note",author=editor}
+When
+ scenario echo(entry:Entry,catalog:Catalog) by=members -> Entry
+  do return entry
+  examples entry=alice catalog=catalog
+   as -> result.code
+   self -> "Alice"
+Then
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("fixture-owners.can".to_string(), source.to_string());
+    let catalog_path = t31_workspace_root().join("packages/values/dist/catalog.json");
+    let (catalog, catalog_diags) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: std::path::Path::new("."),
+        primary: sp(0, 0),
+    });
+    assert!(catalog_diags.is_empty(), "{catalog_diags:?}");
+    let catalog = catalog.expect("installed workspace Values catalog");
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    assert!(diags.is_empty(), "{diags:?}");
+    let orphan = artifact
+        .tests
+        .iter()
+        .find(|suite| suite.scope == "FixtureOwners.note")
+        .expect("unconsumed Note fixture remains emitted and checked");
+    let js = &orphan.module.js;
+    let catalog_at = js.find("const $can$f$636174616c6f67=").unwrap();
+    let alice_at = js.find("const $can$f$616c696365=").unwrap();
+    let note_at = js.find("const $can$f$6e6f7465=").unwrap();
+    assert!(catalog_at < alice_at && alice_at < note_at, "{js}");
+    assert!(js.contains("parent:s.catalog"), "{js}");
+    let table = artifact
+        .tests
+        .iter()
+        .find(|suite| suite.scope == "FixtureOwners.echo")
+        .unwrap();
+    assert!(
+        table.module.js.contains("catalog:s.catalog"),
+        "{}",
+        table.module.js
+    );
+    assert!(
+        table
+            .module
+            .js
+            .contains("observations:[async(c,s)=>s.result.code]"),
+        "{}",
+        table.module.js
+    );
+    let Some(node) = find_node() else {
+        return;
+    };
+    let modules = artifact
+        .tests
+        .iter()
+        .map(|suite| suite.module.js.as_str())
+        .collect::<Vec<_>>();
+    let payload = serde_json::to_string(&modules).unwrap();
+    let script = r#"import assert from 'node:assert/strict';
+const modules = __MODULES__;
+for (const js of modules) {
+ const module = await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+ const factory = () => module.exampleFixtures({self:'self',other:'other',imported:{}});
+ const first = factory(), second = factory();
+ for (const [name,recipe] of Object.entries(first.fixtures)) {
+  assert.notEqual(recipe,second.fixtures[name]);
+  for (const dep of recipe.dependencies) assert.ok(Object.values(first.fixtures).includes(dep));
+ }
+ const a={catalog:{name:'first'},alice:{code:'Alice'},editor:{id:'editor-a'},result:{code:'Alice'}};
+ const b={catalog:{name:'second'},alice:{code:'Bob'},editor:{id:'editor-b'},result:{code:'Bob'}};
+ for (const scope of [a,b]) {
+  if(first.fixtures.alice) assert.equal((await first.fixtures.alice.value({},scope)).parent,scope.catalog);
+  if(first.fixtures.note) {
+   const value=await first.fixtures.note.value({},scope);
+   assert.equal(value.parent,scope.alice); assert.equal(value.author,scope.editor);
+  }
+ }
+ for(const example of first.examples) {
+  assert.equal((await example.inputs({},a)).catalog,a.catalog);
+  assert.equal((await example.inputs({},b)).catalog,b.catalog);
+  assert.equal(await example.observations[0]({},a),'Alice');
+  assert.equal(await example.observations[0]({},b),'Bob');
+  assert.deepEqual(await example.rows[0].values({self:'self'},a),['self']);
+ }
+}
+"#.replace("__MODULES__", &payload);
+    let output = std::process::Command::new(node)
+        .args(["--input-type=module", "--eval", &script])
+        .output()
+        .expect("execute emitted fixture modules");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn late_fixture_dependency_cycles_refuse_emission() {
+    let ir = fixture_ir();
+    let recipe = |name: &str, dependency: &str| IrFixture {
+        name: name.to_string(),
+        canonical: format!("demo.{name}"),
+        kind: IrFixtureKind::Model {
+            model: "demo.Widget".to_string(),
+            fields: typed(IrExpr::Object(vec![]), ResolvedType::Unknown),
+        },
+        dependencies: vec![dependency.to_string()],
+        span: sp(0, 1),
+    };
+    let suite = BddSuite {
+        scope: "demo.submit".to_string(),
+        fixtures: vec![recipe("one", "two"), recipe("two", "one")],
+        imported: vec![],
+        tables: vec![],
+        sequences: vec![],
+        span: sp(0, 1),
+    };
+    let (module, diags, _) = bdd::emit_suite(&ir, &suite);
+    assert!(
+        diags
+            .iter()
+            .any(|diag| diag.code == "E6008" && diag.message.contains("fixture dependency cycle")),
+        "{diags:?}"
+    );
+    assert!(
+        !module.module.js.contains("const $can$f$"),
+        "no invented cyclic recipe order"
+    );
+}
+
+#[test]
+fn query_alias_preserves_outer_crud_candidate_row() {
+    let source = r#"app CandidateCapture
+Given
+ Item {name:text trim}
+ policy Item read=members
+When
+ crud Item by=members fields=name when=count(Item as stored where stored.name==row.name)==0
+ scenario nested() read=true -> int by=members
+  do return count(Item as outer where count(Item as row where row.name==outer.name)>0)
+ scenario scoped() read=true -> int by=members
+  do return count(Item as stored where count(Item as row where row.name=="local")>0)
+Then
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("candidate-capture.can".to_string(), source.to_string());
+    let (catalog, path) = fixture_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    let predicate = js
+        .split_once("const crudWhen=")
+        .unwrap()
+        .1
+        .split_once(";\n")
+        .unwrap()
+        .0;
+    assert!(
+        predicate.contains(".name === row.name"),
+        "outer candidate was captured by the query alias: {predicate}"
+    );
+    assert!(
+        predicate.contains("73746f726564"),
+        "authored stored alias needs its own hygienic binding: {predicate}"
+    );
+    let nested = js
+        .split_once("async \"CandidateCapture.nested\"")
+        .unwrap()
+        .1
+        .split_once("async \"CandidateCapture.scoped\"")
+        .unwrap()
+        .0;
+    assert!(
+        nested.contains(".name === $can$l$313a726f77"),
+        "nested query lost its outer normalized alias: {nested}"
+    );
+    assert!(
+        nested.contains("24717565727924726f77"),
+        "nested explicit row needs a distinct local parameter: {nested}"
+    );
+    let scoped = js
+        .split_once("async \"CandidateCapture.scoped\"")
+        .unwrap()
+        .1;
+    assert!(
+        !scoped.contains("73746f726564") && !scoped.contains("24717565727924726f77"),
+        "a nested local row is not a free outer row: {scoped}"
+    );
+}
+
+#[test]
+fn ordinary_source_effects_do_not_inherit_crud_candidate_guards() {
+    let source = r#"app GuardOwnership
+Given
+ Item {code:text,archived:bool=false}
+ policy Item read=members
+When
+ crud Item by=members fields=code when=not row.archived
+ scenario archive(item:Item) by=members
+  require not item.archived
+  do set item {archived=true}
+ scenario create_archived(code:text) by=members -> Item
+  do
+   create Item {code,archived=true} as created
+   return created
+Then
+"#;
+    let mut db = SourceDb::new();
+    let id = db.add("guard-ownership.can".to_string(), source.to_string());
+    let (catalog, path) = golden_catalog();
+    let (program, result) = check_example(&db, id, Some(&catalog));
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let _ = std::fs::remove_file(path);
+    assert!(diags.is_empty(), "{diags:?}");
+    let js = &artifact.modules[0].js;
+    for operation in ["archive", "create_archived"] {
+        let body = js
+            .split_once(&format!("async \"GuardOwnership.{operation}\"("))
+            .unwrap()
+            .1
+            .split_once("\n},")
+            .unwrap()
+            .0;
+        assert!(
+            !body.contains("when:crudWhen"),
+            "ordinary source effect acquired a CRUD guard: {body}"
+        );
+        assert!(
+            body.contains("check(hasRole(c,\"members\"),\"forbidden\")"),
+            "{body}"
+        );
+        if operation == "archive" {
+            assert!(
+                body.contains("check(!") && body.contains(".archived"),
+                "authored guard remains: {body}"
+            );
+            assert!(
+                body.contains("await set(c,") && body.contains("{archived:true}"),
+                "{body}"
+            );
+        } else {
+            assert!(
+                body.contains("await create(c,\"GuardOwnership.Item\"")
+                    && body.contains("archived:true"),
+                "{body}"
+            );
+        }
+    }
+    assert!(
+        js.contains("await create(c,\"GuardOwnership.Item\",input,{when:crudWhen[\"Item\"]});"),
+        "generated create retains its candidate precondition: {js}"
+    );
+    assert!(
+        js.contains("await set(c,record,changes,{when:crudWhen[\"Item\"]});"),
+        "generated update retains its candidate precondition: {js}"
+    );
+    assert!(
+        js.contains("check(await crudWhen[\"Item\"](c,record));"),
+        "generated delete retains its existing-row precondition: {js}"
+    );
 }

@@ -96,6 +96,16 @@ pub(super) fn checked_created_schema(
             _ => return None,
         }
     }
+    let authored_fields: Vec<_> = stored_fields
+        .iter()
+        .copied()
+        .filter(|id| {
+            !definition
+                .contributed
+                .iter()
+                .any(|field| field.field == *id)
+        })
+        .collect();
     if model.id != original.model
         || declaration.model != original.model
         || model.module != owner.module
@@ -104,13 +114,18 @@ pub(super) fn checked_created_schema(
         || model.span != definition.span
         || *actual_owner != expected_owner
         || fields.len() > 200
-        || stored_fields.len() != declaration.fields.len()
-        || stored_fields.len() != definition.fields.len()
-        || !stored_fields
+        || stored_fields.len() != declaration.fields.len() + definition.contributed.len()
+        || !stored_fields.iter().copied().eq(declaration
+            .fields
+            .iter()
+            .map(|field| field.field)
+            .chain(definition.contributed.iter().map(|field| field.field)))
+        || authored_fields.len() != definition.fields.len()
+        || !authored_fields
             .iter()
             .copied()
             .eq(declaration.fields.iter().map(|field| field.field))
-        || !stored_fields
+        || !authored_fields
             .iter()
             .copied()
             .eq(definition.fields.iter().map(|field| field.field))
@@ -280,6 +295,72 @@ pub(super) fn checked_created_schema(
         }
         matcher.optional(modifiers.min.as_ref(), minimum)?;
         matcher.optional(modifiers.max.as_ref(), maximum)?;
+    }
+    for original_field in &definition.contributed {
+        let field = ir.items.get(original_field.field.0 as usize)?;
+        let expected = &original_field.value;
+        let IrItemKind::Field {
+            owner: field_owner,
+            ty: IrType::Known(ty),
+            required_array,
+            default,
+            server,
+            modifiers,
+            description,
+            ..
+        } = &field.kind
+        else {
+            return None;
+        };
+        if field.id != original_field.field
+            || *field_owner != model.id
+            || field.module != model.module
+            || field.canonical != original_field.canonical
+            || field.name != expected.name
+            || field.canonical != format!("{}.{}", model.canonical, expected.name)
+            || field.span != original_field.span
+            || ty != &original_field.ty
+            || ir.value_constraints.get(&field.id) != original_field.constraints.as_ref()
+            || *required_array
+            || server.is_some()
+            || description.is_some()
+            || modifiers.trim != expected.trim
+            || modifiers.unique
+            || modifiers.machine
+        {
+            return None;
+        }
+        source(ir, &original_field.source, field.span, db)?;
+        let value = expected.default.as_deref()?;
+        let IrDefault::Literal(actual) = default.as_ref()? else {
+            return None;
+        };
+        let expected_default = super::ir::given_constant_expr(value, ty, field.span);
+        if actual.ty != expected_default.ty
+            || actual.span != field.span
+            || literal_json(actual)? != literal_json(&expected_default)?
+        {
+            return None;
+        }
+        let bound_type = super::ir::given_bound_type(ty);
+        for (actual, expected) in [
+            (&modifiers.min, &expected.min),
+            (&modifiers.max, &expected.max),
+        ] {
+            match (actual, expected) {
+                (None, None) => {}
+                (Some(actual), Some(expected)) => {
+                    let expected = super::ir::given_constant_expr(expected, &bound_type, field.span);
+                    if actual.ty != expected.ty
+                        || actual.span != field.span
+                        || literal_json(actual)? != literal_json(&expected)?
+                    {
+                        return None;
+                    }
+                }
+                _ => return None,
+            }
+        }
     }
     let prefix = ir_model_rule_prefix(ir, model);
     if invariants.len() != declaration.invariants.len()
@@ -2386,8 +2467,17 @@ impl SourceExpressions<'_> {
                     .definition
                     .fields
                     .iter()
-                    .find(|item| item.name == *field)?;
-                if actual.ty != declared.ty && declared.ty.nullable_inner() != Some(&actual.ty) {
+                    .find(|item| item.name == *field)
+                    .map(|field| &field.ty)
+                    .or_else(|| {
+                        self.original
+                            .definition
+                            .contributed
+                            .iter()
+                            .find(|item| item.value.name == *field)
+                            .map(|field| &field.ty)
+                    })?;
+                if &actual.ty != declared && declared.nullable_inner() != Some(&actual.ty) {
                     return None;
                 }
                 self.expression(base, NodeKey::of(source_base), depth + 1)?;
@@ -2981,6 +3071,142 @@ mod tests {
             pending.extend(node.children.iter());
         }
         panic!("guard source node")
+    }
+
+    #[test]
+    fn contributed_create_schema_and_named_role_refuse_changed_lowering() {
+        use crate::analysis::types::{
+            CheckedTraitApplication, CheckedTraitContract, GivenContractTables,
+            GivenContributedField,
+        };
+        let source = "app GivenCreate\nGiven\n role curator\n trait marked $\"Add archived evidence.\"\n Item {title:text} marked\n Other {title:text}\n policy Item read=members\nWhen\n crud Item by=curator fields=title\n scenario pick(title:text) by=curator -> Item\n  do\n   create Item {title} as item\n   return item\nThen\n";
+        let mut db = SourceDb::new();
+        let file = db.add("given-create.can".into(), source.into());
+        let start = source.find(" marked\n").unwrap() + 1;
+        let attachment = Span::new(file, start as u32, (start + "marked".len()) as u32);
+        let given = GivenContractTables {
+            traits: vec![CheckedTraitContract {
+                name: Some("marked".into()),
+                inline: false,
+                anchor: "GivenCreate:trait:marked:".into(),
+                unit_id: "checked-template".into(),
+                fingerprint: sha256_hex(b"checked carrier"),
+                validation_fingerprint: None,
+                applications: vec![CheckedTraitApplication {
+                    target_model: "Item".into(),
+                    target_field: None,
+                    target_canonical: "GivenCreate.Item".into(),
+                    span: attachment,
+                    order: 0,
+                }],
+                contributed_fields: vec![GivenContributedField {
+                    name: "archived".into(),
+                    type_name: "bool".into(),
+                    default: Some("false".into()),
+                    trim: false,
+                    min: None,
+                    max: None,
+                    label: None,
+                }],
+            }],
+            keywords: vec![],
+        };
+        let (program, diagnostics) =
+            crate::analysis::check_program_with_given(&db, &[file], None, Some(&given));
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (ir, diagnostics) = super::super::ir::build(&program, &db, None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let owner = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "GivenCreate.pick")
+            .unwrap()
+            .id;
+        let field = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "GivenCreate.Item.archived")
+            .unwrap()
+            .id;
+        let created = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "GivenCreate.Item")
+            .unwrap()
+            .id;
+        let other = ir
+            .items
+            .iter()
+            .find(|item| item.canonical == "GivenCreate.Other")
+            .unwrap()
+            .id;
+        let accepts = |candidate: &IrProgram| {
+            let models = Emitter::source_models(candidate, &db).unwrap();
+            super::super::scenario_receipts::collect_native_scenario_receipt(
+                candidate,
+                &candidate.items[owner.0 as usize],
+                &models,
+                "given-create.mjs",
+                None,
+                super::super::scenario_receipts::NativeReceiptSources {
+                    db: Some(&db),
+                    send_guards: None,
+                    query_plan: None,
+                },
+            )
+            .is_some()
+        };
+        assert!(accepts(&ir));
+        for change in ["default", "type", "owner", "attachment", "order", "role"] {
+            let mut changed = ir.clone();
+            match change {
+                "default" => {
+                    let IrItemKind::Field {
+                        default: Some(IrDefault::Literal(value)),
+                        ..
+                    } = &mut changed.items[field.0 as usize].kind
+                    else {
+                        panic!()
+                    };
+                    value.expr = IrExpr::Bool(true);
+                }
+                "type" => {
+                    let IrItemKind::Field { ty, .. } = &mut changed.items[field.0 as usize].kind
+                    else {
+                        panic!()
+                    };
+                    *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                }
+                "owner" => {
+                    let IrItemKind::Field { owner, .. } = &mut changed.items[field.0 as usize].kind
+                    else {
+                        panic!()
+                    };
+                    *owner = other;
+                }
+                "attachment" => changed.items[field.0 as usize].span.start += 1,
+                "order" => {
+                    let IrItemKind::Model { fields, .. } =
+                        &mut changed.items[created.0 as usize].kind
+                    else {
+                        panic!()
+                    };
+                    fields.reverse();
+                }
+                "role" => {
+                    let IrItemKind::Scenario { by, .. } = &mut changed.items[owner.0 as usize].kind
+                    else {
+                        panic!()
+                    };
+                    *by = vec![super::super::ir::IrGuard::Role("members".into())];
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                !accepts(&changed),
+                "changed {change} must not retain original disclosure"
+            );
+        }
     }
 
     const ORDINARY_SOURCE: &str = "app OrdinaryDerive\nGiven\n Conversation {account:user,active:bool}\n Run {conversation:Conversation,label:text}\n policy Conversation read=members\n policy Run read=members\n derive can_use(person:user?,conversation:Conversation):bool = person!=null and conversation.account==person and conversation.active\nWhen\n crud Conversation by=members fields=account,active\n crud Run by=members fields=conversation,label\n scenario pick(conversation:Conversation,label:text=\"x\") -> Run by=members\n  require can_use(actor,conversation)\n  do\n   create Run {conversation,label} as run\n   return run\nThen\n";

@@ -7385,12 +7385,20 @@ fn checked_created_statements(
         (None, []) => {}
         (Some(node), [IrGuard::Role(role)])
             if node.kind == SyntaxKind::NameRef
-                && matches!(
+                && (matches!(
                     role.as_str(),
                     "members" | "owner" | "authenticated" | "public"
-                )
-                && text.get(node.span.start as usize..node.span.end as usize)
-                    == Some(role.as_str()) => {}
+                ) && text.get(node.span.start as usize..node.span.end as usize)
+                    == Some(role.as_str())
+                    || facts.by_role.as_ref().is_some_and(|(at, id, canonical)| {
+                        *at == NodeKey::of(node)
+                            && canonical == role
+                            && ir.items.get(id.0 as usize).is_some_and(|item| {
+                                item.id == *id
+                                    && item.canonical == *canonical
+                                    && matches!(item.kind, IrItemKind::Role { .. })
+                            })
+                    })) => {}
         _ => return None,
     }
     for (position, (id, fact)) in params.iter().zip(&facts.parameters).enumerate() {

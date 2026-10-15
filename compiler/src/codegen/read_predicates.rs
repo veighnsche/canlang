@@ -102,7 +102,9 @@ pub(super) fn prepare_with_context(
     let original = context.original();
     let fresh = context.fresh();
     let trees = context.trees();
-    if original.types.node_types != program.types.node_types
+    if original.types.given_fields != program.types.given_fields
+        || original.types.given_constraints != program.types.given_constraints
+        || original.types.node_types != program.types.node_types
         || original.types.symbol_types != program.types.symbol_types
         || original.types.symbol_results != program.types.symbol_results
         || original.types.checked_queries != program.types.checked_queries
@@ -167,7 +169,12 @@ pub(super) fn prepare_with_context(
                 }
                 // This separately sealed transport is not a callable. Its
                 // presence must not discard original callables on other pages.
-                if matches!(&predicate.expr, IrExpr::PageTimePredicate(_)) {
+                // Fresh complete IR equality above also authenticates checked
+                // Bool-field data objects; they are not original callables.
+                if matches!(
+                    &predicate.expr,
+                    IrExpr::PageTimePredicate(_) | IrExpr::Object(_)
+                ) {
                     continue;
                 }
                 let IrExpr::Lambda { body, .. } = &predicate.expr else {
@@ -254,16 +261,26 @@ mod tests {
     use super::super::ir;
     use super::*;
     use crate::analysis::catalog::{CatalogRequest, load_catalog};
-    use crate::analysis::check_program;
 
     const SOURCE: &str = "app ReadPredicates\nGiven\n role reviewer\n Person {account:user,enabled:bool}\n policy Person read=members\nWhen\nThen\n page /people title=\"People\"\n  list Person as person where person.enabled\n   text row.account\n  list Person as person where reviewer(person.account)\n   text row.account\n";
 
     fn checked() -> (SourceDb, Catalog, CheckedProgram, IrProgram) {
+        checked_source(SOURCE)
+    }
+
+    fn checked_source(source: &str) -> (SourceDb, Catalog, CheckedProgram, IrProgram) {
+        checked_given_source(source, None)
+    }
+
+    fn checked_given_source(
+        source: &str,
+        given: Option<&crate::analysis::types::GivenContractTables>,
+    ) -> (SourceDb, Catalog, CheckedProgram, IrProgram) {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .unwrap();
         let mut db = SourceDb::new();
-        let file = db.add("read-predicates.can".into(), SOURCE.into());
+        let file = db.add("read-predicates.can".into(), source.into());
         let path = root.join("packages/values/dist/catalog.json");
         let (catalog, diagnostics) = load_catalog(&CatalogRequest {
             flag: Some(&path),
@@ -273,11 +290,127 @@ mod tests {
         });
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let catalog = catalog.unwrap();
-        let (program, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        let (program, diagnostics) =
+            crate::analysis::check_program_with_given(&db, &[file], Some(&catalog), given);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (ir, diagnostics) = ir::build(&program, &db, Some(&catalog));
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         (db, catalog, program, ir)
+    }
+
+    #[test]
+    fn composed_given_fields_replay_original_input_for_callable_and_data_predicates() {
+        use crate::analysis::types::{
+            CheckedTraitApplication, CheckedTraitContract, GivenContractTables,
+            GivenContributedField,
+        };
+        let source = "app Composed uses=[records]\npackage records\n Given\n  trait marked $\"Add archived evidence.\"\n  Item {title:text} marked\n  policy Item read=members\n When\n Then\n  page / title=\"Items\"\n   list Item as item where not item.archived\n    text row.title\n   list Item as item where item.archived\n    pagination\n    text row.title\n";
+        let start = source.find(" marked\n").unwrap() + 1;
+        let given = GivenContractTables {
+            traits: vec![CheckedTraitContract {
+                name: Some("marked".into()),
+                inline: false,
+                anchor: "records:trait:marked:".into(),
+                unit_id: "checked-template".into(),
+                fingerprint: crate::source::sha256_hex(b"checked carrier"),
+                validation_fingerprint: None,
+                applications: vec![CheckedTraitApplication {
+                    target_model: "Item".into(),
+                    target_field: None,
+                    target_canonical: "records.Item".into(),
+                    span: Span::new(crate::source::SourceId(0), start as u32, (start + 6) as u32),
+                    order: 0,
+                }],
+                contributed_fields: vec![GivenContributedField {
+                    name: "archived".into(),
+                    type_name: "bool".into(),
+                    default: Some("false".into()),
+                    trim: false,
+                    min: None,
+                    max: None,
+                    label: None,
+                }],
+            }],
+            keywords: vec![],
+        };
+        let (mut db, catalog, mut program, ir) = checked_given_source(source, Some(&given));
+        let prepared = prepare(&program, &ir, &db, Some(&catalog))
+            .expect("private Given input must survive fresh analysis and resolution");
+        assert_eq!(prepared.predicates(&ir).unwrap().len(), 1);
+        let fields = program.types.given_fields.clone();
+        program.types.given_fields.clear();
+        assert!(
+            prepare(&program, &ir, &db, Some(&catalog)).is_none(),
+            "editable contribution facts are still compared to the private original input"
+        );
+        program.types.given_fields = fields;
+        // A new source at the same display path cannot replace the checked bytes;
+        // the existing unambiguous issuer-path check still refuses duplicates.
+        let old = db.get(crate::source::SourceId(0)).unwrap().sha256.clone();
+        db.add(
+            "read-predicates.can".into(),
+            source.replace("archived", "changed"),
+        );
+        assert_eq!(db.get(crate::source::SourceId(0)).unwrap().sha256, old);
+        assert!(prepare(&program, &ir, &db, Some(&catalog)).is_none());
+    }
+
+    #[test]
+    fn paged_own_bool_data_keeps_other_original_callables_and_refuses_changed_ir() {
+        let source = SOURCE.replace(
+            "list Person as person where person.enabled\n   text",
+            "list Person as person where person.enabled\n   pagination\n   text",
+        );
+        let (db, catalog, program, mut ir) = checked_source(&source);
+        let prepared = prepare(&program, &ir, &db, Some(&catalog))
+            .expect("mixed data/callable original census");
+        assert_eq!(prepared.predicates(&ir).unwrap().len(), 1);
+        let filter = &ir.modules[0].pages[0].render[0]
+            .props
+            .iter()
+            .find(|(key, _)| key == "where")
+            .unwrap()
+            .1;
+        let IrExpr::Object(fields) = &filter.expr else {
+            panic!("own Bool must use stable data filter");
+        };
+        assert!(matches!(&fields[0].1.expr, IrExpr::Text(op) if op == "eq"));
+        assert!(matches!(&fields[1].1.expr, IrExpr::Text(field) if field == "enabled"));
+        assert!(matches!(&fields[2].1.expr, IrExpr::Bool(true)));
+        let filter = &mut ir.modules[0].pages[0].render[0]
+            .props
+            .iter_mut()
+            .find(|(key, _)| key == "where")
+            .unwrap()
+            .1;
+        let IrExpr::Object(fields) = &mut filter.expr else {
+            unreachable!()
+        };
+        fields[2].1.expr = IrExpr::Bool(false);
+        assert!(
+            prepare(&program, &ir, &db, Some(&catalog)).is_none(),
+            "data transport cannot bypass fresh original IR equality"
+        );
+        let source = SOURCE
+            .replace("where person.enabled", "where not person.enabled")
+            .replace(
+                "where not person.enabled\n   text",
+                "where not person.enabled\n   pagination\n   text",
+            );
+        let (_, _, _, ir) = checked_source(&source);
+        assert!(
+            matches!(
+                &ir.modules[0].pages[0].render[0]
+                    .props
+                    .iter()
+                    .find(|(key, _)| key == "where")
+                    .unwrap()
+                    .1
+                    .expr,
+                IrExpr::Lambda { .. }
+            ),
+            "non-exact Bool expressions retain callable refusal profile"
+        );
     }
 
     #[test]
