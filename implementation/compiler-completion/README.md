@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 native predicate handoff (2026-10-15, implemented/tested prerequisite).**
+Verified-module predicate/context checks and once-consumed native receipt-frame
+captures now connect to State's sourceCall contract. CF normal build,11 frame
+checks and six retained authorization checks against changed installed output
+pass. Legacy assertions and late commit-fence failure phase remain unchanged.
+Compiler source-consumption/issuance and actual imported can_work native execution
+are still open; component fixtures do not grant that acceptance.
+
 **C02 State helper-source association (2026-10-15, implemented/tested).**
 A predicate query selects its exact call in the actual private owner-membership
 census; logical helper bytes retain their path/hash while module identifies the

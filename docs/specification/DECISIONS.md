@@ -16573,3 +16573,25 @@ first read, exact failure and late field/caller/subject loss remain checked.
 Exact Query/Lambda-node→queryId and original executable attestation remain the
 compiler/CF boundary: the query DTO has no AST intervals, so State does not claim
 that independent proof. Native integration and original can_work remain open.
+
+2026-10-15 — C02: prepare authenticated native predicate callback handoff.
+
+The CF loader requires a predicate query's exact sourceCall selector and a getter
+from its verified emitted caller module. The private getter must recognize the
+actual closure and retain its native context pointer; copied/wrapped functions
+or foreign invocation contexts cannot supply source authority. State's capture
+retrieves only the existing active native receipt frame's once-consumed candidate
+adapter. No new global source registry or lexical argument reconstruction.
+Owner-membership producers bind before imported query associations, without
+moving source evaluation. Old stored-bool query execution retains its path.
+
+Normal CF build,11 frame component checks and six retained authorization checks
+against the changed installed CF output pass. Frame controls cover authentic
+callback handoff, lazy first-true/viewer fields, wrong/closed/repeated captures
+and exact failure/no-effects behavior. Late grant loss at the existing commit
+fence produces no receipt; reached denied fields retain fenced rejection. The
+ten original frame assertions remain unchanged. The existing authorization
+binary/committed CLI is reused while another worker owns lib-only builds.
+These are component/legacy qualifications. Compiler issuance of the private
+getter and exact Query/Lambda→queryId proof remain unfinished; no original
+can_work native acceptance is claimed from hand-built verifier metadata.

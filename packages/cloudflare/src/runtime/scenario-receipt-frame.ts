@@ -2,7 +2,7 @@
  * Generated source receives only observer/selection/call facades, never this constructor.
  */
 import type { CanTypeId, CanValue, FinalizedFileObservation, InvocationRef, ModelName, ScenarioReceiptIntrinsicDependency, ScenarioReceiptQueryPlan, ScenarioResultDisclosurePlan, ProjectedRecord, StoragePort, StoredRow } from '@canlang/contracts';
-import type { AdmittedCall } from '@canlang/state/invocation';
+import type { AdmittedCall, ScenarioReceiptAnyPredicate } from '@canlang/state/invocation';
 import { executeScenarioReceiptAny as executeStateAny } from '@canlang/state';
 import { observeScenarioReceiptDependency as observeStateDependency,
   observeScenarioReceiptIntrinsic as observeStateIntrinsic,
@@ -25,6 +25,8 @@ import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow,
 
 type QuerySelectionMetadata = NonNullable<Parameters<typeof import('@canlang/state/invocation').bindScenarioReceiptQueryProducer>[1]['selections']>[number];
 interface NativeQueryProducer {
+  /** The verified module recognizes this exact source closure and native c. */
+  readonly authenticateAnyPredicate?: (queryId: string, predicate: Function) => boolean;
   readonly record: (model: string, record: ProjectedRecord, read: (field: string) => void, current: () => ProjectedRecord) => Readonly<Record<string, unknown>>;
   readonly encode: (value: unknown) => unknown;
   readonly selections?: readonly QuerySelectionMetadata[];
@@ -83,6 +85,7 @@ interface NullableStoredReferenceGetter {
 }
 interface Frame extends QueryFrame {
   readonly kind: 'receipt';
+  capturedAny: { readonly queryId: string; readonly predicate: ScenarioReceiptAnyPredicate } | null;
   readonly selectionChecks: Array<() => void>;
   readonly promoteStoredReference?: ScenarioReceiptStoredReferencePromotion;
   readonly promoteNullableStoredReference?: ScenarioReceiptNullableStoredReferencePromotion;
@@ -180,6 +183,7 @@ function checked(c: HandlerContext): Frame {
   return frame;
 }
 export interface ScenarioReceiptFrame {
+  captureAnyPredicate(queryId: string): ScenarioReceiptAnyPredicate;
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
   bindNullableStoredReferenceGetter(view: object, model: string, field: string, row: StoredRow,
     wire: unknown, evaluated: unknown): void;
@@ -205,7 +209,7 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   const intrinsics = new Map(isGeneratedOperationDef(call.def)
     ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
-  const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, selectionChecks: [],
+  const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, selectionChecks: [], capturedAny: null,
     ...(promoteStoredReference === undefined ? {} : { promoteStoredReference }),
     ...(promoteNullableStoredReference === undefined ? {} : { promoteNullableStoredReference }),
     nullableStoredReferenceGetters: new WeakMap(),
@@ -215,6 +219,17 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
+    captureAnyPredicate(queryId: string) {
+      checked(c);
+      try {
+        const captured = frame.capturedAny;
+        if (frame.pending !== 1 || captured === null || captured.queryId !== queryId) {
+          return refuse('Predicate ANY requires its once-only active native source capture.');
+        }
+        frame.capturedAny = null;
+        return captured.predicate;
+      } catch (error) { return fail(frame, error); }
+    },
     bindNullableStoredReferenceGetter(view: object, model: string, field: string, row: StoredRow,
       wire: unknown, evaluated: unknown) {
       // Recording an actual host getter grants no authority. Its successful
@@ -287,7 +302,7 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
     },
     assertCompleted() {
       checked(c);
-      if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario dependency observations must be awaited before completion.'));
+      if (frame.pending !== 0 || frame.capturedAny !== null) return fail(frame, new StateError('validation', 'Scenario dependency observations must be awaited before completion.'));
       try { for (const validate of frame.selectionChecks) validate(); }
       catch (error) { return fail(frame, error); }
     },
@@ -788,12 +803,21 @@ function executeNativeScenarioQuery(c: HandlerContext, queryId: string,
       let result: NonNullable<NativeQueryExecution['result']>;
       if (frame.kind === 'receipt') {
         if (mode === 'any') {
-          const accepted = await executeStateAny(frame.call, frame.store, { queryId, predicate: candidate });
-          checkedQuery(c);
-          // Visited predicate views have no selected-array lifetime. Source
-          // cannot reuse them after the actual lazy receiver completes.
-          query.bound = true;
-          return accepted;
+          const authenticated = frame.queryProducer.authenticateAnyPredicate?.(queryId, predicate) ?? false;
+          if (authenticated) {
+            if (frame.capturedAny !== null) return refuse('Predicate ANY source capture cannot overlap.');
+            frame.capturedAny = { queryId, predicate: candidate };
+          }
+          try {
+            const accepted = await executeStateAny(frame.call, frame.store, { queryId, predicate: candidate });
+            checkedQuery(c);
+            if (frame.capturedAny !== null) return refuse('State must consume the original predicate ANY source capture.');
+            return accepted;
+          } finally {
+            frame.capturedAny = null;
+            // Predicate views have no lifetime after their lazy receiver.
+            query.bound = true;
+          }
         }
         const receiptResult = await executeStateQuery(frame.call, frame.store, { queryId, predicate: candidate });
         query.receiptResult = receiptResult; result = receiptResult;
