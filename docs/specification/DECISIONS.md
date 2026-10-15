@@ -17849,3 +17849,27 @@ frozen notice-input hashes because the compiler's own package version changed.
 Refresh those two existing manifest/lock input pins after confirming their only
 delta is the compiler version. Dependency versions, target notice bundles and
 notice-content hashes remain unchanged; both target notice checks pass locally.
+
+The corrected candidate `97bb83d9` passes installer/publication tests (19), release
+stamp tests (12), CLI tests (39), all 30 local release-packing tasks and actionlint.
+Hosted manual preflight [run 38799215069](https://github.com/veighnsche/canlang/actions/runs/38799215069)
+passes all 21 installed checks on both macOS 26.6.2 arm64 and Ubuntu 24.04.5
+x86_64/glibc 2.39. Create immutable matching tag `v0.1.1` at that candidate and
+fast-forward local main to it. Reconcile all 21 changed paths since `e4a9b4f4`
+using retained coverage; no new defining owner/leaf or complete checkpoint is
+introduced. The tag-triggered [run 38800630072](https://github.com/veighnsche/canlang/actions/runs/38800630072)
+passes all nine jobs, including 21 checks per native qualification and both public
+streamed installs. The existing helper uploads all seven assets to a draft before
+publishing. Both post-publication jobs verify all five core URLs, default latest-tag
+resolution, exact installed version/platform, bundled Node and fresh Bash/Zsh PATH
+configuration in temporary directories (removed afterward).
+
+Published tag `v0.1.1` is immutable at `97bb83d925ffb7cb5cfb95494b3fd60626337caa`;
+original `v0.1.0` tag objects and release remain unchanged. The public installer
+matches canonical source byte for byte and passes Bash syntax validation.
+[The website handoff](../../implementation/lean-install/website-handoff.md) supplies
+the exact pinned URL. The website route still returns HTTP 404, so its static
+synchronization/deployment is the remaining external gate, owned by that checkout.
+No website source or deployment is changed in this task. Release-only acceptance
+is complete; unrelated application/provider and complete filetree-review holds
+remain at their recorded scopes.

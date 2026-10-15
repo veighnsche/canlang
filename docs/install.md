@@ -17,13 +17,52 @@ The public entry point is prepared for the SodaOS website:
 curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
 ```
 
-**Deployment pending:** this command becomes usable after a standalone GitHub
-release is published and the website owner deploys the static installer. The
-website serves only the script; it downloads the appropriate archive and SHA-256
-checksum from [GitHub Releases](https://github.com/veighnsche/canlang/releases).
+**Website deployment pending:** the standalone [v0.1.1 release](https://github.com/veighnsche/canlang/releases/tag/v0.1.1)
+is published and verified. The website installer route still returns HTTP 404 as
+of the release checks on 2026-10-15. Its owner must deploy the static installer
+before the website command is usable. The website serves only the script; it
+downloads the appropriate archive and SHA-256 checksum from that one resolved
+GitHub release tag.
 The script supports pinned versions with `bash -s -- --version VERSION` after
 the pipe. See the [website agent handoff](../implementation/lean-install/website-handoff.md)
 for the exact source, publication gates and copy-ready deployment prompt.
+
+### Published standalone v0.1.1 — 2026-10-15
+
+Tag `v0.1.1` pins commit `97bb83d925ffb7cb5cfb95494b3fd60626337caa`.
+[Preflight](https://github.com/veighnsche/canlang/actions/runs/38799215069) and
+[the tagged release workflow](https://github.com/veighnsche/canlang/actions/runs/38800630072) pass. All nine tagged jobs succeed:
+both native compiler builds, library packing, editor assembly, both standalone
+qualifications, draft publication and both public streamed-install checks.
+Publication retains all seven existing assets, including the two separately
+optional browser-tool sidecars; `v0.1.0` is preserved unchanged.
+
+Both native qualifications pass all 21 checks: macOS 26.6.2 Apple Silicon and
+Ubuntu 24.04.5 x86_64/glibc 2.39. The published Linux native symbols require glibc 2.39
+or newer; other distributions and older hosts are not newly qualified.
+The core retains private Node 24.22.0 and production runtime dependencies.
+Browser automation remains a separate opt-in installation.
+
+| Published platform | Download bytes | Installed regular-file bytes, including checksum marker |
+| --- | ---: | ---: |
+| macOS arm64 | 89,887,488 | 260,214,870 |
+| Linux x64/glibc | 109,357,627 | 347,311,553 |
+
+The workflow verifies all five public core URLs on both hosts:
+
+- [install.sh](https://github.com/veighnsche/canlang/releases/download/v0.1.1/install.sh)
+- [macOS archive](https://github.com/veighnsche/canlang/releases/download/v0.1.1/can-0.1.1-darwin-arm64.tar.gz) and [SHA-256](https://github.com/veighnsche/canlang/releases/download/v0.1.1/can-0.1.1-darwin-arm64.tar.gz.sha256)
+- [Linux archive](https://github.com/veighnsche/canlang/releases/download/v0.1.1/can-0.1.1-linux-x64.tar.gz) and [SHA-256](https://github.com/veighnsche/canlang/releases/download/v0.1.1/can-0.1.1-linux-x64.tar.gz.sha256)
+
+Each host streams the pinned public installer into Bash with no version override,
+so default resolution selects the one latest tag `v0.1.1`, then fetches its own
+matching archive/checksum. Temporary HOME, install and ZDOTDIR paths contain
+spaces; Bash or Zsh sources the newly written shell configuration and runs
+`can --version`. The installed manifest confirms exact version/platform and
+private Node execution. The temporary directories are removed afterward.
+The public installer is byte-identical to the tagged canonical source and passes
+`bash -n`. Website synchronization and deployment remain a separate external gate;
+no website files or deployment were changed here.
 
 From a downloaded standalone artifact set, run:
 
@@ -44,10 +83,11 @@ previous version during upgrades. Open a new terminal afterward. Set
 
 The macOS arm64 artifact has passed the complete external-app verification.
 Linux x64 qualification and compatibility limits are recorded below; arbitrary
-Linux distributions are not qualified. Public GitHub Release hosting and a Homebrew tap are not yet published.
-Do not present the remote curl command as live until matching release assets exist.
+Linux distributions are not qualified. GitHub Release hosting is verified above;
+a Homebrew tap is not published. The website curl command still awaits its static
+installer deployment.
 
-Measured macOS arm64 artifact: **90,087,787 bytes download (85.9 MiB)**;
+Earlier local macOS arm64 artifact (retained pre-release measurement): **90,087,787 bytes download (85.9 MiB)**;
 **260,139,952 bytes installed files (248.1 MiB)**; **277,823,488 allocated bytes
 (265.0 MiB on this filesystem)**. Filesystem allocation varies. App data,
 package-manager caches and retained older versions are additional.
@@ -147,7 +187,7 @@ retained files, dependency choices, verification and release gates.
    (create `~/.local/bin` first if needed and add it to `PATH` in your
    shell rc: `export PATH="$HOME/.local/bin:$PATH"`).
 4. Check: `can --version` prints
-   `can 0.1.0 (commit <sha>; language 1.0; schema 1)`.
+   `can 0.1.1 (commit 97bb83d; language 1.0; schema 1)`.
 
 ## From source
 
@@ -245,11 +285,11 @@ unknown output. Move the previous `output/install/can` stage aside before anothe
 assembly. Packaging never publishes a release.
 
 The current local artifact uses integrated source-built production packages;
-its manifest records `inputMode: built-checkout`. The retained macOS arm64
-qualification passed all 13 package builds and the original 18 installed checks,
-including API-only previews which provision R2/Durable Objects and a model-free
-member queue automatically. This Linux task does not rerun macOS qualification.
-The verifier now also checks that PATH contains no external language tools,
+its manifest records `inputMode: built-checkout`. Earlier local macOS qualification
+covered all 13 package builds and the original 18 installed checks, including
+API-only previews which provision R2/Durable Objects and a model-free member queue
+automatically. The published release above passes the current 21 checks on both
+native hosts. The verifier also checks that PATH contains no external language tools,
 measures the actual installation and directly exercises the private native tools.
 It supplies the canonical installer to Bash on stdin in a disposable HOME with
 spaces, then runs the existing external-app checks. On Linux, the report records
@@ -257,6 +297,8 @@ ELF architecture, required shared libraries and maximum referenced glibc version
 
 The release workflow consumes the matching platform compiler artifact, assembles
 and qualifies the standalone archive, and retains its checksum, size report,
-verification report and canonical installer. Both Linux stages use Ubuntu 24.04;
-their CI execution remains pending. No version, tag or release is created by
-local qualification. Public release/Homebrew publication remains pending.
+verification report and canonical installer. Both Linux stages use Ubuntu 24.04.
+The tagged v0.1.1 workflow passes both native qualifications, uploads the complete
+asset set to a draft, then publishes it. Post-publication jobs verify all five core
+URLs and streamed installation on both hosts. Local qualification and manual
+dispatch do not publish. Website deployment and Homebrew remain separate.
