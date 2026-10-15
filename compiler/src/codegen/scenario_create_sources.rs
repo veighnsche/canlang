@@ -1477,7 +1477,7 @@ impl SourceExpressions<'_> {
     /// declaration span/name, ordered formal identities, and the actual
     /// authored body structure must correspond to the supplied IR callee.
     /// Returns whether the authenticated body performs the catalog
-    /// membership read, directly or through a transitively sealed derive.
+    /// membership read or a stored query, directly or transitively.
     /// Lane selection consumes only this original evidence; a supplied IR
     /// body or formal list is never trusted, so deleting membership (or any
     /// other body/formal content) from mutable IR cannot reclassify a
@@ -1675,6 +1675,195 @@ impl SourceExpressions<'_> {
         Some(false)
     }
 
+    /// Authenticate the existing stored-query/collection producer without
+    /// admitting its execution. The query and its external predicate share one
+    /// original alias scope; ordinary derive fallback must keep this sealed.
+    #[allow(clippy::too_many_arguments)]
+    fn derive_query_call_corresponds(
+        &self,
+        owner: &IrItem,
+        node: &SyntaxNode,
+        id: &str,
+        args: &[TypedExpr],
+        text: &str,
+        depth: usize,
+        formals: &[(String, ResolvedType)],
+        facts: Option<&crate::analysis::scenario_disclosure::CheckedScenarioSource>,
+        reached: &mut Vec<String>,
+        membership: &mut bool,
+    ) -> Option<()> {
+        use crate::analysis::scenario_disclosure::CheckedDecisionCallTarget;
+        use crate::analysis::types::CheckedQueryClauseKind;
+        let [domain, predicate] = args else {
+            return None;
+        };
+        let IrExpr::Query(query) = &domain.expr else {
+            return None;
+        };
+        let checked = query.source.as_deref()?;
+        let call = query.collection_call.as_deref()?;
+        let [alias] = checked.clauses.as_slice() else {
+            return None;
+        };
+        let CheckedQueryClauseKind::As { name } = &alias.kind else {
+            return None;
+        };
+        let IrExpr::Lambda { param, body } = &predicate.expr else {
+            return None;
+        };
+        let retained_predicate = call.predicate.as_ref()?;
+        let model = self.ir.items.get(call.model.0 as usize)?;
+        let row = ResolvedType::Record {
+            symbol: model.id,
+            stored: true,
+        };
+        let array = ResolvedType::Array {
+            element: Box::new(row.clone()),
+            ordered: true,
+            nonempty: false,
+        };
+        let boolean = ResolvedType::Scalar(Scalar::Bool);
+        let arguments: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Argument)
+            .collect();
+        let [domain_argument, predicate_argument] = arguments.as_slice() else {
+            return None;
+        };
+        let domain_values = expressions(domain_argument);
+        let predicate_values = expressions(predicate_argument);
+        let ([domain_node], [predicate_node]) =
+            (domain_values.as_slice(), predicate_values.as_slice())
+        else {
+            return None;
+        };
+        let mut ungrouped_predicate = *predicate_node;
+        for _ in 0..64 {
+            if ungrouped_predicate.kind != SyntaxKind::Group {
+                break;
+            }
+            ungrouped_predicate = expressions(ungrouped_predicate).first()?;
+        }
+        let domains = expressions(domain_node);
+        let [authored_domain] = domains.as_slice() else {
+            return None;
+        };
+        let clauses: Vec<_> = domain_node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::QueryClause)
+            .collect();
+        let [authored_alias] = clauses.as_slice() else {
+            return None;
+        };
+        let alias_words: Vec<_> = authored_alias
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Name)
+            .map(|child| child.token().map(|token| token.text(text)))
+            .collect::<Option<Vec<_>>>()?;
+        if !matches!(id, "any" | "all")
+            || node.kind != SyntaxKind::Call
+            || call.node != NodeKey::of(node)
+            || call.builtin != id
+            || domain_node.kind != SyntaxKind::Query
+            || checked.node != NodeKey::of(domain_node)
+            || call.query != checked.node
+            || checked.domain != NodeKey::of(authored_domain)
+            || alias.node != NodeKey::of(authored_alias)
+            || call.alias != alias.node
+            || !alias.expressions.is_empty()
+            || alias_words.as_slice() != ["as", name.as_str()]
+            || !matches!(model.kind, IrItemKind::Model { .. })
+            || !matches!(&query.domain, super::ir::IrQueryDomain::Model(canonical) if canonical == &model.canonical)
+            || domain.ty != array
+            || checked.domain_type != array
+            || checked.result != array
+            || checked.projection.is_some()
+            || query.parent.is_some()
+            || query.where_pred.is_some()
+            || query.where_param != "row"
+            || query.where_async
+            || !query.order.is_empty()
+            || query.value_order.is_some()
+            || query.limit.is_some()
+            || query.archived.is_some()
+            || query.select.is_some()
+            || query.select_param.is_some()
+            || query.contract_collection_call.is_some()
+            || domain.span != domain_node.span
+            || predicate.span != predicate_node.span
+            || predicate.ty != boolean
+            || body.ty != boolean
+            || body.span != ungrouped_predicate.span
+            || retained_predicate.node != NodeKey::of(predicate_node)
+            || retained_predicate.ty != boolean
+            || param != name
+        {
+            return None;
+        }
+        reference_name(
+            self.ir,
+            owner,
+            model.id,
+            &source_path(authored_domain, text)?,
+            self.db,
+        )?;
+        let facts = facts?;
+        let mut selected = facts
+            .decision_sites
+            .as_deref()?
+            .iter()
+            .flat_map(|site| &site.calls)
+            .filter(|selected| selected.node == call.node);
+        let original = selected.next()?;
+        if original.module != owner.module
+            || original.target
+                != (CheckedDecisionCallTarget::Builtin {
+                    id: id.into(),
+                    overload: call.overload,
+                })
+            || original.arguments != vec![(checked.node, array), (retained_predicate.node, boolean)]
+            || original.slots.as_slice() != [Some(0), Some(1)]
+            || !original.defaults.is_empty()
+            || selected.any(|other| {
+                other.module != original.module
+                    || other.source != original.source
+                    || other.target != original.target
+                    || other.arguments != original.arguments
+                    || other.slots != original.slots
+                    || other.defaults != original.defaults
+            })
+        {
+            return None;
+        }
+        source(self.ir, &original.source, node.span, self.db)?;
+        let schema = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .find(|schema| schema.id == model.id && schema.model)?;
+        super::scenario_receipts::match_stored_contract_schema(self.ir, schema, self.db)?;
+        let mut scoped = formals.to_vec();
+        scoped.push((name.clone(), row));
+        self.derive_body_corresponds(
+            owner,
+            body,
+            ungrouped_predicate,
+            text,
+            depth + 1,
+            &scoped,
+            Some(facts),
+            reached,
+            membership,
+        )?;
+        // Source authentication cannot grant the ordinary lane authority to
+        // execute a stored query, even when its predicate has no membership.
+        *membership = true;
+        Some(())
+    }
+
     /// Structural correspondence between a supplied IR derive body and its
     /// authored CST body: literals, lexical names, member fields, operators
     /// and call occurrences (callee identity plus in-order arguments) must
@@ -1749,12 +1938,19 @@ impl SourceExpressions<'_> {
                 }
                 let formal_ty = formals
                     .iter()
+                    .rev()
                     .find(|(formal, _)| formal == name)
                     .map(|(_, ty)| ty)?;
                 if !Self::type_narrows(&expr.ty, formal_ty) {
                     return None;
                 }
             }
+            (IrExpr::Member { base, field }, SyntaxKind::NameRef)
+                if expr.ty == ResolvedType::Team
+                    && field == "team"
+                    && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                    && single_name(node, text)? == "team"
+                    && !formals.iter().any(|(name, _)| name == "team") => {}
             (IrExpr::Member { base, field }, SyntaxKind::Member) => {
                 let field_name = node
                     .children
@@ -1925,6 +2121,25 @@ impl SourceExpressions<'_> {
                     }
                     IrCallTarget::CapabilityOp(_) => return None,
                 }
+                if args.iter().any(|argument| {
+                    matches!(argument.expr, IrExpr::Query(_) | IrExpr::Lambda { .. })
+                }) {
+                    let IrCallTarget::Builtin { id, .. } = target else {
+                        return None;
+                    };
+                    return self.derive_query_call_corresponds(
+                        defining_owner,
+                        node,
+                        id,
+                        args,
+                        text,
+                        depth,
+                        formals,
+                        facts,
+                        reached,
+                        membership,
+                    );
+                }
                 let arguments: Vec<_> = node
                     .children
                     .iter()
@@ -1998,6 +2213,9 @@ impl SourceExpressions<'_> {
             } => (target, args.as_slice(), Some(slots.as_slice())),
             _ => return None,
         };
+        if self.authenticated_derive(target, 0, &mut HashSet::new()) != Some(true) {
+            return None;
+        }
         let [actor, parent] = args else {
             return None;
         };
@@ -3800,6 +4018,149 @@ mod tests {
             panic!("derive")
         };
         expr.as_mut().unwrap()
+    }
+
+    fn authenticate_for_guard(
+        ir: &IrProgram,
+        db: &SourceDb,
+        original: &CheckedScenarioCreate,
+        target: &str,
+    ) -> Option<bool> {
+        let (tree, diagnostics) = crate::syntax::parse(db, original.node.file);
+        assert!(diagnostics.is_empty());
+        let mut nodes = HashMap::new();
+        let mut pending = vec![&tree];
+        while let Some(node) = pending.pop() {
+            nodes.insert(NodeKey::of(node), node);
+            pending.extend(node.children.iter());
+        }
+        SourceExpressions {
+            ir,
+            db,
+            original,
+            nodes: &nodes,
+            text: &db.get(original.node.file).unwrap().text,
+            operands: true,
+            membership_call: None,
+            query_alias: None,
+        }
+        .authenticated_derive(target, 0, &mut HashSet::new())
+    }
+
+    fn query_arguments_mut(ir: &mut IrProgram) -> &mut Vec<TypedExpr> {
+        let body = derive_mut(ir, "OrdinaryDerive.can_use");
+        let IrExpr::Binary { right, .. } = &mut body.expr else {
+            panic!("outer null guard")
+        };
+        let (IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }) = &mut right.expr else {
+            panic!("collection call")
+        };
+        args
+    }
+
+    #[test]
+    fn query_derive_authentication_retains_source_alias_and_authority_seal() {
+        let scalar_body = "person!=null and conversation.account==person and conversation.active";
+        for membership in [false, true] {
+            let predicate = if membership {
+                "candidate.account==person and candidate.active and active_member(person,team)"
+            } else {
+                "candidate.account==person and candidate.active"
+            };
+            let source = ORDINARY_SOURCE.replace(
+                scalar_body,
+                &format!("person!=null and any(Conversation as candidate,{predicate})"),
+            );
+            let (db, ir) = fixture_for(&source, "query-derive.can");
+            let (cond, span, original) = guard_and_fact(&ir, "OrdinaryDerive.pick");
+            assert_eq!(
+                authenticate_for_guard(&ir, &db, &original, "OrdinaryDerive.can_use"),
+                Some(true),
+                "exact stored query source authenticates and remains authority sealed"
+            );
+            assert!(
+                checked_create_expression(&ir, &original, &cond, node_at(&db, span), &db).is_none(),
+                "source authentication alone grants no query execution or ordinary fallback"
+            );
+            for mutation in 0..8 {
+                let mut changed = ir.clone();
+                match mutation {
+                    0 => {
+                        let IrExpr::Query(query) = &mut query_arguments_mut(&mut changed)[0].expr
+                        else {
+                            panic!("query")
+                        };
+                        query.domain =
+                            super::super::ir::IrQueryDomain::Model("OrdinaryDerive.Run".into());
+                    }
+                    1 => {
+                        let IrExpr::Query(query) = &mut query_arguments_mut(&mut changed)[0].expr
+                        else {
+                            panic!("query")
+                        };
+                        query.collection_call.as_mut().unwrap().alias.start += 1;
+                    }
+                    2 => {
+                        let IrExpr::Query(query) = &mut query_arguments_mut(&mut changed)[0].expr
+                        else {
+                            panic!("query")
+                        };
+                        query.source.as_mut().unwrap().domain.start += 1;
+                    }
+                    3 => {
+                        let IrExpr::Lambda { param, .. } =
+                            &mut query_arguments_mut(&mut changed)[1].expr
+                        else {
+                            panic!("lambda")
+                        };
+                        *param = "substitute".into();
+                    }
+                    4 => {
+                        let IrExpr::Lambda { body, .. } =
+                            &mut query_arguments_mut(&mut changed)[1].expr
+                        else {
+                            panic!("lambda")
+                        };
+                        body.expr = IrExpr::Bool(true);
+                    }
+                    5 => {
+                        let IrExpr::Query(query) = &mut query_arguments_mut(&mut changed)[0].expr
+                        else {
+                            panic!("query")
+                        };
+                        query.collection_call.as_mut().unwrap().overload += 1;
+                    }
+                    6 => {
+                        let IrExpr::Query(query) = &mut query_arguments_mut(&mut changed)[0].expr
+                        else {
+                            panic!("query")
+                        };
+                        query.collection_call = None;
+                    }
+                    _ => {
+                        let field = changed
+                            .items
+                            .iter_mut()
+                            .find(|item| item.canonical == "OrdinaryDerive.Conversation.active")
+                            .unwrap();
+                        let IrItemKind::Field { ty, .. } = &mut field.kind else {
+                            panic!("active field")
+                        };
+                        *ty = IrType::Known(ResolvedType::Scalar(Scalar::Text));
+                    }
+                }
+                assert_eq!(
+                    authenticate_for_guard(&changed, &db, &original, "OrdinaryDerive.can_use"),
+                    None,
+                    "query/body/source proof mutation {mutation} must refuse"
+                );
+                assert!(
+                    checked_create_expression(&changed, &original, &cond, node_at(&db, span), &db)
+                        .is_none(),
+                    "tampered sealed query must never reclassify ordinary"
+                );
+            }
+        }
     }
 
     #[test]

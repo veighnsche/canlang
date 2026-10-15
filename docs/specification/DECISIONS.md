@@ -16383,3 +16383,20 @@ recovery assertions intact. Reuse the unchanged compiler capture above. Post-hoo
 unqualified consumer observation; locate its accepted source/workflow requirement
 before extending the model-pipeline owner, and do not claim it from initial input
 checks. No permission or assertion is relaxed.
+
+2026-10-15 — C02: authenticate stored-query derive source seals.
+
+The existing derive source matcher now authenticates the retained Model query,
+collection overload, ordered arguments, authored alias, predicate, defining
+module and stored-field schema together. Query-only and membership-bearing
+bodies both remain authority-sealed: this proof cannot grant ordinary fallback
+or query execution. Existing scalar authorization still requires its unchanged
+execution profile. This is a mechanical source-correspondence prerequisite;
+no new language decision or permission is introduced.
+
+Six source tests and six authorization-source/CLI/verified-factory/installed-State
+tests pass. Exact query sources authenticate; eight altered query/body/schema
+proofs per predicate kind refuse. The actual Employee-domain inventory, helper
+argument/stage origins and lazy receipt-ANY execution join remain unfinished.
+Reuse the last original24-source701-diagnostic capture at its unchanged scope;
+this prerequisite does not claim a newly admitted CanCRM workflow.
