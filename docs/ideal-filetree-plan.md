@@ -4,6 +4,38 @@ This is the current planning entry for the intended finished Canlang, derived fr
 
 The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/finished-product/target-tree.md), with its [machine allocation](ideal-filetree-plan/finished-product/target-tree.json). The previous current-checkout tree and twelve-package/TS-only recommendation are historical inputs, superseded as the complete intended-product target. Reusable prior source reviews remain at their actual byte/scope pins. Current typed descriptions, forms, receipts, fanout and HTTP serving source supersede blanket historical absence claims only at their observed mechanism scope.
 
+### Main pull reconciliation — 2026-10-15
+
+Merge local `797b8f3b` with upstream `c3931b71`. Preserve the cleanup
+compiler/UI/helper, composed Files and separate browser add-on changes while
+joining the upstream Linux standalone qualification, current owner-pin re-read
+and canonical recovery snapshot digest. The same defining owners remain:
+Compiler checks and emits source facts; State owns storage/owner identity;
+Cloudflare owns local engine, activation and packaging joins; Work/Files retain
+their existing atomic publication and physical resource duties. No implementation
+or backend ownership is transferred by filetree bookkeeping.
+
+Reuse the retained registry and target allocations. The registry's actual last
+maintenance commit `59b2be70` is the incremental base; all739 path deltas
+since it through both merge parents are accounted once, by defining owner, in
+`merge_reconciliation_20261015` of
+[the existing registry](ideal-filetree-plan/state-machines-20261007.json).
+The older recorded integrated-source object is unavailable locally, so this
+update retains that history/evidence rather than reconstructing it. Existing
+exact target splits/moves remain; newly added leaves without an exact finished
+allocation remain an explicit target-review gate. Historical inherited semantic
+review is not silently accepted. Retained net/history rows, retirements and source
+review gates remain open, and both recorded historical complete-checkpoint pins
+are unchanged pending complete reconciliation.
+
+The incoming source and combined conflict resolutions receive proportionate
+compiler/package/installer/owner-recovery validation, recorded with the
+[merge decision](specification/DECISIONS.md#2026-10-15--merge-linux-standalone-qualification-with-reviewed-cleanup).
+Upstream Rocky Linux21 qualification is retained at upstreamc3931b71's scope,
+not a fresh Linux run of this merged tree. Original CanCRM and the other finite
+holds stay as recorded in the cleanup execution view. Bookkeeping itself needs
+no recursive registry entry and does not advance the complete checkpoint.
+
 ### Shared action runtime intake — 2026-10-14
 
 The requested shared layout and ignore-file commit is made directly on local
