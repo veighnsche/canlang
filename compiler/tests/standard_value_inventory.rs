@@ -539,3 +539,92 @@ Then
         "no partial executable modules: {result}"
     );
 }
+
+#[test]
+fn operation_outcome_ownership_survives_aliases_results_events_and_value_boundaries() {
+    let source = r#"app OutcomeOwner
+use std {OperationOutcome as Outcome}
+Given
+ capability Workflow version=1
+  apply() -> Outcome
+ event Completed {value:Outcome}
+ derive echo(value:Outcome):Outcome = value
+ derive make(source:text,revision:int):Outcome = {source,revision,state=confirmed}
+When
+Then
+"#;
+    let scratch = tempfile::tempdir().unwrap();
+    let source_path = scratch.path().join("outcome.can");
+    let compiled = compile(source, &source_path);
+    let artifact = successful_artifact(&compiled);
+    assert_eq!(
+        names(&artifact["valueTypes"]),
+        BTreeSet::from(["OperationOutcome"])
+    );
+    let (db, ir) = build(source);
+    let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    let emitted = &output.entry.js;
+    let script = r#"
+import assert from 'node:assert/strict';
+import {normalizeValueTypes,validateValue,encodeValue,SchemaError} from '@canlang/values';
+const artifact=__ARTIFACT__;
+const {valueSchema}=normalizeValueTypes(artifact.valueTypes,[]);
+const text=__ENTRY__.replaceAll('"@canlang/stdlib"',JSON.stringify(import.meta.resolve('@canlang/cloudflare/runtime/stdlib')));
+const {appDefinition,canApp}=await import('data:text/javascript;base64,'+Buffer.from(text).toString('base64'));
+assert.equal(appDefinition.events['OutcomeOwner.Completed'].fields.value.type,'OperationOutcome');
+assert.deepEqual(appDefinition.capabilities['OutcomeOwner.Workflow'].operations.apply.result,{type:'OperationOutcome'});
+const registry=canApp(), make=registry['OutcomeOwner.make'], echo=registry['OutcomeOwner.echo'];
+const trace=[], c={};
+const value=await make(c,'request-1',9223372036854775807n);
+assert.equal(value.revision,9223372036854775807n);
+assert.equal(value.state,'confirmed');
+assert.equal(await echo(c,value),value);
+for(const state of ['pending','confirmed','unavailable','failed','unknown','released']) {
+ const input=validateValue(valueSchema,'OperationOutcome',{source:'request',revision:'3',state,reference:null,detail:null},'create');
+ const wire=encodeValue('OperationOutcome',input);
+ assert.equal(wire.revision,'3');
+ assert.deepEqual(validateValue(valueSchema,'OperationOutcome',wire,'create'),input);
+}
+for(const invalid of [{source:'s',revision:'1',state:'invented'},{source:'s',state:'confirmed'},
+ {source:'s',revision:'1',state:'confirmed',privilege:'owner'}]) {
+ assert.throws(()=>validateValue(valueSchema,'OperationOutcome',invalid,'create'),error=>error instanceof SchemaError);
+}
+"#.replace("__ARTIFACT__", &serde_json::to_string(&artifact).unwrap())
+        .replace("__ENTRY__", &serde_json::to_string(emitted).unwrap());
+    let executed = Command::new("node")
+        .args(["--input-type=module", "--eval", &script])
+        .current_dir(root())
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&executed.stderr)
+    );
+    for invalid in [
+        source.replace("state=confirmed", "state=forged"),
+        source.replace(
+            "{source,revision,state=confirmed}",
+            "{source,state=confirmed}",
+        ),
+        source.replace(
+            "{source,revision,state=confirmed}",
+            r#"{source,revision,state=confirmed,privilege="owner"}"#,
+        ),
+    ] {
+        let output = compile(&invalid, &source_path);
+        assert!(
+            !output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
+    let mut edited = ir.clone();
+    edited.committed_sources = Default::default();
+    refused(
+        &edited,
+        &db,
+        "standard result cannot invent its original source census",
+    );
+}
