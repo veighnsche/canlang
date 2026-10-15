@@ -5810,8 +5810,8 @@ impl<'a> Emitter<'a> {
             && !query.order[0].descending
     }
 
-    /// A query first without the checked native recipe cannot use the pure
-    /// array builtin. Keep the original refusal without an invalid facade import.
+    /// Stored-model first needs its checked native recipe. A value-array
+    /// query already produces a supplied ordered array for the pure builtin.
     fn unprepared_first_query(
         &mut self,
         target: &IrCallTarget,
@@ -5821,9 +5821,10 @@ impl<'a> Emitter<'a> {
         if self.native_source_predicates
             && !self.boolean_body
             && matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "first")
-            && args
-                .iter()
-                .any(|argument| matches!(argument.expr, IrExpr::Query(_)))
+            && args.iter().any(|argument| {
+                matches!(&argument.expr, IrExpr::Query(query)
+                    if matches!(query.domain, crate::codegen::ir::IrQueryDomain::Model(_)))
+            })
         {
             self.unsupported(
                 "first query",
@@ -7341,7 +7342,7 @@ impl<'a> Emitter<'a> {
                     let alias = self.bind(alias);
                     let body = self.lower_expr(pred);
                     self.exit_scope();
-                    out = if self.boolean_body {
+                    out = if query.where_async || self.boolean_body {
                         format!(
                             "(await (async($items)=>{{const $result=[];for(const {alias} of $items){{if(await ({body}))$result.push({alias});}}return $result;}})({out}))"
                         )
@@ -7377,7 +7378,7 @@ impl<'a> Emitter<'a> {
         } else {
             body
         };
-        if self.boolean_body {
+        if expr_uses_async(projection) || self.boolean_body {
             return format!(
                 "(await (async($items)=>{{const $result=[];for(const {param} of $items){{$result.push(await ({body}));}}return $result;}})({fetched}))"
             );

@@ -81,8 +81,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **751 errors**:
-**725 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **745 errors**:
+**719 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -99,7 +99,7 @@ are not independent feature tasks:
 | Root cause / defining mechanism | Occurrences | Remaining scope |
 | --- | ---: | --- |
 | Checked source/inventory publication | 5 | Standard inventory/completions, membership and collection-call correspondence. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
-| Query and predicate lowering | 134 | 83 first-query correspondence, ordering/projection/predicate/domain/archive profiles; ordinary async any/all helper reuse is closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
+| Query and predicate lowering | 128 | 85 stored first-query correspondence, ordering/domain/archive profiles; ordinary async any/all, filter/select helper reuse and supplied-array first are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
 | UI/server factory profiles | 198 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 5 | Original typed route descriptors. |
@@ -222,6 +222,23 @@ async array filters/projections and model-result projections must likewise
 preserve helper equivalence and source-order failure behavior. These are ordinary
 lowering gaps; source publication, row grants and genuine external/policy holds
 remain enforced. The persistent goal stays active beyond this checkpoint.
+
+**Current C02/C10 batch — collection helper composition (2026-10-15).**
+Existing sequential awaited loops now serve async array filters/projections and
+model projections, preserving the canonical authorized model reader. Supplied
+array `first` uses the existing Values primitive after the full query completes;
+stored-model `first` still requires its source recipe. The check preserves all
+filtering before projection, row identity/order, later filter failures even when
+an earlier row matches, null/fallback results and exact native public denial.
+Focused compiler/native checks pass **1/1**, membership checks **8/8**, and the
+Cloudflare package build, CLI build, formatting and diff checks pass.
+The original 24-source check reports **745** errors (**719 E6008**, **26 E6007**),
+complete=true, omitted=0, exit 10, no usable artifact. Against the retained
+751-error capture, nine refusals disappear (three async filters, five projections,
+one supplied-array first), exposing three stored-model first refusals. No source,
+permission or failure assertion was weakened. The next local dependency is the
+standard-value inventory's association with checked declarations despite unrelated
+executable lowering gaps; its source and tamper checks remain mandatory.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,
 not native/browser qualification of complete CanCRM. The original reference scope

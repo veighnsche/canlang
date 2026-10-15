@@ -15331,3 +15331,41 @@ and none are added. The query/predicate group falls to 134. This accepts ordinar
 any/all helper equivalence at its verified scope, not completion of remaining
 filter/projection/observer profiles or full CanCRM execution. Continue those
 ready mechanisms under the active persistent goal; no push or training occurs.
+
+2026-10-15 — C02/C10: preserve async query filter/projection helper reuse.
+
+The next ordinary refactoring witness reproduced the same defect for supplied
+array filters/projections: extracting a valid field expression into a pure helper
+made checking/emission refuse it solely because generated helper functions are
+async. Keep the checked query in IR and select the existing source-order awaited
+loop from its predicate/projection, including ordinary contexts. Model projections
+use that loop only after the same canonical records producer has enforced reads.
+No new callback syntax, result carrier, State authority or source-fact bypass is
+introduced; the language's existing filter/select order is unchanged.
+
+The complete emitted check now compares inline and helper filters/projections,
+retains row identity/order, verifies all filtering before projection, and checks
+that original errors stop later rows. The native model-projection case uses
+installed Testkit/D1/Identity and the actual model reader; the member receives
+the declared bool array while public invocation retains exact forbidden. Both
+native rows pass. A Node eval launch stalled the native worker harness; its
+task-owned processes were stopped and verified released, and normal .mjs
+execution passes in three seconds. The test now has bounded cancellation.
+This was harness repair, not a weakened native assertion or a backend exception.
+All eight membership codegen checks pass after the relevant code edit.
+CLI build, formatting and diff checks pass. No new JEV decision is needed for
+this settled expression-composition rule.
+
+Supplied-array first consumes the already evaluated ordered array through the
+existing Values primitive. It needs no stored-model source recipe. Filtering
+still completes before first selects its result: a later predicate failure must
+propagate even when an earlier row matches. Literal fallback and empty-array
+cases pass; a stored-model first control retains its correspondence refusal.
+Cloudflare package build and the expanded compiler/native check pass.
+
+Original 24-source validation: exit 10, 745 errors (719 E6008, 26 E6007),
+complete=true, omitted=0, no usable artifact. Compared with the retained 751-error
+capture, nine refusals disappear (three async filters, five projections, one
+supplied-array first) and three previously hidden stored-model first refusals
+appear. This closes helper composition at the verified scope; source-census and
+remaining model-query gaps remain local implementation work under the active goal.
