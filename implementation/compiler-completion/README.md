@@ -188,8 +188,20 @@ are admitted per DESIGN §9 (no row-scope requirement; constants need no
 grant) — old E6008 expectations stale, with twin page-level coverage;
 empty/suite/multi-header shapes still refuse at boundary codes.
 `ui_adapter` 15/15 and `ui_original_bindings` 31/31 pass in the integrated
-parent. UI `list`/`board` render kinds remain open. Full outcome 6 stays
-OPEN pending those kinds; outcome 7 untouched.
+parent. UI `list`/`board` kinds closed by the TS remainder commit (shared
+source-filter factory extended to list/board with table/gallery pipeline,
+`BoardProps.occurrence`, labelless copy with its own value): `leaves`
+69/69, `collections` 124/124, `panels` 35/35 pass against owned rebuilt
+dists. Outcome 6 is implemented (checker + render, Codex review pending).
+
+Outcome 7 compiler slice in `dba896b5` (Lane B commit `8baafab8`): send
+statements to std EmailV1 + AlertsV1 notify lower formatted values inline
+through the shared formatter, frozen at send construction in authored
+order; guards, stored writes and other positions still refuse; private-mail
+recipient path untouched. `outbound_format_sinks` 7/7 pass; runtime
+schema/adapter acceptance of the `{text,locale}` carrier is sequenced as a
+Lane-C slice and the 31-occurrence regroup needs full composition, so
+outcome 7 stays OPEN.
 
 Outcome 13 implemented in `9eb4644a` (Lane C commit `5bb44a62`): bound
 capabilities link against their checked versioned declaration instead of
