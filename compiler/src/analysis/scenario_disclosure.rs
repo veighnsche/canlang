@@ -5155,6 +5155,110 @@ impl<'a> Closure<'a> {
                 .is_some_and(|(_, model, _)| model == read.model)
     }
 
+    /// Census unsupported helper shapes too: an unproved execution read must
+    /// refuse at the existing original-call join, never disappear with pruning.
+    fn first_query_stored_scalar_read(
+        &self,
+        read: &DisclosureDependency,
+        module: ModuleId,
+    ) -> bool {
+        if !primitive_type(&read.ty) || read.query_id.is_some() {
+            return false;
+        }
+        let Some((mut receiver, field)) = self.count_member(read.node) else {
+            return false;
+        };
+        if field != read.field_name {
+            return false;
+        }
+        for call in read.calls.iter().rev() {
+            let Some(selected) = self.types.selected_calls.get(call) else {
+                return false;
+            };
+            let SelectedCallTarget::DeriveFn(id) = selected.target else {
+                return false;
+            };
+            let Some(derive) = self.effects.derives.get(&id) else {
+                return false;
+            };
+            let mut supplied = None;
+            for _ in 0..64 {
+                let Some(Binding::Symbol(parameter)) = self.query_binding(receiver) else {
+                    return false;
+                };
+                let Some((index, formal)) = derive
+                    .params
+                    .iter()
+                    .enumerate()
+                    .find(|(_, formal)| formal.param == *parameter)
+                else {
+                    return false;
+                };
+                match selected.slots.get(index) {
+                    Some(Some(index)) => {
+                        supplied = selected.arguments.get(*index).copied();
+                        break;
+                    }
+                    Some(None) => {
+                        let Some(default) = formal.default else {
+                            return false;
+                        };
+                        receiver = default;
+                    }
+                    None => return false,
+                }
+            }
+            let Some(actual) = supplied else {
+                return false;
+            };
+            receiver = actual;
+        }
+        let mut pending = vec![receiver];
+        let mut steps = 0;
+        while let Some(key) = pending.pop() {
+            steps += 1;
+            if steps > 16384 {
+                return false;
+            }
+            if let Some(Binding::Let { node }) = self.query_binding(key) {
+                for scenario in self
+                    .effects
+                    .scenarios
+                    .values()
+                    .filter(|scenario| scenario.module == module)
+                {
+                    let mut statements: Vec<_> = scenario.effects.iter().collect();
+                    while let Some(binding) = statements.pop() {
+                        statements.extend(binding.then_effects.iter());
+                        statements.extend(binding.else_effects.iter());
+                        if binding.node == *node {
+                            if self
+                                .checked_first_query_source(scenario, binding)
+                                .is_some_and(|query| query.model == read.model)
+                            {
+                                return true;
+                            }
+                            if let Some(value) = binding.value {
+                                if value != key {
+                                    pending.push(value);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(node) = self.nodes.get(&key) {
+                pending.extend(
+                    node.children
+                        .iter()
+                        .filter(|child| expression(child.kind))
+                        .map(NodeKey::of),
+                );
+            }
+        }
+        false
+    }
+
     /// Original required Model-valued field, used by expression provenance and
     /// the owning schema census. This prepares source facts, never a row view.
     fn checked_required_model_reference(
@@ -14285,11 +14389,15 @@ impl<'a> Closure<'a> {
                             // Preserve the existing canonical whole-field read even
                             // when an independent return prunes the guard lane.
                             // Emission observes it only at this authored Member.
-                            let dependencies: Vec<_> = admitted_guard.reads.iter().filter(|read| {
-                                matches!(&read.ty, ResolvedType::Record {symbol, ..}
-                                    if self.resolve.symbols.get(symbol.0 as usize)
-                                        .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
-                            }).cloned().collect();
+                            let dependencies = self.control(ValuePath {
+                                reads: value.reads.iter().filter(|read| {
+                                    matches!(&read.ty, ResolvedType::Record {symbol, ..}
+                                        if self.resolve.symbols.get(symbol.0 as usize)
+                                            .is_some_and(|symbol| matches!(symbol.kind, SymbolKind::Contract { .. })))
+                                        || self.first_query_stored_scalar_read(read, module)
+                                }).cloned().collect(),
+                                ..ValuePath::default()
+                            })?.reads;
                             if !dependencies.is_empty() {
                                 let index =
                                     match self.require_consumptions.iter().position(|entry| {

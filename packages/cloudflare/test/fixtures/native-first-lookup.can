@@ -4,9 +4,10 @@ Given
  contract OptionalDocument {attachment:file?}
  UnrelatedLedger {amount:money,proof:AuditNote}
  derive UnrelatedLedger.document:OptionalDocument = OptionalDocument {attachment=null}
- Item {account:user,source:text,active:bool=true}
+ Item {account:user,source:text,active:bool=true,approved:bool=true}
  Run {item:Item}
- policy Item read=members and row.account==actor
+ policy Item read=members and row.account==actor fields=account,source,active
+ policy Item read=members and row.account==actor and row.active fields=approved
  policy Run read=members
 When
  crud Item by=members fields=account,source,active
@@ -20,12 +21,12 @@ When
  scenario lookup_scalar(source:text,accept:bool) -> bool by=members
   do
    let chosen=first(Item as candidate where candidate.source==source)
-   require chosen!=null
+   require chosen!=null and chosen.approved
    require accept
    return true
  scenario lookup_void(source:text,accept:bool) by=members
   do
    let chosen=first(Item as candidate where candidate.source==source)
-   require chosen!=null
+   require chosen!=null and chosen.approved
    require accept
 Then
