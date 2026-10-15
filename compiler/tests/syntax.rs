@@ -1819,6 +1819,39 @@ fn edit_group_and_bare_card() {
 }
 
 #[test]
+fn bare_card_with_named_and_inline_style() {
+    // REVIEW-7: a heading-free card may carry a named or inline style
+    // suffix per GRAMMAR `ui_group`. This asserts syntax validity only;
+    // a full compile without saved generation output still reports its
+    // own separate missing-unit diagnostic, never a syntax error here.
+    for header in ["card $Shared", "card $\"Use restrained spacing.\""] {
+        let text = format!(
+            "app T\nGiven\nWhen\nThen\n style Shared $\"Use restrained spacing.\"\n page /t title=\"T\"\n  {header}\n   text \"x\"\n",
+        );
+        let tree = assert_clean(&text);
+        assert!(has_kind(&tree, SyntaxKind::Card), "missing Card");
+        assert!(
+            has_kind(&tree, SyntaxKind::StyleSuffix),
+            "missing StyleSuffix in {header}"
+        );
+    }
+    // The exact style-headers probe shape parses with no E1215.
+    let tree = assert_clean(
+        "# Check source style attachments.\napp SpecContract\nGiven\nWhen\nThen\n style Shared $\"Use restrained spacing.\"\n page / title=\"Check\" $Shared\n  card $Shared\n   text \"Body\" $Shared\n",
+    );
+    assert!(has_kind(&tree, SyntaxKind::Card));
+    // Headed cards keep their style attachments.
+    assert_clean(
+        "app T\nGiven\nWhen\nThen\n style Shared $\"Use restrained spacing.\"\n page /t title=\"T\"\n  card \"T\" $Shared\n   text \"x\"\n",
+    );
+    // Forbidden attachments keep their restrictions.
+    assert_codes(
+        "app T\nGiven\n Todo { title:text }\nWhen\nThen\n page /t title=\"T\"\n  card \"T\"\n   require row.title != \"\" $Shared\n",
+        &["E1200"],
+    );
+}
+
+#[test]
 fn catalog_items_shape() {
     // Known catalog words parse to shape nodes (membership is analysis).
     let tree = assert_clean(
