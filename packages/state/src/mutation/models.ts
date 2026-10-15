@@ -324,11 +324,10 @@ export interface InterimModelDef {
 export type ModelTable = ReadonlyMap<ModelName, InterimModelDef>;
 
 /** Checked tuple profiles attach only to table-built definitions. */
-export interface UniqueGroupProfile {
+export type UniqueGroupProfile = {
   readonly fields: readonly [string, string];
-  readonly refModel: ModelName;
   readonly cases: readonly string[];
-}
+} & ({ readonly kind: 'ref-enum'; readonly refModel: ModelName } | { readonly kind: 'user-enum' });
 function checkedUniqueGroups(raw: unknown): readonly (readonly string[])[] {
   if (!Array.isArray(raw) || Reflect.ownKeys(raw).length !== raw.length + 1) throw new Error('Unique groups must be own data arrays.');
   const result: string[][] = [];
@@ -612,12 +611,13 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         const enumType = parseTypeId(enumField.valueType!);
         const cases = enumType.base.kind === 'enum' ? enumType.base.cases :
           enumType.base.kind === 'nominal' ? opts.valueSchema?.enums[enumType.base.path]?.cases : undefined;
-        if (ref === undefined || !modelNames.has(ref.model) || refType.base.kind !== 'nominal' ||
-            refType.base.path !== ref.model || refFields.has(second) || cases === undefined || cases.length === 0) {
-          throw new Error('Composite unique requires the owning model reference followed by its checked enum.');
+        const user = refType.base.kind === 'user' && ref === undefined;
+        if ((!user && (ref === undefined || !modelNames.has(ref.model) || refType.base.kind !== 'nominal' ||
+            refType.base.path !== ref.model)) || refFields.has(second) || cases === undefined || cases.length === 0) {
+          throw new Error('Composite unique requires the owning model reference or User followed by its checked enum.');
         }
         groups.set(key, Object.freeze({fields: Object.freeze([first, second]) as readonly [string, string],
-          refModel: ref.model, cases: Object.freeze([...cases])}));
+          cases: Object.freeze([...cases]), ...(user ? {kind: 'user-enum' as const} : {kind: 'ref-enum' as const, refModel: ref!.model})}));
       }
     }
     const seenKeys = new Set<string>();

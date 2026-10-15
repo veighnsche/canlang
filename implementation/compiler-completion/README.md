@@ -2,6 +2,20 @@
 
 ## Current remainder and finite completion
 
+**C02 User/enum composite uniqueness (2026-10-15, qualified component).**
+Original CompanyRole source correctly emits account:user + inline role enum.
+Existing closed runtime tuple support now handles those canonical User values,
+exact cases/order/required scalar shape and actual Customer parent scope. Reuse
+existing User decoder and storage fence; ref/enum encoding stays unchanged. CF
+joins sparse native kinds to the exact owning declaration without new metadata.
+State source10/3.95s pass, including Memory/D1 concurrency/rollback/swaps/replay/
+stale controls; actual-source CF association/refusal2/.85s pass. Isolated normal
+State/Work/CF builds pass with a coherent single State stage owner. Original6
+post-fix native run remains required; the latest attempt lacked shared Testkit
+output before capture. Original24 canonical-fixture compiler run is live with
+explicit retained argv, frozen private binary and unchanged supplied Values
+catalog; no diagnostic removal credit until its terminal report.
+
 **C02 canonical fixture provider emission (2026-10-15, qualified component).**
 Resolved fixture reads/dependencies use canonical declaration keys. One provider
 per checked declaration imports direct seed providers; operations link those
@@ -40,20 +54,14 @@ authority edits; no complete producer/current-input qualification follows.
 Compiler provider emission and all6 original promotion rows remain required.
 
 **C02 original promotion native consumer (2026-10-15, unfinished).**
-The selected original schemas/policies, saved Given and both inline tables emit
-with3 queries. Actual CLI source membership/hashes (including contributed source)
-and captured producer inputs verify. Default example loading then refuses an
-undefined imported fixture `test_company` in the emitted promotion test module,
-before invoking any row. Accepted defining direction: canonical declaration keys
-for generated fixture slots/dependencies and one linked recipe object per key;
-source aliases remain unchanged. Required producer/receiver joins and alias/diamond/
-same-name/claimed-provider/refusal controls are in progress, not qualified. JEV
-corrected4–6 favors this direction (.90/.91/.84); exploratory1–3 had a corrected
-context assumption and give no acceptance credit. Compiler-owned imported-fixture
-dependency emission plus loader resolution is the next defining fix; acceptance requires all6 original rows through default
-canonical hooks. No replacement fixture modules or reduced policies qualify it.
-Earlier stale package outputs and the integration harness's generated-source/
-fixture-suite assumptions were corrected before reaching this actual failure.
+The exact selected schemas/policies/saved Given and both inline tables emit3
+queries with verified consumed source hashes. Canonical fixture linking now
+loads the original graph; all6 rows reached canonical setup and refused the
+User+enum CompanyRole unique profile before any business invocation. That runtime
+profile is qualified separately below. The next native attempt was invalidated
+before capture by missing shared Testkit output; isolate/freeze that remaining
+producer as with CF/State. No fixture/schema/policy/unique reductions qualify it.
+Acceptance still requires all6 unchanged rows through default canonical hooks.
 
 **C02 typed nested example fixtures (2026-10-15, qualified component).**
 Reuse owning canonical schema/codecs for nested Contract Model slots and actual

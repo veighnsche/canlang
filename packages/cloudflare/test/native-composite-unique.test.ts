@@ -168,3 +168,65 @@ test('original required Run/owning enum tuple joins State without changing canon
       'original source, compiler and catalog remain current');
   } finally { await rm(dir, {recursive: true, force: true}); }
 });
+
+test('original User/inline-enum unique joins its sparse source fields and refuses altered owning associations', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'can-native-user-enum-unique-'));
+  const source = `app NativeUserUnique
+Given
+ Customer {title:text}
+ CompanyRole in Customer {account:user,role:enum(administrator,booker,billing)}
+ policy Customer read=members
+ policy CompanyRole read=members
+ unique CompanyRole fields=account,role
+When
+Then
+`;
+  const path = join(dir, 'UserUnique.can');
+  const roleModel = 'NativeUserUnique.CompanyRole' as ModelName;
+  try {
+    await writeFile(path, source);
+    const env = {...process.env}; delete env.CAN_CATALOG;
+    const {stdout} = await promisify(execFile)(join(root, 'compiler/target/debug/can'),
+      ['compile', '--format=json', '--catalog', fileURLToPath(distribution.catalog), path],
+      {cwd: root, env, timeout: 60000, maxBuffer: 32 * 1024 * 1024});
+    const artifact = JSON.parse(stdout) as CompileArtifact;
+    const original = JSON.stringify(artifact);
+    const fields = artifact.models!.find(model => model.name === roleModel)!.fields;
+    assert.deepEqual(fields.map(field => [field.name, field.field, field.valueType]), [
+      ['account', {kind: 'user'}, undefined],
+      ['role', {kind: 'enum', values: ['administrator', 'booker', 'billing']}, undefined],
+    ]);
+    const assemble = (candidate: CompileArtifact, label: string) => assembleModules(
+      {artifact: candidate, sourcePath: path}, {workDir: join(dir, label), stdlibUrl, uiUrl});
+    const loaded = await loadCanonicalDescriptors(await assemble(artifact, 'original'), artifact);
+    const definition = (loaded.table as ModelTable).get(roleModel)!;
+    assert.deepEqual(definition.uniqueGroups, [['account', 'role']]);
+    assert.equal(definition.fields.account!.valueType, 'user');
+    assert.equal(definition.fields.role!.valueType, 'enum(administrator,booker,billing)');
+    assert.deepEqual(definition.refs, []);
+    assert.equal(definition.containment?.parent, 'NativeUserUnique.Customer');
+    const declaration = `appDefinition.models[${JSON.stringify(roleModel)}]`;
+    for (const [label, mutation] of [
+      ['order', `${declaration}.uniques[0].fields=["role","account"];`],
+      ['wrong-identity-type', `${declaration}.fields.account.type="text";`],
+      ['wrong-cases', `${declaration}.fields.role.cases=["administrator","booker"];`],
+      ['duplicate', `${declaration}.uniques.push(${declaration}.uniques[0]);`],
+    ] as const) {
+      const candidate = {...artifact, modules: artifact.modules.map((module, index) => index === 0
+        ? {...module, js: `${module.js}\n${mutation}\n`} : module)};
+      await assert.rejects(loadCanonicalDescriptors(await assemble(candidate, label), candidate),
+        /uniqu|association|source|type/i, label);
+    }
+    for (const [label, patch] of [
+      ['optional-user', {required: false}], ['nullable-user', {nullable: true}],
+      ['array-user', {array: {required: true}}],
+    ] as const) {
+      const candidate = {...artifact, models: artifact.models!.map(model => model.name === roleModel
+        ? {...model, fields: model.fields.map(field => field.name === 'account' ? {...field, ...patch} : field)} : model)};
+      await assert.rejects(loadCanonicalDescriptors(await assemble(candidate, label), candidate),
+        /uniqu|association|source|type|composite/i, label);
+    }
+    assert.equal(JSON.stringify(artifact), original);
+    assert.equal(await readFile(path, 'utf8'), source);
+  } finally { await rm(dir, {recursive: true, force: true}); }
+});

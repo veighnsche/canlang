@@ -2800,31 +2800,39 @@ async function joinOwningUnconditionalUniques(
         const declaredCases = isUnknownRecord(declaredRole)
           ? readMetadataMember(declaredRole, 'cases', where)?.value : undefined;
         const association = (refs.get(name) ?? []).filter(candidate => candidate.field === fields[0]);
-        const validField = (field: typeof ref, canonicalField: typeof canonicalRef): boolean => {
+        const firstType = ref?.valueType ?? (ref?.field.kind === 'user' ? 'user' : undefined);
+        const roleValueType = role?.valueType ?? (role?.field.kind === 'enum'
+          ? `enum(${role.field.values.join(',')})` : undefined);
+        const validField = (field: typeof ref, canonicalField: typeof canonicalRef, valueType: string | undefined = field?.valueType): boolean => {
           if (field === undefined || canonicalField === undefined || field.required !== true ||
               canonicalField.required !== true || field.nullable === true || field.array !== undefined ||
-              canonicalField.array !== undefined || field.valueType === undefined ||
-              field.valueType !== canonicalField.valueType || secretFields.get(canonical[0]!.name)?.has(field.name) !== false) return false;
-          const type = parseTypeId(field.valueType);
+              canonicalField.array !== undefined || valueType === undefined ||
+              valueType !== canonicalField.valueType || secretFields.get(canonical[0]!.name)?.has(field.name) !== false) return false;
+          const type = parseTypeId(valueType);
           return !type.nullable && !type.array && !type.requiredArray;
         };
-        const roleType = role?.valueType === undefined ? undefined : parseTypeId(role.valueType);
+        const roleType = roleValueType === undefined ? undefined : parseTypeId(roleValueType);
         const cases = roleType?.base.kind === 'enum' ? roleType.base.cases :
           roleType?.base.kind === 'nominal' ? valueSchema?.enums[roleType.base.path]?.cases : undefined;
+        const modelIdentity = ref?.field.kind === 'ref' && declaredRefType === refModel &&
+          association.length === 1 && association[0]!.model === refModel &&
+          firstType === refModel && refModel !== undefined && refModel.startsWith(`${owner}.`) &&
+          models.filter(model => model.name === refModel).length === 1;
+        const userIdentity = ref?.field.kind === 'user' && declaredRefType === 'user' &&
+          firstType === 'user' && association.length === 0;
         if (conditional || fields.length !== 2 || fields[0] === fields[1] ||
             fields.some(field => field.includes(',') || field.includes('.')) ||
             owner === '' || !name.startsWith(`${owner}.`) ||
             !isUnknownRecord(packages) || readMetadataMember(packages, owner, where) === undefined ||
-            sourceRef.length !== 1 || sourceEnum.length !== 1 || !validField(ref, canonicalRef) || !validField(role, canonicalEnum) ||
-            ref?.field.kind !== 'ref' || role?.field.kind !== 'enum' ||
-            declaredRefType !== refModel || declaredRoleType !== 'enum' ||
+            sourceRef.length !== 1 || sourceEnum.length !== 1 ||
+            !validField(ref, canonicalRef, firstType) || !validField(role, canonicalEnum, roleValueType) ||
+            !(modelIdentity || userIdentity) || role?.field.kind !== 'enum' ||
+            declaredRoleType !== 'enum' ||
             stableStringify(declaredCases) !== stableStringify(role.field.values) ||
-            association.length !== 1 || association[0]!.model !== refModel ||
-            ref.valueType !== refModel || refModel === undefined || !refModel.startsWith(`${owner}.`) ||
-            models.filter(model => model.name === refModel).length !== 1 || cases === undefined ||
+            cases === undefined ||
             stableStringify(cases) !== stableStringify(role.field.values) ||
             groups.some(group => stableStringify(group) === stableStringify(fields))) {
-          throw new AssemblyCorrespondenceError(`${where}: composite unique lacks its original ordered ref/enum source association on ${JSON.stringify(name)}.`);
+          throw new AssemblyCorrespondenceError(`${where}: composite unique lacks its original ordered identity/enum source association on ${JSON.stringify(name)}.`);
         }
         groups.push(Object.freeze([...fields]));
         continue;
