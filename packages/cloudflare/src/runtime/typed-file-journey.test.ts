@@ -291,8 +291,8 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
       'inputs[accept]': 'true' };
     const browserSubmission = { derived: browserDerived, mode: 'scenario' as const, flat: browserFlat,
       files: [{ field: 'attachment', name: 'browser.pdf', type: 'application/pdf', size: BYTES.length, bytes: BYTES }],
-      action: `https://test.invalid/api/operations/${APP}.attach`, fragment: false,
-      denialFormat: 'json' as const, intentsUrl: 'https://test.invalid/files/intents', fetchImpl: browserFetch };
+      action: `/api/operations/${APP}.attach`, fragment: false,
+      denialFormat: 'json' as const, intentsUrl: '/files/intents', fetchImpl: browserFetch };
     const beforeBrowserIntents = fileStore.intents.listAll();
     const beforeBrowserFiles = fileStore.files.listAll();
     await assert.rejects(submitGeneratedForm({ ...browserSubmission,

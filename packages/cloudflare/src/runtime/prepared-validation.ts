@@ -2,7 +2,7 @@
  * from artifact shape or a request revision. The existing assembler verifies
  * its actual installed closure; its imported owning declarations are captured
  * and rechecked through the final HTTP admission await. */
-import type { CompileArtifact } from '@canlang/contracts';
+import type { ArtifactModel, ArtifactOperation, CompileArtifact } from '@canlang/contracts';
 import type { CanValue } from '@canlang/contracts/values';
 import { sha256HexText } from '@canlang/identity';
 import { catalogFromArtifactOperations, createSourceValidationCatalog, encodeServingLiteral } from '@canlang/interfaces/http/operations';
@@ -73,18 +73,56 @@ function wireLengthBound(value: unknown): unknown {
 function wireField(value: unknown): FieldDescriptor {
   const field = record(capture(value)), type = member(field, 'type');
   if (typeof type !== 'string') return refuse('field has no owning type');
-  const parsed = parseTypeId(type), out: Record<string, unknown> = { type: printTypeId(parsed) };
+  const base = parseTypeId(type);
+  // Model declarations keep wrappers beside the leaf type; contract/parameter
+  // declarations may already carry the complete type ID. Encode defaults only
+  // after joining those exact owning wrappers.
+  for (const key of ['array', 'requiredArray', 'nullable'] as const) {
+    if (Object.hasOwn(field, key) && typeof field[key] !== 'boolean') return refuse(`invalid ${key} wrapper`);
+    if (field[key] === false && base[key]) return refuse(`conflicting ${key} wrapper`);
+  }
+  const parsed = { ...base, array: base.array || field.array === true,
+    requiredArray: base.requiredArray || field.requiredArray === true,
+    nullable: base.nullable || field.nullable === true };
+  if (parsed.requiredArray && !parsed.array) return refuse('required array wrapper lacks its array');
+  const owningType = printTypeId(parsed), out: Record<string, unknown> = { type: owningType };
   for (const key of ['min', 'max', 'trim', 'format', 'distinctBy', 'excludedIds']) if (Object.hasOwn(field, key)) {
     const length = parsed.array || parsed.base.kind === 'stringlike' || parsed.base.kind === 'scalar' && parsed.base.name === 'text';
     out[key] = key === 'min' || key === 'max'
-      ? length ? wireLengthBound(field[key]) : encodeServingLiteral(type, field[key] as CanValue)
+      ? length ? wireLengthBound(field[key]) : encodeServingLiteral(owningType, field[key] as CanValue)
       : field[key];
   }
-  if (Object.hasOwn(field, 'default')) out.default = encodeServingLiteral(type, field.default as CanValue);
+  if (Object.hasOwn(field, 'default')) out.default = encodeServingLiteral(owningType, field.default as CanValue);
   if (Object.hasOwn(field, 'server')) out.server = true;
   if (Object.hasOwn(field, 'derived') || Object.hasOwn(field, 'derive')) out.derived = true;
   if (field.computedDefault === true) out.server = true;
   return Object.freeze(out) as unknown as FieldDescriptor;
+}
+
+/** Create containment is declared by the model, separately from its writable
+ * domain-field allowlist. Join that same source fact to the complete input. */
+function createParentField(definition: unknown, model: ArtifactModel, operation: ArtifactOperation,
+  artifact: CompileArtifact): Readonly<{ type: string }> | undefined {
+  const models = record(member(definition, 'models')), source = record(member(models, model.name));
+  const parent = Object.hasOwn(source, 'parent') ? member(source, 'parent') : undefined;
+  if (parent !== model.parent) return refuse('model containment differs from its checked declaration');
+  if (operation.kind !== 'create') return undefined;
+  const inputs = operation.inputs.fields.filter(field => field.name === 'parent');
+  if (parent === undefined) {
+    if (inputs.length !== 0) return refuse('uncontained create added a parent input');
+    return undefined;
+  }
+  if (typeof parent !== 'string' || !Object.hasOwn(models, parent) ||
+      artifact.models?.filter(candidate => candidate.name === parent).length !== 1) {
+    return refuse('create parent lacks its owning model');
+  }
+  const input = inputs[0];
+  if (inputs.length !== 1 || input === undefined || input.field.kind !== 'ref' ||
+      input.field.model !== parent || input.field.requireVersion !== false || input.required !== true ||
+      input.nullable !== undefined || input.array !== undefined || input.default !== undefined) {
+    return refuse('create parent differs from its checked reference');
+  }
+  return Object.freeze({ type: parent });
 }
 
 function sourceData(definition: unknown, operation: string, artifact: CompileArtifact) {
@@ -98,6 +136,8 @@ function sourceData(definition: unknown, operation: string, artifact: CompileArt
   const fields = model === null ? inputs : record(member(model, 'fields'));
   const owning = artifact.operations?.find(entry => entry.name === operation);
   if (owning === undefined || member(declared, 'handler') !== operation) return refuse('missing owning operation');
+  const artifactModel = typeof declared.model === 'string' ? artifact.models?.find(entry => entry.name === declared.model) : undefined;
+  const parent = artifactModel === undefined ? undefined : createParentField(definition, artifactModel, owning, artifact);
   const names = model === null ? Object.keys(fields) : owning.kind === 'create' ? member(inputs, 'fields') :
     owning.kind === 'update' ? member(member(inputs, 'changes'), 'fields') : [];
   if (!Array.isArray(names) || names.some(name => typeof name !== 'string')) return refuse('missing writable input inventory');
@@ -113,6 +153,7 @@ function sourceData(definition: unknown, operation: string, artifact: CompileArt
       selected[name] = update;
     } else selected[name] = field;
   }
+  if (parent !== undefined) selected.parent = wireField(parent);
   const descriptor: SchemaDescriptor = {
     contracts: Object.fromEntries(Object.keys(contracts).map(name => [name, { fields:
       Object.fromEntries(Object.entries(record(member(contracts[name], 'fields'))).map(([key, field]) => [key, wireField(field)])) }])),
@@ -171,11 +212,17 @@ function assertDeclarationPair(definition: unknown, operation: string, artifact:
   if (model !== undefined && sealedData(Object.keys(fields)) !== sealedData(expected.map(field => field.name))) return refuse('model field census differs from its owning declaration');
   for (const field of expected) assertFieldPair(member(fields, field.name), field, enums);
   if (model !== undefined) {
-    const names = owning.kind === 'create' ? capture(member(inputs, 'fields')) : owning.kind === 'update'
+    const parent = createParentField(definition, model, owning, artifact);
+    const createFields = owning.kind === 'create' ? capture(member(inputs, 'fields')) : undefined;
+    if (owning.kind === 'create' && (!Array.isArray(createFields) || createFields.some(field => typeof field !== 'string'))) {
+      return refuse('missing writable input inventory');
+    }
+    const names = owning.kind === 'create' ? [...(createFields as string[]), ...(parent === undefined ? [] : ['parent'])] : owning.kind === 'update'
       ? ['record', ...(capture(member(member(inputs, 'changes'), 'fields')) as string[])] : ['record'];
     if (sealedData(names) !== sealedData(owning.inputs.fields.map(field => field.name))) return refuse('operation writable input census differs from its checked declaration');
     for (const field of owning.inputs.fields) {
-      const source = field.name === 'record' ? member(inputs, 'record') : member(fields, field.name);
+      const source = field.name === 'record' ? member(inputs, 'record') :
+        field.name === 'parent' && parent !== undefined ? parent : member(fields, field.name);
       if (owning.kind === 'update' && field.name !== 'record') {
         const { default: _default, ...change } = record(capture(source));
         void _default;

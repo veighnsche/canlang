@@ -77,6 +77,7 @@ export const REQUIRES_CAPABILITY_MAP: Readonly<Record<string, readonly string[]>
   state: ["state"],
   "state.machines": ["state.machines"],
   "state.parameters": ["state.parameters"],
+  "state.field-validation": ["state.field-validation"],
   "state.cohorts": ["state.cohorts"],
   "interfaces.input-choices": ["interfaces.input-choices"],
 };

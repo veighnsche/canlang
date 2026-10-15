@@ -19,6 +19,7 @@ import type {
   RecordId,
   SourceMap,
   StateUniqueKeyProducerBinding,
+  StateFieldValidationProducerBinding,
 } from '@canlang/contracts';
 import { sha256HexText } from '@canlang/identity';
 import { loadArtifactDescriptors } from '@canlang/state/invocation/registry';
@@ -42,6 +43,7 @@ import {
   givenClosureFingerprint,
   givenUnitModulePath,
   joinGivenUniqueKeys,
+  joinGivenFieldValidations,
   resolveGivenClosure,
   resolveGivenKeywordExport,
   scanGivenJsModule,
@@ -127,6 +129,31 @@ test('BGI-08 sha256 fingerprint pins the known empty-string-adjacent vector', as
     'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
   );
   assert.equal(givenUnitModulePath('u3'), 'can.generated/u3/server.js');
+});
+
+test('field checks reuse verified module closures, exact text inputs and function bindings', async () => {
+  const js = 'import { budget } from "./budget.js"; export function check(value) { return budget(value); }';
+  const helper = 'export function budget(value) { return new TextEncoder().encode(value).byteLength <= 128; }';
+  const { asm, art } = await assemble([
+    module('main.js', 'export const main = 1;'),
+    module('can.generated/field/server.js', js),
+    module('can.generated/field/budget.js', helper),
+  ]);
+  const fingerprint = await givenClosureFingerprint(resolveGivenClosure(art, 'field'));
+  const binding: StateFieldValidationProducerBinding = {
+    abi: 'state.field-validation@1', rule: 'Lab.Entry.code#budget', model: asModel('Lab.Entry'), field: 'code',
+    lifecycle: 'validate-fields', input: { name: 'value', type: 'text' }, result: { type: 'bool' },
+    implementation: { unit: 'field', export: 'check', fingerprint },
+  };
+  const joined = await joinGivenFieldValidations(asm, art, [binding, { ...binding, rule: 'Lab.Tag.name#budget', model: asModel('Lab.Tag'), field: 'name' }]);
+  const first = joined.get(asModel('Lab.Entry'))![0]!;
+  assert.equal(first.evaluate, joined.get(asModel('Lab.Tag'))![0]!.evaluate);
+  assert.equal(await first.evaluate('é'.repeat(64)), true);
+  assert.equal(await first.evaluate('é'.repeat(65)), false);
+  await assert.rejects(joinGivenFieldValidations(asm, art, [{ ...binding, implementation: { ...binding.implementation, fingerprint: '0'.repeat(64) } }]), /fingerprint mismatch/);
+  const changed = structuredClone(art);
+  changed.modules.find(item => item.path.endsWith('/budget.js'))!.js += '\n// edited';
+  await assert.rejects(joinGivenFieldValidations(asm, changed, [binding]), /fingerprint mismatch|differs|changed/);
 });
 
 test('BGI-08 resolver runs the saved export after fingerprint verification', async () => {

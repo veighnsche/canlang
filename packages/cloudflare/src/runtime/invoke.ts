@@ -90,6 +90,7 @@ import type {
   ModelName,
   MutationResult,
   OccurrenceId,
+  OperationName,
   OutboxId,
   OutboxIntent,
   OutboxItem,
@@ -101,6 +102,7 @@ import type {
   ReceiptResultContext,
   RetainedOutboxIntent,
   RecordId,
+  RecordParent,
   RecordVersion,
   ResolvedIdentity,
   RetryClass,
@@ -165,7 +167,7 @@ import { AssemblyCorrespondenceError, hasAssemblerModuleCapability, importVerifi
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
-import { joinGivenUniqueKeys } from "./given-unique-keys.js";
+import { joinGivenUniqueKeys, joinGivenFieldValidations } from "./given-unique-keys.js";
 import { freezeBoundJudgmentRequest } from './bound-judgment.js';
 import { freezeJudgmentSource } from '@canlang/services/judgments/specification';
 import type { StaticJudgmentDescriptor } from '@canlang/services';
@@ -842,6 +844,51 @@ export function mapScenarioPolicyToBy(opName: string, entry: unknown): Canonical
   return mapCrudPolicyToBy(opName, admission);
 }
 
+interface NativeCrudCandidateBinding {
+  readonly module: string;
+  readonly model: string;
+  readonly key: string;
+  readonly evaluate: (context: HandlerContext, row: Record<string, unknown>) => unknown;
+}
+const nativeCrudCandidateBindings = new WeakMap<LoadedCanonicalDescriptors, ReadonlyMap<string, NativeCrudCandidateBinding>>();
+const nativeCrudCandidateAssemblies = new WeakMap<CompileArtifact, AssembledModules>();
+
+/** Presence is not authority: join the original checked operation and callback. */
+async function bindNativeCrudCandidate(asm: AssembledModules, artifact: CompileArtifact,
+  operation: PreloadOperation, callable: PreloadCallable, registry: unknown, policy: unknown): Promise<NativeCrudCandidateBinding | undefined> {
+  const imported: unknown = requiresVerifiedAssemblyImports(asm, artifact)
+    ? await importVerifiedAssemblyModule(asm, callable.module, artifact) : await import(asm.moduleUrls[callable.module]!);
+  const own = (value: unknown, key: string): unknown => isUnknownRecord(value)
+    ? readMetadataMember(value, key, 'CRUD candidate admission')?.value : undefined;
+  const declaration = own(own(own(imported, 'appDefinition'), 'operations'), operation.name);
+  const key = own(declaration, 'when');
+  const claimed = own(policy, 'when');
+  if (key === undefined) {
+    if (claimed === true) mapCrudPolicyToBy(operation.name, policy);
+    return undefined;
+  }
+  // Full artifact/module-byte verification is mandatory before any code can
+  // replace the legacy data-only refusal. The callback never comes from input.
+  await verifyCheckedAssembly(asm, artifact);
+  const model = own(declaration, 'model');
+  const callables = artifact.callables.filter(candidate => candidate.id === operation.name);
+  const originalCallable = callables[0];
+  const evaluate = own(own(registry, 'crudWhen'), typeof key === 'string' ? key : '');
+  if (claimed !== true || typeof key !== 'string' || key === '' || typeof model !== 'string' ||
+      operation.name !== `${model}.${operation.kind}` || own(declaration, 'kind') !== operation.kind ||
+      own(declaration, 'handler') !== operation.name ||
+      !artifact.models?.some(candidate => candidate.name === model) ||
+      callables.length !== 1 || originalCallable === undefined || originalCallable.module !== callable.module ||
+      originalCallable.member.length !== 1 || originalCallable.member[0] !== operation.name || typeof evaluate !== 'function') {
+    throw new AssemblyCorrespondenceError('CRUD candidate admission lacks its exact original operation/model/key/callback association.');
+  }
+  const original = nativeCrudCandidateAssemblies.get(artifact);
+  if (original !== undefined && original !== asm) throw new AssemblyCorrespondenceError('CRUD candidate admission changed its original assembly.');
+  nativeCrudCandidateAssemblies.set(artifact, asm);
+  return Object.freeze({ module: callable.module, model, key,
+    evaluate: evaluate as NativeCrudCandidateBinding['evaluate'] });
+}
+
 /* ------------------------------------------------------------------ */
 /* Read-policy transcription joins public rule marks to their owning   */
 /* appDefinition model readGrants. State owns typed-secret metadata and */
@@ -1320,6 +1367,7 @@ interface StateInvokeProducer {
     readonly trustedSource?: string;
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
     readonly observeCommittedReceipt?: (receipt: Receipt) => void;
+    readonly observeRejectedReceipt?: (receipt: Receipt) => void;
     /**
      * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
      * `ConflictServerOnly`). The holder builds it from the loaded
@@ -1384,6 +1432,7 @@ interface StateCrudProducer {
 
 /** Structural view of the state model-table module (T16a builder). */
 interface StateModelsProducer {
+  readonly FIELD_VALIDATION_VERSION?: number;
   readonly getUniqueGroupProfile?: (def: unknown, key: string) => unknown;
   buildModelTableFromCanonical(
     models: ReadonlyArray<unknown>,
@@ -1406,6 +1455,7 @@ interface StateModelsProducer {
        * `state.unique-key@1` bindings). Omission keeps the legacy posture.
        */
       readonly givenUniqueKeys?: ReadonlyMap<ModelName, ReadonlyArray<import('@canlang/state/effects/staging').GivenUniqueKeyRule>>;
+      readonly givenFieldValidations?: ReadonlyMap<ModelName, ReadonlyArray<import('@canlang/state/effects/staging').GivenFieldValidationRule>>;
     },
   ): unknown;
 }
@@ -1725,6 +1775,7 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
     },
     models: {
+      ...(typeof modelsMod['FIELD_VALIDATION_VERSION'] !== 'number' ? {} : { FIELD_VALIDATION_VERSION: modelsMod['FIELD_VALIDATION_VERSION'] }),
       buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"],
       ...(typeof modelsMod['getUniqueGroupProfile'] !== 'function' ? {} : {
         getUniqueGroupProfile: modelsMod['getUniqueGroupProfile'] as NonNullable<StateModelsProducer['getUniqueGroupProfile']>,
@@ -1847,6 +1898,7 @@ const REQUIRES_CONTRACT_FOR_CAPABILITY: Readonly<Record<string, "state" | "value
   state: "state",
   "state.machines": "state",
   "state.parameters": "state",
+  "state.field-validation": "state",
   "values.decimal": "values",
   "values.int64": "values",
   "values.money": "values",
@@ -2391,6 +2443,10 @@ async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileAr
 }
 
 async function verifyCheckedAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void> {
+  const crudAssembly = nativeCrudCandidateAssemblies.get(artifact);
+  if (crudAssembly !== undefined) {
+    if (crudAssembly !== asm) throw new AssemblyCorrespondenceError('CRUD candidate admission changed its original assembly.');
+  }
   const cached = canonicalCache.get(artifact);
   const original = rowPolicyAssemblies.get(artifact) ?? cached?.rowPolicyAssembly ?? cached?.scenarioAssembly ?? cached?.callbackAssembly;
   if (original !== undefined && asm !== original) throw new AssemblyCorrespondenceError('Checked source requires its original verified assembly.');
@@ -4331,11 +4387,18 @@ async function loadCanonicalDescriptorsInternal(
   const unsupportedHookOperations = new Set(hookOccurrences.keys());
   const ops = readPreloadOperations(artifact);
   const crudBy = new Map<string, CanonicalByPredicate>();
+  const crudCandidates = new Map<string, NativeCrudCandidateBinding>();
   for (const op of ops) {
     if (op.kind === "create" || op.kind === "update" || op.kind === "delete") {
       const callable = resolvePreloadCallable(artifact, op);
       const registry = await importPolicyRegistry(asm, callable.module, op.name, artifact);
-      crudBy.set(op.name, mapCrudPolicyToBy(op.name, readOperationPolicyEntry(registry, op.name)));
+      const policy = readOperationPolicyEntry(registry, op.name);
+      const candidate = await bindNativeCrudCandidate(asm, artifact, op, callable, registry, policy);
+      if (candidate !== undefined) {
+        crudCandidates.set(op.name, candidate);
+        const { when: _verifiedCandidate, ...admission } = localPolicyObject(policy);
+        crudBy.set(op.name, mapCrudPolicyToBy(op.name, admission));
+      } else crudBy.set(op.name, mapCrudPolicyToBy(op.name, policy));
     } else if (op.kind === "scenario" ||
         (op.kind === "read" && artifact.callables.some(candidate => candidate.id === op.name))) {
       // B7: scenarios join admission transcription (absent -> deny;
@@ -4391,6 +4454,13 @@ async function loadCanonicalDescriptorsInternal(
   // any execution) and carry the rules on the one canonical table, so
   // scenario staging and CRUD share the same checked join.
   const givenUniqueKeys = await joinGivenUniqueKeys(asm, artifact, loaded.givenUniqueKeys);
+  if (artifact.givenContracts?.traits.some(trait => trait.validation !== undefined) === true && loaded.givenFieldValidations === undefined) {
+    throw new Error('Installed descriptor owner does not support field validation.');
+  }
+  if ((loaded.givenFieldValidations ?? []).length !== 0 && producers.models.FIELD_VALIDATION_VERSION !== 1) {
+    throw new Error('Artifact requires the installed state.field-validation v1 owner.');
+  }
+  const givenFieldValidations = await joinGivenFieldValidations(asm, artifact, loaded.givenFieldValidations ?? []);
   const table = producers.models.buildModelTableFromCanonical(loaded.models, {
     uniqueWhen: owningUniques.uniqueWhen,
     uniqueGroups: owningUniques.uniqueGroups,
@@ -4400,6 +4470,7 @@ async function loadCanonicalDescriptorsInternal(
     containment: loaded.containment,
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
     givenUniqueKeys,
+    givenFieldValidations,
   });
   for (const [model, groups] of owningUniques.uniqueGroups) for (const group of groups) {
     const def = (table as ModelTable).get(model);
@@ -4499,6 +4570,7 @@ async function loadCanonicalDescriptorsInternal(
     });
   }
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
+  if (crudCandidates.size > 0) nativeCrudCandidateBindings.set(canonical, crudCandidates);
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioNominalFiles(canonical, artifact);
@@ -4621,6 +4693,8 @@ export interface CanonicalMutationOpts {
   readonly store: StoragePort;
   readonly memberships: CanonicalMembershipReader;
   readonly now: () => number;
+  /** Trusted host notification after State confirms a durable rejected receipt. */
+  readonly observeRejectedReceipt?: () => void;
   /** Same real receipt observer used by read serving in this selected host. */
   readonly observer?: SelectedReceiptObserverBinding;
   /** Real finalized-file authority, bound by the selected host. */
@@ -4716,10 +4790,15 @@ function stagedKey(model: string, id: string): string {
  * (delegation list mirrors the commit guard; tsc enforces it).
  */
 export function withStagedOverlay(store: StoragePort, staged: StagedRowView): StoragePort {
+  const uniqueOwner = store.uniqueOwner;
   const refuseCohort = (): never => {
     throw new Error('t17b: staged overlay cannot serve physical cohort checkpoints over staged rows.');
   };
   return {
+    ...(uniqueOwner === undefined ? {} : {
+      uniqueOwner: (...args: Parameters<NonNullable<StoragePort['uniqueOwner']>>) =>
+        uniqueOwner.call(store, ...args),
+    }),
     historyReadBounded: () => {
       throw new Error('t17b: staged overlay cannot serve physical history over staged rows.');
     },
@@ -5758,6 +5837,7 @@ interface LocalOwnerPolicyControl {
   readonly hookCallables: ReadonlySet<string>;
   verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
   createOwnerFrame(input: { readonly deploymentBase?: string; readonly call: CanonicalSeamCall; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
+  createFixtureFrame(input: { readonly deploymentBase?: string; readonly context: InvocationContext; readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
 
@@ -6206,6 +6286,16 @@ async function loadLocalOwnerPolicyControl(input: {
   // carrier is verified. The issuer checks the whole JS/map closure even
   // when this module namespace is already in the ESM import cache.
   const verificationPath = modules[0]!.path;
+  const openFrame = ({ context: source, session, deploymentBase }: { readonly deploymentBase?: string; readonly context: InvocationContext;
+    readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) => {
+    const context = session.views.context;
+    if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(source) || activeFrames.has(context)) {
+      throw new input.native.producers.errors('validation', 'Owner model frame requires its exact fresh session context.');
+    }
+    const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }) };
+    activeFrames.set(context, frame);
+    return Object.freeze({ close() { frame.active = false; } });
+  };
   return Object.freeze({ policies, hookCallables, async verifyAssembly(asm: AssembledModules, artifact: CompileArtifact) {
     if (asm !== input.asm) {
       throw new input.native.producers.errors('validation', 'Native owner policies require their original verified assembly.');
@@ -6215,14 +6305,253 @@ async function loadLocalOwnerPolicyControl(input: {
       throw new input.native.producers.errors('validation', 'Native owner assembly no longer matches its captured artifact or module closure.');
     }
   }, createOwnerFrame({ call, session, deploymentBase }: { readonly deploymentBase?: string; call: CanonicalSeamCall; session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
-    const context = session.views.context;
-    if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(call.context) || activeFrames.has(context)) {
-      throw new input.native.producers.errors('validation', 'Owner model frame requires the exact fresh admitted session context.');
+    return openFrame({ context: call.context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
+  }, createFixtureFrame({ context, session, deploymentBase }: { readonly deploymentBase?: string; context: InvocationContext;
+    session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'> }) {
+    if (context.kind !== 'test' || session.views.context.kind !== 'test') {
+      throw new input.native.producers.errors('validation', 'Fixture model frame requires an isolated test context.');
     }
-    const frame = { active: true, ...(deploymentBase === undefined ? {} : { deploymentBase }) };
-    activeFrames.set(context, frame);
-    return Object.freeze({ close() { frame.active = false; } });
+    return openFrame({ context, session, ...(deploymentBase === undefined ? {} : { deploymentBase }) });
   } });
+}
+
+/** Dev/test-only stored snapshot setup. No source operation or transport route
+ * calls this helper; the runner owns its isolated store and verified self. */
+export async function materializeCanonicalExampleSnapshots(input: {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly store: StoragePort;
+  readonly identity: ResolvedIdentity;
+  readonly now: number;
+  readonly operationId: string;
+  readonly deploymentBase?: string;
+  readonly snapshots: readonly { readonly model: ModelName; readonly id: RecordId;
+    readonly parent?: RecordParent; readonly data: Readonly<Record<string, unknown>> }[];
+}): Promise<ReadonlyMap<string, StoredRow>> {
+  await verifyCheckedAssembly(input.asm, input.artifact);
+  const loaded = await loadCanonicalDescriptors(input.asm, input.artifact);
+  const StateError = loaded.producers.errors;
+  if (input.identity.actor === null || input.identity.team === null || !Number.isFinite(input.now)) {
+    throw new StateError('validation', 'Fixture snapshots require verified self and its isolated team/clock.');
+  }
+  const path = input.artifact.modules[0]?.path;
+  if (path === undefined) throw new StateError('validation', 'Fixture snapshots have no checked app module.');
+  const module: unknown = await importVerifiedAssemblyModule(input.asm, path, input.artifact);
+  const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', 'Fixture snapshots')?.value : undefined;
+  const app = isUnknownRecord(definition) ? readMetadataMember(definition, 'id', 'Fixture snapshots')?.value : undefined;
+  if (typeof app !== 'string' || app === '') throw new StateError('validation', 'Fixture snapshots have no checked app identity.');
+  const contextModule = await loadProducerModule('@canlang/state/invocation/context', 'fixture context owner');
+  const build = requireProducerFn(contextModule, 'buildContext', 'fixture context owner') as
+    typeof import('@canlang/state/invocation/context').buildContext;
+  const context = build({ identity: input.identity, operation: `${app}.fixtures` as OperationName,
+    operationId: input.operationId, source: 'example-fixture', now: input.now, app, kind: 'test' });
+  const policies = localOwnerPolicyControls.get(loaded);
+  await policies?.verifyAssembly(input.asm, input.artifact);
+  const revision = await input.store.readRevision();
+  const seen = new Set<string>();
+  const writes: import('@canlang/state/mutation').MutationWrite[] = [];
+  const resourceType = (type: string, active = new Set<string>()): boolean => {
+    const parsed = parseTypeId(type);
+    if (parsed.base.kind === 'file' || parsed.base.kind === 'delivery') return true;
+    if (parsed.base.kind === 'union') return parsed.base.arms.some(arm => resourceType(arm, active));
+    if (parsed.base.kind !== 'nominal' || active.has(parsed.base.path)) return false;
+    const name = parsed.base.path;
+    const contract = loaded.valueSchema?.contracts[name];
+    const alias = loaded.valueSchema?.aliases?.[name];
+    const next = new Set([...active, name]);
+    return contract !== undefined ? Object.values(contract.fields).some(field => resourceType(field.typeId, next))
+      : alias !== undefined && resourceType(alias.typeId, next);
+  };
+  for (const snapshot of input.snapshots) {
+    localPolicyObject(snapshot, ['model', 'id', 'data', 'parent']);
+    localPolicyObject(snapshot.data);
+    const model = loaded.models.find(candidate => candidate.name === snapshot.model);
+    const key = stagedKey(snapshot.model, snapshot.id);
+    if (model === undefined || typeof snapshot.id !== 'string' || snapshot.id === '' || seen.has(key) || !isUnknownRecord(snapshot.data)) {
+      throw new StateError('validation', 'Fixture snapshots require distinct declared model identities and domain data.');
+    }
+    seen.add(key);
+    if (Object.values(model.fields).some(field => field.delivery !== undefined || field.valueType !== undefined && resourceType(field.valueType))) {
+      throw new StateError('validation', 'Fixture file/delivery snapshots require their explicit resource materialization profile.');
+    }
+    const before = await input.store.load(snapshot.model, snapshot.id);
+    if (before !== null && (before.version !== 1 || before.archivedAt !== null ||
+        snapshot.parent !== undefined && (before.parent?.model !== snapshot.parent.model || before.parent.id !== snapshot.parent.id))) {
+      throw new StateError('validation', 'Fixture overrides require their original initial snapshot and unchanged parent.');
+    }
+    writes.push({ op: before === null ? 'create' : 'update', model: snapshot.model, id: snapshot.id,
+      data: structuredClone(snapshot.data), ...(before !== null || snapshot.parent === undefined ? {} : { parent: structuredClone(snapshot.parent) }) });
+  }
+  if (writes.length === 0) return new Map();
+  if (await input.store.readRevision() !== revision) throw new StateError('conflict', 'Fixture state changed during setup.');
+  const pipeline = await loadProducerModule(STATE_PIPELINE_SPECIFIER, 'fixture owner session');
+  const begin = requireProducerFn(pipeline, 'beginOwnerMutation', 'fixture owner session') as
+    typeof import('@canlang/state/mutation/pipeline').beginOwnerMutation;
+  const session = await begin({ table: loaded.table as ModelTable, store: input.store, context,
+    bounds: { maxRows: 1_000, maxWork: 10_000 }, secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
+    ...(policies === undefined ? {} : { policies: policies.policies }),
+    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema) });
+  const frame = policies?.createFixtureFrame({ context, session,
+    ...(input.deploymentBase === undefined ? {} : { deploymentBase: input.deploymentBase }) });
+  try {
+    await session.stage(writes, { cause: 'fixture' });
+    const effects = await session.finalize();
+    if (effects.history.length !== 0 || effects.schedules.length !== 0 || effects.writes.some(write =>
+      write.kind !== 'insert' && write.kind !== 'update' || !seen.has(stagedKey(write.model, write.row.id)))) {
+      throw new StateError('validation', 'Fixture setup produced effects outside its stored snapshot profile.');
+    }
+    const result = new Map<string, StoredRow>();
+    for (const write of effects.writes) if (write.kind === 'insert' || write.kind === 'update') {
+      result.set(stagedKey(write.model, write.row.id), write.row);
+    }
+    if (result.size !== seen.size) throw new StateError('validation', 'Fixture setup did not retain every requested snapshot.');
+    await policies?.verifyAssembly(input.asm, input.artifact);
+    await verifyCheckedAssembly(input.asm, input.artifact);
+    await input.store.commit({ expectedRevision: revision, writes: effects.writes,
+      uniqueClaims: effects.uniqueClaims, uniqueReleases: effects.uniqueReleases,
+      history: [], receipt: null, outbox: [], schedules: [] });
+    return result;
+  } finally { frame?.close(); }
+}
+
+/** One admitted CRUD operation borrows only its actual pre-write owner view. */
+async function createNativeCrudCandidateFrame(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly opts: CanonicalMutationOpts;
+  readonly call: CanonicalSeamCall;
+  readonly session: Pick<OwnerMutationSession, 'views' | 'read' | 'stage'>;
+  readonly binding: NativeCrudCandidateBinding;
+}) {
+  const { loaded, opts, call, session, binding } = input;
+  const StateError = loaded.producers.errors;
+  if (localPolicyContextFacts(session.views.context) !== localPolicyContextFacts(call.context) ||
+      nativeCrudCandidateBindings.get(loaded)?.get(call.context.operation) !== binding) {
+    throw new StateError('validation', 'CRUD candidate lacks its original admitted owner frame.');
+  }
+  let active = true, failed = false, firstFailure: unknown;
+  let currentViews: OwnerModelPolicyViews | undefined;
+  const views = (): OwnerModelPolicyViews => {
+    if (currentViews === undefined) throw new StateError('validation', 'CRUD candidate has no active State stage.');
+    return currentViews;
+  };
+  const fail = (error: unknown): never => { if (!failed) { failed = true; firstFailure = error; } throw firstFailure; };
+  const assertLive = (): void => {
+    if (failed) throw firstFailure;
+    if (!active) throw new StateError('validation', 'CRUD candidate frame is closed.');
+    views().consumeWork(0);
+  };
+  const refuse = (): never => fail(new StateError('validation', 'CRUD preconditions cannot mutate or access raw storage.'));
+  const revision = call.checkpoint?.revision;
+  if (revision === undefined) throw new StateError('validation', 'CRUD precondition needs its admitted checkpoint.');
+  const ownerStore: StoragePort = { ...opts.store,
+    load: async (model, id) => { assertLive(); const row = await views().final.get(model, id); assertLive(); return row; },
+    query: async request => { assertLive(); const rows = await views().final.query({ ...request, authority: 'owner', limit: views().maxRows }); assertLive(); return [...rows]; },
+  };
+  const navigation = await createContainmentNavigation({ loaded, store: ownerStore, revision,
+    actorUserId: call.context.actor?.userId ?? null, teamId: call.context.team?.teamId ?? null,
+    memberships: opts.memberships, authority: 'owner', preserveOwnerRows: true, failure: fail });
+  const view = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> =>
+    nativeProjectedRecord(loaded, model, row, navigation, view);
+  const queryModule = await loadProducerModule('@canlang/state/query/engine', 'CRUD candidate query producer');
+  const queryRecords = requireProducerFn(queryModule, 'queryRecords', 'CRUD candidate query producer') as
+    typeof import('@canlang/state/query/engine').queryRecords;
+  const read = async (model: string, query: CanonicalReadQuery): Promise<readonly ProjectedRecord[]> => {
+    try {
+      assertLive();
+      if (!loaded.models.some(candidate => candidate.name === model) ||
+          Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+          query.authority !== undefined && query.authority !== 'owner' ||
+          query.archived !== undefined && !['include', 'exclude'].includes(query.archived)) {
+        throw new StateError('validation', 'CRUD candidate query differs from its checked owner domain.');
+      }
+      const parent = query.parent === undefined ? undefined : nativeRecordReference(query.parent);
+      if (query.parent !== undefined && (parent === undefined || loaded.containment.get(model) === undefined ||
+          (loaded.containment.get(model) as { parent?: string }).parent !== parent.model)) {
+        throw new StateError('validation', 'CRUD candidate query parent lacks its original owning model.');
+      }
+      const order: OrderTerm[] | undefined = query.order === undefined ? undefined :
+        localPolicyArray(query.order).map(term => {
+          if (typeof term !== 'string' || term === '' || term === '-') throw new StateError('validation', 'CRUD candidate query order needs checked field spellings.');
+          return { field: term.startsWith('-') ? term.slice(1) : term, direction: term.startsWith('-') ? 'desc' : 'asc' };
+        });
+      const rawLimit: unknown = query.limit;
+      const limit = typeof rawLimit === 'bigint' && rawLimit >= 0n && rawLimit <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(rawLimit) : rawLimit;
+      if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+        throw new StateError('validation', 'CRUD candidate query limit needs a nonnegative safe integer.');
+      }
+      const candidates = await views().final.query({ model: model as ModelName, authority: 'owner',
+        limit: views().maxRows, archived: 'include', ...(parent === undefined ? {} : { parent: { model: parent.model as ModelName, id: parent.id as RecordId } }) });
+      assertLive();
+      const descriptor = loaded.models.find(candidate => candidate.name === model)!;
+      const evaluate = (rows: readonly StoredRow[], final: boolean) => queryRecords({ model: model as ModelName,
+        authority: 'owner', modelDescriptor: descriptor, policy: loaded.policy as import('@canlang/state/policy/grants').PolicyTable,
+        context: { actorUserId: call.context.actor?.userId ?? null, teamId: call.context.team?.teamId ?? null }, memberships: opts.memberships,
+        store: { ...ownerStore, query: async request => rows.filter(row => request.archived === 'include' || row.archivedAt === null) },
+        archived: query.archived ?? 'exclude',
+        ...(typeof query.where === 'function' || query.where === undefined ? {} : { where: query.where as QueryPredicate }),
+        ...(order === undefined ? {} : { order }), ...(final && limit !== undefined ? { limit: limit as number } : {}) });
+      let served = await evaluate(candidates, typeof query.where !== 'function');
+      if (typeof query.where === 'function') {
+        const matched: StoredRow[] = [];
+        for (const row of served.rows) {
+          views().consumeWork();
+          await navigation.prepare(model, row);
+          assertLive();
+          const answer: unknown = await query.where(view(model, row));
+          assertLive();
+          if (typeof answer !== 'boolean') throw new StateError('validation', 'CRUD candidate query predicate must return bool.');
+          if (answer) matched.push(row);
+        }
+        served = await evaluate(matched, true);
+      }
+      assertLive();
+      return served.rows.map(row => ({ ...row, parent: row.parent ?? null }));
+    } catch (error) { return fail(error); }
+  };
+  const scope: CanonicalEffectsScope = { operation: call.context.operation, stageWrite: async () => refuse(),
+    createRecord: async () => refuse(), setRecord: async () => refuse(), deleteRecord: async () => refuse(), readModel: read,
+    readRecords: async (model, query) => {
+      const rows = await read(model, query);
+      const records: Record<string, unknown>[] = [];
+      for (const row of rows) { await navigation.prepare(model, row); assertLive(); records.push(view(model, row)); }
+      return records;
+    } };
+  const deniedStore = new Proxy(Object.create(null) as StoragePort, { get: () => refuse() });
+  const actor = call.context.actor?.userId ?? null;
+  const team = call.context.team?.teamId ?? null;
+  const membership = actor === null || team === null ? null : await opts.memberships.findMembership(team, actor);
+  const roleGrants = membership?.status === 'active' ? membership.roles.map(grant => grant.role) : [];
+  const builtins = ['public', ...(actor === null ? [] : ['authenticated']),
+    ...(membership?.status !== 'active' ? [] : ['members', ...(membership.is_owner ? ['owner'] : [])])];
+  const roleSnapshot = membership?.status === 'active' ? snapshotCallerRoles(roleGrants, membership.is_owner) : null;
+  const context = createContext({ ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }),
+    caller: Object.freeze({ userId: actor ?? 'anonymous', roles: Object.freeze([...roleGrants]) as unknown as string[] }), store: deniedStore,
+    memberships: Object.freeze([...builtins, ...roleGrants]) as unknown as string[],
+    clock: () => { assertLive(); return call.context.now; }, qualified: call.context,
+    ...(opts.preferences === undefined ? {} : { preferences: opts.preferences }),
+    ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }), canonical: scope });
+  return Object.freeze({ close() { active = false; },
+    guard: Object.freeze({ name: 'crud.candidate.roles', evaluate: async () => actor === null || team === null
+      ? roleSnapshot === null : await readCallerRolesSnapshot(opts.memberships, team, actor) === roleSnapshot }),
+    admitCandidate: async (row: StoredRow, stageViews: OwnerModelPolicyViews): Promise<boolean> => {
+      try {
+        if (currentViews !== undefined || localPolicyContextFacts(stageViews.context) !== localPolicyContextFacts(session.views.context)) {
+          throw new StateError('validation', 'CRUD candidate changed its original State owner view.');
+        }
+        currentViews = stageViews;
+        assertLive();
+        await verifyCheckedAssembly(opts.asm, opts.artifact);
+        await navigation.prepare(binding.model, row);
+        assertLive();
+        const answer: unknown = await binding.evaluate(context, view(binding.model, row));
+        assertLive();
+        if (typeof answer !== 'boolean') throw new StateError('validation', 'CRUD candidate precondition must return bool.');
+        await verifyCheckedAssembly(opts.asm, opts.artifact);
+        return answer;
+      } catch (error) { return fail(error); }
+      finally { currentViews = undefined; }
+    },
+  });
 }
 
 /** Work stages read the merged overlay through the defining State matcher. */
@@ -8382,22 +8711,37 @@ async function invokeCanonicalMutation(
         ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
       }),
     };
-    if (ownerControl === undefined) {
+    const candidateBindings = nativeCrudCandidateBindings.get(loaded);
+    if (ownerControl === undefined && candidateBindings === undefined) {
       crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
     } else {
       const executeOwner = loaded.producers.crud.generatedCrudExecuteOwnerSession;
       if (typeof executeOwner !== 'function') {
         throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
       }
+      const candidateGuards = new WeakMap<InvocationContext, CanonicalGuardRevalidation>();
       const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
         secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
-        ownerPolicies: ownerControl.policies,
+        ...(ownerControl === undefined ? {} : { ownerPolicies: ownerControl.policies }),
         ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
-        createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session,
-          ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) }),
+        createOwnerFrame: async ({ call, session }) => {
+          const ordinary = ownerControl?.createOwnerFrame({ call, session,
+            ...(opts.deploymentBase === undefined ? {} : { deploymentBase: opts.deploymentBase }) });
+          const binding = candidateBindings?.get(call.context.operation);
+          try {
+            const candidate = binding === undefined ? undefined : await createNativeCrudCandidateFrame({ loaded, opts, call, session, binding });
+            if (candidate !== undefined) candidateGuards.set(call.context, candidate.guard);
+            return Object.freeze({ close() { candidate?.close(); ordinary?.close(); },
+              ...(candidate === undefined ? {} : { admitCandidate: candidate.admitCandidate }) });
+          } catch (error) { ordinary?.close(); throw error; }
+        },
       });
       // Canonical admission supplies the defining State call at this seam.
-      crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+      crudExecute = async call => {
+        const effects = await (execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>)(call);
+        const guard = candidateGuards.get(call.context);
+        return guard === undefined ? effects : { ...effects, guards: [...effects.guards ?? [], guard] };
+      };
     }
   }
   // One opaque ID per actual schedule ordinal, retained across State retries.
@@ -8407,6 +8751,7 @@ async function invokeCanonicalMutation(
   const result = await invoke({
     registry: loaded.registry,
     observeCommittedReceipt: receipt => { committedReceipt = receipt; },
+    ...(opts.observeRejectedReceipt === undefined ? {} : { observeRejectedReceipt: opts.observeRejectedReceipt }),
     envelope: {
       operation: opts.operation,
       operation_id: opts.operationId,
@@ -12128,6 +12473,9 @@ export function createPageReadScopeCanonical(
   // Predicate candidates and navigation views are not final page admissions.
   // Only the exact objects returned after the owning read revalidation qualify.
   const historyViews = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
+  // Exact final query objects alone may expose native source fields. The wire
+  // RowView remains unchanged for saved renderers, mount JSON and history.
+  const sourceRows = new WeakMap<object, Readonly<Record<string, unknown>>>();
   let revision: number | undefined;
   let closed = false;
   const pageFiles = opts.pageFiles === undefined ? undefined : Object.freeze({
@@ -12183,10 +12531,10 @@ export function createPageReadScopeCanonical(
       ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
     const singular = new Map<string, FileValue>();
-    for (const [field, value] of Object.entries(wire)) {
+    for (const field of Object.keys(wire)) {
       const profile = bindProfile(bound, model as ModelName, field);
       if (!profile.fileBearing) continue;
-      for (const occurrence of occurrences(profile, value)) {
+      for (const occurrence of occurrences(profile, wire[field])) {
         let file: unknown = Object.getOwnPropertyDescriptor(native, field)?.value;
         for (const part of occurrence.path) {
           file = typeof file === 'object' && file !== null
@@ -12371,7 +12719,13 @@ export function createPageReadScopeCanonical(
       const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact, opts.store);
       const rows = [];
       for (const row of served.rows) {
-        const fields = { ...row.fields };
+        const fields: Record<string, unknown> = Object.create(null);
+        for (const [field, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(row.fields))) {
+          Object.defineProperty(fields, field, 'value' in descriptor
+            ? { ...descriptor, configurable: true, writable: true }
+            : { enumerable: descriptor.enumerable === true, configurable: true, get: () => descriptor.get?.call(row.fields) });
+        }
+        const nativeFields = new Set<string>();
         if (filePresentation !== undefined) {
           const ports = await loadProducerModule('@canlang/state', 'state declared File census');
           const bindProfile = requireProducerFn(ports, 'bindFileReferenceProfile', 'state declared File census') as
@@ -12380,15 +12734,38 @@ export function createPageReadScopeCanonical(
             canonicalModels: loaded.models,
       ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
       ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }) };
-          for (const [field, value] of Object.entries(fields)) {
+          for (const field of Object.keys(fields)) {
             if (bindProfile(bound, model as ModelName, field).fileBearing) {
-              fields[field] = nativeRecordField(loaded, model, field, value);
+              const value = nativeRecordField(loaded, model, field, fields[field]);
+              Object.defineProperty(fields, field, { enumerable: true, configurable: true, writable: true, value });
+              nativeFields.add(field);
             }
           }
           await bindFiles(loaded, model, row.id, Number(row.version) as RecordVersion, row.fields, fields);
         }
         const returned = filePresentation === undefined ? row : Object.freeze({ ...row, fields: Object.freeze(fields) });
         if (filePresentation !== undefined) originalFiles.set(returned, originalFiles.get(fields) ?? new Map());
+        const projectedFields = returned.fields;
+        const descriptors = Object.getOwnPropertyDescriptors(projectedFields);
+        const source: Record<string, unknown> = Object.create(null);
+        for (const [field, descriptor] of Object.entries(descriptors)) {
+          // State's projected data is detached now, before a saved renderer can
+          // mutate its wire object. Accessor reads retain their authored order
+          // and original receiver; unused fields are never evaluated/decoded.
+          const captured = 'value' in descriptor
+            ? (nativeFields.has(field) ? descriptor.value : structuredClone(descriptor.value)) : undefined;
+          Object.defineProperty(source, field, { enumerable: descriptor.enumerable === true,
+            get: () => {
+              if (closed) throw new AssemblyCorrespondenceError('Page read scope is closed.');
+              const value = 'value' in descriptor ? captured : descriptor.get?.call(projectedFields);
+              return nativeFields.has(field) ? value : nativeRecordField(loaded, model, field, value);
+            } });
+        }
+        Object.defineProperties(source, {
+          id: { enumerable: true, value: returned.id },
+          version: { enumerable: true, value: BigInt(returned.version!) },
+        });
+        sourceRows.set(returned, Object.freeze(source));
         rows.push(returned);
       }
       await checkpoint();
@@ -12451,7 +12828,21 @@ export function createPageReadScopeCanonical(
         fence,
       });
       await checkpoint();
-      return result;
+      // State owns current-grant projection and retained wire audit data. Only
+      // this presentation adapter decodes the declared singular native leaves;
+      // metadata, nulls, omitted fields and stored history remain unchanged.
+      const fields = loaded.models.find(model => model.name === binding.model)!.fields;
+      const nativeFields = new Set(Object.entries(fields).filter(([, field]) => {
+        if (field.valueType === undefined) return false;
+        const type = parseTypeId(field.valueType);
+        return !type.array && (type.base.kind === 'user' ||
+          type.base.kind === 'scalar' && type.base.name === 'datetime');
+      }).map(([name]) => name));
+      const record = (value: Readonly<Record<string, unknown>> | null) => value === null ? null :
+        Object.freeze(Object.fromEntries(Object.entries(value).map(([field, wire]) => [field,
+          nativeFields.has(field) ? nativeRecordField(loaded, binding.model, field, wire) : wire])));
+      return Object.freeze({ ...result, entries: Object.freeze(result.entries.map(entry =>
+        Object.freeze({ ...entry, before: record(entry.before), after: record(entry.after) }))) });
     },
     ...(requiresCallbackReadCorrespondence(opts.artifact) ? {
       observeGenerationCallbackDiagnostics: async (locator: Parameters<PageGenerationCallbackDiagnosticsObserver>[0]) => {
@@ -12570,6 +12961,13 @@ export function createPageReadScopeCanonical(
     await checkpoint();
     await bindOriginalPageWhere(opts, predicateScope, where, marker);
     await checkpoint();
+  }, async row => {
+    await checkpoint();
+    const source = sourceRows.get(row);
+    if (source === undefined) {
+      throw new AssemblyCorrespondenceError('Native source fields require their original final page query row.');
+    }
+    return source;
   });
   return scope;
 }
@@ -12754,7 +13152,12 @@ export async function createWorkerDispatchJoinPort(
  */
 export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort): StoragePort {
   const historyReadBounded = store.historyReadBounded;
+  const uniqueOwner = store.uniqueOwner;
   return {
+    ...(uniqueOwner === undefined ? {} : {
+      uniqueOwner: (...args: Parameters<NonNullable<StoragePort['uniqueOwner']>>) =>
+        uniqueOwner.call(store, ...args),
+    }),
     ...(historyReadBounded === undefined ? {} : {
       historyReadBounded: (input: Parameters<NonNullable<StoragePort['historyReadBounded']>>[0]) =>
         historyReadBounded.call(store, input),

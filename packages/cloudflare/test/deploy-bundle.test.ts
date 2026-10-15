@@ -264,6 +264,7 @@ describe("deploy bundle (P-B)", () => {
       "runtime/sourcemap.js",
       "runtime/mcp-registry.js",
       "runtime/env-assembly.js",
+      "runtime/page-cursor.js",
       "runtime/grant-route.js",
     ]) {
       expect(bundle.modules[name], `pinned ${name} must be staged`).toBeDefined();
