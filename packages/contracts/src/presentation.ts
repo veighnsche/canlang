@@ -1323,7 +1323,7 @@ export interface DividerProps {
 /** `link` checked destination or authorized file URL. */
 export interface LinkProps {
   readonly context: PresentationContext;
-  readonly target: string;
+  readonly target: string | FileValue | null;
   readonly caption?: MessageValue;
   readonly tone?: AppearanceTone;
 }

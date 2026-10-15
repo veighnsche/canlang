@@ -501,6 +501,25 @@ describe("link", () => {
     assert.equal(html, `<a class="link" href="/docs/guide">Guide</a>`);
   });
 
+  it("uses the source-bound File presenter and refuses missing or copied authority", async () => {
+    const file = { kind: "file" as const, id: "original" };
+    const calls: unknown[] = [];
+    const failure = new Error("source authority denied");
+    const context = makeContext({ presentFile: async value => {
+      calls.push(value);
+      if (value !== file) throw failure;
+      return { href: "/files/read/original", name: "Report <PDF>" };
+    } });
+    assert.equal(await link({ context, target: file }), '<a class="link" href="/files/read/original">Report &lt;PDF&gt;</a>');
+    assert.deepEqual(calls, [file]);
+    await assert.rejects(link({ context, target: { ...file } }), error => error === failure);
+    await assert.rejects(link({ context: makeContext(), target: file }), /source-bound presenter/);
+    const absent = await link({ context, target: null, caption: "Open" });
+    const withheld = await link({ context: makeContext({ presentFile: async () => null }), target: file, caption: "Open" });
+    for (const html of [absent, withheld]) { assert.ok(html.includes('aria-disabled="true"')); assert.ok(!html.includes('href=')); }
+    await assert.rejects(link({ context: makeContext({ presentFile: async () => ({ href: "javascript:bad()" }) }), target: file }), /invalid authorized link/);
+  });
+
   it("falls back to target text when no caption is given", async () => {
     const html = await link({ context: makeContext(), target: "https://example.com/x" });
     assert.equal(html, `<a class="link" href="https://example.com/x">https://example.com/x</a>`);

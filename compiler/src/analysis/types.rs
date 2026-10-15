@@ -9412,6 +9412,68 @@ impl<'a> Typer<'a> {
         );
     }
 
+    /// URL and source-bound File destinations share one checked attribute profile.
+    fn check_ui_destination_attributes(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, word: &str) {
+        if word == "link" && attribute_value(node, "target", cx.text).is_none() {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "link requires one target".into(),
+                node.span,
+            ));
+        }
+        if matches!(word, "button" | "link")
+            && (attribute_value(node, "target", cx.text).is_some()
+                || attribute_value(node, "caption", cx.text).is_some())
+        {
+            for name in ["target", "caption"] {
+                let Some(value) = attribute_value(node, name, cx.text) else {
+                    continue;
+                };
+                let ty = self.expr(cx, value, None);
+                let valid = if name == "target" {
+                    // Accepted destination types remain valid source;
+                    // URL/File emission needs its separate native profile.
+                    matches!(
+                        ty,
+                        ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
+                            | ResolvedType::Error
+                    ) || matches!(&ty, ResolvedType::Nullable(inner)
+                        if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
+                } else {
+                    (word == "link" && ty == ResolvedType::Scalar(Scalar::Url))
+                        || matches!(
+                            ty,
+                            ResolvedType::Scalar(Scalar::Text)
+                                | ResolvedType::InlineMessage
+                                | ResolvedType::Message(_)
+                                | ResolvedType::Error
+                        )
+                };
+                if !valid {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        format!(
+                            "{word} {name} needs {}",
+                            if name == "target" {
+                                "text, url, file or nullable file"
+                            } else {
+                                "text or a message descriptor"
+                            }
+                        ),
+                        tight_span(cx.text, value),
+                    ));
+                }
+                for (call, span) in self.effectful_calls(value, cx.text) {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("{word} {name} must be pure; '{call}' is not allowed here"),
+                        span,
+                    ));
+                }
+            }
+        }
+    }
+
     /// A bound tabs owner supplies its exact enum only to direct tab headers.
     /// Body/gate scopes and lexical name resolution remain the ordinary UI walk.
     #[allow(clippy::too_many_arguments)]
@@ -9455,6 +9517,9 @@ impl<'a> Typer<'a> {
                     format!("{word} needs an explicit action owner: page, card, list/table row, drawer details, or modal/drawer slot actions")
                 }, node.span));
             }
+        }
+        if word == "link" {
+            self.check_ui_destination_attributes(cx, node, word);
         }
         let child_action_owner = match node.kind {
             SyntaxKind::Form | SyntaxKind::Edit => UiActionOwner::Form,
@@ -10088,55 +10153,8 @@ impl<'a> Typer<'a> {
                     let ty = self.expr(cx, open, None);
                     self.expect_bool(cx, tight_span(cx.text, open), &ty, "`collapse open=`");
                 }
-                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("button")
-                    && (attribute_value(node, "target", cx.text).is_some()
-                        || attribute_value(node, "caption", cx.text).is_some())
-                {
-                    for name in ["target", "caption"] {
-                        let Some(value) = attribute_value(node, name, cx.text) else {
-                            continue;
-                        };
-                        let ty = self.expr(cx, value, None);
-                        let valid = if name == "target" {
-                            // Accepted destination types remain valid source;
-                            // URL/File emission needs its separate native profile.
-                            matches!(
-                                ty,
-                                ResolvedType::Scalar(Scalar::Text | Scalar::Url | Scalar::File)
-                                    | ResolvedType::Error
-                            ) || matches!(&ty, ResolvedType::Nullable(inner)
-                                if inner.as_ref() == &ResolvedType::Scalar(Scalar::File))
-                        } else {
-                            matches!(
-                                ty,
-                                ResolvedType::Scalar(Scalar::Text)
-                                    | ResolvedType::InlineMessage
-                                    | ResolvedType::Message(_)
-                                    | ResolvedType::Error
-                            )
-                        };
-                        if !valid {
-                            self.diags.push(Diagnostic::error(
-                                "E3001",
-                                format!(
-                                    "button {name} needs {}",
-                                    if name == "target" {
-                                        "text, url, file or nullable file"
-                                    } else {
-                                        "text or a message descriptor"
-                                    }
-                                ),
-                                tight_span(cx.text, value),
-                            ));
-                        }
-                        for (call, span) in self.effectful_calls(value, cx.text) {
-                            self.diags.push(Diagnostic::error(
-                                "E3010",
-                                format!("button {name} must be pure; '{call}' is not allowed here"),
-                                span,
-                            ));
-                        }
-                    }
+                if word == "button" {
+                    self.check_ui_destination_attributes(cx, node, word);
                 }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("stat")
                     && let Some(value) = attribute_value(node, "description", cx.text)
