@@ -2,6 +2,19 @@
 
 ## Current remainder and finite completion
 
+**Original24 qualification at8c2dc7fe (2026-10-15).**
+Exact retained argv includes native scenario receipts, all24 original operands,
+unchanged Values catalog and saved Given closure. Frozen compiler exits10 in
+409.91s: complete=true, omitted0, 656 diagnostics (630 E6008 +26 E6007), no artifact;
+all26 consumed source records unchanged, removed0/added0. Reuse this result until
+an applicable producer change. Same selected source bytes/native flag with Values
+versus native catalog yields only active_member E6007 versus a successful artifact,
+respectively; neither reproduces the full-cohort created-Model/first refusal.
+Thus catalog availability alone does not explain that separate compiler gap.
+Reports and exact argv: `/tmp/cancrm-canonical-fixtures-20261015-*` and
+`/tmp/can-crm-catalog-discriminator-*`. Next compiler action is authentic full
+intake source-join inspection rather than another unchanged full emission.
+
 **C02 User/enum composite uniqueness (2026-10-15, qualified component).**
 Original CompanyRole source correctly emits account:user + inline role enum.
 Existing closed runtime tuple support now handles those canonical User values,
@@ -10,11 +23,11 @@ existing User decoder and storage fence; ref/enum encoding stays unchanged. CF
 joins sparse native kinds to the exact owning declaration without new metadata.
 State source10/3.95s pass, including Memory/D1 concurrency/rollback/swaps/replay/
 stale controls; actual-source CF association/refusal2/.85s pass. Isolated normal
-State/Work/CF builds pass with a coherent single State stage owner. Original6
-post-fix native run remains required; the latest attempt lacked shared Testkit
-output before capture. Original24 canonical-fixture compiler run is live with
-explicit retained argv, frozen private binary and unchanged supplied Values
-catalog; no diagnostic removal credit until its terminal report.
+State/Work/CF builds pass with a coherent single State stage owner. The post-fix
+original6 run passes that profile gate, then all6 setup-refuse Employee invariant
+activation before business invocation. Its original date invariant stays intact.
+The isolated Contracts/State/Work/Testkit/Files/Interfaces/CF normal producer
+closure is built and frozen; this run is not invalidated by missing output.
 
 **C02 canonical fixture provider emission (2026-10-15, qualified component).**
 Resolved fixture reads/dependencies use canonical declaration keys. One provider
@@ -25,10 +38,9 @@ example/sequence expectations remain unchanged. Frozen isolated producer passes
 8 focused checks (new actual-source/Node identity1/.13s; existing fixture/role/
 order5/.30s; tables1; sequences1) and locked CLI build. Retained compiler binary
 `/tmp/can-compiler-canonical-fixtures`; compatible shared target reused. Actual
-six promotion rows still await whole current runtime/catalog inputs. A later
-selected emission lost its catalog during failed package output replacement,
-so supplied no additional source/native qualification. No original24 removals
-are claimed from this fixture-only component.
+six promotion rows now reach canonical fixture setup with the frozen runtime
+closure; invariant activation remains unfinished. No original24 removals are
+claimed from this fixture-only component.
 
 **C02 typed record-route reader lifecycle (2026-10-15, qualified prerequisite).**
 All5 dynamic normalization refusals are single Model record routes;66 row-render
@@ -51,16 +63,18 @@ caller conflicts and foreign recipe replacement refuse before setup. Legacy
 non-import modules retain their path. Direct emitted-JS controls2/38.7ms pass.
 Normal CF build currently fails unrelated concurrent deploy/resource-host/root-
 authority edits; no complete producer/current-input qualification follows.
-Compiler provider emission and all6 original promotion rows remain required.
+Compiler provider emission is qualified separately above; all6 original
+promotion rows remain required.
 
 **C02 original promotion native consumer (2026-10-15, unfinished).**
 The exact selected schemas/policies/saved Given and both inline tables emit3
 queries with verified consumed source hashes. Canonical fixture linking now
-loads the original graph; all6 rows reached canonical setup and refused the
-User+enum CompanyRole unique profile before any business invocation. That runtime
-profile is qualified separately below. The next native attempt was invalidated
-before capture by missing shared Testkit output; isolate/freeze that remaining
-producer as with CF/State. No fixture/schema/policy/unique reductions qualify it.
+loads the original graph. With User+enum uniqueness fixed and the complete
+isolated producer closure frozen, the latest run setup-refuses all6 rows at
+`t17b: employee.Employee` invariant activation (6.52s), before business invocation.
+The original date invariant and complete policies remain unchanged. The earlier
+missing-Testkit attempt supplied no qualification; the latest failure is a real
+receiving gate. No fixture/schema/policy/unique reductions qualify it.
 Acceptance still requires all6 unchanged rows through default canonical hooks.
 
 **C02 typed nested example fixtures (2026-10-15, qualified component).**

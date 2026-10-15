@@ -17108,3 +17108,21 @@ no duplicate dependency install or Cargo cache was made. The original6 tables
 previously all failed setup on this exact gate; post-fix native execution awaits
 current Testkit outputs (the shared owner's output was removed during concurrent
 installation/runtime work). Whole original24 remains separately in progress.
+
+
+## 2026-10-15 — retain original CRM semantics at the next invariant gate
+
+The original24 qualification with canonical fixture producer 8c2dc7fe is terminal:
+409.91s, exit10, complete=true, omitted0, unchanged656 diagnostics and all26
+consumed source records; no artifact. A same-source selected catalog discriminator
+finds only active_member E6007 with Values and succeeds with the native catalog;
+neither reproduces the full-cohort created-Model/first refusal. Investigate the
+full intake association rather than treating catalog availability as its cause.
+
+The original six promotion examples now pass the User+enum uniqueness gate with
+a frozen coherent isolated producer closure, then all6 setup-refuse Employee
+invariant activation before invocation. Preserve its full date invariant, schema
+and permissions and fix the defining producer/consumer association. Earlier
+passing helper-native invariant coverage is evidence to locate the difference,
+not acceptance of this default runner path. No new language rule or workflow
+qualification is claimed; executable receiving and full-cohort joins remain open.
