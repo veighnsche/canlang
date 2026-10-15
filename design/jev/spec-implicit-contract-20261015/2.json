@@ -1,0 +1,68 @@
+{
+  "request": {
+    "state": {
+      "product_goals": "Can is an AI-authored compact CRUD-centered SaaS DSL. Maximize adoption; reduce generation/change tokens and repetition; one canonical primitive and shared defaults; source owns business choices and composition. Equivalence under helper extraction/import must retain authority, lexical meaning, order, atomicity, failure identity and recovery. Do not add a broad effect system or generalize for symmetry.",
+      "confirmed_destination_facts": [
+        "Current DESIGN9 defines nullable File button destination: original File uses existing current-authorized presenter; null or withheld renders authored caption disabled/non-navigable, no href; real authorization/configuration/unsafe-link/presenter failures remain errors. This accepted File behavior is retained for every option.",
+        "Compiler/UI link implementation recently supports nonnullable text/url/File/File?. Its runtime can render null inertly, but checker does not accept url?. Original CRM Activity.link:url? is optional reviewed evidence; page uses link target=row.link caption=Reviewed source. Business requirement needs safe present link, absence without navigation, no data-policy bypass; preserving this exact draft spelling or layout is NOT an acceptance condition.",
+        "Present URL means typed validated HTTP(S); existing nonnull text destinations may use checked app-relative routes. All options preserve once-only authored-order caption/target evaluation, hidden gates before operands, escaped caption/href, safe URL checks, no extra authority, current read grants, and original failures. Denied field is forbidden, not null. No new enum/nullable-text/array or arbitrary callback support is required.",
+        "Alternative source guard adds one ordinary null check per optional destination and uses existing nonnullable URL. Shared nullable URL defaults avoid repetition but enlarge accepted sink type. Default disabled preserves stable authored availability label; default omission avoids inert navigation controls. No specified business expectation chooses between disabled and omitted. File defaults are a precedent, not proof that URL must match."
+      ],
+      "confirmed_admission_facts": [
+        "DESIGN5 and compiler js15760 explicitly emit by permission check before evaluating omitted computed scenario defaults, then leading require and do in authored order. Existing enum/default tests trace permission before helpers; denied fresh calls do not run computed defaults. Parameter defaults may use earlier params and admitted fixed facts; read defaults may use viewer-authorized data. Supplied values suppress defaults; omission is distinct from explicit null. No membership State reads are gained by initializer helper calls.",
+        "Grammar permits by=expr and the design does not explicitly define whether by can read a parameter with an explicit default. Discriminator: scenario gated(allowed:bool=true) by=allowed. Current body-level default assignment comes after by, so omitted allowed is not the normalized source value during that check. This is an unclosed semantic/checking boundary; no verified original app requires default-dependent by.",
+        "All alternatives must retain actor/team/row authority, typed input validation, original authored guard/body order, receipt-first replay without rerunning body/defaults and current-access result redaction, fixed facts and atomicity. Any intentional change to when a default runs or failure precedence must be identified, not called mechanically equivalent. A false by must not silently become a default-evaluation error or leak inaccessible data.",
+        "Choice preserve-after-by would make by statically unable to depend on defaulted parameters (directly or through helpers), with required/supplied-only inputs and fixed facts available; default-dependent business checks belong in existing leading require, which differs in permission vs business error and must not be silently rewritten. Choice normalized-before-by supplies meaningful defaults for admission using existing pure/viewer restrictions, but changes denied-call execution and error order for computed defaults, requiring explicit adoption proof. A more complex split between constant and computed defaults is not currently accepted and should not be invented unless needed."
+      ],
+      "scope": "Advice on these two unresolved source-facing choices only. No code changes now. The specification must choose deterministic behavior and record missing checker/runtime implementation explicitly; existing implementation gaps are not external blockers."
+    },
+    "questions": {
+      "optional_url": {
+        "type": "choice",
+        "instructions": "Recommend the smallest complete language rule for links whose typed URL can be absent. Each alternative must meet the identical safe-navigation, permissions and evaluation contract. Weigh AI tokens, reusable defaults and workflow clarity fairly.",
+        "criteria": {
+          "explicit_guard": "Keep link URL target nonnullable. Author ordinary null guard when source is optional; absent control omitted by that guard. Current permissions and expression order remain; repeated optional-source guards cost source tokens.",
+          "nullable_disabled": "Accept typed url? for link destinations. Null yields authored caption (or shared unavailable caption) as noninteractive disabled link without href; nonnull uses identical checked navigation. Reuse shared null destination behavior without a new source spelling.",
+          "nullable_omitted": "Accept typed url? for link destinations. Null omits that link; nonnull uses identical checked navigation. Keep existing File disabled behavior separately; preserve gate and operand order/failures."
+        }
+      },
+      "admission_defaults": {
+        "type": "choice",
+        "instructions": "Resolve how operation permission expressions relate to omitted parameter defaults. Evaluate the alternatives on the same authorization, error identity, evaluation ordering, reuse and long-term authoring cost requirements.",
+        "criteria": {
+          "admission_before_defaults": "Preserve by before declared parameter defaults. Statically reject by dependency on any explicitly defaulted parameter, including helpers; do not silently insert source guard or change failure kind. No additional source API, no unauthorized default evaluation, but authors must separate admission from checks needing defaults.",
+          "defaults_before_admission": "Define normalized defaults before by, with existing purity/current read grants and fixed facts. Allows default-dependent by without repetition, but changes default execution/failure precedence on denied calls and needs a deliberate compatible admission protocol and evidence before implementation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "optional_url": {
+        "type": "choice",
+        "choice": "nullable_disabled",
+        "confidence": 0.35,
+        "probabilities": {
+          "explicit_guard": 0.23,
+          "nullable_disabled": 0.57,
+          "nullable_omitted": 0.2
+        }
+      },
+      "admission_defaults": {
+        "type": "choice",
+        "choice": "admission_before_defaults",
+        "confidence": 0.98,
+        "probabilities": {
+          "admission_before_defaults": 0.99,
+          "defaults_before_admission": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1516,
+      "output_tokens": 88
+    }
+  }
+}

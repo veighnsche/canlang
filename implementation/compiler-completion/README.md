@@ -2,6 +2,107 @@
 
 ## Current remainder and finite completion
 
+### Specification reconciliation — current execution, 2026-10-15
+
+**Current task:** reconcile the existing requirements/design/grammar, define
+implicit behavior and publish this finite list before pursuing further app
+errors. No compiler/runtime/app implementation is part of this documentation
+batch. [DESIGN §0](../../docs/specification/DESIGN.md#0-conformance-and-implicit-behavior)
+is the normative implicit-behavior index; REQUIREMENTS owns product constraints,
+GRAMMAR source structure, and this record delivery/qualification. Accepted
+PromptLab/File and other component results remain closed at their recorded scope.
+Historical next/pending wording below is evidence, not another execution queue.
+
+The named semantic review is resolved at specification scope:
+
+- **C02/C03 — contextual reads and reuse:** a State-dependent pure expression
+  keeps its consuming authority, lexical references, order and failures through
+  helpers/imports. Boolean return type and a route record do not define permission
+  to read. Constant/default restrictions remain site-specific. Async/query modes
+  are implementation techniques, not alternative source semantics.
+- **C05 — private addressed mail:** retain `EmailV1.send_user` with private
+  same-team active verified address resolution, pinned delivery identity/address
+  and current membership checks on transport retry. Exporting email data changes
+  the privacy outcome; a new generic recipient type adds a carrier without an
+  accepted wider requirement. It remains the existing Email capability's distinct
+  private-recipient operation, not a second mail delivery engine or auth directory.
+- **C15 — example operation context:** successful mutation-table observations
+  read the actual completed request's immutable context. This avoids adding a
+  business return just for testing or inferring expectations from implementation.
+  Setup/expected/read/sequence scopes do not borrow this table context.
+- **C02 — enums:** field type reuse preserves its canonical domain; explicit
+  destination-typed conversion is reusable through ordinary expressions/helpers.
+  Equal strings or overlapping case sets are not implicit domain conversions.
+- **C02 — admission/default boundary:** preserve `by` before explicit parameter
+  defaults; statically reject direct/transitive `by` dependency on `p:T=expr`.
+  Schema null/empty-array absence values and required inputs retain their own
+  normalization. Do not silently move a permission expression into `require`.
+- **C10 — optional URL link:** accept typed `url?` at a link sink with one shared
+  noninteractive/no-href absent state and localized caption fallback. An authored
+  guard remains the way to omit a business-specific control/group. Denied fields
+  and real validation/presenter failures never become absence. This is specified,
+  not yet checker/runtime qualified.
+
+Three independently worded two-question JEV consultations are retained in
+[the decision responses](../../design/jev/spec-implicit-contract-20261015/1.json)
+and companion 2/3. Admission-before-default advice agrees (0.99 probability,
+0.98 confidence each). URL advice is divided: guard/disabled/guard, low confidence
+0.27/0.35/0.27. It is not consensus. Inspection of the actual optional evidence
+requirement and the independent expiry/visibility guard in Affiliate resolves
+our choice: shared absence avoids mandatory repeated setup without deleting a
+business condition; explicit visibility remains authored. No new nullable-text,
+array, callback or permission mechanism follows from this choice.
+
+### Finite conformance gaps
+
+There are **18 recorded outcomes**, not 18 patches or 573 independent features.
+Rows 1–14 are the current language/composition implementation and validation
+remainder. Rows 15–18 retain already recorded required-v1/reference and exact
+external/policy gates; this spec edit neither reopens accepted components nor
+starts unrelated applications, a repository redesign or deployment. Existing
+canonical IDs remain; consumers link to the same shared outcome rather than
+counting it again. Missing local implementation is ready engineering work, not
+an external hold. This is the current execution view; older priority tables are
+retained context only.
+
+| # / existing IDs | Remaining observable outcome | Defining owner and concrete prerequisite | Finite acceptance |
+| --- | --- | --- | --- |
+| 1 / C02 | Check admission/default stage consistently | Compiler; the explicit-default `by` rule in DESIGN §5 | Reject direct/helper-transitive default dependence before execution; keep ordinary required/nullable/array-input guards and admitted defaults valid, with denied-call/default order unchanged. Current direct `by=allowed` default probe incorrectly passes checking. |
+| 2 / C10 | Implement typed nullable URL link presentation | Compiler + UI; DESIGN §9 destination contract | Original optional URL and an equivalent helper-produced URL? compile and render present/null correctly; no href on null, no denied-field-to-null conversion, unchanged gate/operand/failure order. Current probe is E3001. |
+| 3 / C02,C03 | Complete contextual State-read composition | Compiler + Cloudflare/State; original checked read/dependency association | Equivalent inline/local/imported helpers in valid derived/page/container consumers preserve the same viewer/decision mode, lazy reads, failures and final revocation. No Boolean-result or incidental route-record exception; no new public effect mode. Reuse accepted bounded observers. |
+| 4 / C02 | Publish the complete original owning source inventory | Compiler; original24 operands and saved roots | Close the recorded5 owning membership/collection-source omissions without invented or dropped declarations; checked source/type/owner corruption still refuses. |
+| 5 / C02,C04,C19 | Finish original stored-query and selected-read profiles | Compiler + State/Cloudflare; original query/call/field proofs | Original first/order/domain/archive forms and their required helper/import reuse execute with complete authorized domains and stable ordering; nullable-text/enum/array reads retain authority. No truncation, result-taint shortcut or fabricated row grant. Prior110 diagnostics are occurrences. |
+| 6 / C10,C11 | Finish required original UI syntax/bindings | Compiler + UI/Interfaces; full component contract and original declarations | Original filters/defaults/forms/calendars and remaining recorded payloads preserve derived schemas, permissions and interaction. Bare styled cards parse; headed styles already check. Do not reopen accepted PromptLab/File controls. Prior188 occurrences are not188 component tasks. |
+| 7 / C10,C17 | Finish original human/outbound formatting sinks | Compiler + owning UI/capability adapter; exact source locale/recipient contract | The original31 sink occurrences use shared typed localization, escaping, authored operand order and frozen outbound content. Private addressed mail keeps its accepted privacy/retry boundary. |
+| 8 / C02,C03 | Emit Boolean operation admission | Compiler; existing ordered State ByPredicate receiver | Original43 role-expression sites emit matching operation/policy trees; genuine scenario and CRUD consumers preserve short circuit, exact roles, current authority, original resolver failures and separately sealed CRUD `when`. |
+| 9 / C02,C19 | Finish original scenario/handler typed execution | Compiler + canonical runtime; source-owned context/default/result contracts | Close the original64 authority/trigger profiles and required checked value/default/result shapes through canonical invocation, preserving complete types, null/omission, caller/source facts, atomic failure and replay. Backend codec slices do not become language exceptions. |
+| 10 / C02,C04 | Finish checked native dispatch correspondence | Compiler + State/Work/Cloudflare; original guard/Rule/source seals | Original23 dispatch occurrences consume their actual checked guard and occurrence, refuse stale/foreign authority and publish effects once only after commit. |
+| 11 / C04 | Finish original cross-operation calls | Compiler + canonical invocation owner; actual imported operation signature and owner | Original7 calls retain caller, typed/protected inputs, admission, source order and one owner transaction; no direct-handler bypass or cross-owner pretend atomicity. |
+| 12 / C07,C02 | Finish original hook/query/context/effect graphs | Compiler + State/Work; exact recorded original trigger and source closure | Original76 occurrences preserve before/after/current author/clock, ordered guards, atomic effects, cancellation and null paths; later handler failure cannot undo a committed source. Accepted hook/queue engines are reused. |
+| 13 / C02 | Complete installed producer contracts | Owning Values/capability producer + Compiler/Cloudflare; real declared catalog interfaces | Resolve the recorded26 E6007 producer mismatches with exact checked schemas/capability versions and correct contextual purity; no invented provider bindings or unsupported-as-success fallback. Credentials are not required to repair local metadata. |
+| 14 / C02,C10,C15 | Validate original composition and affected executable consumers | Original24 argv/saved roots, existing source examples and installed owners | Compile the unchanged selected composition after relevant repairs, regroup any residual diagnostics once, and execute required source success/rejection/rollback/replay consumers. Reuse CRM promotion6, Partner page/fixture invariants and accepted PromptLab/File evidence. Partner capture submission and the two recorded UI golden failures remain; a skipped original lock-edit test is not proof, nor permission to invent update grants. |
+| 15 / C21, S9-Q08 | Required maintenance/lineage conformance remains scoped | Compiler + State/activation host; actual predecessor/desired revision and retained-work contracts | Existing named migration/default/lock/interruption/recovery consumers satisfy DESIGN §11 before claiming delivery. Reuse accepted owner leaves; unknown predecessor/unsupported transfer refuses. Do not turn an absent local engine into an external policy hold. No activation is authorized by this spec edit. |
+| 16 / C06,C08,C18,C20 | Retained typed-integration consumer gaps | Capability/Work/Dev; the original verified ingress, source/association and frozen request/result tuples in the nine-reference ledger | Only the already named original Mailbox/payment, generation/Chat, judgment and corpus consumers retain their open qualification. Verify original authority/typed results/unknown outcomes/recovery at their recorded scopes when released; source metadata or fixture snapshots are not execution. This row adds no new apps or provider abstractions. |
+| 17 / C13,C16,C22 | Retained host/data qualification gates | Defining host/Values owner; exact account/executor or release-pinned ICU/tzdb/CLDR/GUI tuple | Original G3/A7 account protocol and named release/host consumers close only on their actual missing tuple/output; no model substitution, fabricated dataset membership, unselected-host expansion or repeated accepted local units. Keep each released ready leaf independent of the held tuple. |
+| 18 / C14,C23 | Preserve exact human/policy holds | Human/policy owner; original recipient/action-specific release | C14 holds only its recorded BDD3 returned/result/payload/as/disclosure/live/context/input-slot scope; C23 holds only Task22 OUTBOX target/binding/deploy/source/revision lookup. Consultation does not lift either hold. Neither can block independent local implementation. |
+
+The last unmasked backend run has 573 occurrences grouped above; the newer run
+stops earlier on the optional URL check. Counts are historical until the same
+original compile reaches emission again. The normative contract is now separate
+from those delivery limits. No all-v1 implementation, live provider, production
+performance, full reference or training-data readiness claim follows.
+
+**Documentation validation:** local normative links/anchors and focused direct
+compiler probes are checked after reconciliation. Existing unchanged compiler 39,
+package 26 and qualified PromptLab/File results are reused. Direct probes expose
+three local gaps: nullable URL checking, default-dependent admission checking,
+and bare-card style parsing; headed style attachments and ordinary named helper
+calls check successfully. The first helper probe used a reserved builtin name;
+its rejection was correct, and the corrected helper name passes. No app source,
+production behavior, independent assertion, training input or dataset was changed.
+
+### Retained component evidence
+
 **2026-10-15 cleanup reconciliation — current state.** All pending source batches
 are reviewed and committed; [the reconciliation record](cleanup-2026-10-15.md)
 lists validation, preservation and unfinished work. The latest original24 compile
@@ -9,8 +110,9 @@ is terminal8.72s, exit10, complete=true/omitted0, with one E3001: original
 `crm.Activity.link:url?` is supplied to a link that currently requires text/url/
 File/File?. This earlier checked-source gate masks the remaining backend errors;
 it is not a reduction of the retained573 backend baseline. Source bytes and all26
-source records remain unchanged. No whole-app artifact is emitted. Null URL
-presentation needs a separate language/source decision; cleanup does not invent it.
+source records remain unchanged. No whole-app artifact is emitted. At cleanup, null URL
+presentation still needed a language/source decision; the reconciliation above
+now defines it, with implementation still open.
 
 **C02 role-Boolean admission receiver (2026-10-15, component qualified).**
 Strict own-data transcription reuses State's ordered ByPredicate AST, legacy
@@ -1624,9 +1726,9 @@ compiler/target/debug/can compile --format=json --native-scenario-receipts \
 | SEM-R05 | Actual timezone membership/data and required formatter temporal context. | C16; exact Values/runtime dataset tuple |
 | SEM-R08 | Named nominal/facade authority scalar/default/server/public-bytes handoffs. | C03,C06,C18–C19; actual defining producer and current receiver |
 
-### Prioritized shared residual work
+### Retained shared residual context (2026-10-12; not a second execution queue)
 
-Rows stop at their finite exit. If a named input is absent, skip only that leaf and take the next ready row. Native/source/application scopes remain distinct. Genuine engineering decisions belong to their defining owner; exact source/adoption/preparation/activation/publication/C14/C23 holds remain with their recipient.
+The current execution view above supersedes dispatch/priority wording in this retained table. Rows preserve their original finite exits and named inputs. Native/source/application scopes remain distinct. Genuine engineering decisions belong to their defining owner; exact source/adoption/preparation/activation/publication/C14/C23 holds remain with their recipient.
 
 | Priority / work | Remaining change or closed disposition | Owner / concrete input | Finite acceptance / next action |
 | --- | --- | --- | --- |

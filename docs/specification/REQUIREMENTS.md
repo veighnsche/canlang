@@ -1,5 +1,34 @@
 # canlang requirements
 
+## Specification contract
+
+This document defines product requirements. [DESIGN.md](DESIGN.md) defines the
+normative meaning of accepted v1 programs, including implicit behavior;
+[GRAMMAR.md](GRAMMAR.md) defines their source syntax. These three documents form
+one specification. The component vocabulary in [UI-COMPONENTS.md](../../design/UI-COMPONENTS.md)
+and the accepted [build-generation contract](BUILD_GENERATION_REQUIREMENTS.md)
+are incorporated for their explicitly named boundaries. Decision history records
+rationale and supersession; it is not a second grammar or a list of hidden app
+exceptions. A conflict between these documents is a specification defect to
+resolve, not permission for a compiler or app to choose either interpretation.
+
+The specification describes the supported language contract, not a claim that
+every compiler/backend path is delivered. Required but unimplemented behavior
+remains a conformance gap in the [single completion record](../../implementation/compiler-completion/README.md#current-remainder-and-finite-completion).
+An implementation must report an unsupported contract explicitly rather than
+silently changing its meaning. Handwritten target JavaScript and historical
+app sketches illustrate intent; neither establishes a language rule or API.
+
+Implicit means derived by a defined language rule from owning declarations and
+version-pinned defaults. It never means guessed from app names, field spelling,
+neighboring files, prose, a particular caller or unvalidated AI output.
+Checked build-generation extensions obey their declared owner contracts; they
+cannot silently redefine built-in primitives or grant authority. Business permissions,
+conditions, independent expected outcomes and actual differences remain authored.
+[DESIGN §0](DESIGN.md#0-conformance-and-implicit-behavior) is the index of those
+rules, defaults and failure boundaries. It gives the language one contract across
+inline expressions, reusable helpers, imports, selected compositions and interfaces.
+
 ## Purpose and primary goal
 
 canlang is an AI-native, Cucumber-style Given / When / Then DSL built specifically for SaaS and running on workerd.
@@ -78,7 +107,7 @@ Use one canonical, bounded ICU MessageFormat profile for placeholders, plural/or
 
 Generate standard authentication, team, CRUD, validation and navigation wording from language-version-pinned catalogs. Pin a finite reviewed identifier-and-type label vocabulary once; never infer arbitrary translations from identifiers. Put other business captions on their declarations through one `label=` attribute. A scalar supplies a caption; a field/parameter/derived model field may use `{text=caption,values={case=caption,...}}`, and CRUD uses `{create=caption,update=caption,delete=caption}` for enabled actions. Omit unchanged defaults, preserve inherited field-type/model captions, and share equal complete labels through a named message rather than repeating translations. Explicit labels override defaults. Readable `#` prose may carry one final inline suffix translating the complete description; `#= message_path` is reserved for an actually reused static description, and `##` remains ignored. No duplicate UI or MCP documentation is required.
 
-Choose the viewer locale through the shared interface, with deterministic whole-message fallback and the selected variant's plural/format rules. Explicit outbound rendering fixes recipient locale and content before durable delivery/retry. Preserve output escaping, directionality, accessible state and existing disclosure permissions. Locale and rendered messages must not decide business authorization or machine state. [DESIGN §9.1](DESIGN.md#91-built-in-internationalization) specifies ownership, reuse, locale selection, formatting and limits. The initial parser recognizes the new notation; pattern/type validation and runtime localization remain implementation work.
+Choose the viewer locale through the shared interface, with deterministic whole-message fallback and the selected variant's plural/format rules. Explicit outbound rendering fixes recipient locale and content before durable delivery/retry. Preserve output escaping, directionality, accessible state and existing disclosure permissions. Locale and rendered messages must not decide business authorization or machine state. [DESIGN §9.1](DESIGN.md#91-built-in-internationalization) specifies ownership, reuse, locale selection, formatting and limits. Conformance requires checked patterns/types and runtime localization; their current delivery scope is recorded separately from this requirement.
 
 ## Descriptions and code comments
 
@@ -171,7 +200,7 @@ Generate accessible names, keyboard behavior, focus containment/return, responsi
 
 Users must be able to connect their chatbot to an app and query or update its business data and invoke its workflows through MCP. The browser interface and MCP use the same canonical operations, permissions, validation, and business rules.
 
-Provide a generated MCP server at `/mcp` using Streamable HTTP. Implement protocol negotiation, tool discovery, and invocation in the runtime. Generate tool names, descriptions, and input schemas from existing model, CRUD, and scenario declarations; app authors must not repeat them in a separate MCP definition. These are proposed language/runtime requirements, not an implemented server. The protocol defines [tools and their schemas](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) and the [HTTP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports).
+Provide a generated MCP server at `/mcp` using Streamable HTTP. Implement protocol negotiation, tool discovery, and invocation in the runtime. Generate tool names, descriptions, and input schemas from existing model, CRUD, and scenario declarations; app authors must not repeat them in a separate MCP definition. These are required language/runtime outcomes; partial implementation and missing conformance are recorded in the completion record. The protocol defines [tools and their schemas](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) and the [HTTP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports).
 
 MCP authentication maps the chatbot connection to an app user and the user's authorized team context, using the [MCP HTTP authorization standard](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization). Tool arguments cannot grant identity or privileges. Reads obey existing record and field policies; mutations obey existing field allowlists, guards, version checks, operation identities, and attribution. Tool results provide bounded authorized data and actionable validation, conflict, or business errors.
 
@@ -189,7 +218,7 @@ Judge the result primarily by its effect on adoption chances, including how few 
 
 ## Shared app requirements
 
-This file defines the language requirements; [DESIGN.md](DESIGN.md) defines v1 semantics and [GRAMMAR.md](GRAMMAR.md) defines exact syntax. App requirements in `draft/apps/<CanApp>/<CanApp>.md` define each app's intended behavior. Their companion `.can` sources use the design, including app composition/defaults and the accepted build-generation draft syntax; [migration coverage](https://github.com/veighnsche/canlang-drafts/blob/main/MIGRATION.md) records remaining business and runtime gaps. The current compiler/runtime does not yet implement the new generation carriers, and the draft unit files do not establish executed BDD or runtime qualification. Common guarantees belong in canonical primitives and the runtime; apps declare their own permissions, policies, and limits.
+This file defines the language requirements; [DESIGN.md](DESIGN.md) defines v1 semantics and [GRAMMAR.md](GRAMMAR.md) defines exact syntax. App requirements in `draft/apps/<CanApp>/<CanApp>.md` define each app's intended behavior. Their companion `.can` sources use the design, including app composition/defaults and the accepted build-generation draft syntax; [migration coverage](https://github.com/veighnsche/canlang-drafts/blob/main/MIGRATION.md) records remaining business and runtime gaps. Saved generation-unit files alone do not establish compiler/runtime conformance, executed examples or application qualification; accepted implementation slices and remaining carriers are recorded in the completion record. Common guarantees belong in canonical primitives and the runtime; apps declare their own permissions, policies, and limits.
 
 - Parse statement boundaries, contextual words, field-value type reuse, queries and inline/block forms deterministically from syntax. Reject unknown or ambiguous forms instead of skipping tokens or inferring behavior from names. Keep value/authority checks separate and exercise the exact grammar against existing sources and focused boundary cases.
 
@@ -223,9 +252,9 @@ Descriptions use `#` globally; `##` is a code comment. Scenario parameters are t
 
 `policy` grants readable rows/fields, and operation `by` grants business actions. Explicit leaf selectors on singular embedded values grant only those leaves and necessary nullable traversal; never container/sibling identity or another record through a relationship. Derived values require their own grant and readable dependencies; partial projections are not reference authority. `on` identifies trusted handlers and CRUD hooks, which are not independent MCP tools. Invariants and declarative locks apply across every write path. Use `create` and `set` for record creation/changes and typed snapshots; automatic audit history and one `lock` rule replace overlapping snapshot/freeze/immutable forms. CRUD deletion defaults to archival; explicit removal is checked against references and locks. One optional owning CRUD `expose` allowlist limits public UI/MCP/routes without disabling canonical internal execution, introducing alternate CRUD or requiring a presentation wrapper. Declared expiry is the narrow whole-record lifetime exception to locked removal, with the owner, reference and replay contract in DESIGN §7.1; it supplies no user deletion permission.
 
-A mutation is atomic at one inferred storage owner. D1 is the default, using the proposed revision-fenced commit strategy; a model may select a Durable Object authority inherited by its children. Cross-owner work uses persisted events and pending state. Versions, replay receipts, outbox delivery, and scheduling bookkeeping belong to the runtime, without repeated app declarations. The D1 strategy still needs implementation and performance validation.
+A mutation is atomic at one inferred storage owner. D1 is the default, using the revision-fenced commit contract in DESIGN §7; a model may select a Durable Object authority inherited by its children. Cross-owner work uses persisted events and pending state. Versions, replay receipts, outbox delivery, and scheduling bookkeeping belong to the runtime, without repeated app declarations. Named implementation checks do not establish representative production contention or latency; those remain separate qualification claims.
 
-The generated UI and MCP share one operation registry and the same permissions, validation, version checks, and business rules. The entire pinned component catalog, field/result scopes, routes, forms, wire schemas, and source restrictions are defined in DESIGN.md and design/UI-COMPONENTS.md. [Reference examples](../../examples) illustrate these choices; existing drafts remain uncompiled and unexecuted and have not yet been migrated to the newly approved full component vocabulary.
+The generated UI and MCP share one operation registry and the same permissions, validation, version checks, and business rules. The entire pinned component catalog, field/result scopes, routes, forms, wire schemas, and source restrictions are defined in DESIGN.md and design/UI-COMPONENTS.md. [Reference examples](../../examples) illustrate these choices; reference and draft qualification is recorded at exact source/workflow scope; neither universal compilation nor complete component delivery is implied by their existence.
 
 ## Draft semantics and target boundary
 
@@ -235,4 +264,4 @@ Recurring D1 work admits independent team/app occurrences; root recurrence uses 
 
 Frontend defaults include explicit-zone datetime input with DST ambiguity validation, finite typed filters and permission-aware instance labels. Optional page `poll` performs authorized GET rereads, never background business mutations. Preference-dependent ordering uses one default and meaningful enum exceptions in the existing collection `order` slot. Common behavior is specified once; apps do not repeat control rules or component markup.
 
-Handwritten JavaScript examples follow [DESIGN §13](DESIGN.md#13-desired-javascript-draft-target): one metadata convention, owning operation handlers and imported shared UI components. Can targets JavaScript directly. The Rust tool shares language analysis across compile/check/lint/format/editor diagnostics; its scaffold has no such implementation yet. Proposed imports, implementation omissions, unsupported language contracts and unfinished app workflows must be identified separately. No syntax check or consultation establishes executable app completeness or optimal performance.
+Handwritten JavaScript examples follow [DESIGN §13](DESIGN.md#13-desired-javascript-draft-target): one metadata convention, owning operation handlers and imported shared UI components. Can targets JavaScript directly. The Rust tool shares language analysis across compile/check/lint/format/editor diagnostics; its delivered paths and missing coverage are recorded in the completion record. Proposed imports, implementation omissions, unsupported language contracts and unfinished app workflows must be identified separately. No syntax check or consultation establishes executable app completeness or optimal performance.
