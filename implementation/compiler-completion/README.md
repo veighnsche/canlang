@@ -360,6 +360,24 @@ The native fixture retains a separate team owner so its existing caller-revocati
 assertions comply with Identity's last-owner rule. No revocation assertion or
 Identity policy is weakened. Normal owning builds and formatting/diff checks pass.
 
+**Completed C02/C10 prerequisite — observed existing model results (2026-10-15).**
+State's genuine model-result binder now accepts an existing row only with the
+selected return's original data-role ID observation and matching entry lifetime.
+It reuses the existing observation, source/ancestor policy, current Identity,
+final commit and saved projection checks; no descriptor, carrier or fabricated
+write is added. Newly created results still require their surviving insert.
+Canonical child returns retain their own observation scope, including reuse of
+a provisional parent-created row. This implements an existing model-reference
+contract, with no new language decision requiring JEV.
+
+The State build and **36/36** affected model-result/first/count checks pass.
+New cases cover zero business writes, exact replay, copied/unobserved row refusal,
+late grant loss/removal rollback, original failure identity, child reuse, saved
+subject/lifetime revocation and malformed saved witnesses. The original **701**
+diagnostic capture is reused: compiler, source and catalog inputs are unchanged.
+Compiler admission and emitted observation/binding correspondence remain open;
+this State prerequisite does not qualify the original CanCRM native consumer.
+
 **Current C02/C10 leaf — canonical first correspondence.**
 The next defining query dependency is canonical checked query→first composition
 correspondence, preserving its exact ordered output and selected-row/null use.

@@ -15582,3 +15582,25 @@ and catalog are unchanged; broader first source/consumption work remains open.
 The native revocation fixture now retains a distinct team owner; its earlier
 attempt to remove the sole owner was correctly refused by Identity. The existing
 revocation, replay, rollback and permission assertions are unchanged.
+
+2026-10-15 — C02: retain observed existing model results without business writes.
+
+Reuse the selected return's existing data-role reserved-ID observation as the
+existing model result's saved lifetime witness. The genuine current-stage owner
+row, entry lifetime, original source/ancestor policies, current Identity and final
+commit/replay authority remain required. Created results retain the original
+surviving insert requirement; an existing result may have no write or an update
+preserving its lifetime. Child recovery uses that child's own return/observation
+scope. No new descriptor, carrier, flag or language primitive is introduced.
+This is an implementation prerequisite for canonical first's existing-result
+branch, under the settled reference and authority contract; no unresolved
+language choice requires another JEV consultation.
+
+State builds and all 36 affected model-result/first/count checks pass, including
+four new cases for zero writes, replay/current grant and subject/lifetime loss,
+copied/unobserved rows, late removal/revocation rollback, exact original failure,
+canonical child reuse of existing/provisional rows and invalid saved witnesses.
+Reuse the original 701-diagnostic 24-source capture because its compiler/source/
+catalog inputs are unchanged. Compiler reference-result admission, emitted
+observation/binding and general first source correspondence remain locally open;
+no full original CanCRM execution or training readiness is claimed.
