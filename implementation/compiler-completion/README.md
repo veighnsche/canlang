@@ -2,6 +2,23 @@
 
 ## Current remainder and finite completion
 
+**C02 parent enum invariant association (2026-10-15, qualified component).**
+CompanyRole's original `row.parent.kind==company` was outside the compiler's
+closed required-field classifier, suppressing the entire model-policy group.
+Reuse checked owning enum identity/cases and the existing lazy required path,
+private callback and reverse parent dependency; no CF/State evaluator or grant
+change. Owning source/reuse checks2/.05s pass (renamed declarations, reversed
+comparison, lazy bool composition and existing reference/Money controls).
+Frozen CLI build passes. Genuine D1/Identity/default fixture materialization and
+CRUD control1/4.44s passes: company child accepted, person child refused, parent
+company→person update atomically refused with unchanged domain rows/versions and
+empty write/history batch, unrelated parent update commits. Initial test capture
+used stale shared Values output; corrected capture uses the exact frozen native
+catalog and complete installed inventory, without rebuilding foreign output.
+Original6 now pass invariant activation:4 next setup-refuse nested input.customer
+selectors;2 invoke and reject validation. These adapter leaves remain local ready
+work; no six-row or original24 acceptance is claimed.
+
 **Original24 qualification at8c2dc7fe (2026-10-15).**
 Exact retained argv includes native scenario receipts, all24 original operands,
 unchanged Values catalog and saved Given closure. Frozen compiler exits10 in

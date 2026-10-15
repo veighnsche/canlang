@@ -117,3 +117,62 @@ fn original_required_invariant_emits_lazy_reads_and_reverse_dependencies() {
         }));
     }
 }
+
+#[test]
+fn parent_enum_invariants_retain_lazy_binding_and_reverse_parent_dependency() {
+    for (app, parent, child, predicate) in [
+        (
+            "ParentRules",
+            "Customer",
+            "CompanyRole",
+            "row.parent.kind==company",
+        ),
+        ("ReusedRules", "Account", "Seat", "company==row.parent.kind"),
+        (
+            "LazyRules",
+            "Customer",
+            "CompanyRole",
+            "row.enabled or row.parent.kind!=person",
+        ),
+    ] {
+        let source = format!(
+            "app {app}\nGiven\n {parent} {{kind:enum(person,company)=person}}\n {child} in {parent} {{enabled:bool=false}}\n invariant {child}: {predicate}\n policy {parent} read=members\n policy {child} read=members\nWhen\nThen\n"
+        );
+        let (db, program, catalog) = checked(&source);
+        let mut result = DiagnosticResult::new("parent-enum-rules", "1.0", 1);
+        result.add_sources(&db);
+        let (artifact, diagnostics) = emit(
+            &program,
+            &EmitSources {
+                db: &db,
+                result: &result,
+                catalog: catalog.as_ref(),
+                options: EmitOptions {
+                    allow_incomplete_test_only: false,
+                    native_scenario_receipts: true,
+                },
+            },
+        );
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let artifact: serde_json::Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+        let policies = artifact["modelPolicies"].as_array().unwrap();
+        let policy = policies
+            .iter()
+            .find(|policy| policy["model"] == format!("{app}.{child}"))
+            .unwrap();
+        let dependencies = policy["rules"][0]["dependencies"].as_array().unwrap();
+        assert_eq!(dependencies.len(), 1);
+        assert_eq!(dependencies[0]["model"], format!("{app}.{parent}"));
+        assert_eq!(dependencies[0]["maxTargets"], 200);
+        let module = artifact["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|module| module["js"].as_str().unwrap())
+            .collect::<String>();
+        assert!(module.contains("nativeReadReference(c,"));
+        assert!(module.contains("views.final.query("));
+        assert!(module.contains(&format!("parent:{{model:\"{app}.{parent}\",id:$id}}")));
+        assert!(module.contains("archived:\"include\""));
+    }
+}
