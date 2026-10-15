@@ -13452,6 +13452,7 @@ impl<'a> Cx<'a> {
             "calendar" => self.decode_date_calendar(scope, node, row_ctx),
             "collapse" => self.decode_disclosure(scope, node, word, row_ctx),
             "hero" => self.decode_compact_hero(scope, node, row_ctx),
+            "footer" => self.decode_compact_footer(scope, node, row_ctx),
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
             "fab" => Some(self.decode_fab(scope, node, row_ctx)),
             "chat_bubble" => Some(self.decode_chat_bubble(scope, node, row_ctx)),
@@ -13742,6 +13743,58 @@ impl<'a> Cx<'a> {
             control.factory = "fileInput".into();
         }
         Some(control)
+    }
+
+    /// The compact footer is a scope-transparent group. Authored slots need
+    /// their separate owning producer and must never flatten into children.
+    fn decode_compact_footer(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "footer", &[]);
+        if !ui_attributes(self.db, node).is_empty() {
+            return None;
+        }
+        if kids(node)
+            .into_iter()
+            .any(|child| child.kind == SyntaxKind::Slot)
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower compact footer: authored slots need a separate factory profile"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let mut props = Vec::new();
+        if kids(node)
+            .into_iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+        {
+            let caption = self.decode_single_ui_caption(scope, node, "footer")?;
+            props.push(("caption".to_string(), caption));
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower compact footer: needs a nonempty content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "footer".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     /// The compact hero is a scope-transparent group. Authored slots need

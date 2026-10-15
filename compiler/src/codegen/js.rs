@@ -2790,6 +2790,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "form"
             | "fileInput"
             | "gallery"
+            | "footer"
             | "hero"
             | "history"
             | "input"
@@ -2908,7 +2909,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
                 | "defaults"
         ),
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
-        "hero" => key == "caption",
+        "hero" | "footer" => key == "caption",
         "join" => matches!(key, "id" | "orientation" | "variant"),
         "badge" => matches!(key, "value" | "caption" | "tone" | "size" | "variant"),
         "status" => matches!(key, "value" | "caption" | "tone" | "size"),

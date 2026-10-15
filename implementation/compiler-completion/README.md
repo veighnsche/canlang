@@ -2,6 +2,27 @@
 
 ## Current remainder and finite completion
 
+**C02 compact footer (2026-10-15, qualified source/UI component).**
+The unchanged original CRM footer uses the installed compact footer contract:
+optional localized caption plus ordered nonempty children. Decode that existing
+profile and emit the existing UI factory; preserve row scope, gate laziness and
+caption formatting. No UI API or language rule changes. Three owning controls
+pass: original source→CLI→installed UI EN/NL/escaping/order/denied gate1/.82s;
+empty/multiple-caption/unknown-option/slotted/mixed refusals1/.58s; collection
+row binding and skipped child1/.01s. Slotted footer production stays unsupported,
+without flattening authored slots. The last full-original count remains656 and
+predates this component; no whole UI/application qualification follows.
+
+**C02 next full-cohort decision gate (2026-10-15, diagnosed).**
+Authentic query-only preparation now passes owner diagnostic closure, exact
+semantics, mixed3query shape,159Models and Values. Decision collection still
+fails before feasibility: Consumer indexes all365,625 original24 CST nodes
+against a global200,000-node bound. Actual nextgate inspector1/184.54s and
+parse-only count1/.13s confirm this; all temporary probes restored. The finite
+repair is exact consumed decision/helper/default subtree indexing with the same
+node/depth/call/semantic-work bounds and complete cohort/source checks, not a
+larger global cap. It remains under implementation.
+
 **C02 checked record-route producer (2026-10-15, compiler component qualified).**
 Publish the resolver's existing RouteRecord Model in the existing checked node
 TypeTable, cross-check its owning declaration/import and retain canonical Model

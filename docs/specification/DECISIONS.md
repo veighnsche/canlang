@@ -17195,3 +17195,18 @@ invariants and imported capture workflow remain in the consumer. No native page
 or full-composition route qualification is claimed. The prior query-association
 binary's original24 run is terminal419.34s/656 unchanged, with stable26sources;
 inspect the next owner gate rather than rerunning unchanged full emission.
+
+
+## 2026-10-15 — emit the existing compact footer contract
+
+Compile the original CRM footer as an optional localized caption with ordered
+nonempty children through the existing installed UI footer. Retain scope and
+lazy gates; do not flatten explicit slots or accept unsupported properties.
+Three owning source/installed-UI/refusal controls pass, including exact original
+English/Dutch content, escaping, ordering and collection row scope. Slotted
+production and full-application qualification remain separate unfinished work.
+
+The next authentic full-cohort query gap is mechanical: decision indexing scans
+all365,625 CST nodes against a global200,000-node bound. Preserve the bound and
+full source checks while indexing actual consumed subtrees. No language or
+permission decision changes; the retained full-original report remains656.
