@@ -2527,6 +2527,49 @@ fn emit_program_with_sources(
                 }
             }
         }
+        for item in &ir.items {
+            if !emitter.native_receipts.contains_key(&item.id) {
+                continue;
+            }
+            let Some(crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)) =
+                ir.scenario_disclosures.get(&item.id)
+            else {
+                continue;
+            };
+            if checked.require_consumptions.is_empty() {
+                continue;
+            }
+            let captures = db.zip(feasibility).and_then(|(db, prepared)| {
+                super::scenario_receipts::checked_require_consumptions(ir, item, db, prepared)
+            });
+            let Some(captures) = captures else {
+                emitter.native_receipts.remove(&item.id);
+                emitter.unsupported(
+                    "Require field consumption",
+                    "exact original Require, selected field and first-query correspondence is unavailable",
+                    item.span,
+                );
+                continue;
+            };
+            let recipe = emitter
+                .native_receipts
+                .get_mut(&item.id)
+                .expect("owning receipt");
+            let mut associations = Vec::new();
+            for capture in captures {
+                recipe
+                    .dependencies
+                    .entry(capture.site)
+                    .or_default()
+                    .push(capture.observation);
+                associations.push(capture.association);
+            }
+            if !associations.is_empty() {
+                emitter
+                    .execution_dependencies
+                    .insert(item.canonical.clone(), associations);
+            }
+        }
     }
     let mut body = JsWriter::new();
     if native_receipts
@@ -3404,6 +3447,8 @@ pub struct Emitter<'a> {
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    execution_dependencies:
+        BTreeMap<String, Vec<super::scenario_receipts::ReceiptRequireConsumption>>,
     native_call_sites: HashMap<SymbolId, Vec<super::scenario_calls::StaticScenarioCall>>,
     receipt_call_sites: Vec<super::scenario_calls::StaticScenarioCall>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
@@ -3543,6 +3588,7 @@ impl<'a> Emitter<'a> {
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
+            execution_dependencies: BTreeMap::new(),
             native_call_sites: HashMap::new(),
             receipt_call_sites: Vec::new(),
             receipt_capture: None,
@@ -12399,6 +12445,12 @@ impl<'a> Emitter<'a> {
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
                     ];
+                    if let Some(dependencies) = self.execution_dependencies.get(&item.canonical) {
+                        members.push(format!(
+                            "executionDependencies:{}",
+                            descriptor_json(dependencies)
+                        ));
+                    }
                     if let Some(metadata) = self
                         .query_any
                         .and_then(|metadata| metadata.get(&item.canonical))

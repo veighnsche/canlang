@@ -4204,8 +4204,28 @@ async function bindNativeScenarioReferences(asm: AssembledModules, artifact: Com
     if (readPolicies !== undefined) for (const model of models) {
       for (const [name, policy] of sourceReads!.policies(model)) if (!readPolicies.has(name)) readPolicies.set(name, policy);
     }
+    const operations = isUnknownRecord(definition) ? readMetadataMember(definition, 'operations', where)?.value : undefined;
+    const operation = isUnknownRecord(operations) ? readMetadataMember(operations, def.name, where)?.value : undefined;
+    const rawExecution = isUnknownRecord(operation) ? readMetadataMember(operation, 'executionDependencies', where)?.value : undefined;
+    const executionDependencies = rawExecution === undefined ? undefined : captureDispatchPreclaimData(nativeCallArray(rawExecution, 200)) as
+      NonNullable<Parameters<typeof bind>[1]['executionDependencies']>;
+    const executionSites = executionDependencies === undefined ? undefined : (loaded.membershipSources.get(def.name) ?? [])
+      .filter(site => site.stage !== 'read-policy' && site.stage !== 'read-predicate' && site.stage !== 'send-dispatch');
+    if (executionSites !== undefined) {
+      if (executionSites.length === 0 || !isUnknownRecord(operation) || readMetadataMember(operation, 'handler', where)?.value !== def.name) {
+        throw new AssemblyCorrespondenceError('Execution field guards lack their original owning Require census.');
+      }
+      // Owners with membership calls were associated by their existing producer.
+      // A Contract guard does not require an unrelated active_member call.
+      if (!nativeSourceSendGuards.has(def) && !executionSites.some(site => site.calls.some(call =>
+        call.target.kind === 'builtin' && call.target.id === 'active_member'))) {
+        const state = await import('@canlang/state/invocation');
+        state.bindScenarioReceiptMembershipSource(def, { logical: executionSites[0]!.source, transport: plan.source });
+      }
+    }
     bind(def, { source: plan.source, app, policy: loaded.policy as Parameters<typeof bind>[1]['policy'],
-      ...(readPolicies === undefined ? {} : { readPolicies }) });
+      ...(readPolicies === undefined ? {} : { readPolicies }),
+      ...(executionDependencies === undefined ? {} : { executionDependencies, executionSites: executionSites! }) });
   }
 }
 
@@ -4668,7 +4688,6 @@ async function loadCanonicalDescriptorsInternal(
   await bindScenarioFrameworkProducers(asm, artifact, canonical);
   await bindNativeScenarioCalls(asm, artifact, canonical);
   await bindNativeScenarioNominalFiles(canonical, artifact);
-  await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   for (const [owner, sites] of canonical.membershipSources) {
     // Keep each complete original recipe in its defining lifetime. A SEND
     // predicate and a later ordinary require may share one scenario owner.
@@ -4687,6 +4706,7 @@ async function loadCanonicalDescriptorsInternal(
     }
     bindNativeOwnerMembership(def, { source: ownerSites[0]!.source, app: await originalAppForOperation(asm, artifact, def), sites: ownerSites });
   }
+  await bindNativeScenarioReferences(asm, artifact, canonical, invocationSourceReads);
   await bindNativeScenarioQueries(asm, artifact, canonical, invocationSourceReads);
   if (claimedCompletion) await verifyCheckedAssembly(asm, artifact);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);

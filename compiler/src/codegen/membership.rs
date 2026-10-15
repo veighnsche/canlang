@@ -123,7 +123,11 @@ pub(super) fn prepare_with_context(
             }),
         );
     }
-    if calls.is_empty() {
+    let has_require_fields = program.scenario_disclosures().values().any(|disclosure| {
+        matches!(disclosure, crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)
+            if !checked.require_consumptions.is_empty())
+    });
+    if calls.is_empty() && !has_require_fields {
         return None;
     }
     // Same original execution closure, now borrowed from this invocation.
@@ -134,10 +138,14 @@ pub(super) fn prepare_with_context(
     let read_sources = context;
     let mut sites = BTreeMap::new();
     for item in &ir.items {
-        if let Some(source) = super::scenario_decisions::serialize_decision_sources_with_context(context, item) && source.iter().any(|site| site.calls.iter().any(|call| {
+        let require_fields = program.scenario_disclosures().get(&item.id).is_some_and(|disclosure| {
+            matches!(disclosure, crate::analysis::scenario_disclosure::ScenarioDisclosure::Complete(checked)
+                if !checked.require_consumptions.is_empty())
+        });
+        if let Some(source) = super::scenario_decisions::serialize_decision_sources_with_context(context, item) && (require_fields || source.iter().any(|site| site.calls.iter().any(|call| {
                 matches!(&call.target, super::scenario_decisions::SerialDecisionTarget::Builtin { id, .. }
                     if id == "active_member")
-            })) {
+            }))) {
                 sites.insert(item.canonical.clone(), serde_json::to_value(source).ok()?);
         }
     }

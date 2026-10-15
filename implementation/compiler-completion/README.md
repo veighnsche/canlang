@@ -2,6 +2,23 @@
 
 ## Current remainder and finite completion
 
+**C02 native selected Contract guard join (2026-10-15, qualified component).**
+Emitter merges the sealed Require occurrence into the existing immediate native
+observation map, outside result dependencies, and publishes its private execution
+association. The verified loader forwards the original site census and canonical
+source mapping to State. Publish checked guard sites even without active_member;
+membership handles still require actual checked calls. Actual captured CLI→
+verified assembly→D1/Identity test passes1/1 in15.71s: adjacent root creates,
+existing-row whole-Contract equality, commit/replay, unreadable skipped RHS gives
+rule_failed while executed RHS gives forbidden, changed Contract fails, and owner
+privilege loss preserves independent result replay while fresh execution refuses.
+Failed calls leave exactly one Deal and Evidence. Valid owner demotion retains a
+second owner; the last-owner invariant was not weakened. Capture/source identities
+remain current; CLI/State/CF builds and scoped diff/format checks pass. Reuse the
+source2/feasibility4/State16 checks above. This closes the first/Contract-guard
+native consumer, not the original mixed leading/first/body helper plan; original24
+remains656 at its isolated committed checkpoint.
+
 **C02 checked Require field census (2026-10-15, source component qualified).**
 Retain existing whole-Contract Require reads on the complete checked scenario,
 separate from returns. Reuse the prepared checked-program/fresh-IR lifetime seal
