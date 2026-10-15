@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**C02 native helper file-placement equivalence (2026-10-15, qualified).**
+The same accepted Employee/leading-helper journey passes with the app and three
+packages in four physical source files (54.11s). All business assertions are
+shared unchanged with the prior same-file57.73s pass, reused without rerunning.
+Every explicit operand is captured and its exact path/hash must equal the complete
+compiler source report; runtime/producer/source input identities stay current.
+This exercises actual helper-file path/hash→caller transport-module association
+through verified assembly/D1/Identity, with no preview-profile expansion. The
+single authored-file preview still has its stated import/catalog limits. The
+original mixed CRM/native consumer and full composition remain open.
+
 **C02 required-guard query retention (2026-10-15, accepted direction; implementation pending).**
 Keep guard/write authority distinct from independent result disclosure for Model
 results as well as scalar results. Do not join guard facts into result controls
