@@ -41,9 +41,10 @@ export function createOperationFormPreparer(
     const bound: ClosedInputs = Object.create(null) as ClosedInputs;
     for (const [name, value] of Object.entries(request.arguments ?? {})) {
       const input = derived.inputs.find(candidate => candidate.name === name);
-      // First protected contract: declared singular versioned records only.
+      // Bind declared singular records only, retaining the observed version
+      // even when the operation also accepts unversioned linkage inputs.
       // Copy identity/version, never the surrounding queried row's fields.
-      if (input?.kind !== 'ref' || input.versioned !== true || input.array !== undefined ||
+      if (input?.kind !== 'ref' || input.array !== undefined ||
           input.model === undefined || typeof value !== 'object' || value === null || Array.isArray(value) ||
           !Object.hasOwn(value, 'id') || !Object.hasOwn(value, 'version')) {
         return unavailable('This form binding is not supported.');

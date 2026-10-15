@@ -435,6 +435,36 @@ describe("T20b envelope submit", () => {
     );
   });
 
+  it("checks authoritative rejected-form retry metadata as one complete pair", async () => {
+    const oldId = "01999999-0000-7000-8000-000000000001";
+    const freshId = "01999999-0000-7000-8000-000000000002";
+    const check = (body: unknown, bound = false) => submitGeneratedForm({ derived: CREATE, mode: "create",
+      flat: baseFlat({ operation_id: oldId, "inputs[title]": "draft", ...(bound ? { form_binding: "old-sealed" } : {}) }),
+      action: "/x", fragment: false, denialFormat: "json", fetchImpl: async () => ({ status: 400,
+        headers: { get: () => "application/json" }, text: async () => JSON.stringify(body) }) });
+    const error = { code: "validation", message: "Correct the title.", operation_id: oldId };
+    for (const bound of [false, true]) {
+      const retry = { operation_id: freshId, ...(bound ? { form_binding: "fresh-sealed" } : {}) };
+      assert.deepEqual(await check({ error, retry }, bound), { kind: "denied", status: 400, error, retry });
+    }
+    for (const [body, bound] of [
+      [{ error, retry: { operation_id: oldId } }, false],
+      [{ error, retry: { operation_id: "not-a-uuid" } }, false],
+      [{ error, retry: { operation_id: freshId.replace("-7000-", "-4000-") } }, false],
+      [{ error: { ...error, operation_id: freshId }, retry: { operation_id: freshId } }, false],
+      [{ error: { code: error.code, message: error.message }, retry: { operation_id: freshId } }, false],
+      [{ error, retry: { operation_id: freshId } }, true],
+      [{ error, retry: { operation_id: freshId, form_binding: "unexpected" } }, false],
+      [{ error, retry: { operation_id: freshId, form_binding: "" } }, true],
+      [{ error, retry: { operation_id: freshId, form_binding: 7 } }, true],
+      [{ error, retry: { operation_id: freshId, extra: true } }, false],
+      [{ error, retry: null }, false],
+      [{ ...error, retry: { operation_id: freshId } }, false],
+    ] as const) await assert.rejects(check(body, bound), (failure: unknown) =>
+      failure instanceof GeneratedSubmitError && failure.code === "contract");
+    assert.deepEqual(await check({ error }), { kind: "denied", status: 400, error });
+  });
+
   it("rejects denials speaking an unknown error code", async () => {
     const { fetch } = stubFetch([
       {

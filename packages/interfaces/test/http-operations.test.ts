@@ -236,7 +236,7 @@ test('expired plain scenarios use only dedicated retained recovery after framing
       retained.push({ envelope, identity });
       return retainedError === null
         ? { result: { status: 'replayed' as const, operation_id: envelope.operation_id, result: null } }
-        : { error: buildBusinessError(retainedError, 'Saved outcome unavailable.') };
+        : { error: buildBusinessError(retainedError, 'Saved outcome unavailable.'), receipt: 'rejected' as const };
     },
   };
   const deps = { ...t.deps, catalog, invoker };
@@ -256,7 +256,8 @@ test('expired plain scenarios use only dedicated retained recovery after framing
     retainedError = code;
     const response = await submit(expired);
     assert.equal(response.status, status);
-    assert.equal((await response.json() as { code: string }).code, code);
+    const denial = await response.json() as { code: string; retry?: unknown };
+    assert.equal(denial.code, code); assert.equal(denial.retry, undefined, 'expired unbound scenarios never receive new attempts');
   }
   const before = retained.length;
   for (const id of ['not-a-uuid', expired.toUpperCase(), freshOperationId(Date.now() + 10 * 60 * 1000)]) {
