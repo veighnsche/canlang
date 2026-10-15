@@ -148,7 +148,11 @@ export function readDraftSource(source: string, companion = source.replace(/\.ca
       if (indent === pageIndent + 1 && line.startsWith("require ")) page.guards.push(line.slice(8));
       const empty = quoted(line, "empty");
       if (empty !== null) page.emptyMessages.push(empty);
-      if (/^(?:list|table|query|cards|gallery)\b/.test(line)) page.requiredStates.push("empty", "populated", "loading", "failure");
+      // Canonical collections await their query during server rendering. The
+      // collection token declares empty/populated output, not an inline async
+      // loading/failure UI. Explicit app recovery requirements stay in the
+      // companion inventory; form pending/validation remains separate below.
+      if (/^(?:list|table|query|cards|gallery)\b/.test(line)) page.requiredStates.push("empty", "populated");
       if (/^(?:form|edit|delete)\b/.test(line)) page.requiredStates.push("validation", "pending", "success");
       // Lexical intake follows authored bindings; caption prose cannot add states.
       const priority = /^(primary|secondary)\b/.exec(line)?.[1];

@@ -6,6 +6,23 @@ Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50
 
 **Current execution (2026-10-15):** the user resumed language consistency work before model training. The [generated-view decision](../../docs/specification/DECISIONS.md#2026-10-14--reconcile-generated-views-and-checked-presentation-consumers) closes the view contract, disclosure typing and inherited reference locale; the [computed-message join](../../docs/specification/DECISIONS.md#2026-10-14--format-computed-anonymous-messages-with-their-checked-schemas) closes the bounded formatter and ordinary submit-button defects. [PromptLab adoption and field validation](../../docs/specification/DECISIONS.md#2026-10-14--adopt-legacy-saved-outputs-and-enforce-pure-field-checks) now retains all 17 live saved associations under `prompt_lab`, preserves three obsolete style groups, and enforces required UTF-8/EAN field checks through State. Native CRUD candidate admission, lexical query capture, fixture snapshots, nullable archive-evidence policies, example identity/dependencies and parent-scoped computed keys have passing owner checks. All **30/30 actual PromptLab source rows** pass, including after checked scenario disclosure. Actual-app native permission/rollback/replay and collision-refusing activation checks pass. The active PromptLab scope is browser qualification. Implicit parent binding and protected-reference preparation pass 10 compiler/native and eight protected-form checks; nullable archive-default preparation passes both affected native HTTP checks. Rejected-attempt recovery passes State 16/16, UI 50/50 and Interfaces 60/60, and the actual native Tag form corrects a rejected input and commits once. The complete current-source native check passes 1/1: Tag/protected parent-bound Entry rejection, renewed-attempt correction, immutable old replay/changed-input conflict, proof binding, populated/archived page evidence and private native source-row identity/lifetime controls. The original wire row remains unchanged for saved-view metadata. History scalar checks pass 34/34; fresh Given/read-predicate compiler checks pass 5/5. The separate C10 original File-page consumer and affected compiler/UI producer checks each pass at their recorded finite scopes. Role provisioning, paged owner binding and portable cursor packaging have passing focused checks; the preview starts and commits catalog creation, and the modal-close test race is fixed. The browser suite authors eight cases per project for desktop/mobile; twelve-fixture lexical coverage and browser TypeScript checks pass, while functional journey execution and visual acceptance remain pending. This is BGI/DFE saved-output and application work, not new canonical task IDs. The previous checkpoints, external holds and **58/67** reference count remain; accepted components of the nine broader references are not reopened. Training remains gated on actual agreement and the listed remaining requirements.
 
+**PromptLab bounded completion (2026-10-15).** Checked Given stored-field
+read/write/schema provenance now produces authorized Entry/Tag archive/restore
+changed records. The focused contribution refusal check and current-source
+native acceptance check pass, including actor/time attribution and original
+snapshot replay after restore. All 16 existing desktop/mobile cases have
+completed their functional assertions; the corrected member case passes on both
+viewports. All 38 visual states are inspected/accepted, retaining 13 earlier
+desktop baselines and adding 25 individually inspected captures. First-capture
+runs retain soft missing-baseline failures before review; this is not an
+all-green aggregate-run claim. Two concurrent isolated previews exceeded the
+existing cleanup budget; serial execution released owners normally, and the
+exact affected endpoints/processes exited. The unrelated ActionGallery preview
+remains untouched. Browser TypeScript and the lexical source-state check pass.
+These results close this affected PromptLab scope, not the broader nine
+references or three composed-source refusals below. No training/dataset work
+has begun, and the original supported-language/reference readiness gate remains.
+
 **C02/C10 continuation (2026-10-15).** The recorded 64 diagnostics divide into
 42 from an omitted CanShift interface owner, five omitted selected app/package
 owners, eleven enum/name collisions, five incompatible hour/day versus
