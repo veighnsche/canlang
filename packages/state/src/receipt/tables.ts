@@ -363,7 +363,7 @@ export function readJudgmentResult(result: unknown, context: ReceiptResultContex
         typeof resultValue['model'] !== 'string' || resultValue['model'] === '' ||
         typeof resultValue['input_tokens'] !== 'bigint' || resultValue['input_tokens'] < 0n ||
         typeof resultValue['output_tokens'] !== 'bigint' || resultValue['output_tokens'] < 0n ||
-        !sameJudgmentWire(wire, encodeValue(checked.context.declaredResult.name, value))) return null;
+        !sameJudgmentWire(wire, encodeValue(checked.context.declaredResult.name, value, undefined, checked.schema))) return null;
     // Runtime aliases bound representation; the original frozen specification alone grants candidate membership.
     for (const question of checked.runtimeChoices) {
       const answer = resultValue[question.id] as Readonly<Record<string, CanValue>>;

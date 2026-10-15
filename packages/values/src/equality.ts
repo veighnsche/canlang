@@ -15,10 +15,11 @@
  * - Pure-core signature is `equalValue(typeId, a, b)`. The `c`-first shape in
  *   DESIGN L992 is the generated-code call form; the pure core takes no
  *   context and generated shims drop `c` before calling it.
- * - No type-id parser lives here (PR5 owns it). Only trailing `?` nullability
+ * - Without owning schema context only trailing `?` nullability
  *   and trailing `[]` array suffixes are stripped; every other type id is an
- *   opaque label and dispatch is by runtime kind. An empty type id means pure
- *   runtime dispatch (used by `group` key matching in array.ts).
+ *   opaque label and dispatch is by runtime kind. With owning schema, declared
+ *   Contract fields and union arms dispatch recursively by their declared types.
+ *   An empty type id means pure runtime dispatch (used by `group` key matching in array.ts).
  * - `same()` on mismatched ref kinds returns false (unequal), never throws;
  *   only non-ref inputs throw `invalid-construction`.
  * - `same()` identity: RecordRef = model+id (version ignored: concurrency,
@@ -36,7 +37,8 @@
  *   present-but-undefined value compared against anything is
  *   `invalid-construction` (undefined is not a CanValue).
  * - Objects carrying a known value-tag `kind` that fail their shape guard
- *   are malformed values (`invalid-construction`), never contracts; objects
+ *   are malformed values (`invalid-construction`) outside declared Contract
+ *   positions; objects
  *   with an unknown or non-string `kind` compare as plain contracts.
  * - Non-array values under an array type id, and mismatched runtime kinds
  *   (except the decidable money/secret/ref cases above), are
@@ -54,6 +56,8 @@ import type {
   SecretValue,
   UserRef,
 } from "@canlang/contracts/values";
+import type { NormalizedSchema } from "./schema.js";
+import { parseTypeId } from "./types.js";
 import { compareDecimal, isDecimal } from "./decimal.js";
 import { ValueError } from "./errors.js";
 import {
@@ -344,8 +348,10 @@ function equalInner(a: CanValue, b: CanValue, resolveReference?: RecordReference
  * arg equality; secrets by identical reference only. An optional host resolver
  * supplies original record identities only at demanded comparison values;
  * omitting it retains the canonical pure behavior and short-circuit order.
+ * An owning schema identifies declared Contract containers before runtime tags;
+ * their fields recurse by declaration, including business kind/id/version keys.
  */
-export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined): boolean {
+export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveReference: RecordReferenceResolver | undefined = undefined, schema: NormalizedSchema | undefined = undefined): boolean {
   if (typeof typeId !== "string") {
     throw new ValueError("invalid-construction", "equalValue needs a canonical type id string");
   }
@@ -356,6 +362,7 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveRefe
   while (base.endsWith("?")) {
     base = base.slice(0, -1);
   }
+  if (schema !== undefined && base.endsWith("[]!")) base = base.slice(0, -1);
   let element = base;
   let depth = 0;
   while (element.endsWith("[]")) {
@@ -375,11 +382,48 @@ export function equalValue(typeId: string, a: CanValue, b: CanValue, resolveRefe
       if (itemA === undefined || itemB === undefined) {
         throw new ValueError("invalid-construction", "array elements must be Can values");
       }
-      if (!equalValue(element, itemA, itemB, resolveReference)) {
+      if (!equalValue(element, itemA, itemB, resolveReference, schema)) {
         return false;
       }
     }
     return true;
+  }
+  if (schema !== undefined && base !== "") {
+    const contract = Object.hasOwn(schema.contracts, base) ? schema.contracts[base] : undefined;
+    if (contract !== undefined) {
+      if (typeof a !== "object" || typeof b !== "object" || Array.isArray(a) || Array.isArray(b)) {
+        throw new ValueError("invalid-construction", `equalValue: ${typeId} expects contract values`);
+      }
+      const left = a as Record<string, CanValue>;
+      const right = b as Record<string, CanValue>;
+      const keys = Object.keys(left);
+      if (keys.length !== Object.keys(right).length) return false;
+      for (const key of keys) {
+        if (!Object.hasOwn(right, key)) return false;
+        const field = Object.hasOwn(contract.fields, key) ? contract.fields[key] : undefined;
+        if (field === undefined) {
+          throw new ValueError("invalid-construction", `unknown ${base} contract field ${key}`);
+        }
+        const fieldA = left[key];
+        const fieldB = right[key];
+        if (fieldA === undefined || fieldB === undefined) {
+          throw new ValueError("invalid-construction", "contract fields must be Can values");
+        }
+        if (!equalValue(field.typeId, fieldA, fieldB, resolveReference, schema)) return false;
+      }
+      return true;
+    }
+    const ast = parseTypeId(base);
+    if (ast.base.kind === "union") {
+      if (!isUnionValue(a) || !isUnionValue(b)) {
+        throw new ValueError("invalid-construction", "cannot compare a union with a non-union value");
+      }
+      if (a.type !== b.type) return false;
+      if (!ast.base.arms.includes(a.type)) {
+        throw new ValueError("invalid-construction", "union discriminator names no declared arm");
+      }
+      return equalValue(a.type, a.value, b.value, resolveReference, schema);
+    }
   }
   return equalInner(a, b, resolveReference);
 }

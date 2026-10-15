@@ -2179,7 +2179,10 @@ fn construct_scalars_per_op() {
             bool_ty.clone(),
         ),
     );
-    assert_eq!(text, "equalValue(\"demo.Summary\", a,b)");
+    assert_eq!(
+        text,
+        "equalValue(\"demo.Summary\", a,b,undefined,$valueSchema)"
+    );
 
     let nullable_widget = ResolvedType::Nullable(Box::new(widget.clone()));
     for op in [IrBinOp::Eq, IrBinOp::Ne] {

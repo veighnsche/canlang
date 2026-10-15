@@ -16255,7 +16255,7 @@ removes none. Original query-backed can_work source correspondence and whole-coh
 hooks still prevent full execution; this closes the root-pair/evidence prerequisite,
 not CanCRM or training readiness.
 
-2026-10-15 — C02/C03: proposed schema-directed Contract kind repair.
+2026-10-15 — C02/C03: schema-directed Contract kind repair (accepted and qualified at the recorded scope).
 
 The lock work exposes a separate existing Values defect: a declared ordinary
 Contract may use business fields kind/model/id/version. Validation accepts it,
@@ -16265,8 +16265,8 @@ tag can fail instead. ResearchLead does not exercise that tag, so do not infer
 complete Contract support from the preceding native result. Removing guards or
 stripping business keys would weaken existing malformed-value controls.
 
-Proposed implementation direction: extend the existing Values equality/encoding
-primitives with exact owning schema/type context and recursively preserve declared
+Use the existing Values equality/encoding primitives with exact owning schema/type
+context and recursively preserve declared
 Contract/alias/array/union positions. Source-owned generated normal and hook
 consumers must supply that context; State locks and native field codecs already
 have it. No global type-name registry or new authoring syntax. Private Contract
@@ -16281,8 +16281,49 @@ this is same-model advice, not correctness evidence. Requests/responses and
 uncertainty are retained in implementation/compiler-completion/contract-runtime-kinds/.
 Installed aliases are bounded text; reused Contract fields already emit the actual
 canonical Contract name. No new Contract-alias capability is implied.
-Exact additive API and schema plumbing remain implementation work. Finite acceptance
-must compare/encode every business field in plain and decoded Contracts, preserve
-actual Model identity, lazy genuine native resolution, malformed-tag rejection
-outside proven Contract positions, order/failures, locks, rollback and replay.
-This is a ready local correction, not an external release hold or completed feature.
+The additive schema arguments retain existing function arities and untyped behavior.
+Generated normal/hook equality and membership share one module-local normalized
+schema from the existing checked value inventory; literals, imports and field-type
+reuse use their declaring owner. Native codecs, State locks, admission, saved
+query/results and receipts use their already loaded schema. The stdlib equality
+shim retains its private native resolver. Root-call admission's duplicate Contract
+encoder is removed in favor of the same canonical Values primitive. Model/Event
+legacy equality lowering and scalar lock fallback retain their existing behavior.
+
+Values114 and generated-source12 checks pass, including every business-tag field,
+plain/decoded/imported/reused values, nullable/array/union/membership/hook behavior,
+Model identity and original demanded failures. State113/114 and additional80/80
+consumer checks pass; the one receipt fixture failure reproduces from unchanged
+HEAD query-shape code (missing required queryId), before changed codecs. CF9/9
+native-value/equality checks pass. Builds pass and root TypeScript retains its16
+old errors in four unchanged files. The native receiver initially exposed a second
+part of the collision: State's existing composite reference discovery classified
+business tags before their declared types. It now follows exact Contract fields,
+array elements and union payloads while retaining traversal/budget order, expected
+versions and protected-value refusal outside proven Contract containers. Its38
+root/owner admission checks pass (37 existing and one new); other unchanged State
+consumer scopes retain their earlier results.
+
+Actual captured CLI/verified assembly/D1/Identity passes1/1 in65.41s. Ref-shaped
+business fields at both top and nested Contract positions survive normalization,
+storage, saved inputs and replay; business-version differences compare unequal
+and locked updates reject. Real Model version refresh, ordered paired creation,
+late rollback, exact failures, revoked read/membership authority and recovery
+remain covered by the original independent assertions. Initial native preparation
+correctly refused a stale installed catalog; its unchanged producer regenerates
+it before the final captured run. No assertion is weakened.
+
+Original24-source validation exits10 after387.27s with703 diagnostics (677 E6008,
+26 E6007), complete=true, omitted=0, identical sources and no artifact. Full
+comparison retains all earlier701 findings and adds two explicit missing-schema
+refusals at CanRent's AcceptedOffer and QuoteDocument comparisons. Those owning
+Contracts contain validated email fields outside the current complete checked
+inventory profile; repair that local producer next instead of allowing runtime
+shape dispatch. This compiler result is reused after the receiving-only State fix.
+
+Bound Mail checks pass4/4 across their affected scopes. The maintained Judgment
+durable test reaches saved replay without native-scenario-receipts compilation,
+so no disclosure/association is emitted and replay refuses before changed codecs.
+Its missing option, unchanged capture gates and exact HEAD invoke refusal were
+verified; no complete Judgment durable pass is claimed and its assertion remains.
+Complete CanCRM/native/reference and training-data readiness remain open.

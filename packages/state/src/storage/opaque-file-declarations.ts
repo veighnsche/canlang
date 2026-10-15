@@ -601,7 +601,7 @@ function bindOriginalValueDefaults(set: FrameworkOpaqueDeclarationSet, values: F
     const validated = originalSchema.contracts[original.contract]!.fields[original.field]!;
     if (!validated.hasDefault || validated.default === undefined) return refuse('owning literal default validation required.');
     const item = { original, profile: leafProfile(values, raw.field),
-      validatedWire: encodeValue(raw.field.type, validated.default) };
+      validatedWire: encodeValue(raw.field.type, validated.default, undefined, originalSchema) };
     valueDefaultOccurrences(item, original.value);
     defaults.set(key, item);
   }

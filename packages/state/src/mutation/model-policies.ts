@@ -100,7 +100,7 @@ function equalLockedField(def: InterimModelDef, name: string, a: unknown, b: unk
   if (reference === undefined && !contract) return equal(a, b);
   const decode = (value: unknown) => schema === undefined
     ? decodeValue(type, value) : validateValue(schema, type, value, 'create');
-  return equalValue(type, decode(a), decode(b));
+  return equalValue(type, decode(a), decode(b), undefined, schema);
 }
 function frozen<T>(value: T): T { return deepFreeze(structuredClone(value)); }
 

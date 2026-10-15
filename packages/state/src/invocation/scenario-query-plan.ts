@@ -416,7 +416,7 @@ function canonicalWire(type: CanTypeId, value: unknown, schema?: NormalizedSchem
     const parsed = parseTypeId(type);
     if (schema === undefined && parsed.base.kind === 'nominal' && !parsed.array && typeof value === 'string') return;
     const decoded = schema === undefined ? decodeValue(type, value) : validateValue(schema, type, value, 'create');
-    if (!same(encodeValue(type, decoded), value)) fail('saved wire is not canonical.');
+    if (!same(encodeValue(type, decoded, undefined, schema), value)) fail('saved wire is not canonical.');
   } catch (error) { if (error instanceof StateError) throw error; fail('invalid saved canonical wire.'); }
 }
 function orderValue(record: ProjectedRecord, field: string): unknown {

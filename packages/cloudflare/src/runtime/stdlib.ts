@@ -62,6 +62,7 @@ import type {
 } from '@canlang/contracts';
 import type { CanonicalEffectsScope, HandlerContext, NativeSendWhen } from './context.js';
 import { app_url as appUrlProducer, equalValue as equalValueProducer, ValueError } from '@canlang/values';
+import type { NormalizedSchema } from '@canlang/values';
 import { nativeRecordReference, sameNativeReference } from './native-records.js';
 import { hasRole as stateCallerRole, type HandlerRoleContext } from '@canlang/state/effects/guards';
 import { nativeReadSubjectRole } from './native-membership.js';
@@ -75,7 +76,7 @@ export {
   ValueError, int64, datetime, compareInstant, addDuration, subtractDuration, overlaps, abs, all, any, at, sum, join, trim, starts_with, compareScalar, choose, concat, flatten,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   divideDurationMs, remainderDuration, multiplyDuration, durationBetween, first,
-  date, add_days, compareDate, encodeValue,
+  date, add_days, compareDate, encodeValue, normalizeSchema,
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { active_member } from './native-membership.js';
@@ -112,12 +113,13 @@ export function judgmentSpecification(c: HandlerContext, qualifiedName: string, 
 }
 
 /** Pure checked equality, with compatibility for earlier c-first artifacts. */
-export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean;
-export function equalValue(c: HandlerContext, typeId: string, a: CanValue, b: CanValue): boolean;
-export function equalValue(typeOrContext: string | HandlerContext, typeOrA: string | CanValue, aOrB: CanValue, b?: CanValue): boolean {
+export function equalValue(typeId: string, a: CanValue, b: CanValue, reserved?: undefined, schema?: NormalizedSchema): boolean;
+export function equalValue(c: HandlerContext, typeId: string, a: CanValue, b: CanValue, reserved?: undefined, schema?: NormalizedSchema): boolean;
+export function equalValue(typeOrContext: string | HandlerContext, typeOrA: string | CanValue, aOrB: CanValue,
+  bOrReserved?: CanValue, reservedOrSchema?: NormalizedSchema, schema?: NormalizedSchema): boolean {
   return typeof typeOrContext === 'string'
-    ? equalValueProducer(typeOrContext, typeOrA as CanValue, aOrB, nativeRecordReference)
-    : equalValueProducer(typeOrA as string, aOrB, b as CanValue, nativeRecordReference);
+    ? equalValueProducer(typeOrContext, typeOrA as CanValue, aOrB, nativeRecordReference, reservedOrSchema)
+    : equalValueProducer(typeOrA as string, aOrB, bOrReserved as CanValue, nativeRecordReference, schema);
 }
 
 /** Input for {@link create}: explicit id plus data (crud interim convention). */

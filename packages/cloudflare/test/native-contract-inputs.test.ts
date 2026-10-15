@@ -26,8 +26,8 @@ Given
  role contact_reader
  Location {title:text,currency:currency}
  Result {location:Location,title:text trim min=1,value:money,notes:text}
- contract Selection {location:Location}
- contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text}
+ contract Selection {location:Location,kind:text,model:text,id:text,version:int}
+ contract Lead {customer:Customer,alternate:Customer,contact:Contact,selection:Selection,title:Result.title,value:money,notes:text,kind:text,model:text,id:text,version:int}
  Snapshot {input:Lead}
  Assignment {title:text,owner:user=actor}
  Checked {customer:Customer,contact:Contact,location:Location,value:money,owner:user=actor}
@@ -187,8 +187,8 @@ test('native Contract input slots retain normalized values, distinct reference v
       const ref = (row:typeof customer)=>({id:row.id,version:String(row.version)});
       const contact = await seed(CONTACT,{parent:ref(customer),name:'original contact'});
       const otherContact = await seed(CONTACT,{parent:ref(other),name:'other contact'});
-      const payload = {customer:ref(customer),alternate:ref(customer),contact:ref(contact),selection:{location:ref(location)},
-        title:'  reviewed  ',value:{minor:'500',currency:'EUR'},notes:'original evidence'};
+      const payload = {customer:ref(customer),alternate:ref(customer),contact:ref(contact),selection:{location:ref(location),kind:'ref',model:'business-selection',id:'selection-id',version:'3'},
+        kind:'ref',model:'business-lead',id:'lead-id',version:'7',title:'  reviewed  ',value:{minor:'500',currency:'EUR'},notes:'original evidence'};
       const records = ()=>store.query({model:RESULT,authority:'owner'});
       const createdBefore = await records();
       const input = envelope('promote',{input:payload,accept:true});
@@ -303,6 +303,12 @@ test('native Contract input slots retain normalized values, distinct reference v
       const beforeDifferent = await store.query({model:SNAPSHOT,authority:'owner'});
       const different = envelope('same',{snapshot:ref(savedSnapshot),input:{...payload,notes:'changed'}});
       assert.equal(committed(await invoke(different)).result,false);
+      // A declared business version participates in equality even when its
+      // containing Contract has every field of a runtime RecordRef.
+      for (const changed of [
+        {...payload,version:'8'},
+        {...payload,selection:{...payload.selection,version:'4'}},
+      ]) assert.equal(committed(await invoke(envelope('same',{snapshot:ref(savedSnapshot),input:changed}))).result,false);
       assert.deepEqual(await store.query({model:SNAPSHOT,authority:'owner'}),beforeDifferent);
       for (const rejectedCall of [
         envelope('capture',{input:payload,accept:false}),
@@ -358,7 +364,7 @@ test('native Contract input slots retain normalized values, distinct reference v
       assert.deepEqual(new Set(pairedAssociation.changed.map(change=>change.model)),new Set([CHECKED,INTAKE]));
       assert.deepEqual(pairedAssociation.changed.find(change=>change.model===INTAKE)?.row,intakeRow);
       // All declared evidence fields remain locked through the canonical CRUD operation.
-      for(const patch of [{source:'discover:changed'},{checked:ref(checkedRow)},{input:{...payload,notes:'changed'}},{evidence:'changed'}]) {
+      for(const patch of [{source:'discover:changed'},{checked:ref(checkedRow)},{input:{...payload,notes:'changed'}},{input:{...payload,version:'8'}},{input:{...payload,selection:{...payload.selection,version:'4'}}},{evidence:'changed'}]) {
         const call=envelope(`${INTAKE}.update`,{record:ref(intakeRow),...patch}),before=batches.length;
         const outcome=await invoke(call);assert.ok('error' in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,'rule_failed');
         assert.equal(batches.length,before+1);assert.deepEqual(batches.at(-1)!.writes,[]);assert.deepEqual(batches.at(-1)!.history,[]);
@@ -452,7 +458,7 @@ test('native Contract input slots retain normalized values, distinct reference v
         [{...payload,customer:{id:customer.id}},'validation'],
         [{...payload,customer:{id:customer.id,version:String(customer.version+1)}},'conflict'],
         [{...payload,contact:{id:contact.id,version:String(contact.version+1)}},'conflict'],
-        [{...payload,selection:{location:{id:'missing-contract-location',version:'1'}}},'not_found'],
+        [{...payload,selection:{...payload.selection,location:{id:'missing-contract-location',version:'1'}}},'not_found'],
       ] as const) {
         const call = envelope('promote',{input:invalid,accept:true}), count = batches.length, revision = await store.readRevision(), before = await records();
         const outcome = await invoke(call); assert.ok('error' in outcome,JSON.stringify(outcome)); assert.equal(outcome.error.code,code);

@@ -2593,6 +2593,7 @@ fn emit_program_with_sources(
     emitter.emit_app_definition(&mut body, entry_id);
     emitter.emit_derive_fns(&mut body);
     emitter.emit_can_app(&mut body, entry_id, &operations, local_policies.as_ref());
+    emitter.emit_equality_schema(&mut body, entry_span);
     let mut out = JsWriter::new();
     out.push(
         entry_span,
@@ -3337,6 +3338,7 @@ fn fill_binary_template(template: String, left: &str, right: &str) -> String {
 pub struct Emitter<'a> {
     ir: &'a IrProgram,
     value_types: Option<JsValueTypes>,
+    equality_schema: bool,
     committed_changes: Option<Vec<JsCommittedChange>>,
     standard_completions: Option<Vec<JsStandardCompletion>>,
     by_canonical: HashMap<String, usize>,
@@ -3483,6 +3485,7 @@ impl<'a> Emitter<'a> {
         let mut emitter = Self {
             ir,
             value_types,
+            equality_schema: false,
             committed_changes: None,
             standard_completions: None,
             by_canonical,
@@ -6693,7 +6696,7 @@ impl<'a> Emitter<'a> {
                     } else {
                         self.stdlib.insert("equalValue".to_string());
                         let type_id = self.canonical_type_id(element, span);
-                        format!("equalValue({},$member,$item)", js_string(&type_id))
+                        self.value_equality_call(element, &type_id, "$member", "$item", span)
                     };
                 format!("(($member,$collection)=>$collection.some($item=>{comparison}))({l},{r})")
             }
@@ -6705,6 +6708,144 @@ impl<'a> Emitter<'a> {
                 self.lower_arithmetic(op, left, right, span, l, r)
             }
         }
+    }
+
+    /// Contract positions use the same checked declaration inventory as the
+    /// artifact and native codecs. No runtime shape grants Contract identity.
+    fn equality_needs_schema(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                self.equality_needs_schema(inner)
+            }
+            ResolvedType::Record { symbol, .. } => {
+                self.ir.items.get(symbol.0 as usize).is_some_and(|item| {
+                    matches!(
+                        item.kind,
+                        IrItemKind::Contract { .. }
+                            | IrItemKind::Judgment { .. }
+                            | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { .. })
+                    )
+                })
+            }
+            ResolvedType::StdNominal { .. } => true,
+            ResolvedType::Union(arms) => arms.iter().any(|symbol| {
+                self.equality_needs_schema(&ResolvedType::Record {
+                    symbol: *symbol,
+                    stored: false,
+                })
+            }),
+            _ => false,
+        }
+    }
+
+    fn value_equality_call(
+        &mut self,
+        ty: &ResolvedType,
+        id: &str,
+        l: &str,
+        r: &str,
+        span: Span,
+    ) -> String {
+        if self.equality_needs_schema(ty) {
+            let mut base = ty;
+            while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } =
+                base
+            {
+                base = inner;
+            }
+            let admitted = match base {
+                ResolvedType::Union(arms) => self.value_types.as_ref().is_some_and(|inventory| {
+                    arms.iter().all(|symbol| {
+                        self.ir.items.get(symbol.0 as usize).is_some_and(|item| {
+                            matches!(
+                                item.kind,
+                                IrItemKind::Model { .. } | IrItemKind::Event { .. }
+                            ) || inventory
+                                .contracts
+                                .iter()
+                                .any(|contract| contract.name == item.canonical)
+                        })
+                    })
+                }),
+                _ => self.nominal_value_type(base).is_some(),
+            };
+            if !admitted {
+                self.unsupported(
+                    "Contract equality schema",
+                    "no complete checked owning Contract inventory",
+                    span,
+                );
+                return self.throw_expr("Contract equality schema");
+            }
+            self.equality_schema = true;
+            format!(
+                "equalValue({}, {l},{r},undefined,$valueSchema)",
+                js_string(id)
+            )
+        } else {
+            let separator = if l == "$member" { "" } else { " " };
+            format!("equalValue({},{separator}{l},{r})", js_string(id))
+        }
+    }
+
+    /// Normalize the existing source-owned inventory once, after declaration
+    /// emission. Normal functions and hook closures share this module-local
+    /// immutable schema; presentation metadata is not a Values descriptor.
+    fn emit_equality_schema(&mut self, out: &mut JsWriter, span: Span) {
+        if !self.equality_schema {
+            return;
+        }
+        let Some(inventory) = &self.value_types else {
+            self.unsupported(
+                "Contract equality schema",
+                "no checked owning value inventory",
+                span,
+            );
+            return;
+        };
+        let contracts = inventory
+            .contracts
+            .iter()
+            .map(|contract| {
+                let fields = contract
+                    .fields
+                    .iter()
+                    .map(|field| format!("{}:{}", js_string(&field.name), field.schema_json()))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("{}:{{fields:{{{fields}}}}}", js_string(&contract.name))
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let enums = inventory
+            .enums
+            .iter()
+            .map(|enumeration| {
+                format!(
+                    "{}:{{cases:{}}}",
+                    js_string(&enumeration.name),
+                    descriptor_json(&enumeration.cases)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let aliases = inventory
+            .aliases
+            .iter()
+            .map(|alias| {
+                let leaf = JsNominalLeaf {
+                    name: alias.name.clone(),
+                    declared: alias.declared.clone(),
+                    constraints: alias.constraints.clone(),
+                };
+                format!("{}:{}", js_string(&alias.name), leaf.schema_json())
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        self.stdlib.insert("normalizeSchema".to_string());
+        out.push(span, None, &format!(
+            "const $valueSchema=normalizeSchema({{contracts:{{{contracts}}},enums:{{{enums}}},aliases:{{{aliases}}}}});"
+        ));
     }
 
     /// Lower `==`/`!=`: `null` compares directly, money uses `equalMoney`,
@@ -6748,7 +6889,8 @@ impl<'a> Emitter<'a> {
                 &right.ty
             };
             let id = self.canonical_type_id(ty, span);
-            return negate_call(negate, &format!("equalValue({}, {l},{r})", js_string(&id)));
+            let comparison = self.value_equality_call(ty, &id, l, r, span);
+            return negate_call(negate, &comparison);
         }
         // Stored rows compare by reference identity; contracts, arrays and
         // objects compare structurally so they are never compared by
@@ -6781,7 +6923,8 @@ impl<'a> Emitter<'a> {
             // keep their own hook refusal below per the T31 pin.)
             self.stdlib.insert("equalValue".to_string());
             let id = self.canonical_type_id(&left.ty, span);
-            return negate_call(negate, &format!("equalValue({}, {l},{r})", js_string(&id)));
+            let comparison = self.value_equality_call(&left.ty, &id, l, r, span);
+            return negate_call(negate, &comparison);
         }
         let l_family = scalar_family(&left.ty);
         let r_family = scalar_family(&right.ty);
