@@ -231,7 +231,7 @@ pub(super) fn checked_created_schema(
             stored: true,
         } = referenced
         {
-            model_identity(ir, owner, *symbol, db)?;
+            nominal_identity(ir, owner, *symbol, db)?;
             if original_field.reuse.is_none() {
                 let type_source =
                     text.get(data.type_node.start as usize..data.type_node.end as usize)?;
@@ -525,7 +525,58 @@ fn model_identity(
     (matching == 1).then_some(())
 }
 
-fn reference_name(
+/// Contracts retain their owning checked field closure. Model leaves keep the
+/// separate row-identity proof; a Contract never becomes a Model reference.
+fn nominal_identity(
+    ir: &IrProgram,
+    owner: &IrItem,
+    id: crate::analysis::SymbolId,
+    db: &SourceDb,
+) -> Option<()> {
+    if matches!(ir.items.get(id.0 as usize)?.kind, IrItemKind::Model { .. }) {
+        return model_identity(ir, owner, id, db);
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let mut pending = vec![id];
+    let mut seen = HashSet::new();
+    while let Some(id) = pending.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        if seen.len() > 200 {
+            return None;
+        }
+        if matches!(ir.items.get(id.0 as usize)?.kind, IrItemKind::Model { .. }) {
+            model_identity(ir, owner, id, db)?;
+            continue;
+        }
+        let mut schemas = facts
+            .stored_contracts
+            .as_deref()?
+            .iter()
+            .filter(|schema| schema.id == id && !schema.model);
+        let schema = schemas.next()?;
+        if schemas.next().is_some() {
+            return None;
+        }
+        super::scenario_receipts::match_stored_contract_schema(ir, schema, db)?;
+        for field in &schema.fields {
+            super::scenario_receipts::match_stored_contract_field(ir, field, db)?;
+            let mut ty = &field.ty;
+            while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } =
+                ty
+            {
+                ty = inner;
+            }
+            if let ResolvedType::Record { symbol, .. } = ty {
+                pending.push(*symbol);
+            }
+        }
+    }
+    Some(())
+}
+
+pub(super) fn reference_name(
     ir: &IrProgram,
     receiving: &IrItem,
     target: crate::analysis::SymbolId,
@@ -621,7 +672,114 @@ pub(super) fn checked_create_operand(
         return None;
     }
     super::scenario_receipts::checked_created_reference_operand(ir, original, actual, node, db)?;
+    let mut ty = &actual.ty;
+    while let ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } = ty {
+        ty = inner;
+    }
+    if let ResolvedType::Record { symbol, .. } = ty
+        && matches!(
+            ir.items.get(symbol.0 as usize)?.kind,
+            IrItemKind::Contract { .. }
+        )
+    {
+        checked_contract_parameter_operand(ir, original, actual, node, db)?;
+    }
     checked_create_expression(ir, original, actual, node, db)
+}
+
+/// Current native producer bound: a whole Contract value is the original
+/// required parameter occurrence. Other Contract expressions remain language
+/// values, but need their own source correspondence before native admission.
+fn checked_contract_parameter_operand(
+    ir: &IrProgram,
+    original: &CheckedScenarioCreate,
+    actual: &TypedExpr,
+    node: NodeKey,
+    db: &SourceDb,
+) -> Option<()> {
+    let ResolvedType::Record {
+        symbol,
+        stored: true,
+    } = &actual.ty
+    else {
+        return None;
+    };
+    let IrExpr::Name(name) = &actual.expr else {
+        return None;
+    };
+    let mut owners = ir.items.iter().filter(|owner| {
+        ir.scenario_disclosures
+            .get(&owner.id)
+            .and_then(|disclosure| disclosure.source_facts())
+            .and_then(|facts| facts.creates.as_deref())
+            .is_some_and(|creates| {
+                creates.iter().any(|created| {
+                    created.node == original.node && created.source == original.source
+                })
+            })
+    });
+    let owner = owners.next()?;
+    if owners.next().is_some() {
+        return None;
+    }
+    let facts = super::scenario_calls::checked_source(ir, owner, db)?;
+    let IrItemKind::Scenario {
+        params, effects, ..
+    } = &owner.kind
+    else {
+        return None;
+    };
+    let (parameter, path) = super::scenario_receipts::checked_contract_parameter_source_path(
+        ir,
+        owner,
+        actual,
+        Some(db),
+    )?;
+    if path != *name || !params.contains(&parameter) {
+        return None;
+    }
+    let (tree, diagnostics) = crate::syntax::parse(db, node.file);
+    if !diagnostics.is_empty() {
+        return None;
+    }
+    let text = &db.get(node.file)?.text;
+    let mut pending = vec![&tree];
+    while let Some(at) = pending.pop() {
+        // A preceding source binding cannot stand in for the parameter.
+        if at.kind == SyntaxKind::Let
+            && at.span.start < node.start
+            && at.span.start >= facts.node.start
+            && at.span.end <= facts.node.end
+            && at
+                .children
+                .iter()
+                .find(|part| part.kind == SyntaxKind::Name)
+                .is_some_and(|part| part.token().is_some_and(|token| token.text(text) == name))
+        {
+            return None;
+        }
+        pending.extend(at.children.iter());
+    }
+    let mut statements: Vec<_> = effects.iter().collect();
+    while let Some(statement) = statements.pop() {
+        match statement {
+            IrStmt::Let {
+                name: binding,
+                span,
+                ..
+            } if binding == name && span.start < node.start => return None,
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                statements.extend(then_branch);
+                statements.extend(else_branch);
+            }
+            _ => {}
+        }
+    }
+    nominal_identity(ir, owner, *symbol, db)
 }
 
 /// Original leaf-prefix expressions use the same semantic source join as its
