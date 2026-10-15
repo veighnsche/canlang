@@ -17936,3 +17936,36 @@ source, grants, independent assertions, training inputs or datasets change.
 The original composition and required executable consumers remain unfinished
 under the finite completion record; this specification commit claims no production
 or all-v1 implementation readiness.
+
+## 2026-10-15 — use the standalone installer throughout public documentation
+
+Accepted owner direction: make `curl -fsSL https://sodaos.dev/CanLang/install.sh | bash`
+the default application setup everywhere. The public v0.1.1 script is deployed;
+its bytes match the pinned GitHub release and its syntax passes `bash -n`.
+The installer selects the supported host's bundle from one resolved release,
+including the catalog, runtime adapters, private Node, local engine and Testkit.
+Application authors work in their own directories without a CanLang checkout,
+source build, manual runtime packages or catalog/runtime overrides. Browser
+automation remains a separately optional development installation.
+
+Move source build prerequisites and commands into an explicitly optional public
+contributor guide, retaining the former source-workspace installation anchor as
+a link to that guide. Align the handbook landing page, installation, local
+development, testing, deployment and CLI reference, plus the repository README
+and installation reference. The website synchronizes a committed source snapshot
+and redeploys it; generated handbook HTML is not edited by hand. No installer,
+release bytes, language semantics or platform support changes are part of this
+documentation update. Link validation covers all 13 handbook pages; existing
+native release qualifications remain the evidence for installed runtime behavior.
+
+## 2026-10-15 — merge installer guidance without replacing the specification
+
+Merge `02470b74` into `main` at `a70921e3`; keep the canonical checkout on `main`.
+Retain both appended decisions in the sole conflict. Installer/public/contributor
+pages match the incoming commit; normative requirements/design/grammar, the finite
+completion record and JEV responses retain their specification-commit content.
+No source-language rule, runtime behavior, package or release bytes change.
+Reconcile the existing filetree plan incrementally from retained coverage; keep
+its complete checkpoint and open review gates unchanged. Focused local link/anchor,
+exact parent-content preservation and diff-whitespace checks validate the combined
+documentation. Existing runtime/release evidence is reused; nothing is pushed.
