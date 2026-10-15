@@ -204,3 +204,50 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/publish-install-release.mjs output/publish-install
+
+  verify-public-install:
+    needs: publish-install
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            platform: darwin-arm64
+            shell: /bin/zsh
+          - runner: ubuntu-24.04
+            platform: linux-x64
+            shell: /bin/bash
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Verify all five public core assets and streamed installation
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          INSTALL_SHELL: ${{ matrix.shell }}
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          version=${RELEASE_TAG#v}
+          base=https://github.com/veighnsche/canlang/releases/download/$RELEASE_TAG
+          for asset in install.sh can-$version-darwin-arm64.tar.gz can-$version-darwin-arm64.tar.gz.sha256 can-$version-linux-x64.tar.gz can-$version-linux-x64.tar.gz.sha256; do
+            curl --fail --silent --show-error --location --head --proto '=https' --proto-redir '=https' "$base/$asset" > /dev/null
+            echo "PASS public asset: $base/$asset"
+          done
+          scratch=$(mktemp -d "$RUNNER_TEMP/can-public-install.XXXXXXXX")
+          trap 'rm -rf "$scratch"' EXIT
+          mkdir -p "$scratch/home with spaces" "$scratch/zsh config"
+          export HOME="$scratch/home with spaces" CAN_INSTALL_DIR="$scratch/install with spaces" ZDOTDIR="$scratch/zsh config" SHELL="$INSTALL_SHELL"
+          # Use the published installer and its default single latest-tag resolution.
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' "$base/install.sh" | /bin/bash
+          case "$INSTALL_SHELL" in
+            /bin/zsh) /bin/zsh -f -c 'source "$ZDOTDIR/.zshrc"; command -v can; can --version' ;;
+            *) /bin/bash --noprofile --norc -c '. "$HOME/.bashrc"; command -v can; can --version' ;;
+          esac
+          actual=$("$CAN_INSTALL_DIR/bin/can" --version)
+          case "$actual" in "can $version ("*) ;; *) echo "Unexpected compiler: $actual" >&2; exit 1 ;; esac
+          "$CAN_INSTALL_DIR/current/libexec/node" -e '
+            const assert = require("node:assert/strict");
+            const manifest = require(process.env.CAN_INSTALL_DIR + "/current/manifest.json");
+            assert.equal(manifest.version, process.env.RELEASE_TAG.slice(1));
+            assert.equal(manifest.platform, process.env.EXPECTED_PLATFORM);
+            console.log("PASS public streamed install:", manifest.version, manifest.platform, process.version);
+          '
