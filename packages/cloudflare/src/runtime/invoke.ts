@@ -6508,7 +6508,7 @@ async function loadLocalOwnerPolicyControl(input: {
         }));
         continue;
       }
-      const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate']);
+      const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate', 'queryModels']);
       const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
       const kind = localPolicyMember(binding, 'kind'), evaluate = localPolicyMember(binding, 'evaluate');
       const descriptor = owning.find(candidate => candidate.model === model);
@@ -6516,6 +6516,13 @@ async function loadLocalOwnerPolicyControl(input: {
       if (descriptor === undefined || rule === undefined || localPolicyMember(binding, 'module') !== emitted.path ||
           localPolicyMember(binding, 'ownerPackage') !== descriptor.ownerPackage || typeof evaluate !== 'function') {
         throw new Error('Local owner native binding disagrees with its exact loaded claim.');
+      }
+      const queryCarrier = localPolicyMember(binding, 'queryModels');
+      const queryModels = queryCarrier === undefined ? [] : localPolicyStrings(queryCarrier);
+      if (queryCarrier !== undefined && (rule.kind !== 'invariant' || evaluate.length !== 2 || queryModels.length === 0 ||
+          queryModels.some(model => !input.native.models.some(candidate => candidate.name === model) ||
+            !rule.dependencies.some(dependency => dependency.model === model)))) {
+        throw new Error('Owner query domains differ from their exact invariant dependency claims.');
       }
       if (rule.kind === 'invariant' && evaluate.length === 3) {
         const dependency = rule.dependencies[0];
@@ -6534,7 +6541,7 @@ async function loadLocalOwnerPolicyControl(input: {
         evaluate: async (owner: OwnerRuleContext, row: StoredRow): Promise<boolean> => {
           const frame = activeFrames.get(owner.context);
           if (frame?.active !== true) throw new input.native.producers.errors('validation', 'Owner model rule has no live private frame.');
-          let active = true, failed = false, firstFailure: unknown, pendingReferences = 0;
+          let active = true, failed = false, firstFailure: unknown, pendingReferences = 0, pendingQueries = 0;
           const poison = (error: unknown): never => {
             if (!failed) { failed = true; firstFailure = error; }
             throw firstFailure;
@@ -6605,7 +6612,43 @@ async function loadLocalOwnerPolicyControl(input: {
               })();
               return currentView;
             };
+            const readRecords = async (model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
+              pendingQueries++;
+              try {
+                assertLive();
+                if (!queryModels.includes(model)) return poison(new input.native.producers.errors('validation', 'Owner query lacks its original checked model domain.'));
+                let selection: Record<string, unknown>;
+                try { selection = localPolicyObject(query, ['where']); }
+                catch (error) { return poison(new input.native.producers.errors('validation', message(error))); }
+                const where = localPolicyMember(selection, 'where');
+                if (where !== undefined && typeof where !== 'function') return poison(new input.native.producers.errors('validation', 'Owner query requires its original source predicate.'));
+                const sources = await owner.read.query({ model: model as ModelName, authority: 'owner', archived: 'exclude',
+                  order: [{ field: 'id', direction: 'asc' }], limit: owner.maxRows });
+                assertLive();
+                const result: Record<string, unknown>[] = [];
+                for (const source of sources) {
+                  const key = stagedKey(model, source.id);
+                  let pending = referenceViews.get(key);
+                  if (pending === undefined) {
+                    pending = hydrate(model, source); referenceViews.set(key, pending);
+                  }
+                  const candidate = await pending; assertLive();
+                  if (where !== undefined) {
+                    const answer: unknown = await (where as (candidate: Record<string, unknown>, context: HandlerContext) => unknown)(candidate, c);
+                    assertLive();
+                    if (typeof answer !== 'boolean') return poison(new input.native.producers.errors('validation', 'Owner query predicate did not return bool.'));
+                    if (!answer) continue;
+                  }
+                  result.push(candidate);
+                }
+                assertLive(); return Object.freeze(result);
+              } catch (error) { return poison(error); }
+              finally { pendingQueries--; }
+            };
             const c = createContext({
+              ...(queryCarrier === undefined ? {} : { canonical: Object.freeze({ operation: owner.context.operation,
+                stageWrite: async () => refuse(), createRecord: async () => refuse(), setRecord: async () => refuse(),
+                deleteRecord: async () => refuse(), readModel: async () => refuse(), readRecords }) }),
               ...(frame.deploymentBase === undefined ? {} : { deploymentBase: frame.deploymentBase }),
               caller: Object.freeze({ userId: owner.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
               store, clock: () => { assertLive(); return owner.context.now; },
@@ -6648,7 +6691,7 @@ async function loadLocalOwnerPolicyControl(input: {
             const answer: unknown = dependency === undefined ? await callback(c, nativeRow)
               : await callback(c, nativeRow, readCurrent);
             assertLive();
-            if (pendingReferences !== 0) poison(new input.native.producers.errors('validation', 'Owner rule reference reads must complete before its predicate.'));
+            if (pendingReferences !== 0 || pendingQueries !== 0) poison(new input.native.producers.errors('validation', 'Owner rule reads must complete before its predicate.'));
             if (typeof answer !== 'boolean') throw new input.native.producers.errors('validation', 'Native owner model predicate did not return bool.');
             return answer;
           } finally { active = false; }

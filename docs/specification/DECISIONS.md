@@ -17315,3 +17315,18 @@ existing actual CLI-to-installed-factory check passes1/.86s with bare/layout/
 gated cards alongside unchanged captioned, localized and async controls. An
 earlier overlapping package-output run is not used as qualification. Original
 24-source diagnostic impact awaits the next frozen compiler capture.
+
+
+## 2026-10-15 — receive checked invariant queries in the existing owner view
+
+Accepted bounded receiving component: a verified invariant binding may name its
+checked query domains, each matching an existing loaded dependency claim. Only
+that binding receives private `readRecords` over the same owner-rule entry/final
+transaction machinery and actual maxRows. It excludes archived rows, orders by
+id and sequentially evaluates the original where before the existing ANY/ALL
+predicate. Issued row/reference identity, cached hydration, pending-read checks,
+sticky failure and closed-frame refusal remain mandatory; no viewer grant or
+public storage port is added. Normal Cloudflare build and both owning reference/
+query components pass2/.470s, covering domain/shape/nonbool refusal, exact
+authored predicate failure, order/short circuit and no extra writes. Compiler
+source qualification and original full Partner native acceptance remain pending.
