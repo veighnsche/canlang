@@ -10766,9 +10766,29 @@ impl<'a> Emitter<'a> {
         if let Some(refresh) = &page.refresh {
             members.push(format!("refresh:{}", js_string(refresh)));
         }
+        self.enter_scope();
+        let route_lookup = if let Some(route) = &page.record_route {
+            self.stdlib.insert("records".into());
+            self.bindings
+                .last_mut()
+                .expect("page scope")
+                .insert("row".into(), "(await $can$route$row())".into());
+            format!(
+                "let $can$route$once;const $can$route$row=()=>($can$route$once??=(async()=>{{const id=routeBindings[{}];if(typeof id!==\"string\"||id.length===0)throw {{code:\"validation\",message:\"Invalid record route.\"}};const rows=await records(c,{},{{where:{{op:\"eq\",field:\"id\",value:id}},archived:\"exclude\",authority:\"viewer\"}});if(rows.length!==1)throw {{code:\"forbidden\",message:\"forbidden\"}};return rows[0];}})());",
+                js_string(&route.token),
+                js_string(&route.model)
+            )
+        } else {
+            String::new()
+        };
         let bindings = self.admit_preferences_js(&page.owner);
+        let bindings = if page.record_route.is_some() {
+            format!("row:await $can$route$row(),{bindings}")
+        } else {
+            bindings
+        };
         let admit_body = if page.admit.is_empty() {
-            format!("async(c,routeBindings={{}})=>{{return {{{bindings}}};}}")
+            format!("async(c,routeBindings={{}})=>{{{route_lookup}return {{{bindings}}};}}")
         } else {
             // Page admission crosses the HTTP BusinessError boundary;
             // scenario guards keep the State-owned check semantics.
@@ -10780,9 +10800,14 @@ impl<'a> Emitter<'a> {
                         && let Some(source) = self.boolean_sources.get(&expr.span).cloned() {
                         self.stdlib.insert("nativeReadBoolean".into());
                         self.boolean_body = true;
+                        // The private Boolean observer supplies its own leased row.
+                        // It must never borrow the page's retained render binding.
+                        self.enter_scope();
+                        self.bindings.last_mut().expect("Boolean scope").insert("row".into(), "row".into());
                         let expression = self.lower_business_expr(expr,"Boolean page requirement");
+                        self.exit_scope();
                         self.boolean_body = false;
-                        let binding = page.path.split('{').nth(1).and_then(|value|value.split('}').next()).unwrap_or("");
+                        let binding = page.record_route.as_ref().map(|route| route.token.as_str()).unwrap_or("");
                         format!("await nativeReadBoolean(c,$can$boolean$issue({},async(c,row)=>({expression})),routeBindings[{}])",
                             descriptor_json(&descriptor_json(&source)),js_string(binding))
                     } else if let IrGuard::Expr(expr)=guard && self.membership_predicates.contains_key(&expr.span) {
@@ -10793,8 +10818,9 @@ impl<'a> Emitter<'a> {
                 })
                 .collect::<Vec<_>>()
                 .join("");
-            format!("async(c,routeBindings={{}})=>{{{checks}return {{{bindings}}};}}")
+            format!("async(c,routeBindings={{}})=>{{{route_lookup}{checks}return {{{bindings}}};}}")
         };
+        self.exit_scope();
         members.push(format!("admit:{admit_body}"));
         members.push(format!("render:{func}"));
         if has_direct_priorities {
@@ -10816,12 +10842,20 @@ impl<'a> Emitter<'a> {
         });
         let sequence_children = page.render.iter().any(ui_immediate_uses_async);
         self.record_page_render = page.path.contains('{');
+        self.enter_scope();
+        if page.record_route.is_some() {
+            self.bindings
+                .last_mut()
+                .expect("page render scope")
+                .insert("row".into(), "bindings.row".into());
+        }
         let children = page
             .render
             .iter()
             .map(|n| sequence_ui_child(self.lower_ui(n), sequence_children))
             .collect::<Vec<_>>()
             .join(",");
+        self.exit_scope();
         self.record_page_render = false;
         // Pages reading `preferences` bind the admit() record first: the
         // checkpoint returns per-app prefs inside `bindings` (never pctx).

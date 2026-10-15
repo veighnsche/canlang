@@ -465,7 +465,7 @@ fn checked_boolean_observers_emit_original_predicates_and_async_derived_reads() 
     route_result.complete = true;
     let mut route_options = EmitOptions::new();
     route_options.native_scenario_receipts = true;
-    let (_, route_diagnostics) = emit(
+    let (route_artifact, route_diagnostics) = emit(
         &route_program,
         &EmitSources {
             db: &route_db,
@@ -475,11 +475,10 @@ fn checked_boolean_observers_emit_original_predicates_and_async_derived_reads() 
         },
     );
     assert!(
-        route_diagnostics.iter().any(|d| d.code == "E6008"
-            && d.message
-                .contains("authorized route row render binding is unavailable")),
+        route_diagnostics.iter().all(|d| d.code == "E6007"),
         "{route_diagnostics:?}"
     );
+    assert!(route_artifact.modules[0].js.contains("bindings.row"));
     let scratch = tempfile::tempdir().unwrap();
     let runner = scratch.path().join("boolean.mjs");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -498,6 +497,7 @@ const ui=pathToFileURL(require.resolve('@canlang/ui')).href;
 writeFileSync(new URL('trap.mjs',import.meta.url),`export * from ${{JSON.stringify(stdlib)}};
 export async function nativeReadBoolean(c,f,subject){{globalThis.seen.push({{f,subject}});return f(c,typeof subject==='string'?{{author:'person',enabled:false}}:subject);}}
 export async function nativeReadReference(c,value){{return value;}}
+export async function records(){{throw Error('skipped route row lookup executed');}}
 export async function active_member(){{throw Error('lazy membership operand executed');}}`);
 const entry=readFileSync(new URL('entry.js',import.meta.url),'utf8').replaceAll('"@canlang/stdlib"',JSON.stringify(new URL('trap.mjs',import.meta.url).href)).replaceAll('"@canlang/ui"',JSON.stringify(ui));
 writeFileSync(new URL('entry.mjs',import.meta.url),entry);

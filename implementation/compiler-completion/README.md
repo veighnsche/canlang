@@ -2,6 +2,31 @@
 
 ## Current remainder and finite completion
 
+**C02 checked record-route producer (2026-10-15, compiler component qualified).**
+Publish the resolver's existing RouteRecord Model in the existing checked node
+TypeTable, cross-check its owning declaration/import and retain canonical Model
+plus authored token in private page IR. Admission memoizes the existing viewer
+exact-id records query lazily at the first reached row operand; context-only
+short circuits remain earlier. The actual authorized row passes to render/action
+bindings; Boolean observers retain their separate temporary row. Source checks
+pass6: new alias/order/failure/retained-row and missing/scalar/foreign association
+controls2/.21s, affected Boolean observer1/.29s, static page/preferences3/.00s.
+Locked CLI build passes. Original Partner native remains unfinished: first owning
+node:test intake correctly refused missing AffiliateWorkspace saved style output;
+copy the exact original unit before retry, preserving complete Partner/Capture/
+Advocate/Program schemas, policies, nullable branches and invariants. An earlier
+Vitest invocation found no suite because this consumer uses node:test. No native
+Partner or original24 route diagnostic removal credit is claimed.
+
+**Original24 qualification atd86da6a4 (2026-10-15).**
+Frozen query-association CLI419.34s, exit10, complete=true/omitted0:656 diagnostics
+(630 E6008+26 E6007), no artifact; unchanged26 consumed source records and input
+bytes, removed0/added0 versus8c2dc7fe. Retained argv/result/diagnostics:
+`/tmp/cancrm-query-association-20261015-*`. The next authentic intake probe must
+inspect query-only context and identify the next unmet owner join; don't repeat
+this unchanged full emission. This frozen binary predates the record-route
+component above, which needs its own later applicable qualification.
+
 **C02 query association with unrelated backend gaps (2026-10-15, source qualified).**
 Authentic26-source inspection has zero checker errors and retains CRM2creates/
 3queries/3decision sites, but strict fresh preparation stopped globally at270
@@ -15,8 +40,8 @@ reuse the same fresh cohort with their existing full source checks, avoiding a
 second global refusal. Final owning controls2/1.60s pass: real unsupported sibling,
 renamed helper reuse, borrowed returns, actual body/source/schema/return mutants,
 intersecting owner/helper/schema diagnostics and global E6006. Locked CLI build
-passes. Original24 frozen-binary qualification is live (session78591), retained
-argv/results `/tmp/cancrm-query-association-20261015-*`; no count credit yet.
+passes. Original24 frozen-binary qualification is terminal above with656 unchanged;
+retain the focused component scope while locating the next full-cohort gate.
 
 Diagnostic original6 with this binary + nested fixture dependency fix has no
 setup failures, two passing rows and four identical runtime refusals: `Source

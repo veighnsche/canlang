@@ -8741,6 +8741,37 @@ impl<'a> Typer<'a> {
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         self.check_action_panel_targets(&cx, node);
+        // Preserve the resolver's exact declaration association for route IR.
+        // The authored token is syntax; its Model identity is never inferred
+        // from the URL spelling during code generation.
+        for route in kids(node)
+            .into_iter()
+            .filter(|part| part.kind == SyntaxKind::Route)
+        {
+            for record in kids(route)
+                .into_iter()
+                .filter(|part| part.kind == SyntaxKind::RouteRecord)
+            {
+                let model = kids(record)
+                    .into_iter()
+                    .find(|part| part.kind == SyntaxKind::Path)
+                    .and_then(|path| self.tables.node_symbol.get(&NodeKey::of(path)).copied());
+                if let Some(model) = model
+                    && matches!(
+                        self.tables.symbols[model.0 as usize].kind,
+                        SymbolKind::Model { .. }
+                    )
+                {
+                    self.types.node_types.insert(
+                        NodeKey::of(record),
+                        ResolvedType::Record {
+                            symbol: model,
+                            stored: true,
+                        },
+                    );
+                }
+            }
+        }
         // Only record-bound top-level page admission has an actual model read
         // subject for the checked boolean-read owner. Container gates and
         // unbound page guards retain their strict pure contract.
