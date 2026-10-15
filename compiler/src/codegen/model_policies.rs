@@ -5,9 +5,10 @@ use crate::analysis::{CheckedProgram, catalog::Catalog};
 use crate::codegen::ir::{self, IrItemKind, IrModelRuleKind, IrProgram, IrType, TypedExpr};
 use crate::codegen::model_policy_profile::{
     CurrentRevisionRuleKind, CurrentRevisionRuleProfile, checked_chat_invariant_fields,
-    checked_chat_lock_target, checked_required_record_lock_target, current_revision_lock_target,
-    current_revision_rule_profile, local_hook_supported, local_rule_fields,
-    local_stored_field_type, required_model_rule_dependencies, required_model_rule_fields,
+    checked_chat_lock_target, checked_local_rule_fields, checked_required_record_lock_target,
+    current_revision_lock_target, current_revision_rule_profile, local_hook_supported,
+    local_rule_fields, local_stored_field_type, required_model_rule_dependencies,
+    required_model_rule_fields,
 };
 use crate::diagnostic::Severity;
 use crate::source::SourceDb;
@@ -103,7 +104,7 @@ pub(crate) fn collect_local_policies(
     ir: &IrProgram,
     emitted_module: &str,
 ) -> Option<LocalPolicies> {
-    collect_policies(ir, emitted_module, None, None)
+    collect_policies(ir, emitted_module, None, None, None)
 }
 
 /// Source-backed intake for the original current-Revision policy closure.
@@ -153,7 +154,13 @@ pub(crate) fn collect_checked_policies(
         }
     }
     let chat_fields = source::checked_chat_field_annotations(program, ir, db);
-    collect_policies(ir, emitted_module, Some(&profiles), Some(&chat_fields))
+    collect_policies(
+        ir,
+        emitted_module,
+        Some(&profiles),
+        Some(&chat_fields),
+        Some((program, db, catalog)),
+    )
 }
 
 fn collect_policies(
@@ -161,6 +168,7 @@ fn collect_policies(
     emitted_module: &str,
     checked_profiles: Option<&[CurrentRevisionRuleProfile]>,
     checked_chat_fields: Option<&std::collections::HashSet<SymbolId>>,
+    checked_context: Option<(&CheckedProgram, &SourceDb, Option<&Catalog>)>,
 ) -> Option<LocalPolicies> {
     let mut checked_hooks = Vec::new();
     let mut operations = std::collections::HashSet::new();
@@ -218,6 +226,13 @@ fn collect_policies(
                 .cloned();
             if current_revision.is_none() {
                 local_rule_fields(ir, model.id, &rule.pred)
+                    .or_else(|| {
+                        checked_context.and_then(|(program, db, catalog)| {
+                            checked_local_rule_fields(
+                                program, ir, model.id, &rule.pred, db, catalog,
+                            )
+                        })
+                    })
                     .or_else(|| {
                         checked_profiles
                             .and_then(|_| required_model_rule_fields(ir, model.id, &rule.pred))
