@@ -2,6 +2,17 @@
 
 ## Current remainder and finite completion
 
+**Original24 qualification at0d751ed1 (2026-10-15).**
+Exact original24 operands and all26 consumed source records remain unchanged.
+The isolated CLI finishes in396.54s: exit10, complete=true, omitted=0, no usable
+artifact,655 diagnostics (629 E6008,26 E6007). Full diagnostic multiset comparison
+against666 removes exactly11 declared-event input-carrier refusals and adds none.
+URL/inline enum inventory and declared PaymentState identity therefore close the
+remaining event-carrier occurrences at this metadata scope; provider ingress and
+full workflows are not qualified. Other root counts below remain unchanged.
+The later runtime User/selector joins and pending complete-receipt retention do
+not contribute claimed removals to this frozen compiler capture.
+
 **C02 native User CONTROL declaration (2026-10-15, implemented/tested).**
 Predicate ANY accepts the compiler's exact singular/nonnullable `{kind:user}`
 artifact tag when its redundant valueType is absent, while retaining exact
@@ -177,7 +188,7 @@ source/CLI/verified-factory/installed-State checks pass; altered proofs refuse
 and sealed queries still cannot enter ordinary fallback or execute. Remaining
 `can_work` work after the inventory slice above is once-evaluated helper argument
 and statement consumption, and the lazy receipt-ANY source/runtime join. The
-original24-source666-diagnostic qualification above supersedes the prior capture.
+original24-source655-diagnostic qualification above supersedes the prior capture.
 
 Reassessed **2026-10-12** from reviewed LOCAL main `a186a06bac505af24ec39672ed50d837aeee70d6` and later exact coherent releases. The human requested all remaining work be reevaluated and each existing worker receive its own prioritized list. This section replaces historical next/pending/source-lease instructions. [status.json](status.json) retains **58/67 references accepted at scope; nine remaining**. C01–C24 below are shared work labels, not additional canonical tasks. No active/unmerged release is accepted by this planning edit. Apply [finite execution](../../AGENTS.md#finite-execution).
 
@@ -258,8 +269,8 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The current original **24-source** command below exits **10**, with **666 errors**:
-**640 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
+The current original **24-source** command below exits **10**, with **655 errors**:
+**629 E6008**, **26 E6007**, `complete=true`, `omitted=0`, and no usable artifact.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -286,7 +297,7 @@ are not independent feature tasks:
 | Scenario/handler/authority emission | 64 | Original trigger/authority profiles and owning execution context. |
 | Native dispatch correspondence | 23 | Exact original guard receipt and sealed Rule joins. |
 | Cross-operation invocation | 7 | Canonical invocation rather than direct handler bypass. |
-| Declared event input carriers | 11 | Exact capability-event owner paths close 35 of the prior 46 occurrences. Remaining field/type/source correspondence stays required; URL/inline enum inventory and standard PaymentState identity are ready defining gaps. |
+| Declared event input carriers | 0 | Exact capability-event owners, URL/inline enum inventory and declared PaymentState identity close all46 recorded carrier occurrences. Event ingress execution remains a distinct workflow gate. |
 | Hook query/context/derive/effects | 76 | Original event snapshots, clock, query context and atomic effects. |
 | Installed producer contracts | 26 E6007 | 25 missing catalog checks across 17 bound capabilities; one external active_member entry in the supplied Values catalog. No invented bindings. |
 
