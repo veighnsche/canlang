@@ -101,7 +101,9 @@ export function checkFileBinding(state: FileGuardState, binding?: FileRetirement
   for (const fact of state.retirements) {
     keys(fact, ['retirementId', 'authority', 'file', 'snapshot', 'censusRevision', 'retiredRevision', 'retiredAtMs', 'disposition', 'retention']);
     checkedFile(fact.file, state.authority);
-    keys(fact.retention, ['unattachedHorizonMs', 'retentionMs']);
+    keys(fact.retention, ['unattachedHorizonMs', 'retentionMs', ...(Object.hasOwn(fact.retention, 'retainAttached') ? ['retainAttached'] : [])]);
+    if (Object.hasOwn(fact.retention, 'retainAttached') && fact.retention.retainAttached !== true) return refuse('invalid attached File retention policy');
+    if (fact.retention.retainAttached === true && fact.disposition === 'expired') return refuse('retained attached Files require explicit orphan retirement');
     identity(fact.snapshot);
     if (!fileGuardEqual(fact.authority, state.authority) || !text(fact.retirementId) || retired.has(fact.file.ref) ||
         !Number.isSafeInteger(fact.censusRevision) || fact.censusRevision < 0 || fact.retiredRevision !== fact.censusRevision + 1 ||
@@ -673,7 +675,9 @@ export function planFileRetirement(state: FileGuardState, binding: FileRetiremen
   checkFileFrameworkBinding(state, framework);
   if (state.authority === null) return refuse('persisted authoritative assignment required');
   const request = fileGuardCopy(input), file = checkedFile(request.file, binding);
-  keys(request.retention, ['unattachedHorizonMs', 'retentionMs']);
+  keys(request.retention, ['unattachedHorizonMs', 'retentionMs', ...(Object.hasOwn(request.retention, 'retainAttached') ? ['retainAttached'] : [])]);
+  if (Object.hasOwn(request.retention, 'retainAttached') && request.retention.retainAttached !== true) return refuse('invalid attached File retention policy');
+  if (request.retention.retainAttached === true && request.disposition === 'expired') return refuse('retained attached Files require explicit orphan retirement');
   if (![request.retention.unattachedHorizonMs, request.retention.retentionMs, request.atMs].every(value => Number.isSafeInteger(value) && value >= 0) ||
       ![request.maxRows, request.maxReferences].every(value => Number.isSafeInteger(value) && value > 0) ||
       request.disposition !== 'orphaned' && request.disposition !== 'expired') return refuse('finite original retention and complete bounds required');

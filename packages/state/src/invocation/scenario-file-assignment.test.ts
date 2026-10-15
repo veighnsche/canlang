@@ -16,6 +16,7 @@ import { createFrozenClock, createMemoryIdentityStore as createSnapshotIdentityS
 import type { AdmittedCall } from './admission.js';
 import { receiptIdentityFor } from './admission.js';
 import { StateError } from '../errors.js';
+import { checkRetainedScenarioFile } from './scenario-file-assignment.js';
 import { createMemoryStorage } from '../storage/memory.js';
 import { buildModelTableFromCanonical } from '../mutation/models.js';
 import { buildPolicyTable } from '../policy/grants.js';
@@ -160,6 +161,17 @@ async function world(bind = true, producerApp = APP, deleteMode: 'archive' | 're
   };
 }
 type World = Awaited<ReturnType<typeof world>>;
+test('retained File policy preserves explicit attached retention and rejects malformed flags', async () => {
+  const w = await world();
+  try {
+    const original = readFinalizedFileObservation(w.observe(w.refs[0])); assert.ok(original);
+    const facts = { ...original, retention: { ...original.retention, retainAttached: true as const } };
+    assert.deepEqual(checkRetainedScenarioFile(facts), facts);
+    for (const retainAttached of [false, undefined, 'true']) {
+      assert.throws(() => checkRetainedScenarioFile({ ...facts, retention: { ...facts.retention, retainAttached } }));
+    }
+  } finally { w.close(); }
+});
 function locator(w: World, selected: FileField = 'file') { return { model: MODEL, recordId: w.row.id, field: selected }; }
 function capture(call: AdmittedCall, w: World, selected: FileField, ref: string) {
   observeScenarioReceiptFileAssignment(call, w.store, { ...locator(w, selected), observation: w.observe(ref) });
