@@ -768,9 +768,30 @@ impl CheckedBoundTabs {
     }
 }
 
+/// Checked deployment declaration; canonical names are supplied only by IR.
+#[derive(Debug, Clone)]
+pub enum CheckedRuntimeBinding {
+    DurableObject {
+        name: String,
+        key: SymbolId,
+    },
+    Queue {
+        name: String,
+        payload: ResolvedType,
+    },
+    Cache {
+        ttl_milliseconds: i64,
+    },
+    Analytics {
+        name: String,
+        fields: Vec<(String, ResolvedType)>,
+    },
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    pub runtime_bindings: HashMap<ModuleId, Vec<CheckedRuntimeBinding>>,
     bound_tabs: HashMap<NodeKey, CheckedBoundTabs>,
     calendar_endpoints: HashMap<NodeKey, CheckedCalendarEndpoint>,
     callback_diagnostic_sources: HashMap<SymbolId, CheckedGenerationCallbackSource>,
@@ -995,6 +1016,7 @@ pub fn check_types(
     typer.phase1(trees);
     typer.collect_callback_diagnostic_sources(trees);
     typer.phase2(trees);
+    typer.check_runtime_authority(trees);
     typer.check_strict_membership_closures();
     typer.check_input_choice_cycles();
     typer.check_cycles();
@@ -1169,6 +1191,10 @@ fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
     } else {
         ResolvedType::Object(fields)
     }
+}
+
+pub(crate) fn sink_delivery_type() -> ResolvedType {
+    std_nominal_leaf_type("DeliveryResult")
 }
 
 fn delivery_status_type() -> ResolvedType {
@@ -1536,6 +1562,59 @@ impl<'a> Typer<'a> {
     }
 
     // --- Phase 2: records and fields -----------------------------------
+
+    /// Pair `Model at=Binding` with the exact root keyed declaration.
+    /// Otherwise local execution could silently route declared DO data to D1.
+    fn check_runtime_authority(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        let mut placed = HashSet::new();
+        for (_, tree) in trees {
+            let text = self.text(tree.span.file).to_string();
+            for owner in kids(tree)
+                .into_iter()
+                .filter(|node| matches!(node.kind, SyntaxKind::App | SyntaxKind::Package))
+            {
+                let Some(module) = module_of_node(self.tables, &text, owner) else {
+                    continue;
+                };
+                for model in owner
+                    .descendants()
+                    .filter(|node| node.kind == SyntaxKind::Model)
+                {
+                    let Some(id) = self.decl_symbol(module, &text, model, &["export"]) else {
+                        continue;
+                    };
+                    let parts = kids(model);
+                    let at = parts
+                        .iter()
+                        .position(|node| is_name(node, &text, "at"))
+                        .and_then(|index| parts.get(index + 2).copied());
+                    let Some(at) = at else { continue };
+                    let path = path_segments(at, &text);
+                    let (binding_module, binding_name) = match path.as_slice() {
+                        [name] => (Some(module), *name),
+                        [owner, name] => (self.tables.module_by_name.get(*owner).copied(), *name),
+                        _ => (None, ""),
+                    };
+                    let matches = binding_module.and_then(|owner| self.types.runtime_bindings.get(&owner)).into_iter().flatten().filter(|binding|
+                        matches!(binding, CheckedRuntimeBinding::DurableObject { name, key } if name == binding_name && *key == id)).count();
+                    if matches == 1 {
+                        placed.insert((binding_module.unwrap(), binding_name.to_string(), id));
+                    } else {
+                        self.diags.push(Diagnostic::error("E3001", "model at= must name its context DurableObject binding keyed by this root model".into(), tight_span(&text, at)));
+                    }
+                }
+            }
+        }
+        for (module, declarations) in &self.types.runtime_bindings {
+            for declaration in declarations {
+                if let CheckedRuntimeBinding::DurableObject { name, key } = declaration {
+                    if !placed.contains(&(*module, name.clone(), *key)) {
+                        self.diags.push(Diagnostic::error("E3001", format!("DurableObject binding '{name}' requires its keyed root model to declare at={name}"), self.tables.symbols[key.0 as usize].span));
+                    }
+                }
+            }
+        }
+    }
 
     /// Check a model/contract/event declaration: its fields plus its
     /// trailing label.
@@ -3359,6 +3438,93 @@ impl<'a> Typer<'a> {
         let Some(target) = target else {
             return;
         };
+        if target.kind == SyntaxKind::Member {
+            let parts = kids(target);
+            let head = parts.first().and_then(|head| nameref_word(head, cx.text));
+            let member = parts.last().and_then(|member| name_text(member, cx.text));
+            let shadowed = parts
+                .first()
+                .is_some_and(|head| self.tables.node_binding.contains_key(&NodeKey::of(head)));
+            let declaration = self
+                .types
+                .runtime_bindings
+                .get(&cx.module)
+                .into_iter()
+                .flatten()
+                .filter(|_| !shadowed)
+                .find_map(|binding| match binding {
+                    CheckedRuntimeBinding::Queue { name, payload }
+                        if Some(name.as_str()) == head =>
+                    {
+                        Some(("publish", vec![("value".to_string(), payload.clone())]))
+                    }
+                    CheckedRuntimeBinding::Analytics { name, fields }
+                        if Some(name.as_str()) == head =>
+                    {
+                        Some(("write", fields.clone()))
+                    }
+                    _ => None,
+                });
+            if let Some((operation, fields)) = declaration {
+                if member != Some(operation) {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("declared sink supports only '{operation}'"),
+                        tight_span(cx.text, target),
+                    ));
+                }
+                let mut seen = HashSet::new();
+                if let Some(object) = object {
+                    for (key, key_node, value) in object_entries(object, cx.text) {
+                        seen.insert(key.to_string());
+                        let expected = fields
+                            .iter()
+                            .find(|(name, _)| name == key)
+                            .map(|(_, ty)| ty.clone());
+                        let (actual, span) =
+                            self.entry_value(cx, key_node, value, expected.clone());
+                        match expected {
+                            Some(expected)
+                                if !actual.is_error()
+                                    && !self.types_compatible(&actual, &expected) =>
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "E3001",
+                                    format!(
+                                        "'{key}': expected {}, found {}",
+                                        self.show(cx.module, &expected),
+                                        self.show(cx.module, &actual)
+                                    ),
+                                    span,
+                                ))
+                            }
+                            None => self.diags.push(Diagnostic::error(
+                                "E3010",
+                                format!("declared sink has no input '{key}'"),
+                                tight_span(cx.text, key_node),
+                            )),
+                            _ => {}
+                        }
+                    }
+                }
+                for (name, ty) in fields {
+                    if !seen.contains(&name) && !matches!(ty, ResolvedType::Nullable(_)) {
+                        self.diags.push(Diagnostic::error(
+                            "E3010",
+                            format!("missing required input '{name}' to declared sink"),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                }
+                self.sends.insert(NodeKey::of(node), sink_delivery_type());
+                if let Some(when) = bare_keyword_value(node, "when", cx.text) {
+                    let ty = self.expr(cx, when, None);
+                    self.expect_bool(cx, tight_span(cx.text, when), &ty, "`when`");
+                    self.check_dispatch_when(cx, when);
+                }
+                return;
+            }
+        }
         let ty = self.expr(cx, target, None);
         match ty {
             ResolvedType::Operation(id) => {
@@ -4518,6 +4684,24 @@ impl<'a> Typer<'a> {
             return Some(event.payload.clone());
         }
         let segments = path_segments(on, text);
+        if let [name] = segments.as_slice() {
+            if let Some(payload) = self
+                .types
+                .runtime_bindings
+                .get(&module)
+                .into_iter()
+                .flatten()
+                .find_map(|binding| match binding {
+                    CheckedRuntimeBinding::Queue {
+                        name: declared,
+                        payload,
+                    } if declared == name => Some(payload.clone()),
+                    _ => None,
+                })
+            {
+                return Some(payload);
+            }
+        }
         if segments == ["teams", "member_removed"] {
             // TeamsMemberRemovedEvent retains the removed subject. Remover and
             // causation belong to the separate verified ingress envelope.
@@ -7748,6 +7932,7 @@ impl<'a> Typer<'a> {
         let narrow = NarrowEnv::default();
         let cx = Self::body_cx(module, file, text, &narrow);
         let mut seen: HashSet<(String, String)> = HashSet::new();
+        let mut resource_names = HashSet::new();
         for context in kids(node) {
             if context.kind != SyntaxKind::Context || has_error(context) {
                 continue;
@@ -7765,6 +7950,16 @@ impl<'a> Typer<'a> {
                     "queue" | "binding" | "analytics" => names.get(1).copied().unwrap_or(""),
                     _ => "",
                 };
+                if matches!(head, "queue" | "binding" | "analytics" | "cache") {
+                    let resource_name = if head == "cache" { "KV" } else { decl_name };
+                    if !resource_names.insert(resource_name.to_string())
+                        || self.tables.module_scopes[module.0 as usize]
+                            .prod
+                            .contains_key(resource_name)
+                    {
+                        self.diags.push(Diagnostic::error("E2002", format!("runtime binding '{resource_name}' conflicts with another declaration or import"), tight_span(text, decl)));
+                    }
+                }
                 if !matches!(head, "" | "queue")
                     && !seen.insert((head.to_string(), decl_name.to_string()))
                 {
@@ -7787,7 +7982,40 @@ impl<'a> Typer<'a> {
                             ));
                         }
                         if let Some(ty) = attribute_value(decl, "type", text) {
-                            let _ = self.resolve_type_node(file, text, module, ty, None);
+                            let payload = self.resolve_type_node(file, text, module, ty, None);
+                            self.types.runtime_bindings.entry(module).or_default().push(
+                                CheckedRuntimeBinding::Queue {
+                                    name: decl_name.to_string(),
+                                    payload,
+                                },
+                            );
+                        }
+                    }
+                    "binding" => {
+                        if let Some(key) = attribute_value(decl, "key", text)
+                            .and_then(|key| self.tables.node_symbol.get(&NodeKey::of(key)))
+                            .copied()
+                        {
+                            if matches!(
+                                self.tables.symbols[key.0 as usize].kind,
+                                SymbolKind::Model {
+                                    owner: ModelOwner::Team | ModelOwner::App,
+                                    ..
+                                }
+                            ) {
+                                self.types.runtime_bindings.entry(module).or_default().push(
+                                    CheckedRuntimeBinding::DurableObject {
+                                        name: decl_name.to_string(),
+                                        key,
+                                    },
+                                );
+                            } else {
+                                self.diags.push(Diagnostic::error(
+                                    "E3001",
+                                    "DurableObject key must name a root model".into(),
+                                    tight_span(text, decl),
+                                ));
+                            }
                         }
                     }
                     "cache" => {
@@ -7795,6 +8023,20 @@ impl<'a> Typer<'a> {
                             let ty = self.expr(&cx, ttl, None);
                             match &ty {
                                 ResolvedType::Scalar(Scalar::Duration) => {
+                                    if let Some(ttl_milliseconds) =
+                                        duration_value(ttl, text).filter(|ms| *ms > 0)
+                                    {
+                                        self.types
+                                            .runtime_bindings
+                                            .entry(module)
+                                            .or_default()
+                                            .push(CheckedRuntimeBinding::Cache {
+                                                ttl_milliseconds,
+                                            });
+                                    }
+                                    if duration_value(ttl, text).is_none() {
+                                        self.diags.push(Diagnostic::error("E6008", "cache ttl requires a static duration literal in the current runtime profile".into(), tight_span(text, ttl)));
+                                    }
                                     if duration_value(ttl, text).is_some_and(|ms| ms <= 0) {
                                         self.diags.push(Diagnostic::error(
                                             "E3001",
@@ -7890,6 +8132,7 @@ impl<'a> Typer<'a> {
                         }
                     }
                     "analytics" => {
+                        let mut fields = Vec::new();
                         for field in kids(decl) {
                             if field.kind != SyntaxKind::Field || has_error(field) {
                                 continue;
@@ -7899,6 +8142,11 @@ impl<'a> Typer<'a> {
                                 .find(|n| is_type_node(n.kind))
                                 .map(|t| self.resolve_type_node(file, text, module, t, None))
                                 .unwrap_or(ResolvedType::Error);
+                            if let Some(name) =
+                                kids(field).into_iter().find_map(|n| name_text(n, text))
+                            {
+                                fields.push((name.to_string(), ty.clone()));
+                            }
                             if let Some(label) = attribute_value(field, "label", text) {
                                 let name = kids(field)
                                     .iter()
@@ -7907,6 +8155,12 @@ impl<'a> Typer<'a> {
                                 self.check_field_label(&cx, field, name, &ty, label);
                             }
                         }
+                        self.types.runtime_bindings.entry(module).or_default().push(
+                            CheckedRuntimeBinding::Analytics {
+                                name: decl_name.to_string(),
+                                fields,
+                            },
+                        );
                     }
                     _ => {}
                 }
