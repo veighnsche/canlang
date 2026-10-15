@@ -55,25 +55,44 @@ pub(super) fn project_plan_returns(
     {
         return None;
     }
-    let nodes = plan
-        .returns
-        .iter()
-        .try_fold(7usize + 40 * plan.queries.len(), |nodes, row| {
-            nodes.checked_add(
-                9 + 5 * row.influences.len()
-                    + 10 * row.dependencies.len()
-                    + row
-                        .dependencies
-                        .iter()
-                        .filter(|read| read.query_id.is_some())
-                        .count()
-                    + 16 * row.intrinsics.len(),
+    let nodes = query_plan_nodes(
+        plan.queries.len(),
+        plan.returns.iter().map(|row| {
+            (
+                row.influences.len(),
+                row.dependencies.len(),
+                row.dependencies
+                    .iter()
+                    .filter(|read| read.query_id.is_some())
+                    .count(),
+                row.intrinsics.len(),
             )
-        })?;
+        }),
+    )?;
     if nodes > 20_000 {
         return None;
     }
     Some(())
+}
+
+/// Shared accounting for the existing closed native query-plan transport.
+/// The source feasibility owner counts original rows; emission counts DTO rows.
+pub(super) fn query_plan_nodes(
+    query_count: usize,
+    returns: impl IntoIterator<Item = (usize, usize, usize, usize)>,
+) -> Option<usize> {
+    returns.into_iter().try_fold(
+        7usize.checked_add(40usize.checked_mul(query_count)?)?,
+        |nodes, (influences, dependencies, linked, intrinsics)| {
+            nodes.checked_add(
+                9usize
+                    .checked_add(5usize.checked_mul(influences)?)?
+                    .checked_add(10usize.checked_mul(dependencies)?)?
+                    .checked_add(linked)?
+                    .checked_add(16usize.checked_mul(intrinsics)?)?,
+            )
+        },
+    )
 }
 
 /// Original source and the independently prepared guards/query plan consumed

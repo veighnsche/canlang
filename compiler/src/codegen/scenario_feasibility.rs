@@ -111,7 +111,25 @@ pub(super) fn prepare_with_fresh<'a>(
 }
 
 pub(super) fn requires_projection(original: &CheckedScenarioDisclosure, _ir: &IrProgram) -> bool {
-    original.returns.len() > 200 || original.returns.iter().any(|row| {
+    let nodes = super::scenario_receipts::query_plan_nodes(
+        original
+            .source_facts
+            .as_deref()
+            .and_then(|facts| facts.queries.as_ref())
+            .map_or(0, Vec::len),
+        original.returns.iter().map(|row| {
+            (
+                row.influences.len(),
+                row.dependencies.len(),
+                row.dependencies
+                    .iter()
+                    .filter(|read| read.query_id.is_some())
+                    .count(),
+                row.intrinsics.len(),
+            )
+        }),
+    );
+    original.returns.len() > 200 || nodes.is_none_or(|nodes| nodes > 20_000) || original.returns.iter().any(|row| {
         row.dependencies.iter().any(|read| {
             matches!(read.ty, ResolvedType::Record { stored: true, .. })
                 && original.source_facts.as_deref().and_then(|facts| facts.stored_contracts.as_deref())
@@ -186,43 +204,89 @@ fn prepare_owner(
         }
     }
     let mut requirements = Vec::new();
-    for (leading, statements) in [(true, guards), (false, effects)] {
-        for (index, statement) in statements.iter().enumerate() {
-            let IrStmt::Require { cond, span } = statement else {
-                continue;
-            };
+    let mut pending = Vec::new();
+    for (leading, statements) in [(false, effects), (true, guards)] {
+        for (index, statement) in statements.iter().enumerate().rev() {
             let position = if leading {
                 CheckedDecisionPosition::Guard(index)
             } else {
                 CheckedDecisionPosition::Body(index)
             };
-            let stage = if leading {
-                CheckedDecisionStage::LeadingRequire
-            } else {
-                CheckedDecisionStage::BodyRequire
-            };
-            let mut matching = sites.iter().filter(|site| {
-                site.owner == owner.id
-                    && site.stage == stage
-                    && site.position.as_slice() == [position.clone()]
-                    && same_span(site.statement, *span)
-            });
-            let site = matching.next()?;
-            if matching.next().is_some() || !same_span(site.node, cond.span) {
-                return None;
+            pending.push((
+                statement,
+                leading,
+                vec![position],
+                Vec::<(Span, DisclosureChoice)>::new(),
+            ));
+        }
+    }
+    let mut visits = 0;
+    while let Some((statement, leading, position, branches)) = pending.pop() {
+        visits += 1;
+        if visits > 16384 || position.len() > 64 {
+            return None;
+        }
+        match statement {
+            IrStmt::Require { cond, span } => {
+                let stage = if leading {
+                    CheckedDecisionStage::LeadingRequire
+                } else {
+                    CheckedDecisionStage::BodyRequire
+                };
+                let mut matching = sites.iter().filter(|site| {
+                    site.owner == owner.id
+                        && site.stage == stage
+                        && site.position == position
+                        && same_span(site.statement, *span)
+                });
+                let site = matching.next()?;
+                if matching.next().is_some() || !same_span(site.node, cond.span) {
+                    return None;
+                }
+                requirements.push((cond, *span, site, branches));
             }
-            requirements.push((cond, *span, site));
+            IrStmt::If {
+                then_branch,
+                else_branch,
+                span,
+                ..
+            } if !leading => {
+                for (then, statements) in [(false, else_branch), (true, then_branch)] {
+                    for (index, nested) in statements.iter().enumerate().rev() {
+                        let mut nested_position = position.clone();
+                        nested_position.push(if then {
+                            CheckedDecisionPosition::Then(index)
+                        } else {
+                            CheckedDecisionPosition::Else(index)
+                        });
+                        let mut nested_branches = branches.clone();
+                        nested_branches.push((
+                            *span,
+                            if then {
+                                DisclosureChoice::Then
+                            } else {
+                                DisclosureChoice::Else
+                            },
+                        ));
+                        pending.push((nested, false, nested_position, nested_branches));
+                    }
+                }
+            }
+            // Other conditional forms stay unknown, as before. This finite
+            // extension only proves original If choices; no leaf is evaluated.
+            _ => {}
         }
     }
     let mut selected = Vec::new();
     let mut steps = 0;
     for (index, returned) in original.returns.iter().enumerate() {
         let mut possible = true;
-        for (condition, span, site) in &requirements {
-            // Only preceding compulsory top-level requirements constrain this
-            // return. Conditional requirements and SEND dispatch are untouched.
+        for (condition, span, site, branches) in &requirements {
+            // A conditional requirement constrains only a return whose actual
+            // original branch choices prove that this requirement was reached.
             if (returned.node == original.node
                 || span.file == returned.node.file && span.end <= returned.node.start)
+                && branches_reached(returned, branches)?
                 && !possibly_true(
                     (program, ir, fresh),
                     condition,
@@ -242,6 +306,34 @@ fn prepare_owner(
         }
     }
     Some(selected)
+}
+
+fn branches_reached(
+    returned: &DisclosureReturn,
+    branches: &[(Span, DisclosureChoice)],
+) -> Option<bool> {
+    for (span, expected) in branches {
+        let mut choices = returned.decisions.iter().filter(|decision| {
+            decision.calls.is_empty()
+                && decision.node.kind == SyntaxKind::If as u8
+                && same_span(decision.node, *span)
+        });
+        let Some(choice) = choices.next() else {
+            return Some(false);
+        };
+        if choices.next().is_some() {
+            return None;
+        }
+        match &choice.choice {
+            DisclosureChoice::Then | DisclosureChoice::Else => {
+                if &choice.choice != expected {
+                    return Some(false);
+                }
+            }
+            _ => return None,
+        }
+    }
+    Some(true)
 }
 
 fn possibly_true(
