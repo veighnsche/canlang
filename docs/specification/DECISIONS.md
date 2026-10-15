@@ -16771,3 +16771,14 @@ has Complete3queries/192 conservative paths, but no body guard return consumer;
 private effect_guards already retain the facts. Feasible Require projection,
 execution consumer/recovery and native checked Given defaults remain required.
 No source permissions, ordering, failures or replay behavior are weakened.
+
+
+### 2026-10-15 — qualify native helper physical-file equivalence
+
+The same original Employee permissions/workflow assertions pass when app and three
+packages occupy four physical files (54.11s), with complete compiler source path/
+hash equality and captured current producer/source inputs. Reuse unchanged prior
+same-file57.73s result. This validates genuine imported helper source association,
+not copied metadata; no source or permission rewrite, preview import expansion,
+new carrier or language choice. Original mixed first/body guard handling remains
+separate implementation work; no full CanCRM readiness follows.

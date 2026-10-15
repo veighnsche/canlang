@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import { test } from 'vitest';
@@ -84,8 +84,7 @@ function referenceId(outcome: MutationOutcome, status: 'committed' | 'replayed' 
 }
 const ref = (row: StoredRow) => ({ id: row.id, version: String(row.version) });
 
-test('native leading imported can_work retains the original lazy Employee predicate and current authority',
-  { timeout: 180000 }, async () => {
+async function nativeHelperCase(splitFiles: boolean) {
     const original = await readFile(join(root, 'draft/shared/Employees.can'), 'utf8');
     const originalLines = new Set(original.split('\n').map(line => line.trim()));
     for (const line of EMPLOYEE_LINES) assert.ok(originalLines.has(line), `original Employee declaration drift: ${line}`);
@@ -94,29 +93,49 @@ test('native leading imported can_work retains the original lazy Employee predic
     let worker: Miniflare | undefined;
     try {
       const sourcePath = join(directory, 'original-helper-predicate.can');
-      await writeFile(sourcePath, SOURCE);
+      const files = splitFiles ? [
+        { path: sourcePath, text: SOURCE.slice(0, SOURCE.indexOf('package rent_catalog')) },
+        ...['rent_catalog', 'employee', 'intake'].map((name, index, names) => ({
+          path: join(directory, `${name}.can`),
+          text: SOURCE.slice(SOURCE.indexOf(`package ${name}`),
+            index + 1 === names.length ? undefined : SOURCE.indexOf(`package ${names[index + 1]}`)),
+        })),
+      ] : [{ path: sourcePath, text: SOURCE }];
+      for (const file of files) await writeFile(file.path, file.text);
       const { assembleModules } = await nodeImport(installed('runtime/modules.js')) as typeof import('../src/runtime/modules.js');
       const { buildInvoker } = await nodeImport(installed('worker/assembly.js')) as typeof import('../src/worker/assembly.js');
       const { installedLocalPreviewInputInventory } = await nodeImport(installed('dev/preview-inputs.js')) as typeof import('../src/dev/preview-inputs.js');
       const { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } = await nodeImport(installed('dev/source-capture.js')) as typeof import('../src/dev/source-capture.js');
       const compilerPath = join(root, 'compiler/target/debug/can');
+      const inventory = installedLocalPreviewInputInventory(root, compilerPath);
       const capture = await captureSingleFileSource({ checkoutRoot: root, appPath: sourcePath,
         profile: 'native-helper-predicate', compilerPath, catalogPath: join(root, 'packages/cloudflare/dist/native-catalog.json'),
         helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md'),
-        ...installedLocalPreviewInputInventory(root, compilerPath), inputInventory: 'installed-local-preview',
+        ...inventory,
+        extraInputPaths: [...inventory.extraInputPaths, ...files.slice(1).map(file => ({ name: `fixture:${relative(root, file.path)}`, path: file.path }))],
+        // This explicit multi-file fixture captures every operand as an input;
+        // preview inventory rediscovery is scoped to its single authored file.
+        ...(splitFiles ? {} : { inputInventory: 'installed-local-preview' as const }),
         semanticOptions: { nativeScenarioReceipts: 'true' } });
       // The preview's first profile excludes imports. This test invokes the
       // captured CLI directly, keeping all capture/source checks around it.
       assert.equal(await captureIsCurrent(capture), true);
       const compiled = await promisify(execFile)(join(root, 'compiler/target/debug/can'),
-        ['compile', '--format=json', '--native-scenario-receipts', `--catalog=${join(root, 'packages/cloudflare/dist/native-catalog.json')}`, capture.compilerOperand],
+        ['compile', '--format=json', '--native-scenario-receipts', `--catalog=${join(root, 'packages/cloudflare/dist/native-catalog.json')}`, capture.compilerOperand, ...files.slice(1).map(file => relative(root, file.path))],
         { cwd: root, maxBuffer: 16 * 1024 * 1024, timeout: 30000 }).catch(error => {
           const report = JSON.parse(error.stdout || '{}');
           throw new Error(JSON.stringify(report.diagnostics ?? report));
         });
       assert.equal(await captureIsCurrent(capture), true);
       const artifact: CompileArtifact = JSON.parse(compiled.stdout), originalArtifact = JSON.stringify(artifact);
-      assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
+      assert.equal(verifyCompilerSources(capture, { complete: true,
+        sources: artifact.sources.filter(source => source.path === capture.compilerOperand) }).ok, true);
+      const expectedSources = [{ path: capture.compilerOperand, sha256: capture.sourceSha256 },
+        ...capture.inputs.filter(input => input.name.startsWith('extra:fixture:')).map(input => ({
+          path: relative(root, input.requestedPath!), sha256: input.sha256,
+        }))];
+      const byPath = (left: { path: string }, right: { path: string }) => left.path.localeCompare(right.path);
+      assert.deepEqual(artifact.sources.map(({ path, sha256 }) => ({ path, sha256 })).sort(byPath), expectedSources.sort(byPath));
       const operation = artifact.operations?.find(operation => operation.name === 'intake.start');
       const plan = operation?.result?.disclosure; assert.ok(plan);
       assert.equal(plan.queries?.length, 1); const queryPlan = plan.queries![0]!;
@@ -265,9 +284,15 @@ test('native leading imported can_work retains the original lazy Employee predic
       const retained = await invoker.invokeRetainedMutation(firstCall, alice.identity); assert.ok('error' in retained); assert.equal(retained.error.code, 'forbidden');
       await deniedWithoutEffects(call(home, 'current member revoked'), alice, 'forbidden');
       assert.equal(batches.length, revokedCount); assert.deepEqual(await rows(), revokedRows);
-      assert.equal(await readFile(sourcePath, 'utf8'), SOURCE); assert.equal(await captureIsCurrent(capture), true);
+      for (const file of files) assert.equal(await readFile(file.path, 'utf8'), file.text);
+      assert.equal(await captureIsCurrent(capture), true);
       assert.equal(JSON.stringify(artifact), originalArtifact); assert.equal(await readFile(join(root, 'draft/shared/Employees.can'), 'utf8'), original);
     } finally {
       await worker?.dispose(); await rm(directory, { recursive: true, force: true });
     }
-  });
+}
+
+test('native leading imported can_work retains the original lazy Employee predicate and current authority',
+  { timeout: 180000 }, () => nativeHelperCase(false));
+test('native cross-file imported can_work retains the same original workflow and source correspondence',
+  { timeout: 180000 }, () => nativeHelperCase(true));
