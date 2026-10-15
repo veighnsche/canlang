@@ -17001,3 +17001,34 @@ permission or operation behavior changes. Normal CF build, existing adapter
 checks10/35.47s and focused nested controls2/5.76s pass. One initial test failure
 was its incorrect Money units; actual guard operands verified200/100 minor
 units before correcting assertions. Original six promotion rows remain required.
+
+
+### 2026-10-15 — canonical identity for imported example fixture recipes
+
+Accepted direction: complete the existing provider/member/alias import convention
+using one canonical declaration key (`provider.member`) for generated fixture maps,
+dependencies and scope slots. Checked source aliases resolve to that same key;
+same local names in different packages remain distinct. Publish needed recipe-only
+providers, including locally claimed declarations reached through imports, and
+resolve one shared recipe object per canonical declaration before provisioning.
+Missing/conflicting/cyclic graphs must fail setup. No new source syntax, author
+boilerplate, grants or operation context. Implementation is pending qualification.
+
+The original promotion consumer exposed undefined test_company before invocation.
+IR already uses declaration-local names rather than source aliases; this also
+collides across owners. A raw recipe under multiple fixture-map aliases conflicts
+with Testkit's single-key graph/provisioning. Canonical compiler keys avoid a second
+receiver lexical-alias layer. Compared with compile-time closure expansion, linked
+providers preserve reusable recipe definitions and one identity without duplicating
+recipe source in suites; producer+receiver graph work remains real cost. Draft
+layout preservation alone did not decide this. Required controls include same-name
+owners, source aliases, diamond dependencies, locally claimed providers and graph
+refusals, followed by all six unchanged promotion rows.
+
+JEV requests/responses are in `implementation/compiler-completion/imported-fixture-lowering/`.
+Exploratory1–3 misstated callback aliases and are superseded, not acceptance
+evidence. After checking actual IR and Testkit, corrected independently phrased
+4–6 select canonical linking with probabilities .90/.91/.84, confidence .85/.86/.76;
+investigate .03/.02/.11. Advice supports the direction, not implementation proof.
+Remaining uncertainty is the exact minimal provider publication/cache join and its
+executable controls. No original native workflow or full-composition credit yet.

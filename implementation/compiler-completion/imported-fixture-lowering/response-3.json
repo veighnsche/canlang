@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "direction": {
+      "type": "choice",
+      "choice": "linked_imports",
+      "confidence": 0.43,
+      "probabilities": {
+        "linked_imports": 0.62,
+        "flattened_closure": 0.22,
+        "investigate": 0.16
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 1192,
+    "output_tokens": 50
+  }
+}
