@@ -30,12 +30,13 @@ import {
 } from "./source-capture.js";
 import type { SessionServicePreview } from "./session-service.js";
 import type { CompiledExampleInput } from "./example-runner.js";
+import { configureLocalBindings, planLocalBindings, probeLocalR2, type LocalBindingImplementations } from "./local-bindings.js";
 
 const PROFILE = "local-d1-identity";
 const BROWSER_KEYS = ["browser/bootstrap.js", "browser/can-style.css", "browser/polling.js"] as const;
 export const LOCAL_PREVIEW_CAPABILITIES = [
   "canlang.builtins", "values.decimal", "values.int64", "values.money", "values.temporal", "state",
-  "state.machines", "state.parameters", "state.field-validation", "interfaces.input-choices",
+  "state.machines", "state.parameters", "state.field-validation", "interfaces.input-choices", "cloudflare.runtime-bindings",
 ] as const;
 const PROFILE_CAPABILITIES = new Set<string>(LOCAL_PREVIEW_CAPABILITIES);
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -76,6 +77,8 @@ export interface LocalPreviewBundleRequest {
 }
 
 export interface LocalPreviewBuilderOptions {
+  /** Real installed local providers; absent services/classes remain prerequisites. */
+  readonly runtimeImplementations?: LocalBindingImplementations;
   readonly resources: LocalPreviewResources;
   /** Trusted T06 producer runs the actual activation gates for this local build. */
   readonly activationVerdict?: (artifact: CompileArtifact, capture: SingleFileCapture) => Promise<ActivationVerdict>;
@@ -179,11 +182,8 @@ function admitPreviewInputs(artifact: CompileArtifact, capture: SingleFileCaptur
   if (!capture.inputs.some(input => input.name.startsWith("package:") && input.state === "present")) {
     fail("INPUT_UNAVAILABLE", "preview requires captured package outputs");
   }
-  if (artifact.pages.length === 0) {
-    fail("PROFILE_UNSUPPORTED", "preview profile requires at least one page");
-  }
-  if (artifact.callables.some(callable => callable.kind === "handler" || callable.kind === "migration")) {
-    fail("PROFILE_UNSUPPORTED", "preview profile does not admit scheduled handlers or migrations");
+  if (artifact.pages.length === 0 && (artifact.operations?.length ?? 0) === 0) {
+    fail("PROFILE_UNSUPPORTED", "preview profile requires at least one page or checked operation");
   }
   for (const requirement of artifact.requires) {
     const supportedVersion = requirement.capability === "canlang.builtins" ? 0 : 1;
@@ -314,7 +314,7 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
     fail("RESOURCE_INVALID", "preview Worker vars must be an object");
   }
   if (vars !== undefined && Object.keys(vars).some(key => [
-    "DB", "STATE_DB", "STATE_CEDAR_DB", "STATE_OAK_DB", "CAN_STATE_OWNER", "CAN_STATE_OWNERS", "CAN_STATE_INITIALIZE_FRESH", "CAN_AUTH_ORIGIN",
+    "DB", "STATE_DB", "STATE_CEDAR_DB", "STATE_OAK_DB", "CAN_STATE_OWNER", "CAN_STATE_OWNERS", "CAN_STATE_INITIALIZE_FRESH", "CAN_AUTH_ORIGIN", "CAN_LOCAL_QUEUE_BINDINGS", "CAN_LOCAL_FILES",
   ].includes(key))) {
     fail("RESOURCE_INVALID", "preview Worker vars cannot replace D1, owner or selected auth origin bindings");
   }
@@ -322,7 +322,7 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
   if (base !== undefined && (!('value' in base) || base.value !== origin)) {
     fail("RESOURCE_INVALID", "preview deployment base must be the selected protected root loopback origin");
   }
-  return Object.freeze({ ...(vars ?? {}), CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin });
+  return Object.freeze({ ...(vars ?? {}), CAN_AUTH_ORIGIN: origin, CAN_DEPLOYMENT_BASE: origin, CAN_LOCAL_FILES: true });
 }
 
 async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: string, seed: LocalPreviewSeed, artifact: CompileArtifact): Promise<void> {
@@ -414,6 +414,8 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
     }
   }
   const declaredPage = artifact.pages.find(page => page.path === "/") ?? artifact.pages[0];
+  // API-only apps already passed the real Identity and business MCP probes.
+  if (declaredPage === undefined && hasBusinessOperations) return;
   if (declaredPage === undefined || typeof declaredPage.path !== "string" || !declaredPage.path.startsWith("/")) {
     fail("PAGE_UNAVAILABLE", "preview requires an actual declared app-relative page route");
   }
@@ -433,7 +435,13 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
   (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes?: Uint8Array) => Promise<LocalPreviewWithActors> {
   return async (artifact, capture, artifactBytes) => {
     admitPreviewInputs(artifact, capture, options.resources);
-    const storageMode = previewStorageMode(artifact);
+    const bindingPlan = planLocalBindings(artifact);
+    const storageMode = bindingPlan.noModelStorageMode ?? previewStorageMode(artifact);
+    if (artifact.callables.some(callable => callable.kind === "migration" || callable.kind === "handler" && !bindingPlan.queueHandlers.includes(callable.id))) {
+      fail("PROFILE_UNSUPPORTED", "preview admits only compiler-checked selected queue handlers; scheduled handlers and migrations need their owning runtime");
+    }
+    // Resolve implementation prerequisites before allocating any preview state.
+    configureLocalBindings(bindingPlan, "unused", options.runtimeImplementations);
     const verdict = await admittedVerdict(artifact, capture, options);
     if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview capture changed before build");
     if (options.produceBundle === undefined) fail("PORTABLE_BUNDLE_UNAVAILABLE", "no verified installed-package bundle producer is configured");
@@ -465,6 +473,9 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         },
       });
       const vars = selectPreviewWorkerVars(options, bridge.url);
+      if (bindingPlan.bindings.some(binding => Object.hasOwn(vars, binding.binding))) {
+        fail("RESOURCE_INVALID", "preview vars cannot replace source-declared runtime bindings");
+      }
       const databaseId = `can-preview-${randomUUID()}`;
       if (options.seedLocalActors === undefined) {
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed producer is unavailable");
@@ -491,7 +502,10 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
       }
       const ownerDatabases = (storageMode === "global" ? [] : seed.owners)
         .map(owner => ({ ...owner, id: `can-preview-owner-${randomUUID()}` }));
+      const runtimeBindings = configureLocalBindings(bindingPlan, persistence, options.runtimeImplementations);
       worker = await startLocalDev({
+        ...runtimeBindings.worker,
+        resourceRecovery: bindingPlan.bindings.some(binding => binding.kind === 'queue' || binding.kind === 'analytics-engine'),
         workerName: `can-preview-${randomUUID()}`,
         compatibilityDate: PINNED_COMPATIBILITY_DATE,
         mainModule: bundle.mainModule,
@@ -499,7 +513,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         binaryModules: bundle.binaries,
         d1Databases: [{ binding: "DB", id: databaseId }, ...ownerDatabases.map(owner => ({ binding: owner.binding, id: owner.id }))],
         d1Persist: persistence,
-        vars: { ...vars, ...(ownerDatabases.length === 0 ? {} : { CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
+        vars: { ...vars, ...runtimeBindings.worker.vars, ...(ownerDatabases.length === 0 ? {} : { CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
           owner: owner.owner, binding: owner.binding, initializeFresh: true,
         })) } }) },
       });
@@ -520,6 +534,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           fail("ACTIVATION_REFUSED", "serving owner D1 activation gates refused this preview build");
         }
       }
+      await probeLocalR2(worker, bindingPlan);
       await probeWorker(worker, bundle, bridge.url, seed, artifact);
       if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during startup");
       const protectedBridge = bridge;

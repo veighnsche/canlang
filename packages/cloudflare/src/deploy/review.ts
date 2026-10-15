@@ -43,6 +43,9 @@ function project(plan: DeployPlan): ProjectedLine[] {
   for (const bucket of wrangler.r2_buckets) {
     out.push({ key: `r2:${bucket.binding}`, line: `r2 ${bucket.binding} name=${bucket.bucket_name}` });
   }
+  for (const namespace of wrangler.kv_namespaces ?? []) {
+    out.push({ key: `kv:${namespace.binding}`, line: `kv ${namespace.binding} id=${namespace.id}` });
+  }
   for (const binding of wrangler.durable_objects.bindings) {
     out.push({
       key: `do:${binding.name}`,
