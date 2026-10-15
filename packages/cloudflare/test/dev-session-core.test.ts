@@ -192,6 +192,100 @@ describe("development session revision lifecycle", () => {
     expect(disposed).toEqual(["build-a", "build-fixed"]);
   });
 
+  it.each(["check", "preview"] as const)("reconciles unchanged native directory hints during %s", async phase => {
+    const root = await mkdtemp(join(tmpdir(), "can-session-sibling-")), app = join(root, "App.can");
+    await writeFile(app, "unchanged");
+    let entered!: () => void, release!: () => void, captures = 0;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => { captures++; const source = await readFile(app, "utf8"); return { sourceRevision: source, inputDigest: source }; },
+      check: async () => { if (phase === "check") { entered(); await gate; } return { complete: true, passed: true, detail: null }; },
+      preparePreview: async () => { if (phase === "preview") { entered(); await gate; } return preview("unchanged", []); },
+    }, { debounceMs: 5, reconcileMs: 20, auditMs: 60_000 });
+    try {
+      session.watchDirectories([root]);
+      const pending = session.check(); await started;
+      const before = captures;
+      // The real watcher sees both an irrelevant sibling and a same-byte write.
+      await writeFile(phase === "check" ? join(root, "Notes.md") : app, phase === "check" ? "not consumed" : "unchanged");
+      await until(() => captures > before);
+      await session.refresh(); release();
+      expect(await pending).toMatchObject({ kind: "checked", revision: "r1", preview: "ready" });
+      expect(session.status()).toMatchObject({ servingBuild: "unchanged", dirty: false, stale: false });
+    } finally { release(); await session.stop(); await rm(root, { recursive: true, force: true }); }
+  });
+
+  it.each([false, true])("fences a recapture overlapped by a hint (changed=%s)", async changed => {
+    let source = "first", captures = 0, entered!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => {
+        const snapshot = source; captures++;
+        if (captures === 2) { entered(); await gate; }
+        return { sourceRevision: snapshot, inputDigest: snapshot };
+      },
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async () => preview("first", []),
+    }, { debounceMs: 100_000 });
+    try {
+      const pending = session.check(); await started;
+      if (changed) source = "second";
+      session.markDirty(); release();
+      expect(await pending).toMatchObject(changed ? { kind: "superseded" } : { kind: "checked", preview: "ready" });
+      expect(captures).toBeGreaterThanOrEqual(3);
+      expect(session.status().servingBuild).toBe(changed ? null : "first");
+    } finally { release(); await session.stop(); }
+  });
+
+  it.each(["added", "deleted"] as const)("supersedes a check when a consumed input is %s", async change => {
+    const root = await mkdtemp(join(tmpdir(), "can-session-membership-")), extra = join(root, "Extra.can");
+    await writeFile(join(root, "App.can"), "first");
+    if (change === "deleted") await writeFile(extra, "extra");
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const session = new DevSessionCore({
+      capture: async () => { const names = (await readdir(root)).sort(); const bytes = await Promise.all(names.map(name => readFile(join(root, name), "utf8"))); return { sourceRevision: "first", inputDigest: JSON.stringify([names, bytes]) }; },
+      check: async () => { entered(); await gate; return { complete: true, passed: true, detail: null }; },
+      preparePreview: async () => preview("must-not-publish", []),
+    }, { debounceMs: 100_000 });
+    try {
+      const pending = session.check(); await started;
+      if (change === "added") await writeFile(extra, "extra"); else await rm(extra);
+      session.markDirty(); release();
+      expect(await pending).toMatchObject({ kind: "superseded" });
+      expect(session.status().servingBuild).toBeNull();
+    } finally { release(); await session.stop(); await rm(root, { recursive: true, force: true }); }
+  });
+
+  it.each(["failure", "cancel", "stop"] as const)("refuses publication during recapture %s", async action => {
+    let captures = 0, stopping: Promise<void> | undefined;
+    const controller = new AbortController(), reason = new Error("recapture caller disconnected");
+    const session: DevSessionCore<null, DevPreview> = new DevSessionCore({
+      capture: async () => {
+        captures++;
+        if (captures > 1) {
+          if (action === "failure") throw new Error("consumed input unreadable");
+          session.markDirty();
+          if (captures === 2) setImmediate(() => { if (action === "stop") stopping = session.stop(); else controller.abort(reason); });
+        }
+        return { sourceRevision: "first", inputDigest: "first" };
+      },
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async () => preview("must-not-publish", []),
+    }, { debounceMs: 100_000 });
+    try {
+      const pending = session.check(undefined, controller.signal);
+      if (action === "cancel") await expect(pending).rejects.toBe(reason);
+      else expect(await pending).toMatchObject({ kind: "superseded" });
+      await stopping;
+      expect(session.status().servingBuild).toBeNull();
+      if (action === "failure") expect(session.status().captureError).toBe("consumed input unreadable");
+    } finally { await session.stop(); }
+  });
+
   it("cannot publish an in-flight result after the input changes", async () => {
     let source = "first";
     let release: (() => void) | undefined;

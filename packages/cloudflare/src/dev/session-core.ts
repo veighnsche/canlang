@@ -292,7 +292,6 @@ export class DevSessionCore<T, P extends DevPreview> {
       throw new DevRevisionConflictError();
     }
     signal.throwIfAborted();
-    const startedSerial = this.changeSerial;
     let check: DevCheck<T>;
     try { check = await this.hooks.check(inputs, signal); }
     catch (error) {
@@ -302,7 +301,7 @@ export class DevSessionCore<T, P extends DevPreview> {
       throw error;
     }
     if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
-    if (!(await this.stillCurrent(inputs, revision, startedSerial, signal))) {
+    if (!(await this.stillCurrent(inputs, revision, signal))) {
       if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     }
@@ -334,13 +333,15 @@ export class DevSessionCore<T, P extends DevPreview> {
       signal.throwIfAborted();
       return { kind: "build_failed", revision, check: structuredClone(captured), error: errorText(error) };
     }
-    const current = !signal.aborted && await this.stillCurrent(inputs, revision, startedSerial, signal);
+    const current = !signal.aborted && await this.stillCurrent(inputs, revision, signal);
     if (!current || signal.aborted) {
       await prepared.dispose();
       if (!this.stopChecks.signal.aborted) signal.throwIfAborted();
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     }
     const old = this.serving;
+    // A hint during preparation may have recaptured identical inputs.
+    this.dirty = false;
     this.serving = { revision, preview: prepared };
     this.buildRevision = revision;
     this.lastPreviewReset = old !== null;
@@ -356,15 +357,26 @@ export class DevSessionCore<T, P extends DevPreview> {
       ...(cleanupError === undefined ? {} : { cleanupError }) };
   }
 
-  private async stillCurrent(inputs: DevInputs, revision: string, serial: number, signal?: AbortSignal): Promise<boolean> {
-    if (this.stopped || this.changeSerial !== serial) return false;
+  private async stillCurrent(inputs: DevInputs, revision: string, signal: AbortSignal): Promise<boolean> {
     try {
-      const latest = await this.refresh(signal);
-      return !this.stopped && this.changeSerial === serial && this.revision() === revision &&
-        latest.inputDigest === inputs.inputDigest && latest.sourceRevision === inputs.sourceRevision;
+      while (!this.stopped) {
+        signal.throwIfAborted();
+        // Directory events are hints, including writes to unconsumed siblings.
+        // Reconcile earlier hints, but never trust a capture overlapped by a
+        // newer event: an already-read input may have changed during capture.
+        const serial = this.changeSerial;
+        const latest = await this.refresh(signal);
+        signal.throwIfAborted();
+        if (this.stopped || this.revision() !== revision ||
+            latest.inputDigest !== inputs.inputDigest || latest.sourceRevision !== inputs.sourceRevision) return false;
+        if (this.changeSerial === serial) return true;
+        // Continued events must not starve request cancellation or stop.
+        await new Promise<void>(resolve => setImmediate(resolve));
+      }
     } catch {
       return false;
     }
+    return false;
   }
 
   async stop(): Promise<void> {
