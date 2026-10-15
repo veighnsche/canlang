@@ -431,7 +431,9 @@ export async function copy(props: CopyProps): Promise<string> {
   if (typeof props.value !== "string") {
     throw new TypeError("copy value must be a string");
   }
-  const text = resolveCaption(props.label, props.context);
+  // A labelless source copies its own value: the displayed value labels
+  // itself, so no wording is invented. An explicit empty label still throws.
+  const text = props.label === undefined ? props.value : resolveCaption(props.label, props.context);
   if (text === "") {
     throw new Error("copy label must not be empty");
   }
