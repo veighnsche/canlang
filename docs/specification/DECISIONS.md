@@ -17447,3 +17447,22 @@ execute yet. All15 affected compiler controls pass/1.94s, retaining prior scalar
 helper, Contract and reference behavior. Locked CLI build passes. No runtime
 carrier, grant, result taint or authored source assertion changes. General helper
 call-chain and unsupported field execution remain ready defining-owner work.
+
+
+## 2026-10-15 — retain logical URL identity through model descriptors
+
+The original Partner owner-rule setup exposed missing logical type association
+for Program.destination and Partner.onboarding_url: the compiler emitted only
+the legacy string wire tag. Model metadata now retains existing url valueType
+through nullable/array wrappers and imported field reuse; saved Given fields
+mirror the same qualifier. State's existing descriptor/model/canonical-input
+intake admits that exact string-tag URL profile and reuses the Values URL codec,
+requiring matching nullability/array/type markers. Owner-rule field decoding
+retains its strict loaded association. No alternate private model inventory or
+new authority is introduced.
+
+Compiler source/import/reuse wrapper and declared-text discriminator pass1/.01s.
+State's two affected owner tests pass/.189s, including wrong tag/wrapper/malformed
+type refusal and actual invalid-wire mutation rollback. Strict noEmit and normal
+State/CF builds pass. Actual original Partner transactions/page still await the
+fresh compiler snapshot; earlier setup failed before rule execution.

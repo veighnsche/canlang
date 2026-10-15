@@ -63,9 +63,9 @@ describe('mutation model table', () => {
 });
 
 
-describe('checked email/timezone model metadata', () => {
+describe('checked email/timezone/URL model metadata', () => {
   it('preserves canonical ordinary arrays/nullability and rejects marker disagreement', () => {
-    for (const base of ['email', 'timezone']) {
+    for (const base of ['email', 'timezone', 'url']) {
       for (const array of [false, true]) for (const nullable of [false, true]) {
         const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
         const metadata = { required: true, serverOnly: false, valueType, nullable,

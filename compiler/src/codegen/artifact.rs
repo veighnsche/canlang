@@ -1398,7 +1398,7 @@ fn given_field_tag(type_name: &str) -> (JsModelFieldType, Option<String>, bool, 
             arr = if is_array { "[]" } else { "" },
             null = if nullable { "?" } else { "" }
         )),
-        "text" | "date" | "file" | "email" | "timezone" => Some(type_name.to_string()),
+        "text" | "date" | "file" | "email" | "url" | "timezone" => Some(type_name.to_string()),
         _ => None,
     };
     (tag, value_type, nullable, is_array)

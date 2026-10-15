@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 logical URL owner fields (2026-10-15, component qualified).**
+Original Partner setup next exposed two URL fields with only string wire tags.
+Compiler existing valueType metadata now retains url wrappers/source field reuse
+and saved Given parity; State descriptor/model/input intake reuses the exact URL
+codec, preserving tag/wrapper/source association refusal. Compiler1/.01s and
+State2/.189s pass, including actual invalid-wire rollback; normal State/CF builds
+and strict noEmit pass. Fresh CLI/original Partner native remains next.
+
 **C02 unsupported selected-field safety (2026-10-15, qualified).**
 Nullable text/enum/text-array Requires reproduced the same missing execution
 observation after independent-result pruning. Known first-field provenance now
