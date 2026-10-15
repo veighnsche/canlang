@@ -1,0 +1,21 @@
+{
+  "state": {
+    "goal": "Supply the missing native model-default capability for the recorded CRM workflow. Judge alternatives against economical AI-authored source, owning declarations, simple canonical primitives and coherent transactional failures.",
+    "required_outcome": "owner:user=actor on Deal is an existing ordinary creation default. Supplying owner must override it. No default runs on update or committed recovery; an omitted default runs in owning field order at State's current pre-hook default phase and its value is retained in the receipt. The actual creation actor is nullable and must not be synthesized. Replacing this spelling with server=actor would prohibit supplied owners and change the workflow.",
+    "verified_implementation": "The compiler has executable default functions on generated model definitions, but native descriptors and State's model table carry only literal/parent ordinary defaults plus protected server initializers. No native evaluator installation exists. Both generated scenarios and CRUD stage into the same State defaults loop. Server actor resolution is attribution-based and may substitute public/test/trusted-source strings, so that evaluator cannot silently define an ordinary actor default. Constructor source proof currently declines these computed defaults; additional expression families still need defining-owner proof.",
+    "alternatives": {
+      "context_recipe": "Use a small declarative context-default case in the existing artifact/canonical default union. Authenticate the actor expression and exact field schema, install it as an ordinary default, and resolve only the genuine invocation actor on omission at the established pipeline point. Keep caller override, validations, hooks, rollback and default receipts unchanged. Unknown kinds remain load errors on older readers. Qualify this demonstrated actor gap without opening generic evaluator effects or silently admitting further expressions.",
+      "checked_callback": "Install the generated model default callable through a new internal correspondence-checked callback port. Bind only the exact original field/function and invoke it at State's ordinary omission point with admitted context. Keep its returned value subject to current codecs and rules, preserve exceptions and forbid added query or effect access. Initial supported callback is actor; future expressions require their own checked sources and effects. This preserves executable reuse at the cost of a new callback boundary instead of a recipe kind."
+    }
+  },
+  "questions": {
+    "implementation": {
+      "type": "choice",
+      "instructions": "Which alternative is preferable given the same required default semantics, source reuse, current authority, order/failure fidelity and end-to-end implementation cost?",
+      "criteria": {
+        "context_recipe": "Use a small declarative context-default case in the existing artifact/canonical default union. Authenticate the actor expression and exact field schema, install it as an ordinary default, and resolve only the genuine invocation actor on omission at the established pipeline point. Keep caller override, validations, hooks, rollback and default receipts unchanged. Unknown kinds remain load errors on older readers. Qualify this demonstrated actor gap without opening generic evaluator effects or silently admitting further expressions.",
+        "checked_callback": "Install the generated model default callable through a new internal correspondence-checked callback port. Bind only the exact original field/function and invoke it at State's ordinary omission point with admitted context. Keep its returned value subject to current codecs and rules, preserve exceptions and forbid added query or effect access. Initial supported callback is actor; future expressions require their own checked sources and effects. This preserves executable reuse at the cost of a new callback boundary instead of a recipe kind."
+      }
+    }
+  }
+}

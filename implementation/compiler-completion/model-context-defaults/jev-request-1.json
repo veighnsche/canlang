@@ -1,0 +1,21 @@
+{
+  "state": {
+    "goal": "Complete the supported model creation default without rewriting app source. The product favors compact reusable owning declarations, one canonical SaaS primitive, permissions, order, atomic rollback and exact failures.",
+    "required_outcome": "CRM declares Deal.owner:user=actor, a caller-overridable creation default. server=actor is protected and excludes writable inputs, so it is not equivalent. Defaults run only for missing fields, in declaration order, before required/normalization/hooks/uniqueness/invariants. Explicit data wins, updates do not default and committed replay does not evaluate again. The actual actor may be absent; do not replace it with attribution strings.",
+    "verified_implementation": "Verified native path: compiler emits default(c) functions in appDefinition but artifact JsFieldDefault represents only literal/parent/server/derived. State builds its cached table from those descriptors, consumes only literal/parent ordinary defaults, and has no model-default callback channel. Canonical Create and CRUD share its per-field defaults loop. Existing server-init actor uses fallback public/trusted/test attribution, unsuitable here. Native source correspondence currently refuses computed defaults; unrelated computed forms must stay explicitly unsupported until qualified.",
+    "alternatives": {
+      "context_recipe": "Add a closed context-default recipe to the existing field-default descriptor, initially proving actor only. The compiler authenticates the original default expression and owning field/type. State validates and installs that recipe in its ordinary default slot, resolves the actual admitted actor only on omission, and retains normal value encoding, order, hooks, failures and receipt recording. Old unknown-kind readers refuse. No general callback/effect API; other computed defaults remain explicit producer gaps.",
+      "checked_callback": "Connect the existing generated model default function through a new private checked evaluator channel. Verify owning source/model/field/function correspondence before installing it. State invokes that evaluator only in the same ordinary omitted-field phase; the host passes admitted creation context and encodes the returned value. Initially qualify actor, retain order/error identity and no extra State/query/send authority; other function forms wait for their own source/effect proof."
+    }
+  },
+  "questions": {
+    "implementation": {
+      "type": "choice",
+      "instructions": "Which complete implementation best meets the same accepted mutable-default semantics, reusable source ownership, failure/order guarantees and total maintenance cost?",
+      "criteria": {
+        "context_recipe": "Add a closed context-default recipe to the existing field-default descriptor, initially proving actor only. The compiler authenticates the original default expression and owning field/type. State validates and installs that recipe in its ordinary default slot, resolves the actual admitted actor only on omission, and retains normal value encoding, order, hooks, failures and receipt recording. Old unknown-kind readers refuse. No general callback/effect API; other computed defaults remain explicit producer gaps.",
+        "checked_callback": "Connect the existing generated model default function through a new private checked evaluator channel. Verify owning source/model/field/function correspondence before installing it. State invokes that evaluator only in the same ordinary omitted-field phase; the host passes admitted creation context and encodes the returned value. Initially qualify actor, retain order/error identity and no extra State/query/send authority; other function forms wait for their own source/effect proof."
+      }
+    }
+  }
+}

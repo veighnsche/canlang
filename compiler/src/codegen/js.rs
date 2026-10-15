@@ -517,6 +517,8 @@ pub enum JsFieldDefault {
     /// Dot path off the loaded parent row (create only; leading `parent.`
     /// stripped, e.g. `parent.parent.user` renders `"parent.user"`).
     Parent { path: String },
+    /// Ordinary overridable creation default from the admitted actor.
+    ContextActor,
     /// Engine-resolved server initializer (T18 closed `init` vocabulary).
     Server(JsServerInit),
     /// Derived value marker (derived fields only; T18 executes).
@@ -560,7 +562,7 @@ pub fn js_server_init(server: &IrServer) -> JsServerInit {
 /// `server=` (any spelling) wins as `{kind:"server",init:...}` (T18
 /// closed vocabulary via [`js_server_init`]) and literal defaults
 /// encode via [`literal_json`]; computed defaults map only when they
-/// are a parent path ([`parent_path`]). Any other computed default (a
+/// are a parent path ([`parent_path`]) or the admitted actor. Other computed defaults (a
 /// non-parent expression) maps to `None`: the caller keeps
 /// `required: false`; owning model defaults or supported ordered scenario
 /// handler fills preserve execution. Total and diagnostic-free:
@@ -575,6 +577,17 @@ pub fn js_field_default(
     match default {
         None => None,
         Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),
+        Some(IrDefault::Computed {
+            expr,
+            has_parent: false,
+        }) if matches!(&expr.expr, IrExpr::Member { base, field }
+                if field == "actor" && base.ty == ResolvedType::Unknown
+                    && base.span == expr.span && matches!(&base.expr, IrExpr::Name(name) if name == "c"))
+            && (expr.ty == ResolvedType::Scalar(Scalar::User)
+                || expr.ty.nullable_inner() == Some(&ResolvedType::Scalar(Scalar::User))) =>
+        {
+            Some(JsFieldDefault::ContextActor)
+        }
         Some(IrDefault::Computed { expr, .. }) => {
             parent_path(expr).map(|path| JsFieldDefault::Parent { path })
         }
@@ -1141,6 +1154,9 @@ impl Serialize for JsFieldDefault {
             Parent {
                 path: &'a str,
             },
+            Context {
+                value: &'static str,
+            },
             Server {
                 init: JsServerInit,
             },
@@ -1153,6 +1169,7 @@ impl Serialize for JsFieldDefault {
                 DefaultWire::Literal { value: raw }.serialize(serializer)
             }
             Self::Parent { path } => DefaultWire::Parent { path }.serialize(serializer),
+            Self::ContextActor => DefaultWire::Context { value: "actor" }.serialize(serializer),
             Self::Server(init) => DefaultWire::Server { init: *init }.serialize(serializer),
             Self::Derived => DefaultWire::Derived.serialize(serializer),
         }

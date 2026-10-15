@@ -1,0 +1,21 @@
+{
+  "state": {
+    "goal": "Repair native execution of an already valid owning field initializer while keeping concise generated SaaS source and canonical CRUD behavior. Preserve permission boundaries, default timing, rollback and errors.",
+    "required_outcome": "The original Deal has owner:user=actor. It means a normal default at creation, not a server-owned stamp. A caller may provide a different authorized owner. State must resolve missing values in field order before its established validations and hooks, leave updates alone, save the resolved value, and reuse receipts without running the default. With no actor, the required User must fail normal validation rather than acquiring a made-up public or handler identity.",
+    "verified_implementation": "Inspection shows two separate channels: generated model schemas already include JavaScript default(c) callables, whereas the emitted field-default DTO supports literal, parent, server and derived only. Native loading constructs State tables from the DTO; it ignores model callable defaults and offers no evaluator port. The shared Create/CRUD mutation pipeline owns the omitted-field loop. Its protected actor initializer instead uses attribution fallback strings. The constructor source checker therefore currently declines the computed actor default. Broader computed defaults are not qualified.",
+    "alternatives": {
+      "checked_callback": "Reuse generated default(c) code by adding a private, source-checked model-default evaluator seam to native loading and State. Bind the exact field and original function once, then invoke it with the admitted creation context only for omitted fields in the current defaults loop. Preserve override, staging, exception and replay behavior without granting store/query/delivery effects. Qualify actor now and admit other expressions only after separate correspondence and effect checks. This avoids a new recipe tag but adds an executable join.",
+      "context_recipe": "Extend the current default DTO with a finite context recipe and implement the authored actor case first. Require exact source expression, owning declaration and User type; load and evaluate it in the existing normal default phase using the actual nullable invocation actor. Keep overrides, value checks, failure ordering, hook visibility and receipt values. Readers that lack the new kind fail closed. This adds data vocabulary but avoids general executable default callbacks; other expressions remain bounded gaps."
+    }
+  },
+  "questions": {
+    "implementation": {
+      "type": "choice",
+      "instructions": "Choose the stronger complete path when comparing identical overridability, actor absence, execution order, reuse, authority and maintenance outcomes.",
+      "criteria": {
+        "checked_callback": "Reuse generated default(c) code by adding a private, source-checked model-default evaluator seam to native loading and State. Bind the exact field and original function once, then invoke it with the admitted creation context only for omitted fields in the current defaults loop. Preserve override, staging, exception and replay behavior without granting store/query/delivery effects. Qualify actor now and admit other expressions only after separate correspondence and effect checks. This avoids a new recipe tag but adds an executable join.",
+        "context_recipe": "Extend the current default DTO with a finite context recipe and implement the authored actor case first. Require exact source expression, owning declaration and User type; load and evaluate it in the existing normal default phase using the actual nullable invocation actor. Keep overrides, value checks, failure ordering, hook visibility and receipt values. Readers that lack the new kind fail closed. This adds data vocabulary but avoids general executable default callbacks; other expressions remain bounded gaps."
+      }
+    }
+  }
+}

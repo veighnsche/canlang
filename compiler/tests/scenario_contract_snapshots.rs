@@ -1,7 +1,7 @@
 //! Whole required Contract parameters at their original native Create sites.
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::{CheckedProgram, check_program};
-use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js};
+use canlang_compiler::codegen::{EmitOptions, EmitSources, emit, ir, js, to_json_string};
 use canlang_compiler::diagnostic::DiagnosticResult;
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::{Path, PathBuf};
@@ -166,6 +166,112 @@ fn whole_contract_correspondence_refuses_parameter_and_nested_schema_substitutio
                 .any(|diagnostic| diagnostic.code == "E6008"),
             "corruption {corruption}: {:?}",
             output.diagnostics
+        );
+    }
+}
+
+#[test]
+fn actor_creation_defaults_stay_ordinary_in_model_and_crud_descriptors() {
+    let source = SOURCE
+        .replace(
+            "Snapshot {input:Lead}",
+            "Snapshot {input:Lead,owner:user=actor,reviewer:user?=actor}",
+        )
+        .replace(
+            "When\n",
+            "When\n crud Snapshot by=members fields=input,owner,reviewer\n",
+        );
+    let (db, program, catalog) = checked(&source);
+    let mut result = DiagnosticResult::new("actor-defaults", "1.0", 1);
+    result.add_sources(&db);
+    let (artifact, diagnostics) = emit(
+        &program,
+        &EmitSources {
+            db: &db,
+            result: &result,
+            catalog: catalog.as_ref(),
+            options: EmitOptions {
+                allow_incomplete_test_only: false,
+                native_scenario_receipts: true,
+            },
+        },
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let artifact: serde_json::Value = serde_json::from_str(&to_json_string(&artifact)).unwrap();
+    let model = artifact["models"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|model| model["name"] == "Snapshots.Snapshot")
+        .unwrap();
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["name"] == "Snapshots.Snapshot.create")
+        .unwrap();
+    for name in ["owner", "reviewer"] {
+        let stored = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
+        assert_eq!(
+            stored["default"],
+            serde_json::json!({"kind":"context","value":"actor"})
+        );
+        assert_eq!(stored["serverOnly"], false);
+        assert_eq!(stored["required"], false);
+        let input = operation["inputs"]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
+        assert_eq!(input["default"], stored["default"]);
+        assert_eq!(input["required"], false);
+    }
+}
+
+#[test]
+fn actor_default_source_proof_refuses_context_or_parent_substitution() {
+    let source = SOURCE.replace(
+        "Snapshot {input:Lead}",
+        "Snapshot {input:Lead,owner:user=actor}",
+    );
+    let (db, program, catalog) = checked(&source);
+    let (original, diagnostics) = ir::build(&program, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for substitution in 0..2 {
+        let mut changed = original.clone();
+        let field = changed
+            .items
+            .iter_mut()
+            .find(|field| field.canonical == "Snapshots.Snapshot.owner")
+            .unwrap();
+        let ir::IrItemKind::Field {
+            default: Some(ir::IrDefault::Computed { expr, has_parent }),
+            ..
+        } = &mut field.kind
+        else {
+            panic!("computed default");
+        };
+        if substitution == 0 {
+            let ir::IrExpr::Member { field, .. } = &mut expr.expr else {
+                panic!("actor");
+            };
+            *field = "team".into();
+        } else {
+            *has_parent = true;
+        }
+        let output = js::emit_program_with_native_source_receipts(&changed, true, &db);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "E6008"),
+            "substitution {substitution}"
         );
     }
 }

@@ -1,0 +1,22 @@
+{
+  "question": "Ordinary native actor creation default carrier",
+  "advice": "Three independently worded equivalent Choice requests select context_recipe.",
+  "probabilities": [
+    0.52,
+    0.61,
+    0.74
+  ],
+  "confidence": [
+    0.04,
+    0.22,
+    0.48
+  ],
+  "uncertainty": "No rationales are returned. Two choices are weak; the same-model agreement is advice, not implementation evidence. Both options could preserve the source semantics if fully implemented.",
+  "decision": "Use the closed context actor recipe in the existing default union and normal omitted-field pipeline phase.",
+  "rationale": "No installed model-default evaluator channel exists. A callback path needs source/function binding, context conversion and effect/lifetime restrictions. A finite recipe parallels existing literal/parent recipes, does not execute caller code or grant effects, and supports the demonstrated default without source repetition. Values continues validating the explicitly filled User value.",
+  "limits": "Qualify actor only, including normal nullable User value validation. Preserve mutable override and exact ordering; other computed expressions need their own defining joins. Do not reuse protected server initialization or actorFor attribution fallback.",
+  "tokens": {
+    "input": 2885,
+    "output": 102
+  }
+}

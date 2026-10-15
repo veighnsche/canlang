@@ -3008,6 +3008,7 @@ function isDeliveryKindRejection(err: unknown): boolean {
 const R01_CONTRACT_DEFAULT_KINDS: ReadonlySet<string> = new Set([
   "literal",
   "parent",
+  "context",
   "server",
   "derived",
 ]);
@@ -3066,18 +3067,23 @@ function assertDroppedDeliveryEnvelopes(
       if (typeof record["required"] !== "boolean") {
         fail("malformed_descriptor", `Invalid ${what}: required must be a boolean.`);
       }
-      const fallback: unknown = record["default"];
+      const defaultMember = Object.getOwnPropertyDescriptor(record, 'default');
+      if (defaultMember !== undefined && !('value' in defaultMember) || defaultMember === undefined && 'default' in record) {
+        fail("malformed_descriptor", `Invalid default for ${what}: a default must be own data.`);
+      }
+      const fallback: unknown = defaultMember?.value;
       if (fallback !== undefined) {
-        if (!isUnknownRecord(fallback) || typeof fallback["kind"] !== "string") {
+        const kindMember = typeof fallback === 'object' && fallback !== null ? Object.getOwnPropertyDescriptor(fallback, 'kind') : undefined;
+        if (!isUnknownRecord(fallback) || kindMember === undefined || !('value' in kindMember) || typeof kindMember.value !== "string") {
           fail("malformed_descriptor", `Invalid default for ${what}: a default object needs a kind.`);
         }
         const fallbackRecord = fallback as Record<string, unknown>;
-        const kind = fallbackRecord["kind"] as string;
+        const kind = kindMember!.value as string;
         if (!R01_CONTRACT_DEFAULT_KINDS.has(kind)) {
           fail(
             "unknown_default_kind",
             `Unknown default kind ${JSON.stringify(kind)} for ${what}; ` +
-              "supported: literal, parent, server, derived.",
+              "supported: literal, parent, context, server, derived.",
           );
         }
         // Owning default semantics (registry `checkDefault`, same
@@ -3093,6 +3099,23 @@ function assertDroppedDeliveryEnvelopes(
               "malformed_descriptor",
               `Invalid literal default for ${what}: values must be serializable data.`,
             );
+          }
+        }
+        if (kind === "context") {
+          const members = Object.getOwnPropertyDescriptors(fallbackRecord);
+          if (![Object.prototype, null].includes(Object.getPrototypeOf(fallbackRecord)) ||
+              Reflect.ownKeys(fallbackRecord).length !== 2 ||
+              !['kind', 'value'].every(key => members[key] !== undefined && 'value' in members[key]! && members[key]!.enumerable) ||
+              members['value']!.value !== 'actor') {
+            fail("malformed_descriptor", `Invalid context default for ${what}: expected exactly kind=context and value=actor.`);
+          }
+          // A dropped delivery input cannot own an ordinary user default.
+          // Validate before stripping so retry cannot erase the wrong type.
+          const tag = record['field'];
+          if (!isUnknownRecord(tag) || tag['kind'] !== 'user' ||
+              record['valueType'] !== undefined && (typeof record['valueType'] !== 'string' || !/^user\??$/.test(record['valueType'] as string)) ||
+              record['array'] !== undefined || record['required'] !== false) {
+            fail("malformed_descriptor", `Invalid context default for ${what}: actor requires a singular optional user input.`);
           }
         }
         if (kind === "parent") {

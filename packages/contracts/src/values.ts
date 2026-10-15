@@ -171,7 +171,7 @@ export type ArrayOmission = "ordinary" | "required";
  * same origins; values conformance emits `literal`/`server`/`derived`
  * (the `parent` kind is supplied by L1 emission for the T18 engine).
  */
-export type FieldDefaultOrigin = "literal" | "parent" | "server" | "derived";
+export type FieldDefaultOrigin = "literal" | "parent" | "context" | "server" | "derived";
 
 /** Plain JSON data. Exact scalars use canonical decimal strings, never numbers. */
 export type WireValue =

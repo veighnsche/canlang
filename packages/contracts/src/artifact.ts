@@ -248,7 +248,8 @@ export type ArtifactServerInit = 'actor' | 'now' | 'random_secret' | 'computed';
  * and durations as canonical decimal strings, money as
  * `{minor, currency}`, never a JS Number); `parent` carries the dot path
  * off the loaded parent row (create only, leading `parent.` stripped);
- * `server`/`derived` mark engine-resolved values (T18 execution) and
+ * `context` carries the closed ordinary actor creation default, retaining
+ * supplied overrides; `server`/`derived` mark engine-resolved values (T18 execution) and
  * exclude the field from writable inputs. T18 adds the optional `init`
  * payload on `server` (see `ArtifactServerInit`); L3 intake readers keep
  * ignoring extra members and only kinds reject.
@@ -256,6 +257,7 @@ export type ArtifactServerInit = 'actor' | 'now' | 'random_secret' | 'computed';
 export type ArtifactFieldDefault =
   | { kind: 'literal'; value: unknown }
   | { kind: 'parent'; path: string }
+  | { kind: 'context'; value: 'actor' }
   | { kind: 'server'; init?: ArtifactServerInit }
   | { kind: 'derived' };
 

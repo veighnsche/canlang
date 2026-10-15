@@ -786,10 +786,11 @@ function checkArtifactDefault(
   valueType: string = fieldKind,
 ): DerivedInputDefault | undefined {
   if (value === undefined) return undefined;
-  if (!isDescriptorRecord(value) || typeof value['kind'] !== 'string') {
+  if (!isDescriptorRecord(value)) {
     failDescriptor('malformed_descriptor', `Invalid default for ${what}: a default object needs a kind.`);
   }
-  const kind = value['kind'];
+  const kind = choiceMember(value, 'kind', what);
+  if (typeof kind !== 'string') failDescriptor('malformed_descriptor', `Invalid default for ${what}: a default object needs a kind.`);
   if (kind === 'literal') {
     const literal = value['value'];
     if (fieldKind === 'duration' || fieldKind === 'user') {
@@ -813,6 +814,13 @@ function checkArtifactDefault(
     }
     return { kind: 'literal', value: literal };
   }
+  if (kind === 'context') {
+    const fallback = choiceObject(value, ['kind', 'value'], what);
+    if (choiceMember(fallback, 'value', what) !== 'actor' || fieldKind !== 'user' || !/^user\??$/.test(valueType)) {
+      failDescriptor('malformed_descriptor', `Invalid context default for ${what}: actor requires a singular user input.`);
+    }
+    return { kind: 'context', value: 'actor' };
+  }
   if (kind === 'parent') {
     if (typeof value['path'] !== 'string') {
       failDescriptor('malformed_descriptor', `Invalid parent default for ${what}: path must be a dot-path string.`);
@@ -829,7 +837,7 @@ function checkArtifactDefault(
   }
   failDescriptor(
     'unknown_default_kind',
-    `Unknown default kind ${JSON.stringify(kind)} for ${what}; supported: literal, parent, server, derived.`,
+    `Unknown default kind ${JSON.stringify(kind)} for ${what}; supported: literal, parent, context, server, derived.`,
   );
 }
 
@@ -929,7 +937,10 @@ function checkArtifactInputChannels(
   const rawArray = choiceMember(value, 'array', what);
   const nullable = choiceMember(value, 'nullable', what);
   const valueType = `${fieldKind}${rawArray === undefined ? '' : '[]'}${nullable === true ? '?' : ''}`;
-  const fallback = checkArtifactDefault(value['default'], what, fieldKind, valueType);
+  const fallback = checkArtifactDefault(choiceMember(value, 'default', what), what, fieldKind, valueType);
+  if (fallback?.kind === 'context' && value['required'] !== false) {
+    failDescriptor('malformed_descriptor', `Invalid context default for ${what}: defaulted inputs must allow omission.`);
+  }
   let array: { readonly required: boolean } | undefined;
   if (Object.hasOwn(value, 'array')) {
     const marker = choiceObject(rawArray, ['required'], what);
