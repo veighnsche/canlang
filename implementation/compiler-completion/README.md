@@ -2,6 +2,19 @@
 
 ## Current remainder and finite completion
 
+**C02 Require-only predicate ANY consumer (2026-10-15, component qualified).**
+An exact private owning Require source-call proof may consume a predicate query
+without adding it to independent Model-result disclosure. Existing private query
+execution completion and call guards retain its authority through commit; return
+receipts continue to retain only actual result dependencies. Legacy metadata
+still requires a result consumer, and skipped body Requires capture no query.
+Fifteen focused State checks pass: commit/replay, independent output after subject
+read/membership loss, caller revocation, late guard rollback, false Require/error
+identity, callback mismatch and eleven source-proof corruptions. Normal State and
+Cloudflare builds pass. No new persisted carrier or language choice. This closes
+the receiving ANY component only; mixed native plans, query-row Contract guard
+observations, feasible Require paths and checked Given defaults remain separate.
+
 **C02 native helper file-placement equivalence (2026-10-15, qualified).**
 The same accepted Employee/leading-helper journey passes with the app and three
 packages in four physical source files (54.11s). All business assertions are

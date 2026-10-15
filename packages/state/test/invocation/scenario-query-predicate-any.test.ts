@@ -41,10 +41,10 @@ const sites: readonly ScenarioReceiptMembershipSite[] = [{ version: 1, source, o
       slots: [0, 1], defaults: [], chain: [frame] },
   ] }];
 const importedMetadata = { ...metadata, sourceCall: { siteIndex: 0, callIndex: 1 } };
-type Association = 'valid' | 'missing-owner' | 'missing-capture' | 'site-index' | 'call-index' | 'path' | 'hash' | 'module' | 'chain' | 'slots' | 'domain';
+type Association = 'valid' | 'missing-owner' | 'missing-capture' | 'site-index' | 'call-index' | 'path' | 'hash' | 'module' | 'chain' | 'slots' | 'domain' | 'stage';
 let sequence = 160000;
-type Mode = 'normal' | 'wrong-pointer' | 'copied-call' | 'foreign-store' | 'wrong-query' | 'closed' | 'repeat' | 'missing-marker' | 'wrong-first' | 'failure';
-async function world(allFalse = false, corruption?: 'source' | 'census' | 'type' | 'import', denySuffix = true, association?: Association, nativeUser = false, controlDomain = false) {
+type Mode = 'normal' | 'wrong-pointer' | 'copied-call' | 'foreign-store' | 'wrong-query' | 'closed' | 'repeat' | 'missing-marker' | 'wrong-first' | 'failure' | 'skip';
+async function world(allFalse = false, corruption?: 'source' | 'census' | 'type' | 'import', denySuffix = true, association?: Association, nativeUser = false, controlDomain = false, guardOnly = false, bodyRequire = false) {
   const dependencies = controls.map(([field, type], index) => ({ id: dependencyIds[index]!, source, role: 'control' as const, field, type: type as CanTypeId }));
   const slice: ArtifactDescriptorSlice = { artifact_version: 1, sources: [{ path: source.path, sha256: source.sha256 }],
     modules: [{ path: source.module, js: 'export const identity="Predicate.check";', map: { version: 3, file: source.module,
@@ -61,6 +61,7 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
       disclosure: { version: 1, source, queries: [{ id: QUERY, source, model: EMPLOYEE, order: [], limit: null, archived: 'exclude', dependencies }],
         returns: [{ id: 'result', source, dependencies: [], influences: (['query-existence', 'query-cardinality', 'query-membership', 'query-order'] as const)
           .map(kind => ({ id: kind, kind, queryId: QUERY })) }] } } }] };
+  if (guardOnly) Object.assign(slice.operations![0]!.result!.disclosure!.returns[0]!, { influences: [] });
   if (nativeUser) delete (slice.models![0]!.fields[0] as { valueType?: CanTypeId }).valueType;
   if (corruption === 'import' || association !== undefined) {
     const imported = { ...helper, module: source.module,
@@ -105,9 +106,11 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
     const actual = pending.predicate; pending = null; captures++; return actual;
   };
   const actualSites = structuredClone(sites) as unknown as ScenarioReceiptMembershipSite[];
+  if (bodyRequire) Object.assign(actualSites[0]!, { stage: 'body-require', position: [{ kind: 'body', index: 0 }, { kind: 'then', index: 0 }] });
   if (association === 'chain') Object.assign(actualSites[0]!.calls[1]!.chain[0]!, { node: { start: 2, end: 9 } });
   if (association === 'slots') Object.assign(actualSites[0]!.calls[1]!, { slots: [1, 0] });
   if (association === 'domain') Object.assign(actualSites[0]!.calls[1]!.arguments[0]!, { type: `${LOCATION}[]` });
+  if (association === 'stage') Object.assign(actualSites[0]!, { stage: 'body-condition' });
   const sourceFacts = { owner: OP, source, sites: actualSites };
   const associated = { ...importedMetadata, sourceCall: { siteIndex: association === 'site-index' ? 1 : 0,
     callIndex: association === 'call-index' ? 0 : 1 } };
@@ -132,7 +135,7 @@ async function world(allFalse = false, corruption?: 'source' | 'census' | 'type'
   const profileBound = { plan, artifactModels: new Map(slice.models!.map(model => [asModel(model.name), model])),
     canonicalModels: loaded.models, ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) };
   const profile = bindScenarioQueryAny(profileBound, supplied, association === undefined ? undefined : sourceFacts);
-  return { store, memberships, caller, authority, access, scanned, table, policy, readPolicies, profile, profileBound, def,
+  return { store, memberships, caller, authority, access, scanned, table, policy, readPolicies, profile, profileBound, def, guardOnly,
     sourceFacts, associated, membership: async (call: AdmittedCall) => {
       if (association === undefined) return true;
       assert.equal(membershipCall, undefined); membershipCall = call;
@@ -160,14 +163,15 @@ function execution(w: World, mode: Mode = 'normal', after?: (session: Awaited<Re
         (read('operator_wide') === true || (read('home') as { id: string }).id === 'site' ||
           (read('locations') as { id: string }[]).some(location => location.id === 'site'));
     };
-    late = predicate; w.activate(call, predicate); if (mode === 'closed') w.deactivate();
+    late = predicate; if (mode !== 'skip') w.activate(call, predicate); if (mode === 'closed') w.deactivate();
     const invokeAny = () => executeScenarioReceiptAny(mode === 'copied-call' ? { ...call } : call,
       mode === 'foreign-store' ? { ...w.store } : w.store, { queryId: mode === 'wrong-query' ? 'foreign-query' : QUERY,
         predicate: mode === 'wrong-pointer' ? candidate => predicate(candidate) : predicate });
-    const allowed = await invokeAny();
+    const allowed = mode === 'skip' ? true : await invokeAny();
+    if (w.guardOnly && !allowed) throw new StateError('rule_failed', 'Original helper Require failed');
     if (mode === 'repeat') { await assert.rejects(invokeAny()); throw new StateError('validation', 'Repeat refused'); }
     await after?.(session);
-    await session.stage({ op: 'create', model: RESULT, id: asId('result'), data: { allowed } }, { cause: 'scenario' });
+    await session.stage({ op: 'create', model: RESULT, id: asId('result'), data: { allowed: w.guardOnly ? true : allowed } }, { cause: 'scenario' });
     const row = await session.read(RESULT, asId('result')); assert.ok(row);
     const result = await bindScenarioReceiptModelResult(call, w.store, { returnId: 'result', row });
     selectScenarioReceiptReturn(call, w.store, 'result'); return { ...await session.finalize(), result, outbox: [] };
@@ -373,4 +377,52 @@ test('new final root control rows retain the existing owner domain bound', async
   await assert.rejects(invoke(ex.request), error => error instanceof StateError && error.code === 'validation');
   assert.equal((await w.store.query({ model: EMPLOYEE, authority: 'owner' })).length, 3);
   assert.equal(await w.store.load(RESULT, asId('result')), null);
+});
+
+
+test('verified Require-only ANY commits and replays an independent Model return without saving query disclosure', async () => {
+  const w = await world(false, undefined, true, 'valid', true, false, true), ex = execution(w);
+  assert.equal((await invoke(ex.request)).status, 'committed');
+  assert.deepEqual(ex.visited, ['a', 'b']); assert.equal(w.captures(), 1);
+  const saved = readScenarioReceiptAssociation(ex.receipt())!;
+  assert.equal(saved.queries, undefined);
+  assert.deepEqual(saved.plan.returns[0]!.influences, []);
+  assert.deepEqual((await w.store.load(RESULT, asId('result')))!.data, { allowed: true });
+  assert.equal((await invoke(ex.request)).status, 'replayed'); assert.equal(w.captures(), 1); assert.deepEqual(ex.visited, ['a', 'b']);
+  // Execution CONTROL does not become output disclosure dependency.
+  w.access.fields = false;
+  await w.memberships.removeMembership(w.authority.membership_id);
+  assert.deepEqual((await projectScenarioReceipt({ ...w, receipt: ex.receipt() })).result, { id: 'result' });
+  await w.memberships.removeMembership(w.caller.membership_id);
+  assert.deepEqual(await projectScenarioReceipt({ ...w, receipt: ex.receipt() }), { result: null, records: [] });
+});
+
+test('Require-only ANY retains late field and membership guards and refuses wrong callbacks or false Require', async () => {
+  for (const loss of ['fields', 'authority', 'caller'] as const) {
+    const w = await world(false, undefined, true, 'valid', true, false, true);
+    const ex = execution(w, 'normal', async () => {
+      if (loss === 'fields') w.access.fields = false;
+      else await w.memberships.removeMembership((loss === 'authority' ? w.authority : w.caller).membership_id);
+    });
+    await assert.rejects(invoke(ex.request), StateError);
+    assert.equal(await w.store.load(RESULT, asId('result')), null);
+  }
+  const mismatch = await world(false, undefined, true, 'valid', true, false, true), wrong = execution(mismatch, 'wrong-pointer');
+  await assert.rejects(invoke(wrong.request), /exact once-captured active source callback/);
+  assert.equal(await mismatch.store.load(RESULT, asId('result')), null);
+  const falseGuard = await world(true, undefined, false, 'valid', true, false, true), rejected = execution(falseGuard);
+  await assert.rejects(invoke(rejected.request), error => error instanceof StateError && error.code === 'rule_failed' && error.message === 'Original helper Require failed');
+  assert.equal(await falseGuard.store.load(RESULT, asId('result')), null);
+});
+
+test('execution-only ANY requires private Require sourceCall proof and does not force skipped body execution', async () => {
+  await assert.rejects(world(false, undefined, true, undefined, true, false, true), /actual CONTROL influence/);
+  for (const association of ['missing-owner', 'missing-capture', 'site-index', 'call-index', 'path', 'hash', 'module', 'chain', 'slots', 'domain', 'stage'] as const) {
+    await assert.rejects(world(false, undefined, true, association, true, false, true));
+  }
+  const w = await world(false, undefined, true, 'valid', true, false, true, true), ex = execution(w, 'skip');
+  assert.equal((await invoke(ex.request)).status, 'committed');
+  assert.deepEqual(ex.visited, []); assert.equal(w.captures(), 0);
+  assert.equal(readScenarioReceiptAssociation(ex.receipt())!.queries, undefined);
+  assert.equal((await invoke(ex.request)).status, 'replayed'); assert.equal(w.captures(), 0);
 });

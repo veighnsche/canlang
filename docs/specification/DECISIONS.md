@@ -16782,3 +16782,16 @@ same-file57.73s result. This validates genuine imported helper source associatio
 not copied metadata; no source or permission rewrite, preview import expansion,
 new carrier or language choice. Original mixed first/body guard handling remains
 separate implementation work; no full CanCRM readiness follows.
+
+
+### 2026-10-15 — consume verified Require queries independently of result disclosure
+
+Implement the accepted execution-guard direction at the existing predicate ANY
+consumer. Only a validated private owning Require source-call permits zero result
+consumers; missing/altered proof and legacy unassociated metadata still refuse.
+Existing execution completion and private call guards cover commit authority;
+result query associations remain result-only. Skipped body guards stay lazy.
+Fifteen focused State checks and normal State/Cloudflare builds pass, including
+late permission/membership rollback, callback/source refusals, independent Model
+replay and caller revocation. This component adds no persisted carrier, result
+taint or public flag. Full original mixed native execution remains unqualified.
