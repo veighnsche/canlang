@@ -16795,3 +16795,15 @@ Fifteen focused State checks and normal State/Cloudflare builds pass, including
 late permission/membership rollback, callback/source refusals, independent Model
 replay and caller revocation. This component adds no persisted carrier, result
 taint or public flag. Full original mixed native execution remains unqualified.
+
+
+### 2026-10-15 — consume checked field-trait defaults in native create schemas
+
+Match receiving-owned checked Given defaults and inherited bounds against exact
+field declarations, source identities and import aliases. Reuse the existing
+Given intersection helper rather than a second constraint evaluator. Authored
+receiving defaults retain their original source; field reuse inherits constraints,
+not defaults. One focused direct/authored/aliased-reuse test with tamper controls
+and eight adjacent source/seal checks pass; formatting/diff checks pass. This
+closes a native schema correspondence gap without changing language decisions,
+permissions or source spelling. Full mixed native CanCRM remains unqualified.

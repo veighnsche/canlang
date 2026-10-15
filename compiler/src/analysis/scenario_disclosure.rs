@@ -322,6 +322,15 @@ pub struct CheckedScenarioCreatedField {
     pub ty: ResolvedType,
     pub constraints: Option<super::resolve::CheckedValueConstraints>,
     pub reuse: Option<SymbolId>,
+    /// Receiving-to-source declaration chain for exact field-trait normalization.
+    /// Defaults remain receiving-owned; inherited entries supply only constraints.
+    pub(crate) modifier_sources: Vec<(
+        super::effects::FieldData,
+        DisclosureSource,
+        ResolvedType,
+        Option<SymbolId>,
+        Vec<super::types::GivenContributedField>,
+    )>,
 }
 
 #[derive(Debug, Clone)]
@@ -4624,6 +4633,47 @@ impl<'a> Closure<'a> {
             {
                 return None;
             }
+            let mut modifier_sources = Vec::new();
+            let mut current = data.field;
+            let mut seen = HashSet::new();
+            loop {
+                if !seen.insert(current) || seen.len() > 128 {
+                    return None;
+                }
+                let member = self.resolve.symbols.get(current.0 as usize)?;
+                let SymbolKind::Field { owner, .. } = member.kind else {
+                    return None;
+                };
+                let Some(original) = self
+                    .effects
+                    .models
+                    .get(&owner)
+                    .and_then(|value| value.fields.iter().find(|field| field.field == current))
+                    .or_else(|| {
+                        self.effects.records.get(&owner).and_then(|value| {
+                            value.fields.iter().find(|field| field.field == current)
+                        })
+                    })
+                else {
+                    break;
+                };
+                let reuse = self.types.field_reuse_sources.get(&current).copied();
+                modifier_sources.push((
+                    original.clone(),
+                    self.source(member.module, original.node).ok()?,
+                    self.types.symbol_types.get(&current)?.clone(),
+                    reuse,
+                    self.types
+                        .given_constraints
+                        .get(&current)
+                        .cloned()
+                        .unwrap_or_default(),
+                ));
+                let Some(parent) = reuse else {
+                    break;
+                };
+                current = parent;
+            }
             fields.push(CheckedScenarioCreatedField {
                 field: data.field,
                 name: field.name.clone(),
@@ -4632,6 +4682,7 @@ impl<'a> Closure<'a> {
                 ty: ty.clone(),
                 constraints: self.types.value_constraints.get(&data.field).cloned(),
                 reuse: self.types.field_reuse_sources.get(&data.field).copied(),
+                modifier_sources,
             });
         }
         if !self.checked_created_rules(data) {
