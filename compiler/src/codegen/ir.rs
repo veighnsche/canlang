@@ -8239,12 +8239,6 @@ impl<'a> Cx<'a> {
                     let pred_node = clause_parts.iter().find(|n| is_expression(n.kind)).copied();
                     if let Some(pred_node) = pred_node {
                         let pred = self.decode_expr(&inner, pred_node);
-                        if value_domain && expr_uses_async(&pred) {
-                            return IrExpr::Unsupported {
-                                what: "value query predicate".to_string(),
-                                why: "async predicates have no array lowering".to_string(),
-                            };
-                        }
                         where_async = expr_uses_async(&pred);
                         where_pred = Some(Box::new(pred));
                     }
@@ -8323,18 +8317,6 @@ impl<'a> Cx<'a> {
                         }
                     }
                     let projection = self.decode_expr(&select_inner, proj_node);
-                    if value_domain && expr_uses_async(&projection) {
-                        return IrExpr::Unsupported {
-                            what: "value query projection".to_string(),
-                            why: "async projections have no array lowering".to_string(),
-                        };
-                    }
-                    if !value_domain && expr_uses_async(&projection) {
-                        return IrExpr::Unsupported {
-                            what: "select query".to_string(),
-                            why: "async projections have no records() lowering".to_string(),
-                        };
-                    }
                     select_param = Some(alias.clone().unwrap_or_else(|| "row".to_string()));
                     select = Some(Box::new(projection));
                 }
