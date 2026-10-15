@@ -4,6 +4,8 @@ Prepare a selected application, inspect the deployment plan, and preserve data, 
 
 ## Understand the deployment unit
 
+Start with the [standard CanLang installation](../01-Getting-started/02-installation.md); it includes the matching runtime and Cloudflare deployment CLI. Source builds are optional for contributors. Remote deployment still needs the application's provider account, credentials and environment configuration; a bundled CLI does not supply that authority.
+
 One deployment selects one app and its included source owners. Source describes business identity and composition; the platform prepares runtime modules, schemas, bindings and compatibility information. The target architecture uses workerd and Cloudflare D1, with Durable Objects and R2 where the application requires them.
 
 Keep compiler, language schema and runtime package versions compatible. A local preview uses local resources and session ownership; it is not proof of a remote deployment or configured provider account.

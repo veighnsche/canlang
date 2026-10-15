@@ -4,6 +4,8 @@ Choose the command for the question you need to answer, and keep compiler diagno
 
 ## Compiler and authoring commands
 
+Use the complete toolchain from [installation](../01-Getting-started/02-installation.md). It bundles the runtime, adapters and catalog, so the commands below work from your application folder without building CanLang.
+
 | Command | Purpose |
 | --- | --- |
 | `can --version` | Report tool, commit, language and schema versions |
@@ -24,7 +26,9 @@ A successful check does not assert that every runtime effect or generated UI pro
 
 ## Catalog discovery
 
-For compiler commands accepting a catalog, selection is `--catalog=PATH`, then `CAN_CATALOG`, then `./can-catalog.json`, then `./packages/values/dist/catalog.json`. Generate the workspace catalog with `bun run catalog` from the repository root.
+The installed `can` launcher selects its bundled catalog automatically. Application authors do not need to generate a catalog or set `CAN_CATALOG`.
+
+For compiler commands accepting a catalog, an explicit `--catalog=PATH` takes precedence over `CAN_CATALOG`, then `./can-catalog.json`, then `./packages/values/dist/catalog.json`. The standalone launcher supplies the `CAN_CATALOG` default. Generating a workspace catalog with `bun run catalog` is part of [optional contributor setup](../01-Getting-started/03-contributor-setup.md).
 
 The language server loads its catalog at startup. It has no `--catalog` flag; use its process environment and workspace location, then restart after changes.
 
@@ -40,7 +44,7 @@ The language server loads its catalog at startup. It has no `--catalog` flag; us
 | `can activate --artifact PATH --env NAME` | Evaluate the activation bundle |
 | `can dev help` | List local session controls and their required flags |
 
-These delegate to matching runtime adapters. `CAN_PLATFORM_BIN` overrides `can-platform`; `CAN_DEV_BIN` overrides `can-dev`. A missing adapter is `E7004`. Platform command arguments pass through, including `--help`; `can help deploy` shows the compiler-side delegation contract.
+These delegate to the matching runtime adapters already bundled with the standard installation. `CAN_PLATFORM_BIN` and `CAN_DEV_BIN` are optional overrides for contributor or custom toolchains, not application setup requirements. A missing adapter is `E7004`; check for an old compiler-only installation or stale overrides. Platform command arguments pass through, including `--help`; `can help deploy` shows the compiler-side delegation contract.
 
 Follow [local development](../03-Build-and-operate/01-local-development.md) for real preview controls and [deployment](../03-Build-and-operate/03-deployment.md) for required sidecars and environment selection.
 

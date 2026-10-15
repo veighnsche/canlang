@@ -4,9 +4,15 @@ Use the compiler for fast source feedback and a protected local development sess
 
 ## Keep the toolchain together
 
-Complete [installation](../01-Getting-started/02-installation.md) first. The standalone bundle supplies the matching compiler, catalog and runtime adapters automatically; run the commands here from your own application directory.
+Install once using the same command as the [installation guide](../01-Getting-started/02-installation.md):
 
-For the contributor source-workspace route, use the built repository and its documented `CAN_DEV_BIN` and `CAN_PLATFORM_BIN` overrides. A missing adapter reports `E7004`; a compiler-only installation does not supply the full runtime.
+```sh
+curl -fsSL https://sodaos.dev/CanLang/install.sh | bash
+```
+
+Open a new terminal and run `can --version`. The standalone bundle supplies the matching compiler, catalog, runtime adapters and local Worker engine automatically. Run the commands below from your own application directory; no repository checkout, manual runtime packages or catalog build is required.
+
+If you are changing CanLang itself, [optional contributor setup](../01-Getting-started/03-contributor-setup.md) explains source builds and runtime overrides. A missing adapter reports `E7004`; when using the release, confirm that `can` resolves to the complete installation rather than an old compiler-only binary or a contributor override.
 
 ## Check one small change
 

@@ -38,7 +38,7 @@ An isolated row does not prove a shared-state journey. For approval workflows, s
 
 ## Run checked examples locally
 
-First check source and emission:
+Use the [standard installation](../01-Getting-started/02-installation.md) and work in your application directory. The standalone bundle includes the runtime, Testkit and local Worker engine; you do not need a source checkout, manual runtime packages or browser installation for inline examples. First check source and emission:
 
 ```sh
 can check TaskExamples.can
@@ -47,17 +47,17 @@ can compile --format=json TaskExamples.can
 
 For an admitted local session on that source, use `can dev check`, read its revision, then run `can dev example.run --expected-revision rN` with the actual revision. Read executed, failed and unsupported counts. A zero-case or setup-failed result is not a passing business example.
 
-The lower-level `can test --artifact PATH` consumes an actual emitted artifact and the application's installed runtime. The invoking app must provide both `@canlang/cloudflare` and `@canlang/testkit`; use the matching source workspace installation or prepared application package. Do not substitute a JSON diagnostic response for an artifact.
+The lower-level `can test --artifact PATH` consumes an actual emitted artifact. The standalone installation already supplies the matching runtime and Testkit. Do not substitute a JSON diagnostic response for an artifact. Contributors testing a source build should use the complete toolchain described in [optional contributor setup](../01-Getting-started/03-contributor-setup.md).
 
 ## Exercise browser and MCP journeys
 
 Check that forms submit real canonical operations, errors remain understandable, data survives reload, and denied requests fail at the server. Test empty and populated states, long content, keyboard operation and small screens. Verify that a tool caller has the same business boundaries as a browser caller.
 
-For generation acceptance, the app supplies its own Playwright config and browser dependencies. `can validate App.can` runs saved-output acceptance without generating new code. Missing configuration, skipped browser cases and failed checks must be resolved in their owning layer.
+Browser automation is optional and separate from ordinary checks, inline examples and previews. If your app requires it, install the [browser development add-on](https://github.com/veighnsche/canlang/blob/main/docs/install.md#optional-browser-development-tools) and supply your application's browser tests and Playwright configuration. `can validate App.can` runs saved-output acceptance without generating new code. Required browser checks must report missing tools or configuration; skipped cases and failed checks are not a passing acceptance result.
 
 ## Check the language workspace when contributing
 
-These repository commands have distinct scopes:
+These optional contributor commands check CanLang itself. They are not prerequisites for installing CanLang or testing your application:
 
 ```sh
 bun run typecheck
