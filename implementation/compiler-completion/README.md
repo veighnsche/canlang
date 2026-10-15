@@ -2,6 +2,14 @@
 
 ## Current remainder and finite completion
 
+**C02 original24 qualification (2026-10-15, terminal).**
+Frozen CLI29d70739af20 (scalar/helper + query invariants + card) finishes536.29s:
+exit10, complete=true/omitted0,573 diagnostics (547E6008+26E6007), no artifact.
+Captured inputs stay unchanged; all26 source records equal the preceding582
+report. Exactly9 bare-card refusals disappear, none are added. Exact argv/result/
+diagnostics: `/tmp/cancrm-helper-invariants-card-20261015-*`. Separate executable
+component results do not imply a whole emitted CanCRM app.
+
 **C02 selected scalar Require (2026-10-15, native component qualified).**
 Exact genuine first-selected scalar fields now use existing execution dependency
 observations independently of result shape; current grants/once/order/failure
@@ -22,7 +30,7 @@ Model change, preserving failures from unrelated filtered candidates under the
 existing final-view bounds. Prior selectors/rawIR stay unchanged. Owning source/
 selector/tamper check passes1/.45s; affected pureleaf1/.30s. Actual State
 transaction/Partner native receiving remains open; current frozen CLI original24
-capture is live93802 at `/tmp/cancrm-helper-invariants-card-20261015-*`.
+capture is terminal573 as recorded above.
 
 **C02 checked owner-query receiver (2026-10-15, component qualified).**
 Verified invariant query domains reuse existing owner transaction views/bounds,
@@ -108,7 +116,7 @@ unchanged checks. Remaining ready work:
 - Lower the43 original role-only Boolean operation admissions through existing
   ordered State ByPredicate, including both metadata and native policy receiving.
   Exact source census finds only role OR trees; no data/subject gate is implied.
-- Finish current frozen original24 capture93802, then continue the remaining
+- Current original24 capture is terminal573 as above. Continue the remaining
   defining root-cause table using actual diagnostics and named prerequisites.
 
 **C02 explicit promotion caller context (2026-10-15, native qualified).**
@@ -822,12 +830,12 @@ failures remain: `catalog_factories_lower_from_source` and
 Their assertions are preserved; no all-green compiler-suite claim follows.
 The final CLI build, formatting and diff checks pass.
 
-The latest terminal frozen original **24-source** qualification (d4eb297b,411.34s) exits
-**10**, with **582 errors**: **556 E6008**, **26 E6007**, `complete=true`,
-`omitted=0`, and no usable artifact. Source records/input bytes stayed unchanged.
-The explicit reader-role correction is captured, and its six-row native
-consumer is separately qualified above. The later current compiler capture
-remains in progress; counts below retain the terminal582 report.
+The latest terminal frozen original **24-source** qualification (CLI29d70739af20,
+536.29s) exits **10**, with **573 errors**: **547 E6008**, **26 E6007**,
+`complete=true`, `omitted=0`, and no usable artifact. All26 source records equal
+the preceding582 report and captured input bytes stayed unchanged. Exactly9
+bare-card refusals disappear and none are added. The explicit reader-role
+correction is captured; its six-row native consumer is qualified separately.
 The preceding module-ownership batch closed the E6006 omissions and its
 recorded admission/lexical-target refusals. The duration batch removes exactly
 eleven diagnostics relative to that 909-error capture: six division, four
@@ -845,7 +853,7 @@ are not independent feature tasks:
 | --- | ---: | --- |
 | Checked source/inventory publication | 5 | Membership and collection-call correspondence. AcceptedOffer/QuoteDocument now publish their validated-email closure; standard inventory/completions publication is closed at its earlier metadata scope. These include secondary refusals when the original IR closure is incomplete; never bypass the source census to silence them. |
 | Query and predicate lowering | 110 | 90 stored first-query correspondence, four computed/reference model expression-order keys, 10 domain and six archive profiles; ordinary async any/all, filter/select, supplied-array first and typed supplied-array ordering are closed. Individual source/permission correspondence remains required; not all are independent or secondary. |
-| UI/server factory profiles | 197 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
+| UI/server factory profiles | 188 | Original filters/defaults, forms/inputs, calendars and other component payloads. |
 | Outbound/business formatting sinks | 31 | Owning localized sink/admission contract, preserving argument order and recipient context. |
 | Dynamic route normalization | 0 | Checked typed record routes now normalize; actual native Partner workflow remains separately gated by its complete invariant closure. |
 | Authorized route-row rendering | 0 | Admitted current row now reaches rendering/action bindings. Six producer controls pass; full native Partner acceptance remains open. |

@@ -17402,3 +17402,17 @@ through genuine captured CLI/default Testkit/D1/Identity in82.695s, including
 existing-deal identity and all four exact rejection/write-absence expectations.
 Input/saved-generated closure checks pass. Reuse this unchanged native result;
 full original24 composition remains a separate unfinished qualification.
+
+
+## 2026-10-15 — qualify the current original 24-source composition
+
+The frozen scalar/helper/query-invariant/card compiler (SHA29d70739af20) completes
+the exact original24 operands plus two saved source contributions in536.29s:
+exit10, complete=true, omitted0,573 diagnostics (547E6008,26E6007), no artifact.
+Every captured input stays unchanged and all26 compiler source records equal
+the preceding terminal582 report. Exactly nine heading-free card refusals
+disappear; no diagnostic messages are added. Scalar/helper and query-invariant
+components have their separately recorded executable checks; this count does
+not claim whole workflow or app readiness. Exact argv/diagnostics/result remain
+under /tmp/cancrm-helper-invariants-card-20261015-*. Continue the ready call-chain,
+complete Partner policy intake, role-Boolean admission and remaining root groups.
