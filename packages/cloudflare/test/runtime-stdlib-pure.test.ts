@@ -62,6 +62,34 @@ describe('runtime pure producer exports', () => {
       expect(thrown).toMatchObject({ kind: 'value', code: 'invalid-construction' });
     }
   });
+  it('exports canonical format through the actual installed named import', async () => {
+    const nativeImport = compileFunction('return import(url)', ['url'], {
+      importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+    }) as (url: string) => Promise<typeof import('@canlang/values')>;
+    const require = createRequire(import.meta.url);
+    const facadeUrl = pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href;
+    const source = `import { format } from ${JSON.stringify(facadeUrl)}; export { format };`;
+    const facade = await nativeImport(`data:text/javascript,${encodeURIComponent(source)}`);
+    const values = await nativeImport(pathToFileURL(require.resolve('@canlang/values')).href);
+    expect(facade.format).toBe(values.format);
+    expect(facade.format('affiliate.Partner:{id}', { id: 'partner-stable-id' }))
+      .toBe('affiliate.Partner:partner-stable-id');
+    for (const [template, fields] of [
+      ['affiliate.Partner:{id}', {}],
+      ['affiliate.Partner:{id', { id: 'partner-stable-id' }],
+      ['affiliate.Partner:{id}', null],
+      [null, { id: 'partner-stable-id' }],
+    ] as const) {
+      let thrown: unknown;
+      let canonical: unknown;
+      try { facade.format(template, fields); } catch (error) { thrown = error; }
+      try { values.format(template, fields); } catch (error) { canonical = error; }
+      expect(thrown).toBeInstanceOf(values.ValueError);
+      expect(thrown).toMatchObject({ kind: 'value', code: 'invalid-construction' });
+      expect((thrown as Error).message).toBe((canonical as Error).message);
+    }
+  });
+
   it('constructs app URLs only from the explicit host context', () => {
     const deps = { caller: { userId: 'u1', roles: [] }, store: {} as StoragePort };
     const c = createContext({ ...deps, deploymentBase: 'https://app.example/tenant/' });

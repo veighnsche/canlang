@@ -10,7 +10,10 @@ bounds. Missing or ambiguous consumed anchors and oversized consumed subtrees
 refuse. Large unrelated CST+imported grouped helper/default and corruption checks
 pass1/1.54s; existing leading/mixed helper checks2/1.53s pass. Locked CLI build
 passes14.80s; frozen binary `/tmp/can-compiler-consumed-index` includes prior
-record-route/footer fixes. Original24 qualification with this binary is next.
+record-route/footer fixes. Original24 qualification is complete:442.73s, exit10, complete=true/omitted0;
+582 diagnostics (556E6008+26E6007), no artifact. Consumed source records and
+inputs stayed unchanged;76 findings removed and2 added versus d86da6a4.
+Exact argv/result/diagnostics: `/tmp/cancrm-consumed-index-20261015-*`.
 
 The coherent policy-domain runtime closure now normal-builds State+CF and passes
 all36 affected State source-policy/query/predicate controls/.40s. Uninstrumented
@@ -19,8 +22,10 @@ The failed-code sideEffectsAbsent=false is Testkit's mismatch sentinel before
 measurement, not evidence of a write leak; matched rejections1/3 pass real state
 diffs. Locate exact denied model/field before changing source context; preserve
 all grants and independent assertions. Original Partner source/generated-unit
-capture now reaches installed assembly and refuses missing `format` export from
-CF stdlib; canonical Values formatter reuse is the next mechanical leaf.
+capture now passes installed assembly imports after a direct canonical Values
+`format` re-export (normal CF build and installed named-import/failure test1/56ms
+pass). Its next gate is unsupported canonical model invariants, including the
+complete Employee/Partner/Program/Advocate/Capture closure; native remains open.
 
 **C02 compact footer (2026-10-15, qualified source/UI component).**
 The unchanged original CRM footer uses the installed compact footer contract:
