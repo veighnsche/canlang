@@ -5810,10 +5810,7 @@ impl<'a> Emitter<'a> {
             && query.archived.is_none()
             && !query.where_async
             && matches!(&query.domain,super::ir::IrQueryDomain::Model(name) if name==&source.model_name)
-            && query.value_order.is_none()
-            && query.order.len() == 1
-            && query.order[0].field == "id"
-            && !query.order[0].descending
+            && super::scenario_receipts::checked_first_query_order(source, query).is_some()
     }
 
     /// Stored-model first needs its checked native recipe. A value-array

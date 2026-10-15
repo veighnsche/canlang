@@ -15631,3 +15631,43 @@ after382.50s with701 diagnostics (675 E6008,26 E6007), complete=true, omitted=0,
 none added/removed and identical source inventory. Original sources/catalog are
 unchanged and no usable native CanCRM artifact exists. The first field/input
 source join and selected-reference/branch provenance remain locally unfinished.
+
+2026-10-15 — C02: derive first lookup from the declared scalar field and original input.
+
+Replace the account/actor/id spelling exception with checked declaration-derived
+primitive field equality to an original required scalar parameter; preserve the
+existing actor comparison. Reuse the original operand occurrence and query input
+fact. Shared executable predicate checks retain the actual field, parameter,
+alias, types and source positions. Source/fresh-IR checks continue to validate
+group wrappers and the exact inner expression. Absent order has no fabricated
+CST node: empty source/IR/receipt order metadata invokes State's settled created
+ASC/ID-tie default. Explicit ID order remains original authored metadata. Keep
+the complete genuine candidate domain and private first selection/null receipt
+join; no query limit, new runtime carrier or language primitive is introduced.
+Existing scalar/query/default semantics settle this implementation correction;
+no new language decision requires JEV.
+
+The minimal native consumer demonstrated an additional app-shaped restriction:
+standalone create/Require*/return was refused unless those late requirements
+followed Set/Send/Set. Analysis and codegen now admit the original straight-line
+create followed by checked requirements and its direct return. Every condition,
+source position and effect still matches original source; the guard's failure
+retains the shared-owner rollback. A same-span removed late guard refuses. This
+does not introduce a new effect abstraction or change failure semantics.
+
+All21 affected compiler/source checks pass, including nine scalar source kinds,
+renamed/grouped forms, original Create/Call and source/operand/alias/order/schema/
+late-guard refusal controls. The new actual captured CLI/verified-factory/D1/
+Identity case passes1/1 in28.33s, covering multiple ordered matches/ID ties,
+earlier false candidates, hidden rows, genuine empty/allfalse/inactive/late
+failures, rollback/history, exact domain/selection retention, replay and source/
+membership revocation/restoration. CLI build, changed-file rustfmt and diff
+checks pass. Root TypeScript retains16 diagnostics in four untouched test files,
+none in the new native test. An early original capture was explicitly stopped
+after the native source refusal required a producer correction; it earns no
+qualification credit. Final frozen original24-source validation exits10 after
+382.59s with the same701 diagnostics (675 E6008,26 E6007), complete=true,
+omitted=0, none added/removed and identical source inventory. Original sources/
+catalog are unchanged and no usable native artifact is produced.
+Selected-reference/branch result correspondence and whole-cohort hook context
+preparation remain locally unfinished; full CanCRM is not yet qualified.

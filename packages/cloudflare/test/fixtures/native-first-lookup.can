@@ -1,0 +1,16 @@
+app LookupSources
+Given
+ Item {account:user,source:text,active:bool=true}
+ Run {item:Item}
+ policy Item read=members and row.account==actor
+ policy Run read=members
+When
+ crud Item by=members fields=account,source,active
+ scenario lookup(source:text,accept:bool) -> Run by=members
+  do
+   let chosen=first(Item as candidate where candidate.source==source)
+   require chosen!=null and chosen.active
+   create Run {item=chosen} as run
+   require accept
+   return run
+Then

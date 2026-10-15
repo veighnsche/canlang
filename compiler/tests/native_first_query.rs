@@ -638,3 +638,158 @@ fn first_query_alias_renaming_retains_original_source_correspondence() {
         );
     }
 }
+
+#[test]
+fn first_query_declared_scalar_input_and_default_order_keep_exact_source_join() {
+    for (field, input, alias, order, grouped) in [
+        ("source", "source", "candidate", "", false),
+        ("reference", "requested", "entry", " order=entry.id", false),
+        ("reference", "requested", "entry", "", true),
+    ] {
+        let source = SOURCE
+            .replace(
+                "account:user unique,",
+                &format!("account:user unique, {field}:text,"),
+            )
+            .replace(
+                "enabled:bool,accept:bool",
+                &format!("enabled:bool,accept:bool,{input}:text,other:text"),
+            )
+            .replace(
+                "Budget as row where row.account==actor order=row.id",
+                &if grouped {
+                    format!("Budget as {alias} where (({alias}.{field})==({input})){order}")
+                } else {
+                    format!("Budget as {alias} where {alias}.{field}=={input}{order}")
+                },
+            );
+        let (db, program, ir, catalog) = fixture_source("input-first.can", &source);
+        let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let plan = &operation(&artifact)["result"]["disclosure"];
+        assert_eq!(plan["queries"][0]["dependencies"][0]["field"], field);
+        assert_eq!(plan["queries"][0]["dependencies"][0]["type"], "text");
+        assert_eq!(
+            plan["queries"][0]["order"],
+            if order.is_empty() {
+                serde_json::json!([])
+            } else {
+                serde_json::json!([{"field":"id","direction":"asc"}])
+            }
+        );
+        let owner = item(&ir, OWNER).id;
+        for mode in ["operand", "field", "order", "binding"] {
+            let mut changed = ir.clone();
+            let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind
+            else {
+                panic!()
+            };
+            let IrStmt::Let { value, .. } = &mut effects[0] else {
+                panic!()
+            };
+            let IrExpr::Call { args, .. } = &mut value.expr else {
+                panic!()
+            };
+            let IrExpr::Query(scan) = &mut args[0].expr else {
+                panic!()
+            };
+            match mode {
+                "order" if scan.order.is_empty() => {
+                    scan.order.push(canlang_compiler::codegen::ir::IrOrder {
+                        field: "id".into(),
+                        descending: false,
+                    })
+                }
+                "order" => scan.order.clear(),
+                "binding" => scan.where_param = "foreign".into(),
+                _ => {
+                    let IrExpr::Binary { left, right, .. } =
+                        &mut scan.where_pred.as_mut().unwrap().expr
+                    else {
+                        panic!()
+                    };
+                    if mode == "operand" {
+                        right.expr = IrExpr::Name("other".into());
+                    } else {
+                        let IrExpr::Member { field, .. } = &mut left.expr else {
+                            panic!()
+                        };
+                        *field = "account".into();
+                    }
+                }
+            }
+            assert!(
+                serialize_complete_query_receipt(
+                    &program,
+                    &changed,
+                    &changed.items[owner.0 as usize],
+                    &db,
+                    Some(&catalog),
+                    "./app.js"
+                )
+                .is_none(),
+                "{mode}"
+            );
+        }
+    }
+}
+
+#[test]
+fn first_lookup_and_late_requirement_do_not_require_guarded_send_effects() {
+    let source = include_str!("../../packages/cloudflare/test/fixtures/native-first-lookup.can");
+    let (db, program, ir, catalog) = fixture_source("native-first-lookup.can", source);
+    assert!(
+        matches!(
+            ir.scenario_disclosures[&item(&ir, "LookupSources.lookup").id],
+            ScenarioDisclosure::Complete(_)
+        ),
+        "{:?}",
+        ir.scenario_disclosures[&item(&ir, "LookupSources.lookup").id]
+    );
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &ir,
+            item(&ir, "LookupSources.lookup"),
+            &db,
+            Some(&catalog),
+            "./app.js"
+        )
+        .is_some(),
+        "original source query plan"
+    );
+    let (artifact, diagnostics) = prepared_artifact(&program, &db, &catalog);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let operation = artifact["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|operation| operation["name"] == "LookupSources.lookup")
+        .unwrap();
+    assert!(operation["result"]["disclosure"].is_object());
+    assert_eq!(
+        operation["result"]["disclosure"]["queries"][0]["order"],
+        serde_json::json!([])
+    );
+    let owner = item(&ir, "LookupSources.lookup").id;
+    let mut changed = ir.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut changed.items[owner.0 as usize].kind else {
+        panic!()
+    };
+    let IrStmt::Require { cond, .. } = &mut effects[3] else {
+        panic!()
+    };
+    cond.expr = IrExpr::Bool(true);
+    assert!(
+        serialize_complete_query_receipt(
+            &program,
+            &changed,
+            &changed.items[owner.0 as usize],
+            &db,
+            Some(&catalog),
+            "./app.js"
+        )
+        .is_none(),
+        "removing the late business guard must refuse"
+    );
+}

@@ -378,7 +378,7 @@ diagnostic capture is reused: compiler, source and catalog inputs are unchanged.
 Compiler admission and emitted observation/binding correspondence remain open;
 this State prerequisite does not qualify the original CanCRM native consumer.
 
-**Current C02/C10 leaf — canonical first correspondence.**
+**Completed C02/C10 prerequisite — original parameter model results (2026-10-15).**
 The existing-result capture join is now implemented for a direct original
 required model parameter. Analysis records its reserved-ID data dependency at
 the original return operand; source/IR/schema matching validates that operand
@@ -400,24 +400,45 @@ same **701** diagnostics (**675 E6008**, **26 E6007**), complete=true, omitted=0
 no added/removed diagnostics and identical source inventory. Original sources
 and catalog are unchanged; there is still no usable native CanCRM artifact.
 
-The next defining query dependency is canonical checked query→first composition
-correspondence, preserving its exact ordered output and selected-row/null use.
-Existing private runtime query handles already support first selection; source
-preparation currently recognizes an account/actor/id-specific pattern. Extend
-the shared original expression matcher and consumption join rather than invent
-another app-shaped first carrier. The original CRM field/input lookup and its
-existing-result/fresh-create branches provide the finite source and executable
-acceptance; renamed-field/alias and copied/stale source controls retain reuse
-and seal checks. An independent source inspection confirms all 87 prior first
-occurrences also miss that narrow pattern. Unrelated hook-context IR failures
-additionally close the global fresh-source preparation gate; that local join
-must release before full original native execution can pass. Analysis/source
-matching can progress independently. The next finite source batch reuses the
-original required scalar parameter/field facts for the text lookup and preserves
-empty order metadata when no order clause is authored. State already supplies
-created ASC with ID ties; no source node or second first primitive is needed.
-Four computed/reference model order keys
-need an observation-owned evaluator. These remain local implementation work;
+**Completed C02/C10 prerequisite — declared field/input first lookup (2026-10-15).**
+The shared first source join now derives a declared primitive field and its
+original required input from checked declarations; the actor comparison remains
+supported. Field/input/alias/model spellings and grouping wrappers preserve
+correspondence. Omitted order stays empty in source/IR/receipt metadata, so State
+applies its existing created ASC/ID-tie default. Authored ID order keeps its
+original node. The same private query domain and selected-row/null receipt join
+remain; no second first primitive, query limit, source waiver or runtime DTO is
+added. This implements settled scalar/query/default contracts without a new JEV
+language choice.
+
+The native fixture exposed a separate app-shaped admission: a late requirement
+after create previously required an unrelated guarded-send sequence. Analysis
+and codegen now accept the original straight-line create, checked requirements
+and direct return; original condition/order seals and shared-owner rollback
+remain. All **21/21** affected compiler/source checks pass, including nine scalar
+source kinds, renamed/grouped executable forms, unchanged legacy Create/Call,
+and binding/type/source/order/late-guard mutation refusals. The new captured
+CLI/verified-factory/D1/Identity case passes **1/1** in **28.33s**: created/ID
+selection, full false/matching domain, hidden rows, empty/inactive/late failures,
+rollback/history, replay and source/membership revocation/restoration. Changed
+Rust formatting and diff checks pass; root TypeScript retains the same 16
+untouched-file diagnostics and none in the new test. Frozen original 24-source
+validation exits **10** after **382.59s** with the same **701** diagnostics
+(**675 E6008**, **26 E6007**), complete=true, omitted=0, none added/removed and
+identical source inventory. Original sources/catalog are unchanged and no usable
+native artifact exists; this prerequisite does not qualify the whole CRM.
+
+**Current C02/C10 leaf — selected-reference result and branch correspondence.**
+The unchanged CRM lookup expression now has a bounded source-inventory check. Its early
+`return existing.deal` still needs promotion of the genuine selected row's
+stored reference, a target ID observation and model-result binding; its later
+created Deal return must retain creation provenance. Both actual branch returns
+must join their original source paths rather than one final-return node. Existing
+private owner/query/reference mechanisms are the defining owners. Direct model
+parameter aliases also retain a local result-provenance gap. Unrelated hook
+context IR failures still close whole-cohort fresh preparation; that local gate
+must release before full original native execution. Four computed/reference
+model order keys need an observation-owned evaluator. These remain local work;
 no native CanCRM completion is claimed.
 
 These results close the declared module-lookup, duration, actor-predicate and example-context batches at their tested scopes,

@@ -1696,12 +1696,11 @@ fn checked_first_query_plan(
     entry: &str,
 ) -> Option<ReceiptDisclosurePlan> {
     use super::ir::IrCallTarget;
-    use crate::analysis::{ResolvedType, Scalar};
+    use crate::analysis::ResolvedType;
     let facts = ir.scenario_disclosures.get(&owner.id)?.source_facts()?;
     let expected_influences = super::scenario_receipts::checked_scenario_query_influences(facts)?;
     let first = q.first.as_ref()?;
     let alias = q.alias?;
-    let predicate_node = q.predicate?;
     let IrItemKind::Scenario {
         read: false,
         effects,
@@ -1755,9 +1754,8 @@ fn checked_first_query_plan(
         ordered: true,
         nonempty: false,
     };
-    let [order] = q.order.as_slice() else {
-        return None;
-    };
+    super::scenario_receipts::checked_first_query_order(q, query)?;
+    super::scenario_receipts::checked_first_query_predicate(ir, owner, q, query)?;
     if q.id.is_empty()
         || q.model_name != model.canonical
         || declared != actual
@@ -1765,9 +1763,6 @@ fn checked_first_query_plan(
         || q.cardinality_guard.is_some()
         || q.limit.is_some()
         || q.archived
-        || order.field.is_some()
-        || order.field_name != "id"
-        || order.descending
         || !matches!(target,IrCallTarget::Builtin {id,awaited:false}
             if id=="first")
         || !matches!(&selected.target,SelectedCallTarget::Builtin {id,overload}
@@ -1799,14 +1794,7 @@ fn checked_first_query_plan(
         || query.archived.is_some()
         || query.where_async
         || query.contract_collection_call.is_some()
-        || query.where_pred.as_ref().is_none_or(|predicate| {
-            !same_span(predicate_node, predicate.span)
-                || predicate.ty != ResolvedType::Scalar(Scalar::Bool)
-        })
         || query.value_order.is_some()
-        || query.order.len() != 1
-        || query.order[0].field != "id"
-        || query.order[0].descending
     {
         return None;
     }
@@ -1815,7 +1803,6 @@ fn checked_first_query_plan(
     };
     let field = nominal(program, ir, dependency.field)?;
     if !declared.contains(&field.id)
-        || field.name != "account"
         || dependency.id.is_empty()
         || dependency.source != q.source
         || dependency.model != q.model
@@ -1823,9 +1810,7 @@ fn checked_first_query_plan(
         || dependency.field_name != field.name
         || dependency.role != DependencyRole::Control
         || !dependency.calls.is_empty()
-        || field_type(program, ir, field.id, q.model)? != &ResolvedType::Scalar(Scalar::User)
-        || dependency.ty != ResolvedType::Scalar(Scalar::User)
-        || dependency.type_id != "user"
+        || field_type(program, ir, field.id, q.model)? != &dependency.ty
         || declared.iter().any(|id| {
             ir.items
                 .get(id.0 as usize)
@@ -1894,10 +1879,14 @@ fn checked_first_query_plan(
             source: origin(&q.source, entry),
             model: model.canonical.clone(),
             parent: None,
-            order: vec![ReceiptQueryOrder {
-                field: "id".into(),
-                direction: "asc".into(),
-            }],
+            order: q
+                .order
+                .iter()
+                .map(|order| ReceiptQueryOrder {
+                    field: order.field_name.clone(),
+                    direction: "asc".into(),
+                })
+                .collect(),
             limit: None,
             archived: "exclude".into(),
             dependencies: vec![ReceiptQueryDependency {
@@ -1905,7 +1894,7 @@ fn checked_first_query_plan(
                 source: origin(&dependency.source, entry),
                 role: ReceiptRole::Control,
                 field: field.name.clone(),
-                type_id: "user".into(),
+                type_id: dependency.type_id.clone(),
             }],
         }],
         returns: return_ids
