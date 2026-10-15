@@ -26,6 +26,11 @@ async function application(mode = "driver") {
   const packageRoot = fileURLToPath(new URL("..", import.meta.url));
   await copyFile(join(packageRoot, "package.json"), join(installed, "package.json"));
   await copyFile(join(packageRoot, "dist/browser/chromium.js"), join(installed, "dist/browser/chromium.js"));
+  const cloudflare = join(root, "node_modules/@canlang/cloudflare");
+  await mkdir(join(cloudflare, "dist/dev"), { recursive: true });
+  await writeFile(join(cloudflare, "package.json"), JSON.stringify({ name: "@canlang/cloudflare", type: "module", exports: { "./dev/browser-tools": "./dist/dev/browser-tools.js" } }));
+  await copyFile(join(packageRoot, "../cloudflare/dist/dev/browser-tools.js"), join(cloudflare, "dist/dev/browser-tools.js"));
+
   const executable = join(root, "chromium");
   if (mode === "directory") await mkdir(executable);
   else if (mode !== "missing-executable") { await writeFile(executable, "driver-double executable\n"); await chmod(executable, mode === "permissions" ? 0o644 : 0o755); }

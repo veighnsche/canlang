@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadInstalledExampleTestkit, runCompiledExamples, type ExampleRowScope } from "../src/dev/example-runner.js";
 
@@ -6,6 +9,31 @@ import { loadInstalledExampleTestkit, runCompiledExamples, type ExampleRowScope 
 // static package edge would make Cloudflare and Testkit depend on each other.
 const { createReport, fixtureValuesOf, loadExampleSuite, runTable } =
   await loadInstalledExampleTestkit(process.cwd());
+
+it("uses bundled Testkit only when the application's package is absent", async () => {
+  const roots: string[] = [];
+  async function app(manifest?: object, source?: string) {
+    const root = await mkdtemp(join(tmpdir(), "can-installed-testkit-")); roots.push(root);
+    if (manifest !== undefined) {
+      const kit = join(root, "node_modules/@canlang/testkit");
+      await mkdir(kit, { recursive: true });
+      await writeFile(join(kit, "package.json"), JSON.stringify({ name: "@canlang/testkit", type: "module", ...manifest }));
+      if (source !== undefined) await writeFile(join(kit, "index.js"), source);
+    }
+    return root;
+  }
+  try {
+    expect((await loadInstalledExampleTestkit(await app())).runTable).toBe(runTable);
+    const local = await app({ main: "index.js" }, "export function loadExampleSuite(){}; export function runTable(){}; export function createReport(){}; export function fixtureValuesOf(){};");
+    expect((await loadInstalledExampleTestkit(local)).runTable).not.toBe(runTable);
+    await expect(loadInstalledExampleTestkit(await app({ exports: { "./other": "./index.js" } })))
+      .rejects.toThrow(/No "exports" main defined/);
+    await expect(loadInstalledExampleTestkit(await app({ main: "missing.js" })))
+      .rejects.toThrow(/Cannot find module/);
+    await expect(loadInstalledExampleTestkit(await app({ main: "index.js" }, "throw new Error('broken local producer');")))
+      .rejects.toThrow("broken local producer");
+  } finally { await Promise.all(roots.map(root => rm(root, { recursive: true, force: true }))); }
+});
 
 const map = (file: string) => ({
   version: 3, file, sources: ["Office.can"], sourcesContent: [null], names: [], mappings: "",
